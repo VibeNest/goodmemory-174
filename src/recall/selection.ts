@@ -68,6 +68,9 @@ const SOURCE_ORDER_TIMELINE_RECALL_LIMIT = 6;
 const SOURCE_ORDER_TIMELINE_CLUSTER_RADIUS = 5;
 const SOURCE_ORDER_TIMELINE_CHRONOLOGY_PENALTY = 2;
 const SOURCE_ORDER_TIMELINE_PRIORITY_THRESHOLD = 140;
+const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_RECALL_LIMIT = 14;
+const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_ANCHOR_LIMIT = 8;
+const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_COMPANION_DISTANCE = 2;
 const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
 const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 2;
@@ -317,6 +320,14 @@ const MUSEUM_VISIT_ORDER_FACT_PATTERN =
   /\b(?:Museum or gallery I visited|Art-related event I attended|I visited\b[\s\S]{0,80}\bMuseum|Museum\b[\s\S]{0,80}\b(?:exhibition|guided tour|lecture|tour))\b/iu;
 const HEALTH_ISSUE_EVENT_FACT_PATTERN =
   /\b(?:persistent cough|skin tag removed|had a skin tag removed)\b/iu;
+const PERSONAL_WORK_CHALLENGE_STATE_PATTERN =
+  /\b(?:burnout|challenge|concern|confus(?:ed|ing)|fatigue|irritability|nervous|overwhelm(?:ed|ing)?|stress(?:ed|ful)?|tension)\b/iu;
+const PERSONAL_WORK_CONTEXT_PATTERN =
+  /\b(?:agenda|career|collaborat(?:e|ed|ing|ion)|deadline|delegat(?:e|ed|ing|ion)|meeting|productiv(?:e|ity)|promotion|role|schedule|team|work|workflow)\b/iu;
+const PERSONAL_LIFE_CONTEXT_PATTERN =
+  /\b(?:anniversary|celebrat(?:e|ed|ing|ion)|dinner|family|favor|flowers?|friend|getaway|menu|note|partner|personal|picnic|relationship|surprise|weekend)\b/iu;
+const PERSONAL_WORK_CHALLENGE_RESPONSE_PATTERN =
+  /\b(?:agenda|celebrat(?:e|ed|ing)|dinner|flowers?|favor|getaway|meeting|menu|note|picnic|promotion|reserve|schedule|surprise)\b/iu;
 const CONTRADICTION_NEGATED_CLAIM_PATTERN =
   /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b|\bno\s+(?:prior\s+)?experience\s+with\b|(?:从来)?(?:没|没有|未)[\s\S]{0,120}(?:写过|做过|处理过|实现过|构建过|创建过|完成过|修复过|测试过|获得过|提交过|参加过|练习过|用过|使用过|接触过|经验)/iu;
 const CONTRADICTION_REALIZED_EVIDENCE_PATTERN =
@@ -610,6 +621,27 @@ function isTemporalEventOrderQuery(query: string): boolean {
     /\bwhich\b[\s\S]{0,120}\bevents?\b[\s\S]{0,120}\bhappened\s+first\b/i.test(query) ||
     /\bwhich\b[\s\S]{0,120}\b(?:health\s+issues?|issues?|tasks?|activities?)\b[\s\S]{0,120}\bfirst\b/i.test(query) ||
     /(顺序|先后|先.*后|从早到晚|从最早到最后|时间线|按时间|最先|最后|第一个|一步步)/u.test(query);
+}
+
+function isPersonalWorkChallengeEventOrderQuery(query: string): boolean {
+  return isTemporalEventOrderQuery(query) &&
+    /\b(?:personal|work(?:-related)?|professional|career)\b/iu.test(query) &&
+    /\b(?:challenges?|concerns?|issues?|problems?|stress(?:ors)?|struggles?)\b/iu.test(
+      query,
+    );
+}
+
+function hasPersonalWorkChallengeEventSignal(entry: RankedFactCandidate): boolean {
+  const content = valueBearingFactContent(entry.fact.content);
+  const hasChallengeState = PERSONAL_WORK_CHALLENGE_STATE_PATTERN.test(content);
+  const hasWorkContext = PERSONAL_WORK_CONTEXT_PATTERN.test(content);
+  const hasPersonalContext = PERSONAL_LIFE_CONTEXT_PATTERN.test(content);
+  const hasChallengeResponse =
+    PERSONAL_WORK_CHALLENGE_RESPONSE_PATTERN.test(content);
+
+  return hasChallengeState ||
+    (hasWorkContext && hasChallengeResponse) ||
+    (hasPersonalContext && hasChallengeResponse);
 }
 
 function isTemporalMostRecentQuery(query: string): boolean {
@@ -1408,6 +1440,14 @@ function hasTemporalEventOrderSignal(
     return false;
   }
 
+  if (
+    isSourceOrderedFact(entry) &&
+    isPersonalWorkChallengeEventOrderQuery(query) &&
+    !hasPersonalWorkChallengeEventSignal(entry)
+  ) {
+    return false;
+  }
+
   return (
     (
       entry.fact.category === "external_benchmark" ||
@@ -1430,7 +1470,10 @@ function hasTemporalEventOrderSignal(
   );
 }
 
-function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
+function temporalOrderEvidencePriority(
+  entry: RankedFactCandidate,
+  query?: string,
+): number {
   let priority = 0;
   const valueContent = valueBearingFactContent(entry.fact.content);
 
@@ -1448,6 +1491,20 @@ function temporalOrderEvidencePriority(entry: RankedFactCandidate): number {
   }
   if (HEALTH_ISSUE_EVENT_FACT_PATTERN.test(valueContent)) {
     priority += 50;
+  }
+  if (query && isPersonalWorkChallengeEventOrderQuery(query)) {
+    if (PERSONAL_WORK_CHALLENGE_STATE_PATTERN.test(valueContent)) {
+      priority += 180;
+    }
+    if (PERSONAL_WORK_CONTEXT_PATTERN.test(valueContent)) {
+      priority += 70;
+    }
+    if (PERSONAL_LIFE_CONTEXT_PATTERN.test(valueContent)) {
+      priority += 70;
+    }
+    if (PERSONAL_WORK_CHALLENGE_RESPONSE_PATTERN.test(valueContent)) {
+      priority += 90;
+    }
   }
 
   return priority;
@@ -1483,7 +1540,7 @@ function sourceOrderGapCandidatePriority(
   let priority =
     aggregateTopicOverlapCount(queryTopics, factTopics) * 12 +
     entry.lexicalScore * 100 +
-    temporalOrderEvidencePriority(entry);
+    temporalOrderEvidencePriority(entry, query);
 
   if (SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content)) {
     priority += 45;
@@ -1675,6 +1732,7 @@ function fillSourceOrderedTemporalGaps(input: {
 
 function fillSourceOrderedTemporalCompanions(input: {
   pool: RankedFactCandidate[];
+  query: string;
   selected: RankedFactCandidate[];
 }): RankedFactCandidate[] {
   const selectedIds = new Set(input.selected.map((entry) => entry.fact.id));
@@ -1712,7 +1770,7 @@ function fillSourceOrderedTemporalCompanions(input: {
       const priority =
         (SOURCE_ORDER_COMPANION_MAX_DISTANCE - nearestDistance + 1) * 100 +
         surroundingGap * 10 +
-        temporalOrderEvidencePriority(entry) +
+        temporalOrderEvidencePriority(entry, input.query) +
         (SOURCE_ORDER_ASPECT_CUE_PATTERN.test(stripEvidencePrefix(entry.fact.content))
           ? 100
           : 0);
@@ -1795,9 +1853,13 @@ function fillSourceOrderedTemporalMilestones(input: {
       }
       const content = stripEvidencePrefix(entry.fact.content);
       const aspectTopics = sourceOrderAspectTopics(entry, input.language);
+      const querySpecificMilestone =
+        isPersonalWorkChallengeEventOrderQuery(input.query) &&
+        hasPersonalWorkChallengeEventSignal(entry);
       if (
         aspectTopics.size === 0 &&
-        !SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content)
+        !SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content) &&
+        !querySpecificMilestone
       ) {
         return null;
       }
@@ -1822,6 +1884,7 @@ function fillSourceOrderedTemporalMilestones(input: {
         ) +
         novelAspectCount * 140 +
         aspectIntroductionCount * 90 +
+        (querySpecificMilestone ? 220 : 0) +
         tailMilestoneBonus +
         isolatedMilestoneBonus;
 
@@ -1884,6 +1947,171 @@ function fillSourceOrderedTemporalMilestones(input: {
   }
 
   return [...input.selected, ...additions].sort(compareTemporalFactChronology);
+}
+
+function sourceOrderedPersonalWorkChallengePriority(input: {
+  entry: RankedFactCandidate;
+  query: string;
+}): number {
+  const content = valueBearingFactContent(input.entry.fact.content);
+  let priority = temporalOrderEvidencePriority(input.entry, input.query);
+
+  if (PERSONAL_WORK_CHALLENGE_STATE_PATTERN.test(content)) {
+    priority += 120;
+  }
+  if (
+    PERSONAL_WORK_CONTEXT_PATTERN.test(content) &&
+    PERSONAL_LIFE_CONTEXT_PATTERN.test(content)
+  ) {
+    priority += 80;
+  }
+  if (
+    PERSONAL_LIFE_CONTEXT_PATTERN.test(content) &&
+    PERSONAL_WORK_CHALLENGE_RESPONSE_PATTERN.test(content)
+  ) {
+    priority += 140;
+  }
+  if (
+    /\b(?:anniversary|partner|picnic|return\s+the\s+favor|surprise)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 120;
+  }
+  if (
+    /^(?:\[[^\]]+\]\s*)?(?:I(?:'m| am| feel| have| had| was)|My partner|My family|My friend)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 90;
+  }
+  if (
+    /^(?:\[[^\]]+\]\s*)?(?:Thanks|Sounds good|These strategies|That plan)\b/iu.test(
+      content,
+    )
+  ) {
+    priority -= 90;
+  }
+
+  return priority;
+}
+
+function dedupeSourceOrderedCandidatesByOrder(
+  entries: RankedFactCandidate[],
+  query: string,
+): RankedFactCandidate[] {
+  const bestByOrder = new Map<number, RankedFactCandidate>();
+  for (const entry of entries) {
+    const order = sourceOrderSortKey(entry);
+    if (order === undefined) {
+      continue;
+    }
+    const current = bestByOrder.get(order);
+    if (
+      !current ||
+      sourceOrderedPersonalWorkChallengePriority({ entry, query }) >
+        sourceOrderedPersonalWorkChallengePriority({ entry: current, query })
+    ) {
+      bestByOrder.set(order, entry);
+    }
+  }
+
+  return [...bestByOrder.values()].sort(compareTemporalFactChronology);
+}
+
+function selectSourceOrderedPersonalWorkChallengeEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isPersonalWorkChallengeEventOrderQuery(input.query)) {
+    return [];
+  }
+
+  const sourceCandidates = dedupeSourceOrderedCandidatesByOrder(
+    input.entries
+      .filter(isSourceOrderedSummaryCandidate)
+      .filter(hasUserAnswerTag)
+      .filter(hasPersonalWorkChallengeEventSignal),
+    input.query,
+  );
+  if (sourceCandidates.length === 0) {
+    return [];
+  }
+
+  const selected = new Map<number, RankedFactCandidate>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    const order = sourceOrderSortKey(entry);
+    if (
+      order === undefined ||
+      selected.has(order) ||
+      selected.size >= SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_RECALL_LIMIT
+    ) {
+      return;
+    }
+    selected.set(order, entry);
+  };
+  const priority = (entry: RankedFactCandidate): number =>
+    sourceOrderedPersonalWorkChallengePriority({
+      entry,
+      query: input.query,
+    });
+  const anchorCount = Math.min(
+    SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_ANCHOR_LIMIT,
+    sourceCandidates.length,
+  );
+
+  for (let index = 0; index < anchorCount; index += 1) {
+    const start = Math.floor(index * sourceCandidates.length / anchorCount);
+    const end = Math.floor((index + 1) * sourceCandidates.length / anchorCount);
+    const bucket = sourceCandidates.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = priority(right) - priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })[0];
+    if (best) {
+      addCandidate(best);
+    }
+  }
+
+  const anchors = [...selected.values()].sort(compareTemporalFactChronology);
+  for (const anchor of anchors) {
+    const anchorOrder = sourceOrderSortKey(anchor);
+    if (anchorOrder === undefined) {
+      continue;
+    }
+
+    const companions = sourceCandidates
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        return order !== undefined &&
+          !selected.has(order) &&
+          Math.abs(order - anchorOrder) <=
+            SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_COMPANION_DISTANCE;
+      })
+      .sort((left, right) => {
+        const leftOrder = sourceOrderSortKey(left) ?? 0;
+        const rightOrder = sourceOrderSortKey(right) ?? 0;
+        const distanceDelta =
+          Math.abs(leftOrder - anchorOrder) - Math.abs(rightOrder - anchorOrder);
+        if (distanceDelta !== 0) {
+          return distanceDelta;
+        }
+        const priorityDelta = priority(right) - priority(left);
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        return compareTemporalFactChronology(left, right);
+      });
+
+    for (const companion of companions) {
+      addCandidate(companion);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 function isSourceOrderedConversationSummaryQuery(query: string): boolean {
@@ -2892,6 +3120,8 @@ function compareTemporalFactChronology(
 
 function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
+    /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) ||
+    /(总结|回顾|概述|梳理|汇总)/u.test(query) ||
     /\b(?:how\s+(?:did|have|can|should)|what\s+steps|walk\s+me\s+through)\b/iu.test(
       query,
     )
@@ -4609,18 +4839,20 @@ export function selectFacts(
         preferenceEvidencePriority(left, query, language, queryLocale),
     )
     : [];
-  const updateEvidencePool = rankFactCandidates(
-    compatible.filter((item) =>
-      hasTrustedUpdateEvidenceSignal(
-        item,
-        query,
-        updateEvidenceSeriesOptions,
-        language,
-        queryLocale,
-      )
-    ),
-    routingDecision.strategy,
-  );
+  const updateEvidencePool = temporalEventOrderQuery
+    ? []
+    : rankFactCandidates(
+      compatible.filter((item) =>
+        hasTrustedUpdateEvidenceSignal(
+          item,
+          query,
+          updateEvidenceSeriesOptions,
+          language,
+          queryLocale,
+        )
+      ),
+      routingDecision.strategy,
+    );
   const updateEvidenceCandidates = rankFactCandidates(
     collapseLatestUpdateSeries(
       updateEvidencePool,
@@ -4658,6 +4890,11 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const sourceOrderedPersonalWorkChallengeCandidates =
+    selectSourceOrderedPersonalWorkChallengeEvidence({
+      entries: compatible,
+      query,
+    });
   const sourceOrderedTimelineCandidates = selectSourceOrderedTimelineIntegrationEvidence({
     entries: compatible,
     language,
@@ -4748,6 +4985,25 @@ export function selectFacts(
       aggregateCandidates,
       AGGREGATE_FACT_COUNT_LIMIT,
     )) {
+      selected.push(entry);
+      selectedIds.add(entry.fact.id);
+      markSelectedTrace(
+        traces,
+        entry.fact.id,
+        "generic",
+        entry.intentScore,
+        entry.lexicalScore,
+        entry.freshnessScore,
+        entry.explicitnessScore,
+        entry.usageScore,
+        entry.evidenceScore,
+        entry.outcomeScore,
+        entry.verificationPenaltyScore,
+        "none",
+      );
+    }
+  } else if (sourceOrderedPersonalWorkChallengeCandidates.length > 0) {
+    for (const entry of sourceOrderedPersonalWorkChallengeCandidates) {
       selected.push(entry);
       selectedIds.add(entry.fact.id);
       markSelectedTrace(
@@ -4953,8 +5209,8 @@ export function selectFacts(
       routingDecision.strategy,
     ).sort(
       (left, right) =>
-        temporalOrderEvidencePriority(right) -
-        temporalOrderEvidencePriority(left),
+        temporalOrderEvidencePriority(right, query) -
+        temporalOrderEvidencePriority(left, query),
     );
     const temporalCandidates = diversifyRankedFactCandidatesBySession(
       rankedTemporalCandidates,
@@ -4974,6 +5230,7 @@ export function selectFacts(
       gapFilledTemporalCandidates.some(isSourceOrderedFact)
       ? fillSourceOrderedTemporalCompanions({
         pool: rankedTemporalCandidates.filter(isSourceOrderedFact),
+        query,
         selected: gapFilledTemporalCandidates,
       })
       : gapFilledTemporalCandidates;

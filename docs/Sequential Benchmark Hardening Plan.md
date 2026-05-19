@@ -167,6 +167,34 @@ drop from 20 to 11, and Timeline Integration remains at 0.5333333333333333.
 This is still not BEAM closure: 257 evidence cases still miss, event-ordering
 and summarization remain the largest full-slice gaps, and the full run remains
 too noisy for an answer-quality claim.
+Twelfth, broad summary/recap/overview queries now bypass the yes/no
+contradiction-confirmation route so a long "how has my project developed"
+summary is not collapsed into a compact positive/negated evidence pair. The
+kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-summary-contradiction-guard-current-20260519T090000`
+raises overall evidence-chat recall to 0.4034666585370811 with
+`executionFailures: 0`, missed-recall cases still 257/355, and
+wrong-recall/noise cases 387/400. Summarization recall moves from
+0.07896925605258939 to 0.08174703383036717, and the changed-case comparison
+has two recall improvements with no recall regressions. Broader source-turn
+dedupe / weak lexical summary-trigger variants were rejected because their full
+100K diagnostics regressed overall recall to 0.40260817429831514 and
+0.4019508973030099 without reducing the missed-recall blocker. This is still
+not BEAM closure: it is a small route-boundary repair, while event-ordering,
+summarization, and persistent noise still need broader full-slice hardening.
+Thirteenth, event-order queries that explicitly ask for personal/work-related
+challenges now get a source-ordered challenge selector instead of being
+preempted by latest-update evidence or generic started/implemented events. The
+kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-event-order-challenge-current-20260519T093000`
+raises overall evidence-chat recall to 0.40735666524398917 with
+`executionFailures: 0`, missed-recall cases 256/355, and wrong-recall/noise
+cases still 387/400. Event-ordering recall improves from
+0.19598214285714288 to 0.2180059523809524, zero-recall event-ordering cases
+drop from 15 to 13, and missing event-ordering evidence ids drop from 187 to
+181. This is still not BEAM closure: the run adds a small amount of diagnostic
+noise by evidence-id accounting and leaves summarization plus the broader
+full-slice miss/noise surface open.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -206,9 +234,10 @@ the initial live-slice half
 are now done; the source-preservation pass and the follow-up contradiction /
 source-order-companion pass are also done under current code, but neither is
 sufficient for closure. The ordered-context pruning pass now fixes the initial
-representative live trio, but the open boundary remains broader generic BEAM
-repair for full-slice noise reduction and recall hardening after the improved
-retrieval surface.
+representative live trio, and the later summary/contradiction plus
+event-ordering challenge passes give small full-run recall lifts, but the open
+boundary remains broader generic BEAM repair for full-slice noise reduction and
+recall hardening after the improved retrieval surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:

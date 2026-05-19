@@ -671,6 +671,91 @@ P63-T007l contradiction support evidence repair:
   contradiction evidence without keeping the v1 Timeline regression, but the
   full run still has 257 missed-recall cases plus persistent noise.
 
+P63-T007m summary contradiction-route guard:
+
+- Mechanism:
+  explicit broad-summary queries now bypass the yes/no contradiction
+  confirmation path. This prevents requests such as "summary of how my project
+  has developed" from being collapsed into a compact positive/negated
+  contradiction pair simply because the query contains words like "has" or
+  "worked through". English summary/recap/overview and Chinese
+  summary/overview terms share the same guard.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers a broad portfolio-project
+  summary query that contains both a positive Bootstrap source turn and a
+  negated Bootstrap source turn; the selector must still return broader
+  source-summary evidence instead of only the contradiction pair. Existing
+  source-ordered coverage, contradiction, and Timeline Integration regressions
+  still pass.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-contradiction-guard-current-20260519T090000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4034666585370811
+  - missed-recall cases: 257/355
+  - wrong-recall/noise cases: 387/400
+  - summarization recall: 0.08174703383036717
+  - multi-session reasoning recall: 0.34787878787878795
+- Delta from contradiction-support v2:
+  overall recall improves from 0.4026215881145459 to 0.4034666585370811,
+  wrong-recall/noise improves from 388/400 to 387/400, missed recall stays
+  257/355, summarization recall improves from 0.07896925605258939 to
+  0.08174703383036717, and multi-session reasoning recall improves from
+  0.3428787878787879 to 0.34787878787878795. The changed-case comparison has
+  two recall improvements and no recall regressions, but summarization also
+  retrieves more non-gold context under the diagnostic's evidence-id noise
+  accounting.
+- Rejected alternatives:
+  broader source-turn dedupe and weak lexical summary-trigger experiments were
+  not kept. Their full 100K diagnostics regressed overall recall to
+  0.40260817429831514 and 0.4019508973030099, respectively, without reducing
+  the 257 missed-recall-case blocker.
+- Decision:
+  this is a kept partial route-boundary repair, not BEAM closure. It is small
+  but mechanism-level and does not introduce recall regressions in the full
+  changed-case comparison. The main Phase 63 blocker remains broad full-slice
+  missed recall plus persistent noise.
+
+P63-T007n event-ordering challenge source-order repair:
+
+- Mechanism:
+  temporal event-order queries that explicitly ask for personal/work-related
+  challenges now avoid the latest-update evidence bridge and use a
+  source-ordered challenge selector. The selector dedupes by source order,
+  samples chronological challenge anchors, and keeps nearby response evidence
+  for work/personal challenge handling instead of overselecting generic
+  started/implemented source turns.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers a BEAM-shaped user query
+  asking for the order of personal/work-related challenges and requires the
+  selector to retain Greg collaboration stress, burnout/weekend-getaway,
+  anniversary, and surprise-picnic evidence in chronological order. Existing
+  source-ordered, temporal, and latest-update regressions still pass.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-event-order-challenge-current-20260519T093000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.40735666524398917
+  - missed-recall cases: 256/355
+  - wrong-recall/noise cases: 387/400
+  - event-ordering recall: 0.2180059523809524
+  - summarization recall: 0.08174703383036717
+- Delta from summary contradiction-route guard:
+  overall recall improves from 0.4034666585370811 to 0.40735666524398917,
+  missed recall improves from 257/355 to 256/355, zero-recall cases improve
+  from 137 to 135, and event-ordering recall improves from
+  0.19598214285714288 to 0.2180059523809524. Event-ordering missing evidence
+  ids drop from 187 to 181. Diagnostic noise ids increase slightly from 2583
+  to 2585, so this is not a noise closure.
+- Decision:
+  this is a kept partial event-ordering repair, not BEAM closure. It improves
+  the largest full-slice miss bucket without moving wrong-recall/noise, but
+  summarization and persistent long-conversation noise remain open.
+
 
 Current Boundary
 ----------------
@@ -683,11 +768,13 @@ answer-generation/judge slice are now in place. The first generic
 source-preservation pass, the follow-up contradiction / companion pass, the
 milestone/context pass, the ordered-context pruning pass, the source-summary
 coverage pass, the source-provenance instruction pass, and the
-instruction-applicability, temporal date-content, source preference, and
-timeline planning, and contradiction-support passes have been rerun. The
-current failure family is now more specific: the
+instruction-applicability, temporal date-content, source preference, timeline
+planning, contradiction-support, summary contradiction-route guard, and
+event-ordering challenge passes have been rerun. The current failure family is
+now more specific: the
 representative live trio is clean at 3/3 with complete evidence recall, and the
 full 100K diagnostic has real instruction, temporal, preference, and Timeline
 Integration plus contradiction-resolution lifts, but the full surface remains
-recall-limited and noisy with 257 missed-recall cases. BEAM still needs broader full-slice recall/noise
-hardening before it can move toward an answer-quality claim.
+recall-limited and noisy with 256 missed-recall cases and wrong-recall/noise
+387/400. BEAM still needs broader summarization and persistent-noise hardening
+before it can move toward an answer-quality claim.

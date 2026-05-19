@@ -3233,6 +3233,86 @@ describe("recall selection", () => {
     ).toBeLessThan(selectedIds.indexOf("fact-security-review"));
   });
 
+  it("keeps user event-order queries on source-order evidence instead of latest-update evidence", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-workout-distractor",
+        8,
+        "[BEAM chat_id=8 role=user time=unknown] These suggestions fit pretty well with what I am already doing. I started with the meditation app and could use support setting up a consistent workout routine, finding a local gym, or signing up for an online fitness class.",
+      ),
+      makeFact(
+        "fact-greg-stress",
+        24,
+        "[BEAM chat_id=24 role=user time=unknown] I am stressed about collaborating with Greg on editing schedules and making our weekly meetings more productive.",
+      ),
+      makeFact(
+        "fact-greg-agenda",
+        26,
+        "[BEAM chat_id=26 role=user time=unknown] I will send an agenda before our next meeting and encourage Greg to share his thoughts more openly.",
+      ),
+      makeFact(
+        "fact-burnout-getaway",
+        146,
+        "[BEAM chat_id=146 role=user time=unknown] I am planning a weekend getaway with David and deciding whether to tell him about burnout and stress.",
+      ),
+      makeFact(
+        "fact-anniversary",
+        202,
+        "[BEAM chat_id=202 role=user time=unknown] I am nervous about my upcoming anniversary dinner with David and want to make it special.",
+      ),
+      makeFact(
+        "fact-anniversary-plan",
+        204,
+        "[BEAM chat_id=204 role=user time=unknown] I will reserve a table, plan the menu around David's favorites, bring flowers, and write a note.",
+      ),
+      makeFact(
+        "fact-surprise",
+        262,
+        "[BEAM chat_id=262 role=user time=unknown] David planned a surprise picnic to celebrate my promotion and I want to return the favor.",
+      ),
+      makeFact(
+        "fact-focus-distractor",
+        350,
+        "[BEAM chat_id=350 role=user time=unknown] I implemented Do Not Disturb mode on my work devices from 9 AM to 12 PM daily.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through the order in which I brought up different personal and work-related challenges during our chats, in order? Mention ONLY and ONLY four items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-greg-stress");
+    expect(selectedIds).toContain("fact-burnout-getaway");
+    expect(selectedIds).toContain("fact-anniversary");
+    expect(selectedIds).toContain("fact-surprise");
+    expect(
+      selectedIds.indexOf("fact-greg-stress"),
+    ).toBeLessThan(selectedIds.indexOf("fact-surprise"));
+  });
+
   it("returns source-ordered coverage for broad conversation summary questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3345,6 +3425,121 @@ describe("recall selection", () => {
     expect(selectedIds.indexOf("fact-gallery-user")).toBeLessThan(
       selectedIds.indexOf("fact-form-user"),
     );
+  });
+
+  it("does not route broad conversation summaries through contradiction confirmation", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-palette-user",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] I built the first portfolio website feature: a color palette generator for my skills section.",
+      ),
+      makeSourceFact(
+        "fact-palette-assistant",
+        5,
+        "assistant",
+        "[BEAM chat_id=5 role=assistant time=unknown] We implemented the palette generator functions and Bootstrap styling.",
+      ),
+      makeSourceFact(
+        "fact-structure-user",
+        6,
+        "user",
+        "[BEAM chat_id=6 role=user time=unknown] I set up the portfolio website About, Skills, Projects, and Contact sections.",
+      ),
+      makeSourceFact(
+        "fact-bootstrap-positive",
+        38,
+        "user",
+        "[BEAM chat_id=38 role=user time=unknown] I implemented Bootstrap styling for the portfolio website project.",
+      ),
+      makeSourceFact(
+        "fact-bootstrap-negated",
+        39,
+        "user",
+        "[BEAM chat_id=39 role=user time=unknown] I have never implemented any Bootstrap components in this portfolio website project before.",
+      ),
+      makeSourceFact(
+        "fact-gallery-user",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I integrated the project gallery and contact form and hit responsive layout issues.",
+      ),
+      makeSourceFact(
+        "fact-gallery-assistant",
+        59,
+        "assistant",
+        "[BEAM chat_id=59 role=assistant time=unknown] We fixed responsive gallery image sizing and layout issues.",
+      ),
+      makeSourceFact(
+        "fact-sprint-user",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] I worked on Sprint 2 SEO basics and contact form backend integration.",
+      ),
+      makeSourceFact(
+        "fact-sprint-assistant",
+        83,
+        "assistant",
+        "[BEAM chat_id=83 role=assistant time=unknown] We planned Sprint 2 tasks for SEO, backend integration, validation, and performance.",
+      ),
+      makeSourceFact(
+        "fact-late-gallery-user",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] I updated the project gallery to 10 cards and got image 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-late-gallery-assistant",
+        117,
+        "assistant",
+        "[BEAM chat_id=117 role=assistant time=unknown] We resolved layout issues and 404 errors for project images.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a comprehensive summary of how my portfolio website project has developed, including the key features and challenges I have worked through so far?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    for (const expectedId of [
+      "fact-palette-user",
+      "fact-gallery-user",
+      "fact-sprint-user",
+      "fact-late-gallery-user",
+    ]) {
+      expect(result.facts.map((fact) => fact.id)).toContain(expectedId);
+    }
   });
 
   it("returns source-ordered planning pairs for timeline integration questions", () => {
