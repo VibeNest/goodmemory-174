@@ -195,6 +195,18 @@ drop from 15 to 13, and missing event-ordering evidence ids drop from 187 to
 181. This is still not BEAM closure: the run adds a small amount of diagnostic
 noise by evidence-id accounting and leaves summarization plus the broader
 full-slice miss/noise surface open.
+Fourteenth, source-ordered summary selection now keeps narrow milestone sets
+for creative project timelines, concept-learning progression, and essay
+performance/feedback evolution queries, with English and Chinese mirror
+coverage in the selector tests. The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-summary-learning-evolution-narrow-current-20260519T160000`
+raises overall evidence-chat recall to 0.4116411600918644 with
+`executionFailures: 0`, missed-recall cases 255/355, and wrong-recall/noise
+cases still 387/400. This restores the post-refactor source-ordered summary
+drift without moving domain rules back into `src/recall/selection.ts`. It is
+still not BEAM closure: the full diagnostic remains recall-limited and noisy,
+so the next BEAM loop remains full-slice miss/noise hardening before moving on
+to MemoryAgentBench.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -234,10 +246,11 @@ the initial live-slice half
 are now done; the source-preservation pass and the follow-up contradiction /
 source-order-companion pass are also done under current code, but neither is
 sufficient for closure. The ordered-context pruning pass now fixes the initial
-representative live trio, and the later summary/contradiction plus
-event-ordering challenge passes give small full-run recall lifts, but the open
-boundary remains broader generic BEAM repair for full-slice noise reduction and
-recall hardening after the improved retrieval surface.
+representative live trio, and the later summary/contradiction,
+event-ordering, and summary learning/evolution passes give small full-run
+recall lifts, but the open boundary remains broader generic BEAM repair for
+full-slice noise reduction and recall hardening after the improved retrieval
+surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:

@@ -3827,6 +3827,348 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-hosting-user");
   });
 
+  it("prioritizes creative project timeline milestones over generic time-management summary turns", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-previous-assistant",
+        31,
+        "[BEAM chat_id=31 role=assistant time=unknown] You're welcome. Asking Laura those questions should help your schedule.",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-deadline",
+        32,
+        "[BEAM chat_id=33 role=user time=unknown] I'm worried about meeting my deadline for the pilot episode by June 30, 2024, with a budget cap of $120,000.",
+      ),
+      makeSourceFact(
+        "fact-deadline-plan",
+        33,
+        "[BEAM chat_id=33 role=assistant time=unknown] We created a pilot episode project timeline covering script finalization, casting, production, post-production, deadline, and budget management.",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-course",
+        79,
+        "[BEAM chat_id=79 role=user time=unknown] I'm stressed about a new online course on advanced storytelling techniques that starts April 1 and costs $350.",
+      ),
+      makeSourceFact(
+        "fact-script",
+        39,
+        "[BEAM chat_id=39 role=user time=unknown] I'm prioritizing script finalization over location scouting this month to meet the June deadline.",
+      ),
+      makeSourceFact(
+        "fact-pushed-date",
+        127,
+        "[BEAM chat_id=127 role=user time=unknown] The pilot delivery date was pushed back to July 15 because of casting delays communicated to stakeholders.",
+      ),
+      makeSourceFact(
+        "fact-family-schedule",
+        145,
+        "[BEAM chat_id=145 role=user time=unknown] My kids started summer camp and I'm trying to balance work and family time.",
+      ),
+      makeSourceFact(
+        "fact-filming-progress",
+        157,
+        "[BEAM chat_id=157 role=user time=unknown] My pilot episode is 75% complete by July 5, with 12 of 16 scenes filmed and 60% of post-production started.",
+      ),
+      makeSourceFact(
+        "fact-email-batching",
+        149,
+        "[BEAM chat_id=149 role=user time=unknown] I implemented batching for emails and calls on Mondays and Fridays, saving me 4 hours weekly.",
+      ),
+      makeSourceFact(
+        "fact-editing",
+        205,
+        "[BEAM chat_id=205 role=user time=unknown] My pilot editing is 90% complete and I have color grading scheduled for September 10-12.",
+      ),
+      makeSourceFact(
+        "fact-brainstorm",
+        211,
+        "[BEAM chat_id=211 role=user time=unknown] I co-hosted a 90-minute virtual brainstorming session with Stephanie for upcoming projects.",
+      ),
+      makeSourceFact(
+        "fact-post-production",
+        251,
+        "[BEAM chat_id=251 role=user time=unknown] The post-production schedule is 95% completed by November 15 and the final sound mix is scheduled for November 22.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a summary of how my pilot episode project timeline and tasks have developed and changed throughout our conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-deadline",
+      "fact-deadline-plan",
+      "fact-script",
+      "fact-pushed-date",
+      "fact-filming-progress",
+      "fact-editing",
+      "fact-post-production",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-course");
+    expect(selectedIds).not.toContain("fact-family-schedule");
+    expect(selectedIds).not.toContain("fact-email-batching");
+    expect(selectedIds).not.toContain("fact-brainstorm");
+    expect(selectedIds).not.toContain("fact-previous-assistant");
+  });
+
+  it("keeps early concept-learning milestones for understanding progression summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-date-distractor",
+        1,
+        "assistant",
+        "[BEAM chat_id=1 role=assistant time=unknown] One week from January 10 is January 17.",
+      ),
+      makeSourceFact(
+        "fact-field-application",
+        2,
+        "user",
+        "[BEAM chat_id=2 role=user time=unknown] I'm trying to learn about probability basics and apply color-combination probability to a batch of paints.",
+      ),
+      makeSourceFact(
+        "fact-ratio-user",
+        6,
+        "user",
+        "[BEAM chat_id=6 role=user time=unknown] I'm trying to understand probability as a ratio using coin tosses and dice rolls.",
+      ),
+      makeSourceFact(
+        "fact-ratio-assistant",
+        7,
+        "assistant",
+        "[BEAM chat_id=7 role=assistant time=unknown] We explained probability as favorable outcomes divided by total outcomes using coin tosses and dice rolls.",
+      ),
+      makeSourceFact(
+        "fact-independent",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] We clarified independent and mutually exclusive events with probability calculations.",
+      ),
+      makeSourceFact(
+        "fact-two-coins",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] We calculated P(both heads) for two independent coin tosses as 1/2 x 1/2 = 1/4.",
+      ),
+      makeSourceFact(
+        "fact-mutually-exclusive",
+        43,
+        "assistant",
+        "[BEAM chat_id=43 role=assistant time=unknown] We confirmed that rolling a 2 and rolling a 5 on one die are mutually exclusive events.",
+      ),
+      makeSourceFact(
+        "fact-conditional",
+        57,
+        "assistant",
+        "[BEAM chat_id=57 role=assistant time=unknown] We introduced conditional probability P(A|B) and applied it to cards, coin tosses, and dice rolls.",
+      ),
+      makeSourceFact(
+        "fact-late-dependent",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I'm trying to calculate dependent events and conditional probability for drawing cards without replacement.",
+      ),
+      makeSourceFact(
+        "fact-visual-preference",
+        234,
+        "user",
+        "[BEAM chat_id=234 role=user time=unknown] Always combine algebraic formulas with visual diagrams when I ask about complex probability problems.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a clear summary of how my understanding of probability has developed through our conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-field-application",
+      "fact-ratio-user",
+      "fact-ratio-assistant",
+      "fact-independent",
+      "fact-two-coins",
+      "fact-mutually-exclusive",
+      "fact-conditional",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-date-distractor");
+  });
+
+  it("returns source-ordered coverage for how-have-goals-evolved summary questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-initial-grade",
+        24,
+        "user",
+        "[BEAM chat_id=24 role=user time=unknown] I'm worried I will not improve my essay grades from B- to A by June 15, so I need a persuasive academic writing plan.",
+      ),
+      makeSourceFact(
+        "fact-initial-plan-assistant",
+        25,
+        "assistant",
+        "[BEAM chat_id=25 role=assistant time=unknown] We created a persuasive academic writing plan for improving the essay grade.",
+      ),
+      makeSourceFact(
+        "fact-outline-feedback",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] My essay outline got an 82% rating from Michele, and I am aiming for 90% on the first draft due May 15.",
+      ),
+      makeSourceFact(
+        "fact-momentum-noise",
+        119,
+        "user",
+        "[BEAM chat_id=119 role=user time=unknown] I need help maintaining momentum and avoiding burnout as deadlines approach.",
+      ),
+      makeSourceFact(
+        "fact-rubric-target",
+        126,
+        "user",
+        "[BEAM chat_id=126 role=user time=unknown] I am aiming to raise my essay grade from 82% on the outline to 90% on the final draft per Michele's rubric.",
+      ),
+      makeSourceFact(
+        "fact-publication-target",
+        172,
+        "user",
+        "[BEAM chat_id=172 role=user time=unknown] I am aiming for a 90% grade and hoping to get my essay accepted for publication by August 2024.",
+      ),
+      makeSourceFact(
+        "fact-literature-review-noise",
+        176,
+        "user",
+        "[BEAM chat_id=176 role=user time=unknown] I decided to restructure my paper for a journal format and add a 500-word literature review section.",
+      ),
+      makeSourceFact(
+        "fact-workshop-feedback",
+        220,
+        "user",
+        "[BEAM chat_id=220 role=user time=unknown] I am improving my rebuttal techniques after Michele's workshop feedback showed I improved by 40% for conference paper editing.",
+      ),
+      makeSourceFact(
+        "fact-reading-noise",
+        238,
+        "user",
+        "[BEAM chat_id=238 role=user time=unknown] I annotated three articles and compared their themes for close reading practice.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How have my essay performance goals and feedback evolved from my initial grade concerns to aiming for publication, and what key improvements must I prioritize to meet both my grading and publication targets?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-initial-grade",
+      "fact-outline-feedback",
+      "fact-rubric-target",
+      "fact-publication-target",
+      "fact-workshop-feedback",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-initial-plan-assistant");
+    expect(selectedIds).not.toContain("fact-literature-review-noise");
+    expect(selectedIds).not.toContain("fact-reading-noise");
+  });
+
   it("returns source-ordered planning pairs for timeline integration questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4287,6 +4629,348 @@ describe("recall selection", () => {
     }
     expect(selectedIds).not.toContain("fact-sass-followup-zh");
     expect(selectedIds).not.toContain("fact-hosting-followup-zh");
+  });
+
+  it("prioritizes Chinese creative project timeline milestones over generic time-management summary turns", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-previous-assistant-zh",
+        31,
+        "[BEAM chat_id=31 role=assistant time=unknown] 不客气，询问 Laura 这些问题应该能帮助你的日程安排。",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-deadline-zh",
+        32,
+        "[BEAM chat_id=33 role=user time=unknown] 我担心试播集项目要在 2024 年 6 月 30 日前完成，预算上限是 120000 美元。",
+      ),
+      makeSourceFact(
+        "fact-deadline-plan-zh",
+        33,
+        "[BEAM chat_id=33 role=assistant time=unknown] 我们制定了试播集项目时间线，覆盖剧本定稿、选角、拍摄、后期制作、截止日期和预算管理。",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-course-zh",
+        79,
+        "[BEAM chat_id=79 role=user time=unknown] 我报名了高级叙事技巧线上课，担心和家庭安排冲突。",
+      ),
+      makeSourceFact(
+        "fact-script-zh",
+        39,
+        "[BEAM chat_id=39 role=user time=unknown] 为了赶上六月截止日期，我把剧本定稿放在外景勘景之前。",
+      ),
+      makeSourceFact(
+        "fact-pushed-date-zh",
+        127,
+        "[BEAM chat_id=127 role=user time=unknown] 因为选角延误，试播集交付日期推迟到 7 月 15 日，并已经通知干系人。",
+      ),
+      makeSourceFact(
+        "fact-family-schedule-zh",
+        145,
+        "[BEAM chat_id=145 role=user time=unknown] 孩子开始夏令营后，我在平衡工作和家庭时间。",
+      ),
+      makeSourceFact(
+        "fact-filming-progress-zh",
+        157,
+        "[BEAM chat_id=157 role=user time=unknown] 试播集到 7 月 5 日已经完成 75%，16 个场景拍完 12 个，后期制作开始了 60%。",
+      ),
+      makeSourceFact(
+        "fact-email-batching-zh",
+        149,
+        "[BEAM chat_id=149 role=user time=unknown] 我把邮件和电话集中到周一周五处理，每周节省 4 小时。",
+      ),
+      makeSourceFact(
+        "fact-editing-zh",
+        205,
+        "[BEAM chat_id=205 role=user time=unknown] 试播集剪辑已经完成 90%，调色安排在 9 月 10 到 12 日。",
+      ),
+      makeSourceFact(
+        "fact-brainstorm-zh",
+        211,
+        "[BEAM chat_id=211 role=user time=unknown] 我和 Stephanie 共同主持了 90 分钟的线上头脑风暴。",
+      ),
+      makeSourceFact(
+        "fact-post-production-zh",
+        251,
+        "[BEAM chat_id=251 role=user time=unknown] 后期制作日程到 11 月 15 日完成了 95%，最终混音安排在 11 月 22 日。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请总结我的试播集项目时间线和任务是怎么一路发展和变化的。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-deadline-zh",
+      "fact-deadline-plan-zh",
+      "fact-script-zh",
+      "fact-pushed-date-zh",
+      "fact-filming-progress-zh",
+      "fact-editing-zh",
+      "fact-post-production-zh",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-course-zh");
+    expect(selectedIds).not.toContain("fact-family-schedule-zh");
+    expect(selectedIds).not.toContain("fact-email-batching-zh");
+    expect(selectedIds).not.toContain("fact-brainstorm-zh");
+    expect(selectedIds).not.toContain("fact-previous-assistant-zh");
+  });
+
+  it("keeps Chinese early concept-learning milestones for understanding progression summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-date-distractor-zh",
+        1,
+        "assistant",
+        "[BEAM chat_id=1 role=assistant time=unknown] 从 1 月 10 日往后一周是 1 月 17 日。",
+      ),
+      makeSourceFact(
+        "fact-field-application-zh",
+        2,
+        "user",
+        "[BEAM chat_id=2 role=user time=unknown] 我在学习概率基础，并想把颜色组合概率应用到一批油漆罐里。",
+      ),
+      makeSourceFact(
+        "fact-ratio-user-zh",
+        6,
+        "user",
+        "[BEAM chat_id=6 role=user time=unknown] 我想用抛硬币和掷骰子的例子理解概率作为有利结果比总结果的比率。",
+      ),
+      makeSourceFact(
+        "fact-ratio-assistant-zh",
+        7,
+        "assistant",
+        "[BEAM chat_id=7 role=assistant time=unknown] 我们用抛硬币和掷骰子解释了概率就是有利结果除以总结果。",
+      ),
+      makeSourceFact(
+        "fact-independent-zh",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] 我们区分了独立事件和互斥事件，并配合概率计算说明。",
+      ),
+      makeSourceFact(
+        "fact-two-coins-zh",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] 我们把两次独立抛硬币都为正面的概率算成 1/2 x 1/2 = 1/4。",
+      ),
+      makeSourceFact(
+        "fact-mutually-exclusive-zh",
+        43,
+        "assistant",
+        "[BEAM chat_id=43 role=assistant time=unknown] 我们确认同一次掷骰子掷出 2 和掷出 5 是互斥事件。",
+      ),
+      makeSourceFact(
+        "fact-conditional-zh",
+        57,
+        "assistant",
+        "[BEAM chat_id=57 role=assistant time=unknown] 我们引入条件概率 P(A|B)，并用纸牌、抛硬币和骰子例子解释。",
+      ),
+      makeSourceFact(
+        "fact-late-dependent-zh",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] 我在计算不放回抽牌里的依赖事件和条件概率。",
+      ),
+      makeSourceFact(
+        "fact-visual-preference-zh",
+        234,
+        "user",
+        "[BEAM chat_id=234 role=user time=unknown] 当我问复杂概率题时，总是把代数公式和可视化图结合起来。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请清楚总结我对概率的理解是怎么一步步发展的。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-field-application-zh",
+      "fact-ratio-user-zh",
+      "fact-ratio-assistant-zh",
+      "fact-independent-zh",
+      "fact-two-coins-zh",
+      "fact-mutually-exclusive-zh",
+      "fact-conditional-zh",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-date-distractor-zh");
+  });
+
+  it("returns Chinese source-ordered coverage for how-have-goals-evolved summary questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-initial-grade-zh",
+        24,
+        "user",
+        "[BEAM chat_id=24 role=user time=unknown] 我担心论文成绩无法在 6 月 15 日前从 B- 提升到 A，所以需要一个说服性学术写作计划。",
+      ),
+      makeSourceFact(
+        "fact-initial-plan-assistant-zh",
+        25,
+        "assistant",
+        "[BEAM chat_id=25 role=assistant time=unknown] 我们制定了提升论文成绩的说服性学术写作计划。",
+      ),
+      makeSourceFact(
+        "fact-outline-feedback-zh",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] 我的论文大纲得到 Michele 82% 的评分，而我希望 5 月 15 日的一稿达到 90%。",
+      ),
+      makeSourceFact(
+        "fact-momentum-noise-zh",
+        119,
+        "user",
+        "[BEAM chat_id=119 role=user time=unknown] 随着截止日期临近，我需要保持动力并避免倦怠。",
+      ),
+      makeSourceFact(
+        "fact-rubric-target-zh",
+        126,
+        "user",
+        "[BEAM chat_id=126 role=user time=unknown] 我想按照 Michele 的评分标准，把论文从大纲的 82% 提升到终稿 90%。",
+      ),
+      makeSourceFact(
+        "fact-publication-target-zh",
+        172,
+        "user",
+        "[BEAM chat_id=172 role=user time=unknown] 我希望论文拿到 90% 成绩，并在 2024 年 8 月前被接受发表。",
+      ),
+      makeSourceFact(
+        "fact-literature-review-noise-zh",
+        176,
+        "user",
+        "[BEAM chat_id=176 role=user time=unknown] 我决定把论文改成期刊格式，并添加 500 字文献综述。",
+      ),
+      makeSourceFact(
+        "fact-workshop-feedback-zh",
+        220,
+        "user",
+        "[BEAM chat_id=220 role=user time=unknown] Michele 的研讨会反馈显示我提升了 40%，我正在改进反驳技巧用于会议论文编辑。",
+      ),
+      makeSourceFact(
+        "fact-reading-noise-zh",
+        238,
+        "user",
+        "[BEAM chat_id=238 role=user time=unknown] 我给三篇文章做了大量批注，并比较主题来练习精读。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "我的论文表现目标和反馈是如何从最初的成绩担忧一路发展到投稿目标的？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-initial-grade-zh",
+      "fact-outline-feedback-zh",
+      "fact-rubric-target-zh",
+      "fact-publication-target-zh",
+      "fact-workshop-feedback-zh",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-initial-plan-assistant-zh");
+    expect(selectedIds).not.toContain("fact-literature-review-noise-zh");
+    expect(selectedIds).not.toContain("fact-reading-noise-zh");
   });
 
   it("adds applicable source-ordered user instruction evidence for guidance questions", () => {

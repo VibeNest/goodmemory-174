@@ -756,6 +756,41 @@ P63-T007n event-ordering challenge source-order repair:
   the largest full-slice miss bucket without moving wrong-recall/noise, but
   summarization and persistent long-conversation noise remain open.
 
+P63-T007o source-ordered summary learning/evolution repair:
+
+- Mechanism:
+  source-ordered summary selection now keeps narrow milestone sets for
+  creative project timeline summaries, concept-learning progression summaries,
+  and essay performance/feedback evolution queries. These rules live in
+  `src/recall/selectors/sourceOrderSummary.ts`, preserving
+  `src/recall/selection.ts` as the orchestration layer. Each selector family
+  has English and Chinese query/candidate coverage.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers English and Chinese
+  BEAM-shaped cases for pilot-project timeline summaries, probability
+  understanding progression, and essay goal/feedback evolution. The tests
+  require the selector to retain source-ordered milestone evidence while
+  rejecting generic time-management, date, prior-assistant, literature-review,
+  and close-reading distractors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-learning-evolution-narrow-current-20260519T160000`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4116411600918644
+  - missed-recall cases: 255/355
+  - wrong-recall/noise cases: 387/400
+- Delta from event-ordering challenge:
+  overall recall improves from 0.40735666524398917 to 0.4116411600918644,
+  missed recall improves from 256/355 to 255/355, and wrong-recall/noise
+  stays flat at 387/400. It also restores the clean post-refactor drift where
+  source-ordered summarization cases lost milestone coverage.
+- Decision:
+  this is a kept partial summary/evolution repair, not BEAM closure. It
+  improves full-run recall without adding wrong-recall/noise, but the full
+  diagnostic still has 255 missed-recall cases and 387 noisy cases.
+
 
 Current Boundary
 ----------------
@@ -770,11 +805,11 @@ milestone/context pass, the ordered-context pruning pass, the source-summary
 coverage pass, the source-provenance instruction pass, and the
 instruction-applicability, temporal date-content, source preference, timeline
 planning, contradiction-support, summary contradiction-route guard, and
-event-ordering challenge passes have been rerun. The current failure family is
-now more specific: the
+event-ordering challenge plus summary learning/evolution passes have been
+rerun. The current failure family is now more specific: the
 representative live trio is clean at 3/3 with complete evidence recall, and the
 full 100K diagnostic has real instruction, temporal, preference, and Timeline
-Integration plus contradiction-resolution lifts, but the full surface remains
-recall-limited and noisy with 256 missed-recall cases and wrong-recall/noise
-387/400. BEAM still needs broader summarization and persistent-noise hardening
-before it can move toward an answer-quality claim.
+Integration plus contradiction-resolution and source-ordered summary lifts,
+but the full surface remains recall-limited and noisy with 255 missed-recall
+cases and wrong-recall/noise 387/400. BEAM still needs broader recall and
+persistent-noise hardening before it can move toward an answer-quality claim.

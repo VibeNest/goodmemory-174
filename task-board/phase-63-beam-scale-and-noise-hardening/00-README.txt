@@ -164,9 +164,17 @@ Workstreams
     `executionFailures: 0`, missed-recall cases 256/355,
     wrong-recall/noise cases 387/400, and event-ordering recall
     0.2180059523809524
+  - summary learning/evolution narrow rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-summary-learning-evolution-narrow-current-20260519T160000`
+    reaches full rules-only evidence-chat recall 0.4116411600918644 with
+    `executionFailures: 0`, missed-recall cases 255/355, and
+    wrong-recall/noise cases 387/400. It restores the post-refactor
+    source-ordered summary drift and adds English/Chinese selector coverage
+    for creative project timelines, concept-learning progression, and
+    essay-performance goal/feedback evolution.
   - next active step: continue full-slice recall/noise hardening beyond
-    the event-ordering challenge repair, especially summarization and the
-    remaining persistent noise surface
+    the summary learning/evolution repair, especially the remaining
+    missed-recall and persistent noise surface on long imported conversations
 
 
 Current Boundary
@@ -203,11 +211,12 @@ Current Boundary
   support pass recovers a large share of contradiction-resolution evidence
   without keeping the intermediate Timeline regression, the summary
   contradiction-guard pass gives a small full-run lift, and the event-ordering
-  challenge pass lifts full recall to 0.40735666524398917 with
-  wrong-recall/noise 387/400. This is still only partial Phase 63 progress: the
+  challenge pass lifts full recall. The latest summary learning/evolution
+  pass raises full recall to 0.4116411600918644 with wrong-recall/noise
+  387/400. This is still only partial Phase 63 progress: the
   full 100K provider-free recall diagnostic remains recall-limited and noisy
-  with 256 missed-recall cases. The next executable boundary is reducing
-  summarization misses plus full-slice
-  wrong-recall/noise on long imported conversations.
+  with 255 missed-recall cases. The next executable boundary is reducing
+  remaining full-slice misses plus wrong-recall/noise on long imported
+  conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.
