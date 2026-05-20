@@ -2243,6 +2243,124 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-lightweight-preference-zh")?.returned).toBe(true);
   });
 
+  it("bridges source-ordered preferences to the adjacent implementation rationale", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-heavy-framework-noise",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] I tried a generic React dashboard tutorial with several third-party caching packages.",
+      ),
+      makeSourceFact(
+        "fact-lightweight-cache-preference",
+        20,
+        "user",
+        "[BEAM chat_id=20 role=user time=unknown] I prefer lightweight, dependency-free caching for my weather app because I want to keep the bundle small.",
+      ),
+      makeSourceFact(
+        "fact-lightweight-cache-rationale",
+        21,
+        "assistant",
+        "[BEAM chat_id=21 role=assistant time=unknown] We chose localStorage plus an in-memory TTL cache because it preserves the lightweight preference without adding external libraries.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you help me choose a caching approach that fits my lightweight preference for the weather app?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-lightweight-cache-preference");
+    expect(selectedIds).toContain("fact-lightweight-cache-rationale");
+    expect(result.traces.find((trace) => trace.memoryId === "fact-heavy-framework-noise")?.returned).toBe(false);
+  });
+
+  it("bridges earlier and later source turns for update reasoning questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-react-initial-plan",
+        10,
+        "[BEAM chat_id=10 role=user time=unknown] I initially planned to use React 18.2 for the dashboard because I wanted reusable components.",
+      ),
+      makeSourceFact(
+        "fact-generic-dashboard-noise",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I reviewed a generic dashboard color palette and spacing checklist.",
+      ),
+      makeSourceFact(
+        "fact-vanilla-switch-update",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] I switched to vanilla JavaScript for the dashboard because the bundle stayed smaller and deployment was faster.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Given the switch, should I use React or vanilla JavaScript for the dashboard?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-react-initial-plan");
+    expect(selectedIds).toContain("fact-vanilla-switch-update");
+    expect(result.traces.find((trace) => trace.memoryId === "fact-generic-dashboard-noise")?.returned).toBe(false);
+  });
+
   it("prioritizes compact kitchen setup evidence over same-session repair topics", () => {
     const language = createLanguageService();
     const facts = [

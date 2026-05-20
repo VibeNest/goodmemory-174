@@ -8,7 +8,6 @@ router, not a history dump. Read it to find the current phase and the few recent
 accepted boundaries that matter for new work.
 
 Source documents:
-
 - `docs/README.md`
 - `docs/GoodMemory-PRD.md`
 - `docs/GoodMemory-TDD-and-Evaluation-Strategy.md`
@@ -50,7 +49,6 @@ Generic Eval Command Contract
 Current Execution Order
 -----------------------
 Read and execute these current/recent phase files in order:
-
 1. 65-phase-60-implicitmembench-overall-priming-protocol.txt
 2. 66-phase-61-priming-abstraction-and-contamination-safe-output.txt
 3. 67-phase-62-longmemeval-sequential-hardening.txt

@@ -1,5 +1,7 @@
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
+import { selectSourceOrderedEvidencePlan } from "./sourceOrderPlan";
+import { isSourceOrderedSummaryCandidate } from "./sourceOrderSummary";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
   hasAssistantAnswerTag,
@@ -15,8 +17,9 @@ import { hasPreferenceAdviceBridgeSignal } from "./conversationEvidence";
 
 export const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 export const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
-export const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 2;
+export const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 4;
 export const SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD = 130;
+export const SOURCE_ORDER_PREFERENCE_COMPANION_DISTANCE = 1;
 
 export const BROAD_SOURCE_INSTRUCTION_CONDITION_TOKENS = new Set([
   "about",
@@ -78,6 +81,8 @@ export const SIMPLE_SOLUTION_QUERY_PATTERN =
   /\b(?:simple|straightforward|minimal|lightweight|built-?in|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party))\b|(?:简单|直接|轻量|内置|无依赖|无外部依赖|不要外部依赖|不想用外部依赖|尽量不要外部依赖)/iu;
 export const LIGHTWEIGHT_PREFERENCE_PATTERN =
   /\b(?:lightweight|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party)|minimal|simple|straightforward|built-?in|avoid(?:ing)?\s+(?:heavy|external|third-party)|under\s+\d+(?:\.\d+)?\s*(?:mb|kb))\b|(?:轻量|无依赖|无外部依赖|不要外部依赖|不想用外部依赖|避免.*(?:重|外部|第三方)|简单|直接|内置|(?:低于|小于|保持在)\s*\d+(?:\.\d+)?\s*(?:MB|KB|mb|kb)\s*(?:以下)?)/iu;
+export const SOURCE_PREFERENCE_BRIDGE_QUERY_PATTERN =
+  /\b(?:approach|best\s+way|fit(?:s|ting)?|option|prefer(?:ence)?|recommend|should|suit(?:s|ed)?|which)\b|(?:方法|方案|选项|推荐|适合|偏好|应该|哪个)/iu;
 
 export function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
@@ -421,6 +426,17 @@ export function hasApplicableSourcePreferenceTopic(input: {
   ) {
     return true;
   }
+  if (
+    SOURCE_PREFERENCE_BRIDGE_QUERY_PATTERN.test(input.query) &&
+    SOURCE_PREFERENCE_DECLARATION_PATTERN.test(input.content) &&
+    (
+      selectorTopicOverlapCount(input.queryTopics, preferenceTopics) > 0 ||
+      SIMPLE_SOLUTION_QUERY_PATTERN.test(input.query) ||
+      LIGHTWEIGHT_PREFERENCE_PATTERN.test(input.content)
+    )
+  ) {
+    return true;
+  }
 
   return hasPreferenceAdviceBridgeSignal({
     factContent: input.content,
@@ -517,7 +533,25 @@ export function selectSourceOrderedPreferenceEvidence(input: {
       return compareTemporalFactChronology(left.entry, right.entry);
     });
 
-  return candidates
-    .slice(0, SOURCE_ORDER_PREFERENCE_RECALL_LIMIT)
-    .map((candidate) => candidate.entry);
+  return selectSourceOrderedEvidencePlan({
+    anchorLimit: SOURCE_ORDER_PREFERENCE_RECALL_LIMIT,
+    anchors: candidates.map((candidate) => candidate.entry),
+    companionDistance: SOURCE_ORDER_PREFERENCE_COMPANION_DISTANCE,
+    companionPool: input.entries.filter(isSourceOrderedSummaryCandidate),
+    companionsPerAnchor: 1,
+    limit: SOURCE_ORDER_PREFERENCE_RECALL_LIMIT,
+    priority: (entry) =>
+      sourcePreferencePriority({
+        entry,
+        language: input.language,
+        query: input.query,
+        queryLocale: input.queryLocale,
+        queryTopics,
+      }),
+    slotSignature: (entry) => sourcePreferenceTopicTokens({
+      language: input.language,
+      locale: entry.locale,
+      text: stripEvidencePrefix(entry.fact.content),
+    }),
+  });
 }

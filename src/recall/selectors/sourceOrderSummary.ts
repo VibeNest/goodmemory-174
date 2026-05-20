@@ -2,6 +2,20 @@ import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
+  hasSourceOrderedSummaryCoreFeature,
+  hasSourceOrderedSummaryMilestoneAction,
+  hasSourceOrderedSummaryMilestoneScope,
+  isLowInformationSourceSummaryFollowUp,
+  isSourceOrderedSummaryInstructionLike,
+} from "./sourceOrderSummarySignals";
+import {
+  isSourceOrderedSummaryTopicalCompanionCandidate,
+  isSourceOrderedSummaryTopicalMilestoneCandidate,
+  selectSourceOrderedTopicalSummaryMilestones,
+  sourceOrderedSummarySpecificQueryTopics,
+  sourceOrderedSummaryTopicalPriority,
+} from "./sourceOrderSummaryTopical";
+import {
   EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD,
   hasAssistantAnswerTag,
   hasSourceMessageTag,
@@ -17,8 +31,6 @@ import { contradictionTopicTokens } from "./contradiction";
 export const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 export const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 export const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
-export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE = 3;
-export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR = 2;
 export const SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS = 4;
 
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
@@ -31,30 +43,6 @@ export function isSourceOrderedConversationSummaryQuery(query: string): boolean 
     /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query) ||
     isSourceOrderedEvolutionSummaryQuery(query);
 }
-
-export const SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_PATTERN =
-  /^(?:hmm|hm|okay|ok|also|and\s+what|what\s+about|which\s+one|can\s+i\s+use|could\s+i\s+use|should\s+i\s+use|do\s+i\s+need)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_ZH_PATTERN =
-  /^(?:嗯|呃|那|还有|另外|顺便|哪个|哪一个|我能不能|可以用|能用|该不该|要不要|需要不需要)/u;
-
-export const SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_PATTERN =
-  /\b(?:add(?:ed|ing)?|build(?:ing)?|built|configur(?:e|ed|ing)|creat(?:e|ed|ing)|debug(?:ged|ging)?|develop(?:ed|ing)?|fix(?:ed|ing)?|implement(?:ed|ing)?|improv(?:e|ed|ing)|integrat(?:e|ed|ing)|launch(?:ed|ing)?|migrat(?:e|ed|ing)|optimi[sz](?:e|ed|ing)|plan(?:ned|ning)?|prepar(?:e|ed|ing)|refactor(?:ed|ing)?|resolv(?:e|ed|ing)|set\s+up|setting\s+up|switch(?:ed|ing)?|test(?:ed|ing)?|troubleshoot(?:ed|ing)?|updat(?:e|ed|ing)|work(?:ed|ing)\s+on)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_ZH_PATTERN =
-  /(添加|新增|构建|搭建|创建|调试|开发|修复|实现|改进|改善|集成|上线|迁移|优化|计划|准备|重构|解决|设置|切换|测试|排查|更新|推进|处理|完成|设计)/u;
-
-export const SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_PATTERN =
-  /\b(?:api|app|application|backend|budget|challenge|component|contact\s+form|dashboard|database|deadline|feature|form|gallery|issue|layout|milestone|mvp|performance|preparation|project|section|seo|sprint|strategy|validation|website|workflow)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_ZH_PATTERN =
-  /(项目|应用|网站|功能|组件|表单|画廊|图库|布局|问题|挑战|数据库|后端|前端|性能|准备|策略|验证|工作流|流程|冲刺|阶段|截止|预算|API|接口|安全|部署|上线)/u;
-
-export const SOURCE_ORDER_SUMMARY_CORE_FEATURE_PATTERN =
-  /\b(?:backend\s+integration|color\s+palette|contact\s+form|feature|gallery|mvp|sections?|sprint|validation)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_CORE_FEATURE_ZH_PATTERN =
-  /(核心功能|联系表单|表单验证|画廊|图库|布局|功能|后端集成|前端|后端|阶段|冲刺|栏目|章节|预算|数据库|部署|安全)/u;
 
 export const SOURCE_ORDER_SUMMARY_CREATIVE_PROJECT_QUERY_PATTERN =
   /\b(?:creative|documentary|episode|film|filming|pilot|post[-\s]?production|screenplay|script|shoot)\b/iu;
@@ -181,52 +169,6 @@ export const SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_PATTERN =
 
 export const SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_ZH_PATTERN =
   /(学习|理解|概念|解释|计算|公式|概率|比率|有利结果|总结果|抛硬币|掷骰子|独立事件|互斥事件|条件概率)/u;
-
-const SOURCE_ORDER_SUMMARY_GENERIC_QUERY_TOPIC_STOPWORDS = new Set([
-  "application",
-  "approach",
-  "approached",
-  "changed",
-  "clear",
-  "comprehensive",
-  "concept",
-  "conversation",
-  "develop",
-  "developed",
-  "development",
-  "evolved",
-  "give",
-  "learning",
-  "overview",
-  "progress",
-  "progressed",
-  "provide",
-  "recap",
-  "summary",
-  "summarize",
-  "throughout",
-  "understanding",
-  "一步步",
-  "变化",
-  "发展",
-  "总结",
-  "概述",
-  "梳理",
-  "清楚",
-  "理解",
-]);
-
-export const SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_PATTERN =
-  /\b(?:appl(?:y|ied|ying)|clarif(?:y|ied|ying)|compar(?:e|ed|ing)|confirmed|criteria|criterion|counterexample|explain(?:ed|ing)?|introduced|learn(?:ed|ing)?|planned|proof|prov(?:e|ed|ing)|summari[sz](?:e|ed|ing)|valid|verified|walk(?:ed|ing)?\s+through)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_ZH_PATTERN =
-  /(应用|学习|理解|解释|说明|区分|比较|确认|引入|证明|反例|标准|准则|总结|梳理|验证|计划)/u;
-
-export const SOURCE_ORDER_SUMMARY_INSTRUCTION_LIKE_PATTERN =
-  /^(?:always|never|please\s+always)\b/iu;
-
-export const SOURCE_ORDER_SUMMARY_INSTRUCTION_LIKE_ZH_PATTERN =
-  /^(?:总是|每次|以后|请总是)/u;
 
 export function isSourceOrderedCreativeProjectTimelineQuery(
   query: string,
@@ -379,262 +321,6 @@ export function isSourceOrderedLearningProgressionQuery(query: string): boolean 
 export function hasSourceOrderedSummaryLearningMilestone(content: string): boolean {
   return SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_PATTERN.test(content) ||
     SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_ZH_PATTERN.test(content);
-}
-
-export function sourceOrderedSummarySpecificQueryTopics(
-  queryTopics: ReadonlySet<string>,
-): Set<string> {
-  const specificTopics = new Set<string>();
-  for (const topic of queryTopics) {
-    if (!SOURCE_ORDER_SUMMARY_GENERIC_QUERY_TOPIC_STOPWORDS.has(topic)) {
-      specificTopics.add(topic);
-    }
-  }
-
-  return specificTopics.size === 0 ? new Set(queryTopics) : specificTopics;
-}
-
-export function hasSourceOrderedSummaryTopicalSynthesisSignal(
-  content: string,
-): boolean {
-  return SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_PATTERN.test(content) ||
-    SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_ZH_PATTERN.test(content) ||
-    hasSourceOrderedSummaryMilestoneAction(content);
-}
-
-function sourceOrderedSummarySpecificTopicOverlap(input: {
-  entry: RankedFactCandidate;
-  language: LanguageService;
-  querySpecificTopics: ReadonlySet<string>;
-}): number {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  const factTopics = selectorTopicTokens(
-    content,
-    input.language,
-    input.entry.locale,
-  );
-  return selectorTopicOverlapCount(input.querySpecificTopics, factTopics);
-}
-
-function sourceOrderedSummaryRequiredSpecificTopicOverlap(
-  querySpecificTopics: ReadonlySet<string>,
-): number {
-  return querySpecificTopics.size >= 2 ? 2 : 1;
-}
-
-function sourceOrderedSummaryTopicalPriority(input: {
-  entry: RankedFactCandidate;
-  language: LanguageService;
-  priority: (entry: RankedFactCandidate) => number;
-  querySpecificTopics: ReadonlySet<string>;
-}): number {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  let score = input.priority(input.entry) +
-    sourceOrderedSummarySpecificTopicOverlap({
-      entry: input.entry,
-      language: input.language,
-      querySpecificTopics: input.querySpecificTopics,
-    }) * 300;
-
-  if (hasUserAnswerTag(input.entry)) {
-    score += 90;
-  }
-  if (hasSourceOrderedSummaryTopicalSynthesisSignal(content)) {
-    score += 180;
-  }
-  if (
-    /\b(?:criteria|criterion|method|proof|prov(?:e|ed|ing)|valid|counterexample|step-by-step|formal)\b/iu.test(
-      content,
-    ) ||
-    /(标准|准则|方法|证明|有效|反例|步骤|正式)/u.test(content)
-  ) {
-    score += 220;
-  }
-  if (
-    /\b(?:I(?:'m| am)\s+trying\s+to\s+(?:apply|compare|construct|prove|understand\s+why|verif(?:y|ying))|help\s+me\s+(?:apply|compare|prove|verify)|formal\s+proof|counterexample)\b/iu.test(
-      content,
-    ) ||
-    /我[\s\S]{0,30}(应用|比较|构造|证明|验证|理解为什么|反例)/u.test(content)
-  ) {
-    score += 420;
-  }
-  if (
-    /\b[A-Z]{2,5}\b[\s\S]{0,60}\b(?:criteria|criterion|method|proof|valid|similarity|congruence)\b|\b(?:criteria|criterion|method|proof|valid|similarity|congruence)\b[\s\S]{0,60}\b[A-Z]{2,5}\b/u.test(
-      content,
-    )
-  ) {
-    score += 340;
-  }
-  if (
-    /\b(?:accuracy|exam|practice\s+test|score(?:d)?|test\s+score|thanks?\s+for|not\s+really)\b/iu.test(
-      content,
-    ) ||
-    /(准确率|考试|练习测试|分数|得分|谢谢|暂时不用)/u.test(content)
-  ) {
-    score -= 900;
-  }
-  if (
-    /\b(?:confident|good\s+handle|having\s+trouble\s+understanding\s+the\s+difference|explain\s+the\s+difference)\b/iu.test(
-      content,
-    ) ||
-    /(有把握|解释.*区别|理解.*区别)/u.test(content)
-  ) {
-    score -= 240;
-  }
-  if (
-    /\b(?:additional\s+plugins?|install(?:ed|ing)?|labeled\s+diagrams?|software\s+tools?|tooling)\b/iu.test(
-      content,
-    )
-  ) {
-    score -= 420;
-  }
-  if (
-    /\b(?:geogebra|load\s+distribution|structural\s+engineering|truss|triangular\s+window)\b/iu.test(
-      content,
-    ) &&
-    !input.querySpecificTopics.has("geogebra") &&
-    !input.querySpecificTopics.has("load") &&
-    !input.querySpecificTopics.has("structural") &&
-    !input.querySpecificTopics.has("truss") &&
-    !input.querySpecificTopics.has("window")
-  ) {
-    score -= 520;
-  }
-  if (
-    /\b(?:area|base-height|heron'?s|median\s+length)\b/iu.test(content) &&
-    !input.querySpecificTopics.has("area") &&
-    !input.querySpecificTopics.has("median")
-  ) {
-    score -= 720;
-  }
-
-  return score;
-}
-
-function collectAcronyms(value: string): Set<string> {
-  return new Set(
-    (value.match(/\b[A-Z]{2,5}\b/gu) ?? []).filter(
-      (token) => token !== "BEAM",
-    ),
-  );
-}
-
-function sourceOrderedSummaryTopicalSlotSignature(
-  entry: RankedFactCandidate,
-): Set<string> {
-  const content = stripEvidencePrefix(entry.fact.content);
-  const similarityFocus =
-    /\b(?:similar|similarity|proportional|ratio|scale\s+factor)\b/iu.test(content);
-  const congruenceFocus = /\b(?:congruen(?:ce|t))\b/iu.test(content);
-  const typedAcronyms = (tokens: ReadonlySet<string>): Set<string> => {
-    const suffix = similarityFocus && !congruenceFocus
-      ? "similarity"
-      : congruenceFocus && !similarityFocus
-        ? "congruence"
-        : similarityFocus
-          ? "similarity"
-          : "general";
-    return new Set([...tokens].map((token) => `${token}:${suffix}`));
-  };
-
-  const similarByCriterion = content.match(
-    /\b(?:similar|similarity)\b[\s\S]{0,80}\b(?:by|using)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b|\b(?:by|using)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b[\s\S]{0,80}\b(?:similar|similarity)\b/u,
-  );
-  if (similarByCriterion?.[1] || similarByCriterion?.[2]) {
-    return new Set([`${similarByCriterion[1] ?? similarByCriterion[2]}:similarity`]);
-  }
-
-  const congruenceUsingCriteria = content.match(
-    /\b(?:congruen(?:ce|t))\b[\s\S]{0,100}\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b|\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b[\s\S]{0,100}\b(?:congruen(?:ce|t))\b/u,
-  );
-  if (congruenceUsingCriteria?.[1] || congruenceUsingCriteria?.[2]) {
-    return new Set(
-      [...collectAcronyms(congruenceUsingCriteria[1] ?? congruenceUsingCriteria[2] ?? "")]
-        .map((token) => `${token}:congruence`),
-    );
-  }
-
-  const congruenceUsingNamedMethod = content.match(
-    /\b(?:congruen(?:ce|t))\b[\s\S]{0,100}\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\b|\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\b[\s\S]{0,100}\b(?:congruen(?:ce|t))\b/u,
-  );
-  if (congruenceUsingNamedMethod?.[1] || congruenceUsingNamedMethod?.[2]) {
-    return new Set(
-      [...collectAcronyms(congruenceUsingNamedMethod[1] ?? congruenceUsingNamedMethod[2] ?? "")]
-        .map((token) => `${token}:congruence`),
-    );
-  }
-
-  const parentheticalCriterion = content.match(
-    /\(([A-Z]{2,5})\)\s+(?:approach|criterion|criteria|method|proof)\b/u,
-  );
-  if (parentheticalCriterion?.[1]) {
-    return typedAcronyms(new Set([parentheticalCriterion[1]]));
-  }
-
-  if (
-    /\bsides?\s+in\s+ratio\b[\s\S]{0,100}\bequal\s+included\s+angles?\b[\s\S]{0,100}\bsimilar\b/iu.test(
-      content,
-    )
-  ) {
-    return new Set(["included-angle:similarity"]);
-  }
-
-  const focusedCriterion = content.match(
-    /\b(?:by|through)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b/u,
-  );
-  if (focusedCriterion?.[1]) {
-    return typedAcronyms(new Set([focusedCriterion[1]]));
-  }
-
-  const whyCriterion = content.match(/\bwhy\s+(?:the\s+)?([A-Z]{2,5})\b/u);
-  if (whyCriterion?.[1]) {
-    return typedAcronyms(new Set([whyCriterion[1]]));
-  }
-
-  const usingCriteria = content.match(
-    /\busing\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b/u,
-  );
-  if (usingCriteria?.[1]) {
-    return typedAcronyms(collectAcronyms(usingCriteria[1]));
-  }
-
-  const namedCriterion = content.match(
-    /\b([A-Z]{2,5})\s+(?:approach|criterion|criteria|method|similarity|congruence)\b/u,
-  );
-  if (namedCriterion?.[1]) {
-    return typedAcronyms(new Set([namedCriterion[1]]));
-  }
-
-  return new Set();
-}
-
-export function isSourceOrderedSummaryInstructionLike(content: string): boolean {
-  const normalized = content.trim();
-  return SOURCE_ORDER_SUMMARY_INSTRUCTION_LIKE_PATTERN.test(normalized) ||
-    SOURCE_ORDER_SUMMARY_INSTRUCTION_LIKE_ZH_PATTERN.test(normalized);
-}
-
-export function hasSourceOrderedSummaryMilestoneAction(content: string): boolean {
-  return SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_PATTERN.test(content) ||
-    SOURCE_ORDER_SUMMARY_MILESTONE_ACTION_ZH_PATTERN.test(content);
-}
-
-export function hasSourceOrderedSummaryMilestoneScope(content: string): boolean {
-  return SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_PATTERN.test(content) ||
-    SOURCE_ORDER_SUMMARY_MILESTONE_SCOPE_ZH_PATTERN.test(content);
-}
-
-export function hasSourceOrderedSummaryCoreFeature(content: string): boolean {
-  return SOURCE_ORDER_SUMMARY_CORE_FEATURE_PATTERN.test(content) ||
-    SOURCE_ORDER_SUMMARY_CORE_FEATURE_ZH_PATTERN.test(content);
-}
-
-export function isLowInformationSourceSummaryFollowUp(content: string): boolean {
-  return SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_PATTERN.test(
-    content.trim(),
-  ) || SOURCE_ORDER_SUMMARY_LOW_INFORMATION_FOLLOWUP_ZH_PATTERN.test(
-    content.trim(),
-  );
 }
 
 export function isSourceOrderedSummaryCandidate(entry: RankedFactCandidate): boolean {
@@ -935,220 +621,6 @@ export function isSourceOrderedSummaryCoreMilestoneCandidate(input: {
     );
 }
 
-export function isSourceOrderedSummaryTopicalMilestoneCandidate(input: {
-  entry: RankedFactCandidate;
-  language: LanguageService;
-  querySpecificTopics: ReadonlySet<string>;
-}): boolean {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  if (
-    isSourceOrderedSummaryInstructionLike(content) ||
-    isLowInformationSourceSummaryFollowUp(content)
-  ) {
-    return false;
-  }
-
-  const requiredOverlap = sourceOrderedSummaryRequiredSpecificTopicOverlap(
-    input.querySpecificTopics,
-  );
-  if (
-    sourceOrderedSummarySpecificTopicOverlap({
-      entry: input.entry,
-      language: input.language,
-      querySpecificTopics: input.querySpecificTopics,
-    }) < requiredOverlap
-  ) {
-    return false;
-  }
-
-  return hasUserAnswerTag(input.entry) ||
-    (
-      hasAssistantAnswerTag(input.entry) &&
-      hasSourceOrderedSummaryTopicalSynthesisSignal(content)
-    );
-}
-
-export function isSourceOrderedSummaryTopicalCompanionCandidate(input: {
-  entry: RankedFactCandidate;
-  language: LanguageService;
-  querySpecificTopics: ReadonlySet<string>;
-}): boolean {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  if (
-    isSourceOrderedSummaryInstructionLike(content) ||
-    isLowInformationSourceSummaryFollowUp(content)
-  ) {
-      return false;
-  }
-
-  const topicOverlap = sourceOrderedSummarySpecificTopicOverlap({
-    entry: input.entry,
-    language: input.language,
-    querySpecificTopics: input.querySpecificTopics,
-  });
-  const hasSlotSignature =
-    sourceOrderedSummaryTopicalSlotSignature(input.entry).size > 0;
-  return (
-    topicOverlap >=
-      sourceOrderedSummaryRequiredSpecificTopicOverlap(input.querySpecificTopics) ||
-    hasSlotSignature
-  ) && hasSourceOrderedSummaryTopicalSynthesisSignal(content);
-}
-
-function selectSourceOrderedSummaryAnchorCoverage(input: {
-  anchorLimit?: number;
-  anchors: RankedFactCandidate[];
-  priority: (entry: RankedFactCandidate) => number;
-}): RankedFactCandidate[] {
-  const recallLimit = input.anchorLimit ?? SOURCE_ORDER_SUMMARY_RECALL_LIMIT;
-  const sortedAnchors = [...input.anchors].sort(compareTemporalFactChronology);
-  if (sortedAnchors.length <= recallLimit) {
-    return sortedAnchors;
-  }
-
-  const selected = new Map<string, RankedFactCandidate>();
-  const anchorCount = Math.min(
-    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
-    Math.ceil(recallLimit / 2),
-    sortedAnchors.length,
-  );
-  const addCandidate = (entry: RankedFactCandidate): void => {
-    if (selected.size < recallLimit) {
-      selected.set(entry.fact.id, entry);
-    }
-  };
-
-  for (let index = 0; index < anchorCount; index += 1) {
-    const start = Math.floor(index * sortedAnchors.length / anchorCount);
-    const end = Math.floor((index + 1) * sortedAnchors.length / anchorCount);
-    const bucket = sortedAnchors.slice(start, Math.max(start + 1, end));
-    const best = [...bucket].sort((left, right) => {
-      const priorityDelta = input.priority(right) - input.priority(left);
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-      return compareTemporalFactChronology(left, right);
-    })[0];
-    if (best) {
-      addCandidate(best);
-    }
-  }
-
-  for (const entry of [...sortedAnchors].sort((left, right) => {
-    const priorityDelta = input.priority(right) - input.priority(left);
-    if (priorityDelta !== 0) {
-      return priorityDelta;
-    }
-    return compareTemporalFactChronology(left, right);
-  })) {
-    if (selected.size >= recallLimit) {
-      break;
-    }
-    addCandidate(entry);
-  }
-
-  return [...selected.values()].sort(compareTemporalFactChronology);
-}
-
-function selectSourceOrderedTopicalSummaryMilestones(input: {
-  anchors: RankedFactCandidate[];
-  companions: RankedFactCandidate[];
-  priority: (entry: RankedFactCandidate) => number;
-}): RankedFactCandidate[] {
-  const selected = new Map<string, RankedFactCandidate>();
-  const selectedSourceOrders = new Set<number>();
-  const addCandidate = (entry: RankedFactCandidate): void => {
-    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
-      return;
-    }
-    const order = sourceOrderSortKey(entry);
-    if (order !== undefined && selectedSourceOrders.has(order)) {
-      return;
-    }
-
-    selected.set(entry.fact.id, entry);
-    if (order !== undefined) {
-      selectedSourceOrders.add(order);
-    }
-  };
-  const preferredAnchors = input.anchors.filter(hasUserAnswerTag).length >=
-      SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
-    ? input.anchors.filter(hasUserAnswerTag)
-    : input.anchors;
-  const anchorCoverageLimit = Math.min(
-    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
-    Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),
-  );
-  const anchorsBySignature = new Map<string, RankedFactCandidate>();
-  for (const anchor of preferredAnchors) {
-    const order = sourceOrderSortKey(anchor);
-    const signature = sourceOrderedSummaryTopicalSlotSignature(anchor);
-    const signatureKey = signature.size === 0
-      ? `source:${order ?? anchor.fact.id}`
-      : [...signature].sort().join("|");
-    const current = anchorsBySignature.get(signatureKey);
-    if (
-      !current ||
-      compareTemporalFactChronology(anchor, current) < 0
-    ) {
-      anchorsBySignature.set(signatureKey, anchor);
-    }
-  }
-  const anchorCoverage = [...anchorsBySignature.values()]
-    .sort((left, right) => {
-      const priorityDelta = input.priority(right) - input.priority(left);
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-      return compareTemporalFactChronology(left, right);
-    })
-    .slice(0, anchorCoverageLimit)
-    .sort(compareTemporalFactChronology);
-
-  for (const anchor of anchorCoverage) {
-    const anchorOrder = sourceOrderSortKey(anchor);
-    addCandidate(anchor);
-    if (anchorOrder === undefined) {
-      continue;
-    }
-
-    const companions = input.companions
-      .filter((entry) => {
-        const order = sourceOrderSortKey(entry);
-        return order !== undefined &&
-          !selectedSourceOrders.has(order) &&
-          Math.abs(order - anchorOrder) <=
-            SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE &&
-          (
-            (hasUserAnswerTag(anchor) && hasAssistantAnswerTag(entry) &&
-              order > anchorOrder) ||
-            (hasAssistantAnswerTag(anchor) && hasUserAnswerTag(entry) &&
-              order < anchorOrder)
-          );
-      })
-      .sort((left, right) => {
-        const leftOrder = sourceOrderSortKey(left) ?? 0;
-        const rightOrder = sourceOrderSortKey(right) ?? 0;
-        const priorityDelta = input.priority(right) - input.priority(left);
-        if (priorityDelta !== 0) {
-          return priorityDelta;
-        }
-        const distanceDelta =
-          Math.abs(leftOrder - anchorOrder) - Math.abs(rightOrder - anchorOrder);
-        if (distanceDelta !== 0) {
-          return distanceDelta;
-        }
-        return compareTemporalFactChronology(left, right);
-      })
-      .slice(0, SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR);
-    for (const companion of companions) {
-      addCandidate(companion);
-    }
-  }
-
-  return [...selected.values()].sort(compareTemporalFactChronology);
-}
-
 function selectSourceOrderedWritingProgressPairs(input: {
   anchors: RankedFactCandidate[];
   sourceCandidates: RankedFactCandidate[];
@@ -1345,13 +817,13 @@ export function selectSourceOrderedSummaryCoverage(input: {
     input.language,
     input.queryLocale,
   );
-  const querySpecificTopics = sourceOrderedSummarySpecificQueryTopics(queryTopics);
   const priority = (entry: RankedFactCandidate): number =>
     sourceOrderedSummaryPriority({
       entry,
       language: input.language,
       queryTopics,
     });
+  const querySpecificTopics = sourceOrderedSummarySpecificQueryTopics(queryTopics);
   const topicalPriority = (entry: RankedFactCandidate): number =>
     sourceOrderedSummaryTopicalPriority({
       entry,
@@ -1478,9 +950,9 @@ export function selectSourceOrderedSummaryCoverage(input: {
           hasSourceOrderedSummaryTechnicalChallengeMilestone(content);
       })
       : [];
-  const learningProgressionSummaryQuery =
+  const topicalLearningProgressionSummaryQuery =
     isSourceOrderedLearningProgressionQuery(input.query);
-  const topicalSummaryCandidates = learningProgressionSummaryQuery
+  const topicalSummaryCandidates = topicalLearningProgressionSummaryQuery
     ? topicalSourceCandidates.filter((entry) =>
       isSourceOrderedSummaryTopicalMilestoneCandidate({
         entry,
@@ -1489,7 +961,7 @@ export function selectSourceOrderedSummaryCoverage(input: {
       })
     )
     : [];
-  const topicalSummaryCompanions = learningProgressionSummaryQuery
+  const topicalSummaryCompanions = topicalLearningProgressionSummaryQuery
     ? topicalSourceCandidates.filter((entry) =>
       isSourceOrderedSummaryTopicalCompanionCandidate({
         entry,
@@ -1571,8 +1043,14 @@ export function selectSourceOrderedSummaryCoverage(input: {
     topicalSummaryCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
   ) {
     return selectSourceOrderedTopicalSummaryMilestones({
+      anchorLimit: Math.min(
+        SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
+        Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),
+      ),
       anchors: topicalSummaryCandidates,
       companions: topicalSummaryCompanions,
+      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+      milestoneMinAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
       priority: topicalPriority,
     });
   }

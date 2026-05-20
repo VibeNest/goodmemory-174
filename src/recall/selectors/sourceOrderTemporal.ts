@@ -7,10 +7,12 @@ import {
   stripEvidencePrefix,
   valueBearingFactContent,
 } from "./selectionContext";
+import { requestedSourceOrderItemCount } from "./sourceOrderCount";
 import { isSourceOrderedSummaryCandidate } from "./sourceOrderSummary";
 import {
   compareTemporalFactChronology,
   hasPersonalWorkChallengeEventSignal,
+  hasTemporalEventOrderSignal,
   isPersonalWorkChallengeEventOrderQuery,
   isSourceOrderedFact,
   isUserBroughtUpEventOrderQuery,
@@ -21,6 +23,10 @@ import {
   sourceOrderSortKey,
   temporalOrderEvidencePriority,
 } from "./temporal";
+import {
+  dedupeSourceOrderedEvidenceByOrder,
+  selectSourceOrderedEvidencePlan,
+} from "./sourceOrderPlan";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
 export const SOURCE_ORDER_GAP_FILL_LIMIT = 5;
@@ -29,6 +35,7 @@ export const SOURCE_ORDER_COMPANION_MAX_DISTANCE = 2;
 export const SOURCE_ORDER_MILESTONE_FILL_LIMIT = 6;
 export const SOURCE_ORDER_BROAD_ASPECT_DEFAULT_LIMIT = 10;
 export const SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD = 180;
+export const SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD = 150;
 
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_RECALL_LIMIT = 14;
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_ANCHOR_LIMIT = 8;
@@ -69,6 +76,11 @@ export const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "worker",
   "xss",
 ]);
+
+export const SOURCE_ORDER_EVENT_MILESTONE_ACTION_PATTERN =
+  /\b(?:add(?:ed|ing)?|build(?:ing)?|built|chang(?:e|ed|ing)|cho(?:o|ose|sen|osing)|configur(?:e|ed|ing)|creat(?:e|ed|ing)|debug(?:ged|ging)?|decid(?:e|ed|ing)|deploy(?:ed|ing)?|develop(?:ed|ing)?|fix(?:ed|ing)?|implement(?:ed|ing)?|integrat(?:e|ed|ing)|launch(?:ed|ing)?|migrat(?:e|ed|ing)|optimi[sz](?:e|ed|ing)|plan(?:ned|ning)?|prepar(?:e|ed|ing)|refactor(?:ed|ing)?|resolv(?:e|ed|ing)|set\s+up|switch(?:ed|ing)?|test(?:ed|ing)?|troubleshoot(?:ed|ing)?|updat(?:e|ed|ing)|work(?:ed|ing)\s+on)\b/iu;
+export const SOURCE_ORDER_EVENT_MILESTONE_ACTION_ZH_PATTERN =
+  /(新增|添加|构建|搭建|改变|选择|配置|创建|调试|决定|部署|开发|修复|实现|集成|上线|迁移|优化|计划|准备|重构|解决|设置|切换|测试|排查|更新|推进|处理|完成)/u;
 export const CHINESE_SOURCE_ORDER_ASPECT_ALIASES = [
   {
     pattern: /(用户认证|身份认证|登录|注册|鉴权|授权)/u,
@@ -107,19 +119,6 @@ export const CHINESE_SOURCE_ORDER_ASPECT_ALIASES = [
   topics: readonly string[];
 }>;
 
-const SOURCE_ORDER_REQUESTED_COUNT_WORDS = new Map<string, number>([
-  ["one", 1],
-  ["two", 2],
-  ["three", 3],
-  ["four", 4],
-  ["five", 5],
-  ["six", 6],
-  ["seven", 7],
-  ["eight", 8],
-  ["nine", 9],
-  ["ten", 10],
-]);
-
 export function isSourceOrderedBroadAspectEventOrderQuery(query: string): boolean {
   if (/\b(?:app|application|code|coding|deploy(?:ment)?|develop(?:ing|ment)?|implementation|project|software)\b/iu.test(query)) {
     return false;
@@ -137,20 +136,6 @@ export function isSourceOrderedBroadAspectEventOrderQuery(query: string): boolea
       /\b(?:topics?|items?|parts?)\b[\s\S]{0,120}\bthroughout\b/iu.test(query) ||
       /(不同|多个|几个|各个).{0,20}(方面|主题|事项|内容)/u.test(query)
     );
-}
-
-export function requestedSourceOrderItemCount(query: string): number | undefined {
-  const numeric = query.match(/\b(?:mention\s+only(?:\s+and\s+only)?|only)\s+(\d{1,2})\s+items?\b/iu)?.[1] ??
-    query.match(/\b(\d{1,2})\s+items?\b/iu)?.[1];
-  if (numeric) {
-    const count = Number(numeric);
-    return Number.isFinite(count) && count > 0 ? count : undefined;
-  }
-
-  const word = query.match(
-    /\b(?:mention\s+only(?:\s+and\s+only)?|only)\s+(one|two|three|four|five|six|seven|eight|nine|ten)\s+items?\b/iu,
-  )?.[1]?.toLowerCase();
-  return word ? SOURCE_ORDER_REQUESTED_COUNT_WORDS.get(word) : undefined;
 }
 
 function hasCollaborativeMilestoneSignal(content: string): boolean {
@@ -314,6 +299,256 @@ export function sourceOrderAspectTopics(
   }
 
   return topics;
+}
+
+function hasSourceOrderedEventMilestoneAction(content: string): boolean {
+  return SOURCE_ORDER_EVENT_MILESTONE_ACTION_PATTERN.test(content) ||
+    SOURCE_ORDER_EVENT_MILESTONE_ACTION_ZH_PATTERN.test(content);
+}
+
+function sourceOrderQueryAspectTopics(
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): Set<string> {
+  const topics = selectorTopicTokens(query, language, queryLocale);
+  for (const alias of CHINESE_SOURCE_ORDER_ASPECT_ALIASES) {
+    if (alias.pattern.test(query)) {
+      for (const topic of alias.topics) {
+        topics.add(topic);
+      }
+    }
+  }
+  for (const topic of SOURCE_ORDER_ASPECT_TOPIC_TOKENS) {
+    if (new RegExp(`\\b${topic.replace(/_/gu, "[\\s_-]?")}\\b`, "iu").test(query)) {
+      topics.add(topic);
+    }
+  }
+
+  return topics;
+}
+
+function sourceOrderEventNamedTokens(value: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const match of value.matchAll(/\b[A-Z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*\b/gu)) {
+    const token = match[0].toLowerCase();
+    if (
+      token.length > 2 &&
+      ![
+        "assistant",
+        "beam",
+        "can",
+        "here",
+        "how",
+        "the",
+        "user",
+        "what",
+        "when",
+      ].includes(token)
+    ) {
+      tokens.add(token);
+    }
+  }
+
+  return tokens;
+}
+
+function sourceOrderEventSlotSignature(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryNamedTokens: ReadonlySet<string>;
+  queryTopics: ReadonlySet<string>;
+}): Set<string> {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const signature = sourceOrderAspectTopics(input.entry, input.language);
+  const factTopics = selectorTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  for (const topic of factTopics) {
+    if (input.queryTopics.has(topic)) {
+      signature.add(topic);
+    }
+  }
+  for (const token of sourceOrderEventNamedTokens(content)) {
+    if (input.queryNamedTokens.has(token)) {
+      signature.add(`name:${token}`);
+    }
+  }
+
+  return signature;
+}
+
+function sourceOrderEventPlanPriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+  queryNamedTokens: ReadonlySet<string>;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = selectorTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  const topicOverlap = selectorTopicOverlapCount(input.queryTopics, factTopics);
+  const aspectOverlap = [...sourceOrderAspectTopics(input.entry, input.language)]
+    .filter((topic) => input.queryTopics.has(topic)).length;
+  const namedOverlap = [...sourceOrderEventNamedTokens(content)]
+    .filter((token) => input.queryNamedTokens.has(token)).length;
+  let priority =
+    topicOverlap * 90 +
+    aspectOverlap * 170 +
+    namedOverlap * 180 +
+    input.entry.lexicalScore * 80 +
+    input.entry.subjectScore * 70 +
+    input.entry.intentScore * 50 +
+    temporalOrderEvidencePriority(input.entry, input.query);
+
+  if (hasTemporalEventOrderSignal(input.entry, input.query)) {
+    priority += 140;
+  }
+  if (hasSourceOrderedEventMilestoneAction(content)) {
+    priority += 80;
+  }
+  if (hasUserAnswerTag(input.entry)) {
+    priority += 70;
+  }
+  if (hasAssistantAnswerTag(input.entry)) {
+    priority -= 70;
+  }
+  if (/^(?:\[[^\]]+\]\s*)?(?:thanks?|sounds good|great|okay|ok)\b/iu.test(content)) {
+    priority -= 220;
+  }
+  if (
+    content.length > 1800 ||
+    /\b(?:generic checklist|general overview|best practices)\b/iu.test(content)
+  ) {
+    priority -= 120;
+  }
+
+  return priority;
+}
+
+export function selectSourceOrderedEventOrderEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  if (!isUserBroughtUpEventOrderQuery(input.query)) {
+    return [];
+  }
+
+  const requestedCount = requestedSourceOrderItemCount(input.query);
+  if (requestedCount === undefined) {
+    return [];
+  }
+
+  const queryTopics = sourceOrderQueryAspectTopics(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  const queryNamedTokens = sourceOrderEventNamedTokens(input.query);
+  const priority = (entry: RankedFactCandidate): number =>
+    sourceOrderEventPlanPriority({
+      entry,
+      language: input.language,
+      query: input.query,
+      queryLocale: input.queryLocale,
+      queryNamedTokens,
+      queryTopics,
+    });
+  const sourceCandidates = dedupeSourceOrderedEvidenceByOrder({
+    entries: input.entries
+      .filter(isSourceOrderedSummaryCandidate)
+      .filter((entry) => priority(entry) >= SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD),
+    priority,
+  });
+  const anchors = sourceCandidates.filter((entry) => {
+    const signature = sourceOrderEventSlotSignature({
+      entry,
+      language: input.language,
+      queryNamedTokens,
+      queryTopics,
+    });
+    return signature.size > 0 || hasTemporalEventOrderSignal(entry, input.query);
+  });
+  if (anchors.length === 0) {
+    return [];
+  }
+
+  return selectSourceOrderedEvidencePlan({
+    anchorLimit: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
+    anchors: selectSourceOrderedEventCoverage({
+      count: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
+      entries: anchors,
+      priority,
+    }),
+    companionsPerAnchor: 0,
+    limit: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
+    priority,
+    slotSignature: (entry) =>
+      sourceOrderEventSlotSignature({
+        entry,
+        language: input.language,
+        queryNamedTokens,
+        queryTopics,
+      }),
+  });
+}
+
+function selectSourceOrderedEventCoverage(input: {
+  count: number;
+  entries: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const sortedEntries = [...input.entries].sort(compareTemporalFactChronology);
+  if (sortedEntries.length <= input.count) {
+    return sortedEntries;
+  }
+
+  const selected = new Map<string, RankedFactCandidate>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size < input.count) {
+      selected.set(entry.fact.id, entry);
+    }
+  };
+
+  for (let index = 0; index < input.count; index += 1) {
+    const start = Math.floor(index * sortedEntries.length / input.count);
+    const end = Math.floor((index + 1) * sortedEntries.length / input.count);
+    const bucket = sortedEntries.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = input.priority(right) - input.priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })[0];
+    if (best) {
+      addCandidate(best);
+    }
+  }
+
+  for (const entry of [...sortedEntries].sort((left, right) => {
+    const priorityDelta = input.priority(right) - input.priority(left);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return compareTemporalFactChronology(left, right);
+  })) {
+    if (selected.size >= input.count) {
+      break;
+    }
+    addCandidate(entry);
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 export function selectSourceOrderedBroadAspectEvidence(input: {

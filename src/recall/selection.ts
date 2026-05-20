@@ -55,12 +55,14 @@ import {
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
+import { selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence } from "./selectors/sourceOrderReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
 import {
   SOURCE_ORDER_EVENT_RECALL_LIMIT,
   fillSourceOrderedTemporalCompanions,
   fillSourceOrderedTemporalGaps,
   fillSourceOrderedTemporalMilestones,
+  selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
   selectSourceOrderedBroadAspectEvidence as selectBroadAspectEventOrderEvidence,
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
@@ -114,6 +116,7 @@ const PRIMARY_FACT_SELECTION_ORDER = [
   "source_ordered_personal_work_challenge",
   "source_ordered_summary",
   "source_ordered_timeline",
+  "source_ordered_reasoning_bridge",
   "conversation_evidence",
   "preference_evidence",
   "update_evidence",
@@ -598,12 +601,33 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const sourceOrderedEventOrderCandidates = selectEventOrderEvidence({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
     entries: compatible,
     language,
     query,
     queryLocale,
   });
+  const reasoningBridgeCandidates = (
+    summaryCoverageCandidates.length > 0 ||
+    timelineIntegrationCandidates.length > 0 ||
+    personalWorkChallengeCandidates.length > 0 ||
+    temporalEventOrderQuery ||
+    temporalMostRecentQuery ||
+    temporalRelativeEventQuery
+  )
+    ? []
+    : selectReasoningBridgeEvidence({
+      entries: compatible,
+      language,
+      query,
+      queryLocale,
+    });
   const instructionEvidenceCandidates =
     timelineIntegrationCandidates.length > 0 || summaryCoverageCandidates.length > 0
       ? []
@@ -719,6 +743,16 @@ export function selectFacts(
         }
         return true;
       }
+      case "source_ordered_reasoning_bridge": {
+        if (reasoningBridgeCandidates.length === 0) {
+          return false;
+        }
+
+        for (const entry of reasoningBridgeCandidates) {
+          selectAndTrace(entry);
+        }
+        return true;
+      }
       case "conversation_evidence": {
         if (conversationEvidenceCandidates.length === 0) {
           return false;
@@ -823,10 +857,21 @@ export function selectFacts(
             temporalOrderEvidencePriority(right, query) -
             temporalOrderEvidencePriority(left, query),
         );
-        const temporalCandidates = diversifyRankedFactCandidatesBySession(
+        const fallbackTemporalCandidates = diversifyRankedFactCandidatesBySession(
           rankedTemporalCandidates,
           compatible.some(isImportedSourceFact) ? SOURCE_ORDER_EVENT_RECALL_LIMIT : limit,
         );
+        const temporalCandidates = sourceOrderedEventOrderCandidates.length > 0
+          ? [
+            ...sourceOrderedEventOrderCandidates,
+            ...fallbackTemporalCandidates.filter(
+              (entry) =>
+                !sourceOrderedEventOrderCandidates.some(
+                  (candidate) => candidate.fact.id === entry.fact.id,
+                ),
+            ),
+          ]
+          : fallbackTemporalCandidates;
         const gapFilledTemporalCandidates = temporalEventOrderQuery &&
           temporalCandidates.some(isImportedSourceFact)
           ? fillSourceOrderedTemporalGaps({
