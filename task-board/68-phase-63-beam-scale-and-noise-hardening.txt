@@ -940,6 +940,98 @@ Latest current-code writing-progress summary repair:
   must continue with the remaining summarization, multi-session reasoning, and
   persistent-noise surfaces on long imported conversations.
 
+Latest current-code career/philosophy summary repair:
+
+- Mechanism:
+  `src/recall/selectors/sourceOrderSummary.ts` now gates
+  career/philosophy summary handling to queries that combine career or job
+  decisions with philosophical/free-will reflection. Inside that branch only,
+  it dedupes duplicate facts from the same imported source turn before pairing
+  user decision/reflection milestones with adjacent assistant synthesis
+  replies. The root cause was source-turn duplication rather than just missing
+  keywords: BEAM recall scores unique evidence `chat_id`s, while repeated
+  fragments from the same source turn were consuming the 16 summary recall
+  slots.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers a BEAM-shaped career decision
+  and philosophical reflection summary. It requires the startup, probation,
+  freelance, ethical-bonus, libertarianism, hard-determinism, and
+  compatibilism milestones while rejecting duplicate source-turn fragments,
+  low-value user prompt anchors, and unrelated philosophy/journaling/prayer
+  distractors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-career-philosophy-scoped-current-20260520T054505Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4233111802125888
+  - missed-recall cases: 252/355
+  - wrong-recall/noise cases: 386/400
+- Delta from writing-progress summary:
+  overall recall improves from 0.4202438875678314 to
+  0.4233111802125888, missed-recall cases improve from 253 to 252, and
+  wrong-recall/noise improves from 387 to 386. Target case
+  `12:summarization:2` moves from 0 to 1.0 recall with no missing or wrong
+  retrieved chat ids. Summarization recall rises from 0.14463183421516757 to
+  0.17240961199294536, zero-recall summarization cases drop from 20 to 19, and
+  missing summarization evidence ids drop from 236 to 220. Direct probing still
+  leaves `12:summarization:1` at 0.25 recall, and the full changed-case
+  comparison shows one event-ordering recall tradeoff on
+  `13:event_ordering:2`.
+- Decision:
+  this is a kept partial summary/source-turn repair, not BEAM closure. The next
+  loop must continue with the remaining summarization miss bucket, especially
+  cases where the summary query spans several distinct relationship/topic
+  clusters and current source-ordered selection still spends budget on
+  low-value topical neighbors.
+
+Latest current-code technical-challenge summary repair:
+
+- Mechanism:
+  `src/recall/selectors/sourceOrderSummary.ts` now treats security/database
+  challenge summaries as a named technical-challenge branch only when the query
+  is also a source-ordered summary query. Inside that branch it dedupes
+  duplicate facts from the same imported source turn, prioritizes named
+  challenge controls/failures, and avoids earliest generic implementation
+  turns consuming the summary budget.
+- Rejected intermediate:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-current-20260520T060111Z`
+  repaired the target summary case but was not accepted because the ungated
+  technical pattern let `source_ordered_summary` affect non-summary recall and
+  lowered overall evidence-chat recall from 0.4233111802125888 to
+  0.4232172834989738.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers a BEAM-shaped budget-tracker
+  security/database challenge summary. It requires password hashing, UNIQUE
+  constraint, OperationalError, CSRF, and Redis account-lockout milestones
+  while rejecting ordinary schema, Flask-Login, REST API, PR review, cache, and
+  generic implementation neighbors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-gated-current-20260520T060654Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.42556470133934937
+  - missed-recall cases: 251/355
+  - wrong-recall/noise cases: 386/400
+- Delta from career/philosophy summary:
+  overall recall improves from 0.4233111802125888 to
+  0.42556470133934937, missed-recall cases improve from 252 to 251, and
+  wrong-recall/noise remains flat at 386/400. Target case
+  `1:summarization:2` moves from 0 to 1.0 recall. Summarization recall rises
+  from 0.17240961199294536 to 0.20018738977072315, zero-recall summarization
+  cases drop from 19 to 18, and missing summarization evidence ids drop from
+  220 to 209. Changed-case comparison still shows non-summary tie churn,
+  including a knowledge-update and event-ordering recall tradeoff, so the
+  improvement is accepted as partial rather than broad closure.
+- Decision:
+  this is a kept partial summary repair, not BEAM closure. The next loop should
+  continue from the remaining zero-recall summarization cases and the
+  persistent wrong/noise surface rather than broadening technical query
+  matching.
+
 
 Current Boundary
 ----------------
@@ -956,12 +1048,13 @@ instruction-applicability, temporal date-content, source preference, timeline
 planning, contradiction-support, summary contradiction-route guard, and
 event-ordering challenge plus summary learning/evolution, issue-resolution,
 declined-financial aggregate plus professional-profile/resume event-order
-and writing-progress summary passes have been rerun. The current failure
+and writing-progress plus career/philosophy and technical-challenge summary
+passes have been rerun. The current failure
 family is now more specific: the representative live trio is clean at 3/3 with
 complete evidence recall, and the full 100K diagnostic has real instruction,
 temporal, preference, Timeline
 Integration, contradiction-resolution, source-ordered summary, aggregate-money,
 and event-ordering lifts, but the full surface remains recall-limited and noisy
-at recall 0.4202438875678314 with 253 missed-recall cases and
-wrong-recall/noise 387/400. BEAM still needs broader recall and persistent-noise
+at recall 0.42556470133934937 with 251 missed-recall cases and
+wrong-recall/noise 386/400. BEAM still needs broader recall and persistent-noise
 hardening before it can move toward an answer-quality claim.

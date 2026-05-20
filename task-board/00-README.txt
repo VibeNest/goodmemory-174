@@ -111,12 +111,14 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  kept current-code writing-progress summary rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-full-writing-progress-summary-current-20260520T033228Z`,
-  reaches recall 0.4202438875678314, missed 253/355, and wrong-recall/noise
-  387/400. It repairs `10:summarization:2` from 0 to 1.0 recall and lifts
-  summarization recall to 0.14463183421516757, but it is still a narrow recall
-  lift, so full-run misses and noise still block closure.
+  kept current-code technical-challenge summary gated rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-gated-current-20260520T060654Z`,
+  reaches recall 0.42556470133934937, missed 251/355, and wrong-recall/noise
+  386/400. It repairs `1:summarization:2` from 0 to 1.0 recall after the
+  career/philosophy rerun repaired `12:summarization:2`, and lifts
+  summarization recall to 0.20018738977072315. It is still a narrow recall lift
+  with changed-case non-summary tie churn and persistent full-run noise, so
+  full-run misses and noise still block closure.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and

@@ -17,6 +17,8 @@ import { contradictionTopicTokens } from "./contradiction";
 export const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 export const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 export const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
+export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE = 3;
+export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR = 2;
 export const SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS = 4;
 
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
@@ -132,6 +134,24 @@ export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_PATTERN =
 export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_ZH_PATTERN =
   /(祈祷|神圣礼物|感恩|决策疲劳|每日选择|协作基础)/u;
 
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_QUERY_PATTERN =
+  /\b(?:security|auth(?:entication|orization)?|password|csrf|rate\s+limit(?:ing)?|lockout|database|db|sqlite|sqlalchemy|postgres(?:ql)?|transactions?)\b[\s\S]{0,160}\b(?:challeng(?:e|es)|issues?|errors?|problems?|handled|resolved|debug(?:ged|ging)?|fix(?:ed|ing)?)\b|\b(?:challeng(?:e|es)|issues?|errors?|problems?|handled|resolved|debug(?:ged|ging)?|fix(?:ed|ing)?)\b[\s\S]{0,160}\b(?:security|auth(?:entication|orization)?|password|csrf|rate\s+limit(?:ing)?|lockout|database|db|sqlite|sqlalchemy|postgres(?:ql)?|transactions?)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_QUERY_ZH_PATTERN =
+  /(安全|认证|授权|密码|CSRF|限流|锁定|数据库|事务|SQLite|PostgreSQL)[\s\S]{0,160}(挑战|问题|错误|报错|故障|修复|调试|处理)/iu;
+
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_MILESTONE_PATTERN =
+  /\b(?:werkzeug\.security|generate_password_hash|check_password_hash|password\s+hashing|csrf(?:\s+token)?|integrityerror|unique\s+constraint|operationalerror|account\s+lockout|failed\s+login\s+attempts|redis[\s\S]{0,80}rate\s+limit(?:ing)?|rate\s+limit(?:ing)?[\s\S]{0,80}redis)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_MILESTONE_ZH_PATTERN =
+  /(密码哈希|CSRF|唯一约束|数据库错误|操作错误|账号锁定|登录失败|Redis|限流)/iu;
+
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_DISTRACTOR_PATTERN =
+  /\b(?:database\s+schema|flask-login|rest\s+api|pull\s+request|code\s+review|caching\s+tweaks?|dashboard\s+api\s+response\s+time|minimal\s+dependencies|syntax\s+highlighting)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_DISTRACTOR_ZH_PATTERN =
+  /(数据库表结构|代码评审|缓存优化|响应时间|最小依赖|语法高亮)/u;
+
 export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN =
   /\b(?:bugs?|debug(?:ged|ging)?|errors?|fix(?:ed|ing)?|issues?|problems?|resolved?|troubleshoot(?:ed|ing)?)\b/iu;
 
@@ -161,6 +181,46 @@ export const SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_PATTERN =
 
 export const SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_ZH_PATTERN =
   /(学习|理解|概念|解释|计算|公式|概率|比率|有利结果|总结果|抛硬币|掷骰子|独立事件|互斥事件|条件概率)/u;
+
+const SOURCE_ORDER_SUMMARY_GENERIC_QUERY_TOPIC_STOPWORDS = new Set([
+  "application",
+  "approach",
+  "approached",
+  "changed",
+  "clear",
+  "comprehensive",
+  "concept",
+  "conversation",
+  "develop",
+  "developed",
+  "development",
+  "evolved",
+  "give",
+  "learning",
+  "overview",
+  "progress",
+  "progressed",
+  "provide",
+  "recap",
+  "summary",
+  "summarize",
+  "throughout",
+  "understanding",
+  "一步步",
+  "变化",
+  "发展",
+  "总结",
+  "概述",
+  "梳理",
+  "清楚",
+  "理解",
+]);
+
+export const SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_PATTERN =
+  /\b(?:appl(?:y|ied|ying)|clarif(?:y|ied|ying)|compar(?:e|ed|ing)|confirmed|criteria|criterion|counterexample|explain(?:ed|ing)?|introduced|learn(?:ed|ing)?|planned|proof|prov(?:e|ed|ing)|summari[sz](?:e|ed|ing)|valid|verified|walk(?:ed|ing)?\s+through)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_ZH_PATTERN =
+  /(应用|学习|理解|解释|说明|区分|比较|确认|引入|证明|反例|标准|准则|总结|梳理|验证|计划)/u;
 
 export const SOURCE_ORDER_SUMMARY_INSTRUCTION_LIKE_PATTERN =
   /^(?:always|never|please\s+always)\b/iu;
@@ -201,6 +261,16 @@ export function isSourceOrderedWritingProgressSummaryQuery(query: string): boole
 export function isSourceOrderedCareerPhilosophySummaryQuery(query: string): boolean {
   return SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_PATTERN.test(query) ||
     SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_ZH_PATTERN.test(query);
+}
+
+export function isSourceOrderedTechnicalChallengeSummaryQuery(
+  query: string,
+): boolean {
+  return isSourceOrderedConversationSummaryQuery(query) &&
+    (
+      SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_QUERY_PATTERN.test(query) ||
+      SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_QUERY_ZH_PATTERN.test(query)
+    );
 }
 
 export function hasSourceOrderedSummaryPerformanceGoalMilestone(
@@ -266,6 +336,20 @@ export function isSourceOrderedSummaryCareerPhilosophyUserAnchor(
     SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_ANCHOR_ZH_PATTERN.test(content);
 }
 
+export function hasSourceOrderedSummaryTechnicalChallengeMilestone(
+  content: string,
+): boolean {
+  if (
+    SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_DISTRACTOR_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_DISTRACTOR_ZH_PATTERN.test(content)
+  ) {
+    return false;
+  }
+
+  return SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_MILESTONE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_TECHNICAL_CHALLENGE_MILESTONE_ZH_PATTERN.test(content);
+}
+
 export function isSourceOrderedIssueResolutionSummaryQuery(
   query: string,
 ): boolean {
@@ -295,6 +379,233 @@ export function isSourceOrderedLearningProgressionQuery(query: string): boolean 
 export function hasSourceOrderedSummaryLearningMilestone(content: string): boolean {
   return SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_PATTERN.test(content) ||
     SOURCE_ORDER_SUMMARY_LEARNING_MILESTONE_ZH_PATTERN.test(content);
+}
+
+export function sourceOrderedSummarySpecificQueryTopics(
+  queryTopics: ReadonlySet<string>,
+): Set<string> {
+  const specificTopics = new Set<string>();
+  for (const topic of queryTopics) {
+    if (!SOURCE_ORDER_SUMMARY_GENERIC_QUERY_TOPIC_STOPWORDS.has(topic)) {
+      specificTopics.add(topic);
+    }
+  }
+
+  return specificTopics.size === 0 ? new Set(queryTopics) : specificTopics;
+}
+
+export function hasSourceOrderedSummaryTopicalSynthesisSignal(
+  content: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_TOPICAL_SYNTHESIS_ZH_PATTERN.test(content) ||
+    hasSourceOrderedSummaryMilestoneAction(content);
+}
+
+function sourceOrderedSummarySpecificTopicOverlap(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  querySpecificTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = selectorTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
+  return selectorTopicOverlapCount(input.querySpecificTopics, factTopics);
+}
+
+function sourceOrderedSummaryRequiredSpecificTopicOverlap(
+  querySpecificTopics: ReadonlySet<string>,
+): number {
+  return querySpecificTopics.size >= 2 ? 2 : 1;
+}
+
+function sourceOrderedSummaryTopicalPriority(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  priority: (entry: RankedFactCandidate) => number;
+  querySpecificTopics: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  let score = input.priority(input.entry) +
+    sourceOrderedSummarySpecificTopicOverlap({
+      entry: input.entry,
+      language: input.language,
+      querySpecificTopics: input.querySpecificTopics,
+    }) * 300;
+
+  if (hasUserAnswerTag(input.entry)) {
+    score += 90;
+  }
+  if (hasSourceOrderedSummaryTopicalSynthesisSignal(content)) {
+    score += 180;
+  }
+  if (
+    /\b(?:criteria|criterion|method|proof|prov(?:e|ed|ing)|valid|counterexample|step-by-step|formal)\b/iu.test(
+      content,
+    ) ||
+    /(标准|准则|方法|证明|有效|反例|步骤|正式)/u.test(content)
+  ) {
+    score += 220;
+  }
+  if (
+    /\b(?:I(?:'m| am)\s+trying\s+to\s+(?:apply|compare|construct|prove|understand\s+why|verif(?:y|ying))|help\s+me\s+(?:apply|compare|prove|verify)|formal\s+proof|counterexample)\b/iu.test(
+      content,
+    ) ||
+    /我[\s\S]{0,30}(应用|比较|构造|证明|验证|理解为什么|反例)/u.test(content)
+  ) {
+    score += 420;
+  }
+  if (
+    /\b[A-Z]{2,5}\b[\s\S]{0,60}\b(?:criteria|criterion|method|proof|valid|similarity|congruence)\b|\b(?:criteria|criterion|method|proof|valid|similarity|congruence)\b[\s\S]{0,60}\b[A-Z]{2,5}\b/u.test(
+      content,
+    )
+  ) {
+    score += 340;
+  }
+  if (
+    /\b(?:accuracy|exam|practice\s+test|score(?:d)?|test\s+score|thanks?\s+for|not\s+really)\b/iu.test(
+      content,
+    ) ||
+    /(准确率|考试|练习测试|分数|得分|谢谢|暂时不用)/u.test(content)
+  ) {
+    score -= 900;
+  }
+  if (
+    /\b(?:confident|good\s+handle|having\s+trouble\s+understanding\s+the\s+difference|explain\s+the\s+difference)\b/iu.test(
+      content,
+    ) ||
+    /(有把握|解释.*区别|理解.*区别)/u.test(content)
+  ) {
+    score -= 240;
+  }
+  if (
+    /\b(?:additional\s+plugins?|install(?:ed|ing)?|labeled\s+diagrams?|software\s+tools?|tooling)\b/iu.test(
+      content,
+    )
+  ) {
+    score -= 420;
+  }
+  if (
+    /\b(?:geogebra|load\s+distribution|structural\s+engineering|truss|triangular\s+window)\b/iu.test(
+      content,
+    ) &&
+    !input.querySpecificTopics.has("geogebra") &&
+    !input.querySpecificTopics.has("load") &&
+    !input.querySpecificTopics.has("structural") &&
+    !input.querySpecificTopics.has("truss") &&
+    !input.querySpecificTopics.has("window")
+  ) {
+    score -= 520;
+  }
+  if (
+    /\b(?:area|base-height|heron'?s|median\s+length)\b/iu.test(content) &&
+    !input.querySpecificTopics.has("area") &&
+    !input.querySpecificTopics.has("median")
+  ) {
+    score -= 720;
+  }
+
+  return score;
+}
+
+function collectAcronyms(value: string): Set<string> {
+  return new Set(
+    (value.match(/\b[A-Z]{2,5}\b/gu) ?? []).filter(
+      (token) => token !== "BEAM",
+    ),
+  );
+}
+
+function sourceOrderedSummaryTopicalSlotSignature(
+  entry: RankedFactCandidate,
+): Set<string> {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const similarityFocus =
+    /\b(?:similar|similarity|proportional|ratio|scale\s+factor)\b/iu.test(content);
+  const congruenceFocus = /\b(?:congruen(?:ce|t))\b/iu.test(content);
+  const typedAcronyms = (tokens: ReadonlySet<string>): Set<string> => {
+    const suffix = similarityFocus && !congruenceFocus
+      ? "similarity"
+      : congruenceFocus && !similarityFocus
+        ? "congruence"
+        : similarityFocus
+          ? "similarity"
+          : "general";
+    return new Set([...tokens].map((token) => `${token}:${suffix}`));
+  };
+
+  const similarByCriterion = content.match(
+    /\b(?:similar|similarity)\b[\s\S]{0,80}\b(?:by|using)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b|\b(?:by|using)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b[\s\S]{0,80}\b(?:similar|similarity)\b/u,
+  );
+  if (similarByCriterion?.[1] || similarByCriterion?.[2]) {
+    return new Set([`${similarByCriterion[1] ?? similarByCriterion[2]}:similarity`]);
+  }
+
+  const congruenceUsingCriteria = content.match(
+    /\b(?:congruen(?:ce|t))\b[\s\S]{0,100}\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b|\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b[\s\S]{0,100}\b(?:congruen(?:ce|t))\b/u,
+  );
+  if (congruenceUsingCriteria?.[1] || congruenceUsingCriteria?.[2]) {
+    return new Set(
+      [...collectAcronyms(congruenceUsingCriteria[1] ?? congruenceUsingCriteria[2] ?? "")]
+        .map((token) => `${token}:congruence`),
+    );
+  }
+
+  const congruenceUsingNamedMethod = content.match(
+    /\b(?:congruen(?:ce|t))\b[\s\S]{0,100}\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\b|\b(?:using|with)\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\b[\s\S]{0,100}\b(?:congruen(?:ce|t))\b/u,
+  );
+  if (congruenceUsingNamedMethod?.[1] || congruenceUsingNamedMethod?.[2]) {
+    return new Set(
+      [...collectAcronyms(congruenceUsingNamedMethod[1] ?? congruenceUsingNamedMethod[2] ?? "")]
+        .map((token) => `${token}:congruence`),
+    );
+  }
+
+  const parentheticalCriterion = content.match(
+    /\(([A-Z]{2,5})\)\s+(?:approach|criterion|criteria|method|proof)\b/u,
+  );
+  if (parentheticalCriterion?.[1]) {
+    return typedAcronyms(new Set([parentheticalCriterion[1]]));
+  }
+
+  if (
+    /\bsides?\s+in\s+ratio\b[\s\S]{0,100}\bequal\s+included\s+angles?\b[\s\S]{0,100}\bsimilar\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["included-angle:similarity"]);
+  }
+
+  const focusedCriterion = content.match(
+    /\b(?:by|through)\s+(?:the\s+)?([A-Z]{2,5})\s+(?:criterion|criteria|method|proof)\b/u,
+  );
+  if (focusedCriterion?.[1]) {
+    return typedAcronyms(new Set([focusedCriterion[1]]));
+  }
+
+  const whyCriterion = content.match(/\bwhy\s+(?:the\s+)?([A-Z]{2,5})\b/u);
+  if (whyCriterion?.[1]) {
+    return typedAcronyms(new Set([whyCriterion[1]]));
+  }
+
+  const usingCriteria = content.match(
+    /\busing\s+(?:the\s+)?((?:[A-Z]{2,5}(?:\s*(?:,|and)\s*)?){1,4})\s+(?:approaches?|criteria|criterion|methods?)\b/u,
+  );
+  if (usingCriteria?.[1]) {
+    return typedAcronyms(collectAcronyms(usingCriteria[1]));
+  }
+
+  const namedCriterion = content.match(
+    /\b([A-Z]{2,5})\s+(?:approach|criterion|criteria|method|similarity|congruence)\b/u,
+  );
+  if (namedCriterion?.[1]) {
+    return typedAcronyms(new Set([namedCriterion[1]]));
+  }
+
+  return new Set();
 }
 
 export function isSourceOrderedSummaryInstructionLike(content: string): boolean {
@@ -497,6 +808,14 @@ export function hasSourceOrderedSummarySignal(input: {
   }
 
   if (
+    isSourceOrderedTechnicalChallengeSummaryQuery(input.query) &&
+    !isSourceOrderedSummaryInstructionLike(content) &&
+    hasSourceOrderedSummaryTechnicalChallengeMilestone(content)
+  ) {
+    return true;
+  }
+
+  if (
     /\b(?:issue|problem|challenge|resolved|approached)\b/iu.test(input.query) &&
     /\b(?:debug(?:ged|ging)?|error|fix(?:ed|ing)?|issue|problem|resolv(?:e|ed|ing)|solution)\b/iu.test(
       content,
@@ -616,6 +935,220 @@ export function isSourceOrderedSummaryCoreMilestoneCandidate(input: {
     );
 }
 
+export function isSourceOrderedSummaryTopicalMilestoneCandidate(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  querySpecificTopics: ReadonlySet<string>;
+}): boolean {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  if (
+    isSourceOrderedSummaryInstructionLike(content) ||
+    isLowInformationSourceSummaryFollowUp(content)
+  ) {
+    return false;
+  }
+
+  const requiredOverlap = sourceOrderedSummaryRequiredSpecificTopicOverlap(
+    input.querySpecificTopics,
+  );
+  if (
+    sourceOrderedSummarySpecificTopicOverlap({
+      entry: input.entry,
+      language: input.language,
+      querySpecificTopics: input.querySpecificTopics,
+    }) < requiredOverlap
+  ) {
+    return false;
+  }
+
+  return hasUserAnswerTag(input.entry) ||
+    (
+      hasAssistantAnswerTag(input.entry) &&
+      hasSourceOrderedSummaryTopicalSynthesisSignal(content)
+    );
+}
+
+export function isSourceOrderedSummaryTopicalCompanionCandidate(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  querySpecificTopics: ReadonlySet<string>;
+}): boolean {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  if (
+    isSourceOrderedSummaryInstructionLike(content) ||
+    isLowInformationSourceSummaryFollowUp(content)
+  ) {
+      return false;
+  }
+
+  const topicOverlap = sourceOrderedSummarySpecificTopicOverlap({
+    entry: input.entry,
+    language: input.language,
+    querySpecificTopics: input.querySpecificTopics,
+  });
+  const hasSlotSignature =
+    sourceOrderedSummaryTopicalSlotSignature(input.entry).size > 0;
+  return (
+    topicOverlap >=
+      sourceOrderedSummaryRequiredSpecificTopicOverlap(input.querySpecificTopics) ||
+    hasSlotSignature
+  ) && hasSourceOrderedSummaryTopicalSynthesisSignal(content);
+}
+
+function selectSourceOrderedSummaryAnchorCoverage(input: {
+  anchorLimit?: number;
+  anchors: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const recallLimit = input.anchorLimit ?? SOURCE_ORDER_SUMMARY_RECALL_LIMIT;
+  const sortedAnchors = [...input.anchors].sort(compareTemporalFactChronology);
+  if (sortedAnchors.length <= recallLimit) {
+    return sortedAnchors;
+  }
+
+  const selected = new Map<string, RankedFactCandidate>();
+  const anchorCount = Math.min(
+    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
+    Math.ceil(recallLimit / 2),
+    sortedAnchors.length,
+  );
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size < recallLimit) {
+      selected.set(entry.fact.id, entry);
+    }
+  };
+
+  for (let index = 0; index < anchorCount; index += 1) {
+    const start = Math.floor(index * sortedAnchors.length / anchorCount);
+    const end = Math.floor((index + 1) * sortedAnchors.length / anchorCount);
+    const bucket = sortedAnchors.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = input.priority(right) - input.priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })[0];
+    if (best) {
+      addCandidate(best);
+    }
+  }
+
+  for (const entry of [...sortedAnchors].sort((left, right) => {
+    const priorityDelta = input.priority(right) - input.priority(left);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return compareTemporalFactChronology(left, right);
+  })) {
+    if (selected.size >= recallLimit) {
+      break;
+    }
+    addCandidate(entry);
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
+function selectSourceOrderedTopicalSummaryMilestones(input: {
+  anchors: RankedFactCandidate[];
+  companions: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const selected = new Map<string, RankedFactCandidate>();
+  const selectedSourceOrders = new Set<number>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      return;
+    }
+    const order = sourceOrderSortKey(entry);
+    if (order !== undefined && selectedSourceOrders.has(order)) {
+      return;
+    }
+
+    selected.set(entry.fact.id, entry);
+    if (order !== undefined) {
+      selectedSourceOrders.add(order);
+    }
+  };
+  const preferredAnchors = input.anchors.filter(hasUserAnswerTag).length >=
+      SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+    ? input.anchors.filter(hasUserAnswerTag)
+    : input.anchors;
+  const anchorCoverageLimit = Math.min(
+    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
+    Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),
+  );
+  const anchorsBySignature = new Map<string, RankedFactCandidate>();
+  for (const anchor of preferredAnchors) {
+    const order = sourceOrderSortKey(anchor);
+    const signature = sourceOrderedSummaryTopicalSlotSignature(anchor);
+    const signatureKey = signature.size === 0
+      ? `source:${order ?? anchor.fact.id}`
+      : [...signature].sort().join("|");
+    const current = anchorsBySignature.get(signatureKey);
+    if (
+      !current ||
+      compareTemporalFactChronology(anchor, current) < 0
+    ) {
+      anchorsBySignature.set(signatureKey, anchor);
+    }
+  }
+  const anchorCoverage = [...anchorsBySignature.values()]
+    .sort((left, right) => {
+      const priorityDelta = input.priority(right) - input.priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })
+    .slice(0, anchorCoverageLimit)
+    .sort(compareTemporalFactChronology);
+
+  for (const anchor of anchorCoverage) {
+    const anchorOrder = sourceOrderSortKey(anchor);
+    addCandidate(anchor);
+    if (anchorOrder === undefined) {
+      continue;
+    }
+
+    const companions = input.companions
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        return order !== undefined &&
+          !selectedSourceOrders.has(order) &&
+          Math.abs(order - anchorOrder) <=
+            SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE &&
+          (
+            (hasUserAnswerTag(anchor) && hasAssistantAnswerTag(entry) &&
+              order > anchorOrder) ||
+            (hasAssistantAnswerTag(anchor) && hasUserAnswerTag(entry) &&
+              order < anchorOrder)
+          );
+      })
+      .sort((left, right) => {
+        const leftOrder = sourceOrderSortKey(left) ?? 0;
+        const rightOrder = sourceOrderSortKey(right) ?? 0;
+        const priorityDelta = input.priority(right) - input.priority(left);
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        const distanceDelta =
+          Math.abs(leftOrder - anchorOrder) - Math.abs(rightOrder - anchorOrder);
+        if (distanceDelta !== 0) {
+          return distanceDelta;
+        }
+        return compareTemporalFactChronology(left, right);
+      })
+      .slice(0, SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR);
+    for (const companion of companions) {
+      addCandidate(companion);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
 function selectSourceOrderedWritingProgressPairs(input: {
   anchors: RankedFactCandidate[];
   sourceCandidates: RankedFactCandidate[];
@@ -718,6 +1251,85 @@ function selectSourceOrderedCareerPhilosophyPairs(input: {
   return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
+function sourceOrderedTechnicalChallengePriority(input: {
+  entry: RankedFactCandidate;
+  priority: (entry: RankedFactCandidate) => number;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  let score = input.priority(input.entry);
+
+  if (
+    /\b(?:integrityerror|unique\s+constraint|operationalerror|csrf(?:\s+token)?|account\s+lockout|failed\s+login\s+attempts|redis[\s\S]{0,80}rate\s+limit(?:ing)?|rate\s+limit(?:ing)?[\s\S]{0,80}redis)\b/iu.test(
+      content,
+    )
+  ) {
+    score += 520;
+  }
+  if (/\bcsrf\s+token\s+missing\s+or\s+incorrect\b/iu.test(content)) {
+    score += 260;
+  }
+  if (
+    /\b(?:basic\s+password\s+hashing|werkzeug\.security|securely\s+hashing\s+passwords)\b/iu.test(
+      content,
+    )
+  ) {
+    score += 420;
+  }
+  if (
+    /\b(?:error|failed|incorrect|missing|trouble|try-except|http\s+500|error\s+logs?)\b/iu.test(
+      content,
+    )
+  ) {
+    score += 140;
+  }
+  if (hasAssistantAnswerTag(input.entry)) {
+    score += 20;
+  }
+  if (
+    /\b(?:core\s+functionalit(?:y|ies)|data\s+visualization|estimate\s+the\s+time|task\s+list|template(?:notfound)?|no\s+such\s+table|unauthorized\s+access|blueprints?|lightweight|minimal\s+dependencies|session\s+login|rest\s+api|pull\s+request|code\s+review|caching\s+tweaks?|dashboard\s+api\s+response\s+time)\b/iu.test(
+      content,
+    )
+  ) {
+    score -= 520;
+  }
+  if (
+    /\b(?:sqlalchemy\s+for\s+database\s+interactions|starting\s+from\s+scratch|flask\s+routes|ui\/ux|refactor(?:ing)?|maintainability|security\s+best\s+practices)\b/iu.test(
+      content,
+    )
+  ) {
+    score -= 420;
+  }
+  if (content.length > 2500) {
+    score -= 120;
+  }
+
+  return score;
+}
+
+function selectSourceOrderedTechnicalChallengeMilestones(input: {
+  candidates: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  return [...input.candidates]
+    .sort((left, right) => {
+      const priorityDelta =
+        sourceOrderedTechnicalChallengePriority({
+          entry: right,
+          priority: input.priority,
+        }) -
+        sourceOrderedTechnicalChallengePriority({
+          entry: left,
+          priority: input.priority,
+        });
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })
+    .slice(0, SOURCE_ORDER_SUMMARY_RECALL_LIMIT)
+    .sort(compareTemporalFactChronology);
+}
+
 export function selectSourceOrderedSummaryCoverage(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -733,11 +1345,19 @@ export function selectSourceOrderedSummaryCoverage(input: {
     input.language,
     input.queryLocale,
   );
+  const querySpecificTopics = sourceOrderedSummarySpecificQueryTopics(queryTopics);
   const priority = (entry: RankedFactCandidate): number =>
     sourceOrderedSummaryPriority({
       entry,
       language: input.language,
       queryTopics,
+    });
+  const topicalPriority = (entry: RankedFactCandidate): number =>
+    sourceOrderedSummaryTopicalPriority({
+      entry,
+      language: input.language,
+      priority,
+      querySpecificTopics,
     });
   const sourceCandidates = input.entries
     .filter(isSourceOrderedSummaryCandidate)
@@ -750,6 +1370,18 @@ export function selectSourceOrderedSummaryCoverage(input: {
       priority,
     })
     : [];
+  const technicalChallengeSummaryQuery =
+    isSourceOrderedTechnicalChallengeSummaryQuery(input.query);
+  const technicalChallengeSourceCandidates = technicalChallengeSummaryQuery
+    ? dedupeSourceOrderedSummaryTurns({
+      entries: sourceCandidates,
+      priority,
+    })
+    : [];
+  const topicalSourceCandidates = dedupeSourceOrderedSummaryTurns({
+    entries: sourceCandidates,
+    priority,
+  });
   const signaledCandidates = sourceCandidates.filter((entry) =>
     hasSourceOrderedSummarySignal({
       entry,
@@ -838,6 +1470,34 @@ export function selectSourceOrderedSummaryCoverage(input: {
         )
       )
       : [];
+  const technicalChallengeCandidates =
+    technicalChallengeSummaryQuery
+      ? technicalChallengeSourceCandidates.filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return !isSourceOrderedSummaryInstructionLike(content) &&
+          hasSourceOrderedSummaryTechnicalChallengeMilestone(content);
+      })
+      : [];
+  const learningProgressionSummaryQuery =
+    isSourceOrderedLearningProgressionQuery(input.query);
+  const topicalSummaryCandidates = learningProgressionSummaryQuery
+    ? topicalSourceCandidates.filter((entry) =>
+      isSourceOrderedSummaryTopicalMilestoneCandidate({
+        entry,
+        language: input.language,
+        querySpecificTopics,
+      })
+    )
+    : [];
+  const topicalSummaryCompanions = learningProgressionSummaryQuery
+    ? topicalSourceCandidates.filter((entry) =>
+      isSourceOrderedSummaryTopicalCompanionCandidate({
+        entry,
+        language: input.language,
+        querySpecificTopics,
+      })
+    )
+    : [];
   const issueResolutionCandidates =
     isSourceOrderedIssueResolutionSummaryQuery(input.query)
       ? sourceCandidates.filter((entry) => {
@@ -897,6 +1557,24 @@ export function selectSourceOrderedSummaryCoverage(input: {
     }
 
     return careerPhilosophyCandidates.slice(0, SOURCE_ORDER_SUMMARY_RECALL_LIMIT);
+  }
+  if (
+    technicalChallengeCandidates.length >=
+      SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    return selectSourceOrderedTechnicalChallengeMilestones({
+      candidates: technicalChallengeCandidates,
+      priority,
+    });
+  }
+  if (
+    topicalSummaryCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    return selectSourceOrderedTopicalSummaryMilestones({
+      anchors: topicalSummaryCandidates,
+      companions: topicalSummaryCompanions,
+      priority: topicalPriority,
+    });
   }
   if (
     issueResolutionCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS

@@ -4559,6 +4559,135 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-date-distractor");
   });
 
+  it("samples advanced topic-specific learning milestones for concept progression summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-heron-distractor-user",
+        2,
+        "user",
+        "[BEAM chat_id=2 role=user time=unknown] I'm trying to understand triangle geometry by calculating triangle area with Heron's formula.",
+      ),
+      makeSourceFact(
+        "fact-heron-distractor-assistant",
+        3,
+        "assistant",
+        "[BEAM chat_id=3 role=assistant time=unknown] We calculated triangle area with Heron's formula from three side lengths.",
+      ),
+      makeSourceFact(
+        "fact-equilateral-distractor-user",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] I'm trying to understand what defines an equilateral triangle and how to calculate its area.",
+      ),
+      makeSourceFact(
+        "fact-sss-similarity-user",
+        144,
+        "user",
+        "[BEAM chat_id=144 role=user time=unknown] I tried proving triangle congruence and similarity using SSS, SAS, and ASA criteria with side lengths 6-8-10 and 9-12-15.",
+      ),
+      makeSourceFact(
+        "fact-sss-similarity-assistant",
+        145,
+        "assistant",
+        "[BEAM chat_id=145 role=assistant time=unknown] We verified triangle similarity through the SSS criterion by comparing corresponding side ratios and scale factors.",
+      ),
+      makeSourceFact(
+        "fact-scale-factor-assistant",
+        147,
+        "assistant",
+        "[BEAM chat_id=147 role=assistant time=unknown] We summarized how the SSS criterion and scale factors prove similarity for the two triangles.",
+      ),
+      makeSourceFact(
+        "fact-asa-proof-user",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I planned an ASA triangle congruence proof with angles 50 and 60 degrees plus the included side.",
+      ),
+      makeSourceFact(
+        "fact-asa-proof-assistant",
+        151,
+        "assistant",
+        "[BEAM chat_id=151 role=assistant time=unknown] We walked through the ASA criterion for triangle congruence using two angles and the included side.",
+      ),
+      makeSourceFact(
+        "fact-sas-asa-user",
+        152,
+        "user",
+        "[BEAM chat_id=152 role=user time=unknown] I compared SAS and ASA methods for proving triangle congruence and got stuck applying them correctly.",
+      ),
+      makeSourceFact(
+        "fact-sas-asa-assistant",
+        153,
+        "assistant",
+        "[BEAM chat_id=153 role=assistant time=unknown] We compared SAS and ASA proof methods for triangle congruence and when each criterion applies.",
+      ),
+      makeSourceFact(
+        "fact-ssa-user",
+        162,
+        "user",
+        "[BEAM chat_id=162 role=user time=unknown] I asked why SSA is not a valid triangle congruence criterion and wanted a counterexample.",
+      ),
+      makeSourceFact(
+        "fact-ssa-assistant",
+        163,
+        "assistant",
+        "[BEAM chat_id=163 role=assistant time=unknown] We explained why SSA is ambiguous and not a valid congruence criterion.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a clear summary of how my understanding and application of triangle similarity and congruence developed throughout our conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-sss-similarity-user",
+      "fact-sss-similarity-assistant",
+      "fact-scale-factor-assistant",
+      "fact-asa-proof-user",
+      "fact-asa-proof-assistant",
+      "fact-sas-asa-user",
+      "fact-sas-asa-assistant",
+      "fact-ssa-user",
+      "fact-ssa-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-heron-distractor-user");
+    expect(selectedIds).not.toContain("fact-equilateral-distractor-user");
+  });
+
   it("keeps writing progress strategy milestones for broad improvement summaries", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4983,6 +5112,189 @@ describe("recall selection", () => {
       "fact-new-opportunities-question-user",
       "fact-storytelling-question-user",
       "fact-startup-offer-question-user",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === distractorId)?.returned).toBe(false);
+    }
+  });
+
+  it("keeps named security and database challenge milestones for project summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-schema-distractor-user",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] I designed a database schema with users and transactions tables and asked for general validation around adding transactions.",
+      ),
+      makeSourceFact(
+        "fact-schema-distractor-assistant",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] We reviewed a BudgetTracker class with SQLite tables, transaction insertion, and input validation helpers.",
+      ),
+      makeSourceFact(
+        "fact-password-hash-user",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] I implemented basic password hashing for my personal budget tracker using Werkzeug.security with a password_hash field.",
+      ),
+      makeSourceFact(
+        "fact-password-hash-assistant",
+        17,
+        "assistant",
+        "[BEAM chat_id=17 role=assistant time=unknown] We used generate_password_hash and check_password_hash for secure password hashing and verification during login.",
+      ),
+      makeSourceFact(
+        "fact-flask-login-distractor-user",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I started from scratch on Flask routes for registration and session login with hashed passwords.",
+      ),
+      makeSourceFact(
+        "fact-flask-login-distractor-assistant",
+        59,
+        "assistant",
+        "[BEAM chat_id=59 role=assistant time=unknown] We completed registration and login routes with Flask-Login and form templates.",
+      ),
+      makeSourceFact(
+        "fact-integrity-error-user",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] I hit sqlite3.IntegrityError: UNIQUE constraint failed: transactions.id when inserting a new transaction.",
+      ),
+      makeSourceFact(
+        "fact-integrity-error-assistant",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] We debugged the UNIQUE constraint failure on transactions.id and checked ID generation, existing rows, and insertion logic.",
+      ),
+      makeSourceFact(
+        "fact-session-distractor-user",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] I integrated Flask-Login for session management and wanted secure password hashing in the same flow.",
+      ),
+      makeSourceFact(
+        "fact-operational-error-user",
+        88,
+        "user",
+        "[BEAM chat_id=88 role=user time=unknown] I needed to handle OperationalError around DB calls with try-except blocks, HTTP 500 responses, and error logs.",
+      ),
+      makeSourceFact(
+        "fact-operational-error-assistant",
+        89,
+        "assistant",
+        "[BEAM chat_id=89 role=assistant time=unknown] We added OperationalError handling for database calls, structured error logging, and consistent HTTP 500 responses.",
+      ),
+      makeSourceFact(
+        "fact-keyerror-distractor-user",
+        98,
+        "user",
+        "[BEAM chat_id=98 role=user time=unknown] I fixed a KeyError: amount in my transaction POST handler by adding Marshmallow validation.",
+      ),
+      makeSourceFact(
+        "fact-pr-review-distractor-user",
+        100,
+        "user",
+        "[BEAM chat_id=100 role=user time=unknown] I opened GitHub pull request #12 for transaction CRUD and analytics integration and wanted a code review.",
+      ),
+      makeSourceFact(
+        "fact-cache-distractor-user",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I optimized the dashboard API response time to 250ms with caching tweaks.",
+      ),
+      makeSourceFact(
+        "fact-csrf-user",
+        138,
+        "user",
+        "[BEAM chat_id=138 role=user time=unknown] I got a CSRF token missing or incorrect error in Flask-WTF forms with CSRF protection enabled.",
+      ),
+      makeSourceFact(
+        "fact-csrf-assistant",
+        139,
+        "assistant",
+        "[BEAM chat_id=139 role=assistant time=unknown] We fixed the CSRF token missing or incorrect error by checking the hidden form token, secret key, and validation.",
+      ),
+      makeSourceFact(
+        "fact-csrf-cookie-assistant",
+        141,
+        "assistant",
+        "[BEAM chat_id=141 role=assistant time=unknown] We checked that browser cookies were enabled because CSRF token validation depends on session cookies.",
+      ),
+      makeSourceFact(
+        "fact-lockout-user",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I implemented account lockout after 5 failed login attempts using Redis 7.0 for rate limiting.",
+      ),
+      makeSourceFact(
+        "fact-lockout-assistant",
+        151,
+        "assistant",
+        "[BEAM chat_id=151 role=assistant time=unknown] We improved the Redis account lockout implementation with rate limiting, expiry handling, atomic increments, and secure login behavior.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a comprehensive summary of how I handled the security and database challenges in my budget tracker app across our discussions?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-password-hash-user",
+      "fact-password-hash-assistant",
+      "fact-integrity-error-user",
+      "fact-integrity-error-assistant",
+      "fact-operational-error-user",
+      "fact-operational-error-assistant",
+      "fact-csrf-user",
+      "fact-csrf-assistant",
+      "fact-csrf-cookie-assistant",
+      "fact-lockout-user",
+      "fact-lockout-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    for (const distractorId of [
+      "fact-schema-distractor-user",
+      "fact-schema-distractor-assistant",
+      "fact-flask-login-distractor-user",
+      "fact-flask-login-distractor-assistant",
+      "fact-session-distractor-user",
+      "fact-keyerror-distractor-user",
+      "fact-pr-review-distractor-user",
+      "fact-cache-distractor-user",
     ]) {
       expect(result.traces.find((trace) => trace.memoryId === distractorId)?.returned).toBe(false);
     }

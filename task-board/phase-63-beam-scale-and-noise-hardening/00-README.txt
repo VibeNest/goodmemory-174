@@ -203,10 +203,27 @@ Workstreams
     broad writing-progress strategy summaries now preserve concrete
     user-source milestones with their adjacent assistant strategy replies
     before extra writing anchors consume the recall budget.
+  - career/philosophy summary rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-career-philosophy-scoped-current-20260520T054505Z`
+    reaches full rules-only evidence-chat recall 0.4233111802125888 with
+    `executionFailures: 0`, missed-recall cases 252/355, and
+    wrong-recall/noise cases 386/400. The kept selector repair is narrow:
+    career/philosophy summary queries dedupe duplicate facts from the same
+    source turn only inside that branch, then pair user decision/reflection
+    milestones with adjacent assistant synthesis replies.
+  - technical-challenge summary gated rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-gated-current-20260520T060654Z`
+    reaches full rules-only evidence-chat recall 0.42556470133934937 with
+    `executionFailures: 0`, missed-recall cases 251/355, and
+    wrong-recall/noise cases 386/400. The kept selector repair is narrow:
+    security/database challenge summary queries require summary intent,
+    dedupe duplicate facts from the same source turn, and prioritize named
+    challenge milestones such as password hashing, UNIQUE constraint failures,
+    OperationalError handling, CSRF token errors, and Redis account lockout.
   - next active step: continue full-slice recall/noise hardening beyond
-    the writing-progress summary repair, especially the
-    remaining summarization, multi-session reasoning, and persistent-noise
-    surface on long imported conversations
+    the technical-challenge summary repair, especially the remaining
+    zero-recall summarization cases, multi-session reasoning, and
+    persistent-noise surface on long imported conversations
 
 
 Current Boundary
@@ -248,10 +265,13 @@ Current Boundary
   nudges it to 0.4117931833424793, the declined-financial aggregate
   pass raises it to 0.41554905188708025, and the professional-profile/resume
   event-order pass raises it to 0.41767737739568733. The latest
-  writing-progress summary pass raises it to 0.4202438875678314 with
-  wrong-recall/noise 387/400. This is still only partial Phase 63 progress: the
+  writing-progress summary pass raises it to 0.4202438875678314, and the latest
+  career/philosophy scoped summary pass raises it to 0.4233111802125888. The
+  latest technical-challenge summary gated pass raises it to
+  0.42556470133934937 with wrong-recall/noise 386/400. This is still only
+  partial Phase 63 progress: the
   full 100K provider-free recall diagnostic remains recall-limited and noisy
-  with 253 missed-recall cases. The next executable boundary is reducing
+  with 251 missed-recall cases. The next executable boundary is reducing
   remaining full-slice misses plus wrong-recall/noise on long imported
   conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,

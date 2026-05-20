@@ -266,6 +266,43 @@ missing summarization evidence ids drop from 250 to 236. This is a kept
 partial repair, not BEAM closure: a small event-ordering tradeoff remains in
 the changed-case comparison, and the full diagnostic still has 253 missed
 evidence cases plus persistent noise.
+Nineteenth, source-ordered career/philosophy summaries now dedupe duplicate
+facts from the same imported source turn only inside the career/philosophy
+summary branch, then pair user decision/reflection milestones with adjacent
+assistant synthesis replies. The root cause was not missing lexical phrases
+alone: BEAM recall is scored by unique `chat_id`, and the previous selector
+spent the 16 summary recall slots on repeated fact fragments from the same
+source turns while skipping distinct evidence turns. The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-career-philosophy-scoped-current-20260520T054505Z`
+raises overall evidence-chat recall to 0.4233111802125888 with
+`executionFailures: 0`, missed-recall cases 252/355, and wrong-recall/noise
+cases 386/400. Target case `12:summarization:2` moves from 0 to 1.0 recall
+with no missing or wrong retrieved chat ids, and full summarization recall rises
+from 0.14463183421516757 to 0.17240961199294536. Zero-recall summarization
+cases drop from 20 to 19, and missing summarization evidence ids drop from 236
+to 220. This is a kept partial repair, not BEAM closure:
+`12:summarization:1` remains at 0.25 recall in the direct probe, and the full
+changed-case comparison still shows one event-ordering recall tradeoff on
+`13:event_ordering:2`.
+Twentieth, source-ordered technical challenge summaries now require explicit
+summary intent before using a technical challenge selector. The first ungated
+attempt
+`run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-current-20260520T060111Z`
+was rejected because it repaired `1:summarization:2` but allowed a technical
+pattern to affect non-summary recall and lowered overall evidence-chat recall
+from 0.4233111802125888 to 0.4232172834989738. The kept gated rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-gated-current-20260520T060654Z`
+raises overall evidence-chat recall to 0.42556470133934937 with
+`executionFailures: 0`, missed-recall cases 251/355, and wrong-recall/noise
+cases 386/400. Target case `1:summarization:2` moves from 0 to 1.0 recall by
+prioritizing named security/database challenge milestones such as password
+hashing, UNIQUE constraint failures, OperationalError handling, CSRF token
+errors, and Redis-backed account lockout. Full summarization recall rises from
+0.17240961199294536 to 0.20018738977072315, zero-recall summarization cases
+drop from 19 to 18, and missing summarization evidence ids drop from 220 to
+209. This is a kept partial repair, not BEAM closure: the changed-case
+comparison still shows non-summary tie churn, including one knowledge-update
+and one event-ordering recall tradeoff, and full-run noise remains 386/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
@@ -307,9 +344,11 @@ source-order-companion pass are also done under current code, but neither is
 sufficient for closure. The ordered-context pruning pass now fixes the initial
 representative live trio, and the later summary/contradiction,
 event-ordering, summary learning/evolution, issue-resolution, and declined
-financial aggregate passes give small full-run recall lifts, but the open
-boundary remains broader generic BEAM repair for full-slice noise reduction and
-recall hardening after the improved retrieval surface.
+financial aggregate, resume event-order, writing-progress, and
+career/philosophy plus technical-challenge summary passes give small full-run
+recall lifts, but the open boundary remains broader generic BEAM repair for
+full-slice noise reduction and recall hardening after the improved retrieval
+surface.
 
 Historical context: the prior full-500 execution blocker was clean after
 failed-row recovery:
