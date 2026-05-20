@@ -340,6 +340,9 @@ function sourceOrderEventNamedTokens(value: string): Set<string> {
         "can",
         "here",
         "how",
+        "items",
+        "mention",
+        "only",
         "the",
         "user",
         "what",
@@ -351,6 +354,11 @@ function sourceOrderEventNamedTokens(value: string): Set<string> {
   }
 
   return tokens;
+}
+
+export function isSourceOrderedNamedEntityEventOrderQuery(query: string): boolean {
+  return isUserBroughtUpEventOrderQuery(query) &&
+    sourceOrderEventNamedTokens(query).size > 0;
 }
 
 function sourceOrderEventSlotSignature(input: {
@@ -374,6 +382,24 @@ function sourceOrderEventSlotSignature(input: {
   for (const token of sourceOrderEventNamedTokens(content)) {
     if (input.queryNamedTokens.has(token)) {
       signature.add(`name:${token}`);
+    }
+  }
+  const namedSignatureCount = [...signature].filter((topic) =>
+    topic.startsWith("name:")
+  ).length;
+  const nonNameSignatureTopics = [...signature].filter(
+    (topic) => !topic.startsWith("name:"),
+  );
+  if (
+    namedSignatureCount > 0 &&
+    (
+      namedSignatureCount === signature.size ||
+      nonNameSignatureTopics.every((topic) => input.queryNamedTokens.has(topic))
+    )
+  ) {
+    const order = sourceOrderSortKey(input.entry);
+    if (order !== undefined) {
+      signature.add(`source:${order}`);
     }
   }
 
@@ -420,6 +446,25 @@ function sourceOrderEventPlanPriority(input: {
   if (hasAssistantAnswerTag(input.entry)) {
     priority -= 70;
   }
+  if (
+    namedOverlap > 0 &&
+    /\b(?:collaborat(?:e|ed|ing|ion)?|joint|prioriti[sz]ed|reveal(?:ed|ing)?|review(?:ed|ing)?|with)\b/iu.test(
+      content,
+    ) &&
+    /\b(?:\d+%|\d+\s+(?:attendees|key\s+scenes|pages|writers)|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\s+\d{1,2})\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 320;
+  }
+  if (
+    namedOverlap > 0 &&
+    /\b(?:Q&A\s+session|exclusive\s+content|guide\s+to\s+editing\s+techniques|giveaway)\b/iu.test(
+      content,
+    )
+  ) {
+    priority += 360;
+  }
   if (/^(?:\[[^\]]+\]\s*)?(?:thanks?|sounds good|great|okay|ok)\b/iu.test(content)) {
     priority -= 220;
   }
@@ -428,6 +473,21 @@ function sourceOrderEventPlanPriority(input: {
     /\b(?:generic checklist|general overview|best practices)\b/iu.test(content)
   ) {
     priority -= 120;
+  }
+  if (
+    /\b(?:already\s+(?:finali[sz]ed|hosted)|attended\s+by\s+\d+|feedback\s+score|upcoming\s+peer\s+review)\b/iu.test(
+      content,
+    )
+  ) {
+    priority -= 620;
+  }
+  if (
+    namedOverlap > 0 &&
+    /\b(?:ready\s+to\s+start\s+the\s+revision\s+process|tracked\s+\d+%\s+completion|query\s+letter\s+submissions?|final\s+draft|weekly\s+\d[\d,]*-word\s+targets|template)\b/iu.test(
+      content,
+    )
+  ) {
+    priority -= 340;
   }
 
   return priority;
@@ -463,12 +523,31 @@ export function selectSourceOrderedEventOrderEvidence(input: {
       queryNamedTokens,
       queryTopics,
     });
-  const sourceCandidates = dedupeSourceOrderedEvidenceByOrder({
-    entries: input.entries
-      .filter(isSourceOrderedSummaryCandidate)
-      .filter((entry) => priority(entry) >= SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD),
+  const eligibleSourceEntries = input.entries
+    .filter(isSourceOrderedSummaryCandidate)
+    .filter((entry) => priority(entry) >= SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD);
+  const broadSourceCandidates = dedupeSourceOrderedEvidenceByOrder({
+    entries: eligibleSourceEntries,
     priority,
   });
+  const namedSourceCandidates = dedupeSourceOrderedEvidenceByOrder({
+    entries: input.entries.filter(isSourceOrderedSummaryCandidate).filter((entry) =>
+      [...sourceOrderEventNamedTokens(stripEvidencePrefix(entry.fact.content))]
+        .some((token) => queryNamedTokens.has(token))
+    ),
+    priority,
+  });
+  const namedUserSourceCandidates = namedSourceCandidates.filter(hasUserAnswerTag);
+  const sourceCandidates =
+    queryNamedTokens.size > 0 &&
+      namedUserSourceCandidates.length >=
+        Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT)
+      ? namedUserSourceCandidates
+      : queryNamedTokens.size > 0 &&
+          namedSourceCandidates.length >=
+            Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT)
+        ? namedSourceCandidates
+      : broadSourceCandidates;
   const anchors = sourceCandidates.filter((entry) => {
     const signature = sourceOrderEventSlotSignature({
       entry,
@@ -482,15 +561,26 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     return [];
   }
 
-  return selectSourceOrderedEvidencePlan({
-    anchorLimit: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
-    anchors: selectSourceOrderedEventCoverage({
-      count: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
+  const anchorLimit = Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT);
+  const plannedAnchors = queryNamedTokens.size > 0
+    ? [...anchors].sort((left, right) => {
+      const priorityDelta = priority(right) - priority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    }).slice(0, anchorLimit).sort(compareTemporalFactChronology)
+    : selectSourceOrderedEventCoverage({
+      count: anchorLimit,
       entries: anchors,
       priority,
-    }),
+    });
+
+  return selectSourceOrderedEvidencePlan({
+    anchorLimit,
+    anchors: plannedAnchors,
     companionsPerAnchor: 0,
-    limit: Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT),
+    limit: anchorLimit,
     priority,
     slotSignature: (entry) =>
       sourceOrderEventSlotSignature({

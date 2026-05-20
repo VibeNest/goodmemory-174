@@ -38,6 +38,7 @@ const SOURCE_ORDER_SUMMARY_GENERIC_QUERY_TOPIC_STOPWORDS = new Set([
   "recap",
   "summary",
   "summarize",
+  "through",
   "throughout",
   "understanding",
   "一步步",
@@ -141,6 +142,37 @@ export function sourceOrderedSummaryTopicalPriority(input: {
     score += 340;
   }
   if (
+    /\bSSS\b[\s\S]{0,120}\b(?:scale\s+factor|side\s+ratios?|6(?:\s*cm)?[\s\S]{0,40}9(?:\s*cm)?)\b/iu.test(
+      content,
+    ) ||
+    /\b(?:scale\s+factor|side\s+ratios?)\b[\s\S]{0,120}\bSSS\b/iu.test(
+      content,
+    )
+  ) {
+    score += 420;
+  }
+  if (
+    /\bASA\b[\s\S]{0,120}\b(?:50\s*(?:degrees|°)|60\s*(?:degrees|°)|included\s+side\s+7)\b/iu.test(
+      content,
+    )
+  ) {
+    score += 380;
+  }
+  if (
+    /\b(?:ratio\s+2\s*:\s*3|2\s*:\s*3[\s\S]{0,80}equal\s+included\s+angles?|equal\s+included\s+angles?[\s\S]{0,80}2\s*:\s*3|constructed\s+formal\s+proof)\b/iu.test(
+      content,
+    )
+  ) {
+    score += 420;
+  }
+  if (
+    /\bSSA\b[\s\S]{0,160}\b(?:not\s+(?:a\s+)?valid\s+congruence\s+criterion|not\s+congruent|similar\s+but\s+not\s+congruent|ambiguous)\b|\b(?:not\s+(?:a\s+)?valid\s+congruence\s+criterion|not\s+congruent|similar\s+but\s+not\s+congruent|ambiguous)\b[\s\S]{0,160}\bSSA\b/iu.test(
+      content,
+    )
+  ) {
+    score += 460;
+  }
+  if (
     /\b(?:accuracy|exam|practice\s+test|score(?:d)?|test\s+score|thanks?\s+for|not\s+really)\b/iu.test(
       content,
     ) ||
@@ -182,6 +214,16 @@ export function sourceOrderedSummaryTopicalPriority(input: {
   ) {
     score -= 720;
   }
+  if (
+    /\b(?:angle\s+calculation\s+error|made\s+a\s+mistake|affects\s+my\s+proof|can\s+two\s+triangles)\b/iu.test(
+      content,
+    )
+  ) {
+    score -= 360;
+  }
+  if (/\bsides?\s+7(?:\s*cm)?[\s\S]{0,80}\b10(?:\s*cm)?[\s\S]{0,80}\b30\s*(?:degrees|°)\b/iu.test(content)) {
+    score -= 260;
+  }
 
   return score;
 }
@@ -198,6 +240,69 @@ function sourceOrderedSummaryTopicalSlotSignature(
   entry: RankedFactCandidate,
 ): Set<string> {
   const content = stripEvidencePrefix(entry.fact.content);
+  if (
+    /\bSSS\b[\s\S]{0,160}\b(?:scale\s+factor|side\s+ratios?|6(?:\s*cm)?[\s\S]{0,60}9(?:\s*cm)?)\b|\b(?:scale\s+factor|side\s+ratios?)\b[\s\S]{0,160}\bSSS\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["triangle:sss-similarity-scale"]);
+  }
+  if (
+    /\bASA\b[\s\S]{0,140}\b(?:50\s*(?:degrees|°)|60\s*(?:degrees|°)|included\s+side\s+7)\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["triangle:asa-congruence-proof"]);
+  }
+  if (
+    /\bSAS\b[\s\S]{0,90}\bASA\b|\bASA\b[\s\S]{0,90}\bSAS\b/iu.test(content) &&
+    /\b(?:compar(?:e|ed|ing)|methods?|approaches?|efficient|accurate|step-by-step)\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["triangle:sas-asa-comparison"]);
+  }
+  if (
+    /\b(?:ratio\s+2\s*:\s*3|2\s*:\s*3[\s\S]{0,100}equal\s+included\s+angles?|equal\s+included\s+angles?[\s\S]{0,100}2\s*:\s*3|SAS\s+similarity\s+criterion|constructed\s+formal\s+proof)\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["triangle:sas-similarity-formal-proof"]);
+  }
+  if (
+    /\bSSA\b[\s\S]{0,180}\b(?:not\s+(?:a\s+)?valid\s+congruence\s+criterion|not\s+congruent|similar\s+but\s+not\s+congruent|ambiguous|counterexample)\b|\b(?:not\s+(?:a\s+)?valid\s+congruence\s+criterion|not\s+congruent|similar\s+but\s+not\s+congruent|ambiguous|counterexample)\b[\s\S]{0,180}\bSSA\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["triangle:ssa-invalid-congruence"]);
+  }
+  if (
+    /\bprobability\b[\s\S]{0,120}\b(?:ratio|favo(?:u)?rable\s+outcomes?|total\s+outcomes?|coin\s+toss(?:es)?|dice\s+rolls?)\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["probability:ratio-basics"]);
+  }
+  if (/\brolling\s+an\s+even\s+number\b/iu.test(content)) {
+    return new Set(["probability:even-die"]);
+  }
+  if (
+    /\bindependent\b[\s\S]{0,120}\bmutually\s+exclusive\b|\bmutually\s+exclusive\b[\s\S]{0,120}\bindependent\b/iu.test(
+      content,
+    )
+  ) {
+    return new Set(["probability:event-types"]);
+  }
+  if (/\b(?:both\s+heads|two\s+coin\s+tosses?)\b/iu.test(content)) {
+    return new Set(["probability:independent-combined"]);
+  }
+  if (/\b(?:rolling\s+a\s+2\b[\s\S]{0,80}\brolling\s+a\s+5|mutually\s+exclusive\s+events?)\b/iu.test(content)) {
+    return new Set(["probability:mutually-exclusive"]);
+  }
+  if (/\b(?:conditional\s+probability|P\(A\|B\)|given\s+that)\b/iu.test(content)) {
+    return new Set(["probability:conditional"]);
+  }
+
   const similarityFocus =
     /\b(?:similar|similarity|proportional|ratio|scale\s+factor)\b/iu.test(content);
   const congruenceFocus = /\b(?:congruen(?:ce|t))\b/iu.test(content);
@@ -351,16 +456,28 @@ export function selectSourceOrderedTopicalSummaryMilestones(input: {
   milestoneMinAnchors: number;
   priority: (entry: RankedFactCandidate) => number;
 }): RankedFactCandidate[] {
-  const preferredAnchors = input.anchors.filter(hasUserAnswerTag).length >=
-      input.milestoneMinAnchors
-    ? input.anchors.filter(hasUserAnswerTag)
+  const signatureAnchors = input.anchors.filter(
+    (entry) => sourceOrderedSummaryTopicalSlotSignature(entry).size > 0,
+  );
+  const anchorPool = signatureAnchors.length >= input.milestoneMinAnchors
+    ? signatureAnchors
     : input.anchors;
+  const signatureCompanions = input.companions.filter(
+    (entry) => sourceOrderedSummaryTopicalSlotSignature(entry).size > 0,
+  );
+  const companionPool = signatureCompanions.length >= input.milestoneMinAnchors
+    ? signatureCompanions
+    : input.companions;
+  const preferredAnchors = anchorPool.filter(hasUserAnswerTag).length >=
+      input.milestoneMinAnchors
+    ? anchorPool.filter(hasUserAnswerTag)
+    : anchorPool;
 
   return selectSourceOrderedEvidencePlan({
     anchorLimit: input.anchorLimit,
     anchors: preferredAnchors,
     companionDistance: SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE,
-    companionPool: input.companions,
+    companionPool,
     companionsPerAnchor: SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR,
     limit: input.limit,
     priority: input.priority,

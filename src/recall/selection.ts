@@ -62,8 +62,9 @@ import {
   fillSourceOrderedTemporalCompanions,
   fillSourceOrderedTemporalGaps,
   fillSourceOrderedTemporalMilestones,
-  selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
+  isSourceOrderedNamedEntityEventOrderQuery,
   selectSourceOrderedBroadAspectEvidence as selectBroadAspectEventOrderEvidence,
+  selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
 import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
@@ -215,6 +216,8 @@ export function selectFacts(
     healthIssueOrderQuery ||
     temporalIntervalQuery;
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const sourceOrderedNamedEntityEventOrderQuery =
+    isSourceOrderedNamedEntityEventOrderQuery(query);
   const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
   const temporalRelativeEventQuery = isTemporalRelativeEventQuery(query);
   const directFactualLookupQuery = language.isDirectFactualLookupQuery(
@@ -607,6 +610,9 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const sourceOrderedNamedEntityEventPlanActive =
+    sourceOrderedNamedEntityEventOrderQuery &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
     entries: compatible,
     language,
@@ -617,6 +623,8 @@ export function selectFacts(
     summaryCoverageCandidates.length > 0 ||
     timelineIntegrationCandidates.length > 0 ||
     personalWorkChallengeCandidates.length > 0 ||
+    broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedNamedEntityEventPlanActive ||
     temporalEventOrderQuery ||
     temporalMostRecentQuery ||
     temporalRelativeEventQuery
@@ -629,7 +637,10 @@ export function selectFacts(
       queryLocale,
     });
   const instructionEvidenceCandidates =
-    timelineIntegrationCandidates.length > 0 || summaryCoverageCandidates.length > 0
+    timelineIntegrationCandidates.length > 0 ||
+      summaryCoverageCandidates.length > 0 ||
+      broadAspectEventOrderCandidates.length > 0 ||
+      sourceOrderedNamedEntityEventPlanActive
       ? []
       : selectInstructionEvidence({
         entries: compatible,
@@ -638,7 +649,9 @@ export function selectFacts(
         queryLocale,
       });
   const sourcePreferenceCandidates =
-    timelineIntegrationCandidates.length > 0
+    timelineIntegrationCandidates.length > 0 ||
+      broadAspectEventOrderCandidates.length > 0 ||
+      sourceOrderedNamedEntityEventPlanActive
       ? []
       : selectSourcePreferenceEvidence({
         entries: compatible,
@@ -837,13 +850,24 @@ export function selectFacts(
         if (
           !temporalEventOrderQuery &&
           !temporalMostRecentQuery &&
-          !temporalRelativeEventQuery
+          !temporalRelativeEventQuery &&
+          broadAspectEventOrderCandidates.length === 0 &&
+          !sourceOrderedNamedEntityEventPlanActive
         ) {
           return false;
         }
 
         if (broadAspectEventOrderCandidates.length > 0) {
           for (const entry of broadAspectEventOrderCandidates) {
+            selectAndTrace(entry);
+          }
+          return true;
+        }
+
+        if (
+          sourceOrderedNamedEntityEventPlanActive
+        ) {
+          for (const entry of sourceOrderedEventOrderCandidates) {
             selectAndTrace(entry);
           }
           return true;

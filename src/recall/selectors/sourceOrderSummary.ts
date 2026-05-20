@@ -951,7 +951,8 @@ export function selectSourceOrderedSummaryCoverage(input: {
       })
       : [];
   const topicalLearningProgressionSummaryQuery =
-    isSourceOrderedLearningProgressionQuery(input.query);
+    isSourceOrderedLearningProgressionQuery(input.query) &&
+    querySpecificTopics.size >= 2;
   const topicalSummaryCandidates = topicalLearningProgressionSummaryQuery
     ? topicalSourceCandidates.filter((entry) =>
       isSourceOrderedSummaryTopicalMilestoneCandidate({
