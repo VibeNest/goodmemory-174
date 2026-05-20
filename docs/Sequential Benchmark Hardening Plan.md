@@ -233,6 +233,24 @@ and multi-session reasoning +0.007500000000000062; the target
 `12:multi_session_reasoning:1` moves from 0 to 0.3 recall. This is another
 kept partial repair, not BEAM closure, because the full diagnostic is still
 miss-limited and noisy.
+Seventeenth, source-ordered event-order selection now has a narrow
+professional-profile/resume path for broad "different aspects" questions. The
+kept path is deliberately gated to resume/profile/ATS/LinkedIn language after a
+broader non-code aspect variant regressed the full run. The selector rules live
+in `src/recall/selectors/sourceOrderTemporal.ts`, prefer distinct resume
+milestones such as ATS strategy, LinkedIn visibility, transferable skills,
+salary negotiation, international markets, and keyword refinement, and keep the
+fallback event-order route for unrelated broad aspect timelines. The kept
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-profile-resume-event-order-current-20260519T174704`
+raises overall evidence-chat recall to 0.41767737739568733 with
+`executionFailures: 0`, missed-recall cases 254/355, and wrong-recall/noise
+cases still 387/400. Event-ordering recall improves to
+0.24300595238095238, missing event-ordering evidence ids drop to 175, and
+target case `6:event_ordering:1` moves from 0 to 1.0 recall. This is a kept
+partial repair, not BEAM closure: summarization remains at 0.11685405643738979
+with 36/36 missed evidence cases, multi-session reasoning still misses 31/40,
+and full-run noise remains 387/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

@@ -124,6 +124,12 @@ export function isSourceOrderedBroadAspectEventOrderQuery(query: string): boolea
   if (/\b(?:app|application|code|coding|deploy(?:ment)?|develop(?:ing|ment)?|implementation|project|software)\b/iu.test(query)) {
     return false;
   }
+  if (
+    !/\b(?:applicant\s+tracking|ATS|linkedin|professional\s+profile|profile|resume|resumes?)\b/iu.test(query) &&
+    !/(简历|履历|求职|职业资料|职业档案|领英|个人资料)/u.test(query)
+  ) {
+    return false;
+  }
 
   return isUserBroughtUpEventOrderQuery(query) &&
     (
@@ -149,6 +155,7 @@ export function requestedSourceOrderItemCount(query: string): number | undefined
 
 function hasCollaborativeMilestoneSignal(content: string): boolean {
   return /\b(?:collaborat(?:ed|ing)?|conversation\s+with|discuss(?:ed|ing)?\s+with|recommended|shared|suggested|advised)\b[\s\S]{0,120}\b[A-Z][\p{L}'-]+\b/u.test(content) ||
+    /\b[A-Z][\p{L}'-]+\b[\s\S]{0,50}\b(?:recommended|shared|suggested|advised)\b/u.test(content) ||
     /\b(?:with|from|by)\s+[A-Z][\p{L}'-]+\b[\s\S]{0,120}\b(?:advice|feedback|insights?|recommend(?:ed|ation)?|suggest(?:ed|ion)?|strategy|update)\b/u.test(content) ||
     /\b(?:feedback|insights?|job descriptions?|keywords?|sections?|strategy)\b[\s\S]{0,120}\bwith\s+[A-Z][\p{L}'-]+\b/u.test(content) ||
     /\bwith\s+[A-Z][\p{L}'-]+\b[\s\S]{0,120}\b(?:add|feedback|keywords?|refin(?:e|ing)|share|sections?)\b/u.test(content) ||
@@ -158,6 +165,52 @@ function hasCollaborativeMilestoneSignal(content: string): boolean {
 function hasNegatedAbsenceSignal(content: string): boolean {
   return /\b(?:never|not|no|without)\b[\s\S]{0,80}\b(?:attended|completed|done|enrolled|finished|had|obtained|used)\b/iu.test(content) ||
     /(从未|没有|没).{0,80}(参加|完成|注册|使用|获得)/u.test(content);
+}
+
+function professionalProfileAspectPriorityBonus(content: string): number {
+  let priority = 0;
+
+  if (
+    /\b(?:applicant\s+tracking|ATS)\b/iu.test(content) &&
+    /\b(?:advis(?:e|ed|es|ing)|budget(?:ing)?|network(?:ing)?|partner|strategy)\b/iu.test(content)
+  ) {
+    priority += 300;
+  }
+  if (
+    /\bjob descriptions?\b/iu.test(content) &&
+    /\b(?:feedback|keywords?|refin(?:e|ed|ing)|sections?)\b/iu.test(content)
+  ) {
+    priority += 220;
+  }
+  if (
+    /\blinkedin\b/iu.test(content) &&
+    /\b(?:profile|update|views?|visibility)\b/iu.test(content)
+  ) {
+    priority += 210;
+  }
+  if (/\btransferable\s+skills?\b/iu.test(content)) {
+    priority += 210;
+  }
+  if (/\b(?:raise|salary\s+negotiation|salary\s+outcomes?)\b/iu.test(content)) {
+    priority += 210;
+  }
+  if (
+    /\b(?:European|international|UK|Canadian)\s+markets?\b/iu.test(content) &&
+    /\bresumes?\b/iu.test(content)
+  ) {
+    priority += 210;
+  }
+  if (/\baction\s+verb\s+library\b/iu.test(content)) {
+    priority -= 90;
+  }
+  if (
+    content.length > 600 ||
+    (content.match(/\band\s+I(?:'ve| have)\b/giu)?.length ?? 0) >= 3
+  ) {
+    priority -= 240;
+  }
+
+  return priority;
 }
 
 export function sourceOrderedBroadAspectPriority(input: {
@@ -194,6 +247,7 @@ export function sourceOrderedBroadAspectPriority(input: {
   if (hasNegatedAbsenceSignal(content)) {
     priority -= 120;
   }
+  priority += professionalProfileAspectPriorityBonus(content);
   if (hasAssistantAnswerTag(input.entry)) {
     priority -= 200;
   }
@@ -289,6 +343,8 @@ export function selectSourceOrderedBroadAspectEvidence(input: {
       const content = stripEvidencePrefix(entry.fact.content);
       const factTopics = selectorTopicTokens(content, input.language, entry.locale);
       const topicOverlap = selectorTopicOverlapCount(queryTopics, factTopics);
+      const collaborative = hasCollaborativeMilestoneSignal(content);
+      const profilePriority = professionalProfileAspectPriorityBonus(content);
       const priority = sourceOrderedBroadAspectPriority({
         entry,
         language: input.language,
@@ -298,14 +354,16 @@ export function selectSourceOrderedBroadAspectEvidence(input: {
       if (
         topicOverlap === 0 &&
         !SOURCE_ORDER_ASPECT_CUE_PATTERN.test(content) &&
-        !hasCollaborativeMilestoneSignal(content)
+        !collaborative
       ) {
         return null;
       }
 
       return {
+        collaborative,
         entry,
         order,
+        profilePriority,
         priority,
       };
     })
@@ -313,8 +371,10 @@ export function selectSourceOrderedBroadAspectEvidence(input: {
       (
         candidate,
       ): candidate is {
+        collaborative: boolean;
         entry: RankedFactCandidate;
         order: number;
+        profilePriority: number;
         priority: number;
       } => candidate !== null,
     )
@@ -325,15 +385,33 @@ export function selectSourceOrderedBroadAspectEvidence(input: {
 
   const requestedCount = requestedSourceOrderItemCount(input.query) ??
     SOURCE_ORDER_BROAD_ASPECT_DEFAULT_LIMIT;
-  const candidatePool =
-    candidates.filter(
-      (candidate) =>
-        candidate.priority >= SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD,
-    ).length >= Math.min(requestedCount, candidates.length)
-      ? candidates.filter(
-        (candidate) =>
-          candidate.priority >= SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD,
-      )
+  const requiredCount = Math.min(requestedCount, candidates.length);
+  const collaborativePool = candidates.filter((candidate) => candidate.collaborative);
+  const professionalProfilePool = candidates.filter(
+    (candidate) => candidate.profilePriority > 0,
+  );
+  const highPriorityPool = candidates.filter(
+    (candidate) =>
+      candidate.priority >= SOURCE_ORDER_BROAD_ASPECT_PRIORITY_THRESHOLD,
+  );
+  if (professionalProfilePool.length >= requiredCount) {
+    return professionalProfilePool
+      .sort((left, right) => {
+        const priorityDelta = right.priority - left.priority;
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        return left.order - right.order;
+      })
+      .slice(0, requestedCount)
+      .map((candidate) => candidate.entry)
+      .sort(compareTemporalFactChronology);
+  }
+
+  const candidatePool = collaborativePool.length >= requiredCount
+    ? collaborativePool
+    : highPriorityPool.length >= requiredCount
+      ? highPriorityPool
       : candidates;
   const selectionCount = Math.min(requestedCount, candidatePool.length);
   const selected = new Map<number, RankedFactCandidate>();

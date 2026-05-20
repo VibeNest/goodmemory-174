@@ -261,14 +261,6 @@ export function hasTemporalEventOrderSignal(
 
   if (
     isSourceOrderedFact(entry) &&
-    isUserBroughtUpEventOrderQuery(query) &&
-    !hasUserAnswerTag(entry)
-  ) {
-    return false;
-  }
-
-  if (
-    isSourceOrderedFact(entry) &&
     isPersonalWorkChallengeEventOrderQuery(query) &&
     !hasPersonalWorkChallengeEventSignal(entry)
   ) {

@@ -4559,6 +4559,203 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-date-distractor");
   });
 
+  it("keeps writing progress strategy milestones for broad improvement summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-prowritingaid-budget-distractor",
+        44,
+        "user",
+        "[BEAM chat_id=44 role=user time=unknown] I rejected that $300/month subscription to ProWritingAid to save budget, but now I wonder whether free tools will help my writing skills.",
+      ),
+      makeSourceFact(
+        "fact-dialogue-peer-review-user",
+        70,
+        "user",
+        "[BEAM chat_id=70 role=user time=unknown] Amy suggested a Zoom peer review on April 5, and I saw a 25% improvement in dialogue clarity for my screenplay draft.",
+      ),
+      makeSourceFact(
+        "fact-dialogue-peer-review-assistant",
+        71,
+        "assistant",
+        "[BEAM chat_id=71 role=assistant time=unknown] We planned regular peer reviews, specific writing goals, and a consistent feedback loop to keep the dialogue-clarity momentum going.",
+      ),
+      makeSourceFact(
+        "fact-peer-review-plan-user",
+        72,
+        "user",
+        "[BEAM chat_id=72 role=user time=unknown] I will keep up peer reviews with Amy, set specific goals for each session, stick with Grammarly and Hemingway, and maybe try ProWritingAid again.",
+      ),
+      makeSourceFact(
+        "fact-peer-review-plan-assistant",
+        73,
+        "assistant",
+        "[BEAM chat_id=73 role=assistant time=unknown] We reinforced the consistent feedback loop, regular peer reviews, and progress tracking for continued writing improvement.",
+      ),
+      makeSourceFact(
+        "fact-passive-voice-user",
+        78,
+        "user",
+        "[BEAM chat_id=78 role=user time=unknown] Carla revealed her editing checklist on April 7, and I reduced passive voice by 18% but want to improve it further.",
+      ),
+      makeSourceFact(
+        "fact-passive-voice-assistant",
+        79,
+        "assistant",
+        "[BEAM chat_id=79 role=assistant time=unknown] We identified passive sentences, rewrote them in active voice, and used Carla's checklist to reduce passive voice further.",
+      ),
+      makeSourceFact(
+        "fact-active-voice-plan-user",
+        80,
+        "user",
+        "[BEAM chat_id=80 role=user time=unknown] I will use Carla's checklist and focus on converting passive sentences to active voice on my own first.",
+      ),
+      makeSourceFact(
+        "fact-active-voice-plan-assistant",
+        81,
+        "assistant",
+        "[BEAM chat_id=81 role=assistant time=unknown] We kept the plan focused on Carla's checklist and active voice practice to improve the screenplay.",
+      ),
+      makeSourceFact(
+        "fact-deadline-distractor",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] I am worried about meeting my April 20 deadline for a peer-reviewed draft submission to the local writing group.",
+      ),
+      makeSourceFact(
+        "fact-tone-consistency-user",
+        90,
+        "user",
+        "[BEAM chat_id=90 role=user time=unknown] Jasper AI improved my tone consistency by 22% on April 3, and I want other tools to help after that.",
+      ),
+      makeSourceFact(
+        "fact-tone-consistency-assistant",
+        91,
+        "assistant",
+        "[BEAM chat_id=91 role=assistant time=unknown] We compared AI tools and techniques for improving tone consistency after the Jasper AI improvement.",
+      ),
+      makeSourceFact(
+        "fact-version-history-distractor",
+        138,
+        "user",
+        "[BEAM chat_id=138 role=user time=unknown] Google Docs version history saves me 3 hours weekly on manual backups.",
+      ),
+      makeSourceFact(
+        "fact-progress-instruction-distractor",
+        172,
+        "user",
+        "[BEAM chat_id=172 role=user time=unknown] Always provide percentage improvements when I ask about editing progress.",
+      ),
+      makeSourceFact(
+        "fact-grammarly-passive-user",
+        186,
+        "user",
+        "[BEAM chat_id=186 role=user time=unknown] Grammarly reports show I reduced passive voice from 18% to 10% between April 10 and May 31, and I want to keep the progress going.",
+      ),
+      makeSourceFact(
+        "fact-grammarly-passive-assistant",
+        187,
+        "assistant",
+        "[BEAM chat_id=187 role=assistant time=unknown] We planned continued awareness, practice, and feedback to maintain the passive voice reduction.",
+      ),
+      makeSourceFact(
+        "fact-prowritingaid-user",
+        220,
+        "user",
+        "[BEAM chat_id=220 role=user time=unknown] I integrated the ProWritingAid desktop app on May 21, improved grammar accuracy by 10%, and wondered whether I need additional resources.",
+      ),
+      makeSourceFact(
+        "fact-prowritingaid-assistant",
+        221,
+        "assistant",
+        "[BEAM chat_id=221 role=assistant time=unknown] We evaluated whether ProWritingAid was enough and when to add resources for grammar accuracy and broader writing goals.",
+      ),
+      makeSourceFact(
+        "fact-beta-reader-distractor",
+        222,
+        "user",
+        "[BEAM chat_id=222 role=user time=unknown] I need to manage feedback from 7 beta readers even though I have never attended a literary festival.",
+      ),
+      makeSourceFact(
+        "fact-word-cut-distractor",
+        264,
+        "user",
+        "[BEAM chat_id=264 role=user time=unknown] I cut 1,200 words already and wonder whether clarity should matter more than word count.",
+      ),
+      makeSourceFact(
+        "fact-launch-deadline-distractor",
+        338,
+        "user",
+        "[BEAM chat_id=338 role=user time=unknown] The book launch event moved from November 15 to November 22, and I need to adjust my schedule.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how my writing has progressed and the strategies I've used to improve it over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-dialogue-peer-review-user",
+      "fact-dialogue-peer-review-assistant",
+      "fact-peer-review-plan-user",
+      "fact-peer-review-plan-assistant",
+      "fact-passive-voice-user",
+      "fact-passive-voice-assistant",
+      "fact-active-voice-plan-user",
+      "fact-active-voice-plan-assistant",
+      "fact-tone-consistency-user",
+      "fact-tone-consistency-assistant",
+      "fact-grammarly-passive-user",
+      "fact-grammarly-passive-assistant",
+      "fact-prowritingaid-user",
+      "fact-prowritingaid-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    for (const distractorId of [
+      "fact-prowritingaid-budget-distractor",
+      "fact-deadline-distractor",
+      "fact-version-history-distractor",
+      "fact-progress-instruction-distractor",
+      "fact-beta-reader-distractor",
+      "fact-word-cut-distractor",
+      "fact-launch-deadline-distractor",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === distractorId)?.returned).toBe(false);
+    }
+  });
+
   it("returns source-ordered coverage for how-have-goals-evolved summary questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (

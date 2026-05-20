@@ -863,6 +863,45 @@ P63-T007q current-code declined financial aggregate repair:
   targeting broad miss/noise families instead of treating the benchmark as
   closed.
 
+Latest current-code profile/resume event-order repair:
+
+- Mechanism:
+  `src/recall/selectors/sourceOrderTemporal.ts` now has a narrow
+  professional-profile/resume source-order path for broad "different aspects"
+  event-order questions. The kept path is gated to resume/profile/ATS/LinkedIn
+  query language, prefers distinct resume milestones such as ATS strategy,
+  LinkedIn visibility, transferable skills, salary negotiation, international
+  markets, and keyword refinement, and leaves unrelated broad aspect timelines
+  on the established event-order selectors.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers a BEAM-shaped
+  professional-profile/resume timeline with source-ordered user milestones. It
+  requires the Joshua/Bryan/Kevin/David milestone chain and rejects generic
+  course, workshop, portfolio, assistant-answer, and no-training distractors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-profile-resume-event-order-current-20260519T174704`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.41767737739568733
+  - missed-recall cases: 254/355
+  - wrong-recall/noise cases: 387/400
+- Delta from declined-financial aggregate:
+  overall recall improves from 0.41554905188708025 to
+  0.41767737739568733, missed-recall cases improve from 255 to 254, and
+  wrong-recall/noise remains flat at 387/400. Event-ordering recall improves
+  from 0.2241170634920635 to 0.24300595238095238, missing event-ordering
+  evidence ids drop from 180 to 175, and target case `6:event_ordering:1`
+  moves from 0 to 1.0 recall.
+- Decision:
+  this is a kept partial event-ordering repair, not BEAM closure. A broader
+  non-code aspect variant was rejected after regressing the full diagnostic to
+  0.4132463467674737 recall with 256 missed-recall cases, so the accepted
+  selector remains deliberately narrow. The next loop must continue with broad
+  full-slice misses/noise, especially summarization and multi-session
+  reasoning, instead of expanding this path indiscriminately.
+
 
 Current Boundary
 ----------------
@@ -878,11 +917,12 @@ coverage pass, the source-provenance instruction pass, and the
 instruction-applicability, temporal date-content, source preference, timeline
 planning, contradiction-support, summary contradiction-route guard, and
 event-ordering challenge plus summary learning/evolution, issue-resolution,
-and declined-financial aggregate passes have been rerun. The current failure
-family is now more specific: the representative live trio is clean at 3/3 with
-complete evidence recall, and the full 100K diagnostic has real instruction,
-temporal, preference, Timeline Integration, contradiction-resolution,
-source-ordered summary, and aggregate-money lifts, but the full surface remains
-recall-limited and noisy at recall 0.41554905188708025 with 255 missed-recall
-cases and wrong-recall/noise 387/400. BEAM still needs broader recall and
-persistent-noise hardening before it can move toward an answer-quality claim.
+declined-financial aggregate plus professional-profile/resume event-order
+passes have been rerun. The current failure family is now more specific: the
+representative live trio is clean at 3/3 with complete evidence recall, and
+the full 100K diagnostic has real instruction, temporal, preference, Timeline
+Integration, contradiction-resolution, source-ordered summary, aggregate-money,
+and event-ordering lifts, but the full surface remains recall-limited and noisy
+at recall 0.41767737739568733 with 254 missed-recall cases and
+wrong-recall/noise 387/400. BEAM still needs broader recall and persistent-noise
+hardening before it can move toward an answer-quality claim.

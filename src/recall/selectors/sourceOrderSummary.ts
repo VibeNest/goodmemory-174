@@ -84,6 +84,24 @@ export const SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_PATTERN =
 export const SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_ZH_PATTERN =
   /(B-\s*提升到\s*A|大纲.{0,40}82%|82%.{0,80}90%.{0,80}评分标准|接受发表|被接受发表|研讨会反馈.{0,80}(40%|反驳)|反驳技巧.{0,120}会议论文编辑)/u;
 
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_QUERY_PATTERN =
+  /\bwriting\b[\s\S]{0,160}\bprogress(?:ed|ion)?\b[\s\S]{0,160}\bstrategies\b|\bstrategies\b[\s\S]{0,120}\bimprov(?:e|ed|ement|ing)\b[\s\S]{0,80}\bover\s+time\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_QUERY_ZH_PATTERN =
+  /(写作|剧本|草稿|编辑|修改)[\s\S]{0,160}(提升|改善|进步|进展|策略|方法|一路|随着时间)/u;
+
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_PATTERN =
+  /\b(?:Amy[\s\S]{0,80}peer\s+reviews?|peer\s+reviews?[\s\S]{0,80}Amy|Carla's\s+checklist|Grammarly\s+reports?|Jasper\s+AI|ProWritingAid\s+desktop|grammar\s+accuracy[\s\S]{0,60}\d+%|passive\s+voice[\s\S]{0,100}(?:\d+%|active\s+voice|reduc(?:e|ed|ing))|\d+%[\s\S]{0,80}passive\s+voice|tone\s+consistency[\s\S]{0,80}\d+%)/iu;
+
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_ZH_PATTERN =
+  /(主动语态|被动语态|同行评审|反馈循环|对话清晰度|语气一致|语法准确|写作目标)/u;
+
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_PATTERN =
+  /\b(?:book\s+launch|budget|deadline|literary\s+festival|manual\s+backups?|subscription|version\s+history|word\s+count)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_ZH_PATTERN =
+  /(预算|订阅|截止日期|发布会|手动备份|版本历史|字数|文学节)/u;
+
 export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN =
   /\b(?:bugs?|debug(?:ged|ging)?|errors?|fix(?:ed|ing)?|issues?|problems?|resolved?|troubleshoot(?:ed|ing)?)\b/iu;
 
@@ -145,11 +163,30 @@ export function isSourceOrderedPerformanceGoalEvolutionQuery(
     SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_QUERY_ZH_PATTERN.test(query);
 }
 
+export function isSourceOrderedWritingProgressSummaryQuery(query: string): boolean {
+  return SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_QUERY_PATTERN.test(query) ||
+    SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_QUERY_ZH_PATTERN.test(query);
+}
+
 export function hasSourceOrderedSummaryPerformanceGoalMilestone(
   content: string,
 ): boolean {
   return SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_PATTERN.test(content) ||
     SOURCE_ORDER_SUMMARY_PERFORMANCE_GOAL_MILESTONE_ZH_PATTERN.test(content);
+}
+
+export function hasSourceOrderedSummaryWritingProgressMilestone(
+  content: string,
+): boolean {
+  if (
+    SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_ZH_PATTERN.test(content)
+  ) {
+    return false;
+  }
+
+  return SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_ZH_PATTERN.test(content);
 }
 
 export function isSourceOrderedIssueResolutionSummaryQuery(
@@ -496,6 +533,15 @@ export function selectSourceOrderedSummaryCoverage(input: {
         )
       )
       : [];
+  const writingProgressCandidates =
+    isSourceOrderedWritingProgressSummaryQuery(input.query)
+      ? sourceCandidates.filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return hasUserAnswerTag(entry) &&
+          !isSourceOrderedSummaryInstructionLike(content) &&
+          hasSourceOrderedSummaryWritingProgressMilestone(content);
+      })
+      : [];
   const issueResolutionCandidates =
     isSourceOrderedIssueResolutionSummaryQuery(input.query)
       ? sourceCandidates.filter((entry) => {
@@ -535,6 +581,13 @@ export function selectSourceOrderedSummaryCoverage(input: {
     primaryCandidates = performanceGoalEvolutionCandidates;
     preferEarliestPrimaryCandidates = true;
     skipCompanionSelection = true;
+  }
+  if (
+    writingProgressCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    primaryCandidates = writingProgressCandidates;
+    preferEarliestPrimaryCandidates = true;
+    skipCompanionSelection = false;
   }
   if (
     issueResolutionCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS

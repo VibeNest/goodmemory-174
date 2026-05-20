@@ -605,7 +605,7 @@ export function selectFacts(
     queryLocale,
   });
   const instructionEvidenceCandidates =
-    timelineIntegrationCandidates.length > 0
+    timelineIntegrationCandidates.length > 0 || summaryCoverageCandidates.length > 0
       ? []
       : selectInstructionEvidence({
         entries: compatible,

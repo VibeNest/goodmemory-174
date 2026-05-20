@@ -187,9 +187,18 @@ Workstreams
     wrong-recall/noise cases 387/400. The kept selector repair is narrow:
     declined raise/freelance/bonus amount comparisons now retrieve matching
     direct evidence while rejecting accepted-offer noise.
+  - professional-profile/resume event-order rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-profile-resume-event-order-current-20260519T174704`
+    reaches full rules-only evidence-chat recall 0.41767737739568733 with
+    `executionFailures: 0`, missed-recall cases 254/355, and
+    wrong-recall/noise cases 387/400. The kept selector repair is narrow:
+    broad resume/profile/ATS/LinkedIn aspect timelines now prefer distinct
+    user-source milestones while unrelated broad event-order timelines stay on
+    the established selectors.
   - next active step: continue full-slice recall/noise hardening beyond
-    the declined-financial aggregate repair, especially the remaining
-    missed-recall and persistent noise surface on long imported conversations
+    the professional-profile/resume event-order repair, especially the
+    remaining summarization, multi-session reasoning, and persistent-noise
+    surface on long imported conversations
 
 
 Current Boundary
@@ -229,10 +238,11 @@ Current Boundary
   challenge pass lifts full recall. The summary learning/evolution pass raises
   full recall to 0.4116411600918644, the summary issue-resolution earliest pass
   nudges it to 0.4117931833424793, and the latest declined-financial aggregate
-  pass raises it to 0.41554905188708025 with wrong-recall/noise 387/400. This is
-  still only partial Phase 63 progress: the
+  pass raises it to 0.41554905188708025. The latest professional-profile/resume
+  event-order pass raises it to 0.41767737739568733 with wrong-recall/noise
+  387/400. This is still only partial Phase 63 progress: the
   full 100K provider-free recall diagnostic remains recall-limited and noisy
-  with 255 missed-recall cases. The next executable boundary is reducing
+  with 254 missed-recall cases. The next executable boundary is reducing
   remaining full-slice misses plus wrong-recall/noise on long imported
   conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
