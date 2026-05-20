@@ -195,8 +195,16 @@ Workstreams
     broad resume/profile/ATS/LinkedIn aspect timelines now prefer distinct
     user-source milestones while unrelated broad event-order timelines stay on
     the established selectors.
+  - writing-progress summary rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-writing-progress-summary-current-20260520T033228Z`
+    reaches full rules-only evidence-chat recall 0.4202438875678314 with
+    `executionFailures: 0`, missed-recall cases 253/355, and
+    wrong-recall/noise cases 387/400. The kept selector repair is narrow:
+    broad writing-progress strategy summaries now preserve concrete
+    user-source milestones with their adjacent assistant strategy replies
+    before extra writing anchors consume the recall budget.
   - next active step: continue full-slice recall/noise hardening beyond
-    the professional-profile/resume event-order repair, especially the
+    the writing-progress summary repair, especially the
     remaining summarization, multi-session reasoning, and persistent-noise
     surface on long imported conversations
 
@@ -237,12 +245,13 @@ Current Boundary
   contradiction-guard pass gives a small full-run lift, and the event-ordering
   challenge pass lifts full recall. The summary learning/evolution pass raises
   full recall to 0.4116411600918644, the summary issue-resolution earliest pass
-  nudges it to 0.4117931833424793, and the latest declined-financial aggregate
-  pass raises it to 0.41554905188708025. The latest professional-profile/resume
-  event-order pass raises it to 0.41767737739568733 with wrong-recall/noise
-  387/400. This is still only partial Phase 63 progress: the
+  nudges it to 0.4117931833424793, the declined-financial aggregate
+  pass raises it to 0.41554905188708025, and the professional-profile/resume
+  event-order pass raises it to 0.41767737739568733. The latest
+  writing-progress summary pass raises it to 0.4202438875678314 with
+  wrong-recall/noise 387/400. This is still only partial Phase 63 progress: the
   full 100K provider-free recall diagnostic remains recall-limited and noisy
-  with 254 missed-recall cases. The next executable boundary is reducing
+  with 253 missed-recall cases. The next executable boundary is reducing
   remaining full-slice misses plus wrong-recall/noise on long imported
   conversations.
 - Final/public reporting remains deferred until LongMemEval, BEAM,

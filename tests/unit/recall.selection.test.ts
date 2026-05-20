@@ -4756,6 +4756,238 @@ describe("recall selection", () => {
     }
   });
 
+  it("keeps career decision and philosophical reflection milestones for two-facet summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-career-free-will-question-user",
+        0,
+        "user",
+        "[BEAM chat_id=0 role=user time=unknown] I'm curious how to balance my professional life with free will and make choices that reflect my desires.",
+      ),
+      makeSourceFact(
+        "fact-career-values-assistant",
+        1,
+        "assistant",
+        "[BEAM chat_id=1 role=assistant time=unknown] We discussed balancing professional life with free will by aligning career choices with personal values, creative fulfillment, financial security, and work-life balance.",
+      ),
+      makeSourceFact(
+        "fact-new-opportunities-question-user",
+        2,
+        "user",
+        "[BEAM chat_id=2 role=user time=unknown] I think exploring new opportunities sounds good because I have been thinking about what drives me and what feels aligned with my passions.",
+      ),
+      makeSourceFact(
+        "fact-storytelling-opportunities-assistant",
+        3,
+        "assistant",
+        "[BEAM chat_id=3 role=assistant time=unknown] We explored career opportunities around storytelling, emerging talent, documentary filmmaking, volunteering, consulting, and financial viability.",
+      ),
+      makeSourceFact(
+        "fact-storytelling-question-user",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] I am most passionate about storytelling and working with emerging talent, and volunteering or consulting could be a good start.",
+      ),
+      makeSourceFact(
+        "fact-emerging-talent-plan-assistant",
+        5,
+        "assistant",
+        "[BEAM chat_id=5 role=assistant time=unknown] We planned reaching out to emerging talent, volunteering or consulting on projects, offering mentorship, and building a portfolio of collaborative work.",
+      ),
+      makeSourceFact(
+        "fact-emerging-talent-fragment-distractor",
+        5,
+        "assistant",
+        "By engaging with emerging talent and volunteering or consulting on projects that align with my passions, I can create a fulfilling professional life.",
+      ),
+      makeSourceFact(
+        "fact-startup-offer-question-user",
+        38,
+        "user",
+        "[BEAM chat_id=38 role=user time=unknown] I am deciding between a $95,000 offer from a streaming startup and my current $85,000 job, and I need help weighing the pros and cons.",
+      ),
+      makeSourceFact(
+        "fact-startup-offer-breakdown-assistant",
+        39,
+        "assistant",
+        "[BEAM chat_id=39 role=assistant time=unknown] We compared the current $85,000 job with a $95,000 streaming startup offer across stability, salary, career growth, workload, culture, and risk tolerance.",
+      ),
+      makeSourceFact(
+        "fact-startup-choice-user",
+        40,
+        "user",
+        "[BEAM chat_id=40 role=user time=unknown] I decided to lean toward the startup for higher salary, growth, innovation, and new challenges while checking whether I could handle the workload and pressure.",
+      ),
+      makeSourceFact(
+        "fact-transition-prep-assistant",
+        41,
+        "assistant",
+        "[BEAM chat_id=41 role=assistant time=unknown] We prepared for the startup transition through due diligence, workload expectations, colleague advice, support, budgeting, and skill development.",
+      ),
+      makeSourceFact(
+        "fact-probation-anxiety-user",
+        70,
+        "user",
+        "[BEAM chat_id=70 role=user time=unknown] I worried about the new job starting May 1, the six-month probation period, and whether accepting the $95,000 streaming startup offer on April 2 was the right choice.",
+      ),
+      makeSourceFact(
+        "fact-free-will-startup-assistant",
+        71,
+        "assistant",
+        "[BEAM chat_id=71 role=assistant time=unknown] We connected anxiety about the new startup job to free will, determinism, clear probation goals, preparation, mentor support, and flexibility.",
+      ),
+      makeSourceFact(
+        "fact-freelance-onboarding-user",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] I wondered whether declining the $5,000 freelance project on April 1 was a mistake or whether focusing on the new job's onboarding tasks was right.",
+      ),
+      makeSourceFact(
+        "fact-freelance-onboarding-assistant",
+        83,
+        "assistant",
+        "[BEAM chat_id=83 role=assistant time=unknown] We evaluated the freelance project against new-job onboarding, short-term money, long-term career stability, resource allocation, opportunity cost, and rescheduling.",
+      ),
+      makeSourceFact(
+        "fact-freelance-onboarding-fragment-distractor",
+        83,
+        "assistant",
+        "The freelance project required time and energy that could conflict with new job onboarding responsibilities.",
+      ),
+      makeSourceFact(
+        "fact-bonus-free-will-user",
+        170,
+        "user",
+        "[BEAM chat_id=170 role=user time=unknown] I struggled with free will after declining a $12,000 bonus on May 15 for ethical concerns and debating hard determinism versus libertarianism with Shelly on May 25.",
+      ),
+      makeSourceFact(
+        "fact-bonus-free-will-assistant",
+        171,
+        "assistant",
+        "[BEAM chat_id=171 role=assistant time=unknown] We linked the ethical bonus decision to hard determinism, libertarianism, personal responsibility, values, ethical principles, journaling, and further reading.",
+      ),
+      makeSourceFact(
+        "fact-bonus-values-user",
+        172,
+        "user",
+        "[BEAM chat_id=172 role=user time=unknown] I said the bonus decision was guided by ethical concerns, felt like a libertarian free choice, and also reflected upbringing and environment from a hard determinist view.",
+      ),
+      makeSourceFact(
+        "fact-bonus-perspectives-assistant",
+        173,
+        "assistant",
+        "[BEAM chat_id=173 role=assistant time=unknown] We integrated libertarian and hard determinist perspectives on the bonus decision and considered compatibilism, values alignment, upbringing, and future reflection.",
+      ),
+      makeSourceFact(
+        "fact-bonus-perspectives-user",
+        174,
+        "user",
+        "[BEAM chat_id=174 role=user time=unknown] I said libertarianism made the ethical bonus decision feel like a real choice while hard determinism reminded me my upbringing and environment played a role.",
+      ),
+      makeSourceFact(
+        "fact-bonus-integration-assistant",
+        175,
+        "assistant",
+        "[BEAM chat_id=175 role=assistant time=unknown] We framed the ethical bonus choice through libertarianism, hard determinism, compatibilism, personal growth, ethical stance, environment, and future decisions.",
+      ),
+      makeSourceFact(
+        "fact-sharon-compatibilism-distractor",
+        124,
+        "user",
+        "[BEAM chat_id=124 role=user time=unknown] I will talk to Sharon about compatibilism so we can bond over philosophy and apply it to collaboration at work.",
+      ),
+      makeSourceFact(
+        "fact-journal-gratitude-distractor",
+        148,
+        "user",
+        "[BEAM chat_id=148 role=user time=unknown] I want to add daily reflection, short-term goals, long-term goals, and gratitude sections to my journal.",
+      ),
+      makeSourceFact(
+        "fact-wendy-spirituality-distractor",
+        248,
+        "user",
+        "[BEAM chat_id=248 role=user time=unknown] I will journal about how decisions align with Wendy's belief that free will is a divine gift and seek guidance through prayer.",
+      ),
+      makeSourceFact(
+        "fact-decision-fatigue-distractor",
+        348,
+        "user",
+        "[BEAM chat_id=348 role=user time=unknown] I am starting a 30-day experiment on October 21 to limit my daily choices to five and reduce decision fatigue.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how I navigated my career decisions and philosophical reflections throughout our conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-career-values-assistant",
+      "fact-storytelling-opportunities-assistant",
+      "fact-emerging-talent-plan-assistant",
+      "fact-startup-offer-breakdown-assistant",
+      "fact-startup-choice-user",
+      "fact-transition-prep-assistant",
+      "fact-probation-anxiety-user",
+      "fact-free-will-startup-assistant",
+      "fact-freelance-onboarding-user",
+      "fact-freelance-onboarding-assistant",
+      "fact-bonus-free-will-user",
+      "fact-bonus-free-will-assistant",
+      "fact-bonus-values-user",
+      "fact-bonus-perspectives-assistant",
+      "fact-bonus-perspectives-user",
+      "fact-bonus-integration-assistant",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    for (const distractorId of [
+      "fact-sharon-compatibilism-distractor",
+      "fact-journal-gratitude-distractor",
+      "fact-wendy-spirituality-distractor",
+      "fact-decision-fatigue-distractor",
+      "fact-emerging-talent-fragment-distractor",
+      "fact-freelance-onboarding-fragment-distractor",
+      "fact-career-free-will-question-user",
+      "fact-new-opportunities-question-user",
+      "fact-storytelling-question-user",
+      "fact-startup-offer-question-user",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === distractorId)?.returned).toBe(false);
+    }
+  });
+
   it("returns source-ordered coverage for how-have-goals-evolved summary questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (

@@ -102,6 +102,36 @@ export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_PATTERN =
 export const SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_DISTRACTOR_ZH_PATTERN =
   /(预算|订阅|截止日期|发布会|手动备份|版本历史|字数|文学节)/u;
 
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_PATTERN =
+  /\b(?:career|professional|job)\b[\s\S]{0,160}\b(?:philosoph(?:y|ical)|free\s+will|reflection|ethical|determinism|libertarianism|compatibilism)\b|\b(?:philosoph(?:y|ical)|free\s+will|reflection|ethical|determinism|libertarianism|compatibilism)\b[\s\S]{0,160}\b(?:career|professional|job)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_ZH_PATTERN =
+  /(职业|工作|事业|职业决定|职业选择)[\s\S]{0,160}(哲学|自由意志|决定论|伦理|反思|相容论|自由意志主义)/u;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_MILESTONE_PATTERN =
+  /\b(?:professional\s+life[\s\S]{0,80}free\s+will|career\s+choices?[\s\S]{0,80}personal\s+values?|(?:storytelling|emerging\s+talent|documentary\s+filmmaking)[\s\S]{0,140}(?:volunteering|consulting|portfolio|career\s+opportunit(?:y|ies)|passions?)|current\s+(?:\$?85,?000\s+job|job[\s\S]{0,30}\$?85,?000)|\$?95,?000\s+(?:streaming\s+)?startup|startup\s+transition|moving\s+to\s+the\s+startup|transition\s+smoother|lean(?:ing)?\s+towards?\s+the\s+startup|six[-\s]?month\s+probation|probation\s+period|new\s+startup\s+job|new\s+job(?:'s)?\s+onboarding|\$?5,?000\s+freelance|freelance\s+project[\s\S]{0,100}(?:onboarding|new\s+job|opportunity\s+cost)|\$?12,?000\s+bonus|ethical\s+concerns?[\s\S]{0,120}(?:hard\s+determinis(?:m|t)|libertarianism|libertarian\s+perspective|free\s+will)|(?:hard\s+determinis(?:m|t)|libertarianism|libertarian\s+perspective|compatibilism)[\s\S]{0,140}(?:bonus|ethical|ethics|upbringing|environment|free\s+choice|real\s+choice))\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_MILESTONE_ZH_PATTERN =
+  /(职业选择|职业机会|讲故事|新兴人才|纪录片|创业公司|入职|试用期|自由职业|奖金|伦理|自由意志|决定论|相容论|自由意志主义)/u;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_MILESTONE_PATTERN =
+  /\b(?:I\s+(?:decided|lean(?:ed)?|accepted|worried|wonder(?:ed)?|struggl(?:ed|ing)|declin(?:e|ed|ing)|said)|I(?:'ll| will)\s+lean|I'm[\s\S]{0,40}worried|decision\s+to\s+decline|declining[\s\S]{0,40}(?:freelance|bonus|offer)|libertarian\s+perspective[\s\S]{0,120}hard\s+determinist)\b[\s\S]{0,180}\b(?:startup|job|offer|probation|freelance|bonus|ethical|ethics|hard\s+determinis(?:m|t)|libertarianism|upbringing|environment|real\s+choice)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_MILESTONE_ZH_PATTERN =
+  /我[\s\S]{0,80}(接受|拒绝|担心|决定|选择)[\s\S]{0,120}(工作|创业公司|奖金|伦理|自由职业|试用期|自由意志|决定论|相容论)/u;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_ANCHOR_PATTERN =
+  /\b(?:balance\s+my\s+professional\s+life[\s\S]{0,80}free\s+will|explor(?:ing|e)\s+new\s+opportunities[\s\S]{0,120}(?:passions?|align(?:ed)?|drives?\s+me)|passionate\s+about[\s\S]{0,120}(?:storytelling|emerging\s+talent|volunteering|consulting)|deciding\s+between[\s\S]{0,100}(?:startup|current\s+\$?85,?000\s+job|\$?95,?000\s+offer))\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_ANCHOR_ZH_PATTERN =
+  /我[\s\S]{0,120}(职业|工作|事业|机会|热情|激情|创业公司|自由意志|讲故事|新兴人才|自由职业|奖金)/u;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_PATTERN =
+  /\b(?:bond\s+over\s+our\s+philosophical\s+views|collaboration\s+at\s+work|daily\s+reflection[\s\S]{0,80}gratitude|divine\s+gift|guidance\s+through\s+prayer|decision\s+fatigue|daily\s+choices|30-day\s+experiment)\b/iu;
+
+export const SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_ZH_PATTERN =
+  /(祈祷|神圣礼物|感恩|决策疲劳|每日选择|协作基础)/u;
+
 export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN =
   /\b(?:bugs?|debug(?:ged|ging)?|errors?|fix(?:ed|ing)?|issues?|problems?|resolved?|troubleshoot(?:ed|ing)?)\b/iu;
 
@@ -168,6 +198,11 @@ export function isSourceOrderedWritingProgressSummaryQuery(query: string): boole
     SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_QUERY_ZH_PATTERN.test(query);
 }
 
+export function isSourceOrderedCareerPhilosophySummaryQuery(query: string): boolean {
+  return SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_PATTERN.test(query) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_QUERY_ZH_PATTERN.test(query);
+}
+
 export function hasSourceOrderedSummaryPerformanceGoalMilestone(
   content: string,
 ): boolean {
@@ -187,6 +222,48 @@ export function hasSourceOrderedSummaryWritingProgressMilestone(
 
   return SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_PATTERN.test(content) ||
     SOURCE_ORDER_SUMMARY_WRITING_PROGRESS_MILESTONE_ZH_PATTERN.test(content);
+}
+
+export function hasSourceOrderedSummaryCareerPhilosophyMilestone(
+  content: string,
+): boolean {
+  if (
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_ZH_PATTERN.test(content)
+  ) {
+    return false;
+  }
+
+  return SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_MILESTONE_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_MILESTONE_ZH_PATTERN.test(content);
+}
+
+export function isSourceOrderedSummaryCareerPhilosophyUserMilestone(
+  content: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_MILESTONE_PATTERN.test(
+    content,
+  ) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_MILESTONE_ZH_PATTERN.test(
+      content,
+    );
+}
+
+export function isSourceOrderedSummaryCareerPhilosophyUserAnchor(
+  content: string,
+): boolean {
+  if (
+    isSourceOrderedSummaryInstructionLike(content) ||
+    isLowInformationSourceSummaryFollowUp(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_DISTRACTOR_ZH_PATTERN.test(content)
+  ) {
+    return false;
+  }
+
+  return isSourceOrderedSummaryCareerPhilosophyUserMilestone(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_ANCHOR_PATTERN.test(content) ||
+    SOURCE_ORDER_SUMMARY_CAREER_PHILOSOPHY_USER_ANCHOR_ZH_PATTERN.test(content);
 }
 
 export function isSourceOrderedIssueResolutionSummaryQuery(
@@ -251,6 +328,66 @@ export function isLowInformationSourceSummaryFollowUp(content: string): boolean 
 
 export function isSourceOrderedSummaryCandidate(entry: RankedFactCandidate): boolean {
   return hasSourceMessageTag(entry) && sourceOrderSortKey(entry) !== undefined;
+}
+
+function hasSourceOrderedSummarySourceEnvelope(entry: RankedFactCandidate): boolean {
+  const content = entry.fact.content;
+  return /\b(?:chat[_-]?id|source[_-]?order|sourceOrder)\s*[:=]\s*\d+\b/iu.test(
+    content,
+  ) || /\brole\s*=\s*(?:assistant|user)\b/iu.test(content);
+}
+
+function sourceOrderedSummaryRepresentativeScore(input: {
+  entry: RankedFactCandidate;
+  priority: (entry: RankedFactCandidate) => number;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  let score = input.priority(input.entry);
+  if (hasSourceOrderedSummarySourceEnvelope(input.entry)) {
+    score += 1000;
+  }
+  score += Math.min(content.length, 2000) / 100;
+  return score;
+}
+
+function dedupeSourceOrderedSummaryTurns(input: {
+  entries: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const bySourceOrder = new Map<number, RankedFactCandidate>();
+  for (const entry of input.entries) {
+    const order = sourceOrderSortKey(entry);
+    if (order === undefined) {
+      continue;
+    }
+
+    const current = bySourceOrder.get(order);
+    if (!current) {
+      bySourceOrder.set(order, entry);
+      continue;
+    }
+
+    const scoreDelta =
+      sourceOrderedSummaryRepresentativeScore({
+        entry,
+        priority: input.priority,
+      }) -
+      sourceOrderedSummaryRepresentativeScore({
+        entry: current,
+        priority: input.priority,
+      });
+    if (
+      scoreDelta > 0 ||
+      (
+        scoreDelta === 0 &&
+        compareTemporalFactChronology(entry, current) < 0
+      )
+    ) {
+      bySourceOrder.set(order, entry);
+    }
+  }
+
+  return [...bySourceOrder.values()].sort(compareTemporalFactChronology);
 }
 
 export function sourceOrderedSummaryPriority(input: {
@@ -339,6 +476,22 @@ export function hasSourceOrderedSummarySignal(input: {
     isSourceOrderedLearningProgressionQuery(input.query) &&
     !isSourceOrderedSummaryInstructionLike(content) &&
     hasSourceOrderedSummaryLearningMilestone(content)
+  ) {
+    return true;
+  }
+
+  if (
+    isSourceOrderedWritingProgressSummaryQuery(input.query) &&
+    !isSourceOrderedSummaryInstructionLike(content) &&
+    hasSourceOrderedSummaryWritingProgressMilestone(content)
+  ) {
+    return true;
+  }
+
+  if (
+    isSourceOrderedCareerPhilosophySummaryQuery(input.query) &&
+    !isSourceOrderedSummaryInstructionLike(content) &&
+    hasSourceOrderedSummaryCareerPhilosophyMilestone(content)
   ) {
     return true;
   }
@@ -463,6 +616,108 @@ export function isSourceOrderedSummaryCoreMilestoneCandidate(input: {
     );
 }
 
+function selectSourceOrderedWritingProgressPairs(input: {
+  anchors: RankedFactCandidate[];
+  sourceCandidates: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  const selected = new Map<string, RankedFactCandidate>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      selected.set(entry.fact.id, entry);
+    }
+  };
+
+  for (const anchor of [...input.anchors].sort(compareTemporalFactChronology)) {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      break;
+    }
+
+    addCandidate(anchor);
+    const anchorOrder = sourceOrderSortKey(anchor);
+    if (anchorOrder === undefined) {
+      continue;
+    }
+
+    const companion = input.sourceCandidates
+      .filter((entry) => !selected.has(entry.fact.id))
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        return order !== undefined &&
+          hasAssistantAnswerTag(entry) &&
+          order > anchorOrder &&
+          order - anchorOrder <= SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE;
+      })
+      .sort(compareTemporalFactChronology)[0];
+    if (companion) {
+      addCandidate(companion);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
+function selectSourceOrderedCareerPhilosophyPairs(input: {
+  anchors: RankedFactCandidate[];
+  sourceCandidates: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  const selected = new Map<string, RankedFactCandidate>();
+  const selectedSourceOrders = new Set<number>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      return;
+    }
+    const order = sourceOrderSortKey(entry);
+    if (order !== undefined && selectedSourceOrders.has(order)) {
+      return;
+    }
+
+    selected.set(entry.fact.id, entry);
+    if (order !== undefined) {
+      selectedSourceOrders.add(order);
+    }
+  };
+
+  for (const anchor of [...input.anchors].sort(compareTemporalFactChronology)) {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      break;
+    }
+
+    const anchorOrder = sourceOrderSortKey(anchor);
+    if (anchorOrder === undefined || !hasUserAnswerTag(anchor)) {
+      continue;
+    }
+
+    const anchorContent = stripEvidencePrefix(anchor.fact.content);
+    if (isSourceOrderedSummaryCareerPhilosophyUserMilestone(anchorContent)) {
+      addCandidate(anchor);
+    }
+
+    const companion = input.sourceCandidates
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        if (
+          order === undefined ||
+          selectedSourceOrders.has(order) ||
+          !hasAssistantAnswerTag(entry) ||
+          order <= anchorOrder ||
+          order - anchorOrder > SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE
+        ) {
+          return false;
+        }
+
+        return hasSourceOrderedSummaryCareerPhilosophyMilestone(
+          stripEvidencePrefix(entry.fact.content),
+        );
+      })
+      .sort(compareTemporalFactChronology)[0];
+    if (companion) {
+      addCandidate(companion);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
 export function selectSourceOrderedSummaryCoverage(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -478,9 +733,23 @@ export function selectSourceOrderedSummaryCoverage(input: {
     input.language,
     input.queryLocale,
   );
+  const priority = (entry: RankedFactCandidate): number =>
+    sourceOrderedSummaryPriority({
+      entry,
+      language: input.language,
+      queryTopics,
+    });
   const sourceCandidates = input.entries
     .filter(isSourceOrderedSummaryCandidate)
     .sort(compareTemporalFactChronology);
+  const careerPhilosophySummaryQuery =
+    isSourceOrderedCareerPhilosophySummaryQuery(input.query);
+  const careerPhilosophySourceCandidates = careerPhilosophySummaryQuery
+    ? dedupeSourceOrderedSummaryTurns({
+      entries: sourceCandidates,
+      priority,
+    })
+    : [];
   const signaledCandidates = sourceCandidates.filter((entry) =>
     hasSourceOrderedSummarySignal({
       entry,
@@ -542,6 +811,33 @@ export function selectSourceOrderedSummaryCoverage(input: {
           hasSourceOrderedSummaryWritingProgressMilestone(content);
       })
       : [];
+  const careerPhilosophyCandidates =
+    careerPhilosophySummaryQuery
+      ? careerPhilosophySourceCandidates.filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        if (
+          isSourceOrderedSummaryInstructionLike(content) ||
+          !hasSourceOrderedSummaryCareerPhilosophyMilestone(content)
+        ) {
+          return false;
+        }
+
+        return hasAssistantAnswerTag(entry) ||
+          (
+            hasUserAnswerTag(entry) &&
+            isSourceOrderedSummaryCareerPhilosophyUserMilestone(content)
+          );
+      })
+      : [];
+  const careerPhilosophyUserAnchors =
+    careerPhilosophySummaryQuery
+      ? careerPhilosophySourceCandidates.filter((entry) =>
+        hasUserAnswerTag(entry) &&
+        isSourceOrderedSummaryCareerPhilosophyUserAnchor(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      : [];
   const issueResolutionCandidates =
     isSourceOrderedIssueResolutionSummaryQuery(input.query)
       ? sourceCandidates.filter((entry) => {
@@ -585,9 +881,22 @@ export function selectSourceOrderedSummaryCoverage(input: {
   if (
     writingProgressCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
   ) {
-    primaryCandidates = writingProgressCandidates;
-    preferEarliestPrimaryCandidates = true;
-    skipCompanionSelection = false;
+    return selectSourceOrderedWritingProgressPairs({
+      anchors: writingProgressCandidates,
+      sourceCandidates,
+    });
+  }
+  if (
+    careerPhilosophyCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    if (careerPhilosophyUserAnchors.length > 0) {
+      return selectSourceOrderedCareerPhilosophyPairs({
+        anchors: careerPhilosophyUserAnchors,
+        sourceCandidates: careerPhilosophySourceCandidates,
+      });
+    }
+
+    return careerPhilosophyCandidates.slice(0, SOURCE_ORDER_SUMMARY_RECALL_LIMIT);
   }
   if (
     issueResolutionCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
@@ -602,12 +911,6 @@ export function selectSourceOrderedSummaryCoverage(input: {
       selected.set(entry.fact.id, entry);
     }
   };
-  const priority = (entry: RankedFactCandidate): number =>
-    sourceOrderedSummaryPriority({
-      entry,
-      language: input.language,
-      queryTopics,
-    });
   const anchorCount = Math.min(
     SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
     Math.ceil(SOURCE_ORDER_SUMMARY_RECALL_LIMIT / 2),

@@ -902,6 +902,44 @@ Latest current-code profile/resume event-order repair:
   full-slice misses/noise, especially summarization and multi-session
   reasoning, instead of expanding this path indiscriminately.
 
+Latest current-code writing-progress summary repair:
+
+- Mechanism:
+  `src/recall/selectors/sourceOrderSummary.ts` now treats concrete
+  writing-progress milestone rows as summary signals and interleaves each
+  source-ordered user milestone with the adjacent assistant strategy reply
+  before extra writing anchors consume the summary recall budget. The path is
+  gated to broad writing-progress / improvement-strategy summary queries.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers a BEAM-shaped writing-progress
+  strategy timeline. It requires peer-review, passive-voice, tone-consistency,
+  Grammarly, and ProWritingAid milestone pairs while rejecting budget,
+  deadline, version-history, instruction, beta-reader, word-count, and launch
+  distractors.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-writing-progress-summary-current-20260520T033228Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4202438875678314
+  - missed-recall cases: 253/355
+  - wrong-recall/noise cases: 387/400
+- Delta from professional-profile/resume event-order:
+  overall recall improves from 0.41767737739568733 to
+  0.4202438875678314, missed-recall cases improve from 254 to 253, and
+  wrong-recall/noise remains flat at 387/400. Target case
+  `10:summarization:2` moves from 0 to 1.0 recall. Summarization recall rises
+  from 0.11685405643738979 to 0.14463183421516757, zero-recall summarization
+  cases drop from 21 to 20, and missing summarization evidence ids drop from
+  250 to 236. The changed-case comparison also shows a small event-ordering
+  tradeoff, so this remains a partial repair rather than a broad closure
+  signal.
+- Decision:
+  this is a kept partial summarization repair, not BEAM closure. The next loop
+  must continue with the remaining summarization, multi-session reasoning, and
+  persistent-noise surfaces on long imported conversations.
+
 
 Current Boundary
 ----------------
@@ -918,11 +956,12 @@ instruction-applicability, temporal date-content, source preference, timeline
 planning, contradiction-support, summary contradiction-route guard, and
 event-ordering challenge plus summary learning/evolution, issue-resolution,
 declined-financial aggregate plus professional-profile/resume event-order
-passes have been rerun. The current failure family is now more specific: the
-representative live trio is clean at 3/3 with complete evidence recall, and
-the full 100K diagnostic has real instruction, temporal, preference, Timeline
+and writing-progress summary passes have been rerun. The current failure
+family is now more specific: the representative live trio is clean at 3/3 with
+complete evidence recall, and the full 100K diagnostic has real instruction,
+temporal, preference, Timeline
 Integration, contradiction-resolution, source-ordered summary, aggregate-money,
 and event-ordering lifts, but the full surface remains recall-limited and noisy
-at recall 0.41767737739568733 with 254 missed-recall cases and
+at recall 0.4202438875678314 with 253 missed-recall cases and
 wrong-recall/noise 387/400. BEAM still needs broader recall and persistent-noise
 hardening before it can move toward an answer-quality claim.

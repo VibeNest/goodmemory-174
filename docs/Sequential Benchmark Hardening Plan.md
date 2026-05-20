@@ -251,6 +251,21 @@ target case `6:event_ordering:1` moves from 0 to 1.0 recall. This is a kept
 partial repair, not BEAM closure: summarization remains at 0.11685405643738979
 with 36/36 missed evidence cases, multi-session reasoning still misses 31/40,
 and full-run noise remains 387/400.
+Eighteenth, source-ordered writing-progress summaries now keep concrete
+writing-improvement milestone anchors paired with their adjacent assistant
+strategy replies before spending recall budget on later extra anchors. The
+rules stay in `src/recall/selectors/sourceOrderSummary.ts`; orchestration in
+`src/recall/selection.ts` stays selector-driven. The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-writing-progress-summary-current-20260520T033228Z`
+raises overall evidence-chat recall to 0.4202438875678314 with
+`executionFailures: 0`, missed-recall cases 253/355, and wrong-recall/noise
+cases still 387/400. The target case `10:summarization:2` moves from 0 to 1.0
+recall, summarization recall rises from 0.11685405643738979 to
+0.14463183421516757, zero-recall summarization cases drop from 21 to 20, and
+missing summarization evidence ids drop from 250 to 236. This is a kept
+partial repair, not BEAM closure: a small event-ordering tradeoff remains in
+the changed-case comparison, and the full diagnostic still has 253 missed
+evidence cases plus persistent noise.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
