@@ -108,6 +108,7 @@ import {
   isRecentFamilyTripQuery,
   isRelationshipLatestLocationQuery,
   isSharedGroceryListMethodQuery,
+  selectSourceOrderedValueUpdateEvidence,
   selectUpdateHistoryCompanions,
 } from "./selectors/updateSeries";
 
@@ -563,6 +564,13 @@ export function selectFacts(
     ),
     routingDecision.strategy,
   );
+  const sourceOrderedValueUpdateCandidates = selectSourceOrderedValueUpdateEvidence({
+    entries: compatible,
+    language,
+    limit: UPDATE_EVIDENCE_RECALL_LIMIT,
+    query,
+    queryLocale,
+  });
   const temporalBridgeEvidenceCandidates = sleepBeforeAppointmentQuery
     ? rankFactCandidates(
       compatible.filter((item) =>
@@ -624,6 +632,7 @@ export function selectFacts(
     timelineIntegrationCandidates.length > 0 ||
     personalWorkChallengeCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive ||
     temporalEventOrderQuery ||
     temporalMostRecentQuery ||
@@ -631,34 +640,36 @@ export function selectFacts(
   )
     ? []
     : selectReasoningBridgeEvidence({
-      entries: compatible,
-      language,
-      query,
-      queryLocale,
-    });
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
   const instructionEvidenceCandidates =
     timelineIntegrationCandidates.length > 0 ||
-      summaryCoverageCandidates.length > 0 ||
-      broadAspectEventOrderCandidates.length > 0 ||
-      sourceOrderedNamedEntityEventPlanActive
+    summaryCoverageCandidates.length > 0 ||
+    broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedValueUpdateCandidates.length > 0 ||
+    sourceOrderedNamedEntityEventPlanActive
       ? []
       : selectInstructionEvidence({
-        entries: compatible,
-        language,
-        query,
-        queryLocale,
-      });
+          entries: compatible,
+          language,
+          query,
+          queryLocale,
+        });
   const sourcePreferenceCandidates =
     timelineIntegrationCandidates.length > 0 ||
-      broadAspectEventOrderCandidates.length > 0 ||
-      sourceOrderedNamedEntityEventPlanActive
+    broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedValueUpdateCandidates.length > 0 ||
+    sourceOrderedNamedEntityEventPlanActive
       ? []
       : selectSourcePreferenceEvidence({
-        entries: compatible,
-        language,
-        query,
-        queryLocale,
-      });
+          entries: compatible,
+          language,
+          query,
+          queryLocale,
+        });
   const contradictionEvidencePair = selectContradictionEvidencePair({
     entries: compatible,
     language,
@@ -700,6 +711,10 @@ export function selectFacts(
         return true;
       }
       case "aggregate_evidence": {
+        if (sourceOrderedValueUpdateCandidates.length > 0) {
+          return false;
+        }
+
         if (!aggregateEvidenceQuery) {
           return false;
         }
@@ -737,6 +752,10 @@ export function selectFacts(
         return true;
       }
       case "source_ordered_summary": {
+        if (sourceOrderedValueUpdateCandidates.length > 0) {
+          return false;
+        }
+
         if (summaryCoverageCandidates.length === 0) {
           return false;
         }
@@ -793,6 +812,13 @@ export function selectFacts(
         return true;
       }
       case "update_evidence": {
+        if (sourceOrderedValueUpdateCandidates.length > 0) {
+          for (const entry of sourceOrderedValueUpdateCandidates) {
+            selectAndTrace(entry);
+          }
+          return true;
+        }
+
         if (updateEvidenceCandidates.length === 0) {
           return false;
         }
@@ -1051,7 +1077,11 @@ export function selectFacts(
     }
   }
 
-  if (directFactualLookupQuery && selected.length < DIRECT_FACTUAL_RECALL_LIMIT) {
+  if (
+    directFactualLookupQuery &&
+    sourceOrderedValueUpdateCandidates.length === 0 &&
+    selected.length < DIRECT_FACTUAL_RECALL_LIMIT
+  ) {
     const selectedSessionIds = new Set(
       selected
         .map((entry) => entry.fact.sessionId)

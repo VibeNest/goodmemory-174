@@ -2361,6 +2361,246 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-generic-dashboard-noise")?.returned).toBe(false);
   });
 
+  it("selects source user turns for rescheduled meeting time updates", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "user" ? "user_answer" : "assistant_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-writing-draft-noise",
+        32,
+        "user",
+        "[BEAM chat_id=32 role=user time=unknown] I worked on my draft at 2 PM and updated the outline for a different professor.",
+      ),
+      makeSourceFact(
+        "fact-zoom-original",
+        44,
+        "user",
+        "[BEAM chat_id=44 role=user time=unknown] I have a Zoom meeting with Professor Danielle on March 22 at 3 PM to review my draft.",
+      ),
+      makeSourceFact(
+        "fact-zoom-rescheduled",
+        46,
+        "user",
+        "[BEAM chat_id=46 role=user time=unknown] Actually, Professor Danielle emailed to reschedule the Zoom meeting for March 22 at 4:30 PM instead.",
+      ),
+      makeSourceFact(
+        "fact-assistant-answer",
+        49,
+        "assistant",
+        "[BEAM chat_id=49 role=assistant time=unknown] You should plan to join the Zoom meeting with Professor Danielle at 4:30 PM.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What time should I plan to join the Zoom meeting with Professor Danielle to review my draft?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-zoom-original");
+    expect(selectedIds).toContain("fact-zoom-rescheduled");
+    expect(selectedIds).not.toContain("fact-assistant-answer");
+    expect(result.traces.find((trace) => trace.memoryId === "fact-writing-draft-noise")?.returned).toBe(false);
+  });
+
+  it("selects source user turns for changed visit time updates", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-foot-locker-original",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] I'm planning to visit Foot Locker next Saturday at 3 PM to compare running shoes.",
+      ),
+      makeSourceFact(
+        "fact-sneaker-noise",
+        42,
+        "[BEAM chat_id=42 role=user time=unknown] I compared sneaker reviews at 11 AM but did not mention Foot Locker.",
+      ),
+      makeSourceFact(
+        "fact-foot-locker-updated",
+        56,
+        "[BEAM chat_id=56 role=user time=unknown] I'm free at 4 PM next Saturday for the Foot Locker visit.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What time should I plan to visit Foot Locker next Saturday?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toEqual([
+      "fact-foot-locker-original",
+      "fact-foot-locker-updated",
+    ]);
+  });
+
+  it("selects the exact source turn for duration improvement questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-conditional-probability-improvement",
+        84,
+        "[BEAM chat_id=84 role=user time=unknown] I'm trying to understand how my accuracy in conditional probability problems improved from 60% to 85% over 2 weeks, after completing 8 problems.",
+      ),
+      makeSourceFact(
+        "fact-permutation-noise",
+        168,
+        "[BEAM chat_id=168 role=user time=unknown] I completed 12 permutation and combination problems with 90% accuracy on the last 5 problems.",
+      ),
+      makeSourceFact(
+        "fact-coin-toss-noise",
+        200,
+        "[BEAM chat_id=200 role=user time=unknown] I solved a coin toss probability problem involving exactly 2 heads in 3 tosses.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How long did it take me to improve my accuracy from 60% to 85% after I started working on those problems?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-conditional-probability-improvement",
+    ]);
+  });
+
+  it("selects paired source turns for percentage improvement order questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-quiz-score-improvement",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] My quiz score improved from 65% to 82% after focusing on triangle side classifications and angle-side relationships.",
+      ),
+      makeSourceFact(
+        "fact-median-noise",
+        84,
+        "[BEAM chat_id=84 role=user time=unknown] I applied a median length formula to a triangle with sides 9, 12, and 15 cm.",
+      ),
+      makeSourceFact(
+        "fact-test-score-improvement",
+        156,
+        "[BEAM chat_id=156 role=user time=unknown] My test score improved from 80% to 92% on congruence proofs and similarity ratio calculations.",
+      ),
+      makeSourceFact(
+        "fact-practice-test-noise",
+        172,
+        "[BEAM chat_id=172 role=user time=unknown] I scored 18/20 on a practice test involving triangle congruence proofs and similarity ratio problems.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Which improvement happened first: my quiz score increasing from 65% to 82% after focusing on triangle side classifications, or my test score rising from 80% to 92% on congruence proofs and similarity calculations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-quiz-score-improvement",
+      "fact-test-score-improvement",
+    ]);
+  });
+
   it("prioritizes compact kitchen setup evidence over same-session repair topics", () => {
     const language = createLanguageService();
     const facts = [
@@ -3924,6 +4164,83 @@ describe("recall selection", () => {
     expect(selectedIds.indexOf("fact-gallery-user")).toBeLessThan(
       selectedIds.indexOf("fact-form-user"),
     );
+  });
+
+  it("keeps named source milestones for named-person progression summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-grammarly-noise",
+        102,
+        "[BEAM chat_id=102 role=user time=unknown] I will set up scheduled Grammarly Premium checks to catch errors and refine my writing as I go along.",
+      ),
+      makeSourceFact(
+        "fact-robert-first-meeting",
+        14,
+        "[BEAM chat_id=14 role=user time=unknown] I'm worried about meeting my new academic mentor, Robert, at the East Janethaven Library on Feb 10, 2024, and want to make a good impression. ->-> 1,5",
+      ),
+      makeSourceFact(
+        "fact-literature-review-noise",
+        178,
+        "[BEAM chat_id=178 role=user time=unknown] I've decided to restructure my paper for a journal format, adding a 500-word literature review section.",
+      ),
+      makeSourceFact(
+        "fact-robert-essay-angle",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] Robert shared his 1985 essay on gender studies during our April 4 Zoom call, and I want to use some argument angles without copying him. ->-> 2,8",
+      ),
+      makeSourceFact(
+        "fact-close-reading-noise",
+        238,
+        "[BEAM chat_id=238 role=user time=unknown] I annotated three articles extensively and summarized each section for close reading practice.",
+      ),
+      makeSourceFact(
+        "fact-robert-warrants",
+        124,
+        "[BEAM chat_id=124 role=user time=unknown] I'm deciding whether to prioritize Robert's recommendation to use stronger warrants for claims on gender bias after he reviewed my draft on May 9. ->-> 3,10",
+      ),
+      makeSourceFact(
+        "fact-robert-journal",
+        170,
+        "[BEAM chat_id=170 role=user time=unknown] Robert suggested submitting my essay to a journal while I am also working on a conference paper with Greg. ->-> 4,6",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a summary of how my work and interactions with Robert have developed over time, including the key steps and decisions I've made along the way?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-robert-first-meeting",
+      "fact-robert-essay-angle",
+      "fact-robert-warrants",
+      "fact-robert-journal",
+    ]);
   });
 
   it("does not route broad conversation summaries through contradiction confirmation", () => {

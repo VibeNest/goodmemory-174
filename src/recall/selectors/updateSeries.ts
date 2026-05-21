@@ -1,10 +1,18 @@
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
-import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
   diversifyRankedFactCandidatesBySession,
+  hasSourceMessageTag,
   hasTrustedAggregateEvidence,
+  stripEvidencePrefix,
+  valueBearingFactContent,
 } from "./selectionContext";
+import { sourceOrderedEvidenceRole } from "./sourceOrderPlan";
+import {
+  compareTemporalFactChronology,
+  sourceOrderSortKey,
+} from "./temporal";
+import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 
 export function isRelationshipLatestLocationQuery(query: string): boolean {
   return /\bwhere\b/i.test(query) &&
@@ -26,6 +34,58 @@ export function isRecentFamilyTripQuery(query: string): boolean {
   return /\b(?:most recent|recent|latest)\b/i.test(query) &&
     /\bfamily\s+trip\b/i.test(query);
 }
+
+type SourceOrderedValueUpdateKind =
+  | "duration"
+  | "money"
+  | "percentage"
+  | "time";
+
+const SOURCE_ORDERED_VALUE_UPDATE_LIMIT = 3;
+const SOURCE_ORDERED_TIME_VALUE_PATTERN =
+  /\b(?:\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|noon|midnight)\b/iu;
+const SOURCE_ORDERED_DURATION_VALUE_PATTERN =
+  /\b\d+(?:[.,]\d+)?\s*(?:minutes?|hours?|days?|weeks?|months?|years?)\b/iu;
+const SOURCE_ORDERED_MONEY_VALUE_PATTERN =
+  /\$\s*\d[\d,]*(?:\.\d+)?\b|\b\d[\d,]*(?:\.\d+)?\s*(?:dollars?|bucks?|usd)\b/iu;
+const SOURCE_ORDERED_PERCENTAGE_VALUE_PATTERN =
+  /\b\d+(?:[.,]\d+)?\s*%|\b\d+(?:[.,]\d+)?\s*percent\b/iu;
+const SOURCE_ORDERED_VALUE_UPDATE_SIGNAL_PATTERN =
+  /\b(?:actually|instead|reschedul(?:e|ed|ing)|moved?|changed?|updated?|switch(?:ed|ing)?|now|latest|new|free\s+at|available\s+at)\b/iu;
+const SOURCE_ORDERED_VALUE_UPDATE_QUERY_STOPWORDS = new Set([
+  "about",
+  "again",
+  "answer",
+  "current",
+  "currently",
+  "did",
+  "for",
+  "from",
+  "have",
+  "how",
+  "improve",
+  "improved",
+  "improvement",
+  "increasing",
+  "join",
+  "latest",
+  "mention",
+  "need",
+  "now",
+  "only",
+  "plan",
+  "planned",
+  "planning",
+  "rising",
+  "should",
+  "the",
+  "time",
+  "what",
+  "when",
+  "where",
+  "which",
+  "with",
+]);
 
 export interface UpdateSeriesOptions {
   collapseMortgagePreapproval?: boolean;
@@ -166,6 +226,238 @@ export function resolveUpdateSeriesKey(
   }
 
   return undefined;
+}
+
+function sourceOrderedValueUpdateKind(
+  query: string,
+): SourceOrderedValueUpdateKind | undefined {
+  if (/\bhow\s+long\b/iu.test(query)) {
+    return "duration";
+  }
+
+  if (/\b(?:what\s+time|when)\b/iu.test(query)) {
+    return "time";
+  }
+
+  if (
+    /\b(?:budget|cost|price|amount|spend|paid|dollars?|\$)\b/iu.test(query) &&
+    /\b(?:current(?:ly)?|latest|new|now|updated?|budget|plan(?:ning)?|should)\b/iu.test(query) &&
+    !/\b(?:across|compare|declined|difference|from\s+the\s+start|increase(?:d)?|sum|total|turned\s+down)\b/iu.test(query)
+  ) {
+    return "money";
+  }
+
+  if (
+    SOURCE_ORDERED_PERCENTAGE_VALUE_PATTERN.test(query) &&
+    /\b(?:accuracy|improv(?:e|ed|ement)|increas(?:e|ed|ing)|rising|score|percentage|percent)\b/iu.test(query)
+  ) {
+    return "percentage";
+  }
+
+  return undefined;
+}
+
+function sourceOrderedValueUpdateQueryTopics(
+  query: string,
+  language: LanguageService,
+  queryLocale: string,
+): Set<string> {
+  return new Set(
+    [...selectorTopicTokens(query, language, queryLocale)]
+      .filter((token) => token.length > 2)
+      .filter((token) => !SOURCE_ORDERED_VALUE_UPDATE_QUERY_STOPWORDS.has(token)),
+  );
+}
+
+function hasSourceOrderedValueKind(
+  content: string,
+  kind: SourceOrderedValueUpdateKind,
+): boolean {
+  if (kind === "duration") {
+    return SOURCE_ORDERED_DURATION_VALUE_PATTERN.test(content);
+  }
+
+  if (kind === "time") {
+    return SOURCE_ORDERED_TIME_VALUE_PATTERN.test(content);
+  }
+
+  if (kind === "money") {
+    return SOURCE_ORDERED_MONEY_VALUE_PATTERN.test(content);
+  }
+
+  if (kind === "percentage") {
+    return SOURCE_ORDERED_PERCENTAGE_VALUE_PATTERN.test(content);
+  }
+
+  return false;
+}
+
+function sourceOrderedPercentagePairKeys(value: string): Set<string> {
+  const pairs = new Set<string>();
+  const pattern =
+    /\b(?:from\s+)?(\d+(?:[.,]\d+)?)\s*(?:%|percent)\s*(?:to|->|→|-)\s*(\d+(?:[.,]\d+)?)\s*(?:%|percent)/giu;
+
+  for (const match of value.matchAll(pattern)) {
+    const before = (match[1] ?? "").replace(",", ".");
+    const after = (match[2] ?? "").replace(",", ".");
+    if (before.length > 0 && after.length > 0) {
+      pairs.add(`${before}->${after}`);
+    }
+  }
+
+  return pairs;
+}
+
+function hasSourceOrderedPercentagePairOverlap(
+  content: string,
+  queryPercentagePairs: ReadonlySet<string>,
+): boolean {
+  if (queryPercentagePairs.size === 0) {
+    return true;
+  }
+
+  const contentPairs = sourceOrderedPercentagePairKeys(content);
+  for (const pair of queryPercentagePairs) {
+    if (contentPairs.has(pair)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function sourceOrderedValueUpdateTopicOverlap(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const contentTopics = selectorTopicTokens(
+    valueBearingFactContent(input.entry.fact.content),
+    input.language,
+    input.entry.locale,
+  );
+
+  return [...input.queryTopics].filter((topic) => contentTopics.has(topic)).length;
+}
+
+function sourceOrderedValueUpdatePriority(input: {
+  entry: RankedFactCandidate;
+  kind: SourceOrderedValueUpdateKind;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): number {
+  const content = valueBearingFactContent(input.entry.fact.content);
+  let priority = 0;
+
+  priority += sourceOrderedValueUpdateTopicOverlap({
+    entry: input.entry,
+    language: input.language,
+    queryTopics: input.queryTopics,
+  }) * 30;
+  priority += input.entry.lexicalScore * 40;
+  priority += input.entry.subjectScore * 20;
+
+  if (sourceOrderSortKey(input.entry) !== undefined) {
+    priority += 35;
+  }
+  if (sourceOrderedEvidenceRole(input.entry) === "user") {
+    priority += 70;
+  }
+  if (hasSourceOrderedValueKind(content, input.kind)) {
+    priority += 45;
+  }
+  if (SOURCE_ORDERED_VALUE_UPDATE_SIGNAL_PATTERN.test(content)) {
+    priority += 25;
+  }
+
+  return priority;
+}
+
+export function selectSourceOrderedValueUpdateEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  limit?: number;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  const kind = sourceOrderedValueUpdateKind(input.query);
+  if (!kind) {
+    return [];
+  }
+
+  const queryTopics = sourceOrderedValueUpdateQueryTopics(
+    input.query,
+    input.language,
+    input.queryLocale,
+  );
+  if (queryTopics.size === 0) {
+    return [];
+  }
+
+  const queryPercentagePairs = sourceOrderedPercentagePairKeys(input.query);
+  const minimumOverlap =
+    kind === "time" || kind === "percentage"
+      ? 3
+      : kind === "duration"
+        ? 2
+        : 2;
+  const candidates = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user")
+    .filter((entry) =>
+      hasSourceOrderedValueKind(
+        stripEvidencePrefix(entry.fact.content),
+        kind,
+      )
+    )
+    .filter((entry) =>
+      kind === "duration" || kind === "percentage"
+        ? hasSourceOrderedPercentagePairOverlap(
+          stripEvidencePrefix(entry.fact.content),
+          queryPercentagePairs,
+        )
+        : true
+    )
+    .map((entry) => ({
+      entry,
+      overlap: sourceOrderedValueUpdateTopicOverlap({
+        entry,
+        language: input.language,
+        queryTopics,
+      }),
+      priority: sourceOrderedValueUpdatePriority({
+        entry,
+        kind,
+        language: input.language,
+        queryTopics,
+      }),
+    }))
+    .filter((candidate) => candidate.overlap >= minimumOverlap)
+    .sort((left, right) => {
+      if (kind === "duration") {
+        return compareTemporalFactChronology(left.entry, right.entry);
+      }
+
+      const priorityDelta = right.priority - left.priority;
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+
+      return compareTemporalFactChronology(right.entry, left.entry);
+    });
+
+  if (kind !== "duration" && candidates.length < 2) {
+    return [];
+  }
+
+  const limit = kind === "duration"
+    ? 1
+    : input.limit ?? SOURCE_ORDERED_VALUE_UPDATE_LIMIT;
+  return candidates
+    .slice(0, limit)
+    .map((candidate) => candidate.entry)
+    .sort(compareTemporalFactChronology);
 }
 
 export function collapseLatestUpdateSeries(

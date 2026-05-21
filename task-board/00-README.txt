@@ -109,14 +109,15 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  kept current-code technical-challenge summary gated rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-full-technical-challenge-summary-gated-current-20260520T060654Z`,
-  reaches recall 0.42556470133934937, missed 251/355, and wrong-recall/noise
-  386/400. It repairs `1:summarization:2` from 0 to 1.0 recall after the
-  career/philosophy rerun repaired `12:summarization:2`, and lifts
-  summarization recall to 0.20018738977072315. It is still a narrow recall lift
-  with changed-case non-summary tie churn and persistent full-run noise, so
-  full-run misses and noise still block closure.
+  kept current-code source-order value/metric scoped rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-value-metric-scoped-current-20260521T002541Z`,
+  reaches recall 0.44935613682092573, missed 244/355, and wrong-recall/noise
+  378/400. It keeps the earlier summarization repairs and adds generic exact
+  source-turn selection for time updates, duration questions, and percentage
+  transition pairs while leaving broad multi-session counts/amount comparisons
+  on the aggregate path. It is still a partial recall/noise lift, not BEAM
+  closure: full-run misses and persistent noise remain large, especially in
+  summarization and event-ordering.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and

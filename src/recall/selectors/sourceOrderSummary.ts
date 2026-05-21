@@ -32,6 +32,26 @@ export const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 export const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 export const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
 export const SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS = 4;
+const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_MIN_ANCHORS = 2;
+const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_STOPWORDS = new Set([
+  "ai",
+  "beam",
+  "can",
+  "clear",
+  "complete",
+  "comprehensive",
+  "give",
+  "how",
+  "i",
+  "only",
+  "quick",
+  "summary",
+  "the",
+  "what",
+  "when",
+  "where",
+  "why",
+]);
 
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
@@ -334,6 +354,36 @@ function hasSourceOrderedSummarySourceEnvelope(entry: RankedFactCandidate): bool
   ) || /\brole\s*=\s*(?:assistant|user)\b/iu.test(content);
 }
 
+function sourceOrderedSummaryNamedEntityTokens(value: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const match of value.matchAll(/\b[A-Z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*\b/gu)) {
+    const token = match[0].toLowerCase();
+    if (
+      token.length > 2 &&
+      !SOURCE_ORDER_SUMMARY_NAMED_ENTITY_STOPWORDS.has(token)
+    ) {
+      tokens.add(token);
+    }
+  }
+
+  return tokens;
+}
+
+function sourceOrderedSummaryNamedEntityOverlap(
+  value: string,
+  queryNamedTokens: ReadonlySet<string>,
+): number {
+  const contentNamedTokens = sourceOrderedSummaryNamedEntityTokens(value);
+  let overlap = 0;
+  for (const token of queryNamedTokens) {
+    if (contentNamedTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap;
+}
+
 function sourceOrderedSummaryRepresentativeScore(input: {
   entry: RankedFactCandidate;
   priority: (entry: RankedFactCandidate) => number;
@@ -385,6 +435,90 @@ function dedupeSourceOrderedSummaryTurns(input: {
   }
 
   return [...bySourceOrder.values()].sort(compareTemporalFactChronology);
+}
+
+function sourceOrderedNamedEntitySummaryPriority(input: {
+  entry: RankedFactCandidate;
+  priority: (entry: RankedFactCandidate) => number;
+  queryNamedTokens: ReadonlySet<string>;
+}): number {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  let score = input.priority(input.entry) +
+    sourceOrderedSummaryNamedEntityOverlap(content, input.queryNamedTokens) * 500;
+
+  if (hasUserAnswerTag(input.entry)) {
+    score += 120;
+  }
+  if (hasSourceOrderedSummaryMilestoneAction(content)) {
+    score += 80;
+  }
+  if (isLowInformationSourceSummaryFollowUp(content)) {
+    score -= 300;
+  }
+  if (isSourceOrderedSummaryInstructionLike(content)) {
+    score -= 500;
+  }
+
+  return score;
+}
+
+function selectSourceOrderedNamedEntitySummaryMilestones(input: {
+  candidates: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+  queryNamedTokens: ReadonlySet<string>;
+}): RankedFactCandidate[] {
+  const sortedCandidates = [...input.candidates].sort(compareTemporalFactChronology);
+  if (sortedCandidates.length <= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+    return sortedCandidates;
+  }
+
+  const selected = new Map<string, RankedFactCandidate>();
+  const addCandidate = (entry: RankedFactCandidate): void => {
+    if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      selected.set(entry.fact.id, entry);
+    }
+  };
+  const bucketCount = Math.min(
+    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
+    sortedCandidates.length,
+  );
+  const namedPriority = (entry: RankedFactCandidate): number =>
+    sourceOrderedNamedEntitySummaryPriority({
+      entry,
+      priority: input.priority,
+      queryNamedTokens: input.queryNamedTokens,
+    });
+
+  for (let index = 0; index < bucketCount; index += 1) {
+    const start = Math.floor(index * sortedCandidates.length / bucketCount);
+    const end = Math.floor((index + 1) * sortedCandidates.length / bucketCount);
+    const bucket = sortedCandidates.slice(start, Math.max(start + 1, end));
+    const best = [...bucket].sort((left, right) => {
+      const priorityDelta = namedPriority(right) - namedPriority(left);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    })[0];
+    if (best) {
+      addCandidate(best);
+    }
+  }
+
+  for (const entry of [...sortedCandidates].sort((left, right) => {
+    const priorityDelta = namedPriority(right) - namedPriority(left);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return compareTemporalFactChronology(left, right);
+  })) {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+      break;
+    }
+    addCandidate(entry);
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 export function sourceOrderedSummaryPriority(input: {
@@ -824,6 +958,7 @@ export function selectSourceOrderedSummaryCoverage(input: {
       queryTopics,
     });
   const querySpecificTopics = sourceOrderedSummarySpecificQueryTopics(queryTopics);
+  const queryNamedTokens = sourceOrderedSummaryNamedEntityTokens(input.query);
   const topicalPriority = (entry: RankedFactCandidate): number =>
     sourceOrderedSummaryTopicalPriority({
       entry,
@@ -854,6 +989,17 @@ export function selectSourceOrderedSummaryCoverage(input: {
     entries: sourceCandidates,
     priority,
   });
+  const namedEntitySourceCandidates = queryNamedTokens.size > 0
+    ? dedupeSourceOrderedSummaryTurns({
+      entries: sourceCandidates.filter((entry) =>
+        sourceOrderedSummaryNamedEntityOverlap(
+          stripEvidencePrefix(entry.fact.content),
+          queryNamedTokens,
+        ) > 0
+      ),
+      priority,
+    })
+    : [];
   const signaledCandidates = sourceCandidates.filter((entry) =>
     hasSourceOrderedSummarySignal({
       entry,
@@ -971,6 +1117,12 @@ export function selectSourceOrderedSummaryCoverage(input: {
       })
     )
     : [];
+  const namedEntitySummaryCandidates = namedEntitySourceCandidates.filter((entry) => {
+    const content = stripEvidencePrefix(entry.fact.content);
+    return hasUserAnswerTag(entry) &&
+      !isSourceOrderedSummaryInstructionLike(content) &&
+      !isLowInformationSourceSummaryFollowUp(content);
+  });
   const issueResolutionCandidates =
     isSourceOrderedIssueResolutionSummaryQuery(input.query)
       ? sourceCandidates.filter((entry) => {
@@ -1038,6 +1190,16 @@ export function selectSourceOrderedSummaryCoverage(input: {
     return selectSourceOrderedTechnicalChallengeMilestones({
       candidates: technicalChallengeCandidates,
       priority,
+    });
+  }
+  if (
+    namedEntitySummaryCandidates.length >=
+      SOURCE_ORDER_SUMMARY_NAMED_ENTITY_MIN_ANCHORS
+  ) {
+    return selectSourceOrderedNamedEntitySummaryMilestones({
+      candidates: namedEntitySummaryCandidates,
+      priority,
+      queryNamedTokens,
     });
   }
   if (

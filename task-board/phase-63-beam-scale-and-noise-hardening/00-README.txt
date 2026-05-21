@@ -220,10 +220,28 @@ Workstreams
     dedupe duplicate facts from the same source turn, and prioritize named
     challenge milestones such as password hashing, UNIQUE constraint failures,
     OperationalError handling, CSRF token errors, and Redis account lockout.
+  - source-order value/metric scoped rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-value-metric-scoped-current-20260521T002541Z`
+    reaches full rules-only evidence-chat recall 0.44935613682092573 with
+    `executionFailures: 0`, missed-recall cases 244/355, and
+    wrong-recall/noise cases 378/400. The kept selector repair is generic:
+    source-ordered update evidence now handles exact time changes, duration
+    questions, and percentage transition pairs from user source turns while
+    leaving broad `how many` / cross-session amount comparisons on the
+    aggregate and multi-hop selectors. The workbench delta versus the
+    technical-challenge accepted run shows missed cases -7, wrong-recall -8,
+    knowledge-update recall +0.0542 with noise -31, temporal-reasoning noise
+    -36 with total hits/missing unchanged, event-ordering recall +0.033, and
+    multi-session reasoning slightly positive instead of regressed. Validation:
+    `bun test tests/unit/recall.selection.test.ts`,
+    `bun test tests/unit/run-phase-63.beam-recall-diagnostic.test.ts`,
+    `bun test tests/unit/analyze-phase-63-recall-diagnostic.test.ts`,
+    `bun run typecheck`, the full diagnostic above, and its generated
+    `recall-diagnostic-analysis.json`.
   - next active step: continue full-slice recall/noise hardening beyond
-    the technical-challenge summary repair, especially the remaining
-    zero-recall summarization cases, multi-session reasoning, and
-    persistent-noise surface on long imported conversations
+    the value/metric scoped repair, especially the remaining zero-recall
+    summarization cases, event-ordering over-retrieval, and persistent-noise
+    surface on long imported conversations.
 
 
 Current Boundary
@@ -264,15 +282,15 @@ Current Boundary
   full recall to 0.4116411600918644, the summary issue-resolution earliest pass
   nudges it to 0.4117931833424793, the declined-financial aggregate
   pass raises it to 0.41554905188708025, and the professional-profile/resume
-  event-order pass raises it to 0.41767737739568733. The latest
-  writing-progress summary pass raises it to 0.4202438875678314, and the latest
-  career/philosophy scoped summary pass raises it to 0.4233111802125888. The
-  latest technical-challenge summary gated pass raises it to
-  0.42556470133934937 with wrong-recall/noise 386/400. This is still only
-  partial Phase 63 progress: the
-  full 100K provider-free recall diagnostic remains recall-limited and noisy
-  with 251 missed-recall cases. The next executable boundary is reducing
+  event-order pass raises it to 0.41767737739568733. The writing-progress
+  summary pass raises it to 0.4202438875678314, the career/philosophy scoped
+  summary pass raises it to 0.4233111802125888, and the technical-challenge
+  summary gated pass raises it to 0.42556470133934937. The latest
+  source-order value/metric scoped pass raises it to 0.44935613682092573 with
+  missed-recall cases 244/355 and wrong-recall/noise 378/400. This is still
+  only partial Phase 63 progress: the full 100K provider-free recall diagnostic
+  remains recall-limited and noisy. The next executable boundary is reducing
   remaining full-slice misses plus wrong-recall/noise on long imported
-  conversations.
+  conversations, especially summarization and event-ordering.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

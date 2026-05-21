@@ -303,6 +303,23 @@ drop from 19 to 18, and missing summarization evidence ids drop from 220 to
 209. This is a kept partial repair, not BEAM closure: the changed-case
 comparison still shows non-summary tie churn, including one knowledge-update
 and one event-ordering recall tradeoff, and full-run noise remains 386/400.
+Twenty-first, source-ordered value/metric evidence now has a scoped generic
+planner for exact user-source turns: rescheduled time values, duration answers,
+and percentage transition pairs are selected before broad summary/aggregate
+fallbacks, while broad `how many` and cross-session amount-comparison queries
+stay on the aggregate and multi-hop paths. The accepted scoped rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-value-metric-scoped-current-20260521T002541Z`
+raises overall evidence-chat recall to 0.44935613682092573 with
+`executionFailures: 0`, missed-recall cases 244/355, and wrong-recall/noise
+cases 378/400. The workbench delta versus the technical-challenge gated run
+shows missed cases -7 and wrong-recall cases -8. Knowledge-update recall rises
+by 0.0542 with noise -31, temporal reasoning removes 36 noise ids while keeping
+total hit/missing counts flat, event-ordering recall rises by 0.033, and
+multi-session reasoning remains slightly positive after the overly broad
+number/money route was scoped back. This is a kept partial repair, not BEAM
+closure: summarization remains at 0.2132, event-ordering still averages 22.525
+retrieved ids per case, and the full diagnostic still has 244 missed-recall
+cases plus 378 wrong-recall/noise cases.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
