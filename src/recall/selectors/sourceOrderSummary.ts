@@ -52,6 +52,10 @@ const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_STOPWORDS = new Set([
   "where",
   "why",
 ]);
+const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_PATTERN =
+  /\b(?:agree(?:d|ing)?\s+to|commit(?:ted|ting)?\s+to|decid(?:e|ed|ing)\s+(?:to|whether)|declin(?:e|ed|ing)|limit(?:ed|ing)?|negotiat(?:e|ed|ing)|prioriti[sz](?:e|ed|ing)|reduc(?:e|ed|ing)|reschedul(?:e|ed|ing)|resolv(?:e|ed|ing)|schedul(?:e|ed|ing)|set\s+(?:a\s+)?boundar(?:y|ies)|started?|switch(?:ed|ing)|will\s+(?:host|limit|prioriti[sz]e|reduce|reschedule|schedule|support|talk))\b/iu;
+const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_ZH_PATTERN =
+  /(同意|承诺|决定|拒绝|减少|限制|重新安排|安排|协商|优先|解决|设定边界|开始|切换)/u;
 
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
@@ -384,6 +388,16 @@ function sourceOrderedSummaryNamedEntityOverlap(
   return overlap;
 }
 
+function hasSourceOrderedNamedEntitySummaryDecisionMilestone(
+  content: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_PATTERN.test(
+    content,
+  ) || SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_ZH_PATTERN.test(
+    content,
+  ) || hasSourceOrderedSummaryMilestoneAction(content);
+}
+
 function sourceOrderedSummaryRepresentativeScore(input: {
   entry: RankedFactCandidate;
   priority: (entry: RankedFactCandidate) => number;
@@ -439,18 +453,26 @@ function dedupeSourceOrderedSummaryTurns(input: {
 
 function sourceOrderedNamedEntitySummaryPriority(input: {
   entry: RankedFactCandidate;
+  language: LanguageService;
   priority: (entry: RankedFactCandidate) => number;
   queryNamedTokens: ReadonlySet<string>;
+  querySpecificTopics: ReadonlySet<string>;
 }): number {
   const content = stripEvidencePrefix(input.entry.fact.content);
+  const factTopics = selectorTopicTokens(
+    content,
+    input.language,
+    input.entry.locale,
+  );
   let score = input.priority(input.entry) +
-    sourceOrderedSummaryNamedEntityOverlap(content, input.queryNamedTokens) * 500;
+    sourceOrderedSummaryNamedEntityOverlap(content, input.queryNamedTokens) * 500 +
+    selectorTopicOverlapCount(input.querySpecificTopics, factTopics) * 140;
 
   if (hasUserAnswerTag(input.entry)) {
     score += 120;
   }
-  if (hasSourceOrderedSummaryMilestoneAction(content)) {
-    score += 80;
+  if (hasSourceOrderedNamedEntitySummaryDecisionMilestone(content)) {
+    score += 520;
   }
   if (isLowInformationSourceSummaryFollowUp(content)) {
     score -= 300;
@@ -464,14 +486,13 @@ function sourceOrderedNamedEntitySummaryPriority(input: {
 
 function selectSourceOrderedNamedEntitySummaryMilestones(input: {
   candidates: RankedFactCandidate[];
+  language: LanguageService;
   priority: (entry: RankedFactCandidate) => number;
   queryNamedTokens: ReadonlySet<string>;
+  querySpecificTopics: ReadonlySet<string>;
+  sourceCandidates: RankedFactCandidate[];
 }): RankedFactCandidate[] {
   const sortedCandidates = [...input.candidates].sort(compareTemporalFactChronology);
-  if (sortedCandidates.length <= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
-    return sortedCandidates;
-  }
-
   const selected = new Map<string, RankedFactCandidate>();
   const addCandidate = (entry: RankedFactCandidate): void => {
     if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
@@ -485,8 +506,10 @@ function selectSourceOrderedNamedEntitySummaryMilestones(input: {
   const namedPriority = (entry: RankedFactCandidate): number =>
     sourceOrderedNamedEntitySummaryPriority({
       entry,
+      language: input.language,
       priority: input.priority,
       queryNamedTokens: input.queryNamedTokens,
+      querySpecificTopics: input.querySpecificTopics,
     });
 
   for (let index = 0; index < bucketCount; index += 1) {
@@ -512,10 +535,40 @@ function selectSourceOrderedNamedEntitySummaryMilestones(input: {
     }
     return compareTemporalFactChronology(left, right);
   })) {
-    if (selected.size >= SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
+    if (selected.size >= SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT) {
       break;
     }
     addCandidate(entry);
+  }
+
+  for (const anchor of [...selected.values()].sort(compareTemporalFactChronology)) {
+    const anchorOrder = sourceOrderSortKey(anchor);
+    if (anchorOrder === undefined) {
+      continue;
+    }
+
+    const companion = input.sourceCandidates
+      .filter((entry) => !selected.has(entry.fact.id))
+      .filter((entry) => {
+        const order = sourceOrderSortKey(entry);
+        if (
+          order === undefined ||
+          !hasAssistantAnswerTag(entry) ||
+          order <= anchorOrder ||
+          order - anchorOrder > SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE
+        ) {
+          return false;
+        }
+
+        return sourceOrderedSummaryNamedEntityOverlap(
+          stripEvidencePrefix(entry.fact.content),
+          input.queryNamedTokens,
+        ) > 0;
+      })
+      .sort(compareTemporalFactChronology)[0];
+    if (companion) {
+      addCandidate(companion);
+    }
   }
 
   return [...selected.values()].sort(compareTemporalFactChronology);
@@ -1198,8 +1251,11 @@ export function selectSourceOrderedSummaryCoverage(input: {
   ) {
     return selectSourceOrderedNamedEntitySummaryMilestones({
       candidates: namedEntitySummaryCandidates,
+      language: input.language,
       priority,
       queryNamedTokens,
+      querySpecificTopics,
+      sourceCandidates: namedEntitySourceCandidates,
     });
   }
   if (

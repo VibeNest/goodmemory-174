@@ -4243,6 +4243,137 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps adjacent named assistant synthesis for named-person progression summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-budget-noise",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I created a monthly budget by April 1 and tracked all expenses over $20.",
+      ),
+      makeSourceFact(
+        "fact-alexis-joint-account-user",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] I'm stressed about managing our finances with my spouse Alexis after she suggested switching to a joint savings account at First National Bank on May 5. ->-> 2,6",
+      ),
+      makeSourceFact(
+        "fact-alexis-joint-account-assistant",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] Opening a joint savings account with Alexis can help you coordinate shared financial goals if you both agree on check-ins and contribution rules.",
+      ),
+      makeSourceFact(
+        "fact-alexis-hours-user",
+        228,
+        "user",
+        "[BEAM chat_id=228 role=user time=unknown] I will reduce my hours to 30 per week starting January to support Alexis's business launch.",
+      ),
+      makeSourceFact(
+        "fact-alexis-hours-assistant",
+        229,
+        "assistant",
+        "[BEAM chat_id=229 role=assistant time=unknown] Reducing your hours while supporting Alexis's business launch is a strategic financial tradeoff that should be reviewed against your household budget.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how my approach to managing finances with Alexis has developed over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-alexis-joint-account-user",
+      "fact-alexis-joint-account-assistant",
+      "fact-alexis-hours-user",
+      "fact-alexis-hours-assistant",
+    ]);
+  });
+
+  it("prioritizes named relationship work decisions over generic named reflections", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = Array.from({ length: 16 }, (_, index) =>
+      makeSourceFact(
+        `fact-generic-${index}`,
+        index,
+        `[BEAM chat_id=${index} role=user time=unknown] Stephen and I talked about our relationship in a general reflection about free will.`,
+      )
+    );
+    facts[2] = makeSourceFact(
+      "fact-generic-work-reflection",
+      2,
+      "[BEAM chat_id=2 role=user time=unknown] I am wondering how my relationship and work commitments with Stephen relate to personal growth in general.",
+    );
+    facts[3] = makeSourceFact(
+      "fact-stephen-trip-limit",
+      3,
+      "[BEAM chat_id=3 role=user time=unknown] I agreed to limit my work trips to 3 per quarter starting June for Stephen.",
+    );
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how I have managed my relationship and work commitments with Stephen over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-stephen-trip-limit");
+    expect(selectedIds).not.toContain("fact-generic-work-reflection");
+  });
+
   it("does not route broad conversation summaries through contradiction confirmation", () => {
     const language = createLanguageService();
     const makeSourceFact = (
