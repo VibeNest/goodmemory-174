@@ -320,6 +320,22 @@ number/money route was scoped back. This is a kept partial repair, not BEAM
 closure: summarization remains at 0.2132, event-ordering still averages 22.525
 retrieved ids per case, and the full diagnostic still has 244 missed-recall
 cases plus 378 wrong-recall/noise cases.
+Twenty-second, named source-ordered summaries now give concrete decision /
+commitment milestones just enough priority to beat generic named-person
+reflections that merely mirror the query topics. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-named-summary-decision-min540-current-20260521T123744Z`
+raises overall evidence-chat recall to 0.45501341381623095 with
+`executionFailures: 0`, missed-recall cases still 244/355, and
+wrong-recall/noise cases still 378/400. Compared with the previous
+named-summary companion run, global hit evidence ids rise from 395 to 396:
+event-ordering average recall improves by 0.0083 with one additional hit and no
+event-ordering noise increase, while summarization stays at 0.2598 after the
+earlier named companion repair. Compared with the value/metric scoped baseline,
+summarization remains +8 hit ids / -8 missing ids / -2 zero-recall cases, and
+event-ordering is now +1 hit / -1 missing with noise -2. This is still a kept
+partial repair, not BEAM closure: the full run still has 244 missed-recall
+cases, 378 wrong-recall/noise cases, summarization incomplete recall in 33/36
+evidence cases, and large event-ordering over-retrieval.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

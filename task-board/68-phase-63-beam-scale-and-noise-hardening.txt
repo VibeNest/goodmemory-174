@@ -1032,6 +1032,52 @@ Latest current-code technical-challenge summary repair:
   persistent wrong/noise surface rather than broadening technical query
   matching.
 
+Latest current-code source-order value/metric and named-summary decision repair:
+
+- Mechanism:
+  `src/recall/selectors/updateSeries.ts` and `src/recall/selectors/sourceOrderSummary.ts`
+  now keep the source-order path selector-driven for exact user-source turns:
+  rescheduled time values, duration answers, percentage transition pairs, and
+  named-person summary turns that contain concrete user decision/commitment
+  milestones. The named-summary branch still keeps adjacent named assistant
+  synthesis, but the decision milestone boost is deliberately small so generic
+  topic mirrors do not beat concrete user commitments without broadly changing
+  other source-order selectors.
+- Rejected intermediates:
+  broader named-summary decision variants with heavier boost or non-decision
+  topic-overlap damping were not accepted. They either kept summarization flat
+  while adding event-ordering noise, or reduced event-ordering recall. The kept
+  variant is the lowest boost that preserves the named-person decision
+  regression without the observed full-run hit loss.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers named-person progression
+  summaries with adjacent assistant synthesis and a relationship/work
+  commitment case where a generic Stephen reflection must not outrank the
+  concrete user decision to limit work trips.
+- Current-code full rules-only recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-named-summary-decision-min540-current-20260521T123744Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.45501341381623095
+  - missed-recall cases: 244/355
+  - wrong-recall/noise cases: 378/400
+- Delta:
+  compared with the value/metric scoped run, summarization stays at the
+  accepted named-summary level of 0.2598 with +8 hit ids, -8 missing ids, and
+  -2 zero-recall cases; event-ordering improves by one hit and one fewer
+  missing id, with event-ordering noise -2. Compared with the named-summary
+  companion run, the kept run adds one global hit evidence id and raises
+  event-ordering average recall by 0.0083, while global noise increases by
+  three ids from information-extraction/instruction churn. This is still a
+  partial repair, not BEAM closure.
+- Decision:
+  keep the 540 decision boost and continue with full-slice miss/noise
+  hardening. The next loop should focus on the remaining summarization
+  incomplete cases and event-ordering over-retrieval rather than expanding
+  named-person keyword rules.
+
 
 Current Boundary
 ----------------
@@ -1049,12 +1095,12 @@ planning, contradiction-support, summary contradiction-route guard, and
 event-ordering challenge plus summary learning/evolution, issue-resolution,
 declined-financial aggregate plus professional-profile/resume event-order
 and writing-progress plus career/philosophy and technical-challenge summary
-passes have been rerun. The current failure
-family is now more specific: the representative live trio is clean at 3/3 with
-complete evidence recall, and the full 100K diagnostic has real instruction,
-temporal, preference, Timeline
+passes, followed by the value/metric scoped and named-summary decision passes,
+have been rerun. The current failure family is now more specific: the
+representative live trio is clean at 3/3 with complete evidence recall, and
+the full 100K diagnostic has real instruction, temporal, preference, Timeline
 Integration, contradiction-resolution, source-ordered summary, aggregate-money,
-and event-ordering lifts, but the full surface remains recall-limited and noisy
-at recall 0.42556470133934937 with 251 missed-recall cases and
-wrong-recall/noise 386/400. BEAM still needs broader recall and persistent-noise
-hardening before it can move toward an answer-quality claim.
+value/metric, and event-ordering lifts, but the full surface remains
+recall-limited and noisy at recall 0.45501341381623095 with 244 missed-recall
+cases and wrong-recall/noise 378/400. BEAM still needs broader recall and
+persistent-noise hardening before it can move toward an answer-quality claim.

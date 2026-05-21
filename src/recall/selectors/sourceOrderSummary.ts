@@ -459,6 +459,8 @@ function sourceOrderedNamedEntitySummaryPriority(input: {
   querySpecificTopics: ReadonlySet<string>;
 }): number {
   const content = stripEvidencePrefix(input.entry.fact.content);
+  const decisionMilestone =
+    hasSourceOrderedNamedEntitySummaryDecisionMilestone(content);
   const factTopics = selectorTopicTokens(
     content,
     input.language,
@@ -471,8 +473,8 @@ function sourceOrderedNamedEntitySummaryPriority(input: {
   if (hasUserAnswerTag(input.entry)) {
     score += 120;
   }
-  if (hasSourceOrderedNamedEntitySummaryDecisionMilestone(content)) {
-    score += 520;
+  if (decisionMilestone) {
+    score += 540;
   }
   if (isLowInformationSourceSummaryFollowUp(content)) {
     score -= 300;

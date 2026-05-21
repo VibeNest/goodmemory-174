@@ -238,8 +238,28 @@ Workstreams
     `bun test tests/unit/analyze-phase-63-recall-diagnostic.test.ts`,
     `bun run typecheck`, the full diagnostic above, and its generated
     `recall-diagnostic-analysis.json`.
+  - source-order named-summary decision rerun:
+    `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-named-summary-decision-min540-current-20260521T123744Z`
+    reaches full rules-only evidence-chat recall 0.45501341381623095 with
+    `executionFailures: 0`, missed-recall cases 244/355, and
+    wrong-recall/noise cases 378/400. The kept selector repair is generic:
+    named-person source-ordered summaries keep adjacent named assistant
+    synthesis and give concrete user decision/commitment milestones just enough
+    priority to outrank generic named-person reflections that only mirror query
+    topics. Compared with the previous named-summary companion run, total hit
+    evidence ids improve from 395 to 396; event-ordering average recall rises
+    by 0.0083 with one additional hit and no event-ordering noise increase,
+    while summarization stays at 0.2598. Compared with the value/metric scoped
+    run, summarization remains +8 hits / -8 missing / -2 zero-recall cases, and
+    event-ordering is +1 hit / -1 missing with noise -2. Validation:
+    `bun test tests/unit/recall.selection.test.ts`,
+    `bun test tests/unit/run-phase-63.beam-recall-diagnostic.test.ts`,
+    `bun test tests/unit/analyze-phase-63-recall-diagnostic.test.ts`,
+    `bun run typecheck`, the full diagnostic above, and generated analyses
+    `recall-diagnostic-analysis.json` plus
+    `recall-diagnostic-analysis-vs-companions.json`.
   - next active step: continue full-slice recall/noise hardening beyond
-    the value/metric scoped repair, especially the remaining zero-recall
+    the named-summary decision repair, especially the remaining zero-recall
     summarization cases, event-ordering over-retrieval, and persistent-noise
     surface on long imported conversations.
 
@@ -286,7 +306,8 @@ Current Boundary
   summary pass raises it to 0.4202438875678314, the career/philosophy scoped
   summary pass raises it to 0.4233111802125888, and the technical-challenge
   summary gated pass raises it to 0.42556470133934937. The latest
-  source-order value/metric scoped pass raises it to 0.44935613682092573 with
+  source-order value/metric scoped pass raises it to 0.44935613682092573, and
+  the named-summary decision pass raises it to 0.45501341381623095 with
   missed-recall cases 244/355 and wrong-recall/noise 378/400. This is still
   only partial Phase 63 progress: the full 100K provider-free recall diagnostic
   remains recall-limited and noisy. The next executable boundary is reducing
