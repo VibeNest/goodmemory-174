@@ -116,8 +116,11 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     `executionFailures: 0`
   - local gate `run-20260518003000` is accepted through `bun run gate:phase-63`
   - `prepare:phase-63-beam` exports real BEAM rows to an external root without
-    vendoring upstream data; the accepted 100K export currently lives at
+    vendoring upstream data; it supports the Hugging Face rows export path and
+    the GitHub raw fallback path (`--source github-raw`) when the rows endpoint
+    is unavailable. The current local 100K export lives at
     `/private/tmp/BEAM/100K.json` with 20/20 rows and 400 probing questions
+    from the GitHub raw fallback source.
   - initial external-root run
     `run-phase63-beam-100k-full-initial-20260518T000335Z` covers all four
     comparison profiles over the real 100K export with `executionFailures: 0`
@@ -128,6 +131,13 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     ingestion only, not a final BEAM benchmark score; current hypotheses still
     use deterministic oracle answers/evidence ids rather than live GoodMemory
     answer generation and live judging
+  - latest GitHub-raw source recovery diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-current-20260521T170515Z`
+    covers the regenerated 100K export with `executionFailures: 0`,
+    evidence-chat recall 0.4540744466800807, missed-recall cases 244/355, and
+    wrong-recall/noise cases 378/400. This validates the fallback source and
+    same-code diagnostic path; it is not a new BEAM repair because it drifts
+    slightly from the latest Hugging Face rows-export behavior checkpoint.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

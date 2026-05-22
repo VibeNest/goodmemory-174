@@ -82,6 +82,8 @@ Commands
 ```text
 mkdir -p /private/tmp/BEAM
 bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --offset 0 --length 20
+# Fallback when Hugging Face datasets-server rows are unavailable.
+bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw
 bun run eval:phase-63
 bun run gate:phase-63
 bun run analyze:phase-63-beam -- --run-id run-phase63-beam-100k-full-initial-20260518T000335Z
@@ -126,6 +128,14 @@ Source Intake
   `prepare:phase-63-beam` exports the Hugging Face datasets-server rows API
   response to an external root such as `/private/tmp/BEAM/100K.json`, fails if
   rows are partial or truncated, and keeps upstream data out of git.
+  When `datasets-server.huggingface.co` is unavailable, the same script also
+  supports `--source github-raw`, which reconstructs the 100K export from the
+  upstream GitHub conversation folders (`chat.json`, `topic.json`,
+  `plan_new.txt`, `user_messages.json`,
+  `probing_questions/probing_questions.json`, `labels.txt`, `main_spec.txt`,
+  and `relationships.txt`). Treat GitHub-raw reruns as their own source cohort:
+  the shape is complete and loader-compatible, but tiny retrieval drift can
+  occur versus an older Hugging Face rows export.
 
 
 Smoke Harness Evidence
@@ -1078,6 +1088,80 @@ Latest current-code source-order value/metric and named-summary decision repair:
   incomplete cases and event-ordering over-retrieval rather than expanding
   named-person keyword rules.
 
+Latest selector architecture boundary cleanup:
+
+- Mechanism:
+  source-ordered summary query/milestone patterns now live in
+  `src/recall/selectors/sourceOrderSummaryPatterns.ts`, and source-ordered
+  temporal aspect/event-order signals now live in
+  `src/recall/selectors/sourceOrderTemporalSignals.ts`. This is a mechanical
+  split from `sourceOrderSummary.ts` and `sourceOrderTemporal.ts`; the accepted
+  BEAM selector behavior and scoring constants are unchanged.
+- Verification:
+  `src/recall/selectors/sourceOrderSummary.ts` is now 1138 lines and
+  `src/recall/selectors/sourceOrderTemporal.ts` is now 1140 lines, so the
+  recall-selector bounded-module architecture guard passes again. Validation:
+  `bun test tests/unit/architecture.boundaries.test.ts --test-name-pattern
+  "keeps recall selection split"`, `bun test tests/unit/recall.selection.test.ts`,
+  `bun test tests/unit/run-phase-63.beam-recall-diagnostic.test.ts
+  tests/unit/analyze-phase-63-recall-diagnostic.test.ts`, `bun run typecheck`,
+  `git diff --check`, and full `bun test` with 2277 pass / 0 fail.
+- Boundary:
+  no new full BEAM diagnostic was generated in this cleanup because the local
+  `/private/tmp/BEAM` data root is currently absent. The restore command
+  `bun run prepare:phase-63-beam -- --split 100K --length 100 --output-root
+  /private/tmp/BEAM` was attempted in the sandbox and with elevated network
+  permission; both attempts failed with `curl: (28)` connecting to
+  `datasets-server.huggingface.co:443`. The latest accepted full 100K metric
+  therefore remains
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-named-summary-decision-min540-current-20260521T123744Z`.
+
+Latest BEAM data-source recovery:
+
+- Mechanism:
+  `scripts/prepare-phase-63-beam-data.ts` now has an explicit
+  `--source github-raw` preparation mode. It lists conversation folders from
+  the BEAM GitHub contents API, reconstructs each row from raw conversation
+  files, preserves the external-root contract, and writes the same
+  `/private/tmp/BEAM/100K.json` plus metadata shape used by the existing
+  adapter and diagnostic runners.
+- Regression:
+  `tests/unit/prepare-phase-63-beam-data.test.ts` covers the new CLI source
+  flag, GitHub index URL construction, numeric conversation sorting, raw-file
+  row reconstruction, flattened chat groups, and `user_messages` conversion
+  into loader-compatible `user_questions`.
+- Restored local data root:
+  `bun run prepare:phase-63-beam -- --split 100K --length 100 --output-root
+  /private/tmp/BEAM --source github-raw` regenerated
+  `/private/tmp/BEAM/100K.json` from the upstream GitHub repository with
+  rowCount 20 / totalRows 20. Loader validation over the generated file reads
+  20 rows, 400 probing cases, and 5732 chat turns.
+- Full diagnostic on the restored source:
+  `run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-current-20260521T170515Z`
+  - source: `/private/tmp/BEAM/100K.json`
+  - source mode: `github-raw`
+  - total cases: 400
+  - evidence cases: 355
+  - `executionFailures: 0`
+  - evidence-chat recall: 0.4540744466800807
+  - missed-recall cases: 244/355
+  - wrong-recall/noise cases: 378/400
+- Delta from the latest Hugging Face rows-export accepted behavior run:
+  compared with
+  `run-phase63-beam-100k-recall-diagnostic-rules-full-source-order-named-summary-decision-min540-current-20260521T123744Z`,
+  the GitHub-raw source run keeps missed-recall cases, wrong-recall cases, and
+  zero-recall cases unchanged, but shifts total hit evidence ids 396 -> 395,
+  missing ids 698 -> 699, retrieved ids 3303 -> 3304, and noise ids
+  2907 -> 2909. The bucket-level change is concentrated in event-ordering
+  (-1 hit / +1 missing / +4 noise ids), with small noise reductions in
+  abstention and preference-following.
+- Decision:
+  this is data-source recovery evidence, not a new selector repair or BEAM
+  closure. Future reruns that use `--source github-raw` should compare against
+  the GitHub-raw source run above as the same-source baseline, while the latest
+  accepted selector-behavior checkpoint remains the named-summary decision run
+  unless a same-source rerun supersedes it.
+
 
 Current Boundary
 ----------------
@@ -1102,5 +1186,9 @@ the full 100K diagnostic has real instruction, temporal, preference, Timeline
 Integration, contradiction-resolution, source-ordered summary, aggregate-money,
 value/metric, and event-ordering lifts, but the full surface remains
 recall-limited and noisy at recall 0.45501341381623095 with 244 missed-recall
-cases and wrong-recall/noise 378/400. BEAM still needs broader recall and
+cases and wrong-recall/noise 378/400 on the latest accepted Hugging Face
+rows-export behavior checkpoint. The local `/private/tmp/BEAM` root has been
+restored through `--source github-raw`; that same code path validates at 400
+cases and `executionFailures: 0`, but carries a tiny same-behavior source
+drift to recall 0.4540744466800807. BEAM still needs broader recall and
 persistent-noise hardening before it can move toward an answer-quality claim.

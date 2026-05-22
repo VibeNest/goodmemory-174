@@ -262,6 +262,36 @@ Workstreams
     the named-summary decision repair, especially the remaining zero-recall
     summarization cases, event-ordering over-retrieval, and persistent-noise
     surface on long imported conversations.
+  - selector architecture cleanup: summary query/milestone patterns and
+    temporal aspect/event-order signals were split into bounded helper modules
+    so `sourceOrderSummary.ts` and `sourceOrderTemporal.ts` both stay under the
+    1200-line architecture guard. Validation: targeted architecture guard,
+    full recall selection tests, Phase 63 diagnostic unit tests, typecheck,
+    `git diff --check`, and full `bun test` at 2277 pass / 0 fail. This did not
+    produce a new full BEAM diagnostic because `/private/tmp/BEAM` is absent;
+    attempts to restore it with `bun run prepare:phase-63-beam -- --split 100K
+    --length 100 --output-root /private/tmp/BEAM` failed in both sandboxed and
+    elevated-network runs with `curl: (28)` connecting to
+    `datasets-server.huggingface.co:443`. The latest accepted full metric
+    remains the named-summary decision run.
+  - BEAM data-source recovery: `scripts/prepare-phase-63-beam-data.ts` now
+    supports `--source github-raw` for the same external-root export contract
+    when the Hugging Face rows endpoint is unavailable. The script lists
+    upstream GitHub conversation folders and reconstructs rows from raw
+    `chat.json`, `topic.json`, `plan_new.txt`, `user_messages.json`,
+    `probing_questions/probing_questions.json`, `labels.txt`,
+    `main_spec.txt`, and `relationships.txt` files. Validation:
+    `bun test tests/unit/prepare-phase-63-beam-data.test.ts
+    tests/unit/beam.test.ts`, `bun run typecheck`, loader validation over the
+    regenerated `/private/tmp/BEAM/100K.json` (20 rows, 400 cases, 5732 turns),
+    and full diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-current-20260521T170515Z`
+    with `executionFailures: 0`, evidence-chat recall 0.4540744466800807,
+    missed-recall cases 244/355, and wrong-recall/noise 378/400. Compared
+    with the latest accepted Hugging Face rows-export behavior run, this is a
+    tiny source-cohort drift (-1 hit evidence id, +1 missing id, +2 noise ids),
+    not a selector improvement. Future GitHub-raw reruns should compare
+    against this GitHub-raw source run as the same-source baseline.
 
 
 Current Boundary
@@ -309,9 +339,13 @@ Current Boundary
   source-order value/metric scoped pass raises it to 0.44935613682092573, and
   the named-summary decision pass raises it to 0.45501341381623095 with
   missed-recall cases 244/355 and wrong-recall/noise 378/400. This is still
-  only partial Phase 63 progress: the full 100K provider-free recall diagnostic
-  remains recall-limited and noisy. The next executable boundary is reducing
-  remaining full-slice misses plus wrong-recall/noise on long imported
-  conversations, especially summarization and event-ordering.
+  only partial Phase 63 progress. The selector architecture guard is green again
+  after splitting oversized source-order selector modules, and the local BEAM
+  data root has been restored through the GitHub-raw fallback source. The full
+  100K provider-free recall diagnostic remains recall-limited and noisy. The
+  next executable boundary is reducing remaining full-slice misses plus
+  wrong-recall/noise on long imported conversations, especially summarization
+  and event-ordering, using same-source baseline comparisons for future
+  GitHub-raw reruns.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

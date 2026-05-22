@@ -4712,6 +4712,154 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-hosting-user");
   });
 
+  it("keeps project lifecycle summary milestones across features timeline security and documentation", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-core-feature-user",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] I'm building a personal budget tracker using Python and Flask with user authentication, expense tracking, income tracking, and data visualization as the core functionality.",
+      ),
+      makeSourceFact(
+        "fact-core-feature-assistant",
+        5,
+        "assistant",
+        "[BEAM chat_id=5 role=assistant time=unknown] We implemented the budget tracker core functionality: registration, login, expense tracking, and Matplotlib data visualization.",
+      ),
+      makeSourceFact(
+        "fact-schema-distractor-user",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] I'm designing the database schema with users and transactions tables for the budget tracker.",
+      ),
+      makeSourceFact(
+        "fact-schema-distractor-assistant",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] We improved the transactions table schema and validation helpers.",
+      ),
+      makeSourceFact(
+        "fact-mvp-timeline-user",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] I need to meet the April 15 MVP deadline for income and expense tracking, user login, and basic analytics.",
+      ),
+      makeSourceFact(
+        "fact-mvp-timeline-assistant",
+        9,
+        "assistant",
+        "[BEAM chat_id=9 role=assistant time=unknown] We created a development timeline for the April 15 MVP scope covering tracking, login, and analytics.",
+      ),
+      makeSourceFact(
+        "fact-sprint-distractor-user",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I'm planning a two-week sprint that focuses only on user registration and login.",
+      ),
+      makeSourceFact(
+        "fact-sprint-distractor-assistant",
+        29,
+        "assistant",
+        "[BEAM chat_id=29 role=assistant time=unknown] We made a sprint plan for registration and login tasks.",
+      ),
+      makeSourceFact(
+        "fact-security-review-user",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] I'm finalizing deployment, improving UI/UX based on feedback, and adding security hardening before public launch.",
+      ),
+      makeSourceFact(
+        "fact-security-review-assistant",
+        117,
+        "assistant",
+        "[BEAM chat_id=117 role=assistant time=unknown] We reviewed UI/UX and security hardening, including stronger authentication, authorization, HTTPS, and deployment safeguards.",
+      ),
+      makeSourceFact(
+        "fact-lockout-user",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I'm implementing account lockout after 5 failed login attempts using Redis 7.0 for rate limiting.",
+      ),
+      makeSourceFact(
+        "fact-lockout-assistant",
+        151,
+        "assistant",
+        "[BEAM chat_id=151 role=assistant time=unknown] We refined the Redis account lockout implementation and rate limiting behavior for failed login attempts.",
+      ),
+      makeSourceFact(
+        "fact-docs-user",
+        176,
+        "user",
+        "[BEAM chat_id=176 role=user time=unknown] I need to document API endpoints and architecture decisions in Confluence for my remote collaborator.",
+      ),
+      makeSourceFact(
+        "fact-docs-assistant",
+        177,
+        "assistant",
+        "[BEAM chat_id=177 role=assistant time=unknown] We structured the Confluence documentation for API endpoints, architecture decisions, request examples, and feedback.",
+      ),
+      makeSourceFact(
+        "fact-api-optimization-distractor-user",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I'm optimizing dashboard API response time to 250ms after caching tweaks and checking dependency versions.",
+      ),
+      makeSourceFact(
+        "fact-api-optimization-distractor-assistant",
+        109,
+        "assistant",
+        "[BEAM chat_id=109 role=assistant time=unknown] We discussed API optimization and dependency version examples.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you provide a comprehensive summary of how my budget tracker project has progressed, including the key features implemented, the development timeline, security enhancements, and documentation efforts?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-core-feature-user",
+      "fact-mvp-timeline-user",
+      "fact-security-review-user",
+      "fact-lockout-user",
+      "fact-docs-user",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+    expect(selectedIds).not.toContain("fact-api-optimization-distractor-user");
+  });
+
   it("prioritizes issue-resolution summary evidence over feature milestone distractors", () => {
     const language = createLanguageService();
     const makeSourceFact = (

@@ -336,6 +336,20 @@ event-ordering is now +1 hit / -1 missing with noise -2. This is still a kept
 partial repair, not BEAM closure: the full run still has 244 missed-recall
 cases, 378 wrong-recall/noise cases, summarization incomplete recall in 33/36
 evidence cases, and large event-ordering over-retrieval.
+The selector architecture cleanup then split oversized source-ordered summary
+and temporal signal tables into bounded helper modules without changing
+selector scoring behavior. During that cleanup the local `/private/tmp/BEAM`
+root was missing and the Hugging Face rows endpoint was unavailable, so the
+prepare script now also supports `--source github-raw`. The regenerated
+GitHub-raw 100K export validates at 20 rows, 400 probing cases, and 5732 chat
+turns. The full same-code diagnostic
+`run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-current-20260521T170515Z`
+has `executionFailures: 0`, evidence-chat recall 0.4540744466800807,
+missed-recall cases 244/355, and wrong-recall/noise cases 378/400. Compared
+with the latest accepted Hugging Face rows-export behavior run, this is a tiny
+source-cohort drift (-1 hit evidence id, +1 missing id, +2 noise ids), not a
+BEAM repair. Future GitHub-raw reruns should compare against this same-source
+baseline.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
