@@ -21,6 +21,7 @@ import {
   hasSourceOrderedSummaryIssueResolutionMilestone,
   hasSourceOrderedSummaryLearningMilestone,
   hasSourceOrderedSummaryPerformanceGoalMilestone,
+  hasSourceOrderedSummaryProjectLifecycleMilestone,
   hasSourceOrderedSummaryTechnicalChallengeMilestone,
   hasSourceOrderedSummaryWritingProgressMilestone,
   isSourceOrderedCareerPhilosophySummaryQuery,
@@ -29,11 +30,13 @@ import {
   isSourceOrderedIssueResolutionSummaryQuery,
   isSourceOrderedLearningProgressionQuery,
   isSourceOrderedPerformanceGoalEvolutionQuery,
+  isSourceOrderedProjectLifecycleSummaryQuery,
   isSourceOrderedSummaryCareerPhilosophyUserAnchor,
   isSourceOrderedSummaryCareerPhilosophyUserMilestone,
   isSourceOrderedTechnicalChallengeSummaryQuery,
   isSourceOrderedWritingProgressSummaryQuery,
 } from "./sourceOrderSummaryPatterns";
+import { selectSourceOrderedProjectLifecyclePairs } from "./sourceOrderSummaryPairs";
 import {
   EXPLICIT_WEAK_LEXICAL_FACT_THRESHOLD,
   hasAssistantAnswerTag,
@@ -761,6 +764,14 @@ export function selectSourceOrderedSummaryCoverage(input: {
       priority,
     })
     : [];
+  const projectLifecycleSummaryQuery =
+    isSourceOrderedProjectLifecycleSummaryQuery(input.query);
+  const projectLifecycleSourceCandidates = projectLifecycleSummaryQuery
+    ? dedupeSourceOrderedSummaryTurns({
+      entries: sourceCandidates,
+      priority,
+    })
+    : [];
   const technicalChallengeSummaryQuery =
     isSourceOrderedTechnicalChallengeSummaryQuery(input.query);
   const technicalChallengeSourceCandidates = technicalChallengeSummaryQuery
@@ -793,6 +804,25 @@ export function selectSourceOrderedSummaryCoverage(input: {
       queryTopics,
     })
   );
+  const projectLifecycleCandidates = projectLifecycleSummaryQuery
+    ? projectLifecycleSourceCandidates.filter((entry) => {
+      const content = stripEvidencePrefix(entry.fact.content);
+      return hasUserAnswerTag(entry) &&
+        !isSourceOrderedSummaryInstructionLike(content) &&
+        !isLowInformationSourceSummaryFollowUp(content) &&
+        hasSourceOrderedSummaryProjectLifecycleMilestone(content);
+    })
+    : [];
+  if (
+    projectLifecycleCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS
+  ) {
+    return selectSourceOrderedProjectLifecyclePairs({
+      anchors: projectLifecycleCandidates,
+      companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
+      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+      sourceCandidates: projectLifecycleSourceCandidates,
+    });
+  }
   if (signaledCandidates.length === 0) {
     return [];
   }

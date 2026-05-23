@@ -267,7 +267,8 @@ Workstreams
     so `sourceOrderSummary.ts` and `sourceOrderTemporal.ts` both stay under the
     1200-line architecture guard. Validation: targeted architecture guard,
     full recall selection tests, Phase 63 diagnostic unit tests, typecheck,
-    `git diff --check`, and full `bun test` at 2277 pass / 0 fail. This did not
+    `git diff --check`, and full `bun test` at 2281 pass / 0 fail after the
+    later project-lifecycle regression was added. This did not
     produce a new full BEAM diagnostic because `/private/tmp/BEAM` is absent;
     attempts to restore it with `bun run prepare:phase-63-beam -- --split 100K
     --length 100 --output-root /private/tmp/BEAM` failed in both sandboxed and
@@ -292,6 +293,22 @@ Workstreams
     tiny source-cohort drift (-1 hit evidence id, +1 missing id, +2 noise ids),
     not a selector improvement. Future GitHub-raw reruns should compare
     against this GitHub-raw source run as the same-source baseline.
+  - project-lifecycle summary repair: a scoped source-ordered project summary
+    branch now handles queries that ask across feature implementation,
+    development timeline, security, and documentation. It starts from user
+    lifecycle milestone turns, adds adjacent assistant companions through a new
+    bounded helper module, and avoids treating bare `API` mentions as
+    documentation evidence. Regression:
+    `tests/unit/recall.selection.test.ts` covers the BEAM-shaped budget
+    tracker lifecycle summary case. Same-source full diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-summary-current-20260522T105334Z`
+    against the GitHub-raw baseline has `executionFailures: 0`,
+    evidence-chat recall 0.45614017437961124, missed-recall cases 244/355,
+    wrong-recall/noise 378/400, global hit ids 395 -> 400, missing ids
+    699 -> 694, noise ids 2909 -> 2898, and zero-recall cases 118 -> 117.
+    Summarization improves from 0.2598 to 0.2709 with no case-level negative
+    recall regressions, but late security/documentation turns remain missing in
+    the target case, so this is partial repair only.
 
 
 Current Boundary
@@ -341,11 +358,13 @@ Current Boundary
   missed-recall cases 244/355 and wrong-recall/noise 378/400. This is still
   only partial Phase 63 progress. The selector architecture guard is green again
   after splitting oversized source-order selector modules, and the local BEAM
-  data root has been restored through the GitHub-raw fallback source. The full
-  100K provider-free recall diagnostic remains recall-limited and noisy. The
-  next executable boundary is reducing remaining full-slice misses plus
-  wrong-recall/noise on long imported conversations, especially summarization
-  and event-ordering, using same-source baseline comparisons for future
-  GitHub-raw reruns.
+  data root has been restored through the GitHub-raw fallback source. The
+  latest same-source GitHub-raw project-lifecycle summary repair raises current
+  evidence-chat recall to 0.45614017437961124, but the full 100K provider-free
+  recall diagnostic remains recall-limited and noisy. The next executable
+  boundary is reducing remaining full-slice misses plus wrong-recall/noise on
+  long imported conversations, especially late lifecycle/security/docs
+  candidates, summarization, and event-ordering, using same-source baseline
+  comparisons for future GitHub-raw reruns.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

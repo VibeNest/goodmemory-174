@@ -350,6 +350,25 @@ with the latest accepted Hugging Face rows-export behavior run, this is a tiny
 source-cohort drift (-1 hit evidence id, +1 missing id, +2 noise ids), not a
 BEAM repair. Future GitHub-raw reruns should compare against this same-source
 baseline.
+Twenty-third, a scoped project-lifecycle summary selector now handles broad
+source-ordered project summaries that explicitly ask across feature
+implementation, development timeline, security, and documentation. It starts
+from user lifecycle milestone turns, adds adjacent assistant companion turns,
+and keeps the pair-selection helper in a separate bounded module so
+`sourceOrderSummary.ts` remains below the architecture guard. The same-source
+GitHub-raw rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-summary-current-20260522T105334Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.4540744466800807 to 0.45614017437961124, with global hit evidence ids
+395 -> 400, missing ids 699 -> 694, noise ids 2909 -> 2898, and zero-recall
+cases 118 -> 117. The intended summarization bucket improves from 0.2598 to
+0.2709 with +4 hit ids, -4 missing ids, -4 noise ids, and one fewer zero-recall
+case; event-ordering also sees a small +1 hit / -1 missing / -6 noise lift.
+This remains partial BEAM progress, not closure: the target
+`1:summarization:1` budget-tracker lifecycle case is no longer zero-recall, but
+late security and documentation evidence turns are still absent from that case,
+and the full run remains at 244 missed-recall cases plus 378 wrong-recall/noise
+cases.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

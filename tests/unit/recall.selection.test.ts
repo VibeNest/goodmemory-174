@@ -4787,6 +4787,102 @@ describe("recall selection", () => {
         "[BEAM chat_id=29 role=assistant time=unknown] We made a sprint plan for registration and login tasks.",
       ),
       makeSourceFact(
+        "fact-analytics-distractor-user",
+        30,
+        "user",
+        "[BEAM chat_id=30 role=user time=unknown] I'm adding a basic analytics dashboard for monthly summaries and category-wise spending charts.",
+      ),
+      makeSourceFact(
+        "fact-analytics-distractor-assistant",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] We planned the basic analytics dashboard with monthly summaries and spending charts.",
+      ),
+      makeSourceFact(
+        "fact-blueprint-distractor-user",
+        32,
+        "user",
+        "[BEAM chat_id=32 role=user time=unknown] I'm splitting my Flask project into auth, transactions, and analytics blueprints for maintainability.",
+      ),
+      makeSourceFact(
+        "fact-blueprint-distractor-assistant",
+        33,
+        "assistant",
+        "[BEAM chat_id=33 role=assistant time=unknown] We organized the Flask app with auth, transactions, and analytics blueprints.",
+      ),
+      makeSourceFact(
+        "fact-session-distractor-user",
+        34,
+        "user",
+        "[BEAM chat_id=34 role=user time=unknown] I'm reviewing user login sessions for the budget tracker before the MVP deadline.",
+      ),
+      makeSourceFact(
+        "fact-session-distractor-assistant",
+        35,
+        "assistant",
+        "[BEAM chat_id=35 role=assistant time=unknown] We reviewed login session handling for the budget tracker MVP.",
+      ),
+      makeSourceFact(
+        "fact-validation-distractor-user",
+        36,
+        "user",
+        "[BEAM chat_id=36 role=user time=unknown] I'm improving expense tracking validation and error messages for the Flask budget tracker.",
+      ),
+      makeSourceFact(
+        "fact-validation-distractor-assistant",
+        37,
+        "assistant",
+        "[BEAM chat_id=37 role=assistant time=unknown] We improved validation and error messaging around expense tracking.",
+      ),
+      makeSourceFact(
+        "fact-registration-distractor-user",
+        38,
+        "user",
+        "[BEAM chat_id=38 role=user time=unknown] I'm polishing user authentication registration and login forms before continuing the budget tracker work.",
+      ),
+      makeSourceFact(
+        "fact-registration-distractor-assistant",
+        39,
+        "assistant",
+        "[BEAM chat_id=39 role=assistant time=unknown] We polished user authentication registration and login forms.",
+      ),
+      makeSourceFact(
+        "fact-income-distractor-user",
+        40,
+        "user",
+        "[BEAM chat_id=40 role=user time=unknown] I'm adding income tracking filters and CSV export to the budget tracker.",
+      ),
+      makeSourceFact(
+        "fact-income-distractor-assistant",
+        41,
+        "assistant",
+        "[BEAM chat_id=41 role=assistant time=unknown] We added income tracking filters and CSV export support.",
+      ),
+      makeSourceFact(
+        "fact-visualization-distractor-user",
+        42,
+        "user",
+        "[BEAM chat_id=42 role=user time=unknown] I'm improving the data visualization charts for expense tracking and monthly analytics.",
+      ),
+      makeSourceFact(
+        "fact-visualization-distractor-assistant",
+        43,
+        "assistant",
+        "[BEAM chat_id=43 role=assistant time=unknown] We improved data visualization charts for expense tracking and analytics.",
+      ),
+      makeSourceFact(
+        "fact-mvp-review-distractor-user",
+        44,
+        "user",
+        "[BEAM chat_id=44 role=user time=unknown] I'm reviewing the MVP deadline again with user login, basic analytics, and income tracking still on the checklist.",
+      ),
+      makeSourceFact(
+        "fact-mvp-review-distractor-assistant",
+        45,
+        "assistant",
+        "[BEAM chat_id=45 role=assistant time=unknown] We reviewed the MVP checklist for login, analytics, and income tracking.",
+      ),
+      makeSourceFact(
         "fact-security-review-user",
         116,
         "user",
@@ -4826,7 +4922,7 @@ describe("recall selection", () => {
         "fact-api-optimization-distractor-user",
         108,
         "user",
-        "[BEAM chat_id=108 role=user time=unknown] I'm optimizing dashboard API response time to 250ms after caching tweaks and checking dependency versions.",
+        "[BEAM chat_id=108 role=user time=unknown] I'm optimizing dashboard API response time to 250ms after caching tweaks, checking Flask-Login dependency versions, and asking for clear documentation and comments in the code.",
       ),
       makeSourceFact(
         "fact-api-optimization-distractor-assistant",
@@ -4850,10 +4946,15 @@ describe("recall selection", () => {
     const selectedIds = result.facts.map((fact) => fact.id);
     for (const expectedId of [
       "fact-core-feature-user",
+      "fact-core-feature-assistant",
       "fact-mvp-timeline-user",
+      "fact-mvp-timeline-assistant",
       "fact-security-review-user",
+      "fact-security-review-assistant",
       "fact-lockout-user",
+      "fact-lockout-assistant",
       "fact-docs-user",
+      "fact-docs-assistant",
     ]) {
       expect(selectedIds).toContain(expectedId);
     }

@@ -134,7 +134,7 @@ export const SOURCE_ORDER_SUMMARY_PROJECT_LIFECYCLE_MILESTONE_PATTERN =
   /\b(?:account\s+lockout|api\s+endpoints?|architecture\s+decisions?|basic\s+analytics|confluence|core\s+functionalit(?:y|ies)|data\s+visuali[sz]ation|development\s+timeline|document(?:ation|ed|ing)?|expense\s+tracking|failed\s+login\s+attempts|income\s+(?:and\s+expense\s+)?tracking|mvp\s+(?:deadline|scope)|public\s+launch|rate\s+limit(?:ing)?|redis[\s\S]{0,80}(?:lockout|rate\s+limit(?:ing)?)|security\s+hardening|user\s+(?:authentication|login))\b/iu;
 
 export const SOURCE_ORDER_SUMMARY_PROJECT_LIFECYCLE_MILESTONE_ZH_PATTERN =
-  /(核心功能|用户登录|认证|收入支出|数据可视化|基础分析|MVP|截止|时间线|安全加固|账号锁定|登录失败|Redis|限流|接口文档|API|架构决策|Confluence|文档)/iu;
+  /(核心功能|用户登录|认证|收入支出|数据可视化|基础分析|MVP|截止|时间线|安全加固|账号锁定|登录失败|Redis|限流|接口文档|API.{0,20}(端点|接口|文档)|架构决策|Confluence|文档)/iu;
 
 export const SOURCE_ORDER_SUMMARY_ISSUE_RESOLUTION_QUERY_PATTERN =
   /\b(?:bugs?|debug(?:ged|ging)?|errors?|fix(?:ed|ing)?|issues?|problems?|resolved?|troubleshoot(?:ed|ing)?)\b/iu;

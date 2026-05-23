@@ -138,6 +138,16 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     wrong-recall/noise cases 378/400. This validates the fallback source and
     same-code diagnostic path; it is not a new BEAM repair because it drifts
     slightly from the latest Hugging Face rows-export behavior checkpoint.
+  - latest same-source project-lifecycle summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-summary-current-20260522T105334Z`
+    compares against the GitHub-raw source baseline with
+    `executionFailures: 0`, evidence-chat recall 0.45614017437961124,
+    missed-recall cases 244/355, and wrong-recall/noise cases 378/400. It
+    raises global hit evidence ids 395 -> 400, missing ids 699 -> 694, noise
+    ids 2909 -> 2898, and zero-recall cases 118 -> 117. This is a kept
+    partial selector repair, not BEAM closure: summarization improves from
+    0.2598 to 0.2709, but late security/documentation evidence remains missing
+    in the target project-lifecycle case.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

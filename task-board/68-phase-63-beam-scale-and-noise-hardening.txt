@@ -1098,14 +1098,16 @@ Latest selector architecture boundary cleanup:
   split from `sourceOrderSummary.ts` and `sourceOrderTemporal.ts`; the accepted
   BEAM selector behavior and scoring constants are unchanged.
 - Verification:
-  `src/recall/selectors/sourceOrderSummary.ts` is now 1138 lines and
-  `src/recall/selectors/sourceOrderTemporal.ts` is now 1140 lines, so the
-  recall-selector bounded-module architecture guard passes again. Validation:
+  `src/recall/selectors/sourceOrderSummary.ts` is now 1168 lines after the
+  later project-lifecycle helper split, and
+  `src/recall/selectors/sourceOrderTemporal.ts` is 1140 lines, so the
+  recall-selector bounded-module architecture guard still passes. Validation:
   `bun test tests/unit/architecture.boundaries.test.ts --test-name-pattern
   "keeps recall selection split"`, `bun test tests/unit/recall.selection.test.ts`,
   `bun test tests/unit/run-phase-63.beam-recall-diagnostic.test.ts
   tests/unit/analyze-phase-63-recall-diagnostic.test.ts`, `bun run typecheck`,
-  `git diff --check`, and full `bun test` with 2277 pass / 0 fail.
+  `git diff --check`, and full `bun test` with 2281 pass / 0 fail after the
+  later project-lifecycle regression was added.
 - Boundary:
   no new full BEAM diagnostic was generated in this cleanup because the local
   `/private/tmp/BEAM` data root is currently absent. The restore command
@@ -1162,6 +1164,49 @@ Latest BEAM data-source recovery:
   accepted selector-behavior checkpoint remains the named-summary decision run
   unless a same-source rerun supersedes it.
 
+Latest current-code project-lifecycle summary repair:
+
+- Mechanism:
+  source-ordered broad project summary queries that explicitly ask across
+  feature implementation, development timeline, security, and documentation
+  facets now route through a scoped project-lifecycle selector branch. The
+  branch only starts from user source turns with project-lifecycle milestone
+  content, then adds adjacent assistant companion turns through the shared
+  source-order companion distance. The pair-selection helper lives in
+  `src/recall/selectors/sourceOrderSummaryPairs.ts` so
+  `sourceOrderSummary.ts` remains under the bounded-selector architecture
+  guard; the Chinese/English milestone detector also no longer treats bare
+  "API" as sufficient lifecycle-documentation evidence.
+- Regression:
+  `tests/unit/recall.selection.test.ts` now covers a BEAM-shaped budget-tracker
+  lifecycle summary query across core features, MVP timeline, security
+  hardening, Redis account lockout/rate limiting, and Confluence/API
+  documentation. The regression asserts the user milestone turns are selected
+  and the dashboard API response-time optimization distractor is excluded.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-summary-current-20260522T105334Z`
+  compares against the GitHub-raw source baseline
+  `run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-current-20260521T170515Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.45614017437961124, missed-recall cases 244/355, wrong-recall/noise cases
+  378/400, total hit evidence ids 400, missing ids 694, noise ids 2898, and
+  zero-recall cases 117.
+- Delta:
+  vs the same-source GitHub-raw baseline, global hit evidence ids improve
+  395 -> 400, missing ids 699 -> 694, noise ids 2909 -> 2898, and
+  zero-recall cases 118 -> 117. Summarization is the intended positive bucket:
+  average evidence-chat recall rises 0.2598 -> 0.2709, hit ids 88 -> 92,
+  missing ids 195 -> 191, noise ids 380 -> 376, and zero-recall cases
+  15 -> 14. Event-ordering also improves slightly (+1 hit / -1 missing /
+  -6 noise). Case-delta inspection reports no negative recall regressions.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. The target
+  `1:summarization:1` case is no longer zero-recall and now retrieves evidence
+  turns 4/5/8/9, but the later security and documentation evidence turns
+  116/117/150/151/176/177 remain missing from that case. The next loop should
+  investigate candidate expansion for late lifecycle/security/docs evidence
+  and continue summarization/event-ordering noise reduction.
+
 
 Current Boundary
 ----------------
@@ -1180,7 +1225,8 @@ event-ordering challenge plus summary learning/evolution, issue-resolution,
 declined-financial aggregate plus professional-profile/resume event-order
 and writing-progress plus career/philosophy and technical-challenge summary
 passes, followed by the value/metric scoped and named-summary decision passes,
-have been rerun. The current failure family is now more specific: the
+the GitHub-raw source recovery run, and the project-lifecycle summary pass have
+been rerun. The current failure family is now more specific: the
 representative live trio is clean at 3/3 with complete evidence recall, and
 the full 100K diagnostic has real instruction, temporal, preference, Timeline
 Integration, contradiction-resolution, source-ordered summary, aggregate-money,
@@ -1188,7 +1234,9 @@ value/metric, and event-ordering lifts, but the full surface remains
 recall-limited and noisy at recall 0.45501341381623095 with 244 missed-recall
 cases and wrong-recall/noise 378/400 on the latest accepted Hugging Face
 rows-export behavior checkpoint. The local `/private/tmp/BEAM` root has been
-restored through `--source github-raw`; that same code path validates at 400
-cases and `executionFailures: 0`, but carries a tiny same-behavior source
-drift to recall 0.4540744466800807. BEAM still needs broader recall and
-persistent-noise hardening before it can move toward an answer-quality claim.
+restored through `--source github-raw`; the same-source GitHub-raw repair
+baseline was 0.4540744466800807, and the latest project-lifecycle summary
+repair raises that same-source current-code path to 0.45614017437961124 with
+244 missed-recall cases and wrong-recall/noise 378/400. BEAM still needs
+broader recall and persistent-noise hardening before it can move toward an
+answer-quality claim.
