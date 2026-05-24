@@ -44,10 +44,10 @@ import {
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
-import {
-  compareTemporalFactChronology,
-  sourceOrderSortKey,
-} from "./temporal";
+import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderMovieEvents";
+import { hasSourceOrderedProjectFeatureChallengeMilestone, isSourceOrderedProjectFeatureChallengeSummaryQuery, selectSourceOrderedProjectFeatureChallengePairs } from "./sourceOrderProjectFeatureSummary";
+import { selectSourceOrderedRelationshipWorkSummaryCoverage } from "./sourceOrderRelationshipWorkSummary";
+import { compareTemporalFactChronology, sourceOrderSortKey } from "./temporal";
 import { contradictionTopicTokens } from "./contradiction";
 
 export const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
@@ -756,30 +756,24 @@ export function selectSourceOrderedSummaryCoverage(input: {
   const sourceCandidates = input.entries
     .filter(isSourceOrderedSummaryCandidate)
     .sort(compareTemporalFactChronology);
+  const scopedSourceCandidates = (active: boolean): RankedFactCandidate[] =>
+    active ? dedupeSourceOrderedSummaryTurns({ entries: sourceCandidates, priority }) : [];
   const careerPhilosophySummaryQuery =
     isSourceOrderedCareerPhilosophySummaryQuery(input.query);
-  const careerPhilosophySourceCandidates = careerPhilosophySummaryQuery
-    ? dedupeSourceOrderedSummaryTurns({
-      entries: sourceCandidates,
-      priority,
-    })
-    : [];
+  const careerPhilosophySourceCandidates =
+    scopedSourceCandidates(careerPhilosophySummaryQuery);
   const projectLifecycleSummaryQuery =
     isSourceOrderedProjectLifecycleSummaryQuery(input.query);
-  const projectLifecycleSourceCandidates = projectLifecycleSummaryQuery
-    ? dedupeSourceOrderedSummaryTurns({
-      entries: sourceCandidates,
-      priority,
-    })
-    : [];
+  const projectLifecycleSourceCandidates =
+    scopedSourceCandidates(projectLifecycleSummaryQuery);
+  const projectFeatureChallengeSummaryQuery =
+    isSourceOrderedProjectFeatureChallengeSummaryQuery(input.query);
+  const projectFeatureChallengeSourceCandidates =
+    scopedSourceCandidates(projectFeatureChallengeSummaryQuery);
   const technicalChallengeSummaryQuery =
     isSourceOrderedTechnicalChallengeSummaryQuery(input.query);
-  const technicalChallengeSourceCandidates = technicalChallengeSummaryQuery
-    ? dedupeSourceOrderedSummaryTurns({
-      entries: sourceCandidates,
-      priority,
-    })
-    : [];
+  const technicalChallengeSourceCandidates =
+    scopedSourceCandidates(technicalChallengeSummaryQuery);
   const topicalSourceCandidates = dedupeSourceOrderedSummaryTurns({
     entries: sourceCandidates,
     priority,
@@ -822,6 +816,43 @@ export function selectSourceOrderedSummaryCoverage(input: {
       limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
       sourceCandidates: projectLifecycleSourceCandidates,
     });
+  }
+  const projectFeatureChallengeCandidates = projectFeatureChallengeSummaryQuery
+    ? projectFeatureChallengeSourceCandidates.filter((entry) => {
+      const content = stripEvidencePrefix(entry.fact.content);
+      return hasUserAnswerTag(entry) &&
+        !isSourceOrderedSummaryInstructionLike(content) &&
+        !isLowInformationSourceSummaryFollowUp(content) &&
+        hasSourceOrderedProjectFeatureChallengeMilestone(entry);
+    })
+    : [];
+  if (projectFeatureChallengeCandidates.length >= SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS) {
+    return selectSourceOrderedProjectFeatureChallengePairs({
+      anchors: projectFeatureChallengeCandidates,
+      companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
+      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+      sourceCandidates: projectFeatureChallengeSourceCandidates,
+    });
+  }
+  const relationshipWorkSelection =
+    selectSourceOrderedRelationshipWorkSummaryCoverage({
+      companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
+      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+      minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
+      query: input.query,
+      sourceCandidates: topicalSourceCandidates,
+    });
+  if (relationshipWorkSelection.length > 0) {
+    return relationshipWorkSelection;
+  }
+  const movieEventSelection = selectSourceOrderedMovieEventSummaryCoverage({
+    limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+    minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
+    query: input.query,
+    sourceCandidates: topicalSourceCandidates,
+  });
+  if (movieEventSelection.length > 0) {
+    return movieEventSelection;
   }
   if (signaledCandidates.length === 0) {
     return [];

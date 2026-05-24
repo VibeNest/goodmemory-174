@@ -1,0 +1,110 @@
+Phase 64: MemoryAgentBench Agent-Memory Hardening
+=================================================
+
+Status
+------
+
+[PREP] Phase 64 is the planned MemoryAgentBench leg after Phase 63 BEAM.
+This file is a preparation board only: Phase 63 remains active until its BEAM
+closure boundary is accepted or explicitly paused.
+
+
+Driver
+------
+
+MemoryAgentBench evaluates memory agents through incremental multi-turn
+interactions. Its public README describes four evaluation competencies:
+Accurate Retrieval, Test-Time Learning, Long-Range Understanding, and Conflict
+Resolution.
+
+Phase 63 already exposed the two issues most likely to block Phase 64:
+
+- broad wrong/noise growth when source-ordered evidence is appended too freely
+- knowledge_update regression after recall-lift work
+
+Phase 64 prep therefore starts with readiness analysis, not a benchmark-specific
+selector patch.
+
+
+Accepted Prep Scope
+-------------------
+
+- Use the current Phase 63 recall-diagnostic analysis as input.
+- Convert Phase 63 residual failures into MemoryAgentBench prep priorities:
+  conflict/update handling, noise budgets, behavior-policy learning, and
+  long-horizon task state.
+- Keep Phase 64 inactive until Phase 63 is closed or explicitly paused.
+- Prepare adapter/gate requirements before touching benchmark data.
+- Do not vendor upstream MemoryAgentBench data.
+
+
+Out Of Scope
+------------
+
+- marking Phase 64 active
+- final public benchmark report
+- MemoryAgentBench-specific recall selectors
+- README leaderboard claims
+- public API/config widening
+
+
+Tasks
+-----
+
+[DONE] P64-PREP-001 Record the MemoryAgentBench competency map and Phase 63
+  carryover risks.
+[DONE] P64-PREP-002 Add a readiness analyzer that consumes Phase 63 diagnostic
+  analysis output and produces Phase 64 priorities.
+[TODO] P64-T001 Identify upstream source, license, data layout, and local
+  external-root requirements.
+[TODO] P64-T002 Add synthetic MemoryAgentBench smoke fixtures for AR, TTL, LRU,
+  and CR without vendoring upstream data.
+[TODO] P64-T003 Add external-root adapter and smoke report contract.
+[TODO] P64-T004 Add recall/action-policy diagnostic output from the first smoke
+  run, including noise and stale evidence counters.
+[TODO] P64-T005 Implement only generic GoodMemory repairs from MemoryAgentBench
+  misses and rerun before LoCoMo.
+
+
+Commands
+--------
+
+```text
+bun run analyze:phase-64-readiness -- \
+  --phase63-analysis-path reports/eval/research/phase-63/beam/<run-id>/recall-diagnostic-analysis.json
+```
+
+
+Breakdown Folder
+----------------
+
+- `task-board/phase-64-memoryagentbench-agent-memory-hardening/00-README.txt`
+
+
+Source Intake Starting Point
+----------------------------
+
+- Upstream repo:
+  `https://github.com/HUST-AI-HYZ/MemoryAgentBench`
+- Paper:
+  Hu, Wang, and McAuley, "Evaluating Memory in LLM Agents via Incremental
+  Multi-Turn Interactions", ICLR 2026.
+- Dataset page named by upstream README:
+  `https://huggingface.co/datasets/ai-hyz/MemoryAgentBench`
+
+
+Current Prep Boundary
+---------------------
+
+Phase 64 should not start by adding another source-order lexical branch. The
+first useful effect-improvement preparation is to force every future
+MemoryAgentBench run to report:
+
+- answer/task accuracy
+- evidence recall
+- stale or superseded evidence selected
+- noisy evidence selected
+- action-policy transfer for learned behavior rules
+
+This keeps Phase 64 aligned with GoodMemory's product mechanism instead of
+overfitting one benchmark surface.

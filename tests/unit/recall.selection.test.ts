@@ -6,12 +6,15 @@ import {
 } from "../../src/domain/records";
 import { createLanguageService } from "../../src/language";
 import type { RoutingDecision } from "../../src/recall/router";
+import { buildFactCandidates, rankFactCandidates } from "../../src/recall/scoring";
 import {
   selectFeedbackForQuery,
   selectFeedbackForProfile,
   selectFacts,
   selectReferences,
 } from "../../src/recall/selection";
+import { selectSourceOrderedSummaryCoverage } from "../../src/recall/selectors/sourceOrderSummary";
+import { selectSourceOrderedEventOrderEvidence } from "../../src/recall/selectors/sourceOrderTemporal";
 
 const TIMESTAMP = "2026-01-10T00:00:00.000Z";
 const SOURCE = {
@@ -3432,6 +3435,522 @@ describe("recall selection", () => {
     ).toBeLessThan(selectedIds.indexOf("fact-security-tests"));
   });
 
+  it("keeps framework customization milestones for source-ordered event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-bootstrap-cdn",
+        10,
+        "I'm trying to integrate Bootstrap 5.3.0 CDN into my portfolio website for a responsive grid, navbar, and cards.",
+      ),
+      makeFact(
+        "fact-bundle-noise",
+        48,
+        "I'm trying to optimize my Bootstrap bundle size under 150KB by deferring unused components.",
+      ),
+      makeFact(
+        "fact-contact-form-noise",
+        16,
+        "I'm trying to implement the contact form with validation as part of my MVP features, but I'm having trouble getting the form data to submit reliably.",
+      ),
+      makeFact(
+        "fact-form-classes",
+        72,
+        "I'm trying to integrate Bootstrap form-control and btn-primary classes into my project for consistent styling and hover effects with custom CSS.",
+      ),
+      makeFact(
+        "fact-image-noise",
+        76,
+        "I'm optimizing image sizes in my project gallery with ImageOptim and PIL scripts.",
+      ),
+      makeFact(
+        "fact-css-refactor-noise",
+        146,
+        "I'm refactoring CSS from 450 lines to 320 lines by removing redundant selectors and consolidating media queries.",
+      ),
+      makeFact(
+        "fact-modal-upgrade",
+        148,
+        "I'm trying to fix a known modal accessibility bug in my Bootstrap project by upgrading from v5.3.0 to v5.3.1 without breaking existing custom modals.",
+      ),
+    ];
+
+    const query =
+      "Can you list the order in which I brought up different aspects of integrating and customizing the framework in my projects across our conversations, in order? Mention ONLY and ONLY three items.";
+    const ranked = rankFactCandidates(
+      buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+      "rules-only",
+    );
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: ranked,
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-bootstrap-cdn",
+      "fact-form-classes",
+      "fact-modal-upgrade",
+    ]);
+  });
+
+  it("keeps framework customization milestones in full event-order selection", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-bootstrap-cdn",
+        10,
+        "I'm trying to integrate Bootstrap 5.3.0 CDN into my portfolio website for a responsive grid, navbar, and cards.",
+      ),
+      makeFact(
+        "fact-bundle-noise",
+        48,
+        "I'm trying to optimize my Bootstrap bundle size under 150KB by deferring unused components.",
+      ),
+      makeFact(
+        "fact-contact-form-noise",
+        16,
+        "I'm trying to implement the contact form with validation as part of my MVP features, but I'm having trouble getting the form data to submit reliably.",
+      ),
+      makeFact(
+        "fact-form-classes",
+        72,
+        "I'm trying to integrate Bootstrap form-control and btn-primary classes into my project for consistent styling and hover effects with custom CSS.",
+      ),
+      makeFact(
+        "fact-image-noise",
+        76,
+        "I'm optimizing image sizes in my project gallery with ImageOptim and PIL scripts.",
+      ),
+      makeFact(
+        "fact-css-refactor-noise",
+        146,
+        "I'm refactoring CSS from 450 lines to 320 lines by removing redundant selectors and consolidating media queries.",
+      ),
+      makeFact(
+        "fact-modal-upgrade",
+        148,
+        "I'm trying to fix a known modal accessibility bug in my Bootstrap project by upgrading from v5.3.0 to v5.3.1 without breaking existing custom modals.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of integrating and customizing the framework in my projects across our conversations, in order? Mention ONLY and ONLY three items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    for (const expectedId of [
+      "fact-bootstrap-cdn",
+      "fact-form-classes",
+      "fact-modal-upgrade",
+    ]) {
+      expect(selectedIds).toContain(expectedId);
+    }
+  });
+
+  it("keeps book club activity milestones for source-ordered event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-library-book-club",
+        16,
+        "I met Kelly at the East Janethaven Library book club on October 12, 2022, and I was wondering if you could recommend something that she might like too, since we both seem to enjoy discussing books together.",
+      ),
+      makeFact(
+        "fact-poppy-war-noise",
+        42,
+        "My close friend David, whom I met at a film festival, recommended The Poppy War series last month, so I'm wondering if that's a good starting point for my winter evenings.",
+      ),
+      makeFact(
+        "fact-reading-goal-noise",
+        78,
+        "I'm kinda worried I won't meet my reading goal after completing 1,200 pages of The Stormlight Archive, and I'm not sure if switching to audiobooks after 8 PM will help me stay on track.",
+      ),
+      makeFact(
+        "fact-never-met-noise",
+        64,
+        "I've never met Kelly at any book club or library event, which is weird because I thought we would have crossed paths by now, do you think I should try to reach out to her through a book club or something?",
+      ),
+      makeFact(
+        "fact-missed-book-club",
+        86,
+        "I'm kinda stressed about missing Kelly's book club meeting at The Reading Room cafe on 4th Avenue, can you help me figure out what I missed on December 5?",
+      ),
+      makeFact(
+        "fact-follow-up-noise",
+        88,
+        "Sure, I'll message Kelly to ask about the book and the discussion points. Hi Kelly, I had to miss the book club meeting on December 5. Could you let me know which book was discussed?",
+      ),
+      makeFact(
+        "fact-libby-noise",
+        120,
+        "I'm kinda stuck on what to do next with my reading, I downloaded The Poppy War trilogy on Libby app on December 7, and it's a total of 1,150 pages.",
+      ),
+      makeFact(
+        "fact-reading-session",
+        164,
+        "I'm kinda worried about rescheduling my studio meeting from January 20 to January 22, hope it doesn't mess up my plans, you know, like attending Kelly's reading session on January 25 at The Reading Room cafe.",
+      ),
+      makeFact(
+        "fact-boundary-noise",
+        202,
+        "Douglas and I agreed to limit book discussions to weekends to avoid work distractions, but I'm having a hard time sticking to it.",
+      ),
+      makeFact(
+        "fact-hosted-discussion",
+        222,
+        "I hosted a book club discussion on The Poppy War with Kelly on February 20, and now I'm thinking of reading another series, maybe something Kelly would like, since we had 12 attendees and it was a great success.",
+      ),
+      makeFact(
+        "fact-fantasy-noise",
+        236,
+        "I've been reading a lot of fantasy lately, and Megan recommended The Witcher series on February 10, but I'm also interested in historical fiction.",
+      ),
+      makeFact(
+        "fact-balanced-discussions",
+        272,
+        "What's a good way to balance my book discussions with Douglas, considering he requested fewer discussions during work hours and we agreed on 7-9 PM, like we did with Kelly for our March 20 discussion on The Nightingale and The Witcher at The Reading Room?",
+      ),
+      makeFact(
+        "fact-goodreads-noise",
+        284,
+        "I just finished reading The Nightingale and gave it a 5-star review on Goodreads, can you help me find another historical fiction series with similar emotional depth and pacing?",
+      ),
+    ];
+
+    const query =
+      "Can you list the order in which I brought up different aspects of my book club activities throughout our conversations in order? Mention ONLY and ONLY five items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-library-book-club",
+      "fact-missed-book-club",
+      "fact-reading-session",
+      "fact-hosted-discussion",
+      "fact-balanced-discussions",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-library-book-club",
+      "fact-missed-book-club",
+      "fact-reading-session",
+      "fact-hosted-discussion",
+      "fact-balanced-discussions",
+    ]);
+  });
+
+  it("keeps movie-night contribution milestones for source-ordered event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-thomas-noise",
+        12,
+        "I'm planning a movie night with my partner Thomas and want to pick a classic film we both love.",
+      ),
+      makeFact(
+        "fact-friends-preferences",
+        14,
+        "I'm thinking of inviting Christopher and Emily, my close friends from college, but I'm not sure if they'd be into the same type of movies as Thomas and me.",
+      ),
+      makeFact(
+        "fact-forrest-gump",
+        16,
+        "I think Forrest Gump sounds perfect because it is a heartwarming classic that Thomas and my friends from college would likely love.",
+      ),
+      makeFact(
+        "fact-platform-instruction-noise",
+        52,
+        "Always include platform availability details when I ask about movie options.",
+      ),
+      makeFact(
+        "fact-high-rating-noise",
+        70,
+        "I'm looking for a movie with a high rating like The Mitchells vs. The Machines for my family weekend.",
+      ),
+      makeFact(
+        "fact-klaus-popcorn",
+        72,
+        "My friend Christopher suggested \"Klaus\" for its animation style and Emily is bringing homemade popcorn seasoning mix on April 6, should I add \"Klaus\" to our watchlist for the movie marathon?",
+      ),
+      makeFact(
+        "fact-activities",
+        182,
+        "Can you suggest some fun activities for a family movie night, like the one where Emily offered to bring a karaoke machine and Christopher volunteered to DJ with a family-friendly playlist?",
+      ),
+      makeFact(
+        "fact-educational-noise",
+        196,
+        "What movies would you recommend for a family weekend that are both entertaining and educational, like March of the Penguins?",
+      ),
+      makeFact(
+        "fact-playlist",
+        246,
+        "How did Mason's playlist of 30 songs contribute to the karaoke night's success, considering the close friendship between Emily and Mason?",
+      ),
+      makeFact(
+        "fact-work-deadline-noise",
+        256,
+        "I'm trying to balance my work deadlines with blocking 4 hours each weekend for movie planning and preparation.",
+      ),
+      makeFact(
+        "fact-cupcake-noise",
+        260,
+        "I'm planning a family movie night and want help deciding how many cupcakes to order from The Sweet Spot with a $70 snack budget.",
+      ),
+      makeFact(
+        "fact-board-games",
+        130,
+        "Mason brought board games for post-movie entertainment and Michael sent a gift card as thanks for the invitation, how can I make sure my future movie nights are just as enjoyable for my close friends?",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different ideas and contributions related to my movie nights across our conversations, in order? Mention ONLY and ONLY five items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-friends-preferences",
+      "fact-forrest-gump",
+      "fact-klaus-popcorn",
+      "fact-activities",
+      "fact-playlist",
+      "fact-board-games",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-friends-preferences",
+      "fact-forrest-gump",
+      "fact-klaus-popcorn",
+      "fact-activities",
+      "fact-playlist",
+      "fact-board-games",
+    ]);
+  });
+
+  it("keeps writing journey milestones for broad source-ordered event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-self-editing-noise",
+        0,
+        "I'm nervous about improving my writing skills and want to get started on this self-editing journey.",
+      ),
+      makeFact(
+        "fact-script-tips",
+        6,
+        "I met Michael at Montserrat Writers' Festival on Jan 15, 2024, and we share script editing tips weekly, but I do not know if that is enough to improve my writing.",
+      ),
+      makeFact(
+        "fact-book-noise",
+        30,
+        "I just started reading Self-Editing for Fiction Writers by Renni Browne and want to finish it by March 31.",
+      ),
+      makeFact(
+        "fact-tool-noise",
+        58,
+        "I might try Grammarly Premium to catch more of the errors Joseph pointed out while practicing regularly.",
+      ),
+      makeFact(
+        "fact-first-draft-confidence",
+        82,
+        "I felt a confidence boost when I completed my first draft on April 1, increasing my confidence score from 4 to 7 out of 10.",
+      ),
+      makeFact(
+        "fact-revision-plan",
+        84,
+        "I am ready to start the revision process and will focus on dialogue clarity, reducing passive voice, character development, plot structure, peer review with Amy, and Carla's checklist.",
+      ),
+      makeFact(
+        "fact-deadline-noise",
+        86,
+        "I am worried about meeting my April 20 deadline for the peer-reviewed draft submission to the local writing group.",
+      ),
+      makeFact(
+        "fact-schedule-noise",
+        188,
+        "I added Saturday 10 AM sessions to my writing schedule starting May 18 to accommodate my editing workload.",
+      ),
+      makeFact(
+        "fact-workshop-nerves",
+        182,
+        "I'm anxious about this writing workshop on June 15 at East Janethaven Library that Amy invited me to co-host.",
+      ),
+      makeFact(
+        "fact-literary-festival-noise",
+        216,
+        "I attended the Montserrat Literary Festival on May 18 and met 30 writers and editors for my writing community.",
+      ),
+      makeFact(
+        "fact-workshop-feedback",
+        238,
+        "I got a confidence boost from the positive feedback at the June 15 workshop, where Amy and I co-hosted and received a 4.8/5 satisfaction rating from 25 participants.",
+      ),
+      makeFact(
+        "fact-japer-noise",
+        246,
+        "Jasper AI's new tone calibration feature helped improve tone consistency by 30% from August 10-14.",
+      ),
+      makeFact(
+        "fact-final-draft-noise",
+        300,
+        "I just finished my final draft on October 1 and my confidence is at an all-time high, 10/10.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different aspects of my writing journey throughout our conversations, in order? Mention ONLY and ONLY five items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-script-tips",
+      "fact-first-draft-confidence",
+      "fact-workshop-nerves",
+      "fact-workshop-feedback",
+      "fact-revision-plan",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-script-tips",
+      "fact-first-draft-confidence",
+      "fact-workshop-nerves",
+      "fact-workshop-feedback",
+      "fact-revision-plan",
+    ]);
+  });
+
   it("fills late source-ordered deployment gaps after dense early development chatter", () => {
     const language = createLanguageService();
     const makeFact = (
@@ -4374,6 +4893,415 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-generic-work-reflection");
   });
 
+  it("keeps relationship work-commitment and motivation pairs for named summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-generic-free-will-user",
+        30,
+        "user",
+        "Stephen and I talked about our relationship in a general reflection about balancing discipline with free will.",
+      ],
+      [
+        "fact-generic-free-will-assistant",
+        31,
+        "assistant",
+        "We discussed choosing a quiet time to ask Stephen about free will and discipline.",
+      ],
+      [
+        "fact-meeting-user",
+        58,
+        "user",
+        "I had to decline a 3 PM meeting with Stephen on March 14 to focus on the startup offer, and I wonder if I should have handled that differently.",
+      ],
+      [
+        "fact-meeting-assistant",
+        59,
+        "assistant",
+        "Declining Stephen's meeting for the startup offer called for timely communication, a clear explanation, and proposing an alternative meeting time.",
+      ],
+      [
+        "fact-anniversary-call-user",
+        60,
+        "user",
+        "I'm worried that scheduling a work call on our anniversary, March 20, might hurt Stephen's feelings and want to make it up to him.",
+      ],
+      [
+        "fact-anniversary-call-assistant",
+        61,
+        "assistant",
+        "For the anniversary work call conflict with Stephen, we discussed transparent communication, apology, rescheduling or shortening the call, and planning a special celebration.",
+      ],
+      [
+        "fact-free-will-motivation-user",
+        74,
+        "user",
+        "I'm confused about how believing in free will can affect my motivation, like the 2022 University of Cambridge study said, especially after resolving my conflict with Stephen by celebrating our anniversary.",
+      ],
+      [
+        "fact-free-will-motivation-assistant",
+        75,
+        "assistant",
+        "The University of Cambridge study connects belief in free will with motivation, agency, responsibility, resilience, and persistence while balancing career and personal life decisions.",
+      ],
+      [
+        "fact-cultural-noise-user",
+        88,
+        "user",
+        "I'm wondering if the social norms in Montserrat are influencing my partner Stephen's expectations from me and causing tension.",
+      ],
+      [
+        "fact-cultural-noise-assistant",
+        89,
+        "assistant",
+        "We talked about cultural expectations, shared responsibilities, mediation, and balancing career and personal relationships.",
+      ],
+      [
+        "fact-trip-limit-user",
+        110,
+        "user",
+        "I agreed to limit my work trips to 3 per quarter starting June for Stephen, and I want to balance relationship boundaries with professional ambitions.",
+      ],
+      [
+        "fact-trip-limit-assistant",
+        111,
+        "assistant",
+        "Limiting work trips to three per quarter for Stephen required open communication, prioritizing important trips, flexible scheduling, technology, delegation, and quarterly reviews.",
+      ],
+      [
+        "fact-trip-plan-user",
+        112,
+        "user",
+        "I'll talk to Stephen about prioritizing the most important trips, using tech to stay connected, and doing quarterly reviews.",
+      ],
+      [
+        "fact-trip-plan-assistant",
+        113,
+        "assistant",
+        "Open communication and regular check-ins will help keep both career growth and the relationship with Stephen balanced and healthy.",
+      ],
+      [
+        "fact-later-relationship-noise-user",
+        164,
+        "user",
+        "Stephen and I just celebrated five years together, and I'm wondering how our relationship might change if I question free will.",
+      ],
+      [
+        "fact-later-relationship-noise-assistant",
+        165,
+        "assistant",
+        "We explored structured reflections about free will and how those beliefs might affect your relationship.",
+      ],
+      [
+        "fact-productivity-noise-user",
+        196,
+        "user",
+        "I think starting my day with meditation and focusing on one task at a time helps, and I'll talk to Stephen more about it.",
+      ],
+      [
+        "fact-productivity-noise-assistant",
+        197,
+        "assistant",
+        "We reinforced meditation, planning, and reminders for focus and productivity.",
+      ],
+      [
+        "fact-matthew-noise-user",
+        202,
+        "user",
+        "I'll use the Eisenhower Box and prepare for the meeting with Matthew. Thanks for the advice, Stephen!",
+      ],
+      [
+        "fact-matthew-noise-assistant",
+        203,
+        "assistant",
+        "We discussed time management and preparing for a meeting with Matthew.",
+      ],
+      [
+        "fact-weekly-checkin-noise-user",
+        232,
+        "user",
+        "I scheduled weekly check-ins with Stephen every Sunday at 6 PM and want to keep them productive instead of turning into arguments.",
+      ],
+      [
+        "fact-weekly-checkin-noise-assistant",
+        233,
+        "assistant",
+        "Weekly check-ins with Stephen should use agendas, active listening, calm tone, solution focus, and follow-up summaries.",
+      ],
+      [
+        "fact-journaling-user",
+        258,
+        "user",
+        "I'm considering how daily journaling starting April 1 will help me understand if I truly have free will, given the University of Cambridge study linking belief in free will to higher motivation and goal persistence.",
+      ],
+      [
+        "fact-journaling-assistant",
+        259,
+        "assistant",
+        "Daily journaling can help track decisions, motivations, free-will beliefs, outcomes, motivation, and persistence patterns over time.",
+      ],
+      [
+        "fact-journaling-plan-user",
+        260,
+        "user",
+        "I'll keep up with my daily journaling and note how belief in free will impacts my motivation and persistence.",
+      ],
+      [
+        "fact-journaling-plan-assistant",
+        261,
+        "assistant",
+        "The journaling practice should use consistent timing, detailed entries, reflective questions, pattern reviews, and comparison to the Cambridge study.",
+      ],
+      [
+        "fact-journaling-commitment-user",
+        262,
+        "user",
+        "I'll stick to journaling every day and pay attention to patterns or insights about my beliefs in free will.",
+      ],
+      [
+        "fact-journaling-commitment-assistant",
+        263,
+        "assistant",
+        "Consistent daily journaling can surface insights about beliefs in free will and how they influence decisions, motivation, and persistence.",
+      ],
+      [
+        "fact-date-confirmation-noise-user",
+        268,
+        "user",
+        "Let's confirm dates for the team-building event, onboarding modules, anniversary celebration, and a June work trip.",
+      ],
+      [
+        "fact-date-confirmation-noise-assistant",
+        269,
+        "assistant",
+        "Confirmed the April 10 team-building event, April 25 onboarding deadline, April 4 anniversary celebration, and June work trip.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you summarize how I've managed my relationship and work commitments with Stephen over time?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-meeting-user",
+      "fact-meeting-assistant",
+      "fact-anniversary-call-user",
+      "fact-anniversary-call-assistant",
+      "fact-free-will-motivation-user",
+      "fact-free-will-motivation-assistant",
+      "fact-trip-limit-user",
+      "fact-trip-limit-assistant",
+      "fact-trip-plan-user",
+      "fact-trip-plan-assistant",
+      "fact-journaling-user",
+      "fact-journaling-assistant",
+      "fact-journaling-plan-user",
+      "fact-journaling-plan-assistant",
+      "fact-journaling-commitment-user",
+      "fact-journaling-commitment-assistant",
+    ]);
+  });
+
+  it("keeps family movie event planning pairs for broad summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-kids-movie-user",
+        0,
+        "user",
+        "I'm worried about finding the right movies for my kids, Francis and Michelle, for our family weekend on March 12, 2024.",
+      ],
+      [
+        "fact-kids-movie-assistant",
+        1,
+        "assistant",
+        "Here are suggestions for Francis and Michelle: The Lion King, Moana, Coco, Trolls, and Zootopia for a family movie night on March 12.",
+      ],
+      [
+        "fact-kids-theme-user",
+        2,
+        "user",
+        "Thanks for the suggestions; adventure and comedy would be great themes, maybe with some educational value too.",
+      ],
+      [
+        "fact-instruction-noise-user",
+        52,
+        "user",
+        "Always include platform availability details when I ask about movie options.",
+      ],
+      [
+        "fact-quieter-user",
+        62,
+        "user",
+        "What movies would be suitable for my family weekend, considering Amy and Kyle are arriving at 2 PM on April 6 and have requested quieter movies for the evening?",
+      ],
+      [
+        "fact-quieter-assistant",
+        63,
+        "assistant",
+        "We planned quiet evening movies and a family movie marathon schedule for April 6 and April 7 with breaks, snacks, and activities.",
+      ],
+      [
+        "fact-alternative-noise-user",
+        158,
+        "user",
+        "Always provide alternative movie suggestions when I ask about family-friendly options.",
+      ],
+      [
+        "fact-wish-noise-assistant",
+        163,
+        "assistant",
+        "Wish is available on Disney+ with streaming quality settings, and I can help integrate Wish into your upcoming movie marathon schedule.",
+      ],
+      [
+        "fact-encanto-preplan-noise-user",
+        166,
+        "user",
+        "I think Encanto sounds perfect for our family movie night; can you remind me of the exact streaming quality settings and suggest themed snacks?",
+      ],
+      [
+        "fact-may-marathon-user",
+        168,
+        "user",
+        "I'm planning a movie marathon for May 11-12 and need family-friendly films because Amy and Kyle will join and Amy has an evening church service, so we'll start at 2 PM.",
+      ],
+      [
+        "fact-may-marathon-assistant",
+        169,
+        "assistant",
+        "We built a May 11-12 family-friendly movie marathon plan with Encanto, Turning Red, Onward, Strange World, The One and Only Ivan, and Coco.",
+      ],
+      [
+        "fact-stream-budget-user",
+        170,
+        "user",
+        "We'll start with Encanto at 2 PM on May 11; can you remind me of the streaming quality settings again and whether I should stick with the $70 budget?",
+      ],
+      [
+        "fact-stream-budget-assistant",
+        171,
+        "assistant",
+        "We reviewed Disney+ streaming quality settings and a $70 snack budget for the May family movie marathon.",
+      ],
+      [
+        "fact-confirm-user",
+        172,
+        "user",
+        "I'll set the streaming quality to \"Auto\" and stick with the $70 budget for snacks.",
+      ],
+      [
+        "fact-confirm-assistant",
+        173,
+        "assistant",
+        "Setting the streaming quality to \"Auto\" and sticking with the $70 budget should keep the May 11-12 movie marathon schedule in place.",
+      ],
+      [
+        "fact-work-deadline-noise-user",
+        256,
+        "user",
+        "I need to balance work deadlines with blocking 4 hours each weekend for movie planning and preparation.",
+      ],
+      [
+        "fact-work-deadline-noise-assistant",
+        257,
+        "assistant",
+        "We discussed weekly work scheduling and movie-night preparation blocks.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a summary of how I planned and organized my family movie events and related activities over the past few months?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-kids-movie-user",
+      "fact-kids-movie-assistant",
+      "fact-kids-theme-user",
+      "fact-quieter-user",
+      "fact-quieter-assistant",
+      "fact-may-marathon-user",
+      "fact-may-marathon-assistant",
+      "fact-stream-budget-user",
+      "fact-stream-budget-assistant",
+      "fact-confirm-user",
+      "fact-confirm-assistant",
+    ]);
+  });
+
   it("does not route broad conversation summaries through contradiction confirmation", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4710,6 +5638,216 @@ describe("recall selection", () => {
     }
     expect(selectedIds).not.toContain("fact-sass-user");
     expect(selectedIds).not.toContain("fact-hosting-user");
+  });
+
+  it("keeps concrete feature and challenge pairs for project feature summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-color-palette-user",
+        4,
+        "user",
+        "I'm building my first portfolio website using HTML5, CSS3, and Bootstrap v5.3.0, and I want to create a color palette generator for my work as a Colour Technologist with primary and secondary colors.",
+      ],
+      [
+        "fact-color-palette-assistant",
+        5,
+        "assistant",
+        "We implemented hex-to-RGB conversion, shade generation, and a Bootstrap-styled palette display.",
+      ],
+      [
+        "fact-site-structure-user",
+        6,
+        "user",
+        "I'm trying to set up a single-page portfolio with sections for About, Skills, Projects, and Contact using HTML5, CSS3, and Bootstrap v5.3.0.",
+      ],
+      [
+        "fact-site-structure-assistant",
+        7,
+        "assistant",
+        "We enhanced the HTML structure with Bootstrap classes for responsiveness and navigation.",
+      ],
+      [
+        "fact-timeline-noise-user",
+        12,
+        "user",
+        "I'm trying to plan out my project timeline and have a deadline for the first sprint of my single-page portfolio website.",
+      ],
+      [
+        "fact-timeline-noise-assistant",
+        13,
+        "assistant",
+        "We can break the deadline into sprint tasks and milestones.",
+      ],
+      [
+        "fact-contact-form-user",
+        16,
+        "user",
+        "I'm trying to implement the contact form with validation as part of my MVP features and need the form data to submit correctly.",
+      ],
+      [
+        "fact-contact-form-assistant",
+        17,
+        "assistant",
+        "We built the contact form with Bootstrap styling and JavaScript form handling and validation.",
+      ],
+      [
+        "fact-bundle-noise-user",
+        48,
+        "user",
+        "I'm trying to optimize my Bootstrap bundle size under 150KB by deferring unused JavaScript components.",
+      ],
+      [
+        "fact-bundle-noise-assistant",
+        49,
+        "assistant",
+        "Dynamic imports can keep the bundle small.",
+      ],
+      [
+        "fact-gallery-layout-user",
+        58,
+        "user",
+        "I'm integrating the project gallery and contact form, and I'm having layout responsiveness bugs in Bootstrap v5.3.0 on desktop and mobile.",
+      ],
+      [
+        "fact-gallery-layout-assistant",
+        59,
+        "assistant",
+        "We adjusted the Bootstrap grid and card image classes to make the gallery responsive.",
+      ],
+      [
+        "fact-gallery-modal-user",
+        60,
+        "user",
+        "I'm trying to implement the project gallery with 8 cards using Bootstrap 5.3.0 card-deck and modal popups for project details, but the modals are not displaying correctly.",
+      ],
+      [
+        "fact-gallery-modal-assistant",
+        61,
+        "assistant",
+        "We replaced data-toggle/data-target with Bootstrap 5 data-bs attributes and moved away from card-deck.",
+      ],
+      [
+        "fact-contact-validation-user",
+        66,
+        "user",
+        "I'm trying to implement the contact form with HTML5 validation and custom JS validation fallback as mentioned in the feature implementation.",
+      ],
+      [
+        "fact-contact-validation-assistant",
+        67,
+        "assistant",
+        "We improved HTML5 validation, custom JavaScript validation, Bootstrap error messages, and submission handling.",
+      ],
+      [
+        "fact-image-noise-user",
+        76,
+        "user",
+        "I'm trying to optimize image sizes in my project gallery with ImageOptim and PIL scripts.",
+      ],
+      [
+        "fact-image-noise-assistant",
+        77,
+        "assistant",
+        "We can automate image compression and output optimized images.",
+      ],
+      [
+        "fact-sprint-backend-user",
+        82,
+        "user",
+        "I'm working on Sprint 2 with a deadline of April 20, 2024, focusing on SEO basics and contact form backend integration using Flask and Bootstrap 5.3.0.",
+      ],
+      [
+        "fact-sprint-backend-assistant",
+        83,
+        "assistant",
+        "We broke Sprint 2 into contact form backend integration, SEO basics, and performance optimization.",
+      ],
+      [
+        "fact-lazyload-noise-user",
+        122,
+        "user",
+        "I'm finalizing deployment and want to implement lazy loading for project gallery images with lazysizes.",
+      ],
+      [
+        "fact-lazyload-noise-assistant",
+        123,
+        "assistant",
+        "We included lazysizes and configured lazy image attributes.",
+      ],
+      [
+        "fact-gallery-cards-user",
+        116,
+        "user",
+        "I'm trying to update my project gallery to include two new projects for 10 cards, but the Bootstrap card-deck layout and modal popups have layout issues.",
+      ],
+      [
+        "fact-gallery-cards-assistant",
+        117,
+        "assistant",
+        "We fixed the Bootstrap 5 gallery layout by using row and col classes and checked image 404 paths.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a comprehensive summary of how my portfolio website project has developed, including the key features and challenges I have worked through so far?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-color-palette-user",
+      "fact-color-palette-assistant",
+      "fact-site-structure-user",
+      "fact-site-structure-assistant",
+      "fact-contact-form-user",
+      "fact-contact-form-assistant",
+      "fact-gallery-layout-user",
+      "fact-gallery-layout-assistant",
+      "fact-gallery-modal-user",
+      "fact-gallery-modal-assistant",
+      "fact-contact-validation-user",
+      "fact-contact-validation-assistant",
+      "fact-sprint-backend-user",
+      "fact-sprint-backend-assistant",
+      "fact-gallery-cards-user",
+      "fact-gallery-cards-assistant",
+    ]);
   });
 
   it("keeps project lifecycle summary milestones across features timeline security and documentation", () => {

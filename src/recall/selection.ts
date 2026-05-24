@@ -67,6 +67,7 @@ import {
   selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
+import { isCompleteSourceOrderedEventOrderPlanQuery } from "./selectors/sourceOrderEventPlans";
 import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
 import {
   ASSISTANT_COUNT_HEADING_FACT_PATTERN,
@@ -618,8 +619,14 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const completeSourceOrderedEventOrderPlanActive =
+    isCompleteSourceOrderedEventOrderPlanQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
-    sourceOrderedNamedEntityEventOrderQuery &&
+    (
+      sourceOrderedNamedEntityEventOrderQuery ||
+      completeSourceOrderedEventOrderPlanActive
+    ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
     entries: compatible,
@@ -786,6 +793,10 @@ export function selectFacts(
         return true;
       }
       case "conversation_evidence": {
+        if (sourceOrderedNamedEntityEventPlanActive) {
+          return false;
+        }
+
         if (conversationEvidenceCandidates.length === 0) {
           return false;
         }
@@ -799,6 +810,10 @@ export function selectFacts(
         return true;
       }
       case "preference_evidence": {
+        if (sourceOrderedNamedEntityEventPlanActive) {
+          return false;
+        }
+
         if (preferenceEvidenceCandidates.length === 0) {
           return false;
         }
@@ -847,6 +862,10 @@ export function selectFacts(
         return true;
       }
       case "temporal_bridge": {
+        if (sourceOrderedNamedEntityEventPlanActive) {
+          return false;
+        }
+
         if (temporalBridgeEvidenceCandidates.length === 0) {
           return false;
         }
@@ -860,6 +879,10 @@ export function selectFacts(
         return true;
       }
       case "direct_factual_bridge": {
+        if (sourceOrderedNamedEntityEventPlanActive) {
+          return false;
+        }
+
         if (directFactualEvidenceBridgeCandidates.length === 0) {
           return false;
         }

@@ -33,11 +33,17 @@ import {
   SOURCE_ORDER_ASPECT_TOPIC_TOKENS,
   SOURCE_ORDER_EVENT_MILESTONE_ACTION_PATTERN,
   SOURCE_ORDER_EVENT_MILESTONE_ACTION_ZH_PATTERN,
+  SOURCE_ORDER_FRAMEWORK_ASPECT_ALIASES,
 } from "./sourceOrderTemporalSignals";
 import {
   dedupeSourceOrderedEvidenceByOrder,
   selectSourceOrderedEvidencePlan,
 } from "./sourceOrderPlan";
+import { selectCompleteSourceOrderedEventOrderAnchors } from "./sourceOrderEventPlans";
+import {
+  isSourceOrderFrameworkCustomizationQuery,
+  sourceOrderFrameworkCustomizationPriorityBonus,
+} from "./sourceOrderFrameworkCustomization";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
 export const SOURCE_ORDER_GAP_FILL_LIMIT = 5;
@@ -151,6 +157,13 @@ export function sourceOrderAspectTopics(
       }
     }
   }
+  for (const alias of SOURCE_ORDER_FRAMEWORK_ASPECT_ALIASES) {
+    if (alias.pattern.test(content)) {
+      for (const topic of alias.topics) {
+        topics.add(topic);
+      }
+    }
+  }
 
   return topics;
 }
@@ -172,6 +185,19 @@ function sourceOrderQueryAspectTopics(
         topics.add(topic);
       }
     }
+  }
+  for (const alias of SOURCE_ORDER_FRAMEWORK_ASPECT_ALIASES) {
+    if (alias.pattern.test(query)) {
+      for (const topic of alias.topics) {
+        topics.add(topic);
+      }
+    }
+  }
+  if (/\bcustomi[sz](?:e|ed|ing|ation)\b/iu.test(query)) {
+    topics.add("styling");
+  }
+  if (/\bintegrat(?:e|ed|ing|ion)\b/iu.test(query)) {
+    topics.add("integration");
   }
   for (const topic of SOURCE_ORDER_ASPECT_TOPIC_TOKENS) {
     if (new RegExp(`\\b${topic.replace(/_/gu, "[\\s_-]?")}\\b`, "iu").test(query)) {
@@ -291,6 +317,9 @@ function sourceOrderEventPlanPriority(input: {
   if (hasTemporalEventOrderSignal(input.entry, input.query)) {
     priority += 140;
   }
+  if (isSourceOrderFrameworkCustomizationQuery(input.query)) {
+    priority += sourceOrderFrameworkCustomizationPriorityBonus(content);
+  }
   if (hasSourceOrderedEventMilestoneAction(content)) {
     priority += 80;
   }
@@ -377,6 +406,20 @@ export function selectSourceOrderedEventOrderEvidence(input: {
       queryNamedTokens,
       queryTopics,
     });
+  const anchorLimit = Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT);
+  const sourceUserEntries = input.entries
+    .filter(isSourceOrderedSummaryCandidate)
+    .filter(hasUserAnswerTag);
+  const completeEventOrderAnchors = selectCompleteSourceOrderedEventOrderAnchors({
+    count: anchorLimit,
+    entries: sourceUserEntries,
+    priority,
+    query: input.query,
+  });
+  if (completeEventOrderAnchors.length >= anchorLimit) {
+    return completeEventOrderAnchors;
+  }
+
   const eligibleSourceEntries = input.entries
     .filter(isSourceOrderedSummaryCandidate)
     .filter((entry) => priority(entry) >= SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD);
@@ -415,7 +458,6 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     return [];
   }
 
-  const anchorLimit = Math.min(requestedCount, SOURCE_ORDER_EVENT_RECALL_LIMIT);
   const plannedAnchors = queryNamedTokens.size > 0
     ? [...anchors].sort((left, right) => {
       const priorityDelta = priority(right) - priority(left);

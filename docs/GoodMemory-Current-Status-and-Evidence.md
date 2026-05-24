@@ -148,6 +148,66 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     partial selector repair, not BEAM closure: summarization improves from
     0.2598 to 0.2709, but late security/documentation evidence remains missing
     in the target project-lifecycle case.
+  - latest same-source project-lifecycle facet-fill repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-facet-fill-current-20260522T161457Z`
+    has `executionFailures: 0`, evidence-chat recall 0.45632796780684126,
+    missed-recall cases 244/355, and wrong-recall/noise cases 378/400. It
+    raises global hit evidence ids 400 -> 403 and missing ids 694 -> 691 versus
+    the prior project-lifecycle summary run while keeping noise ids at 2898.
+    The intended summarization bucket rises 0.2709 -> 0.2820 and target
+    `1:summarization:1` recovers late security/documentation turns
+    116/117/150/151/176/177. This remains a partial repair: the target still
+    misses core feature turns 4/5, and one event-ordering case regresses versus
+    the previous project-lifecycle checkpoint.
+  - same-source framework-customization event-order repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-framework-customization-current-20260524T010538Z`
+    has `executionFailures: 0`, evidence-chat recall 0.4582059020791417,
+    missed-recall cases 243/355, and wrong-recall/noise cases 378/400. It
+    raises global hit evidence ids 403 -> 405, missing ids 691 -> 689, noise
+    ids 2898 -> 2893, and recovers the event-ordering tradeoff
+    `3:event_ordering:1` from 0.3333 to 1.0 by restoring turns 72/148.
+    Case-delta analysis shows no hit-loss or newly-missing recall regressions.
+    This remains a partial repair: the full 100K diagnostic is still noisy and
+    source-ordered summary budget quality remains open.
+  - same-source project feature/challenge summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-feature-challenge-current-20260524T032422Z`
+    has `executionFailures: 0`, evidence-chat recall 0.46088195841716983,
+    missed-recall cases 242/355, and wrong-recall/noise cases 377/400. It
+    raises global hit evidence ids 405 -> 418, missing ids 689 -> 676, noise
+    ids 2893 -> 2876, and recovers summarization target `3:summarization:1`
+    from 0.25 to 1.0 by restoring turns
+    4/5/6/7/16/17/58/59/60/61/66/67 and removing 15 noise ids. Case-delta
+    analysis shows no hit-loss or newly-missing evidence regressions; seven
+    abstention rows each gain one noise id, but global noise still drops. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
+  - latest same-source relationship/work plus book-club event-order repair
+    diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-relationship-work-bookclub-strict-current-20260524T054000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.46541247484909476,
+    missed-recall cases 240/355, and wrong-recall/noise cases 374/400. It
+    raises global hit evidence ids 418 -> 435, missing ids 676 -> 659, noise
+    ids 2876 -> 2808, recovers summarization target `12:summarization:1`
+    from 0.125 to 1.0 by restoring turns
+    58/59/60/61/74/75/110/111/258/259/260/261/262/263, and recovers
+    event-order target `13:event_ordering:1` from 0.6 to 1.0 by returning
+    exactly 16/86/164/222/272. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. This
+    remains a partial repair: the full 100K diagnostic is still
+    recall-limited and noisy.
+  - latest same-source family movie event summary plus movie-night contribution
+    event-order repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-movie-events-tight-current-20260524T071500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.4716096579476863,
+    missed-recall cases 238/355, and wrong-recall/noise cases 372/400. It
+    raises global hit evidence ids 435 -> 453, missing ids 659 -> 641, noise
+    ids 2808 -> 2804, recovers summarization target `14:summarization:1`
+    from 0 to 1.0 by restoring turns 0/1/2/62/63/168/169/170/171/172/173,
+    and recovers event-order target `14:event_ordering:2` from 0 to 1.0 by
+    returning 14/16/72/182/246/130. Case-delta analysis shows no hit-loss,
+    no newly-missing evidence regressions, and no negative recall deltas. This
+    remains a partial repair: the full 100K diagnostic still has 238 missed
+    evidence cases and substantial persistent noise.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

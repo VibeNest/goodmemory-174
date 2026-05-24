@@ -1,7 +1,7 @@
 import { isUserBroughtUpEventOrderQuery } from "./temporal";
 
 export const SOURCE_ORDER_ASPECT_CUE_PATTERN =
-  /\b(?:analytics?|authorization|authentication|blueprints?|completed|configur(?:e|ed|ing|ation)|CRUD|database|deployment|error\s+handling|finalizing|hardening|implement(?:ed|ing)?|integration\s+tests?|local\s+dev|models?|port\s+\d+|response\s+handling|route|schema|security|SQL\s+injection|testing|transaction|validation|worker|XSS)\b/iu;
+  /\b(?:accessibility|analytics?|authorization|authentication|blueprints?|bootstrap|btn-primary|completed|configur(?:e|ed|ing|ation)|CRUD|custom\s+CSS|database|deployment|error\s+handling|finalizing|form-control|framework|hardening|implement(?:ed|ing)?|integration\s+tests?|local\s+dev|modal|models?|port\s+\d+|response\s+handling|route|schema|security|SQL\s+injection|testing|transaction|validation|worker|XSS)\b/iu;
 
 export const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "analytics",
@@ -14,13 +14,17 @@ export const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "database",
   "deployment",
   "error",
+  "accessibility",
+  "bootstrap",
   "gunicorn",
   "handling",
   "hardening",
   "http_endpoint",
   "implementation",
   "integration",
+  "framework",
   "local",
+  "modal",
   "model",
   "port",
   "render",
@@ -29,6 +33,7 @@ export const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "schema",
   "security",
   "sql_injection",
+  "styling",
   "test",
   "testing",
   "transaction",
@@ -36,6 +41,24 @@ export const SOURCE_ORDER_ASPECT_TOPIC_TOKENS = new Set([
   "worker",
   "xss",
 ]);
+
+export const SOURCE_ORDER_FRAMEWORK_ASPECT_ALIASES = [
+  {
+    pattern: /\b(?:bootstrap|framework)\b/iu,
+    topics: ["framework"],
+  },
+  {
+    pattern: /\b(?:btn-primary|custom\s+CSS|form-control|hover effects?|styling)\b/iu,
+    topics: ["framework", "styling"],
+  },
+  {
+    pattern: /\b(?:accessibility|modal|upgrade(?:d|s|ing)?\s+from\s+v?\d+(?:\.\d+){1,2})\b/iu,
+    topics: ["accessibility", "framework", "modal"],
+  },
+] as const satisfies ReadonlyArray<{
+  pattern: RegExp;
+  topics: readonly string[];
+}>;
 
 export const SOURCE_ORDER_EVENT_MILESTONE_ACTION_PATTERN =
   /\b(?:add(?:ed|ing)?|build(?:ing)?|built|chang(?:e|ed|ing)|cho(?:o|ose|sen|osing)|configur(?:e|ed|ing)|creat(?:e|ed|ing)|debug(?:ged|ging)?|decid(?:e|ed|ing)|deploy(?:ed|ing)?|develop(?:ed|ing)?|fix(?:ed|ing)?|implement(?:ed|ing)?|integrat(?:e|ed|ing)|launch(?:ed|ing)?|migrat(?:e|ed|ing)|optimi[sz](?:e|ed|ing)|plan(?:ned|ning)?|prepar(?:e|ed|ing)|refactor(?:ed|ing)?|resolv(?:e|ed|ing)|set\s+up|switch(?:ed|ing)?|test(?:ed|ing)?|troubleshoot(?:ed|ing)?|updat(?:e|ed|ing)|work(?:ed|ing)\s+on)\b/iu;

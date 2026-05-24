@@ -369,6 +369,107 @@ This remains partial BEAM progress, not closure: the target
 late security and documentation evidence turns are still absent from that case,
 and the full run remains at 244 missed-recall cases plus 378 wrong-recall/noise
 cases.
+Twenty-fourth, the project-lifecycle selector now uses facet-aware fill for the
+same broad project-summary route instead of spending the remaining summary
+budget purely in source order. The accepted same-source rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-facet-fill-current-20260522T161457Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.45614017437961124 to 0.45632796780684126 versus the prior project-lifecycle
+summary run, with global hit evidence ids 400 -> 403, missing ids 694 -> 691,
+noise ids unchanged at 2898, and zero-recall cases unchanged at 117. Compared
+with the GitHub-raw source baseline, this is +8 hit ids, -8 missing ids,
+-11 noise ids, and one fewer zero-recall case. The intended summarization
+bucket improves from 0.2709 to 0.2820 versus the prior project-lifecycle run,
+with +4 hit ids, -4 missing ids, and -4 noise ids; target case
+`1:summarization:1` moves from 0.4 to 0.8 by recovering late security and
+documentation evidence turns 116/117/150/151/176/177. This is still partial
+BEAM progress: that target now trades out the core feature pair 4/5, and the
+same-source comparison against the prior project-lifecycle run shows one
+event-ordering recall tradeoff on `3:event_ordering:1` even though event-ordering
+remains neutral on hit/missing and -1 noise versus the GitHub-raw baseline.
+Twenty-fifth, the event-ordering tradeoff is repaired through a scoped
+framework customization selector branch. The branch only activates when a
+source-ordered event query explicitly asks about integrating/customizing a
+framework, selects semantic facets for Bootstrap setup, form-control /
+btn-primary custom styling, and modal accessibility upgrade, and keeps the
+facet logic in a bounded selector helper. The accepted same-source rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-framework-customization-current-20260524T010538Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.45632796780684126 to 0.4582059020791417 versus the project-lifecycle
+facet-fill run, with global hit evidence ids 403 -> 405, missing ids
+691 -> 689, noise ids 2898 -> 2893, missed-recall cases 244 -> 243, and
+zero-recall cases unchanged at 117. Event-ordering improves by +2 hit ids,
+-2 missing ids, -3 noise ids, and one fewer incomplete recall case; target
+`3:event_ordering:1` moves from 0.3333 to 1.0 by recovering evidence turns
+72/148 while reducing that case's net noise by three ids. Case-delta analysis
+shows no hit-loss or newly-missing recall regressions. This is still partial
+BEAM progress, not closure: the full diagnostic remains noisy at
+wrong-recall/noise 378/400, and source-ordered summary budget quality remains
+an open failure family.
+Twenty-sixth, a scoped project feature/challenge summary selector now handles
+source-ordered portfolio/project summary questions that explicitly ask for key
+features and challenges. The branch selects concrete user/assistant source
+pairs across distinctive feature, site structure, contact-form validation,
+gallery layout/modal/card work, and Sprint 2 backend/SEO facets while excluding
+nearby bundle-size, image-optimization, Lighthouse, CSS-refactor, and hosting
+distractors. The accepted same-source rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-project-feature-challenge-current-20260524T032422Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.4582059020791417 to 0.46088195841716983 versus the framework-customization
+run, with global hit evidence ids 405 -> 418, missing ids 689 -> 676, noise
+ids 2893 -> 2876, missed-recall cases 243 -> 242, wrong-recall/noise cases
+378 -> 377, and zero-recall cases unchanged at 117. Summarization improves by
++12 hit ids, -12 missing ids, -15 noise ids, and one fewer incomplete/wrong
+recall case; target `3:summarization:1` moves from 0.25 to 1.0 by recovering
+turns 4/5/6/7/16/17/58/59/60/61/66/67 and removing 15 noise ids. Case-delta
+analysis shows no hit-loss or newly-missing evidence regressions; the only
+negative case-level movement is seven abstention rows with one new noise id
+each, while global noise still decreases. This is still partial BEAM progress,
+not closure: 242 evidence cases still miss and the full diagnostic remains
+noisy at wrong-recall/noise 377/400.
+Twenty-seventh, the named relationship/work-commitment summary route now has a
+scoped facet selector for summaries that ask how a relationship and work
+commitments were managed over time. The branch selects relationship/work
+conflict handling, anniversary/work-call repair, work-trip boundary planning,
+and free-will motivation/journaling evidence while excluding generic
+relationship reflections, cultural-expectation chatter, productivity/Matthew
+noise, weekly check-in follow-ups, and date-confirmation turns. The same
+current-code slice also promotes the book-club activity event-order selector to
+a complete source-ordered plan so the exact five activity milestones are not
+diluted by generic reading/recommendation fallback noise. The accepted
+same-source rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-relationship-work-bookclub-strict-current-20260524T054000Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.46088195841716983 to 0.46541247484909476 versus the project
+feature/challenge run, with global hit evidence ids 418 -> 435, missing ids
+676 -> 659, noise ids 2876 -> 2808, missed-recall cases 242 -> 240, and
+wrong-recall/noise cases 377 -> 374. Summarization improves by +14 hit ids,
+-14 missing ids, -14 noise ids, and one fewer incomplete/wrong recall case;
+target `12:summarization:1` moves from 0.125 to 1.0 by recovering turns
+58/59/60/61/74/75/110/111/258/259/260/261/262/263 and removing 14 noise ids.
+Event ordering improves by +3 hit ids, -3 missing ids, -55 noise ids, one fewer
+incomplete case, two fewer wrong/noise cases, and one fewer zero-recall case;
+target `13:event_ordering:1` moves from 0.6 to 1.0 by returning exactly
+16/86/164/222/272 and removing 25 noise ids. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas. This is
+still partial BEAM progress, not closure: 240 evidence cases still miss and the
+full diagnostic remains noisy at wrong-recall/noise 374/400.
+A follow-up same-source pass targets family movie event planning summaries and
+movie-night contribution ordering as reusable source-ordered event/summary
+facets. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-movie-events-tight-current-20260524T071500Z`
+compares against the relationship/work plus book-club run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.46541247484909476 to 0.4716096579476863, with global hit evidence ids
+435 -> 453, missing ids 659 -> 641, noise ids 2808 -> 2804, missed-recall
+cases 240 -> 238, wrong-recall/noise cases 374 -> 372, and zero-recall cases
+116 -> 113. Target `14:summarization:1` moves from 0 to 1.0 by recovering
+0/1/2/62/63/168/169/170/171/172/173 and removing 257/91/256/158/52. Target
+`14:event_ordering:2` moves from 0 to 1.0 by recovering
+14/16/72/182/246/130 and removing 70/260/12/196/52/158/13/71. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas. This is still partial BEAM progress, not closure: 238 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise 372/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

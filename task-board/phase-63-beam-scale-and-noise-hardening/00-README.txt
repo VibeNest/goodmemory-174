@@ -309,6 +309,102 @@ Workstreams
     Summarization improves from 0.2598 to 0.2709 with no case-level negative
     recall regressions, but late security/documentation turns remain missing in
     the target case, so this is partial repair only.
+  - project-lifecycle facet-fill repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-lifecycle-facet-fill-current-20260522T161457Z`
+    reaches full rules-only evidence-chat recall 0.45632796780684126 with
+    `executionFailures: 0`, missed-recall cases 244/355, and
+    wrong-recall/noise 378/400. The kept selector repair is still scoped to
+    broad project lifecycle summaries, but it now reserves coverage for
+    feature, timeline, security, and documentation facets before spending the
+    rest of the summary budget. Compared with the prior project-lifecycle
+    summary run, summarization rises 0.2709 -> 0.2820 with +4 hit ids, -4
+    missing ids, and -4 noise ids; target `1:summarization:1` rises
+    0.4 -> 0.8 by recovering late security/documentation turns
+    116/117/150/151/176/177. Compared with the GitHub-raw source baseline,
+    summarization is +8 hit ids, -8 missing ids, -8 noise ids, and -1
+    zero-recall case. This is kept partial repair only: it still misses the
+    target's core feature pair 4/5 and introduces one event-ordering recall
+    tradeoff versus the prior project-lifecycle summary run.
+  - framework-customization event-order repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-framework-customization-current-20260524T010538Z`
+    reaches full rules-only evidence-chat recall 0.4582059020791417 with
+    `executionFailures: 0`, missed-recall cases 243/355, and
+    wrong-recall/noise 378/400. The kept selector repair is scoped to
+    source-ordered event questions that explicitly ask about integrating and
+    customizing a framework. It selects Bootstrap setup, form-control /
+    btn-primary custom styling, and modal accessibility upgrade facets while
+    excluding bundle-size, image, API-review, and CSS-refactor distractors.
+    Compared with the project-lifecycle facet-fill run, global hit ids improve
+    403 -> 405, missing ids 691 -> 689, noise ids 2898 -> 2893, and
+    missed-recall cases 244 -> 243. Target `3:event_ordering:1` rises
+  0.3333 -> 1.0 by recovering 72/148, with no case-level hit-loss or
+  newly-missing recall regressions. This is kept partial repair only: the
+  full diagnostic remains noisy and source-ordered summary budget quality is
+  still open.
+  - project feature/challenge summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-project-feature-challenge-current-20260524T032422Z`
+    reaches full rules-only evidence-chat recall 0.46088195841716983 with
+    `executionFailures: 0`, missed-recall cases 242/355, and
+    wrong-recall/noise 377/400. The kept selector repair is scoped to
+    source-ordered portfolio/project summary questions that explicitly ask for
+    key features and challenges. It selects distinctive feature, site
+    structure, contact-form validation, gallery layout/modal/card, and Sprint
+    2 backend/SEO facets while excluding bundle-size, image-optimization,
+    Lighthouse, CSS-refactor, semantic HTML, and hosting distractors. Compared
+    with the framework-customization run, global hit ids improve 405 -> 418,
+    missing ids 689 -> 676, noise ids 2893 -> 2876, missed-recall cases
+    243 -> 242, and wrong-recall/noise cases 378 -> 377. Target
+    `3:summarization:1` rises 0.25 -> 1.0 by recovering
+    4/5/6/7/16/17/58/59/60/61/66/67 and removing 15 noise ids, with no
+  hit-loss or newly-missing evidence regressions. Seven abstention rows each
+  gain one noise id, but global noise still drops. This is kept partial
+  repair only: the full diagnostic remains recall-limited and noisy.
+  - relationship/work-commitment summary plus book-club event-order repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-relationship-work-bookclub-strict-current-20260524T054000Z`
+    reaches full rules-only evidence-chat recall 0.46541247484909476 with
+    `executionFailures: 0`, missed-recall cases 240/355, and
+    wrong-recall/noise 374/400. The kept selector repair is scoped to
+    source-ordered summaries that ask how a relationship and work commitments
+    were managed over time plus exact book-club activity event-order prompts.
+    It selects relationship/work conflict handling, anniversary/work-call
+    repair, work-trip boundary planning, free-will motivation/journaling
+    facets, and book-club activity milestones while excluding generic
+    relationship reflection, cultural expectations, productivity/Matthew,
+    weekly check-in, date-confirmation, negated book-club, follow-up, and
+    reading/recommendation distractors. Compared with the project
+    feature/challenge run, global hit ids improve 418 -> 435, missing ids
+    676 -> 659, noise ids 2876 -> 2808, missed-recall cases 242 -> 240, and
+    wrong-recall/noise cases 377 -> 374. Target `12:summarization:1` rises
+    0.125 -> 1.0 by recovering
+    58/59/60/61/74/75/110/111/258/259/260/261/262/263 and removing 14 noise
+  ids. Target `13:event_ordering:1` rises 0.6 -> 1.0 by returning exactly
+  16/86/164/222/272 and removing 25 noise ids. Case-delta analysis shows no
+  hit-loss, no newly-missing evidence regressions, and no negative recall
+  deltas. This is kept partial repair only: the full diagnostic remains
+  recall-limited and noisy.
+  - family movie event summary plus movie-night contribution event-order
+    repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-movie-events-tight-current-20260524T071500Z`
+    reaches full rules-only evidence-chat recall 0.4716096579476863 with
+    `executionFailures: 0`, missed-recall cases 238/355, and
+    wrong-recall/noise 372/400. The kept selector repair is scoped to family
+    movie event planning summaries and movie-night contribution ordering
+    prompts. It selects the early kids/movie theme, quieter April weekend,
+    May 11-12 marathon, streaming-quality/$70 budget, and Auto/$70
+    confirmation facets plus the movie-night contribution milestones while
+    excluding platform-availability, alternative-suggestion, Wish/Encanto
+    pre-plan, cupcake, work-deadline, high-rating, and classic-movie
+    distractors. Compared with the relationship/work plus book-club run,
+    global hit ids improve 435 -> 453, missing ids 659 -> 641, noise ids
+    2808 -> 2804, missed-recall cases 240 -> 238, wrong-recall/noise cases
+    374 -> 372, and zero-recall cases 116 -> 113. Target
+    `14:summarization:1` rises 0 -> 1.0 by recovering
+    0/1/2/62/63/168/169/170/171/172/173 and removing 5 noise ids. Target
+    `14:event_ordering:2` rises 0 -> 1.0 by returning
+    14/16/72/182/246/130 and removing 8 noise ids. Case-delta analysis shows
+    no hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. This is kept partial repair only: the full diagnostic remains
+    recall-limited and noisy.
 
 
 Current Boundary
@@ -359,12 +455,26 @@ Current Boundary
   only partial Phase 63 progress. The selector architecture guard is green again
   after splitting oversized source-order selector modules, and the local BEAM
   data root has been restored through the GitHub-raw fallback source. The
-  latest same-source GitHub-raw project-lifecycle summary repair raises current
-  evidence-chat recall to 0.45614017437961124, but the full 100K provider-free
-  recall diagnostic remains recall-limited and noisy. The next executable
-  boundary is reducing remaining full-slice misses plus wrong-recall/noise on
-  long imported conversations, especially late lifecycle/security/docs
-  candidates, summarization, and event-ordering, using same-source baseline
-  comparisons for future GitHub-raw reruns.
+  latest same-source GitHub-raw framework-customization event-order repair
+  raises current evidence-chat recall to 0.4582059020791417 with 243
+  missed-recall cases and wrong-recall/noise 378/400, but the full 100K
+  provider-free recall diagnostic remains recall-limited and noisy. The latest
+  project feature/challenge summary repair raises current evidence-chat recall
+  to 0.46088195841716983 with 242 missed-recall cases and wrong-recall/noise
+  377/400, recovering `3:summarization:1` without hit-loss or newly-missing
+  evidence regressions. The latest relationship/work plus book-club event-order
+  repair raises current evidence-chat recall to 0.46541247484909476 with 240
+  missed-recall cases and wrong-recall/noise 374/400, recovering
+  `12:summarization:1` and `13:event_ordering:1` without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  family movie event summary plus movie-night contribution repair raises
+  current evidence-chat recall to 0.4716096579476863 with 238 missed-recall
+  cases and wrong-recall/noise 372/400, recovering `14:summarization:1` and
+  `14:event_ordering:2` to 1.0 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas.
+  The next executable boundary is reducing remaining full-slice misses plus
+  wrong-recall/noise on long imported conversations, especially source-ordered
+  summary budget quality and the broad noise surface, using same-source
+  baseline comparisons for future GitHub-raw reruns.
 - Final/public reporting remains deferred until LongMemEval, BEAM,
   MemoryAgentBench, and LoCoMo are all complete.

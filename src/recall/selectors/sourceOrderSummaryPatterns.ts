@@ -6,7 +6,7 @@ import {
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
     /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) &&
-    /\b(?:across|approached|changed|developed|evolved|navigated|over\s+time|progress(?:ed)?|resolved|throughout|various)\b/iu.test(
+    /\b(?:across|approached|changed|developed|evolved|navigated|over\s+(?:time|(?:the\s+)?past\s+(?:few\s+)?(?:weeks|months|years))|progress(?:ed)?|resolved|throughout|various)\b/iu.test(
       query,
     )
   ) ||
