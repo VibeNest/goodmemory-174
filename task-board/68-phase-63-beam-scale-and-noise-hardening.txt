@@ -135,7 +135,9 @@ Source Intake
   `probing_questions/probing_questions.json`, `labels.txt`, `main_spec.txt`,
   and `relationships.txt`). Treat GitHub-raw reruns as their own source cohort:
   the shape is complete and loader-compatible, but tiny retrieval drift can
-  occur versus an older Hugging Face rows export.
+  occur versus an older Hugging Face rows export. External BEAM fetches use
+  bounded `curl` retry, connect-timeout, and max-time flags so transient rows
+  or raw-source failures do not require manual command rewriting.
 
 
 Smoke Harness Evidence
@@ -1430,6 +1432,157 @@ Latest movie-event summary and contribution-order repair:
   evidence cases and wrong-recall/noise 372/400, so broad recall and
   persistent-noise hardening remain open.
 
+Latest writing-journey event-order repair:
+- Repair:
+  `src/recall/selectors/sourceOrderWritingJourney.ts` adds a bounded
+  writing-journey helper for broad source-ordered event prompts. It selects
+  the Michael script-editing tips, first-draft confidence shift, workshop
+  nerves, workshop feedback, and revision-plan facets while rejecting
+  self-editing, book, tool, deadline, schedule, festival, and final-draft
+  distractors. `src/recall/selectors/sourceOrderEventPlans.ts` dispatches it
+  as a complete source-ordered event plan.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped writing-journey
+  event-order query with self-editing, book, tool, deadline, schedule, and
+  final-draft distractors.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-writing-journey-current-20260524T081500Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-movie-events-tight-current-20260524T071500Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.474426559356137, missed-recall cases 237/355, wrong-recall/noise cases
+  371/400, total hit evidence ids 458, missing ids 636, noise ids 2781, and
+  zero-recall cases 112.
+- Delta:
+  vs the movie-event run, global hit evidence ids improve 453 -> 458, missing
+  ids 641 -> 636, noise ids 2804 -> 2781, missed-recall cases 238 -> 237,
+  wrong-recall/noise cases 372 -> 371, and zero-recall cases 113 -> 112.
+  Event ordering rises by +5 hit ids, -5 missing ids, -27 noise ids, one fewer
+  incomplete case, one fewer wrong/noise case, and one fewer zero-recall case.
+  Target `10:event_ordering:1` rises 0 -> 1.0 by returning 6/82/182/238/84
+  and removing 25 noise ids.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 237 missed-recall
+  evidence cases and wrong-recall/noise 371/400, so broad recall and
+  persistent-noise hardening remain open.
+
+Latest professional-preparation event-order repair:
+- Repair:
+  `src/recall/selectors/sourceOrderProfessionalPreparation.ts` adds a bounded
+  professional-connections/preparation helper for broad source-ordered event
+  prompts. It selects mentor networking, Laura/HR cover-letter feedback,
+  storytelling interview prep, employee-handbook review, and workshop
+  presentation facets while rejecting cover-letter schedule/draft/anecdote
+  noise, repeated cover-letter feedback, public-speaking confidence,
+  handbook-policy, Zoom/senior-producer, and workshop-logistics distractors.
+  `src/recall/selectors/sourceOrderEventPlans.ts` dispatches it as a complete
+  source-ordered event plan.
+- Tooling:
+  `scripts/prepare-phase-63-beam-data.ts` now builds external `curl` requests
+  with bounded retry, connect-timeout, and max-time flags. This preserved the
+  `/private/tmp/BEAM/100K.json` restore path when the Hugging Face rows
+  endpoint and raw-source fetches were transiently unavailable.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped
+  professional-preparation event-order query with schedule/draft/anecdote,
+  public-speaking, repeated-feedback, handbook-policy, Zoom, and logistics
+  distractors. `tests/unit/prepare-phase-63-beam-data.test.ts` covers the
+  bounded external curl retry command.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-five-tight-current-20260529T151000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-writing-journey-current-20260524T081500Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.4772434607645877, missed-recall cases 236/355, wrong-recall/noise cases
+  370/400, total hit evidence ids 463, missing ids 631, noise ids 2751, and
+  zero-recall cases 111.
+- Delta:
+  vs the writing-journey run, global hit evidence ids improve 458 -> 463,
+  missing ids 636 -> 631, noise ids 2781 -> 2751, missed-recall cases
+  237 -> 236, wrong-recall/noise cases 371 -> 370, and zero-recall cases
+  112 -> 111. Event ordering rises by +5 hit ids, -5 missing ids, -27 noise
+  ids, one fewer incomplete case, one fewer wrong/noise case, and one fewer
+  zero-recall case. Target `8:event_ordering:2` rises 0 -> 1.0 by returning
+  exactly 6/56/114/172/226 and removing 26 noise ids.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 236 missed-recall
+  evidence cases and wrong-recall/noise 370/400, so broad recall and
+  persistent-noise hardening remain open.
+
+Latest professional-preparation summary repair:
+- Repair:
+  `src/recall/selectors/sourceOrderProfessionalPreparationSummary.ts` adds a
+  bounded professional-preparation summary helper. It selects the Leslie
+  networking mentor, single-column cover-letter format, storytelling interview
+  preparation, employee-handbook review, and July 25 workshop presentation
+  anchors, then includes adjacent assistant guidance for each. It rejects
+  cover-letter CTA, mock-session confidence, calendar/travel logistics,
+  workshop checklist, senior-producer follow-up, and other nearby planning
+  distractors.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped
+  professional-preparation summary query with user/assistant evidence pairs
+  and CTA, confidence, calendar, producer-follow-up, and logistics distractors.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-summary-refactor-current-20260529T162000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-five-tight-current-20260529T151000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.48006036217303844, missed-recall cases 235/355, wrong-recall/noise cases
+  369/400, total hit evidence ids 473, missing ids 621, noise ids 2742, and
+  zero-recall cases 110.
+- Delta:
+  vs the professional-preparation event-order run, global hit evidence ids
+  improve 463 -> 473, missing ids 631 -> 621, noise ids 2751 -> 2742,
+  missed-recall cases 236 -> 235, wrong-recall/noise cases 370 -> 369, and
+  zero-recall cases 111 -> 110. Summarization rises by +10 hit ids,
+  -10 missing ids, -11 noise ids, one fewer incomplete case, one fewer
+  wrong/noise case, and one fewer zero-recall case. Target
+  `8:summarization:2` rises 0 -> 1.0 by returning exactly
+  6/7/78/79/114/115/172/173/226/227 and removing 12 noise ids.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 235 missed-recall
+  evidence cases and wrong-recall/noise 369/400, so broad recall and
+  persistent-noise hardening remain open.
+
+- Repair: probability-concepts summary selector for the advanced birthday-
+  paradox learning arc.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped probability-
+  concepts development summary query with birthday-paradox permutations,
+  conditional aces, complement-rule examples, direct/complement counting, and
+  mutual-exclusivity milestones while excluding early paint/ratio/coin/dice
+  probability basics.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-summary-current-20260529T174000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-summary-refactor-current-20260529T162000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.48287726358148914, missed-recall cases 234/355, wrong-recall/noise cases
+  368/400, total hit evidence ids 483, missing ids 611, noise ids 2727, and
+  zero-recall cases 109.
+- Delta:
+  vs the professional-preparation summary run, global hit evidence ids improve
+  473 -> 483, missing ids 621 -> 611, noise ids 2742 -> 2727, missed-recall
+  cases 235 -> 234, wrong-recall/noise cases 369 -> 368, and zero-recall
+  cases 110 -> 109. Summarization rises by +10 hit ids, -10 missing ids,
+  -16 noise ids, one fewer incomplete case, one fewer wrong/noise case, and
+  one fewer zero-recall case. Target `5:summarization:2` rises 0 -> 1.0 by
+  returning exactly 140/141/146/149/151/153/155/156/180/181 and removing 15
+  noise ids.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 234 missed-recall
+  evidence cases and wrong-recall/noise 368/400, so broad recall and
+  persistent-noise hardening remain open.
+
 
 Current Boundary
 ----------------
@@ -1478,7 +1631,22 @@ family movie event summary plus movie-night contribution repair raises it to
 0.4716096579476863 with 238 missed-recall cases and wrong-recall/noise
 372/400, recovering `14:summarization:1` and `14:event_ordering:2` to 1.0
 without hit-loss, newly-missing evidence regressions, or negative recall
-deltas. BEAM still needs
+deltas. The latest writing-journey event-order repair raises it to
+0.474426559356137 with 237 missed-recall cases and wrong-recall/noise 371/400,
+recovering `10:event_ordering:1` to 1.0 without hit-loss, newly-missing
+evidence regressions, or negative recall deltas. The latest
+professional-preparation event-order repair raises it to 0.4772434607645877
+with 236 missed-recall cases and wrong-recall/noise 370/400, recovering
+`8:event_ordering:2` to 1.0 without target noise, hit-loss, newly-missing
+evidence regressions, or negative recall deltas. The latest
+professional-preparation summary repair raises it to 0.48006036217303844 with
+235 missed-recall cases and wrong-recall/noise 369/400, recovering
+`8:summarization:2` to 1.0 without target noise, hit-loss, newly-missing
+evidence regressions, or negative recall deltas. The latest probability-
+concepts summary repair raises it to 0.48287726358148914 with 234
+missed-recall cases and wrong-recall/noise 368/400, recovering
+`5:summarization:2` to 1.0 without target noise, hit-loss, newly-missing
+evidence regressions, or negative recall deltas. BEAM still needs
 broader recall and persistent-noise hardening before it can move toward an
 answer-quality claim, especially the remaining source-ordered summary budget
 quality and broad long-conversation noise surface.

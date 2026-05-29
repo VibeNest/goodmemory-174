@@ -2364,6 +2364,137 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-generic-dashboard-noise")?.returned).toBe(false);
   });
 
+  it("keeps household budget reasoning chains for multi-hop finance questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-shared-finances-user",
+        12,
+        "user",
+        "My spouse Alexis and I have been sharing household finances since 2020, and I'm wondering if that is a good idea.",
+      ),
+      makeSourceFact(
+        "fact-shared-finances-assistant",
+        13,
+        "assistant",
+        "Sharing household finances with Alexis can support common financial goals, shared expenses like groceries, and better savings planning.",
+      ),
+      makeSourceFact(
+        "fact-spending-habits-user",
+        14,
+        "user",
+        "My biggest concern is making sure Alexis and I are on the same page with day-to-day spending habits because small expenses add up.",
+      ),
+      makeSourceFact(
+        "fact-spending-habits-assistant",
+        15,
+        "assistant",
+        "Set daily spending limits, use joint accounts for shared expenses, schedule regular financial check-ins, and share receipts for transparency.",
+      ),
+      makeSourceFact(
+        "fact-excel-transparency-user",
+        16,
+        "user",
+        "I'll keep using Excel to track expenses, set daily spending limits, hold regular check-ins, and share receipts and statements with Alexis.",
+      ),
+      makeSourceFact(
+        "fact-excel-transparency-assistant",
+        17,
+        "assistant",
+        "Use Excel categories, monthly totals, visual aids, clear daily limits, and regular check-ins to track spending and savings goals.",
+      ),
+      makeSourceFact(
+        "fact-early-medical-bill-noise",
+        46,
+        "user",
+        "I'm stressed about family expecting me to support Ashlee's medical bills, which are around $200 monthly.",
+      ),
+      makeSourceFact(
+        "fact-ashlee-receipts-user",
+        108,
+        "user",
+        "I approved Ashlee's request for $100 extra for June medical bills, but I also asked for receipts to track the support responsibly.",
+      ),
+      makeSourceFact(
+        "fact-ashlee-receipts-assistant",
+        109,
+        "assistant",
+        "Balance support for Ashlee with financial responsibility by setting boundaries, requesting receipts, keeping records, and integrating the medical expense into the budget.",
+      ),
+      makeSourceFact(
+        "fact-grocery-contract-user",
+        126,
+        "user",
+        "Alexis and I agreed on a $500 monthly joint grocery budget starting Sept 1, up from $400, and I am considering how that affects expenses with the freelance contract.",
+      ),
+      makeSourceFact(
+        "fact-grocery-contract-assistant",
+        127,
+        "assistant",
+        "The grocery increase adds $100 monthly, but the freelance contract adds $2,000 per month for four months, so new income more than offsets groceries and Ashlee's medical bills.",
+      ),
+      makeSourceFact(
+        "fact-later-medical-car-noise",
+        214,
+        "user",
+        "I'm worried about Ashlee's request for $300 by Dec 10 while saving for a family car by Dec 31, 2026.",
+      ),
+      makeSourceFact(
+        "fact-renovation-savings-noise",
+        310,
+        "user",
+        "I'm trying to meet my renovation goal by increasing monthly savings to $400 starting March.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How will increasing our grocery budget while taking on the freelance contract affect my ability to support Ashlee's medical bills and still meet my savings goals?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-shared-finances-user",
+      "fact-shared-finances-assistant",
+      "fact-spending-habits-user",
+      "fact-spending-habits-assistant",
+      "fact-excel-transparency-user",
+      "fact-excel-transparency-assistant",
+      "fact-ashlee-receipts-user",
+      "fact-ashlee-receipts-assistant",
+      "fact-grocery-contract-user",
+      "fact-grocery-contract-assistant",
+    ]);
+  });
+
   it("selects source user turns for rescheduled meeting time updates", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3948,6 +4079,456 @@ describe("recall selection", () => {
       "fact-workshop-nerves",
       "fact-workshop-feedback",
       "fact-revision-plan",
+    ]);
+  });
+
+  it("keeps professional preparation milestones for broad source-ordered event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-mentor-networking",
+        6,
+        "I'm thinking of reaching out to my close friend Leslie, who I met at Montserrat Film Festival in 2004, for advice on networking at Caribbean Creative Hub, since she's been a great mentor to me for 20 years.",
+      ),
+      makeFact(
+        "fact-coaching-session-noise",
+        24,
+        "I'm stuck between attending Greg's April 2 coaching session or Leslie's April 3 networking event to meet my cover letter deadline of April 10.",
+      ),
+      makeFact(
+        "fact-cover-letter-draft-schedule-noise",
+        28,
+        "I've set a goal to complete my cover letter draft by March 25, revise it by April 5, but I'm worried I won't make it, can you offer some advice on how to manage my time effectively to meet these targets?",
+      ),
+      makeFact(
+        "fact-cover-letter-draft-noise",
+        52,
+        "I'm stuck on my cover letter for Island Media Group, and I've completed the first draft, so I'm refining it with Greg's cultural fit paragraph.",
+      ),
+      makeFact(
+        "fact-cover-letter-anecdotes-noise",
+        38,
+        "I'm kinda stuck on how to structure my cover letter anecdotes, should I use the STAR method, you know, Situation, Task, Action, Result, to make it more engaging for Island Media Group, since they emphasize community engagement and innovation.",
+      ),
+      makeFact(
+        "fact-cover-letter-feedback",
+        56,
+        "I'm worried about my cover letter, especially since Laura shared feedback from her April 5 meeting with Island Media's HR about emotional intelligence, and I want to get it right.",
+      ),
+      makeFact(
+        "fact-cover-letter-tone-noise",
+        58,
+        "I'm going to submit my cover letter by April 14 as Ashlee recommended, but I'm not sure if avoiding jargon and keeping a warm professional tone is enough.",
+      ),
+      makeFact(
+        "fact-mobile-format-noise",
+        78,
+        "I updated my cover letter to a single-column format with bold headers so it is clearer on mobile screens.",
+      ),
+      makeFact(
+        "fact-storytelling-interview",
+        114,
+        "I'm worried I didn't prepare enough examples of storytelling that highlights cultural diversity for my interview with Island Media's team, like Laura suggested.",
+      ),
+      makeFact(
+        "fact-public-speaking-confidence-noise",
+        156,
+        "I feel more confident in my public speaking after attending Michael's May 7 storytelling event, which was rated 4.5/5 by attendees, and I'm hoping this confidence boost will help me in my interview, do you think it will?",
+      ),
+      makeFact(
+        "fact-cover-letter-feedback-repeat-noise",
+        162,
+        "How can I effectively incorporate the feedback from Laura about Island Media's focus on emotional intelligence, which I learned from her April 5 meeting with their HR, into my cover letter without sounding too generic or insincere?",
+      ),
+      makeFact(
+        "fact-zoom-call-noise",
+        164,
+        "I have a Zoom call with Island Media's creative director and need discussion points about the senior producer role.",
+      ),
+      makeFact(
+        "fact-employee-handbook",
+        172,
+        "I'm kinda worried about what Laura said regarding reviewing the company's employee handbook before accepting the job offer, especially since I got it on May 25 via email, what should I do?",
+      ),
+      makeFact(
+        "fact-policy-question-noise",
+        180,
+        "I have a question about the leave policy and probation section in the employee handbook.",
+      ),
+      makeFact(
+        "fact-workshop-presentation",
+        226,
+        "I'm excited about the July 25 workshop on storytelling and cultural competence at Coral Bay Conference Center, but I'm wondering how I can make sure my presentation is engaging for the audience.",
+      ),
+      makeFact(
+        "fact-workshop-logistics-noise",
+        250,
+        "I'm checking the workshop room setup, projector access, and attendee sign-in logistics.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different aspects of my professional connections and preparation throughout our conversations, in order? Mention ONLY and ONLY five items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-mentor-networking",
+      "fact-cover-letter-feedback",
+      "fact-storytelling-interview",
+      "fact-employee-handbook",
+      "fact-workshop-presentation",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-mentor-networking",
+      "fact-cover-letter-feedback",
+      "fact-storytelling-interview",
+      "fact-employee-handbook",
+      "fact-workshop-presentation",
+    ]);
+  });
+
+  it("keeps professional preparation planning pairs for broad summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-mentor-networking-user",
+        6,
+        "user",
+        "I'm thinking of reaching out to my close friend Leslie, who I met at Montserrat Film Festival in 2004, for advice on networking at Caribbean Creative Hub, since she's been a great mentor to me for 20 years.",
+      ],
+      [
+        "fact-mentor-networking-assistant",
+        7,
+        "assistant",
+        "Reaching out to Leslie for Caribbean Creative Hub networking advice can help because of her experience and your long-standing mentorship relationship.",
+      ],
+      [
+        "fact-cover-letter-cta-noise-user",
+        44,
+        "user",
+        "I want to end my cover letter with a strong call-to-action inviting the reader to a 30-minute Zoom call between April 15-20.",
+      ],
+      [
+        "fact-cover-letter-cta-noise-assistant",
+        45,
+        "assistant",
+        "A strong call-to-action can show initiative, but keep the Zoom date range flexible enough for the reader.",
+      ],
+      [
+        "fact-cover-letter-format-user",
+        78,
+        "user",
+        "I'm stuck on formatting, so can you help me understand why I switched to a single-column format with bold headers for easier mobile reading as Laura suggested?",
+      ],
+      [
+        "fact-cover-letter-format-assistant",
+        79,
+        "assistant",
+        "The single-column format with bold headers improves mobile reading, clarity, scannability, and professional presentation for the cover letter.",
+      ],
+      [
+        "fact-storytelling-interview-user",
+        114,
+        "user",
+        "I'm worried I didn't prepare enough examples of storytelling that highlights cultural diversity for my interview with Island Media's team, like Laura suggested.",
+      ],
+      [
+        "fact-storytelling-interview-assistant",
+        115,
+        "assistant",
+        "Brainstorm cultural diversity storytelling examples from community engagement, multimedia coverage, collaborative documentary work, and Montserrat Youth Media.",
+      ],
+      [
+        "fact-confidence-noise-user",
+        146,
+        "user",
+        "Greg gave feedback on my May 1 mindfulness routine and said I have improved confidence in mock sessions for my upcoming interview.",
+      ],
+      [
+        "fact-confidence-noise-assistant",
+        147,
+        "assistant",
+        "Use your mindfulness routine to reinforce confidence before the interview.",
+      ],
+      [
+        "fact-employee-handbook-user",
+        172,
+        "user",
+        "I'm worried about what Laura said regarding reviewing the company's employee handbook before accepting the job offer, especially since I got it on May 25 via email.",
+      ],
+      [
+        "fact-employee-handbook-assistant",
+        173,
+        "assistant",
+        "Review the employee handbook, ask HR for clarification, discuss concerns with Laura, and use it to make an informed job-offer decision.",
+      ],
+      [
+        "fact-calendar-noise-user",
+        202,
+        "user",
+        "I need to sync the July 25 workshop with my calendar and check whether I can travel to Coral Bay the night before.",
+      ],
+      [
+        "fact-calendar-noise-assistant",
+        203,
+        "assistant",
+        "Add the workshop date to your calendar and plan travel logistics early.",
+      ],
+      [
+        "fact-producer-noise-user",
+        224,
+        "user",
+        "I'm preparing follow-up questions for the senior producer role and want to understand the next steps after the interview.",
+      ],
+      [
+        "fact-producer-noise-assistant",
+        225,
+        "assistant",
+        "Prepare thoughtful senior producer follow-up questions and ask about interview timelines.",
+      ],
+      [
+        "fact-workshop-presentation-user",
+        226,
+        "user",
+        "I'm excited about the July 25 workshop on storytelling and cultural competence at Coral Bay Conference Center, but I'm wondering how I can make sure my presentation is engaging for the audience.",
+      ],
+      [
+        "fact-workshop-presentation-assistant",
+        227,
+        "assistant",
+        "Make the storytelling and cultural competence presentation engaging by understanding the audience, defining objectives, using interactive elements, and practicing delivery.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a complete summary of how my preparations and plans have developed around the upcoming opportunities and challenges I've been discussing?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-mentor-networking-user",
+      "fact-mentor-networking-assistant",
+      "fact-cover-letter-format-user",
+      "fact-cover-letter-format-assistant",
+      "fact-storytelling-interview-user",
+      "fact-storytelling-interview-assistant",
+      "fact-employee-handbook-user",
+      "fact-employee-handbook-assistant",
+      "fact-workshop-presentation-user",
+      "fact-workshop-presentation-assistant",
+    ]);
+  });
+
+  it("keeps advanced probability concept milestones for development summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-paint-probability-noise-user",
+        2,
+        "user",
+        "I'm a colour technologist trying to learn probability basics for paint-can color combinations and quality control.",
+      ],
+      [
+        "fact-paint-probability-noise-assistant",
+        3,
+        "assistant",
+        "Use the multinomial distribution to estimate paint-can color combinations and improve quality control.",
+      ],
+      [
+        "fact-coin-ratio-noise-user",
+        6,
+        "user",
+        "I'm starting from scratch and trying to understand probability as a ratio for coin tosses and dice rolls.",
+      ],
+      [
+        "fact-coin-ratio-noise-assistant",
+        7,
+        "assistant",
+        "The probability of heads is one favorable outcome over two possible outcomes.",
+      ],
+      [
+        "fact-permutation-birthday-user",
+        140,
+        "user",
+        "I'm trying to master simple permutations and combinations to apply them to complex probability puzzles like the birthday paradox, including P(4,2) = 12.",
+      ],
+      [
+        "fact-permutation-birthday-assistant",
+        141,
+        "assistant",
+        "The permutation formula P(n,r) helps solve more complex problems like the birthday paradox by counting ordered arrangements.",
+      ],
+      [
+        "fact-birthday-507-user",
+        146,
+        "user",
+        "I'm trying to understand the birthday paradox, specifically the probability that at least 2 people share a birthday in a group of 23, which is about 0.507.",
+      ],
+      [
+        "fact-conditional-aces-assistant",
+        149,
+        "assistant",
+        "Conditional probability and dependent events explain drawing 2 aces in a row: use P(A2 | A1) after the first ace.",
+      ],
+      [
+        "fact-complement-rule-assistant",
+        151,
+        "assistant",
+        "The complement rule calculates at least one shared birthday by subtracting the probability that all birthdays are different.",
+      ],
+      [
+        "fact-complement-dice-assistant",
+        153,
+        "assistant",
+        "Use the complement rule for examples like rolling at least one 6 in several dice rolls or getting at least one head in coin tosses.",
+      ],
+      [
+        "fact-complement-cards-assistant",
+        155,
+        "assistant",
+        "Drawing at least one ace in two card draws can be solved by calculating no aces first and subtracting from 1.",
+      ],
+      [
+        "fact-direct-complement-user",
+        156,
+        "user",
+        "I'm trying to solve the birthday paradox using both direct counting and the complement method for a group of 23.",
+      ],
+      [
+        "fact-mutual-exclusive-user",
+        180,
+        "user",
+        "I'm trying to understand why events in the birthday paradox are not mutually exclusive and how that affects the probability calculation.",
+      ],
+      [
+        "fact-mutual-exclusive-assistant",
+        181,
+        "assistant",
+        "Birthday-paradox events are not mutually exclusive because multiple pairs can share birthdays, so the complement method accounts for overlaps.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a clear summary of how my understanding and approach to probability concepts developed throughout our conversations?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-permutation-birthday-user",
+      "fact-permutation-birthday-assistant",
+      "fact-birthday-507-user",
+      "fact-conditional-aces-assistant",
+      "fact-complement-rule-assistant",
+      "fact-complement-dice-assistant",
+      "fact-complement-cards-assistant",
+      "fact-direct-complement-user",
+      "fact-mutual-exclusive-user",
+      "fact-mutual-exclusive-assistant",
     ]);
   });
 

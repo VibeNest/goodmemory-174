@@ -109,18 +109,19 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  same-source family movie event summary plus movie-night contribution rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-movie-events-tight-current-20260524T071500Z`,
-  reaches recall 0.4716096579476863, missed 238/355, and wrong-recall/noise
-  372/400 after preserving the prior summary, value/metric, named-summary,
-  project-feature, relationship/work, and event-order repairs. It is still a
-  partial recall/noise lift, not BEAM closure: full-run misses and persistent
-  noise remain large.
+  same-source probability-concepts summary rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-summary-current-20260529T174000Z`,
+  reaches recall 0.48287726358148914, missed 234/355, and wrong-recall/noise
+  368/400 after preserving the prior summary, value/metric, named-summary,
+  project-feature, relationship/work, movie-event, and event-order repairs. It
+  recovers `5:summarization:2` from 0 to 1.0 by returning exactly
+  140/141/146/149/151/153/155/156/180/181 with no target noise, hit-loss,
+  newly-missing evidence, or negative recall deltas. It is still partial
+  progress, not BEAM closure: full-run misses and persistent noise remain large.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
-  wrong-recall/noise 2/3. Next: broaden beyond the representative trio and
-  reduce full-run recall misses/noise before any BEAM claim.
+  wrong-recall/noise 2/3.
 - Current provider sanity status: after provider recovery, Phase 62 one-case
   live probes passed for both `baseline-no-memory`
   (`run-phase62-provider-probe-baseline-20260518T-provider-restored`) and

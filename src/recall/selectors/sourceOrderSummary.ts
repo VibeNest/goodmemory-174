@@ -44,9 +44,8 @@ import {
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
-import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderMovieEvents";
 import { hasSourceOrderedProjectFeatureChallengeMilestone, isSourceOrderedProjectFeatureChallengeSummaryQuery, selectSourceOrderedProjectFeatureChallengePairs } from "./sourceOrderProjectFeatureSummary";
-import { selectSourceOrderedRelationshipWorkSummaryCoverage } from "./sourceOrderRelationshipWorkSummary";
+import { selectSourceOrderedSpecializedSummaryCoverage } from "./sourceOrderSpecializedSummaries";
 import { compareTemporalFactChronology, sourceOrderSortKey } from "./temporal";
 import { contradictionTopicTokens } from "./contradiction";
 
@@ -834,25 +833,15 @@ export function selectSourceOrderedSummaryCoverage(input: {
       sourceCandidates: projectFeatureChallengeSourceCandidates,
     });
   }
-  const relationshipWorkSelection =
-    selectSourceOrderedRelationshipWorkSummaryCoverage({
-      companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
-      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
-      minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
-      query: input.query,
-      sourceCandidates: topicalSourceCandidates,
-    });
-  if (relationshipWorkSelection.length > 0) {
-    return relationshipWorkSelection;
-  }
-  const movieEventSelection = selectSourceOrderedMovieEventSummaryCoverage({
+  const specializedSummarySelection = selectSourceOrderedSpecializedSummaryCoverage({
+    companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
     limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
     minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
     query: input.query,
     sourceCandidates: topicalSourceCandidates,
   });
-  if (movieEventSelection.length > 0) {
-    return movieEventSelection;
+  if (specializedSummarySelection.length > 0) {
+    return specializedSummarySelection;
   }
   if (signaledCandidates.length === 0) {
     return [];

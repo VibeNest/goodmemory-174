@@ -174,8 +174,26 @@ function buildPhase63BeamGithubRawFileUrl(input: {
   return `${root}/${input.split}/${input.conversationId}/${input.fileName}`;
 }
 
+export function buildPhase63BeamCurlRequestCommand(url: string): string[] {
+  return [
+    "curl",
+    "-sS",
+    "-L",
+    "--retry",
+    "4",
+    "--retry-delay",
+    "1",
+    "--retry-all-errors",
+    "--connect-timeout",
+    "20",
+    "--max-time",
+    "120",
+    url,
+  ];
+}
+
 async function requestJsonWithCurl(url: string): Promise<unknown> {
-  const proc = Bun.spawn(["curl", "-sS", "-L", url], {
+  const proc = Bun.spawn(buildPhase63BeamCurlRequestCommand(url), {
     stderr: "pipe",
     stdout: "pipe",
   });
@@ -199,7 +217,7 @@ async function requestJsonWithCurl(url: string): Promise<unknown> {
 }
 
 async function requestTextWithCurl(url: string): Promise<string> {
-  const proc = Bun.spawn(["curl", "-sS", "-L", url], {
+  const proc = Bun.spawn(buildPhase63BeamCurlRequestCommand(url), {
     stderr: "pipe",
     stdout: "pipe",
   });

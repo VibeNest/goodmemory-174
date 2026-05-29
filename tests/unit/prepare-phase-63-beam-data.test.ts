@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  buildPhase63BeamCurlRequestCommand,
   buildPhase63BeamGithubIndexUrl,
   buildPhase63BeamRowsUrl,
   parsePhase63BeamPrepareCliOptions,
@@ -115,6 +116,24 @@ describe("prepare-phase-63 BEAM data script", () => {
         split: "100K",
       }),
     ).toBe("https://api.github.test/contents/chats/100K");
+  });
+
+  it("uses bounded retry flags for external BEAM curl requests", () => {
+    expect(buildPhase63BeamCurlRequestCommand("https://beam.test/row.json")).toEqual([
+      "curl",
+      "-sS",
+      "-L",
+      "--retry",
+      "4",
+      "--retry-delay",
+      "1",
+      "--retry-all-errors",
+      "--connect-timeout",
+      "20",
+      "--max-time",
+      "120",
+      "https://beam.test/row.json",
+    ]);
   });
 
   it("writes an external-root JSON export without vendoring upstream rows", async () => {

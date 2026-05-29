@@ -1,5 +1,6 @@
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
+import { selectSourceOrderedHouseholdBudgetReasoningEvidence } from "./sourceOrderFinancialPlanning";
 import {
   dedupeSourceOrderedEvidenceByOrder,
   selectSourceOrderedEvidencePlan,
@@ -150,6 +151,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
+  const householdBudgetReasoning =
+    selectSourceOrderedHouseholdBudgetReasoningEvidence(input);
+  if (householdBudgetReasoning.length > 0) {
+    return householdBudgetReasoning;
+  }
+
   if (!isSourceOrderedReasoningBridgeQuery(input.query)) {
     return [];
   }

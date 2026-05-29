@@ -55,6 +55,7 @@ import {
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
+import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./selectors/sourceOrderFinancialPlanning";
 import { selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence } from "./selectors/sourceOrderReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
 import {
@@ -572,6 +573,8 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const householdBudgetReasoningQuery =
+    isSourceOrderedHouseholdBudgetReasoningQuery(query);
   const temporalBridgeEvidenceCandidates = sleepBeforeAppointmentQuery
     ? rankFactCandidates(
       compatible.filter((item) =>
@@ -656,6 +659,7 @@ export function selectFacts(
     timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    householdBudgetReasoningQuery ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
       ? []
@@ -668,6 +672,7 @@ export function selectFacts(
   const sourcePreferenceCandidates =
     timelineIntegrationCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    householdBudgetReasoningQuery ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
       ? []

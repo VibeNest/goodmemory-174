@@ -118,7 +118,9 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
   - `prepare:phase-63-beam` exports real BEAM rows to an external root without
     vendoring upstream data; it supports the Hugging Face rows export path and
     the GitHub raw fallback path (`--source github-raw`) when the rows endpoint
-    is unavailable. The current local 100K export lives at
+    is unavailable. External BEAM fetches now use bounded `curl` retry and
+    timeout flags so transient rows/raw-source failures do not require manual
+    command rewriting. The current local 100K export lives at
     `/private/tmp/BEAM/100K.json` with 20/20 rows and 400 probing questions
     from the GitHub raw fallback source.
   - initial external-root run
@@ -208,6 +210,60 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     no newly-missing evidence regressions, and no negative recall deltas. This
     remains a partial repair: the full 100K diagnostic still has 238 missed
     evidence cases and substantial persistent noise.
+  - same-source writing-journey event-order repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-writing-journey-current-20260524T081500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.474426559356137,
+    missed-recall cases 237/355, and wrong-recall/noise cases 371/400. It
+    raises global hit evidence ids 453 -> 458, missing ids 641 -> 636, noise
+    ids 2804 -> 2781, recovers target `10:event_ordering:1` from 0 to 1.0 by
+    restoring turns 6/82/182/238/84, and removes 25 noise ids. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas. This remains a partial repair: the full 100K
+    diagnostic is still recall-limited and noisy.
+  - same-source professional-preparation event-order repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-five-tight-current-20260529T151000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.4772434607645877,
+    missed-recall cases 236/355, and wrong-recall/noise cases 370/400. It
+    raises global hit evidence ids 458 -> 463, missing ids 636 -> 631, noise
+    ids 2781 -> 2751, and recovers target `8:event_ordering:2` from 0 to 1.0
+    by returning exactly turns 6/56/114/172/226 with no target noise. The
+    repair adds a professional-connections/preparation source-order selector
+    for mentor networking, cover-letter feedback, storytelling interview prep,
+    employee-handbook review, and workshop presentation while rejecting
+    schedule/draft/anecdote/repeated-feedback/public-speaking/logistics
+    distractors. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This remains a partial
+    repair: the full 100K diagnostic is still recall-limited and noisy.
+  - same-source professional-preparation summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-summary-refactor-current-20260529T162000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.48006036217303844,
+    missed-recall cases 235/355, and wrong-recall/noise cases 369/400. It
+    raises global hit evidence ids 463 -> 473, missing ids 631 -> 621, noise
+    ids 2751 -> 2742, and recovers target `8:summarization:2` from 0 to 1.0
+    by returning exactly turns 6/7/78/79/114/115/172/173/226/227 with no
+    target noise. The repair adds a professional-preparation summary selector
+    that pairs the Leslie networking, cover-letter format, storytelling
+    interview, employee-handbook, and workshop presentation anchors with their
+    adjacent assistant guidance while rejecting CTA, confidence, calendar,
+    checklist, producer-follow-up, and logistics distractors. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas. This remains a partial repair: the full 100K
+    diagnostic is still recall-limited and noisy.
+  - latest same-source probability-concepts summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-summary-current-20260529T174000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.48287726358148914,
+    missed-recall cases 234/355, and wrong-recall/noise cases 368/400. It
+    raises global hit evidence ids 473 -> 483, missing ids 621 -> 611, noise
+    ids 2742 -> 2727, and recovers target `5:summarization:2` from 0 to 1.0
+    by returning exactly turns 140/141/146/149/151/153/155/156/180/181 with no
+    target noise. The repair adds a probability-concept summary selector that
+    starts at the birthday-paradox permutation milestone, keeps conditional
+    aces, complement-rule, direct/complement counting, and mutual-exclusivity
+    milestones, and rejects earlier paint, ratio, coin/dice, and generic
+    conditional-probability distractors. Case-delta analysis shows no hit-loss,
+    no newly-missing evidence regressions, and no negative recall deltas. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

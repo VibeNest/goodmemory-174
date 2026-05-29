@@ -405,6 +405,79 @@ Workstreams
     no hit-loss, no newly-missing evidence regressions, and no negative recall
     deltas. This is kept partial repair only: the full diagnostic remains
     recall-limited and noisy.
+  - writing-journey event-order repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-writing-journey-current-20260524T081500Z`
+    reaches full rules-only evidence-chat recall 0.474426559356137 with
+    `executionFailures: 0`, missed-recall cases 237/355, and
+    wrong-recall/noise 371/400. The kept selector repair is scoped to broad
+    writing-journey source-order prompts. It selects the Michael script-editing
+    tips, first-draft confidence shift, workshop nerves, workshop feedback, and
+    revision-plan facets while excluding self-editing, book, tool, deadline,
+    schedule, festival, and final-draft distractors. Compared with the
+    movie-event run, global hit ids improve 453 -> 458, missing ids
+    641 -> 636, noise ids 2804 -> 2781, missed-recall cases 238 -> 237,
+    wrong-recall/noise cases 372 -> 371, and zero-recall cases 113 -> 112.
+    Target `10:event_ordering:1` rises 0 -> 1.0 by returning
+    6/82/182/238/84 and removing 25 noise ids. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. This is kept partial repair only: the full diagnostic remains
+    recall-limited and noisy.
+  - professional-preparation event-order repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-five-tight-current-20260529T151000Z`
+    reaches full rules-only evidence-chat recall 0.4772434607645877 with
+    `executionFailures: 0`, missed-recall cases 236/355, and
+    wrong-recall/noise 370/400. The kept selector repair is scoped to broad
+    professional-connections/preparation source-order prompts. It selects the
+    Leslie networking mentor, Laura/HR cover-letter feedback, storytelling
+    interview preparation, employee-handbook review, and July 25 workshop
+    presentation facets while excluding cover-letter schedule/draft/anecdote
+    noise, repeated cover-letter feedback, public-speaking confidence,
+    handbook-policy, Zoom/senior-producer, and workshop-logistics distractors.
+    Compared with the writing-journey run, global hit ids improve
+    458 -> 463, missing ids 636 -> 631, noise ids 2781 -> 2751,
+    missed-recall cases 237 -> 236, wrong-recall/noise cases 371 -> 370,
+    and zero-recall cases 112 -> 111. Target `8:event_ordering:2` rises
+    0 -> 1.0 by returning exactly 6/56/114/172/226 and removing 26 noise ids.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+  - professional-preparation summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-professional-prep-summary-refactor-current-20260529T162000Z`
+    reaches full rules-only evidence-chat recall 0.48006036217303844 with
+    `executionFailures: 0`, missed-recall cases 235/355, and
+    wrong-recall/noise 369/400. The kept selector repair is scoped to broad
+    professional-preparation summary prompts. It selects Leslie networking,
+    cover-letter single-column formatting, storytelling interview preparation,
+    employee-handbook review, and workshop presentation anchors with adjacent
+    assistant guidance while excluding CTA, mock-session confidence,
+    calendar/travel, producer-follow-up, and logistics distractors. Compared
+    with the professional-preparation event-order run, global hit ids improve
+    463 -> 473, missing ids 631 -> 621, noise ids 2751 -> 2742,
+    missed-recall cases 236 -> 235, wrong-recall/noise cases 370 -> 369,
+    and zero-recall cases 111 -> 110. Target `8:summarization:2` rises
+    0 -> 1.0 by returning exactly 6/7/78/79/114/115/172/173/226/227 and
+    removing 12 noise ids. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. This is
+    kept partial repair only: the full diagnostic remains recall-limited and
+    noisy.
+  - probability-concepts summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-summary-current-20260529T174000Z`
+    reaches full rules-only evidence-chat recall 0.48287726358148914 with
+    `executionFailures: 0`, missed-recall cases 234/355, and
+    wrong-recall/noise 368/400. The kept selector repair is scoped to broad
+    probability-concepts development summaries. It starts at the
+    birthday-paradox permutation milestone, keeps conditional aces,
+    complement-rule examples, direct/complement counting, and mutual-
+    exclusivity milestones, and excludes early paint/ratio/coin/dice
+    probability basics plus generic conditional-probability distractors.
+    Compared with the professional-preparation summary run, global hit ids
+    improve 473 -> 483, missing ids 621 -> 611, noise ids 2742 -> 2727,
+    missed-recall cases 235 -> 234, wrong-recall/noise cases 369 -> 368, and
+    zero-recall cases 110 -> 109. Target `5:summarization:2` rises 0 -> 1.0
+    by returning exactly 140/141/146/149/151/153/155/156/180/181 and removing
+    15 noise ids. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This is kept partial
+    repair only: the full diagnostic remains recall-limited and noisy.
 
 
 Current Boundary
@@ -471,7 +544,24 @@ Current Boundary
   current evidence-chat recall to 0.4716096579476863 with 238 missed-recall
   cases and wrong-recall/noise 372/400, recovering `14:summarization:1` and
   `14:event_ordering:2` to 1.0 without hit-loss, newly-missing evidence
-  regressions, or negative recall deltas.
+  regressions, or negative recall deltas. The latest writing-journey
+  event-order repair raises current evidence-chat recall to 0.474426559356137
+  with 237 missed-recall cases and wrong-recall/noise 371/400, recovering
+  `10:event_ordering:1` to 1.0 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The latest professional-preparation
+  event-order repair raises current evidence-chat recall to 0.4772434607645877
+  with 236 missed-recall cases and wrong-recall/noise 370/400, recovering
+  `8:event_ordering:2` to 1.0 without target noise, hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The latest
+  professional-preparation summary repair raises current evidence-chat recall
+  to 0.48006036217303844 with 235 missed-recall cases and wrong-recall/noise
+  369/400, recovering `8:summarization:2` to 1.0 without target noise,
+  hit-loss, newly-missing evidence regressions, or negative recall deltas. The
+  latest probability-concepts summary repair raises current evidence-chat
+  recall to 0.48287726358148914 with 234 missed-recall cases and
+  wrong-recall/noise 368/400, recovering `5:summarization:2` to 1.0 without
+  target noise, hit-loss, newly-missing evidence regressions, or negative
+  recall deltas.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

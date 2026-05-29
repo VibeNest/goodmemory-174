@@ -242,7 +242,8 @@ function sourceOrderedValueUpdateKind(
   if (
     /\b(?:budget|cost|price|amount|spend|paid|dollars?|\$)\b/iu.test(query) &&
     /\b(?:current(?:ly)?|latest|new|now|updated?|budget|plan(?:ning)?|should)\b/iu.test(query) &&
-    !/\b(?:across|compare|declined|difference|from\s+the\s+start|increase(?:d)?|sum|total|turned\s+down)\b/iu.test(query)
+    !/\b(?:across|compare|declined|difference|from\s+the\s+start|increase(?:d)?|sum|total|turned\s+down)\b/iu.test(query) &&
+    !/\b(?:freelance\s+contract|medical\s+bills?|savings?\s+goals?)\b/iu.test(query)
   ) {
     return "money";
   }
