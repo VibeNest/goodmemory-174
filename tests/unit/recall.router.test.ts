@@ -228,6 +228,19 @@ describe("recall router", () => {
     expect(plan.requestedSlots).toEqual([]);
   });
 
+  it("does not route role-did-the-mentor-play wording as an identity role slot", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "How did I come to consider attending that event, and what role did my mentor play in influencing my decision and preparation?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual([]);
+  });
+
   it("plans reference queries with next-step support without widening primary slots", () => {
     const plan = planRecall({
       retrievalProfile: "general_chat",

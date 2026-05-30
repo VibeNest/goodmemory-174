@@ -2123,7 +2123,7 @@ describe("release metadata and docs", () => {
         "utf8",
       );
       expect(codexHooksToml).toContain("[features]");
-      expect(codexHooksToml).toContain("codex_hooks = true");
+      expect(codexHooksToml).toContain("hooks = true");
       const codexRules = await readFile(
         join(workspaceRoot, "codex/rules/goodmemory.rules"),
         "utf8",

@@ -265,13 +265,13 @@ describe("host bootstrap", () => {
       expect(hooksToml).toContain("[profiles.default]");
       expect(hooksToml).toContain('sandbox = "workspace-write"');
       expect(hooksToml).toContain("[features]");
-      expect(hooksToml).toContain("codex_hooks = true");
+      expect(hooksToml).toContain("hooks = true");
     } finally {
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });
 
-  it("inserts codex_hooks after leading comments inside an existing [features] section", async () => {
+  it("inserts hooks after leading comments inside an existing [features] section", async () => {
     const workspaceRoot = await createWorkspace("goodmemory-host-bootstrap-commented-features-");
 
     try {
@@ -300,11 +300,11 @@ describe("host bootstrap", () => {
       const hooksToml = await readFile(join(workspaceRoot, ".codex/config.toml"), "utf8");
       expect(hooksToml).toContain("[features]");
       expect(hooksToml).toContain("# keep this comment");
-      expect(hooksToml).toContain("codex_hooks = true");
-      expect(hooksToml.indexOf("codex_hooks = true")).toBeGreaterThan(
+      expect(hooksToml).toContain("hooks = true");
+      expect(hooksToml.indexOf("hooks = true")).toBeGreaterThan(
         hooksToml.indexOf("# keep this comment"),
       );
-      expect(hooksToml.indexOf("codex_hooks = true")).toBeLessThan(
+      expect(hooksToml.indexOf("hooks = true")).toBeLessThan(
         hooksToml.indexOf("experimental_feature = true"),
       );
     } finally {

@@ -990,7 +990,7 @@ export async function runPhase35LiveMemoryEvaluation(
     const accepted =
       repoOptIn.enabled === true &&
       repoOptIn.workspaceId === PHASE35_WORKSPACE_ID &&
-      codexToml.includes("codex_hooks = true") &&
+      /^\s*(?:hooks|codex_hooks)\s*=\s*true\s*(?:#.*)?$/mu.test(codexToml) &&
       sessionStart.registeredCommandMatchesManagedConfig &&
       userPrompt.registeredCommandMatchesManagedConfig &&
       registeredMcpMatchesManagedConfig &&

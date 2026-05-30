@@ -384,7 +384,7 @@ describe("host install", () => {
         join(homeRoot, ".codex/config.toml"),
         [
           "[features]",
-          "codex_hooks = true",
+          "hooks = true",
           "",
           "[mcp_servers.context7]",
           'command = "npx"',
@@ -863,7 +863,7 @@ describe("host install", () => {
         join(homeRoot, ".codex/config.toml"),
         [
           "[features]",
-          "codex_hooks = true # goodmemory-managed-hooks",
+          "hooks = true # goodmemory-managed-hooks",
           "",
           "[mcp_servers.goodmemory]",
           'command = "goodmemory-mcp"',
@@ -1188,7 +1188,7 @@ describe("host install", () => {
         { action: "updated", relativePath: ".codex/hooks.json" },
         { action: "updated", relativePath: ".codex/config.toml" },
       ]);
-      expect(codexConfig).toContain("codex_hooks = true");
+      expect(codexConfig).toContain("hooks = true");
       expect(codexConfig).not.toContain("# goodmemory-managed-hooks");
       expect(codexConfig).not.toContain("[mcp_servers.goodmemory]");
       expect(hooksConfig.hooks.SessionStart).toEqual([
@@ -1339,7 +1339,7 @@ describe("host install", () => {
         },
       ]);
       expect(hooksConfig.hooks).not.toHaveProperty("UserPromptSubmit");
-      expect(codexConfig).toContain("codex_hooks = true");
+      expect(codexConfig).toContain("hooks = true");
       expect(codexConfig).not.toContain("# goodmemory-managed-hooks");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
@@ -1482,10 +1482,12 @@ describe("host install", () => {
   });
 
   it("treats disable on a pristine workspace as a no-op", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-disable-pristine-home-");
     const workspaceRoot = await createWorkspace("goodmemory-host-disable-pristine-");
 
     try {
       const disabled = await disableHostWorkspace({
+        homeRoot,
         host: "codex",
         workspaceRoot,
       });
@@ -1495,6 +1497,7 @@ describe("host install", () => {
         { action: "unchanged", relativePath: "AGENTS.md" },
       ]);
     } finally {
+      await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });

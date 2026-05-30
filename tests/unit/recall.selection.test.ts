@@ -3101,6 +3101,110 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-senior-producer-role-noise")?.returned).toBe(false);
   });
 
+  it("keeps mentor workshop decision and preparation evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-18",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder: 1000 + sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-greg-session-noise",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I'm preparing for Greg's April 2 coaching session and need to decide what agenda to bring.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-user",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] I'm thinking of attending the March 15 workshop on workflow optimization at East Janethaven Media Center, which Patrick, my 79-year-old senior producer mentor, suggested, but I'm not sure if it's worth taking time off from my current projects.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-assistant",
+        31,
+        "[BEAM chat_id=31 role=assistant time=unknown] Attending a workshop on workflow optimization can be a valuable investment if it provides insights and tools that help manage current projects more efficiently, while reviewing deadlines, team coverage, the agenda, and Patrick's input.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-decision",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I think the workshop could be really beneficial, especially since Patrick suggested it. I'll review the agenda, check for critical deadlines, and talk to my team about delegating tasks while I'm away.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-decision-snippet",
+        32,
+        "I'll review the agenda and check if there are any critical deadlines coming up.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-prep",
+        33,
+        "[BEAM chat_id=33 role=assistant time=unknown] Prepare by reviewing the workshop agenda, assessing current project load, delegating tasks, consulting Patrick, and planning follow-up actions after the workflow optimization workshop.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-prep-snippet",
+        33,
+        "Taking the time to review the workshop agenda and assess your current project load will help you make an informed decision.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-confirmation",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] I'll review the agenda and check with my team about task delegation. I think it's worth it to invest in learning new techniques that could help me manage my workload better.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop-final-plan",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Final workshop preparation includes reviewing the agenda, assessing project load, communicating task delegation, sharing workshop findings, scheduling a follow-up meeting, and reaching out to Patrick for additional insights.",
+      ),
+      makeSourceFact(
+        "fact-burnout-workshop-noise",
+        38,
+        "[BEAM chat_id=38 role=user time=unknown] I'm stressed about burnout signs and wondering if the March 15 Workflow Optimization workshop at East Janethaven Media Center for $75 could help prevent burnout.",
+      ),
+      makeSourceFact(
+        "fact-later-patrick-noise",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] Patrick suggested progressive muscle relaxation after our April 3 meeting at Montserrat Studios.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I come to consider attending that event, and what role did my mentor play in influencing my decision and preparation?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-mentor-workshop-user",
+      "fact-mentor-workshop-assistant",
+      "fact-mentor-workshop-decision",
+      "fact-mentor-workshop-prep",
+      "fact-mentor-workshop-confirmation",
+      "fact-mentor-workshop-final-plan",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-mentor-workshop-decision-snippet")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-mentor-workshop-prep-snippet")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-burnout-workshop-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-later-patrick-noise")?.returned).toBe(false);
+  });
+
   it("keeps API endpoint project technologies for startup information questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3548,6 +3652,136 @@ describe("recall selection", () => {
     ]);
     expect(result.traces.find((trace) => trace.memoryId === "fact-poppy-war-pages-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-nightingale-series-noise")?.returned).toBe(false);
+  });
+
+  it("keeps kids school activity days evidence for temporal discrimination questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-17",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-kids-school-activity-days",
+        18,
+        "[BEAM chat_id=18 role=user time=unknown] I've got three kids, Emma, who's 11, Michelle, 12, and Rachel, 7, all attending East Janethaven Primary School with activities on Tuesdays and Thursdays, and I'm trying to figure out how to manage my time so I can attend.",
+      ),
+      makeSourceFact(
+        "fact-attend-activities-plan-noise",
+        19,
+        "[BEAM chat_id=19 role=assistant time=unknown] Managing time effectively while ensuring you can attend your children's school activities is crucial for supporting their development.",
+      ),
+      makeSourceFact(
+        "fact-work-hours-noise",
+        49,
+        "[BEAM chat_id=49 role=assistant time=unknown] Reducing your work hours from 50 to 40 by July is a great goal.",
+      ),
+      makeSourceFact(
+        "fact-monthly-school-meetings-noise",
+        163,
+        "[BEAM chat_id=163 role=assistant time=unknown] Negotiating to attend only monthly meetings with Rachel's school is a reasonable compromise.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Which days did I say my kids have their afterschool activities at their school?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-kids-school-activity-days",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-attend-activities-plan-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-monthly-school-meetings-noise")?.returned).toBe(false);
+  });
+
+  it("keeps print book budget planning evidence for spending-balance questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-13",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-print-book-budget-user",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] I've allocated $120 for book purchases this winter and I'm looking to buy print editions from Montserrat Books on Main Street, can you suggest some must-read fiction series that fit my budget?",
+      ),
+      makeSourceFact(
+        "fact-print-book-budget-advice",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Absolutely! With a budget of $120 for print editions from Montserrat Books on Main Street, you can find some great must-read fiction series that should fit within your budget and provide a variety of choices.",
+      ),
+      makeSourceFact(
+        "fact-thursday-murder-club-noise",
+        173,
+        "[BEAM chat_id=173 role=assistant time=unknown] You're very welcome! \"The Thursday Murder Club\" by Richard Osman is an excellent choice for unwinding after your morning meditation.",
+      ),
+      makeSourceFact(
+        "fact-outlander-noise",
+        177,
+        "[BEAM chat_id=177 role=assistant time=unknown] You're very welcome! \"The Outlander Series\" by Diana Gabaldon is an excellent choice for deepening your bond with your partner.",
+      ),
+      makeSourceFact(
+        "fact-dune-noise",
+        181,
+        "[BEAM chat_id=181 role=assistant time=unknown] You're very welcome! \"The Dune Series\" by Frank Herbert is an excellent choice for exploring complex political intrigue and ecological themes.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did you help me balance my spending to get a variety of print books while staying within my set limits?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-print-book-budget-user",
+      "fact-print-book-budget-advice",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-thursday-murder-club-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-outlander-noise")?.returned).toBe(false);
   });
 
   it("prefers the latest shared grocery-list method evidence over stale paper-list evidence", () => {

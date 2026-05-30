@@ -168,7 +168,7 @@ describe("run-phase-34 live-memory script", () => {
               );
               await writeFile(
                 join(workspaceRoot, ".codex/config.toml"),
-                "[features]\ncodex_hooks = true\n",
+                "[features]\nhooks = true\n",
                 "utf8",
               );
               await writeFile(

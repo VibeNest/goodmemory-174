@@ -103,7 +103,7 @@ const CODEX_PRE_TOOL_USE_COMMAND =
   '/bin/sh -lc \'ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; /usr/bin/env bun "$ROOT/.goodmemory/bootstrap/codex-action.mjs" --hook-pre-tool-use\'';
 const CODEX_PRE_TOOL_USE_STATUS = "Checking GoodMemory pre-action policy";
 const CODEX_HOOKS_FEATURE_HEADER = "[features]";
-const CODEX_HOOKS_FEATURE_FLAG = "codex_hooks = true";
+const CODEX_HOOKS_FEATURE_FLAG = "hooks = true";
 
 export async function bootstrapHostWorkspace(
   input: BootstrapHostWorkspaceInput,
@@ -297,7 +297,7 @@ function isTomlSectionHeader(line: string): boolean {
 }
 
 function isCodexHooksFeatureLine(line: string): boolean {
-  return /^\s*codex_hooks\s*=\s*(?:true|false)\s*(?:#.*)?$/u.test(line);
+  return /^\s*(?:hooks|codex_hooks)\s*=\s*(?:true|false)\s*(?:#.*)?$/u.test(line);
 }
 
 function mergeCodexHooksToml(existing: string | null): string {

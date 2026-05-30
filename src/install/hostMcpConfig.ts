@@ -461,7 +461,7 @@ function isManagedCodexMcpBlock(
   host: InstalledHostKind,
 ): boolean {
   const argsPattern = new RegExp(
-    `^\\s*args\\s*=\\s*\\["--host",\\s*${escapeRegex(renderTomlString(host))}\\]\\s*(?:#.*)?$`,
+    `^\\s*args\\s*=\\s*\\[\\s*"--host"\\s*,\\s*${escapeRegex(renderTomlString(host))}\\s*\\]\\s*(?:#.*)?$`,
     "u",
   );
 

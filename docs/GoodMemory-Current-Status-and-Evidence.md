@@ -462,7 +462,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     regressions, and no negative recall deltas; three unrelated noisy cases add
     one net noise each, but global noise still decreases. This remains a
     partial repair: the full 100K diagnostic is still recall-limited and noisy.
-  - latest same-source parents distance/town information-extraction repair
+  - same-source parents distance/town information-extraction repair
     diagnostic
     `run-phase63-beam-100k-recall-diagnostic-rules-parents-distance-town-current-20260530T140000Z`
     has `executionFailures: 0`, evidence-chat recall 0.5245674044265595,
@@ -481,6 +481,83 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     unrelated abstention case adds one noise id, but global noise still
     decreases. This remains a partial repair: the full 100K diagnostic is still
     recall-limited and noisy.
+  - same-source reading-list count/page-total information-extraction
+    repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-reading-list-count-pages-current-20260530T150000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.5273843058350102,
+    missed-recall cases 218/355, and wrong-recall/noise cases 354/400. It
+    raises global hit evidence ids 536 -> 537, missing ids 558 -> 557, noise
+    ids 2637 -> 2630, and zero-recall cases 95 -> 94. The repair extends
+    source-ordered information-extraction selection to reading-list count and
+    page-total questions such as "How many series did I say were on my reading
+    list, and what was the total page count?", preserving the source turn that
+    says the reading list has 7 series including The Stormlight Archive and The
+    Expanse totaling 4,200 pages while blocking Poppy War, Witcher, Nightingale,
+    and generic book-series distractors. Target `13:information_extraction:1`
+    moves from 0 to 1.0 by returning exactly 26 with no target noise and
+    removing previous target noise 154/214/284/124/236/60. Case-delta analysis
+    shows no hit-loss, no newly-missing evidence regressions, and no negative
+    recall deltas; one unrelated knowledge-update case adds one net noise id,
+    but global noise still decreases. This remains a partial repair: the full
+    100K diagnostic is still recall-limited and noisy.
+  - same-source kids activity-days information-extraction repair
+    diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-kids-activity-days-current-20260530T160000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.5302012072434609,
+    missed-recall cases 217/355, and wrong-recall/noise cases 353/400. It
+    raises global hit evidence ids 537 -> 538, missing ids 557 -> 556, noise
+    ids 2630 -> 2626, and zero-recall cases 94 -> 93. The repair extends
+    source-ordered information-extraction selection to school activity-day
+    questions such as "Which days did I say my kids have their afterschool
+    activities at their school?", preserving the source turn that says Emma,
+    Michelle, and Rachel attend East Janethaven Primary School with activities
+    on Tuesdays and Thursdays while blocking adjacent time-management,
+    work-hours, and monthly-school-meeting distractors. Target
+    `17:information_extraction:1` moves from 0 to 1.0 by returning exactly 18
+    with no target noise and removing previous target noise
+    19/49/163/168/169/233/264/265. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas; four
+    unrelated event-ordering cases add five net noise ids, but global noise
+    still decreases. This remains a partial repair: the full 100K diagnostic
+    is still recall-limited and noisy.
+  - same-source print-book budget information-extraction repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-print-book-budget-current-20260530T170000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.5339570757880617,
+    missed-recall cases 216/355, and wrong-recall/noise cases 352/400. It
+    raises global hit evidence ids 538 -> 541, missing ids 556 -> 553, noise
+    ids 2626 -> 2618, and zero-recall cases 93 -> 91. The repair extends
+    source-ordered information-extraction selection to print-book budget
+    planning questions such as "How did you help me balance my spending to get
+    a variety of print books while staying within my set limits?", preserving
+    the source pair that says the user allocated $120 for print editions from
+    Montserrat Books on Main Street and the assistant suggested budget-fitting
+    fiction series while blocking completed-series and generic book-recommendation
+    distractors. Target `13:information_extraction:2` moves from 0 to 1.0 by
+    returning exactly 34/35 with no target noise and removing previous target
+    noise 173/177/181/58/62/306/59/188/189. The same run also recovers chat 34
+    for `13:multi_session_reasoning:1` without adding noise. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas; three non-target cases add one net noise id each,
+    but global noise still decreases. This remains a partial repair: the full
+    100K diagnostic is still recall-limited and noisy.
+  - latest same-source Patrick workshop preparation information-extraction
+    repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-patrick-workshop-prep-router-dedupe-current-20260530T190000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.5367739771965124,
+    missed-recall cases 215/355, and wrong-recall/noise cases 352/400. It
+    raises global hit evidence ids 541 -> 547, missing ids 553 -> 547, noise
+    ids 2618 -> 2616, and zero-recall cases 91 -> 90. The repair prevents
+    `role did ... play` wording from triggering identity-role slot selection
+    and dedupes BEAM source snippets by chat id for Patrick workshop
+    preparation questions. Target `18:information_extraction:2` moves from 0
+    to 1.0 by returning exactly 30/31/32/33/34/35 with no target noise.
+    Information-extraction rises to average recall 0.6125 with +6 hit ids, -6
+    missing ids, unchanged noise 133, one fewer incomplete case, and one fewer
+    zero-recall case. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas; one non-target
+    preference case adds one noise id, but global noise still decreases. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

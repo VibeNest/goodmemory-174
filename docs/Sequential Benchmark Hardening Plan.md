@@ -760,6 +760,83 @@ and no negative recall deltas. One unrelated abstention case adds one noise id,
 but global noise still decreases. This remains partial BEAM progress, not
 closure: 219 evidence cases still miss and the full diagnostic remains noisy
 at wrong-recall/noise 355/400.
+The next same-source pass fixes a reading-list count/page-total extraction case
+where completed-series and library-book distractors displaced the source turn
+that stated the original reading-list size. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-reading-list-count-pages-current-20260530T150000Z`
+compares against the parents distance/town run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5245674044265595 to
+0.5273843058350102, with global hit evidence ids 536 -> 537, missing ids
+558 -> 557, noise ids 2637 -> 2630, missed-recall cases 219 -> 218,
+wrong-recall/noise cases 355 -> 354, and zero-recall cases 95 -> 94.
+Information-extraction improves by +1 hit id, -1 missing id, seven fewer
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; target `13:information_extraction:1` moves from
+0 to 1.0 by returning exactly 26 with no target noise and removing
+154/214/284/124/236/60 from the target retrieval. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas. One
+unrelated knowledge-update case adds one net noise id, but global noise still
+decreases. This remains partial BEAM progress, not closure: 218 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise 354/400.
+The next same-source pass fixes a kids activity-days extraction case where
+adjacent time-management, work-hours, and monthly-school-meeting distractors
+displaced the source turn that stated the school activity days. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-kids-activity-days-current-20260530T160000Z`
+compares against the reading-list count/page-total run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5273843058350102 to 0.5302012072434609, with global hit evidence ids
+537 -> 538, missing ids 557 -> 556, noise ids 2630 -> 2626, missed-recall
+cases 218 -> 217, wrong-recall/noise cases 354 -> 353, and zero-recall cases
+94 -> 93. Information-extraction improves by +1 hit id, -1 missing id, eight
+fewer noise ids, one fewer incomplete case, one fewer zero-recall case, and
+one fewer wrong-recall/noise case; target `17:information_extraction:1` moves
+from 0 to 1.0 by returning exactly 18 with no target noise and removing
+19/49/163/168/169/233/264/265 from the target retrieval. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas.
+Four unrelated event-ordering cases add five net noise ids, but global noise
+still decreases. This remains partial BEAM progress, not closure: 217 evidence
+cases still miss and the full diagnostic remains noisy at wrong-recall/noise
+353/400.
+The next same-source pass fixes a print-book budget extraction case where
+completed-series and generic book-recommendation distractors displaced the
+source budget-planning pair. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-print-book-budget-current-20260530T170000Z`
+compares against the kids activity-days run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5302012072434609 to 0.5339570757880617,
+with global hit evidence ids 538 -> 541, missing ids 556 -> 553, noise ids
+2626 -> 2618, missed-recall cases 217 -> 216, wrong-recall/noise cases
+353 -> 352, and zero-recall cases 93 -> 91. Information-extraction improves
+by +2 hit ids, -2 missing ids, eight fewer noise ids, one fewer incomplete
+case, one fewer zero-recall case, and one fewer wrong-recall/noise case; target
+`13:information_extraction:2` moves from 0 to 1.0 by returning exactly 34/35
+with no target noise and removing 173/177/181/58/62/306/59/188/189 from the
+target retrieval. The same run recovers chat 34 for
+`13:multi_session_reasoning:1` and removes one noise id there. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas. Three non-target cases add one net noise id each, but global noise
+still decreases. This remains partial BEAM progress, not closure: 216 evidence
+cases still miss and the full diagnostic remains noisy at wrong-recall/noise
+352/400.
+The next same-source pass fixes a Patrick workshop preparation extraction case
+where `role did ... play` wording was routed as an identity-role slot query and
+duplicate snippet facts displaced the source workshop decision/preparation
+sequence. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-patrick-workshop-prep-router-dedupe-current-20260530T190000Z`
+compares against the print-book budget run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5339570757880617 to 0.5367739771965124,
+with global hit evidence ids 541 -> 547, missing ids 553 -> 547, noise ids
+2618 -> 2616, missed-recall cases 216 -> 215, wrong-recall/noise cases
+unchanged at 352/400, and zero-recall cases 91 -> 90. Information-extraction
+improves by +6 hit ids, -6 missing ids, unchanged noise 133, one fewer
+incomplete case, and one fewer zero-recall case; average information-extraction
+recall rises 0.5875 -> 0.6125. Target `18:information_extraction:2` moves from
+0 to 1.0 by returning exactly 30/31/32/33/34/35 with no target noise.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas. One non-target preference case adds one noise id, but
+global noise still decreases. This remains partial BEAM progress, not closure:
+215 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 352/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

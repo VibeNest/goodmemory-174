@@ -15,8 +15,10 @@ const GOODMEMORY_HOOK_PRE_TOOL_USE_MATCHER = "Bash";
 const GOODMEMORY_CODEX_HOOKS_FEATURE_COMMENT = "# goodmemory-managed-hooks";
 const GOODMEMORY_CODEX_HOOKS_SECTION_COMMENT = "# goodmemory-managed-hooks-section";
 const GOODMEMORY_CODEX_HOOKS_FEATURE_LINE =
+  `hooks = true ${GOODMEMORY_CODEX_HOOKS_FEATURE_COMMENT}`;
+const GOODMEMORY_CODEX_HOOKS_FEATURE_PLAIN_LINE = "hooks = true";
+const LEGACY_GOODMEMORY_CODEX_HOOKS_FEATURE_LINE =
   `codex_hooks = true ${GOODMEMORY_CODEX_HOOKS_FEATURE_COMMENT}`;
-const GOODMEMORY_CODEX_HOOKS_FEATURE_PLAIN_LINE = "codex_hooks = true";
 
 interface ManagedHookSpec {
   command: string;
@@ -307,7 +309,7 @@ async function inspectCodexHooksFeatureRegistration(homeRoot: string): Promise<{
       if (featureValue === false) {
         throw buildInvalidHostHookConfigError(
           target.relativePath,
-          "`[features].codex_hooks` is explicitly disabled",
+          "`[features].hooks` is explicitly disabled",
         );
       }
       sawEnabled = true;
@@ -729,7 +731,7 @@ function mergeCodexHookFeature(
     if (featureValue === false) {
       throw buildInvalidHostHookConfigError(
         relativePath,
-        "`[features].codex_hooks` is explicitly disabled",
+        "`[features].hooks` is explicitly disabled",
       );
     }
     updatedFeatureBody.push(line);
@@ -861,7 +863,7 @@ function isTomlSectionHeader(line: string): boolean {
 }
 
 function parseCodexHooksFeatureValue(line: string): boolean | null {
-  const match = /^\s*codex_hooks\s*=\s*(true|false)\s*(?:#.*)?$/u.exec(line);
+  const match = /^\s*(?:hooks|codex_hooks)\s*=\s*(true|false)\s*(?:#.*)?$/u.exec(line);
   if (!match) {
     return null;
   }
@@ -869,7 +871,11 @@ function parseCodexHooksFeatureValue(line: string): boolean | null {
 }
 
 function isManagedCodexHooksFeatureLine(line: string): boolean {
-  return line.trim() === GOODMEMORY_CODEX_HOOKS_FEATURE_LINE;
+  const trimmed = line.trim();
+  return (
+    trimmed === GOODMEMORY_CODEX_HOOKS_FEATURE_LINE ||
+    trimmed === LEGACY_GOODMEMORY_CODEX_HOOKS_FEATURE_LINE
+  );
 }
 
 function isManagedCodexHooksSectionComment(line: string): boolean {

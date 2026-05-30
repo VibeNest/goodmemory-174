@@ -1192,7 +1192,7 @@ describe("goodmemory cli host bootstrap", () => {
       expect(hooksConfig).toContain("codex-action.mjs");
       const hooksToml = await readFile(join(workspace.root, ".codex/config.toml"), "utf8");
       expect(hooksToml).toContain("[features]");
-      expect(hooksToml).toContain("codex_hooks = true");
+      expect(hooksToml).toContain("hooks = true");
       const rulesFile = await readFile(
         join(workspace.root, "codex/rules/goodmemory.rules"),
         "utf8",
@@ -1353,7 +1353,7 @@ describe("goodmemory cli host bootstrap", () => {
       const hooksToml = await readFile(join(workspace.root, ".codex/config.toml"), "utf8");
       expect(hooksToml).toContain("[features]");
       expect(hooksToml).toContain("experimental_feature = true");
-      expect(hooksToml).toContain("codex_hooks = true");
+      expect(hooksToml).toContain("hooks = true");
       expect(hooksToml).toContain("[profiles.default]");
       expect(hooksToml).toContain('sandbox = "workspace-write"');
 
@@ -2026,7 +2026,7 @@ describe("goodmemory cli installed host config", () => {
           expect(config.storage.path).toBe(join(home.root, ".goodmemory/memory.sqlite"));
           const codexConfig = await readFile(join(home.root, ".codex/config.toml"), "utf8");
           expect(codexConfig).toContain('command = "goodmemory-mcp"');
-          expect(codexConfig).toContain("codex_hooks = true");
+          expect(codexConfig).toContain("hooks = true");
           expect(
             await readFile(join(home.root, ".codex/hooks.json"), "utf8"),
           ).toContain("UserPromptSubmit");
@@ -3382,6 +3382,124 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
+  it("recognizes Codex MCP registration with TOML-spaced managed args", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-spaced-mcp-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-spaced-mcp-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          await mkdir(join(home.root, ".codex"), { recursive: true });
+          await writeFile(
+            join(home.root, ".codex/config.toml"),
+            [
+              "[mcp_servers.goodmemory]",
+              'command = "goodmemory-mcp"',
+              'args = [ "--host", "codex" ]',
+              "",
+              "[mcp_servers.goodmemory.env]",
+              `GOODMEMORY_HOME = "${home.root}"`,
+              'GOODMEMORY_MANAGED_BY = "goodmemory"',
+              "",
+            ].join("\n"),
+            "utf8",
+          );
+
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              mcpRegistered: boolean;
+            }>;
+          };
+          expect(payload.hosts[0]?.mcpRegistered).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("recognizes the current Codex hooks feature flag as registered", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-current-hooks-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-current-hooks-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--activation-mode",
+            "global",
+            "--writeback",
+            "off",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const codexConfigPath = join(home.root, ".codex/config.toml");
+          const codexConfig = await readFile(codexConfigPath, "utf8");
+          await writeFile(
+            codexConfigPath,
+            codexConfig.replace(/hooks = true[^\n]*/u, "hooks = true"),
+            "utf8",
+          );
+
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "codex",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              hookRegistered: boolean;
+              preActionRegistered: boolean;
+            }>;
+          };
+          expect(payload.hosts[0]?.hookRegistered).toBe(true);
+          expect(payload.hosts[0]?.preActionRegistered).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
   it("repairs a missing Codex hook feature without rewriting installed config", async () => {
     const home = await createTempWorkspace("goodmemory-repair-feature-home");
     const workspace = await createTempWorkspace("goodmemory-repair-feature-workspace");
@@ -3413,7 +3531,7 @@ describe("goodmemory cli installed host config", () => {
             codexConfigPath,
             codexConfig
               .split("\n")
-              .filter((line) => !line.includes("codex_hooks"))
+              .filter((line) => !line.includes("hooks"))
               .join("\n"),
             "utf8",
           );
@@ -3456,7 +3574,7 @@ describe("goodmemory cli installed host config", () => {
           );
           expect(repair.exitCode).toBe(0);
           const repairedConfig = await readFile(codexConfigPath, "utf8");
-          expect(repairedConfig).toContain("codex_hooks = true");
+          expect(repairedConfig).toContain("hooks = true");
           await expect(readFile(globalConfigPath, "utf8")).resolves.toBe(
             globalConfigBeforeRepair,
           );
@@ -3517,7 +3635,7 @@ describe("goodmemory cli installed host config", () => {
           const codexConfig = await readFile(codexConfigPath, "utf8");
           await writeFile(
             codexConfigPath,
-            codexConfig.replace(/codex_hooks = true[^\n]*/u, "codex_hooks = false"),
+            codexConfig.replace(/hooks = true[^\n]*/u, "hooks = false"),
             "utf8",
           );
 
@@ -3543,7 +3661,7 @@ describe("goodmemory cli installed host config", () => {
             "goodmemory repair codex",
           );
           expect(doctorPayload.hosts[0]?.warnings.join("\n")).toContain(
-            "codex_hooks",
+            "hooks",
           );
 
           const repair = await withCwd(workspace.root, async () =>
@@ -3620,6 +3738,61 @@ describe("goodmemory cli installed host config", () => {
           expect(payload.hosts.map((host) => host.host).sort()).toEqual(["claude", "codex"]);
           expect(payload.hosts.every((host) => host.activationMode === "global")).toBe(true);
           expect(payload.hosts.every((host) => host.writeback.mode === "selective")).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("shows provider configuration in setup human output", async () => {
+    const home = await createTempWorkspace("goodmemory-setup-provider-output-home");
+    const workspace = await createTempWorkspace("goodmemory-setup-provider-output-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const result = await withCwd(workspace.root, async () =>
+            runCLI([
+              "setup",
+              "--host",
+              "codex",
+              "--writeback",
+              "observe",
+              "--no-interactive",
+              "--embedding-provider",
+              "openai",
+              "--embedding-model",
+              "openai/text-embedding-3-small",
+              "--embedding-api-key",
+              "embedding-secret",
+              "--embedding-base-url",
+              "https://embeddings.example/v1",
+              "--llm-provider",
+              "openai",
+              "--llm-model",
+              "openai/gpt-4o-mini",
+              "--llm-api-key",
+              "llm-secret",
+              "--llm-base-url",
+              "https://llm.example/v1",
+            ]),
+          );
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).not.toContain("embedding-secret");
+          expect(result.stdout).not.toContain("llm-secret");
+          expect(result.stdout).toContain(
+            "embedding provider: openai/text-embedding-3-small / custom base URL",
+          );
+          expect(result.stdout).toContain(
+            "LLM extraction provider: openai/gpt-4o-mini / custom base URL",
+          );
+          expect(result.stdout).not.toContain("openai / openai/");
         },
       );
     } finally {
@@ -3943,7 +4116,7 @@ describe("goodmemory cli installed host config", () => {
       );
       await writeFile(
         join(home.root, ".codex/config.toml"),
-        ["[features]", "codex_hooks = true", ""].join("\n"),
+        ["[features]", "hooks = true", ""].join("\n"),
         "utf8",
       );
 

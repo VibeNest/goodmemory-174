@@ -2212,6 +2212,10 @@ function renderSetupPayload(payload: {
     contextMode: InstalledHostContextMode;
     changes: Array<{ action: string; relativePath: string }>;
     host: InstalledHostKind;
+    providers?: {
+      assistedExtractor: InstalledProviderStatus;
+      embedding: InstalledProviderStatus;
+    };
     storage: { location: string; provider: string };
     writeback: InstalledHostWritebackConfig;
   }>;
@@ -2228,6 +2232,22 @@ function renderSetupPayload(payload: {
         "  - ",
       ),
     );
+    if (host.providers) {
+      lines.push(
+        `  - embedding provider: ${formatInstalledProviderStatus(host.providers.embedding)}`,
+      );
+      lines.push(
+        `  - LLM extraction provider: ${formatInstalledProviderStatus(host.providers.assistedExtractor)}`,
+      );
+      if (
+        !host.providers.embedding.configured ||
+        !host.providers.assistedExtractor.configured
+      ) {
+        lines.push(
+          "  - provider setup: rerun setup with --embedding-* / --llm-* flags or edit ~/.goodmemory/<host>.json",
+        );
+      }
+    }
     for (const change of host.changes) {
       lines.push(`  - ${change.relativePath} (${change.action})`);
     }
@@ -2387,10 +2407,17 @@ function formatInstalledProviderStatus(status: InstalledProviderStatus): string 
   if (!status.configured) {
     return "not configured (rules-only/local fallback remains available)";
   }
+  if (!status.provider || !status.model) {
+    return "configured (provider details unavailable)";
+  }
+
+  const providerPrefix = `${status.provider}/`;
+  const providerAndModel = status.model.startsWith(providerPrefix)
+    ? status.model
+    : `${status.provider} / ${status.model}`;
 
   return [
-    status.provider,
-    status.model,
+    providerAndModel,
     status.baseURLConfigured ? "custom base URL" : undefined,
   ]
     .filter((part): part is string => Boolean(part))
@@ -5168,16 +5195,21 @@ async function handleHostHook(
   command: InstalledHostHookCommand,
 ): Promise<CLICommandOutput> {
   const rawInput = await new Response(Bun.stdin.stream()).text();
+  if (rawInput.trim().length === 0) {
+    return {
+      json: {},
+      text: JSON.stringify({}, null, 2),
+    };
+  }
+
   let payload: Record<string, unknown> = {};
-  if (rawInput.trim().length > 0) {
-    try {
-      payload = JSON.parse(rawInput) as Record<string, unknown>;
-    } catch {
-      return {
-        json: {},
-        text: JSON.stringify({}, null, 2),
-      };
-    }
+  try {
+    payload = JSON.parse(rawInput) as Record<string, unknown>;
+  } catch {
+    return {
+      json: {},
+      text: JSON.stringify({}, null, 2),
+    };
   }
   const result = await executeInstalledHostHook({
     command,

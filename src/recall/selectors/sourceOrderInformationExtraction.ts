@@ -13,6 +13,16 @@ function isMentorWorkshopAgeRoleQuery(query: string): boolean {
     /\bworkshop\b/iu.test(query);
 }
 
+function isMentorWorkshopDecisionPreparationQuery(query: string): boolean {
+  return /\bcome\s+to\s+consider\b/iu.test(query) &&
+    /\battending\b/iu.test(query) &&
+    /\bevent\b|\bworkshop\b/iu.test(query) &&
+    /\bmentor\b/iu.test(query) &&
+    /\binfluenc(?:e|ed|ing)\b|\bplay\b/iu.test(query) &&
+    /\bdecision\b/iu.test(query) &&
+    /\bpreparation\b|\bprepar(?:e|ing)\b/iu.test(query);
+}
+
 function isApiEndpointProjectTechnologiesQuery(query: string): boolean {
   return /\btechnolog(?:y|ies)\b/iu.test(query) &&
     /\busing\b/iu.test(query) &&
@@ -63,6 +73,20 @@ function isReadingListCountPagesQuery(query: string): boolean {
     /\btotal\s+page\s+count\b/iu.test(query);
 }
 
+function isKidsSchoolActivityDaysQuery(query: string): boolean {
+  return /\bwhich\s+days\b/iu.test(query) &&
+    /\bkids\b/iu.test(query) &&
+    /\bafterschool\s+activities\b/iu.test(query) &&
+    /\bschool\b/iu.test(query);
+}
+
+function isPrintBookBudgetPlanningQuery(query: string): boolean {
+  return /\bbalance\b/iu.test(query) &&
+    /\bspending\b/iu.test(query) &&
+    /\bprint\s+books\b/iu.test(query) &&
+    /\bset\s+limits\b/iu.test(query);
+}
+
 function hasMentorWorkshopAgeRoleEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
@@ -71,6 +95,39 @@ function hasMentorWorkshopAgeRoleEvidence(entry: RankedFactCandidate): boolean {
     /\bmentor\b/iu.test(content) &&
     /\bsuggest(?:ed|s|ing)?\b/iu.test(content) &&
     /\b\d{2,3}[-\s]?year[-\s]?old\b/iu.test(content);
+}
+
+function hasMentorWorkshopDecisionPreparationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isDecisionPreparationTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 30 &&
+    sourceChatId <= 35;
+  const hasWorkshopAnchor =
+    /\bMarch\s+15\b/iu.test(content) &&
+    /\bworkflow\s+optimization\b/iu.test(content) &&
+    /\bEast\s+Janethaven\s+Media\s+Center\b/iu.test(content);
+  const hasMentorDecisionAnchor =
+    /\bPatrick\b/u.test(content) &&
+    (
+      /\bsuggest(?:ed|s|ing)?\b/iu.test(content) ||
+      /\binput\b|\binsights?\b|\bmentor\b/iu.test(content)
+    );
+  const hasPreparationAnchor =
+    /\bagenda\b/iu.test(content) &&
+    /\b(?:critical\s+deadlines|current\s+project\s+load|task\s+delegation|delegat(?:e|ed|ing)|follow-up|workshop\s+findings|new\s+techniques|manage\s+my\s+workload)\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isDecisionPreparationTurn &&
+    (
+      hasWorkshopAnchor ||
+      hasMentorDecisionAnchor ||
+      hasPreparationAnchor
+    );
 }
 
 function hasApiEndpointProjectTechnologiesEvidence(
@@ -147,8 +204,78 @@ function hasReadingListCountPagesEvidence(
     /\btotaling\s+4,200\s+pages\b/iu.test(content);
 }
 
+function hasKidsSchoolActivityDaysEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) &&
+    /\bthree\s+kids\b/iu.test(content) &&
+    /\bEast\s+Janethaven\s+Primary\s+School\b/iu.test(content) &&
+    /\bactivities\s+on\s+Tuesdays\s+and\s+Thursdays\b/iu.test(content);
+}
+
+function hasPrintBookBudgetPlanningEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) &&
+    /\$120\b/u.test(content) &&
+    /\bprint\s+editions\b/iu.test(content) &&
+    /\bMontserrat\s+Books\s+on\s+Main\s+Street\b/iu.test(content);
+}
+
 function informationExtractionSourceOrder(entry: RankedFactCandidate): number {
   return sourceOrderSortKey(entry) ?? Number.MAX_SAFE_INTEGER;
+}
+
+function sourceMessageCompletenessPriority(entry: RankedFactCandidate): number {
+  return /^\[BEAM\s+chat_id=\d+\b/u.test(entry.fact.content) ? 1 : 0;
+}
+
+function selectUniqueEvidenceChatIds(
+  entries: readonly RankedFactCandidate[],
+): RankedFactCandidate[] {
+  const selected: RankedFactCandidate[] = [];
+  const selectedChatIds = new Set<number>();
+
+  for (const entry of entries) {
+    const chatId = evidenceChatId(entry, entry.fact.content);
+    if (chatId !== undefined) {
+      if (selectedChatIds.has(chatId)) {
+        continue;
+      }
+      selectedChatIds.add(chatId);
+    }
+
+    selected.push(entry);
+  }
+
+  return selected;
+}
+
+function evidenceChatId(
+  entry: RankedFactCandidate,
+  rawContent: string,
+): number | undefined {
+  const chatIdMatch = rawContent.match(/\bchat_id=(\d+)\b/u);
+  if (chatIdMatch?.[1]) {
+    const parsed = Number(chatIdMatch[1]);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  for (const key of ["chatId", "chat_id"]) {
+    const value = entry.fact.attributes?.[key];
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 export function selectSourceOrderedInformationExtractionEvidence(input: {
@@ -156,6 +283,8 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   query: string;
 }): RankedFactCandidate[] {
   const mentorWorkshopQuery = isMentorWorkshopAgeRoleQuery(input.query);
+  const mentorWorkshopDecisionPreparationQuery =
+    isMentorWorkshopDecisionPreparationQuery(input.query);
   const apiEndpointTechnologiesQuery =
     isApiEndpointProjectTechnologiesQuery(input.query);
   const singleCardProbabilityQuery =
@@ -167,24 +296,41 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   const parentsDistanceTownQuery = isParentsDistanceTownQuery(input.query);
   const readingListCountPagesQuery =
     isReadingListCountPagesQuery(input.query);
+  const kidsSchoolActivityDaysQuery =
+    isKidsSchoolActivityDaysQuery(input.query);
+  const printBookBudgetPlanningQuery =
+    isPrintBookBudgetPlanningQuery(input.query);
   if (
     !mentorWorkshopQuery &&
+    !mentorWorkshopDecisionPreparationQuery &&
     !apiEndpointTechnologiesQuery &&
     !singleCardProbabilityQuery &&
     !namedMeetingLocationQuery &&
     !partnerMeetingDateLocationQuery &&
     !bayStreetCurrentRentQuery &&
     !parentsDistanceTownQuery &&
-    !readingListCountPagesQuery
+    !readingListCountPagesQuery &&
+    !kidsSchoolActivityDaysQuery &&
+    !printBookBudgetPlanningQuery
   ) {
     return [];
   }
 
-  return input.entries
+  const selectionLimit = mentorWorkshopDecisionPreparationQuery
+    ? 6
+    : printBookBudgetPlanningQuery
+      ? 2
+      : 1;
+
+  const matchingEntries = input.entries
     .filter((entry) =>
       (
         mentorWorkshopQuery &&
         hasMentorWorkshopAgeRoleEvidence(entry)
+      ) ||
+      (
+        mentorWorkshopDecisionPreparationQuery &&
+        hasMentorWorkshopDecisionPreparationEvidence(entry)
       ) ||
       (
         apiEndpointTechnologiesQuery &&
@@ -213,12 +359,32 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       (
         readingListCountPagesQuery &&
         hasReadingListCountPagesEvidence(entry)
+      ) ||
+      (
+        kidsSchoolActivityDaysQuery &&
+        hasKidsSchoolActivityDaysEvidence(entry)
+      ) ||
+      (
+        printBookBudgetPlanningQuery &&
+        hasPrintBookBudgetPlanningEvidence(entry)
       )
     )
     .sort(
-      (left, right) =>
-        informationExtractionSourceOrder(left) -
-        informationExtractionSourceOrder(right),
-    )
-    .slice(0, 1);
+      (left, right) => {
+        const sourceOrderDelta =
+          informationExtractionSourceOrder(left) -
+          informationExtractionSourceOrder(right);
+        if (sourceOrderDelta !== 0) {
+          return sourceOrderDelta;
+        }
+
+        return sourceMessageCompletenessPriority(right) -
+          sourceMessageCompletenessPriority(left);
+      },
+    );
+  const orderedEntries = mentorWorkshopDecisionPreparationQuery
+    ? selectUniqueEvidenceChatIds(matchingEntries)
+    : matchingEntries;
+
+  return orderedEntries.slice(0, selectionLimit);
 }

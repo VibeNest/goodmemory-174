@@ -305,7 +305,8 @@ export function createLanguageService(
         /\brole\b/iu.test(query) &&
         (
           /\b(?:application|deadline|submitting|submission)\b/iu.test(query) ||
-          /\b(?:age\s+and\s+role\s+of|role\s+of\s+the\s+mentor)\b/iu.test(query)
+          /\b(?:age\s+and\s+role\s+of|role\s+of\s+the\s+mentor)\b/iu.test(query) ||
+          /\brole\s+did\b[\s\S]{0,120}\bplay\b/iu.test(query)
         )
       ) {
         return false;
