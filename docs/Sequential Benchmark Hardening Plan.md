@@ -620,6 +620,146 @@ analysis shows no hit-loss, no newly-missing evidence, and no negative recall
 deltas. This remains partial BEAM progress, not closure: 227 evidence cases
 still miss and the full diagnostic remains noisy at wrong-recall/noise
 361/400.
+The next same-source pass fixes a deadline/application date-update case where
+`senior producer role` was over-routed into the identity-role slot. The
+accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-deadline-application-update-current-20260530T070000Z`
+compares against the AI hiring compliance run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5020321931589539 to
+0.5048490945674046, with global hit evidence ids 527 -> 529, missing ids
+567 -> 565, noise ids 2671 -> 2676, missed-recall cases 227 -> 226,
+wrong-recall/noise cases unchanged at 361, and zero-recall cases 103 -> 102.
+Knowledge-update improves by +2 hit ids, -2 missing ids, one fewer incomplete
+case, and one fewer zero-recall case; target `18:knowledge_update:2` moves
+from 0 to 1.0 by returning exactly 170/182 with no target noise. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas. This remains partial BEAM progress, not closure: 226 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise
+361/400.
+The next same-source pass fixes an information-extraction case where "age and
+role of the mentor" was over-routed into the identity-role slot and then
+widened by same-session direct-factual companions. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-mentor-role-routing-current-20260530T080000Z`
+compares against the deadline/application run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5048490945674046 to
+0.5076659959758553, with global hit evidence ids 529 -> 530, missing ids
+565 -> 564, noise ids 2676 -> 2670, missed-recall cases 226 -> 225,
+wrong-recall/noise cases unchanged at 361, and zero-recall cases 102 -> 101.
+Information-extraction improves by +1 hit id, -1 missing id, one fewer
+incomplete case, one fewer zero-recall case, and one fewer noise id; target
+`18:information_extraction:1` moves from 0 to 1.0 by returning exactly 30 with
+no target noise. Case-delta analysis shows no hit-loss, no newly-missing
+evidence, and no negative recall deltas. This remains partial BEAM progress,
+not closure: 225 evidence cases still miss and the full diagnostic remains
+noisy at wrong-recall/noise 361/400.
+The next same-source pass fixes an API endpoint technology extraction case
+where generic project/API matches displaced the source turn that named the
+startup technologies. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-api-endpoint-technologies-current-20260530T090000Z`
+compares against the mentor age/role run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5076659959758553 to 0.510482897384306,
+with global hit evidence ids 530 -> 531, missing ids 564 -> 563, noise ids
+2670 -> 2666, missed-recall cases 225 -> 224, wrong-recall/noise cases
+361 -> 360, and zero-recall cases 101 -> 100. Information-extraction improves
+by +1 hit id, -1 missing id, five fewer noise ids, one fewer incomplete case,
+one fewer zero-recall case, and one fewer wrong-recall/noise case; target
+`2:information_extraction:1` moves from 0 to 1.0 by returning exactly 10 with
+no target noise and removing 70/186/50/183/58 from the target retrieval. Case
+delta analysis shows no hit-loss, no newly-missing evidence, and no negative
+recall deltas. This remains partial BEAM progress, not closure: 224 evidence
+cases still miss and the full diagnostic remains noisy at wrong-recall/noise
+360/400.
+The next same-source pass fixes a single-card probability extraction case where
+deck and conditional-probability distractors displaced the earlier source turn
+that stated the probability before the later two-card discussion. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-single-card-probability-current-20260530T100000Z`
+compares against the API endpoint technologies run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.510482897384306 to
+0.5132997987927567, with global hit evidence ids 531 -> 532, missing ids
+563 -> 562, noise ids 2666 -> 2662, missed-recall cases 224 -> 223,
+wrong-recall/noise cases 360 -> 359, and zero-recall cases 100 -> 99.
+Information-extraction improves by +1 hit id, -1 missing id, six fewer noise
+ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; target `5:information_extraction:2` moves from 0 to
+1.0 by returning exactly 32 with no target noise and removing
+58/134/64/234/72/70 from the target retrieval. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas. This
+remains partial BEAM progress, not closure: 223 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 359/400.
+The next same-source pass fixes a Laura meeting-location extraction case where
+same-name schedule, cover-letter, and handbook distractors displaced the
+source turn that named Blue Horizon Studios. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-laura-meeting-location-current-20260530T110000Z`
+compares against the single-card probability run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5132997987927567 to
+0.5161167002012074, with global hit evidence ids 532 -> 533, missing ids
+562 -> 561, noise ids 2662 -> 2659, missed-recall cases 223 -> 222,
+wrong-recall/noise cases 359 -> 358, and zero-recall cases 99 -> 98.
+Information-extraction improves by +1 hit id, -1 missing id, four fewer noise
+ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; target `8:information_extraction:1` moves from 0 to
+1.0 by returning exactly 10 with no target noise and removing
+41/149/78/172/114 from the target retrieval. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas. Two
+already-missed zero-recall cases trade noise ids, but global noise still
+decreases. This remains partial BEAM progress, not closure: 222 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise
+358/400.
+The next same-source pass fixes a partner meeting date/location extraction case
+where AI-hiring and unrelated partner-meeting distractors displaced the source
+turn that named ArtSpace Gallery and June 12, 2020. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-partner-meeting-date-location-current-20260530T120000Z`
+compares against the Laura meeting-location run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5161167002012074 to
+0.5189336016096581, with global hit evidence ids 533 -> 534, missing ids
+561 -> 560, noise ids 2659 -> 2654, missed-recall cases 222 -> 221,
+wrong-recall/noise cases 358 -> 357, and zero-recall cases 98 -> 97.
+Information-extraction improves by +1 hit id, -1 missing id, three fewer noise
+ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; target `11:information_extraction:1` moves from 0 to
+1.0 by returning exactly 30 with no target noise and removing
+376/139/294/37/101 from the target retrieval. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas. Two
+already-noisy cases add net noise, but global noise still decreases. This
+remains partial BEAM progress, not closure: 221 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 357/400.
+The next same-source pass fixes a Bay Street rent extraction case where generic
+monthly investment, equipment-budget, and debt-management distractors displaced
+the source turn that stated current rent. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-bay-street-rent-current-20260530T130000Z`
+compares against the partner meeting date/location run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5189336016096581 to 0.5217505030181088, with global hit evidence ids
+534 -> 535, missing ids 560 -> 559, noise ids 2654 -> 2647, missed-recall
+cases 221 -> 220, wrong-recall/noise cases 357 -> 356, and zero-recall cases
+97 -> 96. Information-extraction improves by +1 hit id, -1 missing id, five
+fewer noise ids, one fewer incomplete case, one fewer zero-recall case, and
+one fewer wrong-recall/noise case; target `16:information_extraction:1` moves
+from 0 to 1.0 by returning exactly 30 with no target noise and removing
+138/212/285 from the target retrieval. Case-delta analysis shows no hit-loss,
+no newly-missing evidence, and no negative recall deltas. Three unrelated noisy
+cases add one net noise each, but global noise still decreases. This remains
+partial BEAM progress, not closure: 220 evidence cases still miss and the full
+diagnostic remains noisy at wrong-recall/noise 356/400.
+The next same-source pass fixes a parents distance/town extraction case where
+family movie-watchlist and snack-planning distractors displaced the source turn
+that stated the parents' location. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-parents-distance-town-current-20260530T140000Z`
+compares against the Bay Street rent run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5217505030181088 to 0.5245674044265595,
+with global hit evidence ids 535 -> 536, missing ids 559 -> 558, noise ids
+2647 -> 2637, missed-recall cases 220 -> 219, wrong-recall/noise cases
+356 -> 355, and zero-recall cases 96 -> 95. Information-extraction improves
+by +1 hit id, -1 missing id, eight fewer noise ids, one fewer incomplete case,
+one fewer zero-recall case, and one fewer wrong-recall/noise case; target
+`14:information_extraction:1` moves from 0 to 1.0 by returning exactly 6 with
+no target noise and removing 22/23/53/138/139/142/176/192 from the target
+retrieval. Case-delta analysis shows no hit-loss, no newly-missing evidence,
+and no negative recall deltas. One unrelated abstention case adds one noise id,
+but global noise still decreases. This remains partial BEAM progress, not
+closure: 219 evidence cases still miss and the full diagnostic remains noisy
+at wrong-recall/noise 355/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

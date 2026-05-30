@@ -45,6 +45,8 @@ type SourceOrderedValueUpdateKind =
 const SOURCE_ORDERED_VALUE_UPDATE_LIMIT = 3;
 const SOURCE_ORDERED_DATE_VALUE_PATTERN =
   /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,\s*\d{4})?\b|\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/iu;
+const SOURCE_ORDERED_DATE_UPDATE_CONTEXT_PATTERN =
+  /\b(?:application|deadline|submitting|submission)\b/iu;
 const SOURCE_ORDERED_TIME_VALUE_PATTERN =
   /\b(?:\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|noon|midnight)\b/iu;
 const SOURCE_ORDERED_DURATION_VALUE_PATTERN =
@@ -240,7 +242,7 @@ function sourceOrderedValueUpdateKind(
 
   if (
     /\bwhen\b/iu.test(query) &&
-    /\b(?:application|deadline|scheduled?|session|submitting|submission)\b/iu.test(query)
+    /\b(?:application|deadline|submitting|submission)\b/iu.test(query)
   ) {
     return "date";
   }
@@ -285,7 +287,8 @@ function hasSourceOrderedValueKind(
   kind: SourceOrderedValueUpdateKind,
 ): boolean {
   if (kind === "date") {
-    return SOURCE_ORDERED_DATE_VALUE_PATTERN.test(content);
+    return SOURCE_ORDERED_DATE_VALUE_PATTERN.test(content) &&
+      SOURCE_ORDERED_DATE_UPDATE_CONTEXT_PATTERN.test(content);
   }
 
   if (kind === "duration") {
@@ -305,6 +308,21 @@ function hasSourceOrderedValueKind(
   }
 
   return false;
+}
+
+function hasSourceOrderedDateUpdateContextForQuery(input: {
+  content: string;
+  query: string;
+}): boolean {
+  if (/\bdeadline\b/iu.test(input.query)) {
+    return /\bdeadline\b/iu.test(input.content);
+  }
+
+  if (/\b(?:application|submitting|submission)\b/iu.test(input.query)) {
+    return /\b(?:application|submitting|submission)\b/iu.test(input.content);
+  }
+
+  return SOURCE_ORDERED_DATE_UPDATE_CONTEXT_PATTERN.test(input.content);
 }
 
 function sourceOrderedPercentagePairKeys(value: string): Set<string> {
@@ -425,6 +443,13 @@ export function selectSourceOrderedValueUpdateEvidence(input: {
         stripEvidencePrefix(entry.fact.content),
         kind,
       )
+    )
+    .filter((entry) =>
+      kind !== "date" ||
+      hasSourceOrderedDateUpdateContextForQuery({
+        content: stripEvidencePrefix(entry.fact.content),
+        query: input.query,
+      })
     )
     .filter((entry) =>
       kind === "duration" || kind === "percentage"

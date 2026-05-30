@@ -215,6 +215,19 @@ describe("recall router", () => {
     expect(plan.actionDriving).toBe(true);
   });
 
+  it("does not route mentor role descriptions as identity role slots", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "What was the age and role of the mentor who suggested I attend the workshop?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual([]);
+  });
+
   it("plans reference queries with next-step support without widening primary slots", () => {
     const plan = planRecall({
       retrievalProfile: "general_chat",

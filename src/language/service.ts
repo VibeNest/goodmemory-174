@@ -299,7 +299,19 @@ export function createLanguageService(
       return createQueryPatterns(contextLocale(context)).reference.test(query);
     },
     isRoleQuery(query, context) {
-      return createQueryPatterns(contextLocale(context)).role.test(query);
+      const locale = contextLocale(context);
+      if (
+        primaryLanguage(locale) === "en" &&
+        /\brole\b/iu.test(query) &&
+        (
+          /\b(?:application|deadline|submitting|submission)\b/iu.test(query) ||
+          /\b(?:age\s+and\s+role\s+of|role\s+of\s+the\s+mentor)\b/iu.test(query)
+        )
+      ) {
+        return false;
+      }
+
+      return createQueryPatterns(locale).role.test(query);
     },
     isFocusQuery(query, context) {
       return createQueryPatterns(contextLocale(context)).focus.test(query);

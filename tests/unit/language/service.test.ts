@@ -84,6 +84,18 @@ describe("language service", () => {
     const service = createLanguageService();
 
     expect(service.isRoleQuery("What is my current role?", "en-US")).toBe(true);
+    expect(
+      service.isRoleQuery(
+        "When is the deadline for submitting my application for the senior producer role at Montserrat Media Corp?",
+        "en-US",
+      ),
+    ).toBe(false);
+    expect(
+      service.isRoleQuery(
+        "What was the age and role of the mentor who suggested I attend the workshop?",
+        "en-US",
+      ),
+    ).toBe(false);
     expect(service.isFocusQuery("What is my current focus?", "en-US")).toBe(true);
     expect(service.isOpenLoopQuery("What is the open loop right now?", "en-US")).toBe(
       true,

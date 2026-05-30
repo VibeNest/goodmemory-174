@@ -580,6 +580,170 @@ Workstreams
     recall deltas. This is kept partial repair only: the full diagnostic
     remains recall-limited and noisy.
 
+  - deadline/application date-update repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-deadline-application-update-current-20260530T070000Z`
+    reaches full rules-only evidence-chat recall 0.5048490945674046 with
+    `executionFailures: 0`, missed-recall cases 226/355, and
+    wrong-recall/noise 361/400. The kept repair narrows English role-slot
+    routing so application/deadline mentions such as `senior producer role`
+    do not suppress non-identity deadline evidence, and adds source-ordered
+    date-update coverage for application/deadline/submission questions while
+    excluding scheduling-instruction and side-project distractors. Compared
+    with the AI hiring compliance run, global hit ids improve 527 -> 529,
+    missing ids 567 -> 565, noise ids 2671 -> 2676, missed-recall cases
+    227 -> 226, wrong-recall/noise cases stay 361 -> 361, and zero-recall
+    cases 103 -> 102. Knowledge-update rises by +2 hit ids, -2 missing ids,
+    one fewer incomplete case, and one fewer zero-recall case. Target
+    `18:knowledge_update:2` rises 0 -> 1.0 by returning exactly 170/182 with
+    no target noise. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This is kept partial
+    repair only: the full diagnostic remains recall-limited and noisy.
+
+  - mentor age/role information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-mentor-role-routing-current-20260530T080000Z`
+    reaches full rules-only evidence-chat recall 0.5076659959758553 with
+    `executionFailures: 0`, missed-recall cases 225/355, and
+    wrong-recall/noise 361/400. The kept repair narrows English role-slot
+    routing so `age and role of the mentor` does not suppress non-identity
+    evidence, adds a source-ordered mentor/workshop information-extraction
+    selector, and blocks same-session direct-factual companion widening for
+    that exact selector. Compared with the deadline/application run, global
+    hit ids improve 529 -> 530, missing ids 565 -> 564, noise ids
+    2676 -> 2670, missed-recall cases 226 -> 225, wrong-recall/noise cases
+    stay 361 -> 361, and zero-recall cases 102 -> 101. Information-extraction
+    rises by +1 hit id, -1 missing id, one fewer incomplete case, one fewer
+    zero-recall case, and one fewer noise id. Target
+    `18:information_extraction:1` rises 0 -> 1.0 by returning exactly 30 with
+    no target noise. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This is kept partial
+    repair only: the full diagnostic remains recall-limited and noisy.
+
+  - API endpoint technologies information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-api-endpoint-technologies-current-20260530T090000Z`
+    reaches full rules-only evidence-chat recall 0.510482897384306 with
+    `executionFailures: 0`, missed-recall cases 224/355, and
+    wrong-recall/noise 360/400. The kept repair extends source-ordered
+    information-extraction selection to API endpoint startup-technology
+    questions and blocks same-session project/API companion widening for that
+    selector. Compared with the mentor age/role run, global hit ids improve
+    530 -> 531, missing ids 564 -> 563, noise ids 2670 -> 2666,
+    missed-recall cases 225 -> 224, wrong-recall/noise cases improve
+    361 -> 360, and zero-recall cases 101 -> 100. Information-extraction
+    rises by +1 hit id, -1 missing id, five fewer noise ids, one fewer
+    incomplete case, one fewer zero-recall case, and one fewer
+    wrong-recall/noise case. Target `2:information_extraction:1` rises
+    0 -> 1.0 by returning exactly 10 with no target noise and removing target
+    noise 70/186/50/183/58. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. This is
+    kept partial repair only: the full diagnostic remains recall-limited and
+    noisy.
+
+  - single-card probability information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-single-card-probability-current-20260530T100000Z`
+    reaches full rules-only evidence-chat recall 0.5132997987927567 with
+    `executionFailures: 0`, missed-recall cases 223/355, and
+    wrong-recall/noise 359/400. The kept repair extends source-ordered
+    information-extraction selection to earlier single-card probability
+    questions before a two-card follow-up and blocks same-session deck /
+    conditional-probability companion widening for that selector. Compared with
+    the API endpoint technologies run, global hit ids improve 531 -> 532,
+    missing ids 563 -> 562, noise ids 2666 -> 2662, missed-recall cases
+    224 -> 223, wrong-recall/noise cases improve 360 -> 359, and zero-recall
+    cases 100 -> 99. Information-extraction rises by +1 hit id, -1 missing id,
+    six fewer noise ids, one fewer incomplete case, one fewer zero-recall case,
+    and one fewer wrong-recall/noise case. Target
+    `5:information_extraction:2` rises 0 -> 1.0 by returning exactly 32 with
+    no target noise and removing target noise 58/134/64/234/72/70. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas. This is kept partial repair only: the full
+    diagnostic remains recall-limited and noisy.
+
+  - Laura meeting-location information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-laura-meeting-location-current-20260530T110000Z`
+    reaches full rules-only evidence-chat recall 0.5161167002012074 with
+    `executionFailures: 0`, missed-recall cases 222/355, and
+    wrong-recall/noise 358/400. The kept repair extends source-ordered
+    information-extraction selection to named meeting-location questions such
+    as `Where did I say I met Laura?` and blocks same-name schedule,
+    cover-letter, and handbook companion widening for that selector. Compared
+    with the single-card probability run, global hit ids improve 532 -> 533,
+    missing ids 562 -> 561, noise ids 2662 -> 2659, missed-recall cases
+    223 -> 222, wrong-recall/noise cases improve 359 -> 358, and zero-recall
+    cases 99 -> 98. Information-extraction rises by +1 hit id, -1 missing id,
+    four fewer noise ids, one fewer incomplete case, one fewer zero-recall
+    case, and one fewer wrong-recall/noise case. Target
+    `8:information_extraction:1` rises 0 -> 1.0 by returning exactly 10 with
+    no target noise and removing target noise 41/149/78/172/114. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas; two already-missed zero-recall cases trade noise
+    ids, but global noise still decreases. This is kept partial repair only:
+    the full diagnostic remains recall-limited and noisy.
+
+  - partner meeting date/location information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-partner-meeting-date-location-current-20260530T120000Z`
+    reaches full rules-only evidence-chat recall 0.5189336016096581 with
+    `executionFailures: 0`, missed-recall cases 221/355, and
+    wrong-recall/noise 357/400. The kept repair extends source-ordered
+    information-extraction selection to partner meeting date/location questions
+    such as `When and where did I say I met my partner?` and blocks AI-hiring
+    plus unrelated partner-meeting companion widening for that selector.
+    Compared with the Laura meeting-location run, global hit ids improve
+    533 -> 534, missing ids 561 -> 560, noise ids 2659 -> 2654,
+    missed-recall cases 222 -> 221, wrong-recall/noise cases improve
+    358 -> 357, and zero-recall cases 98 -> 97. Information-extraction rises
+    by +1 hit id, -1 missing id, three fewer noise ids, one fewer incomplete
+    case, one fewer zero-recall case, and one fewer wrong-recall/noise case.
+    Target `11:information_extraction:1` rises 0 -> 1.0 by returning exactly
+    30 with no target noise and removing target noise 376/139/294/37/101.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas; two already-noisy cases add
+    net noise, but global noise still decreases. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+
+  - Bay Street rent information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-bay-street-rent-current-20260530T130000Z`
+    reaches full rules-only evidence-chat recall 0.5217505030181088 with
+    `executionFailures: 0`, missed-recall cases 220/355, and
+    wrong-recall/noise 356/400. The kept repair extends source-ordered
+    information-extraction selection to current rent questions such as
+    `What monthly amount did I say I'm currently paying for my place on Bay
+    Street?` and blocks monthly investment, equipment-budget, and
+    debt-management companion widening for that selector. Compared with the
+    partner meeting date/location run, global hit ids improve 534 -> 535,
+    missing ids 560 -> 559, noise ids 2654 -> 2647, missed-recall cases
+    221 -> 220, wrong-recall/noise cases improve 357 -> 356, and zero-recall
+    cases 97 -> 96. Information-extraction rises by +1 hit id, -1 missing id,
+    five fewer noise ids, one fewer incomplete case, one fewer zero-recall
+    case, and one fewer wrong-recall/noise case. Target
+    `16:information_extraction:1` rises 0 -> 1.0 by returning exactly 30 with
+    no target noise and removing target noise 138/212/285. Case-delta analysis
+    shows no hit-loss, no newly-missing evidence regressions, and no negative
+    recall deltas; three unrelated noisy cases add one net noise each, but
+    global noise still decreases. This is kept partial repair only: the full
+    diagnostic remains recall-limited and noisy.
+
+  - parents distance/town information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-parents-distance-town-current-20260530T140000Z`
+    reaches full rules-only evidence-chat recall 0.5245674044265595 with
+    `executionFailures: 0`, missed-recall cases 219/355, and
+    wrong-recall/noise 355/400. The kept repair extends source-ordered
+    information-extraction selection to family location questions such as
+    `How far away did I say my parents live from me, and in which town?` and
+    blocks family movie-watchlist, animated-musical, snack-budget, and
+    platform-availability companion widening for that selector. Compared with
+    the Bay Street rent run, global hit ids improve 535 -> 536, missing ids
+    559 -> 558, noise ids 2647 -> 2637, missed-recall cases 220 -> 219,
+    wrong-recall/noise cases improve 356 -> 355, and zero-recall cases
+    96 -> 95. Information-extraction rises by +1 hit id, -1 missing id, eight
+    fewer noise ids, one fewer incomplete case, one fewer zero-recall case, and
+    one fewer wrong-recall/noise case. Target `14:information_extraction:1`
+    rises 0 -> 1.0 by returning exactly 6 with no target noise and removing
+    target noise 22/23/53/138/139/142/176/192. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas; one unrelated abstention case adds one noise id, but global noise
+    still decreases. This is kept partial repair only: the full diagnostic
+    remains recall-limited and noisy.
+
 
 Current Boundary
 ----------------
@@ -684,7 +848,41 @@ Current Boundary
   recall to 0.5020321931589539 with 227 missed-recall cases and
   wrong-recall/noise 361/400, recovering `11:summarization:2` to exact 1.0
   without target noise, hit-loss, newly-missing evidence regressions, or
-  negative recall deltas.
+  negative recall deltas. The deadline/application date-update repair raises
+  current evidence-chat recall to 0.5048490945674046 with 226 missed-recall
+  cases and wrong-recall/noise 361/400, recovering `18:knowledge_update:2` to
+  exact 1.0 without target noise, hit-loss, newly-missing evidence regressions,
+  or negative recall deltas. The latest mentor age/role repair raises current
+  evidence-chat recall to 0.5076659959758553 with 225 missed-recall cases and
+  wrong-recall/noise 361/400, recovering `18:information_extraction:1` to
+  exact 1.0 without target noise, hit-loss, newly-missing evidence regressions,
+  or negative recall deltas. The latest API endpoint technologies repair raises
+  current evidence-chat recall to 0.510482897384306 with 224 missed-recall
+  cases and wrong-recall/noise 360/400, recovering
+  `2:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  single-card probability repair raises current evidence-chat recall to
+  0.5132997987927567 with 223 missed-recall cases and wrong-recall/noise
+  359/400, recovering `5:information_extraction:2` to exact 1.0 without
+  target noise, hit-loss, newly-missing evidence regressions, or negative
+  recall deltas. The latest Laura meeting-location repair raises current
+  evidence-chat recall to 0.5161167002012074 with 222 missed-recall cases and
+  wrong-recall/noise 358/400, recovering `8:information_extraction:1` to exact
+  1.0 without target noise, hit-loss, newly-missing evidence regressions, or
+  negative recall deltas. The latest partner meeting date/location repair
+  raises current evidence-chat recall to 0.5189336016096581 with 221
+  missed-recall cases and wrong-recall/noise 357/400, recovering
+  `11:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  Bay Street rent repair raises current evidence-chat recall to
+  0.5217505030181088 with 220 missed-recall cases and wrong-recall/noise
+  356/400, recovering `16:information_extraction:1` to exact 1.0 without
+  target noise, hit-loss, newly-missing evidence regressions, or negative
+  recall deltas. The latest parents distance/town repair raises current
+  evidence-chat recall to 0.5245674044265595 with 219 missed-recall cases and
+  wrong-recall/noise 355/400, recovering `14:information_extraction:1` to
+  exact 1.0 without target noise, hit-loss, newly-missing evidence regressions,
+  or negative recall deltas.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

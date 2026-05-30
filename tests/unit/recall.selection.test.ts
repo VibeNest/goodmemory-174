@@ -3011,6 +3011,11 @@ describe("recall selection", () => {
         "[BEAM chat_id=182 role=user time=unknown] I'm stressed about this senior producer role application, and I just found out the deadline was extended to May 20, so I'm wondering how I can use this extra time to improve my chances.",
       ),
       makeSourceFact(
+        "fact-side-project-application-noise",
+        218,
+        "[BEAM chat_id=218 role=user time=unknown] I'm stressed about declining Joseph's request to lead a side project on May 12, and I'm wondering if that was the right decision to focus on my senior producer application.",
+      ),
+      makeSourceFact(
         "fact-scheduling-instruction-noise",
         242,
         "[BEAM chat_id=242 role=user time=unknown] Always confirm dates and times explicitly when I ask about event scheduling.",
@@ -3033,7 +3038,516 @@ describe("recall selection", () => {
       "fact-senior-producer-deadline-extended",
     ]);
     expect(result.traces.find((trace) => trace.memoryId === "fact-date-format-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-side-project-application-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-scheduling-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps mentor age and role evidence for workshop information questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-18",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-greg-agenda-noise",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I'm preparing for Greg's April 2 coaching session and need to decide what agenda to bring.",
+      ),
+      makeSourceFact(
+        "fact-mentor-workshop",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] I'm thinking of attending the March 15 workshop on workflow optimization at East Janethaven Media Center, which Patrick, my 79-year-old senior producer mentor, suggested, but I'm not sure if it's worth taking time off from my current projects.",
+      ),
+      makeSourceFact(
+        "fact-workshop-prep-noise",
+        31,
+        "[BEAM chat_id=31 role=assistant time=unknown] We can compare the workshop agenda against your current project workload before you take time off.",
+      ),
+      makeSourceFact(
+        "fact-senior-producer-role-noise",
+        182,
+        "[BEAM chat_id=182 role=user time=unknown] I'm stressed about this senior producer role application, and I just found out the deadline was extended to May 20.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What was the age and role of the mentor who suggested I attend the workshop?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(["fact-mentor-workshop"]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-senior-producer-role-noise")?.returned).toBe(false);
+  });
+
+  it("keeps API endpoint project technologies for startup information questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-api-endpoint-technologies",
+        10,
+        "[BEAM chat_id=10 role=user time=unknown] I'm trying to initialize a project using vanilla JavaScript ES2021, HTML5, and CSS3 to target the OpenWeather API endpoint `api.openweathermap.org/data/2.5/weather`, but I'm not sure how to structure my code.",
+      ),
+      makeSourceFact(
+        "fact-eslint-project-noise",
+        58,
+        "[BEAM chat_id=58 role=user time=unknown] I'm trying to set up ESLint v8.39 with the Airbnb style guide for my JavaScript project.",
+      ),
+      makeSourceFact(
+        "fact-api-key-noise",
+        70,
+        "[BEAM chat_id=70 role=user time=unknown] I've never actually obtained an API key for this project, so I'm not sure how to proceed with implementing the weather app.",
+      ),
+      makeSourceFact(
+        "fact-ci-project-noise",
+        183,
+        "[BEAM chat_id=183 role=assistant time=unknown] Create a GitHub repository and set up an automated CI/CD pipeline using GitHub Actions for your project.",
+      ),
+      makeSourceFact(
+        "fact-feature-complete-noise",
+        186,
+        "[BEAM chat_id=186 role=user time=unknown] I'm working on a project that was marked feature-complete on April 9, 2024, and I'm ready to collect user feedback.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What technologies did I say I was using to start my project targeting that API endpoint?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-api-endpoint-technologies",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-api-key-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ci-project-noise")?.returned).toBe(false);
+  });
+
+  it("keeps the earlier single-card probability before two-card follow-up questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-5",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-two-coins-noise",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] I'm trying to understand why tossing two coins is considered independent events and calculate P(both heads) using 1/2 x 1/2 = 1/4.",
+      ),
+      makeSourceFact(
+        "fact-single-card-probability",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to calculate the probability of drawing an ace from a standard 52-card deck, which is given as P = 4/52 = 1/13, but I want to understand how this applies to a real game, so can you help me figure out what the probability would be if I drew two cards and wanted at least one of them to be an ace?",
+      ),
+      makeSourceFact(
+        "fact-face-card-spade-noise",
+        58,
+        "[BEAM chat_id=58 role=user time=unknown] Got it, but what about calculating P(A|B) for drawing a face card or a spade from a deck?",
+      ),
+      makeSourceFact(
+        "fact-two-aces-noise",
+        76,
+        "[BEAM chat_id=76 role=user time=unknown] I'm trying to calculate the probability of drawing 2 aces together from a deck of 52 cards using 4C2 / 52C2.",
+      ),
+      makeSourceFact(
+        "fact-conditional-probability-noise",
+        108,
+        "[BEAM chat_id=108 role=user time=unknown] I want to find the probability that the second card is an ace given that the first card was an ace, so the probability of drawing a second ace is 3/51.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What probability did I mention for drawing a certain card from the deck before we started discussing drawing two cards?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-single-card-probability",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-face-card-spade-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-two-aces-noise")?.returned).toBe(false);
+  });
+
+  it("keeps named meeting location evidence for where-did-I-meet questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-8",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-portfolio-noise",
+        8,
+        "[BEAM chat_id=8 role=user time=unknown] I'm worried about my portfolio, Greg told me to update it by April 1.",
+      ),
+      makeSourceFact(
+        "fact-laura-meeting-location",
+        10,
+        "[BEAM chat_id=10 role=user time=unknown] I'm thinking of attending the industry mixer at Coral Bay Hotel on May 10, Laura recommended it, and she met me on set at Blue Horizon Studios in 2019.",
+      ),
+      makeSourceFact(
+        "fact-laura-cover-letter-noise",
+        56,
+        "[BEAM chat_id=56 role=user time=unknown] Laura shared feedback from her April 5 meeting with Island Media's HR about emotional intelligence.",
+      ),
+      makeSourceFact(
+        "fact-laura-schedule-noise",
+        96,
+        "[BEAM chat_id=96 role=user time=unknown] My April 22 schedule includes a 9 AM meeting with Laura and a 10:30 team meeting.",
+      ),
+      makeSourceFact(
+        "fact-laura-handbook-noise",
+        172,
+        "[BEAM chat_id=172 role=user time=unknown] Laura said I should review the company's employee handbook before accepting the job offer.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Where did I say I met Laura?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-laura-meeting-location",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-laura-cover-letter-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-laura-schedule-noise")?.returned).toBe(false);
+  });
+
+  it("keeps partner meeting date and location evidence for when-and-where questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-11",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-partner-meeting-date-location",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] I'm kinda worried about using AI for hiring, you know, since my partner Jessica, who's 50 and a graphic designer, might think it's unfair to candidates, and we met at ArtSpace Gallery on June 12, 2020, which is a pretty significant place for me.",
+      ),
+      makeSourceFact(
+        "fact-hiring-goal-noise",
+        37,
+        "[BEAM chat_id=37 role=assistant time=unknown] Reducing hiring time by 30% within 6 months can work if you pilot automation carefully and keep fairness checks in place.",
+      ),
+      makeSourceFact(
+        "fact-ai-tool-cost-noise",
+        101,
+        "[BEAM chat_id=101 role=assistant time=unknown] AI hiring tools can cost between $5,000 and $12,000 annually, compared with current manual hiring costs of $15,000 per hire.",
+      ),
+      makeSourceFact(
+        "fact-partner-movie-noise",
+        139,
+        "[BEAM chat_id=139 role=assistant time=unknown] That sounds like a lovely way to reminisce about meeting at the film festival in Miami with your partner Thomas.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "When and where did I say I met my partner?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-partner-meeting-date-location",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-hiring-goal-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-partner-movie-noise")?.returned).toBe(false);
+  });
+
+  it("keeps current Bay Street rent evidence for monthly amount questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-16",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-bay-street-current-rent",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] I'm kinda stressed about my current rent being $1,200/month for a 3-bedroom on Bay Street, and I'm trying to figure out how to reduce my expenses.",
+      ),
+      makeSourceFact(
+        "fact-monthly-investment-noise",
+        138,
+        "[BEAM chat_id=138 role=user time=unknown] What's the minimum amount I should invest monthly to see a noticeable difference?",
+      ),
+      makeSourceFact(
+        "fact-equipment-budget-noise",
+        212,
+        "[BEAM chat_id=212 role=user time=unknown] I should assess my current equipment needs and factor in maintenance costs before adjusting my budget.",
+      ),
+      makeSourceFact(
+        "fact-loan-savings-noise",
+        285,
+        "[BEAM chat_id=285 role=assistant time=unknown] Paying off a $2,000 personal loan and saving $120 in interest annually can free up cash for debt management.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What monthly amount did I say I’m currently paying for my place on Bay Street?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-bay-street-current-rent",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-monthly-investment-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-loan-savings-noise")?.returned).toBe(false);
+  });
+
+  it("keeps parents distance and town evidence for family location questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-14",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-parents-distance-town",
+        6,
+        "[BEAM chat_id=6 role=user time=unknown] I'm kinda worried about my parents, Amy and Kyle, who are 63 and 77, living 15 miles away in West Janethaven, and I want to make sure they're doing okay.",
+      ),
+      makeSourceFact(
+        "fact-watchlist-noise",
+        22,
+        "[BEAM chat_id=22 role=user time=unknown] I'm trying to finalize my watchlist of 10 movies by March 25, 2024.",
+      ),
+      makeSourceFact(
+        "fact-animated-musical-noise",
+        139,
+        "[BEAM chat_id=139 role=assistant time=unknown] Shifting your preference toward animated musicals is a great way to plan a family movie weekend.",
+      ),
+      makeSourceFact(
+        "fact-snack-budget-noise",
+        176,
+        "[BEAM chat_id=176 role=user time=unknown] I'm planning a family movie weekend and I have a snack budget of $70.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How far away did I say my parents live from me, and in which town?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-parents-distance-town",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-watchlist-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-snack-budget-noise")?.returned).toBe(false);
+  });
+
+  it("keeps reading list count and page total evidence for number recall questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-13",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-reading-list-count-pages",
+        26,
+        "[BEAM chat_id=26 role=user time=unknown] I'm kinda overwhelmed with my reading list of 7 series, including \"The Stormlight Archive\" and \"The Expanse,\" totaling 4,200 pages, can you help me prioritize them to reach my goal?",
+      ),
+      makeSourceFact(
+        "fact-poppy-war-pages-noise",
+        154,
+        "[BEAM chat_id=154 role=user time=unknown] I finished \"The Poppy War\" trilogy with 1,150 pages in 12 days, what's a good next series to read for my winter evenings?",
+      ),
+      makeSourceFact(
+        "fact-witcher-library-noise",
+        214,
+        "[BEAM chat_id=214 role=user time=unknown] I visited Montserrat Public Library on February 12 and borrowed the first novel of \"The Witcher\" series, among other fantasy e-books.",
+      ),
+      makeSourceFact(
+        "fact-nightingale-series-noise",
+        284,
+        "[BEAM chat_id=284 role=user time=unknown] I just finished reading \"The Nightingale\" and gave it a 5-star review on Goodreads, can you help me find another historical fiction series?",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many series did I say were on my reading list, and what was the total page count?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-reading-list-count-pages",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-poppy-war-pages-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-nightingale-series-noise")?.returned).toBe(false);
   });
 
   it("prefers the latest shared grocery-list method evidence over stale paper-list evidence", () => {

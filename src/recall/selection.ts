@@ -69,6 +69,7 @@ import {
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
 import { isCompleteSourceOrderedEventOrderPlanQuery } from "./selectors/sourceOrderEventPlans";
+import { selectSourceOrderedInformationExtractionEvidence as selectInformationExtractionEvidence } from "./selectors/sourceOrderInformationExtraction";
 import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
 import {
   ASSISTANT_COUNT_HEADING_FACT_PATTERN,
@@ -116,6 +117,7 @@ import {
 
 const PRIMARY_FACT_SELECTION_ORDER = [
   "contradiction_evidence_pair",
+  "source_ordered_information_extraction",
   "aggregate_evidence",
   "source_ordered_personal_work_challenge",
   "source_ordered_summary",
@@ -609,7 +611,11 @@ export function selectFacts(
     selectPersonalWorkChallengeEvidence({
       entries: compatible,
       query,
-    });
+  });
+  const informationExtractionCandidates = selectInformationExtractionEvidence({
+    entries: compatible,
+    query,
+  });
   const broadAspectEventOrderCandidates = selectBroadAspectEventOrderEvidence({
     entries: compatible,
     language,
@@ -640,6 +646,7 @@ export function selectFacts(
   const reasoningBridgeCandidates = (
     summaryCoverageCandidates.length > 0 ||
     timelineIntegrationCandidates.length > 0 ||
+    informationExtractionCandidates.length > 0 ||
     personalWorkChallengeCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
@@ -659,6 +666,7 @@ export function selectFacts(
     timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    informationExtractionCandidates.length > 0 ||
     householdBudgetReasoningQuery ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
@@ -673,6 +681,7 @@ export function selectFacts(
     timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    informationExtractionCandidates.length > 0 ||
     householdBudgetReasoningQuery ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
@@ -750,6 +759,16 @@ export function selectFacts(
           aggregateCandidates,
           AGGREGATE_FACT_COUNT_LIMIT,
         )) {
+          selectAndTrace(entry);
+        }
+        return true;
+      }
+      case "source_ordered_information_extraction": {
+        if (informationExtractionCandidates.length === 0) {
+          return false;
+        }
+
+        for (const entry of informationExtractionCandidates) {
           selectAndTrace(entry);
         }
         return true;
@@ -1108,6 +1127,7 @@ export function selectFacts(
 
   if (
     directFactualLookupQuery &&
+    informationExtractionCandidates.length === 0 &&
     sourceOrderedValueUpdateCandidates.length === 0 &&
     selected.length < DIRECT_FACTUAL_RECALL_LIMIT
   ) {

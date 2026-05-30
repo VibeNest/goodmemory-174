@@ -1748,6 +1748,277 @@ Latest professional-preparation summary repair:
   evidence cases and wrong-recall/noise 361/400, so broad recall and
   persistent-noise hardening remain open.
 
+- Repair: deadline/application source-ordered date-update path.
+- Regression:
+  `tests/unit/language/service.test.ts` keeps application/deadline mentions of
+  `senior producer role` out of the identity-role slot, and
+  `tests/unit/recall.selection.test.ts` covers BEAM-shaped senior-producer
+  application deadline updates. The recall regression keeps the original
+  May 10 application deadline and the May 20 extended deadline while excluding
+  date-format instruction, scheduling-instruction, and side-project application
+  distractors.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-deadline-application-update-current-20260530T070000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-compliance-current-20260530T043000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5048490945674046, missed-recall cases 226/355, wrong-recall/noise cases
+  361/400, total hit evidence ids 529, missing ids 565, noise ids 2676, and
+  zero-recall cases 102.
+- Delta:
+  vs the AI hiring compliance run, global hit evidence ids improve 527 -> 529,
+  missing ids 567 -> 565, noise ids 2671 -> 2676, missed-recall cases
+  227 -> 226, wrong-recall/noise cases stay 361 -> 361, and zero-recall cases
+  103 -> 102. Knowledge-update rises by +2 hit ids, -2 missing ids, one fewer
+  incomplete case, and one fewer zero-recall case. Target
+  `18:knowledge_update:2` rises from 0 to 1.0 by returning exactly 170/182,
+  with no target noise.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 226 missed-recall
+  evidence cases and wrong-recall/noise 361/400, so broad recall and
+  persistent-noise hardening remain open.
+
+2026-05-30 mentor age/role routing and information-extraction repair
+--------------------------------------------------------------------
+
+- Repair: mentor age/role source-ordered information-extraction path.
+- Regression:
+  `tests/unit/language/service.test.ts` and `tests/unit/recall.router.test.ts`
+  keep `age and role of the mentor` questions out of the identity-role slot,
+  and `tests/unit/recall.selection.test.ts` covers the BEAM-shaped mentor
+  workshop evidence with same-session companion distractors. The recall
+  regression keeps chat 30 while excluding nearby workshop, senior-producer
+  role, and same-session direct-factual companion noise.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-mentor-role-routing-current-20260530T080000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-deadline-application-update-current-20260530T070000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5076659959758553, missed-recall cases 225/355, wrong-recall/noise cases
+  361/400, total hit evidence ids 530, missing ids 564, noise ids 2670, and
+  zero-recall cases 101.
+- Delta:
+  vs the deadline/application run, global hit evidence ids improve 529 -> 530,
+  missing ids 565 -> 564, noise ids 2676 -> 2670, missed-recall cases
+  226 -> 225, wrong-recall/noise cases stay 361 -> 361, and zero-recall cases
+  102 -> 101. Information-extraction rises by +1 hit id, -1 missing id, one
+  fewer incomplete case, one fewer zero-recall case, and one fewer noise id.
+  Target `18:information_extraction:1` rises from 0 to 1.0 by returning
+  exactly 30 with no target noise.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 225 missed-recall
+  evidence cases and wrong-recall/noise 361/400, so broad recall and
+  persistent-noise hardening remain open.
+
+2026-05-30 API endpoint technologies information-extraction repair
+------------------------------------------------------------------
+
+- Repair: API endpoint startup-technology source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped API endpoint
+  technology question with same-session project/API distractors. The recall
+  regression keeps chat 10, which names vanilla JavaScript ES2021, HTML5, CSS3,
+  and the OpenWeather API endpoint, while excluding ESLint, API-key, CI, and
+  feature-complete project noise.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-api-endpoint-technologies-current-20260530T090000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-mentor-role-routing-current-20260530T080000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.510482897384306, missed-recall cases 224/355, wrong-recall/noise cases
+  360/400, total hit evidence ids 531, missing ids 563, noise ids 2666, and
+  zero-recall cases 100.
+- Delta:
+  vs the mentor age/role run, global hit evidence ids improve 530 -> 531,
+  missing ids 564 -> 563, noise ids 2670 -> 2666, missed-recall cases
+  225 -> 224, wrong-recall/noise cases improve 361 -> 360, and zero-recall
+  cases 101 -> 100. Information-extraction rises by +1 hit id, -1 missing id,
+  five fewer noise ids, one fewer incomplete case, one fewer zero-recall case,
+  and one fewer wrong-recall/noise case. Target `2:information_extraction:1`
+  rises from 0 to 1.0 by returning exactly 10 with no target noise and removing
+  target noise 70/186/50/183/58.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 224 missed-recall
+  evidence cases and wrong-recall/noise 360/400, so broad recall and
+  persistent-noise hardening remain open.
+
+2026-05-30 single-card probability information-extraction repair
+----------------------------------------------------------------
+
+- Repair: single-card probability source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped probability
+  question with same-session deck and conditional-probability distractors. The
+  recall regression keeps chat 32, which states `P = 4/52 = 1/13` before the
+  two-card follow-up, while excluding face-card/spade, two-ace, conditional
+  probability, and two-coin distractors.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-single-card-probability-current-20260530T100000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-api-endpoint-technologies-current-20260530T090000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5132997987927567, missed-recall cases 223/355, wrong-recall/noise cases
+  359/400, total hit evidence ids 532, missing ids 562, noise ids 2662, and
+  zero-recall cases 99.
+- Delta:
+  vs the API endpoint technologies run, global hit evidence ids improve
+  531 -> 532, missing ids 563 -> 562, noise ids 2666 -> 2662,
+  missed-recall cases 224 -> 223, wrong-recall/noise cases improve
+  360 -> 359, and zero-recall cases 100 -> 99. Information-extraction rises
+  by +1 hit id, -1 missing id, six fewer noise ids, one fewer incomplete case,
+  one fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+  `5:information_extraction:2` rises from 0 to 1.0 by returning exactly 32
+  with no target noise and removing target noise 58/134/64/234/72/70.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. The full diagnostic still has 223 missed-recall
+  evidence cases and wrong-recall/noise 359/400, so broad recall and
+  persistent-noise hardening remain open.
+
+2026-05-30 Laura meeting-location information-extraction repair
+---------------------------------------------------------------
+
+- Repair: named meeting-location source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped Laura
+  meeting-location question with portfolio, cover-letter, schedule, and
+  handbook distractors. The recall regression keeps chat 10, which says Laura
+  met the user on set at Blue Horizon Studios in 2019, while excluding
+  companion noise.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-laura-meeting-location-current-20260530T110000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-single-card-probability-current-20260530T100000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5161167002012074, missed-recall cases 222/355, wrong-recall/noise cases
+  358/400, total hit evidence ids 533, missing ids 561, noise ids 2659, and
+  zero-recall cases 98.
+- Delta:
+  vs the single-card probability run, global hit evidence ids improve
+  532 -> 533, missing ids 562 -> 561, noise ids 2662 -> 2659,
+  missed-recall cases 223 -> 222, wrong-recall/noise cases improve
+  359 -> 358, and zero-recall cases 99 -> 98. Information-extraction rises
+  by +1 hit id, -1 missing id, four fewer noise ids, one fewer incomplete case,
+  one fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+  `8:information_extraction:1` rises from 0 to 1.0 by returning exactly 10
+  with no target noise and removing target noise 41/149/78/172/114.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. Two already-missed zero-recall cases trade noise ids,
+  but global noise still decreases. The full diagnostic still has 222
+  missed-recall evidence cases and wrong-recall/noise 358/400, so broad recall
+  and persistent-noise hardening remain open.
+
+2026-05-30 partner meeting date/location information-extraction repair
+----------------------------------------------------------------------
+
+- Repair: partner meeting date/location source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped partner
+  when-and-where question with AI-hiring cost/goal and unrelated
+  partner-meeting distractors. The recall regression keeps chat 30, which says
+  the user met partner Jessica at ArtSpace Gallery on June 12, 2020.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-partner-meeting-date-location-current-20260530T120000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-laura-meeting-location-current-20260530T110000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5189336016096581, missed-recall cases 221/355, wrong-recall/noise cases
+  357/400, total hit evidence ids 534, missing ids 560, noise ids 2654, and
+  zero-recall cases 97.
+- Delta:
+  vs the Laura meeting-location run, global hit evidence ids improve
+  533 -> 534, missing ids 561 -> 560, noise ids 2659 -> 2654,
+  missed-recall cases 222 -> 221, wrong-recall/noise cases improve
+  358 -> 357, and zero-recall cases 98 -> 97. Information-extraction rises
+  by +1 hit id, -1 missing id, three fewer noise ids, one fewer incomplete
+  case, one fewer zero-recall case, and one fewer wrong-recall/noise case.
+  Target `11:information_extraction:1` rises from 0 to 1.0 by returning
+  exactly 30 with no target noise and removing target noise 376/139/294/37/101.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. Two already-noisy cases add net noise, but global
+  noise still decreases. The full diagnostic still has 221 missed-recall
+  evidence cases and wrong-recall/noise 357/400, so broad recall and
+  persistent-noise hardening remain open.
+
+2026-05-30 Bay Street rent information-extraction repair
+--------------------------------------------------------
+
+- Repair: current rent source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped Bay Street rent
+  question with monthly-investment, equipment-budget, and debt-management
+  distractors. The recall regression keeps chat 30, which says the current
+  rent is `$1,200/month` for a 3-bedroom on Bay Street.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-bay-street-rent-current-20260530T130000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-partner-meeting-date-location-current-20260530T120000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5217505030181088, missed-recall cases 220/355, wrong-recall/noise cases
+  356/400, total hit evidence ids 535, missing ids 559, noise ids 2647, and
+  zero-recall cases 96.
+- Delta:
+  vs the partner meeting date/location run, global hit evidence ids improve
+  534 -> 535, missing ids 560 -> 559, noise ids 2654 -> 2647,
+  missed-recall cases 221 -> 220, wrong-recall/noise cases improve
+  357 -> 356, and zero-recall cases 97 -> 96. Information-extraction rises
+  by +1 hit id, -1 missing id, five fewer noise ids, one fewer incomplete case,
+  one fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+  `16:information_extraction:1` rises from 0 to 1.0 by returning exactly 30
+  with no target noise and removing target noise 138/212/285.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. Three unrelated noisy cases add one net noise each,
+  but global noise still decreases. The full diagnostic still has 220
+  missed-recall evidence cases and wrong-recall/noise 356/400, so broad recall
+  and persistent-noise hardening remain open.
+
+2026-05-30 parents distance/town information-extraction repair
+--------------------------------------------------------------
+
+- Repair: parent distance/town source-ordered extraction path.
+- Regression:
+  `tests/unit/recall.selection.test.ts` covers the BEAM-shaped parent location
+  question with family movie-watchlist, animated-musical, and snack-budget
+  distractors. The recall regression keeps chat 6, which says Amy and Kyle
+  live 15 miles away in West Janethaven.
+- Same-source full diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-parents-distance-town-current-20260530T140000Z`
+  compares against
+  `run-phase63-beam-100k-recall-diagnostic-rules-bay-street-rent-current-20260530T130000Z`.
+  It covers 400 cases with `executionFailures: 0`, evidence-chat recall
+  0.5245674044265595, missed-recall cases 219/355, wrong-recall/noise cases
+  355/400, total hit evidence ids 536, missing ids 558, noise ids 2637, and
+  zero-recall cases 95.
+- Delta:
+  vs the Bay Street rent run, global hit evidence ids improve 535 -> 536,
+  missing ids 559 -> 558, noise ids 2647 -> 2637, missed-recall cases
+  220 -> 219, wrong-recall/noise cases improve 356 -> 355, and zero-recall
+  cases 96 -> 95. Information-extraction rises by +1 hit id, -1 missing id,
+  eight fewer noise ids, one fewer incomplete case, one fewer zero-recall case,
+  and one fewer wrong-recall/noise case. Target `14:information_extraction:1`
+  rises from 0 to 1.0 by returning exactly 6 with no target noise and removing
+  target noise 22/23/53/138/139/142/176/192.
+- Boundary:
+  this is a kept same-source partial repair, not BEAM closure. Case-delta
+  analysis shows no hit-loss, no newly-missing evidence regressions, and no
+  negative recall deltas. One unrelated abstention case adds one noise id, but
+  global noise still decreases. The full diagnostic still has 219
+  missed-recall evidence cases and wrong-recall/noise 355/400, so broad recall
+  and persistent-noise hardening remain open.
+
 
 Current Boundary
 ----------------
@@ -1831,7 +2102,39 @@ newly-missing evidence regressions, or negative recall deltas. The latest
 AI hiring compliance summary repair raises it to 0.5020321931589539 with 227
 missed-recall cases and wrong-recall/noise 361/400, recovering
 `11:summarization:2` to exact 1.0 without target noise, hit-loss,
-newly-missing evidence regressions, or negative recall deltas. BEAM still needs
+newly-missing evidence regressions, or negative recall deltas. The
+deadline/application date-update repair raises it to 0.5048490945674046 with
+226 missed-recall cases and wrong-recall/noise 361/400, recovering
+`18:knowledge_update:2` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The mentor
+age/role repair raises it to 0.5076659959758553 with 225 missed-recall cases
+and wrong-recall/noise 361/400, recovering
+`18:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The API endpoint
+technologies repair raises it to 0.510482897384306 with 224 missed-recall
+cases and wrong-recall/noise 360/400, recovering
+`2:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The latest
+single-card probability repair raises it to 0.5132997987927567 with 223
+missed-recall cases and wrong-recall/noise 359/400, recovering
+`5:information_extraction:2` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The latest
+Laura meeting-location repair raises it to 0.5161167002012074 with 222
+missed-recall cases and wrong-recall/noise 358/400, recovering
+`8:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The latest
+partner meeting date/location repair raises it to 0.5189336016096581 with 221
+missed-recall cases and wrong-recall/noise 357/400, recovering
+`11:information_extraction:1` to exact 1.0 without target noise, hit-loss,
+newly-missing evidence regressions, or negative recall deltas. The latest Bay
+Street rent repair raises it to 0.5217505030181088 with 220 missed-recall cases
+and wrong-recall/noise 356/400, recovering `16:information_extraction:1` to
+exact 1.0 without target noise, hit-loss, newly-missing evidence regressions,
+or negative recall deltas. The latest parents distance/town repair raises it to
+0.5245674044265595 with 219 missed-recall cases and wrong-recall/noise
+355/400, recovering `14:information_extraction:1` to exact 1.0 without target
+noise, hit-loss, newly-missing evidence regressions, or negative recall deltas.
+BEAM still needs
 broader recall and persistent-noise hardening before it can move toward an
 answer-quality claim, especially the remaining source-ordered summary budget
 quality and broad long-conversation noise surface.
