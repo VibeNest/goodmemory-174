@@ -837,6 +837,85 @@ negative recall deltas. One non-target preference case adds one noise id, but
 global noise still decreases. This remains partial BEAM progress, not closure:
 215 evidence cases still miss and the full diagnostic remains noisy at
 wrong-recall/noise 352/400.
+The next same-source pass fixes two information-extraction cases: the
+first-sprint layout/navigation schedule case where later Trello/Lighthouse
+snippets displaced the source schedule pair, and the Robert academic mentor
+preparation/follow-up case where `guide my essay writing` was routed as a
+reference-slot query. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-layout-and-robert-prep-current-20260530T210000Z`
+compares against the Patrick workshop preparation run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5367739771965124 to 0.5424077800134139, with global hit evidence ids
+547 -> 551, missing ids 547 -> 543, missed-recall cases 215 -> 213,
+wrong-recall/noise cases 352 -> 351, and zero-recall cases 90 -> 88. Total
+noise rises 2616 -> 2618, while information-extraction improves by +4 hit ids,
+-4 missing ids, two fewer noise ids, two fewer incomplete cases, two fewer
+zero-recall cases, and one fewer wrong-recall/noise case; average
+information-extraction recall rises 0.6125 -> 0.6625. Targets
+`3:information_extraction:2` and `7:information_extraction:2` move from 0 to
+1.0 by returning exactly 12/13 and 14/15 respectively. The layout/navigation
+case removes target noise 39/40; the Robert mentor-prep case adds no target
+noise. Case-delta analysis shows no hit-loss, no newly-missing evidence, and
+no negative recall deltas. Non-target abstention, knowledge-update, and
+event-ordering cases add four net noise ids, so total noise remains open. This
+remains partial BEAM progress, not closure: 213 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 351/400.
+The next same-source pass fixes the Laura mixer prior-connection extraction
+case where Leslie/Greg networking distractors displaced the source pair. The
+accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-laura-mixer-prior-connection-current-20260530T220000Z`
+compares against the layout/navigation plus Robert mentor-prep run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5424077800134139 to 0.5452246814218646, with global hit evidence ids
+551 -> 553, missing ids 543 -> 541, missed-recall cases 213 -> 212,
+wrong-recall/noise cases 351 -> 350, zero-recall cases 88 -> 87, and total
+noise 2618 -> 2610. Information-extraction improves by +2 hit ids, -2 missing
+ids, two fewer noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average information-extraction
+recall rises 0.6625 -> 0.6875. Target `8:information_extraction:2` moves from
+0 to 1.0 by returning exactly 10/11 and removing target noise 25/24.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, no negative
+recall deltas, and no positive noise deltas. This remains partial BEAM
+progress, not closure: 212 evidence cases still miss and the full diagnostic
+remains noisy at wrong-recall/noise 350/400.
+The next same-source pass fixes the Laura weekly video-call schedule-advice
+case where pilot-plan and Google Calendar/Moleskine schedule distractors
+displaced the source six-turn advice chain. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-laura-weekly-call-schedule-advice-current-20260530T223000Z`
+compares against the Laura mixer prior-connection run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5452246814218646 to 0.5480415828303153, with global hit evidence ids
+553 -> 559, missing ids 541 -> 535, missed-recall cases 212 -> 211,
+wrong-recall/noise cases 350 -> 349, zero-recall cases 87 -> 86, and total
+noise 2610 -> 2608. Information-extraction improves by +6 hit ids, -6 missing
+ids, five fewer noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average information-extraction
+recall rises 0.6875 -> 0.7125. Target `17:information_extraction:2` moves from
+0 to 1.0 by returning exactly 26/27/28/29/30/31 and removing target noise
+35/36/37/38/39. Case-delta analysis shows no hit-loss, no newly-missing
+evidence, and no negative recall deltas. Four non-target cases add one noise
+id each, but total noise still decreases. This remains partial BEAM progress,
+not closure: 211 evidence cases still miss and the full diagnostic remains
+noisy at wrong-recall/noise 349/400.
+The next same-source pass fixes the triangle similarity-ratio verification
+case where triangle-area and broad geometry distractors displaced the source
+pair. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-triangle-similarity-ratio-exact-current-20260530T231000Z`
+compares against the Laura weekly video-call schedule-advice run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.5480415828303153 to 0.5508584842387659, with global hit evidence ids
+559 -> 561, missing ids 535 -> 533, missed-recall cases 211 -> 210,
+wrong-recall/noise cases 349 -> 348, zero-recall cases 86 -> 85, and total
+noise 2608 -> 2600. Information-extraction improves by +2 hit ids, -2 missing
+ids, nine fewer noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average information-extraction
+recall rises 0.7125 -> 0.7375. Target `4:information_extraction:2` moves from
+0 to 1.0 by returning exactly 166/167 and removing target noise
+73/101/117/133/134/135/190/191. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas. Two non-target cases
+add one noise id each, but total noise still decreases. This remains partial
+BEAM progress, not closure: 210 evidence cases still miss and the full
+diagnostic remains noisy at wrong-recall/noise 348/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

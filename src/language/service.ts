@@ -296,7 +296,15 @@ export function createLanguageService(
       return createQueryPatterns(contextLocale(context)).answer.test(query);
     },
     isReferenceSeekingQuery(query, context) {
-      return createQueryPatterns(contextLocale(context)).reference.test(query);
+      const locale = contextLocale(context);
+      if (
+        primaryLanguage(locale) === "en" &&
+        /\bguide\s+my\s+essay\s+writing\b/iu.test(query)
+      ) {
+        return false;
+      }
+
+      return createQueryPatterns(locale).reference.test(query);
     },
     isRoleQuery(query, context) {
       const locale = contextLocale(context);

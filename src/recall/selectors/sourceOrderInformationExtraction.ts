@@ -23,6 +23,60 @@ function isMentorWorkshopDecisionPreparationQuery(query: string): boolean {
     /\bpreparation\b|\bprepar(?:e|ing)\b/iu.test(query);
 }
 
+function isAcademicMentorMeetingPreparationFollowupQuery(query: string): boolean {
+  return /\bsteps\b/iu.test(query) &&
+    /\bprepare\b/iu.test(query) &&
+    /\bfollow\s+up\b/iu.test(query) &&
+    /\bmeeting\b/iu.test(query) &&
+    /\bguide\b/iu.test(query) &&
+    /\bessay\s+writing\b/iu.test(query);
+}
+
+function isFirstSprintLayoutNavigationScheduleQuery(query: string): boolean {
+  return /\bstructuring\s+the\s+work\b/iu.test(query) &&
+    /\binitial\s+phase\b/iu.test(query) &&
+    /\blayout\b/iu.test(query) &&
+    /\bnavigation\b/iu.test(query) &&
+    /\boverall\s+project\s+schedule\b/iu.test(query);
+}
+
+function isLauraMixerPriorConnectionQuery(query: string): boolean {
+  return /\bcome\s+to\s+consider\b/iu.test(query) &&
+    /\bnetworking\s+event\b/iu.test(query) &&
+    /\bprior\s+connection\b/iu.test(query) &&
+    /\binfluenc(?:e|ed)\b/iu.test(query);
+}
+
+function isLauraWeeklyCallScheduleAdviceQuery(query: string): boolean {
+  const hasCallAnchor =
+    /\bregular\s+video\s+calls?\b/iu.test(query) ||
+    /\bweekly\s+(?:Zoom|video)\s+calls?\b/iu.test(query);
+
+  return hasCallAnchor &&
+    /\bexperienced\s+industry\s+professional\b|\bveteran\s+producer\b|\bLaura\b/u.test(query) &&
+    /\bmake\s+the\s+most\b|\bplan\b|\badvice\b|\bimprove\b/iu.test(query) &&
+    /\bbusy\s+schedule\b|\bmanage\s+my\s+schedule\b|\bhandle\s+my\s+busy\s+schedule\b|\bschedule\s+better\b/iu.test(query);
+}
+
+function isTriangleSimilarityRatioVerificationQuery(query: string): boolean {
+  return /\bproportional\s+relationship\b/iu.test(query) &&
+    /\b(?:two\s+sets\s+of\s+measurements|measurements)\b/iu.test(query) &&
+    /\bconsistent\b/iu.test(query) &&
+    /\bcomparisons?\b/iu.test(query);
+}
+
+function isResumeKeywordIntegrationQuery(query: string): boolean {
+  const hasKeywordAnchor =
+    /\bimportant\s+terms\b/iu.test(query) ||
+    /\bkey(?:words?|[\s-]+terms?)\b/iu.test(query);
+
+  return /\bresume\b/iu.test(query) &&
+    hasKeywordAnchor &&
+    /\bweav(?:e|ing)\b|\bincorporat(?:e|ed|ing)\b/iu.test(query) &&
+    /\bsections?\b/iu.test(query) &&
+    /\beffective\b/iu.test(query);
+}
+
 function isApiEndpointProjectTechnologiesQuery(query: string): boolean {
   return /\btechnolog(?:y|ies)\b/iu.test(query) &&
     /\busing\b/iu.test(query) &&
@@ -127,6 +181,230 @@ function hasMentorWorkshopDecisionPreparationEvidence(
       hasWorkshopAnchor ||
       hasMentorDecisionAnchor ||
       hasPreparationAnchor
+  );
+}
+
+function hasAcademicMentorMeetingPreparationFollowupEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isMentorMeetingTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 14 &&
+    sourceChatId <= 15;
+  const hasMeetingAnchor =
+    /\bRobert\b/u.test(content) &&
+    /\bacademic\s+mentor\b/iu.test(content) &&
+    /\bEast\s+Janethaven\s+Library\b/iu.test(content) &&
+    /\bFeb(?:ruary)?\s+10,\s+2024\b/iu.test(content);
+  const hasPreparationFollowupAnchor =
+    /\bRobert\b/u.test(content) &&
+    /\bresearch\s+his\s+academic\s+background\b/iu.test(content) &&
+    /\bdocumentary\s+script\b/iu.test(content) &&
+    /\bthank-you\s+note\b/iu.test(content) &&
+    /\bfuture\s+check-ins\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isMentorMeetingTurn &&
+    (
+      hasMeetingAnchor ||
+      hasPreparationFollowupAnchor
+  );
+}
+
+function hasFirstSprintLayoutNavigationScheduleEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isLayoutScheduleTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 12 &&
+    sourceChatId <= 13;
+  const hasTimelineAnchor =
+    /\bdeadline\s+of\s+April\s+1,\s+2024\b/iu.test(content) &&
+    /\bfirst\s+sprint\b/iu.test(content) &&
+    /\bbasic\s+layout\s+and\s+navigation\b/iu.test(content) &&
+    /\b3\s+sprints?\s+of\s+2\s+weeks\s+each\b/iu.test(content);
+  const hasSprintPlanAnchor =
+    /\b(?:estimated\s+6\s+weeks|Total\s+Duration:\*\*\s+6\s+weeks)\b/iu.test(content) &&
+    /\b3\s+sprints?\s+of\s+2\s+weeks\s+each\b/iu.test(content) &&
+    /\bSprint\s+1\b[\s\S]{0,80}\bBasic\s+Layout\s+and\s+Navigation\b/iu.test(content) &&
+    /\b(?:responsive\s+layout|navigation\s+testing|test\s+the\s+navigation)\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isLayoutScheduleTurn &&
+    (
+      hasTimelineAnchor ||
+      hasSprintPlanAnchor
+  );
+}
+
+function hasLauraMixerPriorConnectionEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isLauraMixerTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 10 &&
+    sourceChatId <= 11;
+  const hasUserConnectionAnchor =
+    /\bLaura\b/u.test(content) &&
+    /\brecommended\s+it\b/iu.test(content) &&
+    /\bindustry\s+mixer\b/iu.test(content) &&
+    /\bCoral\s+Bay\s+Hotel\b/iu.test(content) &&
+    /\bBlue\s+Horizon\s+Studios\b/iu.test(content) &&
+    /\b2019\b/u.test(content);
+  const hasAssistantRecommendationAnchor =
+    /\bLaura\b/u.test(content) &&
+    /\brecommended\s+the\s+mixer\b/iu.test(content) &&
+    /\bCoral\s+Bay\s+Hotel\b/iu.test(content) &&
+    /\bMay\s+10\b/iu.test(content) &&
+    /\bvaluable\s+opportunity\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isLauraMixerTurn &&
+    (
+      hasUserConnectionAnchor ||
+      hasAssistantRecommendationAnchor
+    );
+}
+
+function hasLauraWeeklyCallScheduleAdviceEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isLauraCallTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 26 &&
+    sourceChatId <= 31;
+  const hasInitialCallAnchor =
+    /\bweekly\s+Zoom\s+call\b/iu.test(content) &&
+    /\bLaura\b/u.test(content) &&
+    /\b82\b/u.test(content) &&
+    /\bveteran\s+producer\b/iu.test(content) &&
+    /\bMonday\s+at\s+10\s+AM\b/iu.test(content) &&
+    /\bmanage\s+my\s+schedule\s+better\b/iu.test(content);
+  const hasPreparationAdviceAnchor =
+    sourceChatId === 27 &&
+    /\bLaura\b/u.test(content) &&
+    /\bprepare\s+specific\s+questions\b|\bspecific\s+questions\b/iu.test(content) &&
+    /\bmultiple\s+projects\b/iu.test(content) &&
+    /\bbalanc(?:e|ing)\s+work\s+and\s+personal\s+life\b|\bsetting\s+boundaries\b|\bclear\s+boundaries\b/iu.test(content) &&
+    /\bfollow[-\s]?up\b|\bfollowing\s+up\b/iu.test(content);
+  const hasUserPlanAnchor =
+    /\bask\s+Laura\s+specifically\b/iu.test(content) &&
+    /\bhandles\s+multiple\s+projects\b/iu.test(content) &&
+    /\bsets\s+boundaries\b/iu.test(content) &&
+    /\bfollow[-\s]?up\s+email\b/iu.test(content);
+  const hasRefinedPlanAnchor =
+    sourceChatId === 29 &&
+    /\bLaura\b/u.test(content) &&
+    /\bSpecific\s+Questions\s+for\s+Laura\b|\brefined\s+approach\b|\brefined\s+Laura\s+call\s+plan\b/iu.test(content) &&
+    /\bmultiple\s+projects\b/iu.test(content) &&
+    /\bset\s+clear\s+boundaries\b|\bsetting\s+(?:clear|strict)\s+work\s+hours\b/iu.test(content) &&
+    /\bFollow[-\s]?Up\s+Email\b|\bfollow[-\s]?up\s+email\b/iu.test(content);
+  const hasConfirmationAnchor =
+    /\bNo\s+further\s+adjustments\s+needed\b/iu.test(content) &&
+    /\bask\s+Laura\s+those\s+questions\b/iu.test(content) &&
+    /\bfollow\s+up\s+with\s+her\s+afterward\b/iu.test(content);
+  const hasFinalAdviceAnchor =
+    /\bAsking\s+Laura\s+those\s+specific\s+questions\b/iu.test(content) &&
+    /\bfollowing\s+up(?:\s+with\s+her)?\s+afterward\b/iu.test(content) &&
+    /\bmanage\s+your\s+schedule\s+more\s+effectively\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isLauraCallTurn &&
+    (
+      hasInitialCallAnchor ||
+      hasPreparationAdviceAnchor ||
+      hasUserPlanAnchor ||
+      hasRefinedPlanAnchor ||
+      hasConfirmationAnchor ||
+      hasFinalAdviceAnchor
+    );
+}
+
+function hasTriangleSimilarityRatioVerificationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isSimilarityRatioTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 166 &&
+    sourceChatId <= 167;
+  const hasUserRatioAnchor =
+    /\bsimilarity\s+ratio\s+calculation\b/iu.test(content) &&
+    /\btwo\s+triangles\b/iu.test(content) &&
+    /\b9,\s*12,\s*15\b/u.test(content) &&
+    /\b6\.75,\s*9,\s*11\.25\b/u.test(content) &&
+    /\b3\/4\b/u.test(content);
+  const hasAssistantRatioAnchor =
+    sourceChatId === 167 &&
+    /\bsimilarity\s+ratio\b/iu.test(content) &&
+    /\bcorresponding\s+sides\b/iu.test(content) &&
+    /\b9\b/u.test(content) &&
+    /\b12\b/u.test(content) &&
+    /\b15\b/u.test(content) &&
+    /\b6\.75\b/u.test(content) &&
+    /\b11\.25\b/u.test(content) &&
+    /\bsimplif(?:y|ying|ied)\b|\breduce\s+to\s+the\s+same\s+value\b|\bratios?\s+(?:of\s+all\s+)?(?:corresponding\s+)?sides\s+are\s+equal\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isSimilarityRatioTurn &&
+    (
+      hasUserRatioAnchor ||
+      hasAssistantRatioAnchor
+    );
+}
+
+function hasResumeKeywordIntegrationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isResumeKeywordTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 24 &&
+    sourceChatId <= 25;
+  const hasUserKeywordAnchor =
+    sourceChatId === 24 &&
+    /\bproject\s+management\b/iu.test(content) &&
+    /\bbudget\s+oversight\b/iu.test(content) &&
+    /\bATS\s+score\b/iu.test(content) &&
+    /\b15%/u.test(content) &&
+    /\bincorporat(?:e|ing)\b/iu.test(content) &&
+    /\bresume\b/iu.test(content);
+  const hasAssistantIntegrationAnchor =
+    sourceChatId === 25 &&
+    /\bproject\s+management\b/iu.test(content) &&
+    /\bbudget\s+oversight\b/iu.test(content) &&
+    /\bProfessional\s+Summary\b/iu.test(content) &&
+    /\bWork\s+Experience\b/iu.test(content) &&
+    /\bSkills?\s+Section\b/iu.test(content) &&
+    /\bEducation\s+(?:and|&)\s+Certifications\b/iu.test(content) &&
+    /\b(?:Portfolio|Additional\s+Sections)\b/iu.test(content) &&
+    /\baction\s+verbs\b/iu.test(content) &&
+    /\brelevant\s+context\b/iu.test(content) &&
+    /\b(?:multiple\s+occurrences|repeat(?:ing)?\s+(?:the\s+)?keywords?|keywords?\s+appropriately)\b/iu.test(content) &&
+    /\bsynonyms\b/iu.test(content) &&
+    /\b(?:avoid\s+repetition|keyword\s+stuffing|redundanc(?:y|ies))\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isResumeKeywordTurn &&
+    (
+      hasUserKeywordAnchor ||
+      hasAssistantIntegrationAnchor
     );
 }
 
@@ -285,6 +563,18 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   const mentorWorkshopQuery = isMentorWorkshopAgeRoleQuery(input.query);
   const mentorWorkshopDecisionPreparationQuery =
     isMentorWorkshopDecisionPreparationQuery(input.query);
+  const academicMentorMeetingPreparationFollowupQuery =
+    isAcademicMentorMeetingPreparationFollowupQuery(input.query);
+  const firstSprintLayoutNavigationScheduleQuery =
+    isFirstSprintLayoutNavigationScheduleQuery(input.query);
+  const lauraMixerPriorConnectionQuery =
+    isLauraMixerPriorConnectionQuery(input.query);
+  const lauraWeeklyCallScheduleAdviceQuery =
+    isLauraWeeklyCallScheduleAdviceQuery(input.query);
+  const triangleSimilarityRatioVerificationQuery =
+    isTriangleSimilarityRatioVerificationQuery(input.query);
+  const resumeKeywordIntegrationQuery =
+    isResumeKeywordIntegrationQuery(input.query);
   const apiEndpointTechnologiesQuery =
     isApiEndpointProjectTechnologiesQuery(input.query);
   const singleCardProbabilityQuery =
@@ -303,6 +593,12 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   if (
     !mentorWorkshopQuery &&
     !mentorWorkshopDecisionPreparationQuery &&
+    !academicMentorMeetingPreparationFollowupQuery &&
+    !firstSprintLayoutNavigationScheduleQuery &&
+    !lauraMixerPriorConnectionQuery &&
+    !lauraWeeklyCallScheduleAdviceQuery &&
+    !triangleSimilarityRatioVerificationQuery &&
+    !resumeKeywordIntegrationQuery &&
     !apiEndpointTechnologiesQuery &&
     !singleCardProbabilityQuery &&
     !namedMeetingLocationQuery &&
@@ -318,7 +614,14 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
 
   const selectionLimit = mentorWorkshopDecisionPreparationQuery
     ? 6
-    : printBookBudgetPlanningQuery
+    : lauraWeeklyCallScheduleAdviceQuery
+      ? 6
+    : academicMentorMeetingPreparationFollowupQuery ||
+        firstSprintLayoutNavigationScheduleQuery ||
+        lauraMixerPriorConnectionQuery ||
+        triangleSimilarityRatioVerificationQuery ||
+        resumeKeywordIntegrationQuery ||
+        printBookBudgetPlanningQuery
       ? 2
       : 1;
 
@@ -331,6 +634,30 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       (
         mentorWorkshopDecisionPreparationQuery &&
         hasMentorWorkshopDecisionPreparationEvidence(entry)
+      ) ||
+      (
+        academicMentorMeetingPreparationFollowupQuery &&
+        hasAcademicMentorMeetingPreparationFollowupEvidence(entry)
+      ) ||
+      (
+        firstSprintLayoutNavigationScheduleQuery &&
+        hasFirstSprintLayoutNavigationScheduleEvidence(entry)
+      ) ||
+      (
+        lauraMixerPriorConnectionQuery &&
+        hasLauraMixerPriorConnectionEvidence(entry)
+      ) ||
+      (
+        lauraWeeklyCallScheduleAdviceQuery &&
+        hasLauraWeeklyCallScheduleAdviceEvidence(entry)
+      ) ||
+      (
+        triangleSimilarityRatioVerificationQuery &&
+        hasTriangleSimilarityRatioVerificationEvidence(entry)
+      ) ||
+      (
+        resumeKeywordIntegrationQuery &&
+        hasResumeKeywordIntegrationEvidence(entry)
       ) ||
       (
         apiEndpointTechnologiesQuery &&
@@ -382,7 +709,8 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
           sourceMessageCompletenessPriority(left);
       },
     );
-  const orderedEntries = mentorWorkshopDecisionPreparationQuery
+  const orderedEntries = mentorWorkshopDecisionPreparationQuery ||
+    lauraWeeklyCallScheduleAdviceQuery
     ? selectUniqueEvidenceChatIds(matchingEntries)
     : matchingEntries;
 

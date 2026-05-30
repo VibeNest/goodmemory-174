@@ -3205,6 +3205,509 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-later-patrick-noise")?.returned).toBe(false);
   });
 
+  it("keeps academic mentor meeting preparation and follow-up evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-7",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-robert-mentor-meeting",
+        14,
+        "[BEAM chat_id=14 role=user time=unknown] I'm kinda worried about meeting my new academic mentor, Robert, who's 75 and a retired professor, at the East Janethaven Library on Feb 10, 2024 - how can I make a good impression on him?",
+      ),
+      makeSourceFact(
+        "fact-robert-mentor-prep-followup",
+        15,
+        "[BEAM chat_id=15 role=assistant time=unknown] Meeting Robert can go well if you research his academic background, prepare documentary script questions, bring your draft script, arrive early at the East Janethaven Library, dress professionally, engage politely and enthusiastically, take detailed notes, send a thank-you note, and stay in touch for future check-ins.",
+      ),
+      makeSourceFact(
+        "fact-zotero-essay-noise",
+        38,
+        "[BEAM chat_id=38 role=user time=unknown] I just downloaded Zotero on March 2, 2024, to manage my references more efficiently for my essay on persuasive academic writing.",
+      ),
+      makeSourceFact(
+        "fact-study-partner-noise",
+        36,
+        "[BEAM chat_id=36 role=user time=unknown] I'm worried about burnout, so I agreed with Shannon to limit late-night study sessions to 10 PM.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What steps did I plan to take to prepare for and follow up on my meeting with the person who agreed to guide my essay writing?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-robert-mentor-meeting",
+      "fact-robert-mentor-prep-followup",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-zotero-essay-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-study-partner-noise")?.returned).toBe(false);
+  });
+
+  it("keeps first sprint layout and navigation schedule evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-3",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-layout-deadline-user",
+        12,
+        "[BEAM chat_id=12 role=user time=unknown] I'm trying to plan out my project timeline and I have a deadline of April 1, 2024, for the first sprint, which covers the basic layout and navigation of my single-page portfolio website. The project is estimated to take 3 sprints of 2 weeks each.",
+      ),
+      makeSourceFact(
+        "fact-layout-sprint-plan",
+        13,
+        "[BEAM chat_id=13 role=assistant time=unknown] To meet the April 1, 2024 deadline within the estimated 6 weeks, break the project into 3 sprints of 2 weeks each. Sprint 1 is Basic Layout and Navigation, including the HTML structure, Bootstrap navbar, responsive layout, and navigation testing.",
+      ),
+      makeSourceFact(
+        "fact-trello-priority-noise",
+        39,
+        "[BEAM chat_id=39 role=assistant time=unknown] Prioritize Sprint 1 tasks using a Trello board with Must-Have, Should-Have, Could-Have, and Won't-Have columns.",
+      ),
+      makeSourceFact(
+        "fact-trello-priority-deadline-snippet-noise",
+        39,
+        "Identify the key tasks that are essential for meeting your deadline of April 1, 2024, for basic layout and navigation.",
+      ),
+      makeSourceFact(
+        "fact-trello-priority-final-snippet-noise",
+        39,
+        "By following these steps, you can effectively prioritize your tasks and ensure that you meet your deadline for the basic layout and navigation by April 1, 2024.",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-noise",
+        40,
+        "[BEAM chat_id=40 role=user time=unknown] I'm trying to identify SEO and performance issues in my portfolio website using Lighthouse v10 audit with Bootstrap v5.3.0.",
+      ),
+      makeSourceFact(
+        "fact-lighthouse-schedule-snippet-noise",
+        40,
+        "I've estimated that it will take 3 sprints of 2 weeks each to complete the website, with the first sprint deadline being April 1, 2024.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did you recommend structuring the work to ensure the initial phase focusing on layout and navigation was completed on time within the overall project schedule?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-layout-deadline-user",
+      "fact-layout-sprint-plan",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-trello-priority-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-trello-priority-deadline-snippet-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-trello-priority-final-snippet-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-lighthouse-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-lighthouse-schedule-snippet-noise")?.returned).toBe(false);
+  });
+
+  it("keeps Laura mixer recommendation and prior connection evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-8",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-laura-mixer-user",
+        10,
+        "[BEAM chat_id=10 role=user time=unknown] I'm thinking of attending the industry mixer at Coral Bay Hotel on May 10, Laura recommended it, but I've never been to one. She met me on set at Blue Horizon Studios in 2019.",
+      ),
+      makeSourceFact(
+        "fact-laura-mixer-assistant",
+        11,
+        "[BEAM chat_id=11 role=assistant time=unknown] Since Laura recommended the mixer at Coral Bay Hotel on May 10, it sounds like a valuable opportunity, and you can prepare to meet industry professionals there.",
+      ),
+      makeSourceFact(
+        "fact-greg-leslie-choice-noise",
+        24,
+        "[BEAM chat_id=24 role=user time=unknown] I'm stuck between attending Greg's April 2 coaching session or Leslie's April 3 networking event to meet my cover letter deadline of April 10.",
+      ),
+      makeSourceFact(
+        "fact-greg-leslie-networking-noise",
+        25,
+        "[BEAM chat_id=25 role=assistant time=unknown] Greg's coaching session offers immediate cover-letter feedback, while Leslie's networking event may provide broader long-term networking benefits.",
+      ),
+      makeSourceFact(
+        "fact-greg-leslie-snippet-noise",
+        25,
+        "- **Greg's Session**: Missing out on Leslie's event might mean losing networking opportunities, but you can still network later.",
+      ),
+      makeSourceFact(
+        "fact-storytelling-networking-noise",
+        119,
+        "3. **Networking Opportunities**: While the event is focused on storytelling, it can still provide networking opportunities.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I come to consider attending that networking event, and what prior connection influenced my decision?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-laura-mixer-user",
+      "fact-laura-mixer-assistant",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-greg-leslie-choice-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-greg-leslie-networking-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-greg-leslie-snippet-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-storytelling-networking-noise")?.returned).toBe(false);
+  });
+
+  it("keeps Laura weekly video-call schedule advice evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-17",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-carla-monthly-noise",
+        24,
+        "[BEAM chat_id=24 role=user time=unknown] This plan works great! Having a set time to meet with Carla once a month is perfect.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-user",
+        26,
+        "[BEAM chat_id=26 role=user time=unknown] I've got a weekly Zoom call with Laura, who's 82 and a total veteran producer, every Monday at 10 AM, and I was wondering if I should ask her for advice on how to manage my schedule better.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-advice",
+        27,
+        "[BEAM chat_id=27 role=assistant time=unknown] Prepare specific questions for Laura about managing multiple projects, balancing work and personal life, prioritizing tasks, and following up after the call with a thank-you email summarizing action items.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-plan",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I'll ask Laura specifically about how she handles multiple projects and sets boundaries between work and personal life, and I'll send her a follow-up email to thank her and summarize our discussion.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-refined",
+        29,
+        "[BEAM chat_id=29 role=assistant time=unknown] A refined Laura call plan includes asking about multiple projects, tools like Trello or Asana, setting clear work hours, disconnecting during personal time, and sending a follow-up email with key points and next steps.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-confirmation",
+        30,
+        "[BEAM chat_id=30 role=user time=unknown] No further adjustments needed. I'll definitely ask Laura those questions and follow up with her afterward.",
+      ),
+      makeSourceFact(
+        "fact-laura-weekly-call-final",
+        31,
+        "[BEAM chat_id=31 role=assistant time=unknown] Asking Laura those specific questions and following up afterward should provide valuable insights and practical strategies to manage your schedule more effectively.",
+      ),
+      makeSourceFact(
+        "fact-pilot-plan-noise",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Following this structured pilot episode approach should help you manage your timeline and budget effectively.",
+      ),
+      makeSourceFact(
+        "fact-calendar-planner-noise",
+        36,
+        "[BEAM chat_id=36 role=user time=unknown] I use Google Calendar synced with a Moleskine planner to block 2-hour creative sessions every weekday at 9 AM.",
+      ),
+      makeSourceFact(
+        "fact-calendar-planner-advice-noise",
+        37,
+        "[BEAM chat_id=37 role=assistant time=unknown] Use Google Calendar and a Moleskine planner, review your schedule daily, batch tasks, and organize your creative sessions.",
+      ),
+      makeSourceFact(
+        "fact-script-finalization-noise",
+        39,
+        "[BEAM chat_id=39 role=assistant time=unknown] Focus on script finalization milestones, weekly check-ins, Trello task tracking, and stakeholder feedback loops.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I plan to make the most of my regular video calls with that experienced industry professional to improve how I handle my busy schedule?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-laura-weekly-call-user",
+      "fact-laura-weekly-call-advice",
+      "fact-laura-weekly-call-plan",
+      "fact-laura-weekly-call-refined",
+      "fact-laura-weekly-call-confirmation",
+      "fact-laura-weekly-call-final",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-pilot-plan-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-calendar-planner-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-calendar-planner-advice-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-script-finalization-noise")?.returned).toBe(false);
+  });
+
+  it("keeps triangle similarity ratio verification evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-4",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-triangle-area-median-noise",
+        73,
+        "[BEAM chat_id=73 role=assistant time=unknown] We discussed finding the area of a triangle from a median and altitude, using base-height formulas and median relationships.",
+      ),
+      makeSourceFact(
+        "fact-garden-area-noise",
+        101,
+        "[BEAM chat_id=101 role=assistant time=unknown] We validated a triangular garden plot area with sides 15 m, 20 m, and 25 m using Heron's formula and coordinate geometry.",
+      ),
+      makeSourceFact(
+        "fact-base-height-heron-noise",
+        117,
+        "[BEAM chat_id=117 role=assistant time=unknown] We compared base-height and Heron's formula for a right triangle with sides 7 cm, 24 cm, and 25 cm, then calculated a median length.",
+      ),
+      makeSourceFact(
+        "fact-triangle-area-method-noise",
+        135,
+        "[BEAM chat_id=135 role=assistant time=unknown] We explored using medians and altitudes to calculate triangle area and compare base-height, Heron's formula, and altitude methods.",
+      ),
+      makeSourceFact(
+        "fact-similarity-ratio-user",
+        166,
+        "[BEAM chat_id=166 role=user time=unknown] I'm trying to verify the similarity ratio calculation for two triangles with sides 9, 12, 15 and 6.75, 9, 11.25 cm, and I want to check if the ratio is indeed 3/4 as given.",
+      ),
+      makeSourceFact(
+        "fact-similarity-ratio-assistant",
+        167,
+        "[BEAM chat_id=167 role=assistant time=unknown] To verify the similarity ratio, compare corresponding sides 9 to 6.75, 12 to 9, and 15 to 11.25 step by step, simplify each fraction, and confirm all corresponding side ratios reduce to the same value.",
+      ),
+      makeSourceFact(
+        "fact-congruence-error-noise",
+        169,
+        "[BEAM chat_id=169 role=assistant time=unknown] We corrected an angle calculation error from 65 degrees to 60 degrees for an ASA triangle congruence proof.",
+      ),
+      makeSourceFact(
+        "fact-broad-similarity-noise",
+        191,
+        "[BEAM chat_id=191 role=assistant time=unknown] We explained congruence and similarity for triangles with sides 6, 8, 10 and 9, 12, 15 using scale factors, GeoGebra, medians, and altitudes.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did I confirm that the proportional relationship between the two sets of measurements was consistent across all comparisons?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-similarity-ratio-user",
+      "fact-similarity-ratio-assistant",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-triangle-area-median-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-garden-area-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-base-height-heron-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-triangle-area-method-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-congruence-error-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-broad-similarity-noise")?.returned).toBe(false);
+  });
+
+  it("keeps resume keyword integration evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-6",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-age-discrimination-noise",
+        1,
+        "[BEAM chat_id=1 role=assistant time=unknown] Update your resume to reduce age discrimination signals by emphasizing recent achievements, modern technical skills, concise formatting, and relevant impact.",
+      ),
+      makeSourceFact(
+        "fact-film-tv-tailoring-noise",
+        15,
+        "[BEAM chat_id=15 role=assistant time=unknown] Tailor your resume for film, TV, and digital media roles by highlighting production coordination, stakeholder communication, portfolio links, and measurable creative outcomes.",
+      ),
+      makeSourceFact(
+        "fact-resume-keywords-user",
+        24,
+        "[BEAM chat_id=24 role=user time=unknown] I discovered that using keywords like 'project management' and 'budget oversight' can increase my resume's ATS score by 15%, can you help me figure out how to incorporate these into my resume effectively ->-> 1,12",
+      ),
+      makeSourceFact(
+        "fact-resume-keywords-assistant",
+        25,
+        "[BEAM chat_id=25 role=assistant time=unknown] Incorporate project management and budget oversight naturally across your Professional Summary, Work Experience, Skills Section, Education and Certifications, and Portfolio or Additional Sections. Use action verbs, relevant context, multiple occurrences where appropriate, synonyms and variations, and avoid repetition in the same sentence.",
+      ),
+      makeSourceFact(
+        "fact-remote-team-leadership-noise",
+        111,
+        "[BEAM chat_id=111 role=assistant time=unknown] Frame remote team leadership as a transferable skill by emphasizing communication cadence, accountability, asynchronous coordination, and cross-functional collaboration.",
+      ),
+      makeSourceFact(
+        "fact-bullet-style-noise",
+        124,
+        "[BEAM chat_id=124 role=user time=unknown] I prefer concise resume bullet points that lead with strong verbs and keep each accomplishment easy to scan.",
+      ),
+      makeSourceFact(
+        "fact-quantified-bullet-noise",
+        125,
+        "[BEAM chat_id=125 role=assistant time=unknown] Improve ATS readability by using quantified bullet points, consistent formatting, active verbs, and clear metrics for each accomplishment.",
+      ),
+      makeSourceFact(
+        "fact-minimalist-layout-noise",
+        173,
+        "[BEAM chat_id=173 role=assistant time=unknown] Use a minimalist resume layout with strong section hierarchy, clear spacing, and simple typography so recruiters can scan it quickly.",
+      ),
+      makeSourceFact(
+        "fact-international-resume-noise",
+        203,
+        "[BEAM chat_id=203 role=assistant time=unknown] International resume standards vary, so adapt personal details, formatting, and ATS conventions for the target region and employer expectations.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What approach did you recommend for weaving certain important terms into different sections of my resume to make it more effective?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-resume-keywords-user",
+      "fact-resume-keywords-assistant",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-age-discrimination-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-film-tv-tailoring-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-remote-team-leadership-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-bullet-style-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-quantified-bullet-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-minimalist-layout-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-international-resume-noise")?.returned).toBe(false);
+  });
+
   it("keeps API endpoint project technologies for startup information questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (

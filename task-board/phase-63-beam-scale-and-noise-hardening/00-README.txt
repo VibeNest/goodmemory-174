@@ -831,6 +831,94 @@ Workstreams
     adds one noise id, but global noise still decreases. This is kept partial
     repair only: the full diagnostic remains recall-limited and noisy.
 
+  - layout/navigation sprint schedule plus Robert mentor-prep
+    information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-layout-and-robert-prep-current-20260530T210000Z`
+    reaches full rules-only evidence-chat recall 0.5424077800134139 with
+    `executionFailures: 0`, missed-recall cases 213/355, and
+    wrong-recall/noise 351/400. The kept repair prevents `guide my essay
+    writing` from routing to reference slots, keeps Robert academic mentor
+    preparation/follow-up source turns, and keeps the first-sprint
+    layout/navigation schedule pair ahead of later Trello/Lighthouse snippets.
+    Compared with the Patrick workshop run, global hit ids improve
+    547 -> 551, missing ids 547 -> 543, noise ids rise 2616 -> 2618,
+    missed-recall cases 215 -> 213, wrong-recall/noise cases improve
+    352 -> 351, and zero-recall cases 90 -> 88. Information-extraction rises
+    to average recall 0.6625 with +4 hit ids, -4 missing ids, two fewer noise
+    ids, two fewer incomplete cases, two fewer zero-recall cases, and one fewer
+    wrong-recall/noise case. Targets `3:information_extraction:2` and
+    `7:information_extraction:2` both rise 0 -> 1.0 by returning exactly 12/13
+    and 14/15 respectively; the first target removes noise 39/40 and the
+    second adds no target noise. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. Three
+    non-target buckets add four net noise ids, so total noise remains open.
+    This is kept partial repair only: the full diagnostic remains
+    recall-limited and noisy.
+
+  - Laura mixer prior-connection information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-laura-mixer-prior-connection-current-20260530T220000Z`
+    reaches full rules-only evidence-chat recall 0.5452246814218646 with
+    `executionFailures: 0`, missed-recall cases 212/355, and
+    wrong-recall/noise 350/400. The kept repair preserves the source turns
+    where Laura recommended the Coral Bay Hotel mixer and links that decision
+    to the prior Blue Horizon Studios connection, ahead of Leslie/Greg
+    networking distractors.
+    Compared with the layout/navigation plus Robert mentor-prep run, global
+    hit ids improve 551 -> 553, missing ids 543 -> 541, noise ids decrease
+    2618 -> 2610, missed-recall cases improve 213 -> 212,
+    wrong-recall/noise cases improve 351 -> 350, and zero-recall cases
+    88 -> 87. Information-extraction rises to average recall 0.6875 with
+    +2 hit ids, -2 missing ids, two fewer noise ids, one fewer incomplete case,
+    one fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+    `8:information_extraction:2` rises 0 -> 1.0 by returning exactly 10/11 and
+    removing target noise 25/24. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, no negative recall deltas, and no
+    positive noise deltas. This is kept partial repair only: the full
+    diagnostic remains recall-limited and noisy.
+
+  - Laura weekly video-call schedule-advice information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-laura-weekly-call-schedule-advice-current-20260530T223000Z`
+    reaches full rules-only evidence-chat recall 0.5480415828303153 with
+    `executionFailures: 0`, missed-recall cases 211/355, and
+    wrong-recall/noise 349/400. The kept repair preserves the source turns for
+    the weekly Laura Zoom-call plan, including questions about multiple
+    projects, work/personal boundaries, and follow-up thank-you summaries,
+    ahead of pilot-plan and Google Calendar/Moleskine schedule distractors.
+    Compared with the Laura mixer prior-connection run, global hit ids improve
+    553 -> 559, missing ids 541 -> 535, noise ids decrease 2610 -> 2608,
+    missed-recall cases improve 212 -> 211, wrong-recall/noise cases improve
+    350 -> 349, and zero-recall cases 87 -> 86. Information-extraction rises
+    to average recall 0.7125 with +6 hit ids, -6 missing ids, five fewer noise
+    ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+    wrong-recall/noise case. Target `17:information_extraction:2` rises
+    0 -> 1.0 by returning exactly 26/27/28/29/30/31 and removing target noise
+    35/36/37/38/39. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. Four non-target cases
+    add one noise id each, but total noise still decreases. This is kept
+    partial repair only: the full diagnostic remains recall-limited and noisy.
+
+  - triangle similarity-ratio information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-triangle-similarity-ratio-exact-current-20260530T231000Z`
+    reaches full rules-only evidence-chat recall 0.5508584842387659 with
+    `executionFailures: 0`, missed-recall cases 210/355, and
+    wrong-recall/noise 348/400. The kept repair preserves the source pair for
+    verifying the triangle similarity ratio across corresponding sides
+    9/12/15 and 6.75/9/11.25, ahead of triangle-area and broad geometry
+    distractors.
+    Compared with the Laura weekly video-call schedule-advice run, global hit
+    ids improve 559 -> 561, missing ids 535 -> 533, noise ids decrease
+    2608 -> 2600, missed-recall cases improve 211 -> 210,
+    wrong-recall/noise cases improve 349 -> 348, and zero-recall cases
+    86 -> 85. Information-extraction rises to average recall 0.7375 with
+    +2 hit ids, -2 missing ids, nine fewer noise ids, one fewer incomplete
+    case, one fewer zero-recall case, and one fewer wrong-recall/noise case.
+    Target `4:information_extraction:2` rises 0 -> 1.0 by returning exactly
+    166/167 and removing target noise 73/101/117/133/134/135/190/191.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. Two non-target cases add one
+    noise id each, but total noise still decreases. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+
 
 Current Boundary
 ----------------
@@ -982,11 +1070,31 @@ Current Boundary
   recall to 0.5339570757880617 with 216 missed-recall cases and
   wrong-recall/noise 352/400, recovering `13:information_extraction:2` to
   exact 1.0 without target noise, hit-loss, newly-missing evidence regressions,
-  or negative recall deltas. The latest Patrick workshop preparation repair
-  raises current evidence-chat recall to 0.5367739771965124 with 215
-  missed-recall cases and wrong-recall/noise 352/400, recovering
+  or negative recall deltas. The Patrick workshop preparation repair raises
+  current evidence-chat recall to 0.5367739771965124 with 215 missed-recall
+  cases and wrong-recall/noise 352/400, recovering
   `18:information_extraction:2` to exact 1.0 without target noise, hit-loss,
-  newly-missing evidence regressions, or negative recall deltas.
+  newly-missing evidence regressions, or negative recall deltas. The
+  layout/navigation plus Robert mentor-prep repair raises current evidence-chat
+  recall to 0.5424077800134139 with 213 missed-recall cases and
+  wrong-recall/noise 351/400, recovering `3:information_extraction:2` and
+  `7:information_extraction:2` to exact 1.0 without target noise, hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The Laura
+  mixer prior-connection repair raises current evidence-chat recall to
+  0.5452246814218646 with 212 missed-recall cases and wrong-recall/noise
+  350/400, recovering `8:information_extraction:2` to exact 1.0 and removing
+  target noise 25/24 without hit-loss, newly-missing evidence regressions,
+  negative recall deltas, or positive noise deltas. The Laura weekly
+  video-call schedule-advice repair raises current evidence-chat recall to
+  0.5480415828303153 with 211 missed-recall cases and wrong-recall/noise
+  349/400, recovering `17:information_extraction:2` to exact 1.0 and removing
+  target noise 35/36/37/38/39 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The latest triangle similarity-ratio
+  repair raises current evidence-chat recall to 0.5508584842387659 with 210
+  missed-recall cases and wrong-recall/noise 348/400, recovering
+  `4:information_extraction:2` to exact 1.0 and removing target noise
+  73/101/117/133/134/135/190/191 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

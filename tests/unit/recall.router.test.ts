@@ -241,6 +241,19 @@ describe("recall router", () => {
     expect(plan.requestedSlots).toEqual([]);
   });
 
+  it("does not route guide-my-essay-writing wording as a reference slot", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "What steps did I plan to take to prepare for and follow up on my meeting with the person who agreed to guide my essay writing?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual([]);
+  });
+
   it("plans reference queries with next-step support without widening primary slots", () => {
     const plan = planRecall({
       retrievalProfile: "general_chat",
