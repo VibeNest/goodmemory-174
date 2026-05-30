@@ -671,6 +671,7 @@ export function selectFacts(
         });
   const sourcePreferenceCandidates =
     timelineIntegrationCandidates.length > 0 ||
+    summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
     householdBudgetReasoningQuery ||
     sourceOrderedValueUpdateCandidates.length > 0 ||

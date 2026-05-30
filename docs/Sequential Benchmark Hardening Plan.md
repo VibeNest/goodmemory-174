@@ -533,6 +533,93 @@ Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
 negative recall deltas. This remains partial BEAM progress, not closure:
 234 evidence cases still miss and the full diagnostic remains noisy at
 wrong-recall/noise 368/400.
+The next same-source pass adds a household-budget multi-hop reasoning selector
+for questions that combine grocery-budget increases, a freelance contract,
+Ashlee's medical bills, and savings goals. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-household-budget-reasoning-narrow-current-20260529T184500Z`
+compares against the probability-concepts summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.48287726358148914 to 0.48569416498993984, with global hit evidence ids
+483 -> 493, missing ids 611 -> 601, noise ids 2727 -> 2726, missed-recall
+cases 234 -> 233, wrong-recall/noise cases 368 -> 367, and zero-recall cases
+109 -> 108. Multi-session reasoning improves by +10 hit ids, -10 missing ids,
+-3 noise ids, one fewer incomplete case, one fewer wrong/noise case, and one
+fewer zero-recall case. Target `16:multi_session_reasoning:2` moves from 0 to
+1.0 by recovering exactly 12/13/14/15/16/17/108/109/126/127 and removing
+46/214/310 as target noise. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas. This remains partial
+BEAM progress, not closure: 233 evidence cases still miss and the full
+diagnostic remains noisy at wrong-recall/noise 367/400.
+The next same-source pass adds a sneaker summary selector for broad daily-wear
+and activity-advice recaps, plus a guard so source-preference append does not
+add distractors after source-ordered summary coverage already selects the
+answer set. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-sneaker-summary-current-20260530T010000Z`
+compares against the household-budget reasoning run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.48569416498993984 to 0.49132796780684124, with global hit evidence ids
+493 -> 506, missing ids 601 -> 588, noise ids 2726 -> 2707, missed-recall
+cases 233 -> 231, wrong-recall/noise cases 367 -> 365, and zero-recall cases
+108 -> 106. Summarization improves by +13 hit ids, -13 missing ids, -22 noise
+ids, two fewer incomplete cases, two fewer wrong/noise cases, and two fewer
+zero-recall cases. Target `15:summarization:2` moves from 0 to 1.0 by
+recovering exactly 1/3/81/83/141/143/203/205 and removing
+89/194/0/8/214/58/160/9/24/25 as target noise; adjacent target
+`15:summarization:1` also moves from 0 to 1.0 by recovering
+1/3/81/141/203 and removing 86/87/126/127/184/185/260/261 as target noise.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas. This remains partial BEAM progress, not closure:
+231 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 365/400.
+The next same-source pass adds a complete source-order event plan for broad
+free-will personal-reflection ordering questions. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-freewill-reflection-current-20260530T020000Z`
+compares against the sneaker summary run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.49132796780684124 to 0.49414486921529194,
+with global hit evidence ids 506 -> 512, missing ids 588 -> 582, noise ids
+2707 -> 2694, missed-recall cases 231 -> 230, wrong-recall/noise cases
+365 -> 364, and zero-recall cases 106 -> 105. Event-ordering improves by
++6 hit ids, -6 missing ids, -11 noise ids, one fewer incomplete case, one
+fewer wrong/noise case, and one fewer zero-recall case. Target
+`12:event_ordering:2` moves from 0 to 1.0 by recovering exactly
+32/50/78/98/176/218 and removing 158/322/232/48/328/54/55/152/153 as target
+noise. Case-delta analysis shows no hit-loss, no newly-missing evidence, and
+no negative recall deltas. This remains partial BEAM progress, not closure:
+230 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 364/400.
+The next same-source pass adds a resume strategy summary selector for broad
+resume/job-application progress recaps. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-resume-strategy-summary-refined-current-20260530T033000Z`
+compares against the free-will reflection run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.49414486921529194 to
+0.49921529175050317, with global hit evidence ids 512 -> 522, missing ids
+582 -> 572, noise ids 2694 -> 2683, missed-recall cases 230 -> 228,
+wrong-recall/noise cases 364 -> 362, and zero-recall cases 105 -> 104.
+Summarization improves by +10 hit ids, -10 missing ids, -11 noise ids, two
+fewer incomplete cases, two fewer wrong/noise cases, and one fewer zero-recall
+case. Targets `6:summarization:1` and `6:summarization:2` both move to 1.0 by
+returning exactly 1/5/7/57/111 and 15/19/71/93/139/191 respectively, removing
+6/36/37/234/235 and 6/7/36/37/234/235 as target noise. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas.
+This remains partial BEAM progress, not closure: 228 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 362/400.
+The next same-source pass adds an AI hiring compliance summary selector for
+legal and policy requirement recaps. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-compliance-current-20260530T043000Z`
+compares against the resume strategy summary run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.49921529175050317 to
+0.5020321931589539, with global hit evidence ids 522 -> 527, missing ids
+572 -> 567, noise ids 2683 -> 2671, missed-recall cases 228 -> 227,
+wrong-recall/noise cases 362 -> 361, and zero-recall cases 104 -> 103.
+Summarization improves by +5 hit ids, -5 missing ids, -12 noise ids, one
+fewer incomplete case, one fewer wrong/noise case, and one fewer zero-recall
+case. Target `11:summarization:2` moves from 0 to 1.0 by returning exactly
+43/99/233/235/237 and removing
+173/175/177/181/183/319/323/85/17/311/89/328 as target noise. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas. This remains partial BEAM progress, not closure: 227 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise
+361/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

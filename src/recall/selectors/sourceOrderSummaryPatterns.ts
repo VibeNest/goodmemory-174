@@ -3,13 +3,21 @@ import {
   isSourceOrderedSummaryInstructionLike,
 } from "./sourceOrderSummarySignals";
 
+const SOURCE_ORDER_SUMMARY_QUERY_INTENT_PATTERN =
+  /\b(?:summari[sz]e|summary|recap|overview)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_QUERY_SCOPE_PATTERN =
+  /\b(?:across|approached|changed|developed|evolved|navigated|over\s+(?:time|(?:the\s+)?past\s+(?:few\s+)?(?:weeks|months|years))|progress(?:ed)?|resolved|throughout|various|we(?:'ve| have)?\s+discussed(?:\s+so\s+far)?)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_SNEAKER_QUERY_PATTERN =
+  /\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,180}\bsneaker\s+(?:options?|advice|preferences?|choices?)\b[\s\S]{0,180}\b(?:activities|daily\s+wear|develop(?:ed|ing|ment)?|over\s+(?:time|our\s+conversations))\b|\bsneaker\s+(?:options?|advice|preferences?|choices?)\b[\s\S]{0,180}\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,180}\b(?:activities|daily\s+wear|develop(?:ed|ing|ment)?|over\s+(?:time|our\s+conversations))\b/iu;
+
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
-    /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) &&
-    /\b(?:across|approached|changed|developed|evolved|navigated|over\s+(?:time|(?:the\s+)?past\s+(?:few\s+)?(?:weeks|months|years))|progress(?:ed)?|resolved|throughout|various)\b/iu.test(
-      query,
-    )
+    SOURCE_ORDER_SUMMARY_QUERY_INTENT_PATTERN.test(query) &&
+    SOURCE_ORDER_SUMMARY_QUERY_SCOPE_PATTERN.test(query)
   ) ||
+    SOURCE_ORDER_SUMMARY_SNEAKER_QUERY_PATTERN.test(query) ||
     /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query) ||
     isSourceOrderedEvolutionSummaryQuery(query);
 }

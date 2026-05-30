@@ -2964,6 +2964,78 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-preapproval-old")?.returned).toBe(false);
   });
 
+  it("keeps senior producer application deadline updates for deadline questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-meditation-app-noise",
+        8,
+        "[BEAM chat_id=8 role=user time=unknown] These suggestions fit pretty well with what I'm already doing. I've started with the meditation app and it's been helping.",
+      ),
+      makeSourceFact(
+        "fact-date-format-instruction-noise",
+        120,
+        "[BEAM chat_id=120 role=user time=unknown] Always format dates as \"Month Day, Year\" when I ask about scheduling details.",
+      ),
+      makeSourceFact(
+        "fact-senior-producer-deadline-original",
+        170,
+        "[BEAM chat_id=170 role=user time=unknown] I'm considering applying for a senior producer role at Montserrat Media Corp, but I'm not sure if I'm ready for the challenge, especially with the application deadline being May 10.",
+      ),
+      makeSourceFact(
+        "fact-greg-feedback-noise",
+        180,
+        "[BEAM chat_id=180 role=user time=unknown] Greg praised my delegation on April 7, and it helped with a smoother workflow and a 10% faster editing turnaround.",
+      ),
+      makeSourceFact(
+        "fact-senior-producer-deadline-extended",
+        182,
+        "[BEAM chat_id=182 role=user time=unknown] I'm stressed about this senior producer role application, and I just found out the deadline was extended to May 20, so I'm wondering how I can use this extra time to improve my chances.",
+      ),
+      makeSourceFact(
+        "fact-scheduling-instruction-noise",
+        242,
+        "[BEAM chat_id=242 role=user time=unknown] Always confirm dates and times explicitly when I ask about event scheduling.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "When is the deadline for submitting my application for the senior producer role at Montserrat Media Corp?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-senior-producer-deadline-original",
+      "fact-senior-producer-deadline-extended",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-date-format-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-scheduling-instruction-noise")?.returned).toBe(false);
+  });
+
   it("prefers the latest shared grocery-list method evidence over stale paper-list evidence", () => {
     const language = createLanguageService();
     const facts = [
@@ -4082,6 +4154,136 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps free-will personal reflection milestones for broad event questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-dennett-book",
+        32,
+        "I'm kinda wondering if I should take Shelly's suggestion to read Daniel Dennett's Freedom Evolves seriously, considering we met back in 2005 at an industry conference and she's 57, what do you think?",
+      ),
+      makeFact(
+        "fact-wendy-divine-noise",
+        48,
+        "I'm kinda struggling with the idea of free will, especially since my mom Wendy believes in divine intervention shaping our choices, and I'm wondering how that influences my own spiritual views.",
+      ),
+      makeFact(
+        "fact-trolley-debate",
+        50,
+        "I had this intense debate with Shelly at The Blue Lagoon restaurant on March 10 about the Trolley Problem, and I'm still trying to wrap my head around it, like, what would I do in that situation, and does it really matter if I have free will or not.",
+      ),
+      makeFact(
+        "fact-logical-reasoning-noise",
+        54,
+        "I prefer making decisions based on logical reasoning rather than emotional impulses, reflecting my practical nature, so can you help me understand how that affects my belief in free will.",
+      ),
+      makeFact(
+        "fact-logical-reasoning-response-noise",
+        55,
+        "Logical reasoning can influence your belief in free will by making decisions feel more controlled, predictable, and deliberate.",
+      ),
+      makeFact(
+        "fact-soft-determinism-journaling",
+        78,
+        "I'm kinda leaning towards soft determinism, believing free will can coexist with causal determinism, so how can I apply this concept to my daily life, like with my decision to start daily journaling on April 1 to track decisions and their consequences?",
+      ),
+      makeFact(
+        "fact-experience-machine",
+        98,
+        "I debated whether choosing simulated happiness undermines authentic free will on April 5, so can you guide me through the implications of The Experience Machine on my decisions?",
+      ),
+      makeFact(
+        "fact-accountability-generic-noise",
+        152,
+        "I'm trying to understand how my belief in free will, which I've been exploring since April, affects my accountability for past mistakes, and I'd love some guidance as I approach the June 1 time anchor.",
+      ),
+      makeFact(
+        "fact-tanya-noise",
+        158,
+        "I'm struggling to understand how my close friend Tanya's moral dilemmas about free will, which she shared with me on May 28 during our 2 PM walk in East Janethaven Park, might influence my own beliefs.",
+      ),
+      makeFact(
+        "fact-accountability-shelly",
+        176,
+        "I've been thinking a lot about my conversation with Shelly on May 25 at 7 PM about incompatibilism, and I'm wondering if believing in free will means I'm more accountable for my past mistakes, like declining that bonus - what are your thoughts on this?",
+      ),
+      makeFact(
+        "fact-ship-theseus",
+        218,
+        "I'm kinda struggling with this thought experiment, The Ship of Theseus, that I used on May 27 to reflect on identity and change in my career, and I'm wondering how it applies to my life choices.",
+      ),
+      makeFact(
+        "fact-weekly-checkins-noise",
+        232,
+        "I prefer resolving conflicts through calm dialogue, which is why I scheduled weekly check-ins with Stephen every Sunday at 6 PM, but how can I make sure these conversations remain productive?",
+      ),
+      makeFact(
+        "fact-fiction-journal-noise",
+        322,
+        "How can I use self-reflection, like when I wrote in my journal on August 10 about how writing fiction deepened my understanding of free will, to make more informed decisions in my personal and professional life?",
+      ),
+      makeFact(
+        "fact-emotional-tone-instruction-noise",
+        328,
+        "Always include emotional tone when I ask about personal reflections.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different ideas related to free will and personal reflection throughout our conversations, in order? Mention ONLY and ONLY six items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-dennett-book",
+      "fact-trolley-debate",
+      "fact-soft-determinism-journaling",
+      "fact-experience-machine",
+      "fact-accountability-shelly",
+      "fact-ship-theseus",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-dennett-book",
+      "fact-trolley-debate",
+      "fact-soft-determinism-journaling",
+      "fact-experience-machine",
+      "fact-accountability-shelly",
+      "fact-ship-theseus",
+    ]);
+  });
+
   it("keeps professional preparation milestones for broad source-ordered event questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
@@ -4388,6 +4590,388 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps resume development milestones for past-months strategy summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-joshua-keywords-noise-user",
+        6,
+        "user",
+        "I'll share job descriptions and feedback with Joshua so we can add keywords, refine budget management, and include Caribbean communities experience.",
+      ],
+      [
+        "fact-caribbean-community-noise-assistant",
+        7,
+        "assistant",
+        "Adding a Caribbean diverse communities section can showcase cultural competence, adaptability, and community engagement.",
+      ],
+      [
+        "fact-action-verb-library-noise-assistant",
+        11,
+        "assistant",
+        "Using a resume action verb library is a great way to make the resume more dynamic and ATS-friendly, with verbs for project management, budget management, team leadership, creative development, networking, collaboration, marketing, distribution, plus ordinary resume sections like professional summary, certification, and promotion notes.",
+      ],
+      [
+        "fact-industry-tailoring-assistant",
+        15,
+        "assistant",
+        "For the April 10, 2024 deadline, tailor the resume for film, television, and digital media by defining target roles, gathering information, writing a professional summary, structuring sections, using action verbs, integrating the portfolio, and reviewing for ATS-friendly formatting.",
+      ],
+      [
+        "fact-canva-ats-assistant",
+        19,
+        "assistant",
+        "To make the Canva Pro resume ATS-compatible by March 30, 2024, use a simple text-heavy template, standard fonts, clear sections, action verbs, relevant keywords, bullet points, and avoid graphics or tables.",
+      ],
+      [
+        "fact-quantified-bullets-noise-assistant",
+        37,
+        "assistant",
+        "A structured resume section can use quantified bullet points such as managing $5 million budgets, leading 20-person teams, and increasing box office revenue by 30%.",
+      ],
+      [
+        "fact-interview-workshop-assistant",
+        71,
+        "assistant",
+        "Balance interview preparation and the workshop by setting clear goals, scheduling morning interview prep, afternoon workshop participation, evening resume and cover-letter refinement, and reducing social media time by 3 hours daily.",
+      ],
+      [
+        "fact-callbacks-assistant",
+        93,
+        "assistant",
+        "After securing 5 interviews between April 25 and May 1, improve callback chances by analyzing interview feedback, tailoring each resume, adding keywords, quantifying achievements, and emphasizing transferable leadership and project-management skills.",
+      ],
+      [
+        "fact-rapport-ats-assistant",
+        139,
+        "assistant",
+        "Show warm charismatic rapport-building from July onboarding in an ATS-friendly resume by using interpersonal action verbs and keywords, giving specific examples, adding soft-skill sections, and tailoring the resume to the job description.",
+      ],
+      [
+        "fact-cert-promotion-assistant",
+        191,
+        "assistant",
+        "Show the September 7, 2024 resume update for the latest certification and promotion by putting them in the professional summary and work-experience section with clear ATS-friendly headings, metrics, and keywords.",
+      ],
+      [
+        "fact-cross-cultural-noise-assistant",
+        235,
+        "assistant",
+        "A cross-cultural communication skills section from Caribbean and UK collaborations should include specific examples, achievements, soft skills, and relevant training.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you summarize how my resume development and job application strategy progressed over the past few months?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-industry-tailoring-assistant",
+      "fact-canva-ats-assistant",
+      "fact-interview-workshop-assistant",
+      "fact-callbacks-assistant",
+      "fact-rapport-ats-assistant",
+      "fact-cert-promotion-assistant",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(selectedIds);
+    for (const noiseId of [
+      "fact-joshua-keywords-noise-user",
+      "fact-caribbean-community-noise-assistant",
+      "fact-quantified-bullets-noise-assistant",
+      "fact-cross-cultural-noise-assistant",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === noiseId)?.returned).toBe(false);
+    }
+  });
+
+  it("keeps resume improvement milestones for general strategy summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-age-resume-assistant",
+        1,
+        "assistant",
+        "For age-related job hunting concerns, make the resume stand out by focusing on achievements and skills, tailoring it for each application, removing outdated information, and using modern language.",
+      ],
+      [
+        "fact-joshua-ats-assistant",
+        5,
+        "assistant",
+        "Joshua's project budgeting and networking experience can help update the resume with ATS keyword optimization, professional networking insights, budget and project-management skills, and clear formatting.",
+      ],
+      [
+        "fact-caribbean-community-assistant",
+        7,
+        "assistant",
+        "Adding Caribbean diverse communities experience can showcase cultural competence through a professional summary, experience bullets, and a dedicated community engagement section.",
+      ],
+      [
+        "fact-deadline-noise-assistant",
+        15,
+        "assistant",
+        "For an April 10 deadline, tailor the resume for film, television, and digital media by gathering information, structuring resume sections, integrating a portfolio, and reviewing the final draft.",
+      ],
+      [
+        "fact-canva-jobscan-noise-assistant",
+        19,
+        "assistant",
+        "To make the Canva Pro resume ATS-compatible by March 30, use simple formatting and test it with Jobscan or another ATS checker after exporting it.",
+      ],
+      [
+        "fact-quantified-bullets-noise-assistant",
+        37,
+        "assistant",
+        "A structured resume section can use quantified bullet points such as managing $5 million budgets, leading 20-person teams, and increasing box office revenue by 30%.",
+      ],
+      [
+        "fact-jobscan-assistant",
+        57,
+        "assistant",
+        "After using Jobscan to compare the resume against 5 job descriptions and improving keyword match by 25%, keep using Jobscan, optimize the format, add standard fonts and bullets, and tailor the resume for ATS.",
+      ],
+      [
+        "fact-transferable-skills-assistant",
+        111,
+        "assistant",
+        "Add transferable skills like remote team leadership to the resume by identifying relevant skills, highlighting them in the summary, and connecting them to digital media roles and ATS screening.",
+      ],
+      [
+        "fact-cross-cultural-noise-assistant",
+        235,
+        "assistant",
+        "A cross-cultural communication skills section from Caribbean and UK collaborations should include specific examples, achievements, soft skills, and relevant training.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a summary of how I worked on improving my resume and job application strategy over time?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-age-resume-assistant",
+      "fact-joshua-ats-assistant",
+      "fact-caribbean-community-assistant",
+      "fact-jobscan-assistant",
+      "fact-transferable-skills-assistant",
+    ]);
+  });
+
+  it("keeps AI hiring compliance milestones for legal and policy summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-data-protection-assistant",
+        43,
+        "assistant",
+        "Ensuring compliance with Montserrat's Data Protection Act and upcoming GDPR-like standards for AI hiring requires lawful processing, purpose limitation, data minimization, accuracy, storage limitation, security, explicit consent, transparency, access rights, records, and accountability.",
+      ],
+      [
+        "fact-policy-review-assistant",
+        99,
+        "assistant",
+        "Before the May 10 HR review, the hiring policy should include AI transparency requirements, explanation of AI usage, algorithmic fairness audits, candidate notifications, data privacy and security, consent management, and human oversight.",
+      ],
+      [
+        "fact-security-plan-noise-assistant",
+        173,
+        "assistant",
+        "The bias mitigation and security implementation plan covers enabling 2FA, security training, initial bias audits, explainable AI, human oversight, diverse review panels, and data encryption.",
+      ],
+      [
+        "fact-meeting-invite-noise-assistant",
+        181,
+        "assistant",
+        "The meeting invite for June 5 should discuss AI implementation, bias mitigation strategies, data privacy and security, next steps, Q&A, and initial security training.",
+      ],
+      [
+        "fact-employment-act-assistant",
+        233,
+        "assistant",
+        "To comply with Montserrat's Employment Act amendments effective June 2024, review the amendments, consult legal experts, audit AI tools for fairness and transparency, update hiring policies and candidate communication, and train the team.",
+      ],
+      [
+        "fact-legal-checklist-assistant",
+        235,
+        "assistant",
+        "Schedule a meeting with an employment-law and AI-compliance legal expert soon to get the compliance checklist, prepare the legislation copy, current AI practices, and questions, then discuss requirements and next steps.",
+      ],
+      [
+        "fact-current-usage-assistant",
+        237,
+        "assistant",
+        "Provide examples of current AI usage during the legal expert meeting, including tools such as HireVue and Pymetrics, screening and interview stages, candidate data handling, bias audits, transparency efforts, and candidate communication.",
+      ],
+      [
+        "fact-hybrid-training-noise-assistant",
+        319,
+        "assistant",
+        "A hybrid approach should use AI for initial screening, human-led final interviews, interviewer training, ethical AI training for Natalie and the team, bias audit practice, and regular workshops.",
+      ],
+      [
+        "fact-metrics-noise-assistant",
+        323,
+        "assistant",
+        "A hybrid approach with metrics and feedback mechanisms should track time-to-hire, candidate satisfaction, diversity metrics, bias detection, candidate surveys, and hiring manager feedback.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a complete summary of how I can ensure my AI hiring process complies with all relevant legal and policy requirements we've discussed?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-data-protection-assistant",
+      "fact-policy-review-assistant",
+      "fact-employment-act-assistant",
+      "fact-legal-checklist-assistant",
+      "fact-current-usage-assistant",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual(selectedIds);
+    for (const noiseId of [
+      "fact-security-plan-noise-assistant",
+      "fact-meeting-invite-noise-assistant",
+      "fact-hybrid-training-noise-assistant",
+      "fact-metrics-noise-assistant",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === noiseId)?.returned).toBe(false);
+    }
+  });
+
   it("keeps advanced probability concept milestones for development summaries", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4529,6 +5113,188 @@ describe("recall selection", () => {
       "fact-direct-complement-user",
       "fact-mutual-exclusive-user",
       "fact-mutual-exclusive-assistant",
+    ]);
+  });
+
+  it("keeps sneaker option and activity advice milestones for broad summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      [
+        "fact-daily-options-user-noise",
+        0,
+        "user",
+        "I'm curious what comfy sneaker options work for daily wear because I am always on the go.",
+      ],
+      [
+        "fact-daily-options-assistant",
+        1,
+        "assistant",
+        "Daily wear sneaker options included Adidas Ultraboost, Nike Air Zoom Pegasus 38, New Balance 990v5, Saucony Ride ISO 4, Brooks Ghost 14, and Asics Gel-Kayano 28.",
+      ],
+      [
+        "fact-ultraboost-fit-assistant",
+        3,
+        "assistant",
+        "Adidas Ultraboost advice covered excellent cushioning and energy return plus sizing, break-in, sock-liner, lacing, and warm-up tips.",
+      ],
+      [
+        "fact-air-max-noise-user",
+        8,
+        "user",
+        "Kyle suggested Nike Air Max for daily wear, so I asked if that was a good choice.",
+      ],
+      [
+        "fact-air-max-noise-assistant",
+        9,
+        "assistant",
+        "Nike Air Max can be comfortable and stylish for daily wear, with Air-Sole cushioning and several model options.",
+      ],
+      [
+        "fact-five-mile-walk-noise-assistant",
+        25,
+        "assistant",
+        "For walking about five miles daily, Adidas Ultraboost and Brooks Ghost 14 are strong comfort contenders.",
+      ],
+      [
+        "fact-instruction-noise-user",
+        58,
+        "user",
+        "Always provide detailed comparisons when I ask about sneaker features.",
+      ],
+      [
+        "fact-allbirds-comparison-assistant",
+        81,
+        "assistant",
+        "Allbirds advice compared comfort, sustainability, minimalist styling, neutral colors, arch support, breathability, and daily wear needs against Adidas Ultraboosts.",
+      ],
+      [
+        "fact-allbirds-tryon-assistant",
+        83,
+        "assistant",
+        "Trying on Allbirds should focus on fit, toe room, initial comfort, arch support, breathability, styling, and comparison with Ultraboosts.",
+      ],
+      [
+        "fact-boost-midsole-noise-assistant",
+        89,
+        "assistant",
+        "The Adidas Boost midsole uses TPU pellets to create energy return, cushioning, springiness, and durability.",
+      ],
+      [
+        "fact-running-casual-decision-assistant",
+        141,
+        "assistant",
+        "Based on a recent 3-mile run, compare Brooks Ghost 14 for running with Adidas Ultraboost for casual wear using comfort, support, performance, style, and fit.",
+      ],
+      [
+        "fact-running-casual-final-assistant",
+        143,
+        "assistant",
+        "Based on your positive experience, final thoughts are that Brooks Ghost 14 for running and Adidas Ultraboost for casual wear gives running support plus daily comfort, style, versatility, and breathability.",
+      ],
+      [
+        "fact-health-instruction-noise-user",
+        160,
+        "user",
+        "Always highlight health benefits when I ask about sneaker features.",
+      ],
+      [
+        "fact-arch-support-noise-user",
+        194,
+        "user",
+        "Which one of these options has the best arch support for daily wear?",
+      ],
+      [
+        "fact-oriole-trail-hiking-assistant",
+        203,
+        "assistant",
+        "For a 4-mile hike on Montserrat's Oriole Trail, New Balance 990v5 is fine for light activity but Salomon X Ultra 3 GTX or Merrell Moab 2 are better hiking-specific options for traction, support, and wet terrain.",
+      ],
+      [
+        "fact-hiking-moisture-assistant",
+        205,
+        "assistant",
+        "For Montserrat's tropical climate during the hike, moisture-wicking matters; Salomon X Ultra 3 GTX and Merrell Moab 2 provide breathability, waterproofing, traction, and hiking comfort.",
+      ],
+      [
+        "fact-sustainability-instruction-noise-user",
+        214,
+        "user",
+        "Always mention sustainability features when I ask about sneaker materials.",
+      ],
+    ].map(([id, sourceOrder, role, content]) =>
+      makeSourceFact(
+        id as string,
+        sourceOrder as number,
+        role as "assistant" | "user",
+        content as string,
+      )
+    );
+    const query =
+      "Can you give me a quick summary of the sneaker options and advice we've talked about for my daily wear and activities?";
+    const selectedIds = selectSourceOrderedSummaryCoverage({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-daily-options-assistant",
+      "fact-ultraboost-fit-assistant",
+      "fact-allbirds-comparison-assistant",
+      "fact-allbirds-tryon-assistant",
+      "fact-running-casual-decision-assistant",
+      "fact-running-casual-final-assistant",
+      "fact-oriole-trail-hiking-assistant",
+      "fact-hiking-moisture-assistant",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-daily-options-assistant",
+      "fact-ultraboost-fit-assistant",
+      "fact-allbirds-comparison-assistant",
+      "fact-allbirds-tryon-assistant",
+      "fact-running-casual-decision-assistant",
+      "fact-running-casual-final-assistant",
+      "fact-oriole-trail-hiking-assistant",
+      "fact-hiking-moisture-assistant",
     ]);
   });
 

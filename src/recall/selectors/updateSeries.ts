@@ -36,12 +36,15 @@ export function isRecentFamilyTripQuery(query: string): boolean {
 }
 
 type SourceOrderedValueUpdateKind =
+  | "date"
   | "duration"
   | "money"
   | "percentage"
   | "time";
 
 const SOURCE_ORDERED_VALUE_UPDATE_LIMIT = 3;
+const SOURCE_ORDERED_DATE_VALUE_PATTERN =
+  /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,\s*\d{4})?\b|\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/iu;
 const SOURCE_ORDERED_TIME_VALUE_PATTERN =
   /\b(?:\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|noon|midnight)\b/iu;
 const SOURCE_ORDERED_DURATION_VALUE_PATTERN =
@@ -235,6 +238,13 @@ function sourceOrderedValueUpdateKind(
     return "duration";
   }
 
+  if (
+    /\bwhen\b/iu.test(query) &&
+    /\b(?:application|deadline|scheduled?|session|submitting|submission)\b/iu.test(query)
+  ) {
+    return "date";
+  }
+
   if (/\b(?:what\s+time|when)\b/iu.test(query)) {
     return "time";
   }
@@ -274,6 +284,10 @@ function hasSourceOrderedValueKind(
   content: string,
   kind: SourceOrderedValueUpdateKind,
 ): boolean {
+  if (kind === "date") {
+    return SOURCE_ORDERED_DATE_VALUE_PATTERN.test(content);
+  }
+
   if (kind === "duration") {
     return SOURCE_ORDERED_DURATION_VALUE_PATTERN.test(content);
   }
@@ -397,7 +411,7 @@ export function selectSourceOrderedValueUpdateEvidence(input: {
 
   const queryPercentagePairs = sourceOrderedPercentagePairKeys(input.query);
   const minimumOverlap =
-    kind === "time" || kind === "percentage"
+    kind === "date" || kind === "time" || kind === "percentage"
       ? 3
       : kind === "duration"
         ? 2
@@ -448,7 +462,7 @@ export function selectSourceOrderedValueUpdateEvidence(input: {
       return compareTemporalFactChronology(right.entry, left.entry);
     });
 
-  if (kind !== "duration" && candidates.length < 2) {
+  if (kind !== "date" && kind !== "duration" && candidates.length < 2) {
     return [];
   }
 

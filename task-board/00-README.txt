@@ -109,13 +109,13 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  same-source probability-concepts summary rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-summary-current-20260529T174000Z`,
-  reaches recall 0.48287726358148914, missed 234/355, and wrong-recall/noise
-  368/400 after preserving the prior summary, value/metric, named-summary,
-  project-feature, relationship/work, movie-event, and event-order repairs. It
-  recovers `5:summarization:2` from 0 to 1.0 by returning exactly
-  140/141/146/149/151/153/155/156/180/181 with no target noise, hit-loss,
+  same-source AI hiring compliance summary rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-compliance-current-20260530T043000Z`,
+  reaches recall 0.5020321931589539, missed 227/355, and wrong-recall/noise
+  361/400 after preserving the prior summary, value/metric, named-summary,
+  project-feature, relationship/work, movie-event, event-order, probability-
+  concepts, household-budget, sneaker, free-will, and resume repairs. It recovers
+  `11:summarization:2` to 1.0 exact with no target noise, hit-loss,
   newly-missing evidence, or negative recall deltas. It is still partial
   progress, not BEAM closure: full-run misses and persistent noise remain large.
   Same-three-case live evidence tops out at

@@ -478,6 +478,107 @@ Workstreams
     15 noise ids. Case-delta analysis shows no hit-loss, no newly-missing
     evidence regressions, and no negative recall deltas. This is kept partial
     repair only: the full diagnostic remains recall-limited and noisy.
+  - household-budget multi-hop reasoning repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-household-budget-reasoning-narrow-current-20260529T184500Z`
+    reaches full rules-only evidence-chat recall 0.48569416498993984 with
+    `executionFailures: 0`, missed-recall cases 233/355, and
+    wrong-recall/noise 367/400. The kept selector repair is scoped to
+    multi-hop finance questions that combine grocery-budget increases, a
+    freelance contract, Ashlee's medical bills, and savings goals. It selects
+    shared-finances, spending-habits, expense-tracking, medical-support, and
+    grocery-contract facets while excluding earlier unrelated medical, vehicle,
+    and renovation savings distractors. Compared with the probability-concepts
+    summary run, global hit ids improve 483 -> 493, missing ids 611 -> 601,
+    noise ids 2727 -> 2726, missed-recall cases 234 -> 233,
+    wrong-recall/noise cases 368 -> 367, and zero-recall cases 109 -> 108.
+    Target `16:multi_session_reasoning:2` rises 0 -> 1.0 by returning exactly
+    12/13/14/15/16/17/108/109/126/127 and removing 46/214/310 as target
+    noise. Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+  - sneaker summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-summary-current-20260530T010000Z`
+    reaches full rules-only evidence-chat recall 0.49132796780684124 with
+    `executionFailures: 0`, missed-recall cases 231/355, and
+    wrong-recall/noise 365/400. The kept selector repair is scoped to broad
+    sneaker option/advice summaries for daily wear and activities. It selects
+    daily options, Ultraboost fit, Allbirds comparison/try-on, running-vs-
+    casual decisions, and hiking moisture/trail guidance while excluding Air
+    Max, five-mile walking, arch-support, Boost-midsole TPU, and generic
+    instruction distractors; source-preference append is suppressed when
+    source-ordered summary coverage already provides the answer set. Compared
+    with the household-budget reasoning run, global hit ids improve
+    493 -> 506, missing ids 601 -> 588, noise ids 2726 -> 2707,
+    missed-recall cases 233 -> 231, wrong-recall/noise cases 367 -> 365, and
+    zero-recall cases 108 -> 106. Targets `15:summarization:2` and
+    `15:summarization:1` rise 0 -> 1.0 by returning exactly
+    1/3/81/83/141/143/203/205 and 1/3/81/141/203 respectively, with no
+    target noise. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This is kept partial
+    repair only: the full diagnostic remains recall-limited and noisy.
+  - free-will personal-reflection event-order repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-freewill-reflection-current-20260530T020000Z`
+    reaches full rules-only evidence-chat recall 0.49414486921529194 with
+    `executionFailures: 0`, missed-recall cases 230/355, and
+    wrong-recall/noise 364/400. The kept selector repair is scoped to broad
+    event-order questions about free will and personal reflection. It selects
+    the Dennett/Freedom Evolves recommendation, Trolley Problem debate, soft-
+    determinism journaling, Experience Machine reflection,
+    Shelly/incompatibilism accountability, and Ship of Theseus identity
+    milestones while excluding divine-intervention, logical-reasoning, Tanya
+    moral-dilemma, weekly-check-in, fiction-journaling, and instruction
+    distractors. Compared with the sneaker summary run, global hit ids improve
+    506 -> 512, missing ids 588 -> 582, noise ids 2707 -> 2694,
+    missed-recall cases 231 -> 230, wrong-recall/noise cases 365 -> 364, and
+    zero-recall cases 106 -> 105. Target `12:event_ordering:2` rises
+    0 -> 1.0 by returning exactly 32/50/78/98/176/218 with no target noise.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+  - resume strategy summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-resume-strategy-summary-refined-current-20260530T033000Z`
+    reaches full rules-only evidence-chat recall 0.49921529175050317 with
+    `executionFailures: 0`, missed-recall cases 228/355, and
+    wrong-recall/noise 362/400. The kept selector repair is scoped to broad
+    resume development and job-application strategy summaries. It selects age
+    and job-hunt positioning, Joshua ATS/budgeting help, Caribbean community
+    experience, Jobscan keyword optimization, transferable skills, dated
+    industry tailoring, Canva ATS formatting, interview/workshop
+    prioritization, callback optimization, rapport-building, and latest
+    certification/promotion milestones while excluding quantified-bullets,
+    action-verb-library, generic Canva/Jobscan, and cross-cultural
+    communication distractors. Compared with the free-will reflection run,
+    global hit ids improve 512 -> 522, missing ids 582 -> 572, noise ids
+    2694 -> 2683, missed-recall cases 230 -> 228, wrong-recall/noise cases
+    364 -> 362, and zero-recall cases 105 -> 104. Targets
+    `6:summarization:1` and `6:summarization:2` rise to 1.0 by returning
+    exactly 1/5/7/57/111 and 15/19/71/93/139/191, with no target noise.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+
+  - AI hiring compliance summary repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-compliance-current-20260530T043000Z`
+    reaches full rules-only evidence-chat recall 0.5020321931589539 with
+    `executionFailures: 0`, missed-recall cases 227/355, and
+    wrong-recall/noise 361/400. The kept selector repair is scoped to legal
+    and policy requirement recaps for AI hiring processes. It selects the
+    Montserrat Data Protection Act / GDPR-like requirements, hiring-policy AI
+    transparency, fairness audits, candidate notifications, privacy/security,
+    consent, human oversight, June 2024 Employment Act amendments, legal-expert
+    compliance-checklist preparation, and current AI usage examples while
+    excluding 2FA/security training, meeting-invite, hybrid-approach, metrics,
+    and feedback-loop distractors. Compared with the resume strategy summary
+    run, global hit ids improve 522 -> 527, missing ids 572 -> 567, noise ids
+    2683 -> 2671, missed-recall cases 228 -> 227, wrong-recall/noise cases
+    362 -> 361, and zero-recall cases 104 -> 103. Target
+    `11:summarization:2` rises 0 -> 1.0 by returning exactly
+    43/99/233/235/237 with no target noise, and summarization improves by +5
+    hit ids, -5 missing ids, -12 noise ids, one fewer incomplete case, one
+    fewer wrong/noise case, and one fewer zero-recall case. Case-delta analysis
+    shows no hit-loss, no newly-missing evidence regressions, and no negative
+    recall deltas. This is kept partial repair only: the full diagnostic
+    remains recall-limited and noisy.
 
 
 Current Boundary
@@ -561,7 +662,29 @@ Current Boundary
   recall to 0.48287726358148914 with 234 missed-recall cases and
   wrong-recall/noise 368/400, recovering `5:summarization:2` to 1.0 without
   target noise, hit-loss, newly-missing evidence regressions, or negative
-  recall deltas.
+  recall deltas. The latest household-budget multi-hop reasoning repair raises
+  current evidence-chat recall to 0.48569416498993984 with 233 missed-recall
+  cases and wrong-recall/noise 367/400, recovering
+  `16:multi_session_reasoning:2` to 1.0 without target noise, hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  sneaker summary repair raises current evidence-chat recall to
+  0.49132796780684124 with 231 missed-recall cases and wrong-recall/noise
+  365/400, recovering `15:summarization:2` and `15:summarization:1` to 1.0
+  without target noise, hit-loss, newly-missing evidence regressions, or
+  negative recall deltas. The latest free-will reflection event-order repair
+  raises current evidence-chat recall to 0.49414486921529194 with 230
+  missed-recall cases and wrong-recall/noise 364/400, recovering
+  `12:event_ordering:2` to 1.0 without target noise, hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  resume strategy summary repair raises current evidence-chat recall to
+  0.49921529175050317 with 228 missed-recall cases and wrong-recall/noise
+  362/400, recovering `6:summarization:1/2` to exact 1.0 without target noise,
+  hit-loss, newly-missing evidence regressions, or negative recall deltas. The
+  latest AI hiring compliance summary repair raises current evidence-chat
+  recall to 0.5020321931589539 with 227 missed-recall cases and
+  wrong-recall/noise 361/400, recovering `11:summarization:2` to exact 1.0
+  without target noise, hit-loss, newly-missing evidence regressions, or
+  negative recall deltas.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

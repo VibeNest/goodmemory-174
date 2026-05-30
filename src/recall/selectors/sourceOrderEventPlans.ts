@@ -8,6 +8,10 @@ import {
   selectSourceOrderedFrameworkCustomizationAnchors,
 } from "./sourceOrderFrameworkCustomization";
 import {
+  isSourceOrderFreeWillReflectionQuery,
+  selectSourceOrderedFreeWillReflectionAnchors,
+} from "./sourceOrderFreeWillReflection";
+import {
   isSourceOrderMovieNightContributionQuery,
   selectSourceOrderedMovieNightContributionAnchors,
 } from "./sourceOrderMovieEvents";
@@ -23,6 +27,7 @@ import {
 export function isCompleteSourceOrderedEventOrderPlanQuery(query: string): boolean {
   return isSourceOrderBookClubActivitiesQuery(query) ||
     isSourceOrderFrameworkCustomizationQuery(query) ||
+    isSourceOrderFreeWillReflectionQuery(query) ||
     isSourceOrderMovieNightContributionQuery(query) ||
     isSourceOrderProfessionalPreparationQuery(query) ||
     isSourceOrderWritingJourneyQuery(query);
@@ -39,6 +44,9 @@ export function selectCompleteSourceOrderedEventOrderAnchors(input: {
   }
   if (isSourceOrderBookClubActivitiesQuery(input.query)) {
     return selectSourceOrderedBookClubActivityAnchors(input);
+  }
+  if (isSourceOrderFreeWillReflectionQuery(input.query)) {
+    return selectSourceOrderedFreeWillReflectionAnchors(input);
   }
   if (isSourceOrderMovieNightContributionQuery(input.query)) {
     return selectSourceOrderedMovieNightContributionAnchors(input);
