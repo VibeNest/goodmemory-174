@@ -109,14 +109,15 @@ Active Phase
 - Current BEAM failure surface: the first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  same-source triangle similarity-ratio rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-triangle-similarity-ratio-exact-current-20260530T231000Z`,
-  reaches recall 0.5508584842387659, missed 210/355, and wrong-recall/noise
-  348/400 after preserving prior retained repairs. It recovers
-  `4:information_extraction:2` to 166/167 exactly and removes target noise
-  73/101/117/133/134/135/190/191 with no hit-loss, newly-missing evidence, or
-  negative recall deltas, but remains partial progress: full-run misses and
-  noise remain.
+  same-source weather-app latency comparison rerun,
+  `run-phase63-beam-100k-recall-diagnostic-rules-weather-latency-comparison-current-20260531T083000Z`,
+  reaches recall 0.5804359490274985, missed 198/355, and wrong-recall/noise
+  339/400 after preserving prior retained repairs. It recovers
+  `2:multi_session_reasoning:2` to 38/80 exactly, removes target noise
+  44/45/94/95/124/125/133/187, and shows no hit-loss, newly-missing evidence,
+  or negative recall delta, while total noise decreases 2532 -> 2525, so this
+  remains partial progress:
+  full-run misses and noise remain.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and

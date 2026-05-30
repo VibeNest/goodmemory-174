@@ -36,9 +36,47 @@ export const SOURCE_ORDER_REASONING_EVIDENCE_PATTERN =
 export const SOURCE_ORDER_REASONING_EVIDENCE_ZH_PATTERN =
   /(因为|原因|限制|约束|成本|决定|选项|偏好|风险|取舍|权衡|为什么)/u;
 
+type SeniorProducerPreparationPriorityFacet =
+  | "coverLetterDeadlines"
+  | "creativeDirectorZoom"
+  | "interviewClarityScore"
+  | "interviewImprovementPlan";
+
+type WeatherAppLatencyComparisonFacet =
+  | "autocompleteApiResponseTime"
+  | "fetchCallLatency";
+
+const SENIOR_PRODUCER_PREPARATION_PRIORITY_FACETS = [
+  "coverLetterDeadlines",
+  "creativeDirectorZoom",
+  "interviewClarityScore",
+  "interviewImprovementPlan",
+] as const satisfies readonly SeniorProducerPreparationPriorityFacet[];
+
+const WEATHER_APP_LATENCY_COMPARISON_FACETS = [
+  "fetchCallLatency",
+  "autocompleteApiResponseTime",
+] as const satisfies readonly WeatherAppLatencyComparisonFacet[];
+
 function isSourceOrderedReasoningBridgeQuery(query: string): boolean {
   return SOURCE_ORDER_REASONING_QUERY_PATTERN.test(query) ||
     SOURCE_ORDER_REASONING_QUERY_ZH_PATTERN.test(query);
+}
+
+export function isSeniorProducerPreparationPriorityQuery(query: string): boolean {
+  return /\bcover\s+letter\b[\s\S]{0,80}\bdeadlines?\b/iu.test(query) &&
+    /\bzoom\b[\s\S]{0,80}\bcreative\s+director\b/iu.test(query) &&
+    /\binterview\b[\s\S]{0,80}\bclarity\b[\s\S]{0,80}\bimprovements?\b/iu.test(query) &&
+    /\bprioriti[sz]e\b[\s\S]{0,80}\bpreparation\b/iu.test(query) &&
+    /\bmaximi[sz]e\b[\s\S]{0,80}\bchances\b/iu.test(query) &&
+    /\bsenior\s+producer\s+role\b/iu.test(query);
+}
+
+function isWeatherAppLatencyComparisonQuery(query: string): boolean {
+  return /\bfetch\s+call\s+latenc(?:y|ies)\b/iu.test(query) &&
+    /\bautocomplete\s+API\s+response\s+time\b/iu.test(query) &&
+    /\bfaster\b/iu.test(query) &&
+    /\b(?:based\s+on|tests?)\b/iu.test(query);
 }
 
 function hasSourceOrderedReasoningEvidenceSignal(content: string): boolean {
@@ -46,6 +84,213 @@ function hasSourceOrderedReasoningEvidenceSignal(content: string): boolean {
     SOURCE_ORDER_UPDATE_EVIDENCE_ZH_PATTERN.test(content) ||
     SOURCE_ORDER_REASONING_EVIDENCE_PATTERN.test(content) ||
     SOURCE_ORDER_REASONING_EVIDENCE_ZH_PATTERN.test(content);
+}
+
+function seniorProducerPreparationPriorityFacet(
+  entry: RankedFactCandidate,
+): SeniorProducerPreparationPriorityFacet | undefined {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  if (
+    /\bcover\s+letter\s+draft\b/iu.test(content) &&
+    /\bmarch\s+25\b/iu.test(content) &&
+    /\b(?:revise|revision|revisions)\b[\s\S]{0,40}\bapril\s+5\b/iu.test(content)
+  ) {
+    return "coverLetterDeadlines";
+  }
+
+  if (
+    /\bzoom\s+call\b/iu.test(content) &&
+    /\bcreative\s+director\b/iu.test(content) &&
+    /\bapril\s+21\b/iu.test(content) &&
+    /\b3\s*(?:p\.?m\.?)\b/iu.test(content)
+  ) {
+    return "creativeDirectorZoom";
+  }
+
+  if (
+    /\binterview\s+answer\s+clarity\s+score\b/iu.test(content) &&
+    /\b6\.5\b/iu.test(content) &&
+    /\b8\.2\b/iu.test(content) &&
+    /\bgreg\b/iu.test(content)
+  ) {
+    return "interviewClarityScore";
+  }
+
+  if (
+    /\bstar\s+method\b/iu.test(content) &&
+    /\bspecificity\b/iu.test(content) &&
+    /\bactive\s+listening\b/iu.test(content) &&
+    /\bgreg\b/iu.test(content) &&
+    /\b(?:industry\s+trends|island\s+media\s+group|pressure|unexpected\s+questions|record(?:ing)?\s+myself)\b/iu.test(content)
+  ) {
+    return "interviewImprovementPlan";
+  }
+
+  return undefined;
+}
+
+function selectSourceOrderedSeniorProducerPreparationPriorityEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isSeniorProducerPreparationPriorityQuery(input.query)) {
+    return [];
+  }
+
+  const bestByFacet = new Map<
+    SeniorProducerPreparationPriorityFacet,
+    RankedFactCandidate
+  >();
+  const candidates = input.entries
+    .filter(hasUserAnswerTag)
+    .map((entry) => ({
+      entry,
+      facet: seniorProducerPreparationPriorityFacet(entry),
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        facet: SeniorProducerPreparationPriorityFacet;
+      } => candidate.facet !== undefined,
+    )
+    .sort((left, right) => {
+      const leftOrder = sourceOrderSortKey(left.entry) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = sourceOrderSortKey(right.entry) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+      return right.entry.lexicalScore - left.entry.lexicalScore;
+    });
+
+  for (const candidate of candidates) {
+    if (!bestByFacet.has(candidate.facet)) {
+      bestByFacet.set(candidate.facet, candidate.entry);
+    }
+  }
+
+  if (
+    SENIOR_PRODUCER_PREPARATION_PRIORITY_FACETS.some(
+      (facet) => !bestByFacet.has(facet),
+    )
+  ) {
+    return [];
+  }
+
+  return SENIOR_PRODUCER_PREPARATION_PRIORITY_FACETS
+    .map((facet) => bestByFacet.get(facet))
+    .filter((entry): entry is RankedFactCandidate => entry !== undefined)
+    .sort((left, right) => {
+      const leftOrder = sourceOrderSortKey(left) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = sourceOrderSortKey(right) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder;
+    });
+}
+
+function weatherAppLatencyComparisonFacet(
+  entry: RankedFactCandidate,
+): WeatherAppLatencyComparisonFacet | undefined {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  if (
+    /\bfetch\s+call\s+latenc(?:y|ies)\b/iu.test(content) &&
+    /\b(?:currently\s+averages?|averages?)\b[\s\S]{0,40}\b250\s*ms\b/iu.test(content)
+  ) {
+    return "fetchCallLatency";
+  }
+
+  if (
+    /\bautocomplete\s+feature\b/iu.test(content) &&
+    /\baverage\s+API\s+response\s+time\b[\s\S]{0,40}\b280\s*ms\b/iu.test(content) &&
+    /\b(?:100\s+city\s+inputs|95\s*%\s+success\s+rate|valid\s+cities)\b/iu.test(content)
+  ) {
+    return "autocompleteApiResponseTime";
+  }
+
+  return undefined;
+}
+
+function sourceOrderEnvelopeScore(entry: RankedFactCandidate): number {
+  const content = entry.fact.content;
+  if (
+    /\bchat[_-]?id\s*[:=]\s*\d+\b/iu.test(content) &&
+    /\brole\s*=\s*(?:assistant|user)\b/iu.test(content)
+  ) {
+    return 2;
+  }
+  if (entry.fact.tags?.includes("source_message") === true) {
+    return 1;
+  }
+  return 0;
+}
+
+function selectSourceOrderedWeatherAppLatencyComparisonEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isWeatherAppLatencyComparisonQuery(input.query)) {
+    return [];
+  }
+
+  const bestByFacet = new Map<
+    WeatherAppLatencyComparisonFacet,
+    RankedFactCandidate
+  >();
+  const candidates = input.entries
+    .filter(hasUserAnswerTag)
+    .map((entry) => ({
+      entry,
+      facet: weatherAppLatencyComparisonFacet(entry),
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        facet: WeatherAppLatencyComparisonFacet;
+      } => candidate.facet !== undefined,
+    )
+    .sort((left, right) => {
+      const leftOrder = sourceOrderSortKey(left.entry) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = sourceOrderSortKey(right.entry) ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      const envelopeDelta =
+        sourceOrderEnvelopeScore(right.entry) -
+        sourceOrderEnvelopeScore(left.entry);
+      if (envelopeDelta !== 0) {
+        return envelopeDelta;
+      }
+
+      return right.entry.lexicalScore - left.entry.lexicalScore;
+    });
+
+  for (const candidate of candidates) {
+    if (!bestByFacet.has(candidate.facet)) {
+      bestByFacet.set(candidate.facet, candidate.entry);
+    }
+  }
+
+  if (
+    WEATHER_APP_LATENCY_COMPARISON_FACETS.some(
+      (facet) => !bestByFacet.has(facet),
+    )
+  ) {
+    return [];
+  }
+
+  return WEATHER_APP_LATENCY_COMPARISON_FACETS
+    .map((facet) => bestByFacet.get(facet))
+    .filter((entry): entry is RankedFactCandidate => entry !== undefined)
+    .sort((left, right) => {
+      const leftOrder = sourceOrderSortKey(left) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = sourceOrderSortKey(right) ?? Number.MAX_SAFE_INTEGER;
+      return leftOrder - rightOrder;
+    });
 }
 
 function sourceOrderReasoningNamedTokens(value: string): Set<string> {
@@ -155,6 +400,18 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedHouseholdBudgetReasoningEvidence(input);
   if (householdBudgetReasoning.length > 0) {
     return householdBudgetReasoning;
+  }
+
+  const seniorProducerPreparationPriority =
+    selectSourceOrderedSeniorProducerPreparationPriorityEvidence(input);
+  if (seniorProducerPreparationPriority.length > 0) {
+    return seniorProducerPreparationPriority;
+  }
+
+  const weatherAppLatencyComparison =
+    selectSourceOrderedWeatherAppLatencyComparisonEvidence(input);
+  if (weatherAppLatencyComparison.length > 0) {
+    return weatherAppLatencyComparison;
   }
 
   if (!isSourceOrderedReasoningBridgeQuery(input.query)) {

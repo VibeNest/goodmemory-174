@@ -4,9 +4,7 @@ import type {
   UserProfile,
 } from "../domain/records";
 import type { LanguageService } from "../language";
-import type {
-  RecallCandidateTrace,
-} from "./engine";
+import type { RecallCandidateTrace } from "./engine";
 import type {
   RecallSlot,
   RetrievalProfile,
@@ -56,7 +54,10 @@ import {
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
 import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./selectors/sourceOrderFinancialPlanning";
-import { selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence } from "./selectors/sourceOrderReasoning";
+import {
+  isSeniorProducerPreparationPriorityQuery,
+  selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
+} from "./selectors/sourceOrderReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
 import {
   SOURCE_ORDER_EVENT_RECALL_LIMIT,
@@ -255,6 +256,7 @@ export function selectFacts(
   };
   const slotSpecificFactQuery =
     !aggregateEvidenceQuery &&
+    !isSeniorProducerPreparationPriorityQuery(query) &&
     (
       routingDecision.requestedSlots.includes("role") ||
       routingDecision.requestedSlots.includes("focus") ||
@@ -662,12 +664,14 @@ export function selectFacts(
         query,
         queryLocale,
       });
+  const seniorProducerPreparationPlanActive = isSeniorProducerPreparationPriorityQuery(query) && reasoningBridgeCandidates.length > 0;
   const instructionEvidenceCandidates =
     timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
     householdBudgetReasoningQuery ||
+    seniorProducerPreparationPlanActive ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
       ? []
@@ -683,6 +687,7 @@ export function selectFacts(
     broadAspectEventOrderCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
     householdBudgetReasoningQuery ||
+    seniorProducerPreparationPlanActive ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive
       ? []

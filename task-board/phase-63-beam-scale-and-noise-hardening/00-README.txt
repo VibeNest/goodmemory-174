@@ -919,6 +919,203 @@ Workstreams
     noise id each, but total noise still decreases. This is kept partial repair
     only: the full diagnostic remains recall-limited and noisy.
 
+  - resume keyword integration information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-resume-keyword-integration-full-current-20260530T233000Z`
+    reaches full rules-only evidence-chat recall 0.5536753856472167 with
+    `executionFailures: 0`, missed-recall cases 209/355, and
+    wrong-recall/noise 347/400. The kept repair preserves the source pair for
+    incorporating `project management` and `budget oversight` naturally across
+    resume sections, ahead of generic age-discrimination, resume-formatting,
+    and broad career distractors.
+    Compared with the triangle similarity-ratio run, global hit ids improve
+    561 -> 563, missing ids 533 -> 531, noise ids decrease 2600 -> 2589,
+    missed-recall cases improve 210 -> 209, wrong-recall/noise cases improve
+    348 -> 347, and zero-recall cases 85 -> 84. Information-extraction rises
+    to average recall 0.7625 with +2 hit ids, -2 missing ids, twelve fewer
+    noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+    fewer wrong-recall/noise case. Target `6:information_extraction:2` rises
+    0 -> 1.0 by returning exactly 24/25 and removing target noise
+    1/15/111/124/125/173/203/94/144/36/37/74/75. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. Three non-target cases add noise through source-neighbor
+    reshuffles, but total noise still decreases. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+
+  - emergency-fund savings-plan information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-emergency-fund-savings-plan-current-20260530T235000Z`
+    reaches full rules-only evidence-chat recall 0.5564922870556674 with
+    `executionFailures: 0`, missed-recall cases 208/355, and
+    wrong-recall/noise 346/400. The kept repair preserves the source pair for
+    planning a $2,000 emergency fund by June 30, 2024 from $500 already saved,
+    ahead of average-income, debt-management, investment, contract, and
+    cash-reserve distractors.
+    Compared with the resume keyword integration run, global hit ids improve
+    563 -> 565, missing ids 531 -> 529, noise ids decrease 2589 -> 2581,
+    missed-recall cases improve 209 -> 208, wrong-recall/noise cases improve
+    347 -> 346, and zero-recall cases 84 -> 83. Information-extraction rises
+    to average recall 0.7875 with +2 hit ids, -2 missing ids, six fewer noise
+    ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+    wrong-recall/noise case. Target `16:information_extraction:2` rises
+    0 -> 1.0 by returning exactly 34/35 and removing target noise
+    27/183/105/79/123/305. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. One
+    non-target event-ordering case adds one noise id, but total noise still
+    decreases. This is kept partial repair only: the full diagnostic remains
+    recall-limited and noisy.
+
+  - rate-limit request-flow information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-rate-limit-request-flow-current-20260531T000500Z`
+    reaches full rules-only evidence-chat recall 0.558370221327968 with
+    `executionFailures: 0`, missed-recall cases 207/355, and
+    wrong-recall/noise 345/400. The kept repair preserves the source turns for
+    elapsed-interval counter resets plus queueing, rapid-call queue
+    processing, and capped exponential backoff under frequent retries and
+    bursts of activity.
+    Compared with the emergency-fund savings-plan run, global hit ids improve
+    565 -> 567, missing ids 529 -> 527, noise ids decrease 2581 -> 2573,
+    missed-recall cases improve 208 -> 207, wrong-recall/noise cases improve
+    346 -> 345, and zero-recall cases stay at 83. Information-extraction rises
+    to average recall 0.8042 with +2 hit ids, -2 missing ids, nine fewer noise
+    ids, one fewer incomplete case, and one fewer wrong-recall/noise case.
+    Target `2:information_extraction:2` rises 0.3333333333333333 -> 1.0 by
+    returning exactly 33/35/37, recovering 35/37, and removing target noise
+    32/90/116/117/150/151/154/64/65/122/123. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. Five non-target cases add net noise through source-neighbor
+    reshuffles, but total noise still decreases. This is kept partial repair
+    only: the full diagnostic remains recall-limited and noisy.
+
+  - partner classic-movie recommendation information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-partner-classic-movie-current-20260531T002000Z`
+    reaches full rules-only evidence-chat recall 0.5611871227364187 with
+    `executionFailures: 0`, missed-recall cases 206/355, and
+    wrong-recall/noise 344/400. The kept repair preserves the source pair
+    connecting shared classic-film interests with partner Thomas to timeless
+    movie recommendations and the Miami film festival meeting context.
+    Compared with the rate-limit request-flow run, global hit ids improve
+    567 -> 569, missing ids 527 -> 525, noise ids decrease 2573 -> 2568,
+    missed-recall cases improve 207 -> 206, wrong-recall/noise cases improve
+    345 -> 344, and zero-recall cases improve 83 -> 82.
+    Information-extraction rises to average recall 0.8292 with +2 hit ids, -2
+    missing ids, nine fewer noise ids, one fewer incomplete case, one fewer
+    zero-recall case, and one fewer wrong-recall/noise case. Target
+    `14:information_extraction:2` rises 0 -> 1.0 by returning exactly 12/13
+    and removing target noise 95/126/142/143/187/217/243/52/214. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas. Five non-target cases add net noise through
+    source-neighbor reshuffles, but total noise still decreases. This is kept
+    partial repair only: the full diagnostic remains recall-limited and noisy.
+
+  - colour-technologist profession information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-colour-technologist-profession-current-20260531T003500Z`
+    reaches full rules-only evidence-chat recall 0.5640040241448694 with
+    `executionFailures: 0`, missed-recall cases 205/355, and
+    wrong-recall/noise 343/400. The kept repair preserves the source turn
+    saying the user is a 44-year-old colour technologist from Port Michael in
+    a probability-basics context. Compared with the partner classic-movie run,
+    global hit ids improve 569 -> 570, missing ids 525 -> 524, noise ids
+    decrease 2568 -> 2557, missed-recall cases improve 206 -> 205,
+    wrong-recall/noise cases improve 344 -> 343, and zero-recall cases improve
+    82 -> 81. Information-extraction rises to average recall 0.8542 with +1
+    hit id, -1 missing id, six fewer noise ids, one fewer incomplete case, one
+    fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+    `5:information_extraction:1` rises 0 -> 1.0 by returning exactly 16 and
+    removing target noise 63/14/156/90. Case-delta analysis shows no hit-loss,
+    no newly-missing evidence regressions, no negative recall deltas, and no
+    positive noise deltas. This is kept partial repair only: the full
+    diagnostic remains recall-limited and noisy.
+
+  - ASA triangle-congruence proof-plan information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-asa-triangle-congruence-current-20260531T011000Z`
+    reaches full rules-only evidence-chat recall 0.5668209255533201 with
+    `executionFailures: 0`, missed-recall cases 204/355, and
+    wrong-recall/noise 342/400. The kept repair preserves the assistant source
+    turn that labels triangles ABC and DEF, states matching 50 and 60 degree
+    angle pairs plus the 7 cm included side, applies the ASA criterion, and
+    concludes congruence. Compared with the colour-technologist profession
+    run, global hit ids improve 570 -> 571, missing ids 524 -> 523, noise ids
+    decrease 2557 -> 2551, missed-recall cases improve 205 -> 204,
+    wrong-recall/noise cases improve 343 -> 342, and zero-recall cases improve
+    81 -> 80. Information-extraction rises to average recall 0.8792 with +1
+    hit id, -1 missing id, four fewer noise ids, one fewer incomplete case,
+    one fewer zero-recall case, and one fewer wrong-recall/noise case. Target
+    `4:information_extraction:1` rises 0 -> 1.0 by returning exactly 151 and
+    removing target noise 140/196/206/60. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. Two non-target cases add one noise id each, but total noise still
+    decreases. This is kept partial repair only: the full diagnostic remains
+    recall-limited and noisy.
+
+  - AI hiring fairness/speed information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-fairness-speed-current-20260531T014000Z`
+    reaches full rules-only evidence-chat recall 0.5696378269617708 with
+    `executionFailures: 0`, missed-recall cases 203/355, and
+    wrong-recall/noise 341/400. The kept repair preserves the assistant source
+    turn that balances faster candidate screening with fairness through vendor
+    transparency checks, bias and third-party audits, anonymization, human
+    oversight, diversity monitoring, candidate feedback, and structured
+    interviews. Compared with the ASA triangle-congruence run, global hit ids
+    improve 571 -> 572, missing ids 523 -> 522, noise ids decrease
+    2551 -> 2544, missed-recall cases improve 204 -> 203, wrong-recall/noise
+    cases improve 342 -> 341, and zero-recall cases improve 80 -> 79.
+    Information-extraction rises to average recall 0.9042 with +1 hit id, -1
+    missing id, ten fewer noise ids, one fewer incomplete case, one fewer
+    zero-recall case, and one fewer wrong-recall/noise case. Target
+    `11:information_extraction:2` rises 0 -> 1.0 by returning exactly 39 and
+    removing target noise 13/27/68/69/178/179/198/199/36/37. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas. Four non-target cases add net noise, but total
+    noise still decreases. This is kept partial repair only: the full
+    diagnostic remains recall-limited and noisy.
+
+  - startup transition preparation information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-startup-transition-prep-current-20260531T020500Z`
+    reaches full rules-only evidence-chat recall 0.5710462776659961 with
+    `executionFailures: 0`, missed-recall cases 202/355, and
+    wrong-recall/noise 340/400. The kept repair preserves the source pair for
+    the current-job versus streaming-startup decision and the follow-up
+    preparation guidance: company research, current-employee conversations,
+    workload and pressure clarification, startup-colleague advice,
+    support-network planning, compensation/equity review, budgeting, and
+    professional development. Compared with the AI hiring fairness/speed run,
+    global hit ids improve 572 -> 573, missing ids 522 -> 521, noise ids
+    decrease 2544 -> 2532, missed-recall cases improve 203 -> 202,
+    wrong-recall/noise cases improve 341 -> 340, and zero-recall cases stay at
+    79. Information-extraction rises to average recall 0.9167 with +1 hit id,
+    -1 missing id, eleven fewer noise ids, one fewer incomplete case, and one
+    fewer wrong-recall/noise case; instruction-following also loses one noise
+    id. Target `12:information_extraction:2` rises 0.5 -> 1.0 by returning
+    exactly 39/41, recovering 39, and removing target noise
+    40/64/65/75/87/205/243/102/103/310/311. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, no negative recall
+    deltas, and no positive noise deltas. This is kept partial repair only:
+    the full diagnostic remains recall-limited and noisy.
+
+  - son patent-guidance resource-plan information-extraction repair:
+    `run-phase63-beam-100k-recall-diagnostic-rules-son-patent-guidance-current-20260531T035000Z`
+    reaches full rules-only evidence-chat recall 0.5719852448021464 with
+    `executionFailures: 0`, missed-recall cases 201/355, and
+    wrong-recall/noise 340/400. The kept repair preserves one entry per
+    evidence chat id for the six-turn plan around Francis's engineering
+    studies and patent guidance: Montserrat Community College context,
+    relevant patent options, provisional/documentation planning,
+    college/bar-association/online resources, the user's local resource plan,
+    and final attorney-search steps.
+    Compared with the startup transition preparation run, global hit ids
+    improve 573 -> 575, missing ids 521 -> 519, noise ids decrease
+    2532 -> 2531, missed-recall cases improve 202 -> 201,
+    wrong-recall/noise cases stay at 340, and zero-recall cases stay at 79.
+    Information-extraction rises to average recall 0.925 with +2 hit ids, -2
+    missing ids, unchanged total information-extraction noise, and one fewer
+    incomplete case. Target `20:information_extraction:2` rises
+    0.6666666666666666 -> 1.0 by returning exactly 10/11/12/13/14/15 and
+    recovering 14/15 with no target noise. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. Three non-target cases add one noise id each, but four non-target
+    cases remove one noise id each and total noise still decreases. This is
+    kept partial repair only: the full diagnostic remains recall-limited and
+    noisy.
+
 
 Current Boundary
 ----------------
@@ -1094,7 +1291,72 @@ Current Boundary
   missed-recall cases and wrong-recall/noise 348/400, recovering
   `4:information_extraction:2` to exact 1.0 and removing target noise
   73/101/117/133/134/135/190/191 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The latest resume keyword integration
+  repair raises current evidence-chat recall to 0.5536753856472167 with 209
+  missed-recall cases and wrong-recall/noise 347/400, recovering
+  `6:information_extraction:2` to exact 1.0 and removing target noise
+  1/15/111/124/125/173/203/94/144/36/37/74/75 without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The latest
+  emergency-fund savings-plan repair raises current evidence-chat recall to
+  0.5564922870556674 with 208 missed-recall cases and wrong-recall/noise
+  346/400, recovering `16:information_extraction:2` to exact 1.0 and removing
+  target noise 27/183/105/79/123/305 without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The latest rate-limit request-flow
+  repair raises current evidence-chat recall to 0.558370221327968 with 207
+  missed-recall cases and wrong-recall/noise 345/400, recovering
+  `2:information_extraction:2` to exact 1.0 and removing target noise
+  32/90/116/117/150/151/154/64/65/122/123 without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The latest partner
+  classic-movie recommendation repair raises current evidence-chat recall to
+  0.5611871227364187 with 206 missed-recall cases and wrong-recall/noise
+  344/400, recovering `14:information_extraction:2` to exact 1.0 and removing
+  target noise 95/126/142/143/187/217/243/52/214 without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas.
+  The latest colour-technologist profession repair raises current
+  evidence-chat recall to 0.5640040241448694 with 205 missed-recall cases and
+  wrong-recall/noise 343/400, recovering `5:information_extraction:1` to exact
+  1.0 and removing target noise 63/14/156/90 without hit-loss, newly-missing
+  evidence regressions, negative recall deltas, or positive noise deltas.
+  The latest ASA triangle-congruence proof-plan repair raises current
+  evidence-chat recall to 0.5668209255533201 with 204 missed-recall cases and
+  wrong-recall/noise 342/400, recovering `4:information_extraction:1` to exact
+  1.0 and removing target noise 140/196/206/60 without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas.
+  The latest AI hiring fairness/speed repair raises current evidence-chat
+  recall to 0.5696378269617708 with 203 missed-recall cases and
+  wrong-recall/noise 341/400, recovering `11:information_extraction:2` to
+  exact 1.0 and removing target noise 13/27/68/69/178/179/198/199/36/37
+  without hit-loss, newly-missing evidence regressions, or negative recall
+  deltas. The latest startup transition preparation repair raises current
+  evidence-chat recall to 0.5710462776659961 with 202 missed-recall cases and
+  wrong-recall/noise 340/400, recovering `12:information_extraction:2` to
+  exact 1.0 and removing target noise
+  40/64/65/75/87/205/243/102/103/310/311 without hit-loss, newly-missing
+  evidence regressions, negative recall deltas, or positive noise deltas.
+  The latest son patent-guidance resource-plan repair raises current
+  evidence-chat recall to 0.5719852448021464 with 201 missed-recall cases and
+  wrong-recall/noise 340/400, recovering `20:information_extraction:2` to
+  exact 1.0 with 10/11/12/13/14/15 and no target noise, while total noise
+  decreases 2532 -> 2531 without hit-loss, newly-missing evidence
   regressions, or negative recall deltas.
+  The latest shoe-size cross-session count repair raises current evidence-chat
+  recall to 0.5748021462105971 with 200 missed-recall cases and
+  wrong-recall/noise 340/400, recovering `15:multi_session_reasoning:1` to
+  exact 1.0 with 32/116 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, but with a retained
+  total-noise increase 2531 -> 2534.
+  The latest senior-producer preparation priority repair raises current
+  evidence-chat recall to 0.5776190476190478 with 199 missed-recall cases and
+  wrong-recall/noise 340/400, recovering `8:multi_session_reasoning:2` to
+  exact 1.0 with 28/92/150/152 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas, while total
+  noise decreases 2534 -> 2532.
+  The latest weather-app latency comparison repair raises current
+  evidence-chat recall to 0.5804359490274985 with 198 missed-recall cases and
+  wrong-recall/noise 339/400, recovering `2:multi_session_reasoning:2` to
+  exact 1.0 with 38/80 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2532 -> 2525.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

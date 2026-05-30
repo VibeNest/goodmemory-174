@@ -3615,6 +3615,249 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-broad-similarity-noise")?.returned).toBe(false);
   });
 
+  it("keeps ASA triangle congruence proof evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-4",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-triangle-similarity-noise",
+        140,
+        "[BEAM chat_id=140 role=user time=unknown] I'm now focusing on congruence, similarity, and applying triangle geometry to design and construction challenges, and I want to understand how to use similarity to determine if two triangles are congruent.",
+      ),
+      makeSourceFact(
+        "fact-asa-congruence-proof-plan",
+        151,
+        "[BEAM chat_id=151 role=assistant time=unknown] To prove triangle congruence using ASA, label triangle ABC and triangle DEF, state that angles A and D are 50 degrees, angles B and E are 60 degrees, and included sides AB and DE are 7 cm, then apply the Angle-Side-Angle criterion and conclude triangle ABC is congruent to triangle DEF.",
+      ),
+      makeSourceFact(
+        "fact-ssa-ambiguity-noise",
+        196,
+        "[BEAM chat_id=196 role=user time=unknown] Can two triangles with two equal sides and one equal angle be non-congruent, considering the SSA ambiguity and how this relates to SSS, SAS, or ASA proof criteria?",
+      ),
+      makeSourceFact(
+        "fact-diagram-instruction-noise",
+        60,
+        "[BEAM chat_id=60 role=user time=unknown] Always provide step-by-step geometric diagrams when I ask about triangle classification methods.",
+      ),
+      makeSourceFact(
+        "fact-proof-outline-instruction-noise",
+        206,
+        "[BEAM chat_id=206 role=user time=unknown] Always provide detailed proof outlines with diagrams when I ask about triangle congruence criteria.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What approach did I outline to demonstrate that two triangles with matching angle pairs and a connecting segment are identical, and how did I organize the information to support this?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-asa-congruence-proof-plan",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-triangle-similarity-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ssa-ambiguity-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-diagram-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-proof-outline-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps AI hiring fairness and speed recommendation evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-11",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-pilot-program-noise",
+        13,
+        "[BEAM chat_id=13 role=assistant time=unknown] Start with a small pilot program for an AI hiring tool, define objectives, select a tool, scope the pilot, set up the system, monitor results, adjust, and document findings.",
+      ),
+      makeSourceFact(
+        "fact-soft-skills-noise",
+        27,
+        "[BEAM chat_id=27 role=assistant time=unknown] Ensure AI does not overlook soft skills by defining evaluation criteria, adding structured interviews, using behavioral questions, and keeping human-led final interviews.",
+      ),
+      makeSourceFact(
+        "fact-hiring-time-goal-noise",
+        37,
+        "[BEAM chat_id=37 role=assistant time=unknown] To reduce hiring time by 30% within 6 months, assess bottlenecks, select AI tools, run a pilot, train the team, monitor results, and scale up.",
+      ),
+      makeSourceFact(
+        "fact-ai-fairness-speed-recommendation",
+        39,
+        "[BEAM chat_id=39 role=assistant time=unknown] To speed up candidate screening without compromising fairness, evaluate AI vendors for transparency and certifications, request bias and third-party audits, configure anonymization to remove personal identifiers, maintain human oversight for final decisions, monitor diversity metrics and candidate feedback, and use structured interviews for soft skills alongside AI screening.",
+      ),
+      makeSourceFact(
+        "fact-balanced-approach-noise",
+        69,
+        "[BEAM chat_id=69 role=assistant time=unknown] A balanced approach uses AI for efficiency while maintaining human oversight, anonymization, job-relevant criteria, training, monitoring, and feedback mechanisms.",
+      ),
+      makeSourceFact(
+        "fact-algorithmic-bias-noise",
+        179,
+        "[BEAM chat_id=179 role=assistant time=unknown] Balance efficiency with algorithmic bias risks by defining objectives, running audits, using explainable AI, human review, diverse panels, encryption, 2FA, and training.",
+      ),
+      makeSourceFact(
+        "fact-cost-savings-noise",
+        199,
+        "[BEAM chat_id=199 role=assistant time=unknown] Continue automation gradually after saving $9,000 in recruitment costs, but maintain human oversight, ethical guidelines, stakeholder communication, and regular audits.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What approach did you recommend to balance speeding up the hiring process with ensuring fairness throughout the candidate evaluation?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-ai-fairness-speed-recommendation",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-pilot-program-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-soft-skills-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-hiring-time-goal-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-balanced-approach-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-algorithmic-bias-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cost-savings-noise")?.returned).toBe(false);
+  });
+
+  it("keeps startup transition preparation evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-12",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-current-vs-startup-decision",
+        39,
+        "[BEAM chat_id=39 role=assistant time=unknown] Making a decision between the current job at $85,000 and the streaming startup at $95,000 means weighing familiarity and stability against higher salary, growth opportunities, a more innovative environment, heavier workload, company culture fit, benefits, risk tolerance, and long-term career goals. To make a well-informed decision, gather more details about the startup, reflect on long-term career goals, and discuss the options with trusted mentors or friends.",
+      ),
+      makeSourceFact(
+        "fact-startup-transition-preparation",
+        41,
+        "[BEAM chat_id=41 role=assistant time=unknown] To prepare for the startup transition, research the company's mission, values, and financial health, talk to current employees, clarify workload and performance expectations, mentally prepare for pressure, consult colleagues with startup experience, build a support network, review compensation including equity, adjust your budget, develop relevant skills, and expand your professional network.",
+      ),
+      makeSourceFact(
+        "fact-startup-leaning-noise",
+        40,
+        "[BEAM chat_id=40 role=user time=unknown] I think I'll lean toward the startup for the higher salary and growth potential, but I need to make sure I can handle the workload and pressure.",
+      ),
+      makeSourceFact(
+        "fact-final-meeting-noise",
+        65,
+        "[BEAM chat_id=65 role=assistant time=unknown] Use the rescheduled final meeting to reflect on values, evaluate each offer, seek external perspectives, prepare questions, and discuss concerns.",
+      ),
+      makeSourceFact(
+        "fact-free-will-motivation-noise",
+        75,
+        "[BEAM chat_id=75 role=assistant time=unknown] Belief in free will can improve motivation through control, accountability, resilience, and persistence.",
+      ),
+      makeSourceFact(
+        "fact-real-world-values-noise",
+        103,
+        "[BEAM chat_id=103 role=assistant time=unknown] Choosing the real world values personal growth, meaningful connections, and ethical responsibility over simulated happiness.",
+      ),
+      makeSourceFact(
+        "fact-matthew-meeting-noise",
+        205,
+        "[BEAM chat_id=205 role=assistant time=unknown] Prepare for the meeting with Matthew by creating an agenda, gathering materials, reviewing past work, and using the Eisenhower Box.",
+      ),
+      makeSourceFact(
+        "fact-criminal-justice-plan-noise",
+        243,
+        "[BEAM chat_id=243 role=assistant time=unknown] Start criminal justice reform by conducting a needs assessment, drafting policy proposals, building a coalition, advocating legislation, and monitoring outcomes.",
+      ),
+      makeSourceFact(
+        "fact-scriptwriting-schedule-noise",
+        311,
+        "[BEAM chat_id=311 role=assistant time=unknown] Reserve mornings for scriptwriting and afternoons for meetings and administrative tasks to explore free will debates in creative work.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What steps did you recommend I take to prepare for the challenges and uncertainties that come with changing my work environment?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-current-vs-startup-decision",
+      "fact-startup-transition-preparation",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-startup-leaning-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-final-meeting-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-free-will-motivation-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-real-world-values-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-matthew-meeting-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-criminal-justice-plan-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-scriptwriting-schedule-noise")?.returned).toBe(false);
+  });
+
   it("keeps resume keyword integration evidence source ordered", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3706,6 +3949,281 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-quantified-bullet-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-minimalist-layout-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-international-resume-noise")?.returned).toBe(false);
+  });
+
+  it("keeps emergency fund savings plan evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-16",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-average-income-noise",
+        27,
+        "[BEAM chat_id=27 role=assistant time=unknown] Estimate average monthly income from past project earnings by collecting monthly records, adding total earnings, dividing by the number of months, and using that baseline for budgeting.",
+      ),
+      makeSourceFact(
+        "fact-emergency-fund-user",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] I'm stressed about saving $2,000 for my emergency fund by June 30, 2024, and I've only got $500 saved so far. Can you help me make a plan to reach my goal?",
+      ),
+      makeSourceFact(
+        "fact-emergency-fund-plan",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Break down the $2,000 emergency fund goal by subtracting current savings of $500 to get $1,500 still needed, divide that by 3.5 months until June 30 for a $428.57 monthly target, then automate transfers, cut unnecessary expenses, increase income, and review progress regularly.",
+      ),
+      makeSourceFact(
+        "fact-debt-management-noise",
+        79,
+        "[BEAM chat_id=79 role=assistant time=unknown] Stay on top of debt management after paying off a $1,000 credit card balance by maintaining a zero balance, building an emergency fund, monitoring spending, avoiding new debt, and improving your credit score.",
+      ),
+      makeSourceFact(
+        "fact-invest-car-split-noise",
+        105,
+        "[BEAM chat_id=105 role=assistant time=unknown] Allocate $1,000 between investing and saving for a car by clarifying goals, investing $500, saving $500, choosing index funds, and reviewing performance over time.",
+      ),
+      makeSourceFact(
+        "fact-contract-risk-noise",
+        123,
+        "[BEAM chat_id=123 role=assistant time=unknown] Ask Natalie about project scope, payment structure, extension possibility, and termination terms before accepting the freelance contract.",
+      ),
+      makeSourceFact(
+        "fact-natalie-contract-noise",
+        183,
+        "[BEAM chat_id=183 role=assistant time=unknown] Choosing Natalie's $8,000 contract for better schedule fit can reduce stress, support work-life balance, and still contribute to savings goals like a car fund and emergency fund.",
+      ),
+      makeSourceFact(
+        "fact-cash-reserve-noise",
+        305,
+        "[BEAM chat_id=305 role=assistant time=unknown] Keeping a $1,000 cash reserve and splitting remaining profits is a reasonable compromise for financial stability, growth, flexibility, and regular financial reviews.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What approach did you recommend to balance my current finances and timeline so I could steadily build up my savings despite starting with a partial amount already set aside?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-emergency-fund-user",
+      "fact-emergency-fund-plan",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-average-income-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-debt-management-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-invest-car-split-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-contract-risk-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-natalie-contract-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cash-reserve-noise")?.returned).toBe(false);
+  });
+
+  it("keeps rate-limit request flow evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-rate-limit-initial-user-noise",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to handle the API rate limit for my weather app with a simple counter for calls per minute and per day against the OpenWeather API.",
+      ),
+      makeSourceFact(
+        "fact-rate-limit-counters-queue",
+        33,
+        "[BEAM chat_id=33 role=assistant time=unknown] Improve the API call tracker by resetting counters when minute and day intervals have elapsed, enforcing the 60 calls per minute and 1000 calls per day limits, and adding a queue for concurrent requests so excess calls wait and processQueue runs them after capacity returns.",
+      ),
+      makeSourceFact(
+        "fact-rate-limit-rapid-calls",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Handle rapid consecutive API calls with a combined rate limiting and queuing mechanism: reset counters, push excess calls into a queue, and process queued API calls one by one after a successful API call.",
+      ),
+      makeSourceFact(
+        "fact-rate-limit-retry-backoff",
+        37,
+        "[BEAM chat_id=37 role=assistant time=unknown] For repeated retries after hitting the rate limit, use a more robust queue with exponential backoff, space queued calls out by increasing backoffTime, and cap the backoff delay at 60000 milliseconds.",
+      ),
+      makeSourceFact(
+        "fact-cache-response-time-noise",
+        65,
+        "[BEAM chat_id=65 role=assistant time=unknown] Improve weather API response times with an in-memory cache, longer TTL, stale-data fallback, CDN static assets, HTTP/2 or HTTP/3, and minified compressed files.",
+      ),
+      makeSourceFact(
+        "fact-node-upgrade-noise",
+        117,
+        "[BEAM chat_id=117 role=assistant time=unknown] Upgrade to Node.js v18.15.0, review breaking changes, move from require to import, test thoroughly, and use ES modules with updated URL handling.",
+      ),
+      makeSourceFact(
+        "fact-performance-optimization-noise",
+        151,
+        "[BEAM chat_id=151 role=assistant time=unknown] Further reduce weather app latency with prefetching common cities, batch requests, CDN integration, optimized payloads, HTTP/2, and local storage cache.",
+      ),
+      makeSourceFact(
+        "fact-custom-feature-noise",
+        123,
+        "[BEAM chat_id=123 role=assistant time=unknown] Implement a custom weather forecast feature by defining requirements, designing the UI, setting up development, fetching current weather and forecast data, testing, and documenting the feature.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did you recommend managing the flow of requests when my app risks overwhelming the service due to frequent retries and bursts of activity?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-rate-limit-counters-queue",
+      "fact-rate-limit-rapid-calls",
+      "fact-rate-limit-retry-backoff",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-rate-limit-initial-user-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cache-response-time-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-node-upgrade-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-performance-optimization-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-custom-feature-noise")?.returned).toBe(false);
+  });
+
+  it("keeps weather-app latency metrics for cross-session speed comparisons", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-rate-limit-quota-noise",
+        32,
+        "user",
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to handle the API rate limit for my weather app with 60 calls/minute and 1000 calls/day on my OpenWeather API key.",
+      ),
+      makeSourceFact(
+        "fact-fetch-call-latency",
+        38,
+        "user",
+        "[BEAM chat_id=38 role=user time=unknown] I'm trying to optimize the fetch call latency in my prototype, which currently averages 250ms on a local network with Chrome v112.0.5615.",
+      ),
+      makeSourceFact(
+        "fact-cache-response-time-noise",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] Improve weather API response times with an in-memory cache, longer TTL, stale-data fallback, CDN static assets, HTTP/2 or HTTP/3, and minified compressed files.",
+      ),
+      makeSourceFact(
+        "fact-autocomplete-api-response-time",
+        80,
+        "user",
+        "[BEAM chat_id=80 role=user time=unknown] I'm trying to optimize the autocomplete feature for my weather app, which has been tested with over 100 city inputs and has an average API response time of 280ms with a 95% success rate on valid cities.",
+      ),
+      makeSourceFact(
+        "fact-autocomplete-debounce-noise",
+        94,
+        "user",
+        "[BEAM chat_id=94 role=user time=unknown] I'm trying to optimize autocomplete to reduce API calls with a 5-item result limit, 300ms debounce delay, and a more advanced caching mechanism.",
+      ),
+      makeSourceFact(
+        "fact-autocomplete-review-noise",
+        95,
+        "assistant",
+        "[BEAM chat_id=95 role=assistant time=unknown] Balance reducing API calls and exhaustive search by using LRU caching, debounce delay tuning, pagination, and local storage for frequently used cities.",
+      ),
+      makeSourceFact(
+        "fact-weather-error-handling-noise",
+        124,
+        "user",
+        "[BEAM chat_id=124 role=user time=unknown] I reduced average autocomplete input latency from 520ms to 290ms by optimizing event listeners and DOM updates, and I need help with fetchWeatherData error handling.",
+      ),
+      makeSourceFact(
+        "fact-load-testing-noise",
+        187,
+        "assistant",
+        "[BEAM chat_id=187 role=assistant time=unknown] Prepare for user feedback with load testing, performance monitoring, scalability, caching strategy, database optimization, and security measures.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Between my fetch call latency and my autocomplete API response time, which one is currently faster based on my tests?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-fetch-call-latency",
+      "fact-autocomplete-api-response-time",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-rate-limit-quota-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cache-response-time-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-debounce-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-review-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-weather-error-handling-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-load-testing-noise")?.returned).toBe(false);
   });
 
   it("keeps API endpoint project technologies for startup information questions", () => {
@@ -3971,6 +4489,168 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-partner-movie-noise")?.returned).toBe(false);
   });
 
+  it("keeps partner classic movie recommendation evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-14",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-partner-classic-film-user",
+        12,
+        "[BEAM chat_id=12 role=user time=unknown] I'm planning a movie night with my partner Thomas, who's 45, and I want to pick a classic film we both love, since we met at a film festival in Miami on June 15, 2020.",
+      ),
+      makeSourceFact(
+        "fact-partner-classic-film-recommendations",
+        13,
+        "[BEAM chat_id=13 role=assistant time=unknown] Given your shared love for classic films, I recommended timeless movies like Casablanca, Gone with the Wind, It's a Wonderful Life, The Maltese Falcon, Singin' in the Rain, and Vertigo so you and Thomas could reminisce about meeting at the film festival in Miami.",
+      ),
+      makeSourceFact(
+        "fact-soul-discussion-noise",
+        95,
+        "[BEAM chat_id=95 role=assistant time=unknown] Discuss Soul with Michelle by focusing on purpose, relationships, growth, and appreciating everyday moments after watching the movie.",
+      ),
+      makeSourceFact(
+        "fact-endgame-schedule-noise",
+        126,
+        "[BEAM chat_id=126 role=user time=unknown] The weekday evening option sounds good, so let's watch Avengers: Endgame on Tuesday, April 9, 2024, at 7:00 PM.",
+      ),
+      makeSourceFact(
+        "fact-rental-savings-noise",
+        143,
+        "[BEAM chat_id=143 role=assistant time=unknown] Save money on movie rentals by renting individual titles, using promotions, checking free streaming options, and avoiding monthly subscriptions when one rental is cheaper.",
+      ),
+      makeSourceFact(
+        "fact-guest-list-noise",
+        217,
+        "[BEAM chat_id=217 role=assistant time=unknown] Make family movie night enjoyable for Lily and her parents by reaching out early, asking preferences, managing the guest list, and planning inclusive snacks and activities.",
+      ),
+      makeSourceFact(
+        "fact-animated-musicals-noise",
+        243,
+        "[BEAM chat_id=243 role=assistant time=unknown] Use your knowledge of animated musicals from the 1990s to the present to appreciate recent family films like Coco, Moana, Encanto, and Frozen II.",
+      ),
+      makeSourceFact(
+        "fact-platform-instruction-noise",
+        52,
+        "[BEAM chat_id=52 role=user time=unknown] Always include platform availability details when I ask about movie options.",
+      ),
+      makeSourceFact(
+        "fact-sustainability-instruction-noise",
+        214,
+        "[BEAM chat_id=214 role=user time=unknown] Always mention sustainability features when I ask about sneaker materials.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How did the shared interests between me and my partner influence the movie options you recommended for our evening?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-partner-classic-film-user",
+      "fact-partner-classic-film-recommendations",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-soul-discussion-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-endgame-schedule-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-rental-savings-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-guest-list-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-animated-musicals-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-platform-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-sustainability-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps colour technologist profession evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-5",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-independent-events-noise",
+        14,
+        "[BEAM chat_id=14 role=user time=unknown] I'm trying to understand the difference between independent and mutually exclusive events, maybe with coin tosses or dice rolls and probability calculations.",
+      ),
+      makeSourceFact(
+        "fact-colour-technologist-profession",
+        16,
+        "[BEAM chat_id=16 role=user time=unknown] I'm deciding whether to start with coin toss or dice roll problems to understand probability basics, which seems crucial for my practical and intellectual growth as a 44-year-old colour technologist from Port Michael.",
+      ),
+      makeSourceFact(
+        "fact-even-die-noise",
+        63,
+        "[BEAM chat_id=63 role=assistant time=unknown] Calculate the probability of rolling an even number on a six-sided die by listing favorable outcomes 2, 4, and 6 over six possible outcomes, giving 3/6 = 1/2.",
+      ),
+      makeSourceFact(
+        "fact-birthday-paradox-noise",
+        156,
+        "[BEAM chat_id=156 role=user time=unknown] I'm trying to understand the birthday paradox problem and how to solve it with direct counting and the complement method.",
+      ),
+      makeSourceFact(
+        "fact-independent-product-noise",
+        90,
+        "[BEAM chat_id=90 role=user time=unknown] I'm trying to understand why P(A and B) = P(A) times P(B) only if A and B are independent, using two coin tosses as an example.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What profession did I mention I work in?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-colour-technologist-profession",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-independent-events-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-even-die-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-birthday-paradox-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-independent-product-noise")?.returned).toBe(false);
+  });
+
   it("keeps current Bay Street rent evidence for monthly amount questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4155,6 +4835,69 @@ describe("recall selection", () => {
     ]);
     expect(result.traces.find((trace) => trace.memoryId === "fact-poppy-war-pages-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-nightingale-series-noise")?.returned).toBe(false);
+  });
+
+  it("keeps shoe-size count context and values for cross-session count questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-15",
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-sneaker-choice-context",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I'm deciding between Adidas Ultraboost for $180 and Nike React Infinity Run for $160, which one should I choose for daily wear? ->-> 1,9",
+      ),
+      makeSourceFact(
+        "fact-sneaker-size-values",
+        116,
+        "[BEAM chat_id=116 role=user time=May-10-2024] I'm considering returning the Adidas Ultraboost size 11 I got on April 30 because of slight heel slippage, and I've already reordered size 11.5 on May 1, what are my chances of getting a good fit this time? ->-> 3,2",
+      ),
+      makeSourceFact(
+        "fact-foot-locker-noise",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] I'm planning to visit Foot Locker on Main Street, East Janethaven, next Saturday at 3 PM, can you help me make the most of my trip to find the perfect sneakers? ->-> 1,10",
+      ),
+      makeSourceFact(
+        "fact-neutral-colors-noise",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I prefer sneakers with a sleek, modern look in neutral colors like black or gray, do you have any recommendations for a style that fits my taste? ->-> 1,8",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different shoe sizes have I mentioned across my messages?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-sneaker-choice-context",
+      "fact-sneaker-size-values",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-foot-locker-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-neutral-colors-noise")?.returned).toBe(false);
   });
 
   it("keeps kids school activity days evidence for temporal discrimination questions", () => {
@@ -5839,6 +6582,135 @@ describe("recall selection", () => {
       "fact-workshop-presentation-user",
       "fact-workshop-presentation-assistant",
     ]);
+  });
+
+  it("keeps senior-producer preparation priorities for strategic synthesis questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-8",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-coaching-session-noise",
+        24,
+        "user",
+        "[BEAM chat_id=24 role=user time=unknown] I'm stuck between attending Greg's April 2 coaching session or Leslie's April 3 networking event to meet my cover letter deadline of April 10.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-deadlines",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I've set a goal to complete my cover letter draft by March 25, revise it by April 5, but I'm worried I won't make it, can you offer some advice on how to manage my time effectively to meet these targets?",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-style-noise",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm going to submit my cover letter by April 14 as Ashlee recommended, but I'm not sure if avoiding jargon and keeping a warm but professional tone is enough to stand out in a competitive job market.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-style-companion-noise",
+        59,
+        "assistant",
+        "[BEAM chat_id=59 role=assistant time=unknown] Tailor the cover letter to the Senior Producer role, quantify achievements, align with Island Media Group values, use STAR storytelling, show enthusiasm, and include a call to action.",
+      ),
+      makeSourceFact(
+        "fact-creative-director-zoom",
+        92,
+        "user",
+        "[BEAM chat_id=92 role=user time=unknown] I've accepted Leslie's introduction offer and have a Zoom call with the creative director on April 21 at 3 PM, what are some key points I should discuss during the call to make a good impression?",
+      ),
+      makeSourceFact(
+        "fact-mindfulness-confidence-noise",
+        146,
+        "user",
+        "[BEAM chat_id=146 role=user time=unknown] Greg provided feedback on my May 1 mindfulness routine, noting I've got improved confidence in mock sessions.",
+      ),
+      makeSourceFact(
+        "fact-interview-questions-noise",
+        148,
+        "user",
+        "[BEAM chat_id=148 role=user time=unknown] I'm nervous about my interview with Island Media's HR and creative director on May 12 at 10:30 AM via Zoom, can you help me prepare questions to ask them?",
+      ),
+      makeSourceFact(
+        "fact-interview-clarity-score",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I've increased my interview answer clarity score from 6.5 to 8.2 out of 10 in Greg's assessments, but I'm not sure what to focus on next to keep improving, can you give me some advice?",
+      ),
+      makeSourceFact(
+        "fact-interview-improvement-plan",
+        152,
+        "user",
+        "[BEAM chat_id=152 role=user time=unknown] I'll focus on refining my STAR method application, enhancing specificity in my examples, making my stories more engaging, practicing active listening, getting feedback from Greg during mock interviews, expanding my knowledge base on industry trends and Island Media Group's values, practicing under pressure, preparing for unexpected questions, and recording myself to review my delivery.",
+      ),
+      makeSourceFact(
+        "fact-interview-attire-noise",
+        154,
+        "user",
+        "[BEAM chat_id=154 role=user time=unknown] I'm wondering if wearing a navy blue suit and a Caribbean-themed tie will make me look professional and show my cultural pride.",
+      ),
+      makeSourceFact(
+        "fact-first-90-days-goal-noise",
+        186,
+        "user",
+        "[BEAM chat_id=186 role=user time=unknown] I'm trying to craft a standout cover letter, and I prefer clear, measurable goals for my first 90 days, aiming to increase team productivity by 15%, can you help me incorporate this into my letter?",
+      ),
+      makeSourceFact(
+        "fact-first-90-days-goal-companion-noise",
+        187,
+        "assistant",
+        "[BEAM chat_id=187 role=assistant time=unknown] Incorporating clear measurable goals into your cover letter can make it stand out for the Senior Producer position and demonstrate a proactive approach.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Considering my cover letter deadlines, the Zoom call with the creative director, and my interview clarity improvements, how should I prioritize my preparation efforts to maximize my chances for the senior producer role?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({ requestedSlots: ["role"] }),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-cover-letter-deadlines",
+      "fact-creative-director-zoom",
+      "fact-interview-clarity-score",
+      "fact-interview-improvement-plan",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-coaching-session-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-mindfulness-confidence-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-interview-questions-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-interview-attire-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-style-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-style-companion-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-first-90-days-goal-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-first-90-days-goal-companion-noise")?.returned).toBe(false);
   });
 
   it("keeps resume development milestones for past-months strategy summaries", () => {
@@ -10198,6 +11070,18 @@ describe("recall selection", () => {
         "[BEAM chat_id=11 role=assistant time=unknown] There are several types of patent applications that could be relevant for an engineering student, including utility patents and provisional patents.",
       ),
       makeSourceFact(
+        "fact-patent-mechanical-engineering-snippet",
+        11,
+        "assistant",
+        "- **Mechanical Engineering**: If Francis is working on a new type of robotic arm for manufacturing, he might file a utility patent to protect the design and functionality.",
+      ),
+      makeSourceFact(
+        "fact-patent-provisional-relevance-snippet",
+        11,
+        "assistant",
+        "- **Relevance**: If Francis has an idea that is still in the early stages of development, a provisional patent can provide temporary protection while he refines his invention.",
+      ),
+      makeSourceFact(
         "fact-provisional-plan",
         12,
         "user",
@@ -10254,6 +11138,8 @@ describe("recall selection", () => {
       "fact-college-bar-plan",
       "fact-college-bar-summary",
     ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-patent-mechanical-engineering-snippet")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-patent-provisional-relevance-snippet")?.returned).toBe(false);
   });
 
   it("returns Chinese source-ordered coverage for broad conversation summary questions", () => {

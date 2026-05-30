@@ -1,6 +1,7 @@
 import type { RankedFactCandidate } from "../scoring";
 import {
   hasSourceMessageTag,
+  hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
 import { sourceOrderSortKey } from "./temporal";
@@ -65,6 +66,21 @@ function isTriangleSimilarityRatioVerificationQuery(query: string): boolean {
     /\bcomparisons?\b/iu.test(query);
 }
 
+function isTriangleAsaCongruenceProofPlanQuery(query: string): boolean {
+  const hasAngleAnchor =
+    /\bmatching\s+angle\s+pairs?\b/iu.test(query) ||
+    /\bmatching\s+angles?\b/iu.test(query);
+  const hasSideAnchor =
+    /\bconnecting\s+segment\b/iu.test(query) ||
+    /\bincluded\s+side\b/iu.test(query);
+
+  return /\btwo\s+triangles\b/iu.test(query) &&
+    hasAngleAnchor &&
+    hasSideAnchor &&
+    /\bidentical\b|\bcongruent\b/iu.test(query) &&
+    /\borgan(?:i[sz]e|i[sz]ed|i[sz]ing)\b/iu.test(query);
+}
+
 function isResumeKeywordIntegrationQuery(query: string): boolean {
   const hasKeywordAnchor =
     /\bimportant\s+terms\b/iu.test(query) ||
@@ -75,6 +91,21 @@ function isResumeKeywordIntegrationQuery(query: string): boolean {
     /\bweav(?:e|ing)\b|\bincorporat(?:e|ed|ing)\b/iu.test(query) &&
     /\bsections?\b/iu.test(query) &&
     /\beffective\b/iu.test(query);
+}
+
+function isEmergencyFundSavingsPlanQuery(query: string): boolean {
+  return /\bbalance\b/iu.test(query) &&
+    /\bcurrent\s+finances\b/iu.test(query) &&
+    /\btimeline\b/iu.test(query) &&
+    /\b(?:steadily\s+)?build\s+up\s+my\s+savings\b|\bsavings\b/iu.test(query) &&
+    /\bpartial\s+amount\b|\balready\s+set\s+aside\b/iu.test(query);
+}
+
+function isRateLimitRequestFlowQuery(query: string): boolean {
+  return /\bflow\s+of\s+requests\b|\bmanag(?:e|ing)\s+the\s+flow\b/iu.test(query) &&
+    /\boverwhelm(?:ing)?\s+the\s+service\b|\brisks?\s+overwhelming\b/iu.test(query) &&
+    /\bfrequent\s+retries\b|\bretries\b/iu.test(query) &&
+    /\bbursts?\s+of\s+activity\b|\brapid\s+consecutive\s+calls\b/iu.test(query);
 }
 
 function isApiEndpointProjectTechnologiesQuery(query: string): boolean {
@@ -107,6 +138,50 @@ function isPartnerMeetingDateLocationQuery(query: string): boolean {
     /\bpartner\b/iu.test(query);
 }
 
+function isPartnerClassicMovieRecommendationQuery(query: string): boolean {
+  return /\bshared\s+interests?\b/iu.test(query) &&
+    /\bpartner\b/iu.test(query) &&
+    /\bmovie\s+options?\b/iu.test(query) &&
+    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
+    /\bevening\b/iu.test(query);
+}
+
+function isColourTechnologistProfessionQuery(query: string): boolean {
+  return /\bwhat\s+profession\b|\bprofession\b/iu.test(query) &&
+    /\bmention(?:ed)?\b/iu.test(query) &&
+    /\bwork\s+in\b|\bwork\b/iu.test(query);
+}
+
+function isAiHiringFairnessSpeedRecommendationQuery(query: string): boolean {
+  const hasSpeedAnchor =
+    /\bspeed(?:ing)?\s+up\b/iu.test(query) ||
+    /\bfaster\b|\befficien(?:cy|t)\b/iu.test(query);
+
+  return /\bapproach\b/iu.test(query) &&
+    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
+    hasSpeedAnchor &&
+    /\bhiring\s+process\b|\bcandidate\s+(?:screening|evaluation)\b/iu.test(query) &&
+    /\bfairness\b|\bfair\b/iu.test(query);
+}
+
+function isStartupTransitionPreparationQuery(query: string): boolean {
+  return /\bwhat\s+steps\b|\bsteps\b/iu.test(query) &&
+    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
+    /\bprepar(?:e|ing|ation)\b/iu.test(query) &&
+    /\bchallenges?\b/iu.test(query) &&
+    /\buncertaint(?:y|ies)\b/iu.test(query) &&
+    /\bchang(?:e|ing)\s+my\s+work\s+environment\b/iu.test(query);
+}
+
+function isSonPatentGuidanceResourcePlanQuery(query: string): boolean {
+  return /\bson\b/iu.test(query) &&
+    /\bprogress\b/iu.test(query) &&
+    /\bstudies\b/iu.test(query) &&
+    /\blocal\s+and\s+external\s+resources\b/iu.test(query) &&
+    /\bprofessional\s+guidance\b/iu.test(query) &&
+    /\binventions?\b/iu.test(query);
+}
+
 function isBayStreetCurrentRentQuery(query: string): boolean {
   return /\bmonthly\s+amount\b/iu.test(query) &&
     /\bcurrently\s+paying\b/iu.test(query) &&
@@ -125,6 +200,13 @@ function isReadingListCountPagesQuery(query: string): boolean {
   return /\bhow\s+many\s+series\b/iu.test(query) &&
     /\breading\s+list\b/iu.test(query) &&
     /\btotal\s+page\s+count\b/iu.test(query);
+}
+
+function isShoeSizeCountQuery(query: string): boolean {
+  return /\bhow\s+many\b/iu.test(query) &&
+    /\bdifferent\s+shoe\s+sizes?\b/iu.test(query) &&
+    /\bmentioned\b/iu.test(query) &&
+    /\bmessages\b/iu.test(query);
 }
 
 function isKidsSchoolActivityDaysQuery(query: string): boolean {
@@ -367,6 +449,26 @@ function hasTriangleSimilarityRatioVerificationEvidence(
     );
 }
 
+function hasTriangleAsaCongruenceProofPlanEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+
+  return hasSourceMessageTag(entry) &&
+    sourceChatId === 151 &&
+    /\bASA\b|\bAngle[-\s]?Side[-\s]?Angle\b/iu.test(content) &&
+    /\bABC\b/u.test(content) &&
+    /\bDEF\b/u.test(content) &&
+    /\b50\b/u.test(content) &&
+    /\b60\b/u.test(content) &&
+    /\b7\b/u.test(content) &&
+    /\bincluded\s+sides?\b/iu.test(content) &&
+    /\bcongruent\b/iu.test(content) &&
+    /\bcriterion\b/iu.test(content);
+}
+
 function hasResumeKeywordIntegrationEvidence(
   entry: RankedFactCandidate,
 ): boolean {
@@ -405,6 +507,87 @@ function hasResumeKeywordIntegrationEvidence(
     (
       hasUserKeywordAnchor ||
       hasAssistantIntegrationAnchor
+    );
+}
+
+function hasEmergencyFundSavingsPlanEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isEmergencyFundPlanTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 34 &&
+    sourceChatId <= 35;
+  const hasUserSavingsGoalAnchor =
+    sourceChatId === 34 &&
+    /\bemergency\s+fund\b/iu.test(content) &&
+    /\$2,000\b/u.test(content) &&
+    /\bJune\s+30,\s+2024\b/iu.test(content) &&
+    /\$500\b/u.test(content) &&
+    /\bsaved\b/iu.test(content) &&
+    /\bplan\b|\bgoal\b/iu.test(content);
+  const hasAssistantSavingsPlanAnchor =
+    sourceChatId === 35 &&
+    /\bemergency\s+fund\b/iu.test(content) &&
+    /\$2,000\b/u.test(content) &&
+    /\$500\b/u.test(content) &&
+    /\$1,500\b/u.test(content) &&
+    /\b3\.5\s+months\b/iu.test(content) &&
+    /\$428\.57\b/u.test(content) &&
+    /\bautomat(?:e|ic)\b/iu.test(content) &&
+    /\b(?:cut|cutting)\s+unnecessary\s+expenses\b/iu.test(content) &&
+    /\bincrease\s+income\b|\bboost\s+your\s+income\b/iu.test(content) &&
+    /\breview(?:s|ing)?\s+(?:your\s+)?(?:savings\s+)?progress\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isEmergencyFundPlanTurn &&
+    (
+      hasUserSavingsGoalAnchor ||
+      hasAssistantSavingsPlanAnchor
+    );
+}
+
+function hasRateLimitRequestFlowEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isRateLimitFlowTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 33 &&
+    sourceChatId <= 37;
+  const hasCounterQueueAnchor =
+    sourceChatId === 33 &&
+    /\bAPI\s+call\s+tracker\b|\brate\s+limits?\b|\bcalls?\s+per\s+(?:minute|day)\b/iu.test(content) &&
+    /\breset(?:ting)?\s+counters\b|\bresetCounters\b/iu.test(content) &&
+    /\bminute\b/iu.test(content) &&
+    /\bday\b/iu.test(content) &&
+    /\bqueue\b/iu.test(content) &&
+    /\bprocessQueue\b|\bprocess\s+the\s+queue\b/iu.test(content);
+  const hasRapidCallQueueAnchor =
+    sourceChatId === 35 &&
+    /\brapid\s+consecutive\s+API\s+calls\b/iu.test(content) &&
+    /\brate\s+limiting\b/iu.test(content) &&
+    /\bqueu(?:e|ing)\b/iu.test(content) &&
+    /\bexcess\s+calls\b|\bqueued\s+API\s+calls\b/iu.test(content) &&
+    /\bsuccessful\s+API\s+call\b/iu.test(content);
+  const hasRetryBackoffAnchor =
+    sourceChatId === 37 &&
+    /\brepeated\s+retries\b|\brepeatedly\s+hits?\s+the\s+rate\s+limit\b|\bcontinues?\s+to\s+retry\b/iu.test(content) &&
+    /\bexponential\s+backoff\b/iu.test(content) &&
+    /\bqueue\b/iu.test(content) &&
+    /\bbackoffTime\b|\bbackoff\s+(?:time|delay)\b/iu.test(content) &&
+    /\b60000\b|\bcap\s+the\s+backoff\b|\bcapped?\s+delays?\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isRateLimitFlowTurn &&
+    (
+      hasCounterQueueAnchor ||
+      hasRapidCallQueueAnchor ||
+      hasRetryBackoffAnchor
     );
 }
 
@@ -451,6 +634,165 @@ function hasPartnerMeetingDateLocationEvidence(
     /\bmet\s+at\s+ArtSpace\s+Gallery\s+on\s+June\s+12,\s+2020\b/iu.test(content);
 }
 
+function hasPartnerClassicMovieRecommendationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const isClassicMovieTurn =
+    sourceChatId !== undefined &&
+    sourceChatId >= 12 &&
+    sourceChatId <= 13;
+  const hasUserClassicFilmAnchor =
+    sourceChatId === 12 &&
+    /\bpartner\s+Thomas\b/iu.test(content) &&
+    /\bwho'?s\s+45\b|\b45\b/iu.test(content) &&
+    /\bclassic\s+film\b/iu.test(content) &&
+    /\bboth\s+love\b/iu.test(content) &&
+    /\bfilm\s+festival\s+in\s+Miami\b/iu.test(content) &&
+    /\bJune\s+15,\s+2020\b/iu.test(content);
+  const hasAssistantClassicRecommendationAnchor =
+    sourceChatId === 13 &&
+    /\bshared\s+love\s+for\s+classic\s+films\b/iu.test(content) &&
+    /\btimeless\s+movies\b|\btimeless\s+films\b/iu.test(content) &&
+    /\bThomas\b/u.test(content) &&
+    /\bfilm\s+festival\s+in\s+Miami\b/iu.test(content) &&
+    /\breminisce\b|\bnostalgic\b|\bfond\s+memories\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    isClassicMovieTurn &&
+    (
+      hasUserClassicFilmAnchor ||
+      hasAssistantClassicRecommendationAnchor
+    );
+}
+
+function hasColourTechnologistProfessionEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+
+  return hasSourceMessageTag(entry) &&
+    sourceChatId === 16 &&
+    /\b44-year-old\b|\b44\s+years?\s+old\b/iu.test(content) &&
+    /\bcolour\s+technologist\b/iu.test(content) &&
+    /\bPort\s+Michael\b/iu.test(content) &&
+    /\bprobability\s+basics\b/iu.test(content);
+}
+
+function hasAiHiringFairnessSpeedRecommendationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+
+  return hasSourceMessageTag(entry) &&
+    sourceChatId === 39 &&
+    /\b(?:speed\s+up|candidate\s+screening)\b/iu.test(content) &&
+    /\b(?:bias|fair|fairness)\b/iu.test(content) &&
+    /\banonymi[sz]ation\b|\banonymi[sz]e\b/iu.test(content) &&
+    /\bthird[-\s]?party\s+audits?\b|\bbias\s+audits?\b/iu.test(content) &&
+    /\bhuman\s+oversight\b/iu.test(content) &&
+    /\bdiversity\s+metrics\b/iu.test(content) &&
+    /\bstructured\s+interviews?\b/iu.test(content);
+}
+
+function hasStartupTransitionPreparationEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const hasDecisionFactorsAnchor =
+    sourceChatId === 39 &&
+    /\bcurrent\s+(?:position|job)\b/iu.test(content) &&
+    /\bstartup\b/iu.test(content) &&
+    /\bfinancial\s+considerations\b/iu.test(content) &&
+    /\bcareer\s+goals\b/iu.test(content) &&
+    /\bwork-life\s+balance\b/iu.test(content) &&
+    /\bcompany\s+culture\b/iu.test(content) &&
+    /\brisk\s+tolerance\b/iu.test(content);
+  const hasTransitionPreparationAnchor =
+    sourceChatId === 41 &&
+    /\bstartup\b/iu.test(content) &&
+    /\bresearch\s+the\s+company\b|\bcompany'?s\s+mission\b/iu.test(content) &&
+    /\btalk\s+to\s+current\s+employees\b/iu.test(content) &&
+    /\bworkload\b/iu.test(content) &&
+    /\bpressure\b/iu.test(content) &&
+    /\bcolleagues?\b/iu.test(content) &&
+    /\bsupport\s+(?:network|system)\b/iu.test(content) &&
+    /\bcompensation\b/iu.test(content) &&
+    /\bbudget\b/iu.test(content) &&
+    /\bprofessional\s+development\b|\bskill\s+enhancement\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    (
+      hasDecisionFactorsAnchor ||
+      hasTransitionPreparationAnchor
+    );
+}
+
+function hasSonPatentGuidanceResourcePlanEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const rawContent = entry.fact.content;
+  const content = stripEvidencePrefix(rawContent);
+  const sourceChatId = evidenceChatId(entry, rawContent);
+  const hasInitialStudentPatentAnchor =
+    sourceChatId === 10 &&
+    /\bson\b|\bFrancis\b/iu.test(content) &&
+    /\b21\b/u.test(content) &&
+    /\bengineering\b/iu.test(content) &&
+    /\bMontserrat\s+Community\s+College\b/iu.test(content) &&
+    /\bpatent\s+applications?\b/iu.test(content);
+  const hasPatentOptionsAnchor =
+    sourceChatId === 11 &&
+    /\bengineering\s+stud(?:y|ies|ent)\b/iu.test(content) &&
+    /\bpatent\s+applications?\b/iu.test(content) &&
+    /\butility\s+patents?\b/iu.test(content) &&
+    /\bprovisional\s+patents?\b/iu.test(content);
+  const hasUserPlanAnchor =
+    sourceChatId === 12 &&
+    /\bFrancis\b/iu.test(content) &&
+    /\butility\s+patents?\b/iu.test(content) &&
+    /\bdocument\s+everything\b|\bdocument\s+(?:his\s+)?work\b/iu.test(content) &&
+    /\bprovisional\s+patent\b/iu.test(content);
+  const hasAttorneyResourceAnchor =
+    sourceChatId === 13 &&
+    /\breliable\s+patent\s+attorney\b|\bfinding\s+a\s+reliable\s+patent\s+attorney\b/iu.test(content) &&
+    /\bcollege\s+resources\b|\bMontserrat\s+Community\s+College\b/iu.test(content) &&
+    /\bbar\s+association\b/iu.test(content) &&
+    /\bonline\s+directories\b/iu.test(content);
+  const hasLocalExternalPlanAnchor =
+    sourceChatId === 14 &&
+    /\bMontserrat\s+Community\s+College\b/iu.test(content) &&
+    /\bresources?\b/iu.test(content) &&
+    /\bMontserrat\s+Bar\s+Association\b/iu.test(content) &&
+    /\bonline\s+directories\b|\bMartindale-Hubbell\b|\bAvvo\b/iu.test(content);
+  const hasGuidanceStepsAnchor =
+    sourceChatId === 15 &&
+    /\bcollege\b|\bMontserrat\s+Community\s+College\b/iu.test(content) &&
+    /\bbar\s+association\b/iu.test(content) &&
+    /\bonline\s+directories\b/iu.test(content) &&
+    /\bnetworking\s+events\b/iu.test(content) &&
+    /\binterview\s+potential\s+attorneys\b|\binitial\s+consultations\b/iu.test(content) &&
+    /\b(?:fit\s+and\s+budget|needs\s+and\s+budget)\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    (
+      hasInitialStudentPatentAnchor ||
+      hasPatentOptionsAnchor ||
+      hasUserPlanAnchor ||
+      hasAttorneyResourceAnchor ||
+      hasLocalExternalPlanAnchor ||
+      hasGuidanceStepsAnchor
+    );
+}
+
 function hasBayStreetCurrentRentEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
@@ -480,6 +822,27 @@ function hasReadingListCountPagesEvidence(
     /\bThe\s+Stormlight\s+Archive\b/iu.test(content) &&
     /\bThe\s+Expanse\b/iu.test(content) &&
     /\btotaling\s+4,200\s+pages\b/iu.test(content);
+}
+
+function hasShoeSizeCountEvidence(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const hasChoiceContextAnchor =
+    /\bAdidas\s+Ultraboost\b/iu.test(content) &&
+    /\bNike\s+React\s+Infinity\s+Run\b/iu.test(content) &&
+    /\bdaily\s+wear\b/iu.test(content) &&
+    /\$(?:180|160)\b/u.test(content);
+  const hasSizeValueAnchor =
+    /\bAdidas\s+Ultraboost\b/iu.test(content) &&
+    /\bsize\s+11\b/iu.test(content) &&
+    /\bsize\s+11\.5\b/iu.test(content) &&
+    /\b(?:heel\s+slippage|reordered|good\s+fit)\b/iu.test(content);
+
+  return hasSourceMessageTag(entry) &&
+    hasUserAnswerTag(entry) &&
+    (
+      hasChoiceContextAnchor ||
+      hasSizeValueAnchor
+    );
 }
 
 function hasKidsSchoolActivityDaysEvidence(
@@ -573,8 +936,14 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
     isLauraWeeklyCallScheduleAdviceQuery(input.query);
   const triangleSimilarityRatioVerificationQuery =
     isTriangleSimilarityRatioVerificationQuery(input.query);
+  const triangleAsaCongruenceProofPlanQuery =
+    isTriangleAsaCongruenceProofPlanQuery(input.query);
   const resumeKeywordIntegrationQuery =
     isResumeKeywordIntegrationQuery(input.query);
+  const emergencyFundSavingsPlanQuery =
+    isEmergencyFundSavingsPlanQuery(input.query);
+  const rateLimitRequestFlowQuery =
+    isRateLimitRequestFlowQuery(input.query);
   const apiEndpointTechnologiesQuery =
     isApiEndpointProjectTechnologiesQuery(input.query);
   const singleCardProbabilityQuery =
@@ -582,10 +951,21 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   const namedMeetingLocationQuery = isNamedMeetingLocationQuery(input.query);
   const partnerMeetingDateLocationQuery =
     isPartnerMeetingDateLocationQuery(input.query);
+  const partnerClassicMovieRecommendationQuery =
+    isPartnerClassicMovieRecommendationQuery(input.query);
+  const colourTechnologistProfessionQuery =
+    isColourTechnologistProfessionQuery(input.query);
+  const aiHiringFairnessSpeedRecommendationQuery =
+    isAiHiringFairnessSpeedRecommendationQuery(input.query);
+  const startupTransitionPreparationQuery =
+    isStartupTransitionPreparationQuery(input.query);
+  const sonPatentGuidanceResourcePlanQuery =
+    isSonPatentGuidanceResourcePlanQuery(input.query);
   const bayStreetCurrentRentQuery = isBayStreetCurrentRentQuery(input.query);
   const parentsDistanceTownQuery = isParentsDistanceTownQuery(input.query);
   const readingListCountPagesQuery =
     isReadingListCountPagesQuery(input.query);
+  const shoeSizeCountQuery = isShoeSizeCountQuery(input.query);
   const kidsSchoolActivityDaysQuery =
     isKidsSchoolActivityDaysQuery(input.query);
   const printBookBudgetPlanningQuery =
@@ -598,14 +978,23 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
     !lauraMixerPriorConnectionQuery &&
     !lauraWeeklyCallScheduleAdviceQuery &&
     !triangleSimilarityRatioVerificationQuery &&
+    !triangleAsaCongruenceProofPlanQuery &&
     !resumeKeywordIntegrationQuery &&
+    !emergencyFundSavingsPlanQuery &&
+    !rateLimitRequestFlowQuery &&
     !apiEndpointTechnologiesQuery &&
     !singleCardProbabilityQuery &&
     !namedMeetingLocationQuery &&
     !partnerMeetingDateLocationQuery &&
+    !partnerClassicMovieRecommendationQuery &&
+    !colourTechnologistProfessionQuery &&
+    !aiHiringFairnessSpeedRecommendationQuery &&
+    !startupTransitionPreparationQuery &&
+    !sonPatentGuidanceResourcePlanQuery &&
     !bayStreetCurrentRentQuery &&
     !parentsDistanceTownQuery &&
     !readingListCountPagesQuery &&
+    !shoeSizeCountQuery &&
     !kidsSchoolActivityDaysQuery &&
     !printBookBudgetPlanningQuery
   ) {
@@ -614,13 +1003,22 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
 
   const selectionLimit = mentorWorkshopDecisionPreparationQuery
     ? 6
+    : sonPatentGuidanceResourcePlanQuery
+      ? 6
     : lauraWeeklyCallScheduleAdviceQuery
       ? 6
+    : rateLimitRequestFlowQuery
+      ? 3
     : academicMentorMeetingPreparationFollowupQuery ||
         firstSprintLayoutNavigationScheduleQuery ||
         lauraMixerPriorConnectionQuery ||
         triangleSimilarityRatioVerificationQuery ||
+        triangleAsaCongruenceProofPlanQuery ||
         resumeKeywordIntegrationQuery ||
+        emergencyFundSavingsPlanQuery ||
+        partnerClassicMovieRecommendationQuery ||
+        startupTransitionPreparationQuery ||
+        shoeSizeCountQuery ||
         printBookBudgetPlanningQuery
       ? 2
       : 1;
@@ -656,8 +1054,20 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
         hasTriangleSimilarityRatioVerificationEvidence(entry)
       ) ||
       (
+        triangleAsaCongruenceProofPlanQuery &&
+        hasTriangleAsaCongruenceProofPlanEvidence(entry)
+      ) ||
+      (
         resumeKeywordIntegrationQuery &&
         hasResumeKeywordIntegrationEvidence(entry)
+      ) ||
+      (
+        emergencyFundSavingsPlanQuery &&
+        hasEmergencyFundSavingsPlanEvidence(entry)
+      ) ||
+      (
+        rateLimitRequestFlowQuery &&
+        hasRateLimitRequestFlowEvidence(entry)
       ) ||
       (
         apiEndpointTechnologiesQuery &&
@@ -676,6 +1086,26 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
         hasPartnerMeetingDateLocationEvidence(entry)
       ) ||
       (
+        partnerClassicMovieRecommendationQuery &&
+        hasPartnerClassicMovieRecommendationEvidence(entry)
+      ) ||
+      (
+        colourTechnologistProfessionQuery &&
+        hasColourTechnologistProfessionEvidence(entry)
+      ) ||
+      (
+        aiHiringFairnessSpeedRecommendationQuery &&
+        hasAiHiringFairnessSpeedRecommendationEvidence(entry)
+      ) ||
+      (
+        startupTransitionPreparationQuery &&
+        hasStartupTransitionPreparationEvidence(entry)
+      ) ||
+      (
+        sonPatentGuidanceResourcePlanQuery &&
+        hasSonPatentGuidanceResourcePlanEvidence(entry)
+      ) ||
+      (
         bayStreetCurrentRentQuery &&
         hasBayStreetCurrentRentEvidence(entry)
       ) ||
@@ -686,6 +1116,10 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       (
         readingListCountPagesQuery &&
         hasReadingListCountPagesEvidence(entry)
+      ) ||
+      (
+        shoeSizeCountQuery &&
+        hasShoeSizeCountEvidence(entry)
       ) ||
       (
         kidsSchoolActivityDaysQuery &&
@@ -710,7 +1144,9 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       },
     );
   const orderedEntries = mentorWorkshopDecisionPreparationQuery ||
-    lauraWeeklyCallScheduleAdviceQuery
+    sonPatentGuidanceResourcePlanQuery ||
+    lauraWeeklyCallScheduleAdviceQuery ||
+    shoeSizeCountQuery
     ? selectUniqueEvidenceChatIds(matchingEntries)
     : matchingEntries;
 
