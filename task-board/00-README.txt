@@ -105,20 +105,20 @@ Active Phase
   gate `run-20260518003000` are accepted; the real 100K adapter run
   `run-phase63-beam-100k-full-initial-20260518T000335Z` covers 400 cases with
   `executionFailures: 0` but is oracle/evidence-contract proof, not a BEAM
-  score.
-- Current BEAM failure surface: the first real rules-only diagnostic
+- Current BEAM failure surface: first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  same-source weather-app latency comparison rerun,
-  `run-phase63-beam-100k-recall-diagnostic-rules-weather-latency-comparison-current-20260531T083000Z`,
-  reaches recall 0.5804359490274985, missed 198/355, and wrong-recall/noise
-  339/400 after preserving prior retained repairs. It recovers
-  `2:multi_session_reasoning:2` to 38/80 exactly, removes target noise
-  44/45/94/95/124/125/133/187, and shows no hit-loss, newly-missing evidence,
-  or negative recall delta, while total noise decreases 2532 -> 2525, so this
-  remains partial progress:
-  full-run misses and noise remain.
-  Same-three-case live evidence tops out at
+  source-ordered AI hiring process summary rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-process-summary-current-20260601T050000Z`
+  reaches recall 0.6629678068410465, missed 168/355, wrong-recall/noise
+  309/400, and preserves prior retained repairs. It recovers
+  `11:summarization:1` to 25/27/29/63/107/160/192/224 exactly, removes target
+  noise 106/154/155/170/171/246/247/288/289/338/339/342/343/374/375, shows no
+  hit-loss, newly-missing evidence, or negative recall delta, and reduces total
+  noise 2211 -> 2197.
+  This remains partial progress: full-run misses and noise remain.
+  Same-three-case live evidence
+  tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
   wrong-recall/noise 2/3.

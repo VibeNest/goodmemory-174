@@ -7,10 +7,26 @@ const SOURCE_ORDER_SUMMARY_QUERY_INTENT_PATTERN =
   /\b(?:summari[sz]e|summary|recap|overview)\b/iu;
 
 const SOURCE_ORDER_SUMMARY_QUERY_SCOPE_PATTERN =
-  /\b(?:across|approached|changed|developed|evolved|navigated|over\s+(?:time|(?:the\s+)?past\s+(?:few\s+)?(?:weeks|months|years))|progress(?:ed)?|resolved|throughout|various|we(?:'ve| have)?\s+discussed(?:\s+so\s+far)?)\b/iu;
+  /\b(?:across|approached|changed|developed|evolved|navigated|over\s+(?:time|(?:the\s+)?past\s+(?:few\s+)?(?:weeks|months|years))|progress(?:ed)?|resolved|throughout|various|we(?:'ve| have)?\s+(?:covered|discussed)(?:\s+so\s+far)?)\b/iu;
 
 const SOURCE_ORDER_SUMMARY_SNEAKER_QUERY_PATTERN =
   /\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,180}\bsneaker\s+(?:options?|advice|preferences?|choices?)\b[\s\S]{0,180}\b(?:activities|daily\s+wear|develop(?:ed|ing|ment)?|over\s+(?:time|our\s+conversations))\b|\bsneaker\s+(?:options?|advice|preferences?|choices?)\b[\s\S]{0,180}\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,180}\b(?:activities|daily\s+wear|develop(?:ed|ing|ment)?|over\s+(?:time|our\s+conversations))\b/iu;
+
+const SOURCE_ORDER_SUMMARY_ESTATE_DOCUMENT_QUERY_PATTERN =
+  /\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,120}\b(?:prepar(?:e|ing|ation)|finaliz(?:e|ing|ation))\b[\s\S]{0,160}\bmy\s+will\b[\s\S]{0,180}\b(?:related\s+documents?|witness(?:es)?|notari[sz](?:e|ed|ation)|affidavits?|signatures?)\b/iu;
+
+const SOURCE_ORDER_SUMMARY_WEATHER_AUTOCOMPLETE_QUERY_PATTERN =
+  /\b(?:summari[sz]e|summary|recap)\b[\s\S]{0,120}\blearn(?:ed|ing)?\b[\s\S]{0,160}\b(?:implement(?:ing|ed)?|improv(?:e|ed|ing))\b[\s\S]{0,160}\bcity\s+autocomplete\b[\s\S]{0,120}\bweather\s+app\b|\bweather\s+app\b[\s\S]{0,120}\bcity\s+autocomplete\b[\s\S]{0,160}\b(?:implement(?:ing|ed)?|improv(?:e|ed|ing))\b[\s\S]{0,120}\b(?:summari[sz]e|summary|recap)\b/iu;
+
+export function isSourceOrderedEstateDocumentSummaryQuery(query: string): boolean {
+  return SOURCE_ORDER_SUMMARY_ESTATE_DOCUMENT_QUERY_PATTERN.test(query);
+}
+
+export function isSourceOrderedWeatherAutocompleteSummaryQuery(
+  query: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_WEATHER_AUTOCOMPLETE_QUERY_PATTERN.test(query);
+}
 
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
@@ -18,6 +34,8 @@ export function isSourceOrderedConversationSummaryQuery(query: string): boolean 
     SOURCE_ORDER_SUMMARY_QUERY_SCOPE_PATTERN.test(query)
   ) ||
     SOURCE_ORDER_SUMMARY_SNEAKER_QUERY_PATTERN.test(query) ||
+    isSourceOrderedEstateDocumentSummaryQuery(query) ||
+    isSourceOrderedWeatherAutocompleteSummaryQuery(query) ||
     /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query) ||
     isSourceOrderedEvolutionSummaryQuery(query);
 }

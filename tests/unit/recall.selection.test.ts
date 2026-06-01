@@ -13,6 +13,10 @@ import {
   selectFacts,
   selectReferences,
 } from "../../src/recall/selection";
+import {
+  isSleekNeutralSneakerPreferenceQuery,
+  sourceInstructionTopicTokens,
+} from "../../src/recall/selectors/sourceOrderInstruction";
 import { selectSourceOrderedSummaryCoverage } from "../../src/recall/selectors/sourceOrderSummary";
 import { selectSourceOrderedEventOrderEvidence } from "../../src/recall/selectors/sourceOrderTemporal";
 
@@ -2309,6 +2313,1458 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-heavy-framework-noise")?.returned).toBe(false);
   });
 
+  it("keeps automated deployment monitoring preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-gh-pages-deployment-noise",
+        145,
+        "assistant",
+        "[BEAM chat_id=145 role=assistant time=unknown] Use the gh-pages package as a dev dependency to deploy your application to GitHub Pages.",
+      ),
+      makeSourceFact(
+        "fact-weather-api-error-noise",
+        124,
+        "user",
+        "[BEAM chat_id=124 role=user time=unknown] I'm trying to implement the dynamic weather display feature and need help handling API errors in fetchWeatherData.",
+      ),
+      makeSourceFact(
+        "fact-weather-api-error-assistant-noise",
+        125,
+        "assistant",
+        "[BEAM chat_id=125 role=assistant time=unknown] We reviewed API error handling for dynamic weather display.",
+      ),
+      makeSourceFact(
+        "fact-security-preference-noise",
+        178,
+        "user",
+        "[BEAM chat_id=178 role=user time=unknown] I'm trying to enhance the security of my application without compromising the user experience, so I'd like a pragmatic approach to security enhancements.",
+      ),
+      makeSourceFact(
+        "fact-security-assistant-noise",
+        179,
+        "assistant",
+        "[BEAM chat_id=179 role=assistant time=unknown] We balanced security hardening with responsiveness and user experience.",
+      ),
+      makeSourceFact(
+        "fact-automated-ci-cd-preference",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] I'm trying to set up an automated CI/CD pipeline for my project to reduce human error and speed up release cycles. I prefer automated deployments over manual ones and want to track each step.",
+      ),
+      makeSourceFact(
+        "fact-github-actions-setup-assistant-noise",
+        183,
+        "assistant",
+        "[BEAM chat_id=183 role=assistant time=unknown] Create a GitHub repository and set up an automated CI/CD pipeline using GitHub Actions for your project.",
+      ),
+      makeSourceFact(
+        "fact-github-actions-job-monitoring",
+        184,
+        "user",
+        "[BEAM chat_id=184 role=user time=unknown] hmm, so how do I monitor the progress of each job in the GitHub Actions workflow?",
+      ),
+      makeSourceFact(
+        "fact-github-actions-monitoring-assistant-noise",
+        185,
+        "assistant",
+        "[BEAM chat_id=185 role=assistant time=unknown] GitHub provides a detailed interface to track the execution of workflows and jobs, including each job's progress and status.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How can I track the status and results of each step in my deployment workflow?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-automated-ci-cd-preference",
+      "fact-github-actions-job-monitoring",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-github-actions-monitoring-assistant-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-gh-pages-deployment-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-security-preference-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-weather-api-error-noise")?.returned).toBe(false);
+  });
+
+  it("keeps lightweight lazy-loading preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-3",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-gallery-image-path-noise",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] I'm encountering an issue with my project gallery where some images are not loading and return 404 errors.",
+      ),
+      makeSourceFact(
+        "fact-form-validation-noise",
+        48,
+        "user",
+        "[BEAM chat_id=48 role=user time=unknown] I'm trying to add client-side validation to my contact form using Bootstrap 5.3.0 classes.",
+      ),
+      makeSourceFact(
+        "fact-form-validation-assistant-noise",
+        49,
+        "assistant",
+        "[BEAM chat_id=49 role=assistant time=unknown] We added Bootstrap validation states and JavaScript checks to the contact form.",
+      ),
+      makeSourceFact(
+        "fact-sprint-planning-noise",
+        82,
+        "user",
+        "[BEAM chat_id=82 role=user time=unknown] I'm working on Sprint 2 with SEO basics and contact form backend integration using Flask and Bootstrap 5.3.0.",
+      ),
+      makeSourceFact(
+        "fact-sprint-planning-assistant-noise",
+        83,
+        "assistant",
+        "[BEAM chat_id=83 role=assistant time=unknown] We broke Sprint 2 into backend, SEO, and performance tasks.",
+      ),
+      makeSourceFact(
+        "fact-modal-lazy-loading-noise",
+        96,
+        "user",
+        "[BEAM chat_id=96 role=user time=unknown] I'm trying to optimize the performance of my modal popup, which currently has a 400ms delay due to synchronous image loading.",
+      ),
+      makeSourceFact(
+        "fact-lightweight-lazysizes-preference",
+        100,
+        "user",
+        "[BEAM chat_id=100 role=user time=unknown] I'm trying to keep my bundle size under 100KB by using lightweight vanilla JS libraries like lazysizes, but I'm not sure how to implement it for my project gallery. Can you help me build a simple image lazy loading feature?",
+      ),
+      makeSourceFact(
+        "fact-deployment-lazy-loading-noise",
+        122,
+        "user",
+        "[BEAM chat_id=122 role=user time=unknown] I'm finalizing my portfolio site's deployment and optimization for SEO and performance before the public launch and want to implement lazy loading.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm working on adding lazy loading to my image gallery that uses Bootstrap 5.3.0. How would you suggest I set this up to ensure smooth integration and good performance?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-lightweight-lazysizes-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-deployment-lazy-loading-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-modal-lazy-loading-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-gallery-image-path-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-sprint-planning-noise")?.returned).toBe(false);
+  });
+
+  it("keeps pragmatic security preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-1",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-analytics-deadline-noise",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 with user auth and basic transaction CRUD.",
+      ),
+      makeSourceFact(
+        "fact-session-management-noise",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I'm starting from scratch with Flask-Login 0.6.2 session management and want proper error handling and logging.",
+      ),
+      makeSourceFact(
+        "fact-security-review-noise",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] I'm finalizing deployment and need security hardening before public launch, including authentication and authorization review.",
+      ),
+      makeSourceFact(
+        "fact-pragmatic-security-preference",
+        178,
+        "user",
+        "[BEAM chat_id=178 role=user time=unknown] I'm trying to enhance the security of my application without compromising the user experience, so I'd like to implement a pragmatic approach to security enhancements, as stated in my preference for pragmatic security enhancements that don't compromise user experience or app responsiveness.",
+      ),
+      makeSourceFact(
+        "fact-secure-auth-noise",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] I'm trying to implement a secure authentication system and ensure authentication and authorization features follow best practices.",
+      ),
+      makeSourceFact(
+        "fact-auth-best-practices-instruction-noise",
+        184,
+        "user",
+        "[BEAM chat_id=184 role=user time=unknown] Always provide security best practices when I ask about authentication or authorization features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm looking to improve the security features of my app. What steps would you suggest I take?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-pragmatic-security-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-security-review-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-secure-auth-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-auth-best-practices-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps UK ATS resume preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-6",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-age-discrimination-resume-noise",
+        1,
+        "assistant",
+        "[BEAM chat_id=1 role=assistant time=unknown] Focus on achievements, tailor your resume, remove outdated information, and consider a functional resume format to reduce age discrimination concerns.",
+      ),
+      makeSourceFact(
+        "fact-structured-bullets-preference-noise",
+        36,
+        "user",
+        "[BEAM chat_id=36 role=user time=unknown] I prefer using structured bullet points with quantified achievements over narrative paragraphs for clarity and ATS readability.",
+      ),
+      makeSourceFact(
+        "fact-resume-format-instruction-noise",
+        46,
+        "user",
+        "[BEAM chat_id=46 role=user time=unknown] Always use structured bullet points with quantified achievements when I ask about resume formatting preferences.",
+      ),
+      makeSourceFact(
+        "fact-ats-parser-update-noise",
+        200,
+        "user",
+        "[BEAM chat_id=200 role=user time=unknown] I updated my resume format to improve ranking by 18% in StreamWave's ATS parser version 3.2 before my interview.",
+      ),
+      makeSourceFact(
+        "fact-global-resume-standards-noise",
+        203,
+        "assistant",
+        "[BEAM chat_id=203 role=assistant time=unknown] International resume standards vary, so learn about formatting, content, cultural nuances, and ATS trends across countries.",
+      ),
+      makeSourceFact(
+        "fact-uk-ats-resume-preference",
+        222,
+        "user",
+        "[BEAM chat_id=222 role=user time=unknown] I'm trying to tailor my resume for a UK job, and I prefer using a style that's specifically designed for their ATS standards, rather than a generic global version.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm applying for a job in the UK. How should I format it?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-uk-ats-resume-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-structured-bullets-preference-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-resume-format-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-global-resume-standards-noise")?.returned).toBe(false);
+  });
+
+  it("keeps probability ratio walkthrough preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-5",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-ace-card-probability-noise",
+        32,
+        "user",
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to calculate the probability of drawing an ace from a standard 52-card deck, given as P = 4/52 = 1/13, and want to apply it to a real game.",
+      ),
+      makeSourceFact(
+        "fact-face-card-conditional-noise",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] Got it, but what about calculating P(A|B) for drawing a face card or a spade from a deck?",
+      ),
+      makeSourceFact(
+        "fact-probability-ratio-walkthrough-preference",
+        60,
+        "user",
+        "[BEAM chat_id=60 role=user time=unknown] I'm trying to understand probability as a ratio, and I prefer step-by-step explanations with concrete examples like coin tosses and dice rolls to grasp probability fundamentals, so can you help me calculate the probability of rolling an even number on a 6-sided die?",
+      ),
+      makeSourceFact(
+        "fact-probability-step-instruction-noise",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] Always provide step-by-step explanations with concrete examples when I ask about probability concepts.",
+      ),
+      makeSourceFact(
+        "fact-dependent-card-probability-noise",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I want to find the probability that the second card is an ace given that the first card was an ace, so the probability of drawing a second ace is 3/51.",
+      ),
+      makeSourceFact(
+        "fact-complex-probability-diagram-instruction-noise",
+        234,
+        "user",
+        "[BEAM chat_id=234 role=user time=unknown] Always combine algebraic formulas with visual diagrams when I ask about complex probability problems.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through how to find the probability of drawing a red card from a standard deck of cards?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-probability-ratio-walkthrough-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ace-card-probability-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-face-card-conditional-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-probability-step-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-complex-probability-diagram-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps triangle area method comparison preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-4",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-median-length-noise",
+        114,
+        "user",
+        "[BEAM chat_id=114 role=user time=unknown] I'm having trouble with calculating the median length in a triangle, and I want to correctly apply the median length formula to sides 9, 12, and 15 cm.",
+      ),
+      makeSourceFact(
+        "fact-triangle-area-median-comparison-preference",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] I'm trying to understand which method is more efficient for calculating the area of a triangle, the base-height formula or Heron's formula, for sides 7 cm, 24 cm, and 25 cm, and I want to compare the results using both methods and explore how the median length formula can be applied to this triangle.",
+      ),
+      makeSourceFact(
+        "fact-later-area-comparison-noise",
+        130,
+        "user",
+        "[BEAM chat_id=130 role=user time=unknown] I'm trying to calculate the area of a triangle using Heron's formula, but I want to compare it with the base-height formula for sides 7 cm, 24 cm, and 25 cm after completing 15 problems.",
+      ),
+      makeSourceFact(
+        "fact-later-area-comparison-assistant-noise",
+        131,
+        "assistant",
+        "[BEAM chat_id=131 role=assistant time=unknown] We compared Heron's formula and the base-height formula for a right triangle with sides 7 cm, 24 cm, and 25 cm.",
+      ),
+      makeSourceFact(
+        "fact-medians-altitudes-method-noise",
+        134,
+        "user",
+        "[BEAM chat_id=134 role=user time=unknown] I want to know how to apply medians and altitudes to calculate triangle area, and I prefer comparing multiple solution methods.",
+      ),
+      makeSourceFact(
+        "fact-medians-altitudes-assistant-noise",
+        135,
+        "assistant",
+        "[BEAM chat_id=135 role=assistant time=unknown] We explored using medians and altitudes to calculate triangle area and compare base-height, Heron's formula, and altitude methods.",
+      ),
+      makeSourceFact(
+        "fact-median-followup-noise",
+        138,
+        "user",
+        "[BEAM chat_id=138 role=user time=unknown] Can you show an example using the median length formula for a different set of triangle sides?",
+      ),
+      makeSourceFact(
+        "fact-broad-triangle-geometry-noise",
+        190,
+        "user",
+        "[BEAM chat_id=190 role=user time=unknown] I'm having trouble understanding congruence and similarity in triangles, including scale factors, medians, altitudes, GeoGebra, visual aids, and step-by-step explanations.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you show me how to calculate the area of this triangle using different methods and also help me find the length of the median?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-triangle-area-median-comparison-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-median-length-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-later-area-comparison-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-medians-altitudes-method-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-broad-triangle-geometry-noise")?.returned).toBe(false);
+  });
+
+  it("keeps cover letter measurable impact preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-8",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-portfolio-update-noise",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] I'm kinda worried about my portfolio, Greg told me to update it by April 1, what should I do to make it stand out?",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-experience-noise",
+        33,
+        "assistant",
+        "[BEAM chat_id=33 role=assistant time=unknown] Deciding whether to emphasize 40 years of experience or recent digital projects in your cover letter depends on the job priorities.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-measurable-impact-preference",
+        34,
+        "user",
+        "[BEAM chat_id=34 role=user time=unknown] I'm kinda stuck on how to write a cover letter that highlights my measurable impact, like increasing viewership by 35% on my last documentary project in 2022, without using too much flowery language.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-deadline-noise",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm going to submit my cover letter by April 14 as Ashlee recommended, but I'm not sure if avoiding jargon and keeping a warm but professional tone is enough.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-star-noise",
+        59,
+        "assistant",
+        "[BEAM chat_id=59 role=assistant time=unknown] Tailor the cover letter to the Senior Producer role, quantify achievements, align with Island Media Group values, use STAR storytelling, show enthusiasm, and include a call to action.",
+      ),
+      makeSourceFact(
+        "fact-interview-prep-noise",
+        145,
+        "assistant",
+        "[BEAM chat_id=145 role=assistant time=unknown] Prepare interview responses with the STAR method, company values, behavioral examples, and measurable achievements.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-ninety-day-goal-noise",
+        186,
+        "user",
+        "[BEAM chat_id=186 role=user time=unknown] I'm trying to craft a standout cover letter, and I prefer clear, measurable goals for my first 90 days, aiming to increase team productivity by 15%.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-ninety-day-assistant-noise",
+        187,
+        "assistant",
+        "[BEAM chat_id=187 role=assistant time=unknown] Incorporating clear measurable goals into your cover letter can demonstrate a proactive approach and tangible results.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How should I structure my cover letter to best showcase my achievements from previous projects?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-cover-letter-measurable-impact-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-portfolio-update-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-experience-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-deadline-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-ninety-day-goal-noise")?.returned).toBe(false);
+  });
+
+  it("keeps cover letter portfolio link preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-8",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-portfolio-update-noise",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] I'm kinda worried about my portfolio, Greg told me to update it by April 1, what should I do to make it stand out?",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-two-column-noise",
+        43,
+        "assistant",
+        "[BEAM chat_id=43 role=assistant time=unknown] A two-column layout can be an effective way to make your cover letter more visually appealing and include links to your portfolio in a supplementary column.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-deadline-noise",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm gonna submit my cover letter by April 14 as Ashlee recommended, but I'm not sure if avoiding jargon and keeping a warm but professional tone is enough.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-portfolio-link-preference",
+        68,
+        "user",
+        "[BEAM chat_id=68 role=user time=unknown] I'm kinda stuck on how to integrate portfolio links directly in my cover letter, like you mentioned, without attaching separate documents, can you help me with that?",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-multiple-portfolio-links-preference",
+        70,
+        "user",
+        "[BEAM chat_id=70 role=user time=unknown] hmm, can I add multiple portfolio links or just one?",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-single-column-noise",
+        78,
+        "user",
+        "[BEAM chat_id=78 role=user time=unknown] I'm kinda stuck on the formatting, so can you help me understand why I switched to a single-column format with bold headers?",
+      ),
+      makeSourceFact(
+        "fact-email-signature-portfolio-link-noise",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] I'm trying to decide on the best approach for my portfolio website link, and I chose to integrate it into my email signature starting June 10 for better visibility.",
+      ),
+      makeSourceFact(
+        "fact-cover-letter-ninety-day-goal-noise",
+        186,
+        "user",
+        "[BEAM chat_id=186 role=user time=unknown] I'm trying to craft a standout cover letter, and I prefer clear, measurable goals for my first 90 days, aiming to increase team productivity by 15%.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How should I include links to my portfolio in my cover letter to make them easy to access?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-cover-letter-portfolio-link-preference",
+      "fact-cover-letter-multiple-portfolio-links-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-portfolio-update-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-two-column-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-email-signature-portfolio-link-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cover-letter-ninety-day-goal-noise")?.returned).toBe(false);
+  });
+
+  it("keeps AI-assisted editing workflow preference evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-10",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-writing-journey-noise",
+        0,
+        "user",
+        "[BEAM chat_id=0 role=user time=unknown] I'm kinda nervous about improving my writing skills and want to get started on this self-editing journey.",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-tool-preference",
+        114,
+        "user",
+        "[BEAM chat_id=114 role=user time=unknown] I prefer using AI-assisted editing tools for tone calibration, but I'm not sure if it's the best approach for my solo project, can you help me weigh the pros and cons of using these tools versus manual revisions to save time?",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-tool-preference-fragment",
+        114,
+        "user",
+        "using AI-assisted editing tools for tone calibration, but I'm not sure if it's the best approach for my solo project, can you help me weigh the pros and cons of using these tools versus manual revisions to save time?",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-hybrid-plan",
+        116,
+        "user",
+        "[BEAM chat_id=116 role=user time=unknown] Thanks for the detailed breakdown! I think I'll go with a hybrid approach. I'll use AI tools for the initial edits to catch basic errors and improve clarity, then do manual revisions for the final touches.",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-hybrid-plan-fragment",
+        116,
+        "user",
+        "I'll use AI tools for the initial edits to catch basic errors and improve clarity, then do manual revisions for the final touches.",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-final-confirmation",
+        118,
+        "user",
+        "[BEAM chat_id=118 role=user time=unknown] Sounds good! I'll follow this plan and use AI tools for the initial edits, then do the final touches manually.",
+      ),
+      makeSourceFact(
+        "fact-editing-progress-instruction-noise",
+        172,
+        "user",
+        "[BEAM chat_id=172 role=user time=unknown] Always provide percentage improvements when I ask about editing progress.",
+      ),
+      makeSourceFact(
+        "fact-weekend-editing-session-noise",
+        204,
+        "user",
+        "[BEAM chat_id=204 role=user time=unknown] I prefer scheduling weekend editing sessions, like my Saturday 10 AM sessions, to maintain my weekday production commitments.",
+      ),
+      makeSourceFact(
+        "fact-webinar-editing-guide-noise",
+        232,
+        "user",
+        "[BEAM chat_id=232 role=user time=unknown] Let's go with those steps and add exclusive content like a guide to editing techniques for the webinar.",
+      ),
+      makeSourceFact(
+        "fact-final-draft-deadline-noise",
+        244,
+        "user",
+        "[BEAM chat_id=244 role=user time=unknown] I've set a goal to complete my final draft by October 1, 2024, and I have a peer review session on September 25.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm about to start editing a draft and want to make the process efficient. How would you suggest I approach the editing steps?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-ai-editing-tool-preference",
+      "fact-ai-editing-hybrid-plan",
+      "fact-ai-editing-final-confirmation",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-writing-journey-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-editing-progress-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-weekend-editing-session-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-final-draft-deadline-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ai-editing-tool-preference-fragment")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ai-editing-hybrid-plan-fragment")?.returned).toBe(false);
+  });
+
+  it("keeps book format portability preference evidence over broad recommendation noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-13",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-fiction-series-noise",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] I'm kinda looking for a new fiction series to get into, preferably something that's a mix of fantasy, sci-fi, and historical fiction.",
+      ),
+      makeSourceFact(
+        "fact-partner-book-series-noise",
+        20,
+        "user",
+        "[BEAM chat_id=20 role=user time=unknown] I'm kinda looking for a new fiction series to read with my partner, Douglas, and I was wondering if you could recommend something.",
+      ),
+      makeSourceFact(
+        "fact-book-format-portability-preference",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I prefer e-books for their portability, but I also enjoy print for collectible editions and gifting, can you help me find a balance between these preferences?",
+      ),
+      makeSourceFact(
+        "fact-genre-description-instruction-noise",
+        62,
+        "user",
+        "[BEAM chat_id=62 role=user time=unknown] Always provide detailed genre descriptions when I ask about book recommendations.",
+      ),
+      makeSourceFact(
+        "fact-book-club-discussion-noise",
+        222,
+        "user",
+        "[BEAM chat_id=222 role=user time=unknown] I hosted a book club discussion on The Poppy War with Kelly on February 20, and now I'm thinking of reading another series.",
+      ),
+      makeSourceFact(
+        "fact-literary-event-priority-noise",
+        250,
+        "user",
+        "[BEAM chat_id=250 role=user time=unknown] I'm considering attending a literary event that costs $15, but I also want to buy a new release book for $20.",
+      ),
+      makeSourceFact(
+        "fact-literary-event-instruction-noise",
+        306,
+        "user",
+        "[BEAM chat_id=306 role=user time=unknown] Always suggest related literary events when I ask about book series recommendations.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm looking to add some new books to my collection and also want something easy to carry around. What would you suggest?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-book-format-portability-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-fiction-series-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-partner-book-series-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-genre-description-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-book-club-discussion-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-literary-event-priority-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-literary-event-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps balanced standalone and series reading preference over broad book noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-13",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-bookstore-rewards-noise",
+        4,
+        "user",
+        "[BEAM chat_id=4 role=user time=unknown] I spent $90 at Oak & Quill and earned 9 reward points for future bookstore purchases.",
+      ),
+      makeSourceFact(
+        "fact-reading-list-template-noise",
+        98,
+        "user",
+        "[BEAM chat_id=98 role=user time=unknown] I want to build a reading list template with columns for title, author, genre, and status.",
+      ),
+      makeSourceFact(
+        "fact-reading-list-template-assistant-noise",
+        99,
+        "assistant",
+        "[BEAM chat_id=99 role=assistant time=unknown] A reading list template can track title, author, genre, priority, and completion status.",
+      ),
+      makeSourceFact(
+        "fact-book-series-gift-noise",
+        136,
+        "user",
+        "[BEAM chat_id=136 role=user time=unknown] I'm thinking of gifting a book series to Douglas and want something with a strong historical-fiction angle.",
+      ),
+      makeSourceFact(
+        "fact-balanced-standalone-series-preference",
+        246,
+        "user",
+        "[BEAM chat_id=246 role=user time=unknown] I'm trying to decide on a fiction series for winter evenings, but I prefer mixing standalone novels with series to maintain variety and avoid fatigue, so can you help me find a good balance?",
+      ),
+      makeSourceFact(
+        "fact-literary-event-instruction-noise",
+        306,
+        "user",
+        "[BEAM chat_id=306 role=user time=unknown] Always suggest related literary events when I ask about book series recommendations.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm planning my reading list for the next few weeks. Can you suggest some books for me?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-balanced-standalone-series-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-bookstore-rewards-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-reading-list-template-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-reading-list-template-assistant-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-book-series-gift-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-literary-event-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("keeps sleek neutral sneaker preference and follow-up source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-15",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-sneaker-shopping-schedule-noise",
+        24,
+        "user",
+        "[BEAM chat_id=24 role=user time=unknown] I scheduled a sneaker shopping trip for next Saturday afternoon and want to compare store locations.",
+      ),
+      makeSourceFact(
+        "fact-sleek-neutral-sneaker-preference",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I prefer sneakers with a sleek, modern look in neutral colors like black or gray, do you have any recommendations for a style that fits my taste?",
+      ),
+      makeSourceFact(
+        "fact-ultraboost-vapormax-follow-up",
+        30,
+        "user",
+        "[BEAM chat_id=30 role=user time=unknown] Thanks! The Adidas Ultraboost and Nike Air VaporMax both sound great. I think I'll check out the black and gray options to see which one feels better.",
+      ),
+      makeSourceFact(
+        "fact-running-shoe-size-noise",
+        42,
+        "user",
+        "[BEAM chat_id=42 role=user time=unknown] I found that size 10.5 running shoes fit better than size 10 for longer walks.",
+      ),
+      makeSourceFact(
+        "fact-limited-edition-sneaker-noise",
+        58,
+        "user",
+        "[BEAM chat_id=58 role=user time=unknown] I'm considering a limited edition sneaker drop but I'm not sure whether it fits my budget.",
+      ),
+      makeSourceFact(
+        "fact-sneaker-cleaning-noise",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I need a cleaning routine for my white sneakers so they stay presentable.",
+      ),
+      makeSourceFact(
+        "fact-athletic-store-noise",
+        168,
+        "user",
+        "[BEAM chat_id=168 role=user time=unknown] The athletic store near the mall has a sale on trail shoes this weekend.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm looking to buy a new pair of sneakers soon. Can you suggest some options I might like?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-sleek-neutral-sneaker-preference",
+      "fact-ultraboost-vapormax-follow-up",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-sneaker-shopping-schedule-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-running-shoe-size-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-limited-edition-sneaker-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-sneaker-cleaning-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-athletic-store-noise")?.returned).toBe(false);
+  });
+
+  it("does not route sneaker summary questions through the sleek neutral preference override", () => {
+    expect(
+      isSleekNeutralSneakerPreferenceQuery(
+        "Can you give me a quick summary of the sneaker options and advice we've talked about for my daily wear and activities?",
+      ),
+    ).toBe(false);
+    expect(
+      isSleekNeutralSneakerPreferenceQuery(
+        "I'm looking to buy a new pair of sneakers soon. Can you suggest some options I might like?",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps structured daily routine preference over generic planning noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-12",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-free-will-journaling-noise",
+        78,
+        "user",
+        "[BEAM chat_id=78 role=user time=unknown] I'm leaning towards soft determinism and started daily journaling on April 1 to track decisions and their consequences.",
+      ),
+      makeSourceFact(
+        "fact-self-accountability-journal-noise",
+        80,
+        "user",
+        "[BEAM chat_id=80 role=user time=unknown] I've committed to daily journaling to track decisions and consequences, and I'm wondering if this self-accountability practice will help me make better choices.",
+      ),
+      makeSourceFact(
+        "fact-structured-routine-preference",
+        106,
+        "user",
+        "[BEAM chat_id=106 role=user time=unknown] I prefer having a structured daily routine, so I set my wake-up and sleep times to 7 AM and 9 PM, but I'm not sure if this routine will help me maintain productivity in my new role.",
+      ),
+      makeSourceFact(
+        "fact-generic-structure-follow-up-noise",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] Yeah, I think I'll give this structure a shot. It sounds like it could really help me stay organized and focused.",
+      ),
+      makeSourceFact(
+        "fact-meeting-time-management-noise",
+        200,
+        "user",
+        "[BEAM chat_id=200 role=user time=unknown] I feel bad about missing the meeting with Matthew, and now it's rescheduled for June 3 at 11 AM, so I'm trying to get my time management skills back on track.",
+      ),
+      makeSourceFact(
+        "fact-meeting-time-management-assistant-noise",
+        201,
+        "assistant",
+        "[BEAM chat_id=201 role=assistant time=unknown] Balancing your workload and avoiding overworking is crucial to maintaining productivity and preventing burnout.",
+      ),
+      makeSourceFact(
+        "fact-script-focus-noise",
+        340,
+        "user",
+        "[BEAM chat_id=340 role=user time=unknown] I'm feeling uncertain about my script's themes on free will, but Wendy's encouragement is helping me stay focused.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How would you suggest I organize my day to stay on track with my responsibilities?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-structured-routine-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-free-will-journaling-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-self-accountability-journal-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-generic-structure-follow-up-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-meeting-time-management-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-meeting-time-management-assistant-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-script-focus-noise")?.returned).toBe(false);
+  });
+
+  it("keeps positive family movie review preference over movie-night noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-14",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-age-appropriate-movie-noise",
+        18,
+        "user",
+        "[BEAM chat_id=18 role=user time=unknown] I'm planning a movie marathon for April 6-7, and I want 5 family-friendly movies suitable for ages 2 to 77.",
+      ),
+      makeSourceFact(
+        "fact-pg13-movie-night-noise",
+        28,
+        "user",
+        "[BEAM chat_id=28 role=user time=unknown] I'm trying to plan a family movie night and need films rated PG-13 or lower for Michelle and Francis.",
+      ),
+      makeSourceFact(
+        "fact-platform-availability-instruction-noise",
+        52,
+        "user",
+        "[BEAM chat_id=52 role=user time=unknown] Always include platform availability details when I ask about movie options.",
+      ),
+      makeSourceFact(
+        "fact-positive-family-review-preference",
+        92,
+        "user",
+        "[BEAM chat_id=92 role=user time=unknown] I'm looking for movies with positive family reviews like \"Soul\" to ensure everyone enjoys our family weekend, can you help me find some with less than 10% negative audience ratings?",
+      ),
+      makeSourceFact(
+        "fact-alternative-movie-instruction-noise",
+        158,
+        "user",
+        "[BEAM chat_id=158 role=user time=unknown] Always provide alternative movie suggestions when I ask about family-friendly options.",
+      ),
+      makeSourceFact(
+        "fact-family-movie-night-plan-noise",
+        164,
+        "user",
+        "[BEAM chat_id=164 role=user time=unknown] I'm planning our family movie night for May 3 at 7:45 PM, and I need help finding a movie that's similar to \"Wish\" or other newly released movies.",
+      ),
+      makeSourceFact(
+        "fact-weekend-movie-planning-time-noise",
+        256,
+        "user",
+        "[BEAM chat_id=256 role=user time=unknown] I'm trying to plan a family movie night and need to balance work deadlines with blocking 4 hours each weekend for movie planning.",
+      ),
+      makeSourceFact(
+        "fact-movie-night-snacks-noise",
+        260,
+        "user",
+        "[BEAM chat_id=260 role=user time=unknown] I'm planning a family movie night and want to make sure I have enough snacks, so can you help decide how many cupcakes to order?",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "I'm planning a movie night for my family. Can you suggest some good options we might all enjoy?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-positive-family-review-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-age-appropriate-movie-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-pg13-movie-night-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-platform-availability-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-alternative-movie-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-family-movie-night-plan-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-weekend-movie-planning-time-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-movie-night-snacks-noise")?.returned).toBe(false);
+  });
+
+  it("keeps bilingual movie language option preference over movie recommendation noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-14",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-watchlist-platform-noise",
+        22,
+        "user",
+        "[BEAM chat_id=22 role=user time=unknown] I'm trying to finalize my watchlist of 10 movies by March 25 so I can check which ones are available on my current platforms.",
+      ),
+      makeSourceFact(
+        "fact-4k-home-theater-noise",
+        34,
+        "user",
+        "[BEAM chat_id=34 role=user time=unknown] I'm looking for movies in 4K HDR to watch on my 120-inch screen with Dolby Atmos sound system.",
+      ),
+      makeSourceFact(
+        "fact-different-actor-tastes-noise",
+        42,
+        "user",
+        "[BEAM chat_id=42 role=user time=unknown] I'm looking for movie recommendations like Tom Hanks movies Michelle loves, Viola Davis films Thomas would enjoy, and Denzel Washington films I prefer.",
+      ),
+      makeSourceFact(
+        "fact-platform-availability-instruction-noise",
+        52,
+        "user",
+        "[BEAM chat_id=52 role=user time=unknown] Always include platform availability details when I ask about movie options.",
+      ),
+      makeSourceFact(
+        "fact-alternative-movie-instruction-noise",
+        158,
+        "user",
+        "[BEAM chat_id=158 role=user time=unknown] Always provide alternative movie suggestions when I ask about family-friendly options.",
+      ),
+      makeSourceFact(
+        "fact-educational-family-weekend-noise",
+        196,
+        "user",
+        "[BEAM chat_id=196 role=user time=unknown] What movies would you recommend for a family weekend that are both entertaining and educational, like March of the Penguins?",
+      ),
+      makeSourceFact(
+        "fact-coraline-alternative-noise",
+        198,
+        "user",
+        "[BEAM chat_id=198 role=user time=unknown] Can you help me find alternative films to Coraline since Amy doesn't want to watch horror or thriller movies?",
+      ),
+      makeSourceFact(
+        "fact-bilingual-movie-language-preference",
+        200,
+        "user",
+        "[BEAM chat_id=200 role=user time=unknown] I'm looking for movie recommendations with language options and subtitles to support Michelle's bilingual learning in English and Spanish, can you help me find some?",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you suggest some movies that would be good for Michelle to watch?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-bilingual-movie-language-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-watchlist-platform-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-4k-home-theater-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-different-actor-tastes-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-platform-availability-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-alternative-movie-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-educational-family-weekend-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-coraline-alternative-noise")?.returned).toBe(false);
+  });
+
   it("bridges earlier and later source turns for update reasoning questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -3684,6 +5140,93 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-proof-outline-instruction-noise")?.returned).toBe(false);
   });
 
+  it("keeps ASA proof preference evidence over broad triangle explanation noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-4",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-triangle-classification-preference-noise",
+        52,
+        "user",
+        "[BEAM chat_id=52 role=user time=unknown] I'm having trouble understanding how to classify triangles by sides and angles, especially equilateral, isosceles, and scalene types, and I prefer visual learning with step-by-step explanation and diagrams.",
+      ),
+      makeSourceFact(
+        "fact-triangle-classification-assistant-noise",
+        53,
+        "assistant",
+        "[BEAM chat_id=53 role=assistant time=unknown] We classified triangles by sides and angles with step-by-step explanations and diagram descriptions.",
+      ),
+      makeSourceFact(
+        "fact-asa-angle-error-noise",
+        169,
+        "assistant",
+        "[BEAM chat_id=169 role=assistant time=unknown] We corrected an angle calculation error from 65 degrees to 60 degrees for an ASA triangle congruence proof.",
+      ),
+      makeSourceFact(
+        "fact-broad-congruence-similarity-noise",
+        190,
+        "user",
+        "[BEAM chat_id=190 role=user time=unknown] I'm having trouble understanding the difference between congruence and similarity in triangles, including SSS, SAS, ASA criteria, scale factors, medians, altitudes, GeoGebra, visual aids, and step-by-step explanations.",
+      ),
+      makeSourceFact(
+        "fact-broad-congruence-similarity-assistant-noise",
+        191,
+        "assistant",
+        "[BEAM chat_id=191 role=assistant time=unknown] We explained congruence and similarity, SSS, SAS, ASA, scale factors, GeoGebra, medians, altitudes, and visual examples.",
+      ),
+      makeSourceFact(
+        "fact-asa-proof-diagram-preference",
+        198,
+        "user",
+        "[BEAM chat_id=198 role=user time=unknown] I'm trying to prove triangle congruence using the ASA criterion, and I prefer detailed proofs with diagrams to fully grasp the logical reasoning behind it. Can you help me understand how to apply the ASA criterion to prove that two triangles are congruent, and provide a step-by-step proof with diagrams?",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you walk me through how to prove two triangles are congruent using the ASA criterion?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-asa-proof-diagram-preference",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-triangle-classification-preference-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-triangle-classification-assistant-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-asa-angle-error-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-broad-congruence-similarity-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-broad-congruence-similarity-assistant-noise")?.returned).toBe(false);
+  });
+
   it("keeps AI hiring fairness and speed recommendation evidence source ordered", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4123,6 +5666,194 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-node-upgrade-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-performance-optimization-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-custom-feature-noise")?.returned).toBe(false);
+  });
+
+  it("keeps API daily quota update evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-autocomplete-debounce-noise",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] hmm, got it, but what about adding the autocomplete feature with the debounce delay?",
+      ),
+      makeSourceFact(
+        "fact-api-rate-limit-initial",
+        32,
+        "user",
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to handle the API rate limit for my weather app with a simple counter for calls per minute and per day, using 60 calls/minute and 1000 calls/day for my OpenWeather API key.",
+      ),
+      makeSourceFact(
+        "fact-cors-noise",
+        48,
+        "user",
+        "[BEAM chat_id=48 role=user time=unknown] I'm trying to handle CORS errors from the OpenWeather API, but I've confirmed that no proxy is needed since the API supports CORS on client requests.",
+      ),
+      makeSourceFact(
+        "fact-api-daily-quota-update",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] I'm trying to update my API key settings to reflect the new daily quota of 1,200 calls per day, with const dailyQuota = 1200 in my OpenWeather API v2.5 weather implementation.",
+      ),
+      makeSourceFact(
+        "fact-autocomplete-caching-noise",
+        95,
+        "assistant",
+        "[BEAM chat_id=95 role=assistant time=unknown] Balance reducing API calls and exhaustive search by using LRU caching, debounce delay tuning, pagination, and local storage for frequently used cities.",
+      ),
+      makeSourceFact(
+        "fact-uptime-quota-noise",
+        152,
+        "user",
+        "[BEAM chat_id=152 role=user time=unknown] I've achieved 99.9% uptime over 7 days post-deployment with no reported downtime or API quota breaches, and I want alerts for uptime or quota breaches.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the daily call quota for the API key used in my application?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-api-rate-limit-initial",
+      "fact-api-daily-quota-update",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-debounce-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cors-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-caching-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-uptime-quota-noise")?.returned).toBe(false);
+  });
+
+  it("keeps weekly writing target update evidence source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-10",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-weekly-word-target-initial",
+        22,
+        "user",
+        "[BEAM chat_id=22 role=user time=unknown] I'm kinda struggling to meet my writing goals, like targeting 1,200 words per week, and I was wondering if you could help me track my progress using Google Docs word count stats.",
+      ),
+      makeSourceFact(
+        "fact-writing-schedule-noise",
+        24,
+        "user",
+        "[BEAM chat_id=24 role=user time=unknown] I've blocked 2 hours every Monday, Wednesday, and Friday at 7 PM for writing sessions at home office, but I'm not sure if this schedule is realistic.",
+      ),
+      makeSourceFact(
+        "fact-progress-calculation-noise",
+        55,
+        "assistant",
+        "[BEAM chat_id=55 role=assistant time=unknown] Since you've written 3,600 words and that is 72% of your weekly target, your calculated weekly target is 5,000 words and you need about 233 words per day.",
+      ),
+      makeSourceFact(
+        "fact-weekly-word-target-update",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=unknown] I'm trying to increase my weekly word count, and I just found out it was adjusted to 1,350 words, so how can I make sure I meet this new target?",
+      ),
+      makeSourceFact(
+        "fact-later-word-count-noise",
+        126,
+        "user",
+        "[BEAM chat_id=126 role=user time=unknown] I've increased my weekly word count from 1,200 to 1,500 words by April 9, tracked via Google Docs, but I'm not sure if this pace is sustainable.",
+      ),
+      makeSourceFact(
+        "fact-writing-group-noise",
+        151,
+        "assistant",
+        "[BEAM chat_id=151 role=assistant time=unknown] Use the East Janethaven Writers' Meetup to set up peer review, group chats, workshops, collaborative projects, and regular encouragement.",
+      ),
+      makeSourceFact(
+        "fact-final-draft-target-noise",
+        296,
+        "user",
+        "[BEAM chat_id=296 role=user time=unknown] I'm trying to stay on track with my writing goals with an October 5, 2024 time anchor and a final draft deadline by October 1, 2024, with weekly 1,800-word targets.",
+      ),
+      makeSourceFact(
+        "fact-confidence-momentum-noise",
+        301,
+        "assistant",
+        "[BEAM chat_id=301 role=assistant time=unknown] Reaching a 10/10 confidence level after completing your final draft is a significant achievement, and you can maintain momentum with routines and feedback.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is my weekly word count target for my writing goals?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-weekly-word-target-initial",
+      "fact-weekly-word-target-update",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-writing-schedule-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-progress-calculation-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-later-word-count-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-writing-group-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-final-draft-target-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-confidence-momentum-noise")?.returned).toBe(false);
   });
 
   it("keeps weather-app latency metrics for cross-session speed comparisons", () => {
@@ -6025,6 +7756,351 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps family-support personal-statement milestones source ordered", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-cultural-roots",
+        24,
+        "My mom, Wendy, told me to highlight my cultural roots in my personal statement without sounding cliche.",
+      ),
+      makeFact(
+        "fact-career-gap-noise",
+        36,
+        "I'm debating whether to mention a 6-month career gap in 2022 due to family illness in my personal statement.",
+      ),
+      makeFact(
+        "fact-progress-noise",
+        42,
+        "I've completed 40% of the first draft and want to finish it by March 31 to allow two revision rounds.",
+      ),
+      makeFact(
+        "fact-documentary-noise",
+        52,
+        "Kimberly suggested adding the local documentary that won 2nd place at the Janethaven Film Awards to my personal statement.",
+      ),
+      makeFact(
+        "fact-storytelling-noise",
+        60,
+        "Shawn shared insights on storytelling impact at Montserrat Media Hub and I want to incorporate those into my personal statement.",
+      ),
+      makeFact(
+        "fact-tanya-pitch",
+        76,
+        "I appreciate Tanya helping me rehearse my 5-minute personal pitch on April 4, and it improved my confidence for interviews, but I need to show this family support in my statement without sounding casual.",
+      ),
+      makeFact(
+        "fact-wendy-resilience-letter",
+        118,
+        "I appreciate Wendy's support, especially her handwritten letter on May 5 encouraging me to emphasize resilience in my story and personal statement.",
+      ),
+      makeFact(
+        "fact-draft-count-noise",
+        126,
+        "I've completed 3 full drafts and had 2 peer reviews, but I'm still unsure if my final version is ready for submission.",
+      ),
+      makeFact(
+        "fact-scholarship-noise",
+        158,
+        "I have never submitted any scholarship application or uploaded documents online and need guidance getting started.",
+      ),
+      makeFact(
+        "fact-care-package",
+        208,
+        "Wendy mailed a care package with local spices and handwritten notes on June 13, making me feel supported by my family, and I want to express this support in my personal statement.",
+      ),
+      makeFact(
+        "fact-last-letter-self-care",
+        260,
+        "How can I express gratitude for Wendy's last letter reminding me to balance work and self-care abroad in my personal statement without sounding too sentimental?",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different ways my family has supported me in my personal statement across our conversations, in order? Mention ONLY and ONLY five items.";
+
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-cultural-roots",
+      "fact-tanya-pitch",
+      "fact-wendy-resilience-letter",
+      "fact-care-package",
+      "fact-last-letter-self-care",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-cultural-roots",
+      "fact-tanya-pitch",
+      "fact-wendy-resilience-letter",
+      "fact-care-package",
+      "fact-last-letter-self-care",
+    ]);
+  });
+
+  it("keeps workload-management strategy milestones source ordered", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-laura-schedule-call",
+        26,
+        "I've got a weekly Zoom call with Laura, a veteran producer, every Monday at 10 AM, and I want to ask her for advice on how to manage my schedule better.",
+      ),
+      makeFact(
+        "fact-email-batching-noise",
+        60,
+        "I'll set aside Fridays from 2:00 PM to 5:00 PM for email processing and use filters for urgent, important, and routine messages.",
+      ),
+      makeFact(
+        "fact-laura-trello-task-batching",
+        88,
+        "I'm stressed about meeting my June 30 pilot episode deadline and wonder if using Trello boards for task batching like Laura suggested could help me manage my time better.",
+      ),
+      makeFact(
+        "fact-evening-boundary-noise",
+        104,
+        "I agreed with James to limit work calls after 7 PM, which improved our evening time by 2 hours weekly.",
+      ),
+      makeFact(
+        "fact-mindfulness-noise",
+        106,
+        "Daily 30-minute mindfulness sessions at 3 PM helped reduce my stress from 7/10 to 4/10 by May 1.",
+      ),
+      makeFact(
+        "fact-pilates-noise",
+        116,
+        "I've started taking 3 weekly Pilates classes at Montserrat Wellness Center since April 22 and feel more energetic.",
+      ),
+      makeFact(
+        "fact-stephanie-agency",
+        154,
+        "I hired Stephanie's agency for $800/month on June 20 for social media management after Laura advised me to delegate, and I want to know whether this will help my workload.",
+      ),
+      makeFact(
+        "fact-summer-camp-noise",
+        144,
+        "Emma and Michelle started summer camp at East Janethaven Community Center on June 15, and I'm balancing work and family time.",
+      ),
+      makeFact(
+        "fact-michele-assistant",
+        202,
+        "I'm thinking of asking Michele, my new part-time assistant hired for 20 hours/week at $25/hour after Laura recommended hiring one, to help me manage my schedule better.",
+      ),
+      makeFact(
+        "fact-final-cut-noise",
+        153,
+        "Choosing Adobe over Final Cut Pro seems reasonable because I am already familiar with Adobe products and can avoid retraining costs.",
+      ),
+      makeFact(
+        "fact-laura-audience-engagement",
+        248,
+        "I had a review meeting with Laura on November 10, and she suggested focusing on audience engagement strategies while I balance that with my existing marketing prep schedule on Mondays and Wednesdays.",
+      ),
+    ];
+    const query =
+      "Can you list the order in which I brought up different strategies and support options for managing my workload throughout our conversations in order? Mention ONLY and ONLY five items.";
+
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-laura-schedule-call",
+      "fact-laura-trello-task-batching",
+      "fact-stephanie-agency",
+      "fact-michele-assistant",
+      "fact-laura-audience-engagement",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-laura-schedule-call",
+      "fact-laura-trello-task-batching",
+      "fact-stephanie-agency",
+      "fact-michele-assistant",
+      "fact-laura-audience-engagement",
+    ]);
+  });
+
+  it("keeps financial-planning topic milestones source ordered", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-tamara-money-saving-tips",
+        22,
+        "I've been talking to my friend Tamara, who is always discussing money-saving tips, and I want to understand what kind of tips she might be sharing.",
+      ),
+      makeFact(
+        "fact-sleep-financial-stress-noise",
+        44,
+        "I've been tracking my sleep hours and averaging 5.5 hours per night because of financial stress.",
+      ),
+      makeFact(
+        "fact-medical-bills-noise",
+        46,
+        "I'm stressed about family expecting me to support Ashlee's medical bills, which are around $200 monthly.",
+      ),
+      makeFact(
+        "fact-paypal-noise",
+        48,
+        "I've been using PayPal for freelance payments and the fees are averaging 3% per transaction.",
+      ),
+      makeFact(
+        "fact-dining-budget-noise",
+        50,
+        "I prefer using Excel for control and compromised on a $200 dining out budget after Alexis wanted to increase it.",
+      ),
+      makeFact(
+        "fact-investment-workshop",
+        66,
+        "Tamara recommended a $500 workshop on investment basics happening on June 15 at Montserrat Community Center, and I am weighing it against my goal to save $2,000 by June 30.",
+      ),
+      makeFact(
+        "fact-financial-workshop-noise",
+        118,
+        "I've never attended any financial workshops and want online resources or local events to learn more about managing my money.",
+      ),
+      makeFact(
+        "fact-freelance-contract-noise",
+        120,
+        "I'm stressed about a freelance contract Natalie suggested, starting Sept 10 and worth $8,000 over 4 months.",
+      ),
+      makeFact(
+        "fact-tamara-book-club",
+        132,
+        "Tamara invited me to a financial literacy book club meeting on Sept 15 at East Janethaven Library, and I want to know what to expect.",
+      ),
+      makeFact(
+        "fact-savings-transfer-noise",
+        154,
+        "I've started an automated $200 monthly transfer to my savings account on Sept 1 and want to avoid overspending.",
+      ),
+      makeFact(
+        "fact-ynab-donation-noise",
+        166,
+        "I'm curious about how my $50 donation to the local charity will affect my budget now that I'm using YNAB.",
+      ),
+      makeFact(
+        "fact-holiday-gift-compromise",
+        256,
+        "I compromised with Ashlee on the holiday gifts budget at $300 to balance our budget, and I want to approach similar compromises in the future without feeling like I am sacrificing too much.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different financial planning topics during our chats, in order? Mention ONLY and ONLY four items.";
+
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-tamara-money-saving-tips",
+      "fact-investment-workshop",
+      "fact-tamara-book-club",
+      "fact-holiday-gift-compromise",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-tamara-money-saving-tips",
+      "fact-investment-workshop",
+      "fact-tamara-book-club",
+      "fact-holiday-gift-compromise",
+    ]);
+  });
+
   it("keeps writing journey milestones for broad source-ordered event questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
@@ -7590,7 +9666,7 @@ describe("recall selection", () => {
     }
   });
 
-  it("keeps source-ordered error and promise-rejection milestones for broad event-order questions", () => {
+  it("keeps only packed source-ordered error and promise-rejection milestones for broad event-order questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
       createFactMemory({
@@ -7613,6 +9689,11 @@ describe("recall selection", () => {
         "fact-city-autocomplete",
         20,
         "I'm implementing city autocomplete with a debounce delay in my weather app.",
+      ),
+      makeFact(
+        "fact-async-fetch-noise",
+        14,
+        "I'm trying to implement asynchronous fetch calls using fetch with async/await syntax for API requests in my weather app.",
       ),
       makeFact(
         "fact-invalid-city-errors",
@@ -7638,6 +9719,11 @@ describe("recall selection", () => {
         "fact-test-coverage",
         114,
         "I'm trying to reach full test coverage for API integration, including network errors, invalid responses, and authentication issues.",
+      ),
+      makeFact(
+        "fact-http-401-noise",
+        124,
+        "I'm debugging HTTP 401 Unauthorized responses from the OpenWeather API when my key is missing from the request.",
       ),
       makeFact(
         "fact-api-error-boundary",
@@ -7673,11 +9759,10 @@ describe("recall selection", () => {
     );
 
     const selectedIds = result.facts.map((fact) => fact.id);
-    expect(selectedIds).toContain("fact-invalid-city-errors");
-    expect(selectedIds).toContain("fact-unhandled-promise");
-    expect(
-      selectedIds.indexOf("fact-invalid-city-errors"),
-    ).toBeLessThan(selectedIds.indexOf("fact-unhandled-promise"));
+    expect(selectedIds).toEqual([
+      "fact-invalid-city-errors",
+      "fact-unhandled-promise",
+    ]);
   });
 
   it("keeps non-code professional-profile milestones for broad source-ordered aspect questions", () => {
@@ -10111,6 +12196,370 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-equilateral-distractor-user");
   });
 
+  it("keeps triangle right-angle area and median milestones for broad geometry summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-isosceles-followup-noise",
+        18,
+        "user",
+        "[BEAM chat_id=18 role=user time=unknown] The key characteristics and example calculation helped me identify and calculate the angles and sides of an isosceles triangle.",
+      ),
+      makeSourceFact(
+        "fact-law-of-cosines-noise",
+        31,
+        "assistant",
+        "[BEAM chat_id=31 role=assistant time=unknown] We used the Law of Cosines to find unknown angles in a triangle with sides 7 cm, 9 cm, and 12 cm.",
+      ),
+      makeSourceFact(
+        "fact-right-angle-check",
+        76,
+        "user",
+        "[BEAM chat_id=76 role=user time=unknown] I'm trying to verify if a triangle with sides 8 cm, 15 cm, and 17 cm is right-angled using the Pythagorean theorem and checking whether 8^2 + 15^2 = 17^2.",
+      ),
+      makeSourceFact(
+        "fact-heron-7-24-25",
+        79,
+        "assistant",
+        "[BEAM chat_id=79 role=assistant time=unknown] Heron's formula gives the area of a triangle with sides 7 cm, 24 cm, and 25 cm as 84 cm^2.",
+      ),
+      makeSourceFact(
+        "fact-base-height-vs-heron",
+        81,
+        "assistant",
+        "[BEAM chat_id=81 role=assistant time=unknown] We calculated the area of a triangle with base 10 cm and height 6 cm using base-height and Heron's formula, and the base-height method was more efficient.",
+      ),
+      makeSourceFact(
+        "fact-median-length",
+        85,
+        "assistant",
+        "[BEAM chat_id=85 role=assistant time=unknown] We applied the median length formula to a triangle with sides 9 cm, 12 cm, and 15 cm and found the median length was about 12.82 cm.",
+      ),
+      makeSourceFact(
+        "fact-median-equal-area",
+        89,
+        "assistant",
+        "[BEAM chat_id=89 role=assistant time=unknown] We proved that a median divides a triangle into two smaller triangles of equal area, including examples with sides 8-15-17 and 7-24-25.",
+      ),
+      makeSourceFact(
+        "fact-roof-truss-noise",
+        98,
+        "user",
+        "[BEAM chat_id=98 role=user time=unknown] I'm modeling a triangular roof truss with sides 6 m, 8 m, 10 m and load distribution using medians.",
+      ),
+      makeSourceFact(
+        "fact-area-comparison-instruction-noise",
+        132,
+        "user",
+        "[BEAM chat_id=132 role=user time=unknown] Always include comparative analysis of multiple solution methods when I ask about triangle area calculations.",
+      ),
+      makeSourceFact(
+        "fact-congruence-similarity-noise",
+        190,
+        "user",
+        "[BEAM chat_id=190 role=user time=unknown] I want to understand triangle congruence and similarity, scale factors, medians, altitudes, GeoGebra, visual aids, and roof truss applications.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a clear summary of everything we've covered about triangles, including how to verify right angles, calculate areas, and understand medians?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-right-angle-check",
+      "fact-heron-7-24-25",
+      "fact-base-height-vs-heron",
+      "fact-median-length",
+      "fact-median-equal-area",
+    ]);
+  });
+
+  it("keeps study-abroad preparation milestones for broad planning summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-personal-statement-deadline",
+        8,
+        "user",
+        "[BEAM chat_id=8 role=user time=unknown] I'm stuck on this personal statement and want to get it done by April 20, 2024, while acknowledging Tanya's support for my career goals.",
+      ),
+      makeSourceFact(
+        "fact-scholarship-visa-timeline-noise",
+        13,
+        "assistant",
+        "[BEAM chat_id=13 role=assistant time=unknown] We planned personal statement milestones around the scholarship deadline on May 15 and the visa application due June 1.",
+      ),
+      makeSourceFact(
+        "fact-documentary-noise",
+        53,
+        "assistant",
+        "[BEAM chat_id=53 role=assistant time=unknown] We integrated Kimberly's suggestion to discuss the Janethaven Film Awards documentary in the personal statement.",
+      ),
+      makeSourceFact(
+        "fact-tanya-support",
+        77,
+        "assistant",
+        "[BEAM chat_id=77 role=assistant time=unknown] We framed Tanya's support in the personal statement as professional and emotional preparation that connects to future academic and professional goals.",
+      ),
+      makeSourceFact(
+        "fact-voice-editing-noise",
+        169,
+        "assistant",
+        "[BEAM chat_id=169 role=assistant time=unknown] We refined the personal statement introduction and career gap section for stronger voice and transitions.",
+      ),
+      makeSourceFact(
+        "fact-canada-study-visa-decision",
+        131,
+        "assistant",
+        "[BEAM chat_id=131 role=assistant time=unknown] We weighed accepting the part-time role at Montserrat Media Hub against applying for a Canadian study visa, including funding, education quality, work opportunities, cultural experience, and networking.",
+      ),
+      makeSourceFact(
+        "fact-canada-visa-interview",
+        133,
+        "assistant",
+        "[BEAM chat_id=133 role=assistant time=unknown] We prepared for a Canadian study visa interview by reviewing study permit requirements, gathering acceptance letters, financial statements, language results, and practicing questions about goals and funding.",
+      ),
+      makeSourceFact(
+        "fact-leadership-section-noise",
+        201,
+        "assistant",
+        "[BEAM chat_id=201 role=assistant time=unknown] We added a brief leadership experiences section to the personal statement by June 10.",
+      ),
+      makeSourceFact(
+        "fact-toronto-clothing-budget",
+        205,
+        "assistant",
+        "[BEAM chat_id=205 role=assistant time=unknown] We budgeted the $2,000 Montserrat Arts Council emergency fund so $300 was reserved for warm clothing for Toronto.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you give me a comprehensive summary of how my plans and preparations for studying abroad have developed over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-personal-statement-deadline",
+      "fact-tanya-support",
+      "fact-canada-study-visa-decision",
+      "fact-canada-visa-interview",
+      "fact-toronto-clothing-budget",
+    ]);
+  });
+
+  it("keeps estate-planning process and will-finalization milestones for broad summaries", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-initial-estate-plan-noise",
+        5,
+        "assistant",
+        "[BEAM chat_id=5 role=assistant time=unknown] We created a general estate-plan checklist covering assets, beneficiaries, executors, guardians, trusts, and attorney review.",
+      ),
+      makeSourceFact(
+        "fact-douglas-estate-provisions",
+        23,
+        "assistant",
+        "[BEAM chat_id=23 role=assistant time=unknown] Including Douglas in the estate plan involved listing assets, specifying provisions for Douglas, updating beneficiary designations, adding Douglas to the will, consulting an attorney, and communicating the plan with him.",
+      ),
+      makeSourceFact(
+        "fact-executor-douglas-kevin",
+        33,
+        "assistant",
+        "[BEAM chat_id=33 role=assistant time=unknown] Choosing between Douglas and Kevin as executor before the April 1 deadline required weighing responsibility, organizational skills, legal and financial knowledge, availability, emotional stability, trust, and family input.",
+      ),
+      makeSourceFact(
+        "fact-will-deadline-noise",
+        41,
+        "assistant",
+        "[BEAM chat_id=41 role=assistant time=unknown] To complete the legally valid will by May 15, we made a timeline for asset inventory, drafting the will, consulting Stephanie, gathering witnesses, and executing the document.",
+      ),
+      makeSourceFact(
+        "fact-stephanie-witness-meeting",
+        34,
+        "user",
+        "[BEAM chat_id=34 role=user time=unknown] I have a meeting with attorney Stephanie on March 22 to finalize my will, and Montserrat law requires two witnesses for it to be valid.",
+      ),
+      makeSourceFact(
+        "fact-executor-family-meeting",
+        69,
+        "assistant",
+        "[BEAM chat_id=69 role=assistant time=unknown] After Kimberly and Bradley attended the executor meeting, we discussed clear communication about choosing Douglas, possible co-executor support from Kevin, involving estate attorney Stephanie, and documenting the decision in the will.",
+      ),
+      makeSourceFact(
+        "fact-willmaker-draft-noise",
+        83,
+        "assistant",
+        "[BEAM chat_id=83 role=assistant time=unknown] The WillMaker Pro draft included beneficiaries, Douglas as executor, Kevin as alternate, guardianship, asset distribution, trust provisions, funeral instructions, and witness requirements.",
+      ),
+      makeSourceFact(
+        "fact-will-witness-review",
+        85,
+        "assistant",
+        "[BEAM chat_id=85 role=assistant time=unknown] Preparing for Stephanie's will review meant checking Montserrat's two-witness rule, deciding whether to notarize the will, preparing witness information, and confirming legal requirements.",
+      ),
+      makeSourceFact(
+        "fact-probate-digital-noise",
+        123,
+        "assistant",
+        "[BEAM chat_id=123 role=assistant time=unknown] We reviewed probate optimization, executor appointment, inventory and appraisal, debts and taxes, and why not using WillMaker Pro affected estate planning.",
+      ),
+      makeSourceFact(
+        "fact-guardianship-emergency-fund",
+        179,
+        "assistant",
+        "[BEAM chat_id=179 role=assistant time=unknown] We planned a conversation with Douglas about the $5,000 emergency fund for guardianship expenses so both of us were on the same page, including medical costs, educational needs, living expenses, guardian supporter responsibilities, management of the fund, and possible adjustments.",
+      ),
+      makeSourceFact(
+        "fact-notarized-guardianship-affidavits",
+        183,
+        "assistant",
+        "[BEAM chat_id=183 role=assistant time=unknown] Preparing notarized affidavits for guardianship would streamline probate by drafting affidavits, gathering identification and birth certificates, consulting Stephanie, notarizing the documents, and storing them securely.",
+      ),
+      makeSourceFact(
+        "fact-kevin-paralegal-review",
+        189,
+        "assistant",
+        "[BEAM chat_id=189 role=assistant time=unknown] Kevin, a paralegal, would review the will draft after I organized documents, summarized wishes, listed concerns about guardianship, asset distribution, and digital assets, and prepared to consult Stephanie for final approval.",
+      ),
+      makeSourceFact(
+        "fact-electronic-will-signatures",
+        221,
+        "assistant",
+        "[BEAM chat_id=221 role=assistant time=unknown] Electronic will signatures in Montserrat became accepted in July 2024, affecting convenience, legal validity, security, witness requirements, and how to update the estate plan.",
+      ),
+      makeSourceFact(
+        "fact-final-review-noise",
+        283,
+        "assistant",
+        "[BEAM chat_id=283 role=assistant time=unknown] The final estate-plan binder checklist included the will, digital assets, financial documents, insurance policies, property deeds, and executor responsibilities.",
+      ),
+      makeSourceFact(
+        "fact-charity-disagreement-noise",
+        299,
+        "assistant",
+        "[BEAM chat_id=299 role=assistant time=unknown] Allocating 10% of the estate to charity created tax, executor, and documentation implications after a disagreement with Douglas.",
+      ),
+    ];
+
+    const processSummary = selectFacts(
+      facts,
+      "Can you give me a complete summary of how my estate planning process has developed, including the key decisions and discussions I've had about executors, guardianship, and asset management?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+    const willSummary = selectFacts(
+      facts,
+      "Can you summarize what I need to know about preparing and finalizing my will and related documents?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(processSummary.facts.map((fact) => fact.id)).toEqual([
+      "fact-douglas-estate-provisions",
+      "fact-executor-douglas-kevin",
+      "fact-executor-family-meeting",
+      "fact-guardianship-emergency-fund",
+      "fact-kevin-paralegal-review",
+    ]);
+    expect(willSummary.facts.map((fact) => fact.id)).toEqual([
+      "fact-stephanie-witness-meeting",
+      "fact-will-witness-review",
+      "fact-notarized-guardianship-affidavits",
+      "fact-electronic-will-signatures",
+    ]);
+  });
+
   it("keeps writing progress strategy milestones for broad improvement summaries", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -11883,6 +14332,93 @@ describe("recall selection", () => {
     expect(selectedIds).toContain("fact-login-plan");
     expect(selectedIds).toContain("fact-code-format-instruction");
     expect(selectedIds).not.toContain("fact-apa-instruction");
+  });
+
+  it("keeps API error status-code instruction evidence for API error response questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-cors-error",
+        48,
+        "user",
+        "I'm trying to handle CORS errors from the OpenWeather API, and my fetch function throws Error response.status when the API fails.",
+      ),
+      makeSourceFact(
+        "fact-display-error",
+        77,
+        "assistant",
+        "We enhanced the weather display to handle errors and edge cases with a user-facing error message.",
+      ),
+      makeSourceFact(
+        "fact-fetch-error-advice",
+        109,
+        "assistant",
+        "We reviewed fetchWeatherData error handling, including common HTTP errors like 401 Unauthorized and network errors.",
+      ),
+      makeSourceFact(
+        "fact-api-error-status-instruction",
+        130,
+        "user",
+        "Always include error status codes in responses when I ask about API error handling.",
+      ),
+      makeSourceFact(
+        "fact-deployment-error-noise",
+        135,
+        "assistant",
+        "We discussed deployment error handling and generic API request error handling for failed requests.",
+      ),
+      makeSourceFact(
+        "fact-autocomplete-noise",
+        8,
+        "user",
+        "I asked about adding the autocomplete feature with a debounce delay.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What are some common responses when something goes wrong with an API?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-api-error-status-instruction");
+  });
+
+  it("maps API something-went-wrong wording to API error instruction topics", () => {
+    const language = createLanguageService();
+    const tokens = sourceInstructionTopicTokens({
+      language,
+      locale: "en",
+      text: "What are some common responses when something goes wrong with an API?",
+    });
+
+    expect(tokens.has("api_error")).toBe(true);
   });
 
   it("adds applicable Chinese source-ordered user instruction evidence for guidance questions", () => {

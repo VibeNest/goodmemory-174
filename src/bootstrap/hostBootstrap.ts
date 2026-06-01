@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   resolveWorkspaceId,
   writeManagedFile,
@@ -1124,8 +1125,15 @@ function buildBootstrapScript(input: {
   workspaceId: string;
 }): string {
   const { blueprint, userId, workspaceId } = input;
+  const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const packageIndexUrl = pathToFileURL(join(packageRoot, "dist", "index.js")).href;
+  const packageHostUrl = pathToFileURL(
+    join(packageRoot, "dist", "host", "index.js"),
+  ).href;
   const artifactTypesLiteral = JSON.stringify(blueprint.readableArtifactTypes);
   const exportRootLiteral = JSON.stringify(blueprint.exportRootRelativePath);
+  const packageIndexUrlLiteral = JSON.stringify(packageIndexUrl);
+  const packageHostUrlLiteral = JSON.stringify(packageHostUrl);
   const defaultScopeLiteral = `{
   userId: ${JSON.stringify(userId)},
   workspaceId: ${JSON.stringify(workspaceId)},
@@ -1139,8 +1147,6 @@ function buildBootstrapScript(input: {
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGoodMemory } from "goodmemory";
-import { createHostAdapter } from "goodmemory/host";
 
 const DEFAULT_SCOPE = ${defaultScopeLiteral};
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -1150,6 +1156,8 @@ const OUTPUT_ROOT = resolve(WORKSPACE_ROOT, ${exportRootLiteral});
 const READABLE_ARTIFACT_TYPES = ${artifactTypesLiteral};
 const INCLUDE_RUNTIME_BY_DEFAULT = ${blueprint.runtimeDefault ? "true" : "false"};
 const SESSION_ID_REQUIRED = ${sessionIdRequiredLiteral};
+const PACKAGE_INDEX_URL = ${packageIndexUrlLiteral};
+const PACKAGE_HOST_URL = ${packageHostUrlLiteral};
 
 function parseArgs(argv) {
   const flags = {};
@@ -1195,6 +1203,29 @@ function readTextFlag(flags, name) {
   return trimmed.length > 0 && trimmed !== "true" ? trimmed : undefined;
 }
 
+function isPackageResolutionError(error) {
+  const message = String(error?.message ?? "");
+  return message.includes("Cannot find module") ||
+    message.includes("while resolving package 'goodmemory'");
+}
+
+async function importGoodMemoryPackages() {
+  try {
+    return await Promise.all([
+      import("goodmemory"),
+      import("goodmemory/host"),
+    ]);
+  } catch (error) {
+    if (!isPackageResolutionError(error)) {
+      throw error;
+    }
+    return Promise.all([
+      import(PACKAGE_INDEX_URL),
+      import(PACKAGE_HOST_URL),
+    ]);
+  }
+}
+
 const flags = parseArgs(process.argv.slice(2));
 const sessionId = readTextFlag(flags, "session-id");
 
@@ -1212,6 +1243,9 @@ const scope = {
       }
     : {}),
 };
+
+const [{ createGoodMemory }, { createHostAdapter }] =
+  await importGoodMemoryPackages();
 
 const memory = createGoodMemory({});
 const adapter = createHostAdapter({

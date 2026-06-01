@@ -40,7 +40,9 @@ type SourceOrderedValueUpdateKind =
   | "duration"
   | "money"
   | "percentage"
-  | "time";
+  | "quota"
+  | "time"
+  | "wordCount";
 
 const SOURCE_ORDERED_VALUE_UPDATE_LIMIT = 3;
 const SOURCE_ORDERED_DATE_VALUE_PATTERN =
@@ -55,6 +57,10 @@ const SOURCE_ORDERED_MONEY_VALUE_PATTERN =
   /\$\s*\d[\d,]*(?:\.\d+)?\b|\b\d[\d,]*(?:\.\d+)?\s*(?:dollars?|bucks?|usd)\b/iu;
 const SOURCE_ORDERED_PERCENTAGE_VALUE_PATTERN =
   /\b\d+(?:[.,]\d+)?\s*%|\b\d+(?:[.,]\d+)?\s*percent\b/iu;
+const SOURCE_ORDERED_DAILY_CALL_QUOTA_VALUE_PATTERN =
+  /\b(?:\d{1,3}(?:,\d{3})+|\d+)\s*calls?\s*(?:\/|per\s+)day\b/iu;
+const SOURCE_ORDERED_WEEKLY_WORD_COUNT_VALUE_PATTERN =
+  /\b\d{1,3}(?:,\d{3})*\s+words?\s+per\s+week\b|\bweekly\s+word\s+count\b[\s\S]{0,120}\badjusted\s+to\s+\d{1,3}(?:,\d{3})*\s+words?\b/iu;
 const SOURCE_ORDERED_VALUE_UPDATE_SIGNAL_PATTERN =
   /\b(?:actually|instead|reschedul(?:e|ed|ing)|moved?|changed?|updated?|switch(?:ed|ing)?|now|latest|new|free\s+at|available\s+at)\b/iu;
 const SOURCE_ORDERED_VALUE_UPDATE_QUERY_STOPWORDS = new Set([
@@ -252,6 +258,20 @@ function sourceOrderedValueUpdateKind(
   }
 
   if (
+    /\bdaily\s+call\s+quota\b/iu.test(query) &&
+    /\bAPI\s+key\b/iu.test(query)
+  ) {
+    return "quota";
+  }
+
+  if (
+    /\bweekly\s+word\s+count\s+target\b/iu.test(query) &&
+    /\bwriting\s+goals?\b/iu.test(query)
+  ) {
+    return "wordCount";
+  }
+
+  if (
     /\b(?:budget|cost|price|amount|spend|paid|dollars?|\$)\b/iu.test(query) &&
     /\b(?:current(?:ly)?|latest|new|now|updated?|budget|plan(?:ning)?|should)\b/iu.test(query) &&
     !/\b(?:across|compare|declined|difference|from\s+the\s+start|increase(?:d)?|sum|total|turned\s+down)\b/iu.test(query) &&
@@ -305,6 +325,14 @@ function hasSourceOrderedValueKind(
 
   if (kind === "percentage") {
     return SOURCE_ORDERED_PERCENTAGE_VALUE_PATTERN.test(content);
+  }
+
+  if (kind === "quota") {
+    return SOURCE_ORDERED_DAILY_CALL_QUOTA_VALUE_PATTERN.test(content);
+  }
+
+  if (kind === "wordCount") {
+    return SOURCE_ORDERED_WEEKLY_WORD_COUNT_VALUE_PATTERN.test(content);
   }
 
   return false;
@@ -429,7 +457,9 @@ export function selectSourceOrderedValueUpdateEvidence(input: {
 
   const queryPercentagePairs = sourceOrderedPercentagePairKeys(input.query);
   const minimumOverlap =
-    kind === "date" || kind === "time" || kind === "percentage"
+    kind === "quota"
+      ? 0
+      : kind === "date" || kind === "time" || kind === "percentage"
       ? 3
       : kind === "duration"
         ? 2

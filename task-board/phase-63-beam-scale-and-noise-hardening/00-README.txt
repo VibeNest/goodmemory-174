@@ -1357,6 +1357,199 @@ Current Boundary
   exact 1.0 with 38/80 and no target noise, without hit-loss, newly-missing
   evidence regressions, or negative recall deltas, while total noise decreases
   2532 -> 2525.
+  The latest API daily quota update repair raises current evidence-chat recall
+  to 0.5832528504359492 with 197 missed-recall cases and wrong-recall/noise
+  338/400, recovering `2:knowledge_update:1` to exact 1.0 with 32/66 and no
+  target noise, without hit-loss, newly-missing evidence regressions, or
+  negative recall deltas, while total noise decreases 2525 -> 2523.
+  The latest weekly writing target update repair raises current evidence-chat
+  recall to 0.5860697518443999 with 196 missed-recall cases and
+  wrong-recall/noise 337/400, recovering `10:knowledge_update:1` to exact 1.0
+  with 22/64 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2523 -> 2512.
+  The latest ASA proof preference repair raises current evidence-chat recall
+  to 0.5888866532528506 with 195 missed-recall cases and wrong-recall/noise
+  336/400, recovering `4:preference_following:2` to exact 1.0 with 198 and no
+  target noise, without hit-loss, newly-missing evidence regressions, or
+  negative recall deltas, while total noise decreases 2512 -> 2508.
+  The latest automated deployment monitoring preference repair raises current
+  evidence-chat recall to 0.5917035546613013 with 194 missed-recall cases and
+  wrong-recall/noise 335/400, recovering `2:preference_following:2` to exact
+  1.0 with 182/184 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2508 -> 2501.
+  The latest lightweight lazysizes preference repair raises current
+  evidence-chat recall to 0.594520456069752 with 193 missed-recall cases and
+  wrong-recall/noise 334/400, recovering `3:preference_following:2` to exact
+  1.0 with 100 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2501 -> 2496.
+  The latest pragmatic security preference repair raises current evidence-chat
+  recall to 0.5973373574782028 with 192 missed-recall cases and
+  wrong-recall/noise 333/400, recovering `1:preference_following:2` to exact
+  1.0 with 178 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2496 -> 2488.
+  The latest UK ATS resume preference repair raises current evidence-chat
+  recall to 0.6001542588866535 with 191 missed-recall cases and
+  wrong-recall/noise 332/400, recovering `6:preference_following:2` to exact
+  1.0 with 222 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2488 -> 2472.
+  The latest probability-ratio walkthrough preference repair raises current
+  evidence-chat recall to 0.6029711602951042 with 190 missed-recall cases and
+  wrong-recall/noise 331/400, recovering `5:preference_following:1` to exact
+  1.0 with 60 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2472 -> 2462.
+  The latest triangle area/median comparison preference repair raises current
+  evidence-chat recall to 0.6057880617035549 with 189 missed-recall cases and
+  wrong-recall/noise 330/400, recovering `4:preference_following:1` to exact
+  1.0 with 116 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2462 -> 2458.
+  The latest cover-letter measurable-impact preference repair raises current
+  evidence-chat recall to 0.6086049631120057 with 188 missed-recall cases and
+  wrong-recall/noise 329/400, recovering `8:preference_following:1` to exact
+  1.0 with 34 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2458 -> 2445.
+  The latest cover-letter portfolio-link preference repair raises current
+  evidence-chat recall to 0.6114218645204564 with 187 missed-recall cases and
+  wrong-recall/noise 328/400, recovering `8:preference_following:2` to exact
+  1.0 with 68/70 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2445 -> 2432.
+  The latest AI-assisted editing workflow preference repair raises current
+  evidence-chat recall to 0.6132997987927569 with 186 missed-recall cases and
+  wrong-recall/noise 327/400, recovering `10:preference_following:2` to exact
+  1.0 with 114/116/118 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2432 -> 2425.
+  The latest book-format portability preference repair raises current
+  evidence-chat recall to 0.6161167002012076 with 185 missed-recall cases and
+  wrong-recall/noise 326/400, recovering `13:preference_following:1` to exact
+  1.0 with 58 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2425 -> 2417.
+  The latest balanced standalone/series reading-list preference repair raises
+  current evidence-chat recall to 0.6189336016096583 with 184 missed-recall
+  cases and wrong-recall/noise 325/400, recovering `13:preference_following:2`
+  to exact 1.0 with 246 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2417 -> 2408.
+  The latest sleek neutral sneaker preference repair raises current
+  evidence-chat recall to 0.621750503018109 with 183 missed-recall cases and
+  wrong-recall/noise 324/400, recovering `15:preference_following:1` to exact
+  1.0 with 28/30 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2408 -> 2401.
+  The latest structured daily routine preference repair raises current
+  evidence-chat recall to 0.6245674044265597 with 182 missed-recall cases and
+  wrong-recall/noise 323/400, recovering `12:preference_following:2` to exact
+  1.0 with 106 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2401 -> 2390.
+  The latest positive family movie review preference repair raises current
+  evidence-chat recall to 0.6273843058350104 with 181 missed-recall cases and
+  wrong-recall/noise 322/400, recovering `14:preference_following:1` to exact
+  1.0 with 92 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2390 -> 2377.
+  The latest bilingual movie language-option preference repair raises current
+  evidence-chat recall to 0.6302012072434611 with 180 missed-recall cases and
+  wrong-recall/noise 321/400, recovering `14:preference_following:2` to exact
+  1.0 with 200 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas, while total noise decreases
+  2377 -> 2367.
+  The latest family-support personal-statement event-ordering repair raises
+  current evidence-chat recall to 0.6330181086519118 with 179 missed-recall
+  cases and wrong-recall/noise 320/400, recovering `9:event_ordering:2` to
+  exact 1.0 with 24/76/118/208/260 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas, while total
+  noise decreases 2367 -> 2338.
+  The latest workload-management event-ordering repair raises current
+  evidence-chat recall to 0.6358350100603625 with 178 missed-recall cases and
+  wrong-recall/noise 319/400, recovering `17:event_ordering:1` to exact 1.0
+  with 26/88/154/202/248 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas, while total
+  noise decreases 2338 -> 2314.
+  The latest financial-planning event-ordering repair raises current
+  evidence-chat recall to 0.6386519114688132 with 177 missed-recall cases and
+  wrong-recall/noise 318/400, recovering `16:event_ordering:1` to exact 1.0
+  with 22/66/132/256 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2314 -> 2291.
+  The latest weather-app error/promise-rejection event-ordering repair raises
+  current evidence-chat recall to 0.6414688128772639 with 176 missed-recall
+  cases and wrong-recall/noise 317/400, recovering `2:event_ordering:2` to
+  exact 1.0 with 28/162 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2291 -> 2271. The retained rerun also guards the API error status-code
+  instruction alias so `2:instruction_following:1` remains at recall 1.0 after
+  an earlier rejected weather-error attempt exposed that hit loss.
+  The latest triangle geometry summary repair raises current evidence-chat
+  recall to 0.6442857142857146 with 175 missed-recall cases and
+  wrong-recall/noise 316/400, recovering `4:summarization:1` to exact 1.0
+  with 76/79/81/85/89 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2271 -> 2264. The retained rerun replaces an earlier rejected
+  triangle-summary attempt that recovered only 89 and added target noise.
+  The latest study-abroad preparation summary repair raises current
+  evidence-chat recall to 0.6471026156941653 with 174 missed-recall cases and
+  wrong-recall/noise 315/400, recovering `9:summarization:1` to exact 1.0
+  with 8/77/131/133/205 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2264 -> 2255. The retained rerun replaces an earlier no-op study-abroad
+  attempt whose visa-interview facet was too tight for the real BEAM source
+  wording.
+  The latest estate-planning process summary repair raises current
+  evidence-chat recall to 0.649919517102616 with 173 missed-recall cases and
+  wrong-recall/noise 314/400, recovering `19:summarization:1` to exact 1.0
+  with 23/33/69/179/189 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2255 -> 2237. One non-target information-extraction case swaps noise ids,
+  but the full-slice noise total still drops.
+  The latest estate will-finalization summary repair raises current
+  evidence-chat recall to 0.6527364185110667 with 172 missed-recall cases and
+  wrong-recall/noise 313/400, recovering `19:summarization:2` to exact 1.0
+  with 34/85/183/221 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2237 -> 2232. The retained rerun narrows the route bypass to the guarded
+  estate will/document summary query so unrelated source-ordered summaries do
+  not escape slot-only suppression.
+  The latest time/stress/creative-collaboration summary repair raises current
+  evidence-chat recall to 0.6555533199195174 with 171 missed-recall cases and
+  wrong-recall/noise 312/400, recovering `17:summarization:1` to exact 1.0
+  with 22/45/113/257 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas, while total noise decreases
+  2232 -> 2223.
+  The latest weather autocomplete summary repair raises current evidence-chat
+  recall to 0.658088531187123 with 170 missed-recall cases and
+  wrong-recall/noise 311/400, recovering `2:summarization:2` to exact 1.0
+  with 20/21/23/25/52/53/94/95/96/97 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas, while total
+  noise decreases 2223 -> 2219.
+  The latest web-project issue-resolution summary repair raises current
+  evidence-chat recall to 0.6605030181086522 with 169 missed-recall cases and
+  wrong-recall/noise 310/400, recovering `3:summarization:2` to exact 1.0
+  with 14/15/30/31/62/63/64/65/68/69/70/71/166/167 and no target noise,
+  without hit-loss, newly-missing evidence regressions, or negative recall
+  deltas, while total noise decreases 2219 -> 2211. The retained rerun routes
+  only guarded web-project issue-resolution summaries through the pre-generic
+  source-message selector so early portfolio setup turns no longer consume the
+  summary budget.
+  The latest AI hiring process summary repair raises current evidence-chat
+  recall to 0.6629678068410465 with 168 missed-recall cases and
+  wrong-recall/noise 309/400, recovering `11:summarization:1` to exact 1.0
+  with 25/27/29/63/107/160/192/224 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas, while total
+  noise decreases 2211 -> 2197. The retained rerun routes only guarded AI
+  hiring process summaries through the pre-generic source-message selector so
+  adjacent hiring-topic turns no longer displace the oversight, soft-skills,
+  psychometric-testing, fairness, Pymetrics, role-transition, fairness-metrics,
+  and stress-reduction automation arc.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

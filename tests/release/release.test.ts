@@ -391,6 +391,27 @@ async function expectIgnoredGeneratedArtifact(relativePath: string) {
   expect(ignored.stdout).not.toContain("!");
 }
 
+async function expectIgnoredGeneratedArtifacts(relativePaths: readonly string[]) {
+  if (relativePaths.length === 0) {
+    return;
+  }
+
+  const trackedArtifacts = new Set(await collectTrackedFallbackArtifacts());
+  expect(relativePaths.filter((path) => trackedArtifacts.has(path))).toEqual([]);
+
+  const ignored = await runGitCommand([
+    "check-ignore",
+    "-v",
+    "--no-index",
+    ...relativePaths,
+  ]);
+  expect(ignored.exitCode).toBe(0);
+  for (const relativePath of relativePaths) {
+    expect(ignored.stdout).toContain("\t" + relativePath);
+  }
+  expect(ignored.stdout).not.toContain("!");
+}
+
 function collectFallbackReportPathViolations(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((item) => collectFallbackReportPathViolations(item));
@@ -1582,7 +1603,7 @@ describe("release metadata and docs", () => {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
-  }, 30_000);
+  }, 60_000);
 
   it("installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer", async () => {
     const workspaceRoot = await mkdtemp(
@@ -2099,8 +2120,8 @@ describe("release metadata and docs", () => {
         join(workspaceRoot, ".goodmemory/bootstrap/codex-export.mjs"),
         "utf8",
       );
-      expect(codexScript).toContain('from "goodmemory"');
-      expect(codexScript).toContain('from "goodmemory/host"');
+      expect(codexScript).toContain('import("goodmemory")');
+      expect(codexScript).toContain('import("goodmemory/host")');
       expect(codexScript).not.toContain("../src");
       expect(codexScript).not.toContain("../../src");
       const codexActionScript = await readFile(
@@ -2135,8 +2156,8 @@ describe("release metadata and docs", () => {
         join(workspaceRoot, ".goodmemory/bootstrap/claude-export.mjs"),
         "utf8",
       );
-      expect(claudeScript).toContain('from "goodmemory"');
-      expect(claudeScript).toContain('from "goodmemory/host"');
+      expect(claudeScript).toContain('import("goodmemory")');
+      expect(claudeScript).toContain('import("goodmemory/host")');
       expect(claudeScript).not.toContain("../src");
       expect(claudeScript).not.toContain("../../src");
 
@@ -2943,7 +2964,7 @@ describe("release metadata and docs", () => {
       );
       expect(content).not.toContain("[TODO] Not started.");
     }
-  });
+  }, 60_000);
 
   it("AGENTS.md keeps repository instructions aligned with the current eval contract", async () => {
     const agents = await readFile(
@@ -4588,9 +4609,11 @@ describe("release metadata and docs", () => {
       if (evidence.path.endsWith("/report.json")) {
         expect(evidence.pathKey).toBe("ignoredReportPath");
       }
-      await expectIgnoredGeneratedArtifact(evidence.path);
     }
-  });
+    await expectIgnoredGeneratedArtifacts(
+      uniqueSorted(fallbackEvidence.map((evidence) => evidence.path)),
+    );
+  }, 60_000);
 
   it("phase-21 through phase-23 closure docs only cite git-tracked live eval reports", async () => {
     await expectTrackedEvalReportsMentionedInFile(

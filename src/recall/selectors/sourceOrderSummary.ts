@@ -46,6 +46,7 @@ import {
 } from "./selectionContext";
 import { hasSourceOrderedProjectFeatureChallengeMilestone, isSourceOrderedProjectFeatureChallengeSummaryQuery, selectSourceOrderedProjectFeatureChallengePairs } from "./sourceOrderProjectFeatureSummary";
 import { selectSourceOrderedSpecializedSummaryCoverage } from "./sourceOrderSpecializedSummaries";
+import { selectSourceOrderedPreGenericSummaryCoverage } from "./sourceOrderPreGenericSummaries";
 import { compareTemporalFactChronology, sourceOrderSortKey } from "./temporal";
 import { contradictionTopicTokens } from "./contradiction";
 
@@ -797,6 +798,16 @@ export function selectSourceOrderedSummaryCoverage(input: {
       queryTopics,
     })
   );
+  const preGenericSummarySelection =
+    selectSourceOrderedPreGenericSummaryCoverage({
+      limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
+      minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
+      query: input.query,
+      sourceCandidates,
+    });
+  if (preGenericSummarySelection.length > 0) {
+    return preGenericSummarySelection;
+  }
   const projectLifecycleCandidates = projectLifecycleSummaryQuery
     ? projectLifecycleSourceCandidates.filter((entry) => {
       const content = stripEvidencePrefix(entry.fact.content);

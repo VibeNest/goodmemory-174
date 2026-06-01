@@ -1165,6 +1165,618 @@ shows no hit-loss, no newly-missing evidence, and no negative recall deltas;
 three non-target cases add one noise id each, but total noise decreases by
 seven. This remains partial BEAM progress, not closure: 198 evidence cases
 still miss and the full diagnostic remains noisy at wrong-recall/noise 339/400.
+The next same-source pass fixes the API daily quota update case where the
+diagnostic selected CORS, autocomplete-caching, uptime, and debounce
+distractors instead of the rate-limit context plus the later API-key quota
+update. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-api-daily-quota-current-20260531T094500Z`
+compares against the weather-latency run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5804359490274985 to 0.5832528504359492,
+with global hit evidence ids 583 -> 585, missing ids 511 -> 509,
+missed-recall cases 198 -> 197, wrong-recall/noise cases 339 -> 338,
+zero-recall cases 76 -> 75, and total noise 2525 -> 2523. Knowledge-update
+improves by +2 hit ids, -2 missing ids, four fewer bucket noise ids, one fewer
+incomplete case, one fewer zero-recall case, and one fewer wrong-recall/noise
+case; average knowledge-update recall rises to 0.5771. Target
+`2:knowledge_update:1` moves from 0 to 1.0 by returning exactly 32/66 and
+removing target noise 48/152/95/8. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas; two non-target cases
+add noise, but total noise decreases by two. This remains partial BEAM
+progress, not closure: 197 evidence cases still miss and the full diagnostic
+remains noisy at wrong-recall/noise 338/400.
+The next same-source pass fixes the weekly writing word-count target case where
+the diagnostic selected final-draft, writing-session, progress-calculation, and
+writing-group distractors instead of the original target and later adjustment.
+The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-weekly-word-target-current-20260531T101500Z`
+compares against the API daily quota run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5832528504359492 to 0.5860697518443999,
+with global hit evidence ids 585 -> 587, missing ids 509 -> 507,
+missed-recall cases 197 -> 196, wrong-recall/noise cases 338 -> 337,
+zero-recall cases 75 -> 74, and total noise 2523 -> 2512. Knowledge-update
+improves by +2 hit ids, -2 missing ids, seven fewer bucket noise ids, one
+fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; average knowledge-update recall rises to 0.6021.
+Target `10:knowledge_update:1` moves from 0 to 1.0 by returning exactly 22/64
+and removing target noise 296/24/301/55/151/153/155. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas;
+one non-target event-ordering case adds noise, but total noise decreases by
+eleven. This remains partial BEAM progress, not closure: 196 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise 337/400.
+The next same-source pass fixes the ASA/congruence proof preference case where
+the diagnostic selected triangle-classification visual-learning context, an
+old ASA angle-error thread, and broad congruence/similarity explanations
+instead of the user's detailed ASA proof-with-diagrams preference. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-asa-proof-preference-current-20260531T104500Z`
+compares against the weekly writing target run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5860697518443999 to
+0.5888866532528506, with global hit evidence ids 587 -> 588, missing ids
+507 -> 506, missed-recall cases 196 -> 195, wrong-recall/noise cases
+337 -> 336, zero-recall cases 74 -> 73, and total noise 2512 -> 2508.
+Preference-following improves by +1 hit id, -1 missing id, five fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.5171. Target `4:preference_following:2` moves from 0 to 1.0 by returning
+exactly 198 and removing target noise 169/52/53/190/191. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas;
+four non-target cases add noise, but total noise decreases by four. This
+remains partial BEAM progress, not closure: 195 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 336/400.
+The next same-source pass fixes the automated deployment monitoring preference
+case where the diagnostic selected the assistant monitoring answer, unrelated
+GitHub Pages deployment advice, weather API error-handling turns, and security
+preference context instead of the user's automated CI/CD deployment preference
+plus GitHub Actions job-monitoring follow-up. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-automation-monitoring-current-20260531T111500Z`
+compares against the ASA proof preference run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5888866532528506 to 0.5917035546613013,
+with global hit evidence ids 588 -> 590, missing ids 506 -> 504,
+missed-recall cases 195 -> 194, wrong-recall/noise cases 336 -> 335,
+zero-recall cases 73 -> 72, and total noise 2508 -> 2501. Preference-following
+improves by +2 hit ids, -2 missing ids, seven fewer bucket noise ids, one
+fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; average preference-following recall rises to 0.5427.
+Target `2:preference_following:2` moves from 0 to 1.0 by returning exactly
+182/184 and removing target noise 185/145/124/125/178/179. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas;
+two non-target event-ordering cases add noise, but total noise decreases by
+seven. This remains partial BEAM progress, not closure: 194 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise 335/400.
+The next same-source pass fixes the lightweight lazysizes preference case
+where the diagnostic selected deployment, modal, image-path, form-validation,
+and sprint-planning distractors instead of the user's under-100KB lightweight
+vanilla JS/lazysizes preference for Bootstrap gallery lazy loading. The
+accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-lightweight-lazysizes-current-20260531T121500Z`
+compares against the automation-monitoring run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.5917035546613013 to 0.594520456069752,
+with global hit evidence ids 590 -> 591, missing ids 504 -> 503,
+missed-recall cases 194 -> 193, wrong-recall/noise cases 335 -> 334,
+zero-recall cases 72 -> 71, and total noise 2501 -> 2496. Preference-following
+improves by +1 hit id, -1 missing id, seven fewer bucket noise ids, one fewer
+incomplete case, one fewer zero-recall case, and one fewer wrong-recall/noise
+case; average preference-following recall rises to 0.5684. Target
+`3:preference_following:2` moves from 0 to 1.0 by returning exactly 100 and
+removing target noise 122/96/62/48/49/82/83. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; four
+non-target cases add noise, but total noise decreases by five. This remains
+partial BEAM progress, not closure: 193 evidence cases still miss and the full
+diagnostic remains noisy at wrong-recall/noise 334/400.
+The next same-source pass fixes the pragmatic security preference case where
+the diagnostic selected secure-authentication, sprint analytics, deployment
+security-review, blueprint refactor, best-practices instruction, and session
+management distractors instead of the user's explicit preference for pragmatic
+security enhancements that do not compromise user experience or app
+responsiveness. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-pragmatic-security-current-20260531T130000Z`
+compares against the lightweight lazysizes run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.594520456069752 to
+0.5973373574782028, with global hit evidence ids 591 -> 592, missing ids
+503 -> 502, missed-recall cases 193 -> 192, wrong-recall/noise cases
+334 -> 333, zero-recall cases 71 -> 70, and total noise 2496 -> 2488.
+Preference-following improves by +1 hit id, -1 missing id, nine fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.5940. Target `1:preference_following:2` moves from 0 to 1.0 by returning
+exactly 178 and removing target noise 182/86/116/102/184/66/67/108/109.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; three non-target event-ordering cases add one noise id
+each, but total noise decreases by eight. This remains partial BEAM progress,
+not closure: 192 evidence cases still miss and the full diagnostic remains
+noisy at wrong-recall/noise 333/400.
+The next same-source pass fixes the UK ATS resume preference case where the
+diagnostic selected generic age-discrimination, ATS parser, mentorship,
+international resume standards, structured-bullet, and quantified-achievement
+distractors instead of the user's explicit preference for UK-specific ATS
+resume formatting over a generic global version. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-uk-ats-resume-current-20260531T140000Z`
+compares against the pragmatic security run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.5973373574782028 to 0.6001542588866535,
+with global hit evidence ids 592 -> 593, missing ids 502 -> 501,
+missed-recall cases 192 -> 191, wrong-recall/noise cases 333 -> 332,
+zero-recall cases 70 -> 69, and total noise 2488 -> 2472.
+Preference-following improves by +1 hit id, -1 missing id, fourteen fewer
+bucket noise ids, one fewer incomplete case, one fewer zero-recall case, and
+one fewer wrong-recall/noise case; average preference-following recall rises
+to 0.6197. Target `6:preference_following:2` moves from 0 to 1.0 by returning
+exactly 222 and removing target noise
+1/106/129/190/191/200/201/203/46/94/36/37/124/125. Case-delta analysis shows
+no hit-loss, no newly-missing evidence, and no negative recall deltas; two
+non-target cases add one noise id each, but total noise decreases by sixteen.
+This remains partial BEAM progress, not closure: 191 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 332/400.
+The next same-source pass fixes the probability-ratio walkthrough preference
+case where the diagnostic selected nearby card-probability, probability
+instruction, dependent-card, and visual-diagram distractors instead of the
+user's explicit preference for step-by-step explanations with concrete examples
+like coin tosses and dice rolls. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-probability-ratio-current-20260531T150000Z`
+compares against the UK ATS resume run, has `executionFailures: 0`, and raises
+evidence-chat recall from 0.6001542588866535 to 0.6029711602951042, with global
+hit evidence ids 593 -> 594, missing ids 501 -> 500, missed-recall cases
+191 -> 190, wrong-recall/noise cases 332 -> 331, zero-recall cases 69 -> 68,
+and total noise 2472 -> 2462. Preference-following improves by +1 hit id,
+-1 missing id, eight fewer bucket noise ids, one fewer incomplete case, one
+fewer zero-recall case, and one fewer wrong-recall/noise case; average
+preference-following recall rises to 0.6453. Target `5:preference_following:1`
+moves from 0 to 1.0 by returning exactly 60 and removing target noise
+58/32/64/234/48/49/108/109. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas; one non-target
+event-ordering case adds net one noise id, but total noise decreases by ten.
+This remains partial BEAM progress, not closure: 190 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 331/400.
+The next same-source pass fixes the triangle area/median comparison preference
+case where the diagnostic selected median-only, later area-comparison,
+medians/altitudes, and broad congruence/similarity distractors instead of the
+user's explicit request to compare base-height and Heron's formula on the
+7/24/25 triangle while also applying the median length formula. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-triangle-area-median-current-20260531T160000Z`
+compares against the probability-ratio run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.6029711602951042 to 0.6057880617035549,
+with global hit evidence ids 594 -> 595, missing ids 500 -> 499,
+missed-recall cases 190 -> 189, wrong-recall/noise cases 331 -> 330,
+zero-recall cases 68 -> 67, and total noise 2462 -> 2458.
+Preference-following improves by +1 hit id, -1 missing id, six fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.6709. Target `4:preference_following:1` moves from 0 to 1.0 by returning
+exactly 116 and removing target noise 114/138/190/130/131/134/135.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; three non-target cases add one noise id each, but
+total noise decreases by four. This remains partial BEAM progress, not closure:
+189 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 330/400.
+The next same-source pass fixes the cover-letter measurable-impact preference
+case where portfolio, cover-letter experience, deadline, STAR-method,
+interview-prep, and 90-day-goal distractors displaced the user's explicit
+cover-letter request to show measurable project impact without too much
+flowery language. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-impact-current-20260531T170000Z`
+compares against the triangle area/median run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.6057880617035549 to
+0.6086049631120057, with global hit evidence ids 595 -> 596, missing ids
+499 -> 498, missed-recall cases 189 -> 188, wrong-recall/noise cases
+330 -> 329, zero-recall cases 67 -> 66, and total noise 2458 -> 2445.
+Preference-following improves by +1 hit id, -1 missing id, thirteen fewer
+bucket noise ids, one fewer incomplete case, one fewer zero-recall case, and
+one fewer wrong-recall/noise case; average preference-following recall rises
+to 0.6966. Target `8:preference_following:1` moves from 0 to 1.0 by returning
+exactly 34 and removing target noise
+8/9/33/54/55/111/145/147/58/59/186/187. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; two
+non-target cases add noise only, but total noise decreases by thirteen. This
+remains partial BEAM progress, not closure: 188 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 329/400.
+The next same-source pass fixes the cover-letter portfolio-link preference
+case where portfolio-update, two-column layout, workshop, single-column
+formatting, email-signature, deadline, and 90-day-goal distractors displaced
+the user's explicit request to integrate portfolio links directly into the
+cover letter without attaching separate documents. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-portfolio-links-current-20260531T180000Z`
+compares against the cover-letter measurable-impact run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6086049631120057 to 0.6114218645204564, with global hit evidence ids
+596 -> 598, missing ids 498 -> 496, missed-recall cases 188 -> 187,
+wrong-recall/noise cases 329 -> 328, zero-recall cases 66 -> 65, and total
+noise 2445 -> 2432. Preference-following improves by +2 hit ids, -2 missing
+ids, twelve fewer bucket noise ids, one fewer incomplete case, one fewer
+zero-recall case, and one fewer wrong-recall/noise case; average
+preference-following recall rises to 0.7222. Target
+`8:preference_following:2` moves from 0 to 1.0 by returning exactly 68/70 and
+removing target noise 8/9/43/61/78/79/182/183/58/59/186/187. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas; two non-target cases add one noise id each, but total noise decreases
+by thirteen. This remains partial BEAM progress, not closure: 187 evidence
+cases still miss and the full diagnostic remains noisy at wrong-recall/noise
+328/400.
+The next same-source pass fixes the AI-assisted editing workflow preference
+case where webinar promotion, final-draft deadline, weekend editing, generic
+writing-journey, and percentage-improvement distractors displaced the user's
+AI-editing preference and follow-up hybrid plan. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-ai-editing-workflow-current-20260531T190000Z`
+compares against the cover-letter portfolio-link run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6114218645204564 to 0.6132997987927569, with global hit evidence ids
+598 -> 600, missing ids 496 -> 494, missed-recall cases 187 -> 186,
+wrong-recall/noise cases 328 -> 327, zero-recall cases unchanged at 65, and
+total noise 2432 -> 2425. Preference-following improves by +2 hit ids, -2
+missing ids, seven fewer bucket noise ids, one fewer incomplete case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.7393. Target `10:preference_following:2` moves from 0.3333 to 1.0 by
+returning exactly 114/116/118, recovering 116/118, and removing target noise
+232/244/204/0/172/115/188/189. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas; non-target changes only
+affect noise ids while total noise decreases by seven. This remains partial
+BEAM progress, not closure: 186 evidence cases still miss and the full
+diagnostic remains noisy at wrong-recall/noise 327/400.
+The next same-source pass fixes the book-format portability preference case
+where broad book-series recommendations, genre-description instructions, book
+club history, and literary-event distractors displaced the user's format
+preference for portable e-books plus print editions for collecting or gifting.
+The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-book-format-current-20260531T200000Z`
+compares against the AI-assisted editing workflow run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6132997987927569 to 0.6161167002012076, with global hit evidence ids
+600 -> 601, missing ids 494 -> 493, missed-recall cases 186 -> 185,
+wrong-recall/noise cases 327 -> 326, zero-recall cases 65 -> 64, and total
+noise 2425 -> 2417. Preference-following improves by +1 hit id, -1 missing
+id, eight fewer bucket noise ids, one fewer incomplete case, one fewer
+zero-recall case, and one fewer wrong-recall/noise case; average
+preference-following recall rises to 0.7650. Target
+`13:preference_following:1` moves from 0 to 1.0 by returning exactly 58 and
+removing target noise 12/20/222/250/306/62/13/21. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; non-target
+changes only affect noise ids while total noise decreases by eight. This
+remains partial BEAM progress, not closure: 185 evidence cases still miss and
+the full diagnostic remains noisy at wrong-recall/noise 326/400.
+The next same-source pass fixes the balanced standalone/series reading-list
+preference case where reading-list template, bookstore, literary-event,
+book-series gift, and book-club distractors displaced the user's preference to
+mix standalone novels with series for variety and fatigue avoidance. The
+accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-reading-balance-current-20260531T210000Z`
+compares against the book-format portability run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.6161167002012076 to
+0.6189336016096583, with global hit evidence ids 601 -> 602, missing ids
+493 -> 492, missed-recall cases 185 -> 184, wrong-recall/noise cases
+326 -> 325, zero-recall cases 64 -> 63, and total noise 2417 -> 2408.
+Preference-following improves by +1 hit id, -1 missing id, ten fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.7906. Target `13:preference_following:2` moves from 0 to 1.0 by returning
+exactly 246 and removing target noise 148/4/232/136/306/62/98/99/124/125.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by nine. This remains partial BEAM progress, not closure: 184
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 325/400.
+The next same-source pass fixes the sleek neutral sneaker preference case
+where broad sneaker shopping, cleaning, sizing, athletic-store, and
+limited-edition distractors displaced the user's stated preference for sleek,
+modern black/gray sneakers and the follow-up Adidas Ultraboost / Nike Air
+VaporMax choice. A first real probe exposed an over-broad sneaker override
+that also matched a sneaker summary prompt, so the retained guard excludes
+summary questions. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-sleek-neutral-sneakers-narrow-current-20260531T223000Z`
+compares against the balanced reading-list run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.6189336016096583 to
+0.621750503018109, with global hit evidence ids 602 -> 604, missing ids
+492 -> 490, missed-recall cases 184 -> 183, wrong-recall/noise cases
+325 -> 324, zero-recall cases 63 -> 62, and total noise 2408 -> 2401.
+Preference-following improves by +2 hit ids, -2 missing ids, ten fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.8162. Target `15:preference_following:1` moves from 0 to 1.0 by returning
+exactly 28/30 and removing target noise 150/42/168/44/58/160/24/25/151.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by seven. This remains partial BEAM progress, not closure: 183
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 324/400.
+The next same-source pass fixes the structured daily routine preference case
+where generic structure, journaling, time-management, meeting, and creative
+focus distractors displaced the user's stated preference for a structured
+daily routine with 7 AM wake-up and 9 PM sleep times. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-structured-routine-current-20260531T230000Z`
+compares against the sleek neutral sneaker run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.621750503018109 to
+0.6245674044265597, with global hit evidence ids 604 -> 605, missing ids
+490 -> 489, missed-recall cases 183 -> 182, wrong-recall/noise cases
+324 -> 323, zero-recall cases 62 -> 61, and total noise 2401 -> 2390.
+Preference-following improves by +1 hit id, -1 missing id, eight fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.8419. Target `12:preference_following:2` moves from 0 to 1.0 by returning
+exactly 106 and removing target noise 150/340/78/80/144/145/200/201.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by eleven. This remains partial BEAM progress, not closure:
+182 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 323/400.
+The next same-source pass fixes the positive family movie review preference
+case where generic family movie-night, snack, planning-time, age-suitability,
+platform, and alternative-suggestion distractors displaced the user's stated
+preference for movies with positive family reviews like `Soul` and less than
+10% negative audience ratings. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-family-movie-reviews-current-20260531T233000Z`
+compares against the structured routine run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.6245674044265597 to
+0.6273843058350104, with global hit evidence ids 605 -> 606, missing ids
+489 -> 488, missed-recall cases 182 -> 181, wrong-recall/noise cases
+323 -> 322, zero-recall cases 61 -> 60, and total noise 2390 -> 2377.
+Preference-following improves by +1 hit id, -1 missing id, ten fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.8675. Target `14:preference_following:1` moves from 0 to 1.0 by returning
+exactly 92 and removing target noise 164/256/260/18/158/52/28/29/126/127.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by thirteen. This remains partial BEAM progress, not closure:
+181 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 322/400.
+The next same-source pass fixes the bilingual movie language-option preference
+case where broad actor-taste, home-theater, platform, alternative-film, and
+family-weekend distractors displaced the user's stated preference for movie
+recommendations with language options and subtitles to support Michelle's
+bilingual English/Spanish learning. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-bilingual-movie-language-current-20260601T000000Z`
+compares against the family movie review run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.6273843058350104 to
+0.6302012072434611, with global hit evidence ids 606 -> 607, missing ids
+488 -> 487, missed-recall cases 181 -> 180, wrong-recall/noise cases
+322 -> 321, zero-recall cases 60 -> 59, and total noise 2377 -> 2367.
+Preference-following improves by +1 hit id, -1 missing id, nine fewer bucket
+noise ids, one fewer incomplete case, one fewer zero-recall case, and one
+fewer wrong-recall/noise case; average preference-following recall rises to
+0.8932. Target `14:preference_following:2` moves from 0 to 1.0 by returning
+exactly 200 and removing target noise 34/196/198/22/52/158/35/42/43.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by ten. This remains partial BEAM progress, not closure: 180
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 321/400.
+The next same-source event-ordering pass fixes the family-support
+personal-statement sequence where broad personal-statement chatter about a
+career gap, documentary advice, Shawn storytelling advice, draft progress,
+Coursera, and scholarship submissions displaced the five real support turns.
+The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-family-support-personal-statement-current-20260531T091000Z`
+compares against the bilingual movie language-option run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6302012072434611 to 0.6330181086519118, with global hit evidence ids
+607 -> 612, missing ids 487 -> 482, missed-recall cases 180 -> 179,
+wrong-recall/noise cases 321 -> 320, zero-recall cases 59 -> 58, and total
+noise 2367 -> 2338. Event-ordering improves by +5 hit ids, -5 missing ids,
+31 fewer bucket noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average event-ordering recall
+rises to 0.4443. Target `9:event_ordering:2` moves from 0 to 1.0 by returning
+exactly 24/76/118/208/260 and removing target noise
+36/42/52/56/60/78/102/104/126/156/158/168/163/167/169/171/185/188/190/212/216/234/240/237/239/241/262/32/33/58/59.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by 29. This remains partial BEAM progress, not closure: 179
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 320/400.
+After the `/private/tmp/BEAM/100K.json` export disappeared again, the
+Hugging Face rows restore timed out, but the GitHub raw fallback restored the
+20-row 100K export. The next same-source event-ordering pass fixes the
+workload-management strategy/support sequence where evening-boundary,
+Pilates, software-choice, summer-camp, and generic schedule/stress turns
+displaced the five real workload-management turns. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-workload-management-current-20260531T142000Z`
+compares against the family-support personal-statement run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6330181086519118 to 0.6358350100603625, with global hit evidence ids
+612 -> 617, missing ids 482 -> 477, missed-recall cases 179 -> 178,
+wrong-recall/noise cases 320 -> 319, zero-recall cases 58 -> 57, and total
+noise 2338 -> 2314. Event-ordering improves by +5 hit ids, -5 missing ids,
+24 fewer bucket noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average event-ordering recall
+rises to 0.4693. Target `17:event_ordering:1` moves from 0 to 1.0 by
+returning exactly 26/88/154/202/248 and removing target noise
+45/59/60/104/105/106/107/110/116/123/144/153/156/160/163/166/182/197/198/260/261/262/274.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by 24. This remains partial BEAM progress, not closure: 178
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 319/400.
+The next same-source event-ordering pass fixes the financial-planning topic
+sequence where medical-bill, general financial-workshop, and automated-savings
+noise displaced Tamara/Ashlee milestone turns. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-financial-planning-current-20260531T143216Z`
+compares against the workload-management run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.6358350100603625 to 0.6386519114688132,
+with global hit evidence ids 617 -> 621, missing ids 477 -> 473,
+missed-recall cases 178 -> 177, wrong-recall/noise cases 319 -> 318,
+zero-recall cases 57 -> 56, and total noise 2314 -> 2291. Event-ordering
+improves by +4 hit ids, -4 missing ids, 23 fewer bucket noise ids, one fewer
+incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; average event-ordering recall rises to 0.4943.
+Target `16:event_ordering:1` moves from 0 to 1.0 by returning exactly
+22/66/132/256 and removing 24 target noise ids. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; small
+non-target changes only affect noise ids while total noise decreases by 23.
+This remains partial BEAM progress, not closure: 177 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 318/400.
+The next same-source event-ordering pass fixes the weather-app error and
+promise-rejection order case where broad weather-app implementation, caching,
+API, and test-coverage turns displaced the two packed source turns that contain
+all five requested milestones. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-weather-error-promise-current-20260531T151018Z`
+compares against the financial-planning run, has `executionFailures: 0`, and
+raises evidence-chat recall from 0.6386519114688132 to 0.6414688128772639,
+with global hit evidence ids 621 -> 623, missing ids 473 -> 471,
+missed-recall cases 177 -> 176, wrong-recall/noise cases 318 -> 317,
+zero-recall cases 56 -> 55, and total noise 2291 -> 2271. Event-ordering
+improves by +2 hit ids, -2 missing ids, 20 fewer bucket noise ids, one fewer
+incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; average event-ordering recall rises to 0.5193.
+Target `2:event_ordering:2` moves from 0 to 1.0 by returning exactly 28/162
+and removing 23 target noise ids. The first weather-error diagnostic attempt
+exposed an instruction-following hit loss, so the retained run includes the
+API error status-code instruction alias guard and preserves
+`2:instruction_following:1` at recall 1.0. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; small
+non-target changes only affect noise ids while total noise decreases by 20.
+This remains partial BEAM progress, not closure: 176 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 317/400.
+The next source-ordered summary pass fixes the triangle geometry progression
+summary where roof-truss, Law-of-Cosines, isosceles follow-up, broad
+congruence/similarity, and area-instruction distractors displaced the five
+turns covering right-angle verification, Heron's formula, base-height versus
+Heron comparison, median length, and median equal-area proof. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-triangle-summary-current-20260531T155937Z`
+compares against the weather-app error/promise-rejection run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6414688128772639 to 0.6442857142857146, with global hit evidence ids
+623 -> 628, missing ids 471 -> 466, missed-recall cases 176 -> 175,
+wrong-recall/noise cases 317 -> 316, zero-recall cases 55 -> 54, and total
+noise 2271 -> 2264. Summarization improves by +5 hit ids, -5 missing ids,
+five fewer bucket noise ids, one fewer incomplete case, one fewer
+zero-recall case, and one fewer wrong-recall/noise case; average
+summarization recall rises to 0.5771. Target `4:summarization:1` moves from 0
+to 1.0 by returning exactly 76/79/81/85/89 and removing target noise
+98/31/18/190/132. The first triangle-summary diagnostic attempt recovered
+only 89 and added target noise, so the retained rerun uses real-source
+lookahead facets for the long BEAM answers. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; small
+non-target changes only affect noise ids while total noise decreases by 7.
+This remains partial BEAM progress, not closure: 175 evidence cases still miss
+and the full diagnostic remains noisy at wrong-recall/noise 316/400.
+The next source-ordered summary pass fixes the study-abroad preparation
+summary where personal-statement deadline, documentary-transition,
+draft-editing, and leadership-section distractors displaced the five turns
+covering the April 20 personal statement goal with Tanya's support, Tanya's
+professional and emotional support framing, the Canadian study-visa decision,
+the Canadian study-visa interview preparation, and the Toronto warm-clothing
+budget. The first study-abroad diagnostic attempt
+`run-phase63-beam-100k-recall-diagnostic-rules-study-abroad-summary-current-20260531T162739Z`
+was a no-op because the visa-interview facet was too tight for the real BEAM
+source wording. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-study-abroad-summary-current-20260531T165532Z`
+compares against the triangle geometry summary run, has `executionFailures: 0`,
+and raises evidence-chat recall from 0.6442857142857146 to
+0.6471026156941653, with global hit evidence ids 628 -> 633, missing ids
+466 -> 461, missed-recall cases 175 -> 174, wrong-recall/noise cases
+316 -> 315, zero-recall cases 54 -> 53, and total noise 2264 -> 2255.
+Summarization improves by +5 hit ids, -5 missing ids, 10 fewer bucket noise
+ids, one fewer incomplete case, one fewer zero-recall case, and one fewer
+wrong-recall/noise case; average summarization recall rises to 0.6049.
+Target `9:summarization:1` moves from 0 to 1.0 by returning exactly
+8/77/131/133/205 and removing target noise 12/13/52/53/54/55/168/169/200/201.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; non-target changes only affect noise ids while total
+noise decreases by 9. This remains partial BEAM progress, not closure: 174
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 315/400.
+The next source-ordered summary pass fixes the estate-planning process
+summary where general estate-plan checklist, will-deadline, WillMaker,
+probate, binder, and charity-disagreement turns displaced the five turns
+covering Douglas estate provisions, Douglas-versus-Kevin executor choice,
+family executor concerns, the Douglas guardianship emergency-fund
+conversation, and Kevin's paralegal review of the will draft. The accepted
+rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-estate-planning-summary-current-20260601T004129Z`
+compares against the study-abroad preparation summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6471026156941653 to 0.649919517102616, with global hit evidence ids
+633 -> 638, missing ids 461 -> 456, missed-recall cases 174 -> 173,
+wrong-recall/noise cases 315 -> 314, zero-recall cases 53 -> 52, and total
+noise 2255 -> 2237. Summarization improves by +5 hit ids, -5 missing ids,
+16 fewer bucket noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average summarization recall
+rises to 0.6327. Target `19:summarization:1` moves from 0 to 1.0 by returning
+exactly 23/33/69/179/189 and removing target noise
+4/5/40/41/82/83/122/123/160/161/228/229/282/283/298/299. Case-delta analysis
+shows no hit-loss, no newly-missing evidence, and no negative recall deltas;
+one non-target information-extraction case swaps noise ids, while total noise
+still decreases by 18. This remains partial BEAM progress, not closure: 173
+evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 314/400.
+The next estate-planning summary pass fixes the will-finalization query where
+the real diagnostic route classified "what I need to know" wording as an
+open-loop slot query and returned before the source-ordered summary selector.
+The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-estate-will-finalization-narrow-20260601T014054Z`
+compares against the estate-planning process summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.649919517102616 to 0.6527364185110667, with global hit evidence ids
+638 -> 642, missing ids 456 -> 452, missed-recall cases 173 -> 172,
+wrong-recall/noise cases 314 -> 313, zero-recall cases 52 -> 51, and total
+noise 2237 -> 2232. Summarization improves by +4 hit ids, -4 missing ids,
+6 fewer bucket noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average summarization recall
+rises to 0.6605. Target `19:summarization:2` moves from 0 to 1.0 by returning
+exactly 34/85/183/221 and removing target noise 20/206/320/54/324/230.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
+negative recall deltas; total noise decreases by 5. This remains partial BEAM
+progress, not closure: 172 evidence cases still miss and the full diagnostic
+remains noisy at wrong-recall/noise 313/400.
+The next source-ordered summary pass fixes the time/stress/creative
+collaboration query where generic topical summary selection chose adjacent
+work-family, Trello, pilot deadline, gallery-stress, and productivity turns
+instead of the four cross-session management anchors. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-time-stress-collaboration-current-20260601T020928Z`
+compares against the estate will-finalization summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6527364185110667 to 0.6555533199195174, with global hit evidence ids
+642 -> 646, missing ids 452 -> 448, missed-recall cases 172 -> 171,
+wrong-recall/noise cases 313 -> 312, zero-recall cases 51 -> 50, and total
+noise 2232 -> 2223. Summarization improves by +4 hit ids, -4 missing ids,
+9 fewer bucket noise ids, one fewer incomplete case, one fewer zero-recall
+case, and one fewer wrong-recall/noise case; average summarization recall
+rises to 0.6882. Target `17:summarization:1` moves from 0 to 1.0 by returning
+exactly 22/45/113/257 and removing target noise
+12/13/89/127/141/201/211/229/267. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas; total noise decreases
+by 9. This remains partial BEAM progress, not closure: 171 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise
+312/400.
+The next source-ordered summary pass fixes the web-project issue-resolution
+summary where the generic project-summary route selected early portfolio setup
+noise instead of the full CSS, DOM, gallery, server-log, script-path,
+file-structure, and Formspree retry arc. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-web-project-issue-resolution-summary-current-20260601T040000Z`
+compares against the weather autocomplete summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.658088531187123 to 0.6605030181086522, with global hit evidence ids
+655 -> 667, missing ids 439 -> 427, missed-recall cases 170 -> 169,
+wrong-recall/noise cases 311 -> 310, zero-recall cases unchanged at 50, and
+total noise 2219 -> 2211. Summarization improves by +12 hit ids, -12 missing
+ids, 11 fewer bucket noise ids, one fewer incomplete case, and one fewer
+wrong-recall/noise case; average summarization recall rises to 0.737. Target
+`3:summarization:2` moves from 0.14285714285714285 to 1.0 by returning
+exactly 14/15/30/31/62/63/64/65/68/69/70/71/166/167 and removing target noise
+5/6/7/10/11/13/16/17/19/21/22. Case-delta analysis shows no hit-loss, no
+newly-missing evidence, and no negative recall deltas; total noise decreases
+by 8. This remains partial BEAM progress, not closure: 169 evidence cases
+still miss and the full diagnostic remains noisy at wrong-recall/noise
+310/400.
+The next source-ordered summary pass fixes the AI hiring process summary where
+the generic hiring-summary route selected adjacent hiring-topic turns instead
+of the full oversight, soft-skills, psychometric testing, fairness, Pymetrics,
+role-transition, fairness-metrics, and stress-reduction automation arc. The
+accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-process-summary-current-20260601T050000Z`
+compares against the web-project issue-resolution summary run, has
+`executionFailures: 0`, and raises evidence-chat recall from
+0.6605030181086522 to 0.6629678068410465, with global hit evidence ids
+667 -> 674, missing ids 427 -> 420, missed-recall cases 169 -> 168,
+wrong-recall/noise cases 310 -> 309, zero-recall cases unchanged at 50, and
+total noise 2211 -> 2197. Summarization improves by +7 hit ids, -7 missing
+ids, 15 fewer bucket noise ids, one fewer incomplete case, and one fewer
+wrong-recall/noise case; average summarization recall rises to 0.7613. Target
+`11:summarization:1` moves from 0.125 to 1.0 by returning exactly
+25/27/29/63/107/160/192/224 and removing target noise
+106/154/155/170/171/246/247/288/289/338/339/342/343/374/375. Case-delta
+analysis shows no hit-loss, no newly-missing evidence, and no negative recall
+deltas; total noise decreases by 14. This remains partial BEAM progress, not
+closure: 168 evidence cases still miss and the full diagnostic remains noisy at
+wrong-recall/noise 309/400.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

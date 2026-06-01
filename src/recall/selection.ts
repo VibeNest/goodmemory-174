@@ -50,6 +50,7 @@ import {
 } from "./selectors/conversationEvidence";
 import { selectContradictionEvidencePair } from "./selectors/contradiction";
 import {
+  isExclusiveSourcePreferenceQuery,
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
@@ -59,6 +60,7 @@ import {
   selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
 } from "./selectors/sourceOrderReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
+import { isSourceOrderedEstateDocumentSummaryQuery } from "./selectors/sourceOrderSummaryPatterns";
 import {
   SOURCE_ORDER_EVENT_RECALL_LIMIT,
   fillSourceOrderedTemporalCompanions,
@@ -255,6 +257,7 @@ export function selectFacts(
     );
   };
   const slotSpecificFactQuery =
+    !isSourceOrderedEstateDocumentSummaryQuery(query) &&
     !aggregateEvidenceQuery &&
     !isSeniorProducerPreparationPriorityQuery(query) &&
     (
@@ -665,7 +668,7 @@ export function selectFacts(
         queryLocale,
       });
   const seniorProducerPreparationPlanActive = isSeniorProducerPreparationPriorityQuery(query) && reasoningBridgeCandidates.length > 0;
-  const instructionEvidenceCandidates =
+  const sourceOrderedSelectorActive =
     timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
@@ -673,25 +676,22 @@ export function selectFacts(
     householdBudgetReasoningQuery ||
     seniorProducerPreparationPlanActive ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
-    sourceOrderedNamedEntityEventPlanActive
+    sourceOrderedNamedEntityEventPlanActive;
+  const exclusiveSourcePreferenceQuery = isExclusiveSourcePreferenceQuery(query);
+  const sourcePreferenceCandidates =
+    sourceOrderedSelectorActive && !exclusiveSourcePreferenceQuery
       ? []
-      : selectInstructionEvidence({
+      : selectSourcePreferenceEvidence({
           entries: compatible,
           language,
           query,
           queryLocale,
         });
-  const sourcePreferenceCandidates =
-    timelineIntegrationCandidates.length > 0 ||
-    summaryCoverageCandidates.length > 0 ||
-    broadAspectEventOrderCandidates.length > 0 ||
-    informationExtractionCandidates.length > 0 ||
-    householdBudgetReasoningQuery ||
-    seniorProducerPreparationPlanActive ||
-    sourceOrderedValueUpdateCandidates.length > 0 ||
-    sourceOrderedNamedEntityEventPlanActive
+  const sourcePreferenceExclusiveQuery = exclusiveSourcePreferenceQuery && sourcePreferenceCandidates.length > 0;
+  const instructionEvidenceCandidates =
+    sourceOrderedSelectorActive || sourcePreferenceExclusiveQuery
       ? []
-      : selectSourcePreferenceEvidence({
+      : selectInstructionEvidence({
           entries: compatible,
           language,
           query,
@@ -726,6 +726,7 @@ export function selectFacts(
   };
 
   const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
+    if (sourcePreferenceExclusiveQuery) return false;
     switch (selectorId) {
       case "contradiction_evidence_pair": {
         if (contradictionEvidencePair.length === 0) {
@@ -1016,7 +1017,7 @@ export function selectFacts(
         return true;
       }
       case "intent_signal": {
-        if (withIntentSignal.length === 0) {
+        if (sourcePreferenceExclusiveQuery || withIntentSignal.length === 0) {
           return false;
         }
 
@@ -1026,7 +1027,7 @@ export function selectFacts(
         return true;
       }
       case "lexical_or_subject_signal": {
-        if (withLexicalOrSubjectSignal.length === 0) {
+        if (sourcePreferenceExclusiveQuery || withLexicalOrSubjectSignal.length === 0) {
           return false;
         }
 

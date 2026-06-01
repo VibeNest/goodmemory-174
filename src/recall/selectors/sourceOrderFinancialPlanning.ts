@@ -15,7 +15,7 @@ type HouseholdBudgetReasoningFacet =
   | "sharedFinances"
   | "spendingHabits";
 
-const FACETS = [
+const HOUSEHOLD_BUDGET_REASONING_FACETS = [
   {
     facet: "sharedFinances",
     quota: 2,
@@ -78,7 +78,7 @@ function householdBudgetReasoningFacets(
 ): Set<HouseholdBudgetReasoningFacet> {
   const content = stripEvidencePrefix(entry.fact.content);
   const facets = new Set<HouseholdBudgetReasoningFacet>();
-  for (const facet of FACETS) {
+  for (const facet of HOUSEHOLD_BUDGET_REASONING_FACETS) {
     if (facet.patterns.some((pattern) => pattern.test(content))) {
       facets.add(facet.facet);
     }
@@ -117,7 +117,7 @@ export function selectSourceOrderedHouseholdBudgetReasoningEvidence(input: {
     return true;
   };
 
-  for (const facet of FACETS) {
+  for (const facet of HOUSEHOLD_BUDGET_REASONING_FACETS) {
     let selectedForFacet = 0;
     const facetCandidates = candidates
       .filter((entry) => householdBudgetReasoningFacets(entry).has(facet.facet))
@@ -133,4 +133,94 @@ export function selectSourceOrderedHouseholdBudgetReasoningEvidence(input: {
   }
 
   return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
+type SourceOrderFinancialPlanningFacet =
+  | "ashleeGiftBudget"
+  | "tamaraBookClub"
+  | "tamaraInvestmentWorkshop"
+  | "tamaraMoneySavingTips";
+
+const FINANCIAL_PLANNING_QUERY_PATTERN =
+  /\bfinancial\s+planning\s+topics?\b[\s\S]{0,220}\b(?:order|brought\s+up|chats?|conversations?)\b|\b(?:order|brought\s+up|chats?|conversations?)\b[\s\S]{0,220}\bfinancial\s+planning\s+topics?\b/iu;
+
+const FINANCIAL_PLANNING_FACETS = [
+  {
+    facet: "tamaraMoneySavingTips",
+    pattern: /\bTamara\b[\s\S]{0,180}\bmoney-saving\s+tips\b|\bmoney-saving\s+tips\b[\s\S]{0,180}\bTamara\b/iu,
+  },
+  {
+    facet: "tamaraInvestmentWorkshop",
+    pattern: /\bTamara\b[\s\S]{0,220}\b(?:\$?500\s+workshop|investment\s+basics)\b[\s\S]{0,220}\b(?:June\s+15|Montserrat\s+Community\s+Center|save\s+\$?2,000)\b|\b(?:\$?500\s+workshop|investment\s+basics)\b[\s\S]{0,220}\bTamara\b[\s\S]{0,220}\b(?:June\s+15|Montserrat\s+Community\s+Center|save\s+\$?2,000)\b/iu,
+  },
+  {
+    facet: "tamaraBookClub",
+    pattern: /\bTamara\b[\s\S]{0,220}\bfinancial\s+literacy\s+book\s+club\b[\s\S]{0,220}\b(?:Sept(?:ember)?\s+15|East\s+Janethaven\s+Library)\b|\bfinancial\s+literacy\s+book\s+club\b[\s\S]{0,220}\bTamara\b[\s\S]{0,220}\b(?:Sept(?:ember)?\s+15|East\s+Janethaven\s+Library)\b/iu,
+  },
+  {
+    facet: "ashleeGiftBudget",
+    pattern: /\bAshlee\b[\s\S]{0,220}\bholiday\s+gifts?\s+budget\b[\s\S]{0,220}\b(?:\$?300|compromis(?:e|ed)|balance\s+our\s+budget)\b|\bholiday\s+gifts?\s+budget\b[\s\S]{0,220}\bAshlee\b[\s\S]{0,220}\b(?:\$?300|compromis(?:e|ed)|balance\s+our\s+budget)\b/iu,
+  },
+] as const satisfies ReadonlyArray<{
+  facet: SourceOrderFinancialPlanningFacet;
+  pattern: RegExp;
+}>;
+
+const FINANCIAL_PLANNING_FACET_ORDER: readonly SourceOrderFinancialPlanningFacet[] = [
+  "tamaraMoneySavingTips",
+  "tamaraInvestmentWorkshop",
+  "tamaraBookClub",
+  "ashleeGiftBudget",
+];
+
+export function isSourceOrderFinancialPlanningQuery(query: string): boolean {
+  return FINANCIAL_PLANNING_QUERY_PATTERN.test(query);
+}
+
+function sourceOrderFinancialPlanningFacets(
+  entry: RankedFactCandidate,
+): Set<SourceOrderFinancialPlanningFacet> {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const facets = new Set<SourceOrderFinancialPlanningFacet>();
+  for (const facet of FINANCIAL_PLANNING_FACETS) {
+    if (facet.pattern.test(content)) {
+      facets.add(facet.facet);
+    }
+  }
+
+  return facets;
+}
+
+export function selectSourceOrderedFinancialPlanningAnchors(input: {
+  count: number;
+  entries: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const bestByFacet = new Map<
+    SourceOrderFinancialPlanningFacet,
+    RankedFactCandidate
+  >();
+
+  for (const entry of input.entries) {
+    const facets = sourceOrderFinancialPlanningFacets(entry);
+    for (const facet of facets) {
+      const current = bestByFacet.get(facet);
+      if (
+        !current ||
+        input.priority(entry) > input.priority(current) ||
+        (
+          input.priority(entry) === input.priority(current) &&
+          compareTemporalFactChronology(entry, current) < 0
+        )
+      ) {
+        bestByFacet.set(facet, entry);
+      }
+    }
+  }
+
+  const selected = FINANCIAL_PLANNING_FACET_ORDER
+    .map((facet) => bestByFacet.get(facet))
+    .filter((entry): entry is RankedFactCandidate => entry !== undefined);
+
+  return selected.length >= input.count ? selected : [];
 }

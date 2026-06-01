@@ -1172,8 +1172,8 @@ describe("goodmemory cli host bootstrap", () => {
         join(workspace.root, ".goodmemory/bootstrap/codex-export.mjs"),
         "utf8",
       );
-      expect(script).toContain('from "goodmemory"');
-      expect(script).toContain('from "goodmemory/host"');
+      expect(script).toContain('import("goodmemory")');
+      expect(script).toContain('import("goodmemory/host")');
       expect(script).toContain("session-memory/current.md");
       expect(script).not.toContain('"codex-active"');
       expect(script).not.toContain("../src");
@@ -1950,8 +1950,8 @@ describe("goodmemory cli host bootstrap", () => {
         join(workspace.root, ".goodmemory/bootstrap/claude-export.mjs"),
         "utf8",
       );
-      expect(script).toContain('from "goodmemory"');
-      expect(script).toContain('from "goodmemory/host"');
+      expect(script).toContain('import("goodmemory")');
+      expect(script).toContain('import("goodmemory/host")');
       expect(script).not.toContain('"claude-active"');
       expect(script).toContain('readTextFlag(flags, "session-id")');
       expect(script).not.toContain("../src");

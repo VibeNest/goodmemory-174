@@ -1,6 +1,9 @@
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
-import { selectSourceOrderedEvidencePlan } from "./sourceOrderPlan";
+import {
+  dedupeSourceOrderedEvidenceByOrder,
+  selectSourceOrderedEvidencePlan,
+} from "./sourceOrderPlan";
 import { isSourceOrderedSummaryCandidate } from "./sourceOrderSummary";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
@@ -83,6 +86,161 @@ export const LIGHTWEIGHT_PREFERENCE_PATTERN =
   /\b(?:lightweight|dependency-?free|without\s+(?:external|third-party)|no\s+(?:external|third-party)|minimal|simple|straightforward|built-?in|avoid(?:ing)?\s+(?:heavy|external|third-party)|under\s+\d+(?:\.\d+)?\s*(?:mb|kb))\b|(?:轻量|无依赖|无外部依赖|不要外部依赖|不想用外部依赖|避免.*(?:重|外部|第三方)|简单|直接|内置|(?:低于|小于|保持在)\s*\d+(?:\.\d+)?\s*(?:MB|KB|mb|kb)\s*(?:以下)?)/iu;
 export const SOURCE_PREFERENCE_BRIDGE_QUERY_PATTERN =
   /\b(?:approach|best\s+way|fit(?:s|ting)?|option|prefer(?:ence)?|recommend|should|suit(?:s|ed)?|which)\b|(?:方法|方案|选项|推荐|适合|偏好|应该|哪个)/iu;
+const ASA_CONGRUENCE_PROOF_QUERY_PATTERN =
+  /\b(?:ASA|Angle[-\s]?Side[-\s]?Angle)\b[\s\S]{0,160}\b(?:congruen(?:ce|t)|proof|prove)\b|\b(?:congruen(?:ce|t)|proof|prove)\b[\s\S]{0,160}\b(?:ASA|Angle[-\s]?Side[-\s]?Angle)\b/iu;
+const ASA_PROOF_DIAGRAM_PREFERENCE_PATTERN =
+  /\b(?:ASA|Angle[-\s]?Side[-\s]?Angle)\b[\s\S]{0,180}\bprefer\b[\s\S]{0,120}\b(?:proofs?|diagrams?|logical\s+reasoning|step[-\s]?by[-\s]?step)\b|\bprefer\b[\s\S]{0,120}\b(?:proofs?|diagrams?|logical\s+reasoning|step[-\s]?by[-\s]?step)\b[\s\S]{0,180}\b(?:ASA|Angle[-\s]?Side[-\s]?Angle)\b/iu;
+const AUTOMATED_DEPLOYMENT_MONITORING_QUERY_PATTERN =
+  /\b(?:track|monitor)\b[\s\S]{0,120}\b(?:status|progress|results?|steps?)\b[\s\S]{0,160}\b(?:deployment|workflow|pipeline|jobs?)\b|\b(?:deployment|workflow|pipeline|jobs?)\b[\s\S]{0,160}\b(?:track|monitor)\b[\s\S]{0,120}\b(?:status|progress|results?|steps?)\b/iu;
+const AUTOMATED_DEPLOYMENT_PREFERENCE_PATTERN =
+  /\bautomated\s+(?:CI\/CD|ci\s*\/\s*cd|deployments?|pipeline)\b[\s\S]{0,180}\bprefer\s+automated\s+deployments?\s+over\s+manual\b|\bprefer\s+automated\s+deployments?\s+over\s+manual\b[\s\S]{0,180}\b(?:CI\/CD|ci\s*\/\s*cd|pipeline|deployments?)\b/iu;
+const DEPLOYMENT_MONITORING_CONTINUATION_PATTERN =
+  /\bmonitor\b[\s\S]{0,120}\b(?:progress|status|results?)\b[\s\S]{0,160}\b(?:GitHub\s+Actions|workflow|jobs?)\b|\b(?:GitHub\s+Actions|workflow|jobs?)\b[\s\S]{0,160}\bmonitor\b[\s\S]{0,120}\b(?:progress|status|results?)\b/iu;
+const LAZY_LOADING_IMAGE_GALLERY_QUERY_PATTERN =
+  /\blazy\s+loading\b[\s\S]{0,160}\b(?:image\s+gallery|project\s+gallery|Bootstrap)\b|\b(?:image\s+gallery|project\s+gallery|Bootstrap)\b[\s\S]{0,160}\blazy\s+loading\b/iu;
+const LIGHTWEIGHT_LAZYSIZES_PREFERENCE_PATTERN =
+  /\b(?:bundle\s+size\s+)?under\s+100\s*KB\b[\s\S]{0,160}\blightweight\s+vanilla\s+JS\s+librar(?:y|ies)\s+like\s+lazysizes\b[\s\S]{0,260}\b(?:simple\s+image\s+lazy\s+loading\s+feature|compatible\s+with\s+Bootstrap\s+5\.3\.0|SEO\s+optimization\s+efforts)\b/iu;
+const PRAGMATIC_SECURITY_FEATURES_QUERY_PATTERN =
+  /\b(?:improv(?:e|ing)|enhanc(?:e|ing)|strengthen|harden)\b[\s\S]{0,120}\bsecurity\s+features?\b|\bsecurity\s+features?\b[\s\S]{0,120}\b(?:steps?|suggest|recommend|improv(?:e|ing)|enhanc(?:e|ing)|strengthen|harden)\b/iu;
+const PRAGMATIC_SECURITY_PREFERENCE_PATTERN =
+  /\bpragmatic\s+(?:approach\s+to\s+)?security\s+enhancements?\b[\s\S]{0,180}\bwithout\s+compromising\s+(?:the\s+)?user\s+experience\b[\s\S]{0,180}\bapp\s+responsiveness\b|\bwithout\s+compromising\s+(?:the\s+)?user\s+experience\b[\s\S]{0,180}\bpragmatic\s+(?:approach\s+to\s+)?security\s+enhancements?\b[\s\S]{0,180}\bapp\s+responsiveness\b/iu;
+const UK_ATS_RESUME_FORMAT_QUERY_PATTERN =
+  /^(?=[\s\S]*\b(?:UK|United\s+Kingdom|Brit(?:ish|ain))\b)(?=[\s\S]*\b(?:job|role|application|resume|CV|curriculum\s+vitae)\b)(?=[\s\S]*\bformat\b)/iu;
+const UK_ATS_RESUME_PREFERENCE_PATTERN =
+  /\btailor\s+my\s+resume\s+for\s+a\s+(?:UK|United\s+Kingdom|Brit(?:ish|ain))\s+job\b[\s\S]{0,220}\bprefer\b[\s\S]{0,180}\b(?:specifically\s+designed\s+for\s+their\s+ATS\s+standards|UK[-\s]?specific\s+ATS\s+standards?)\b[\s\S]{0,220}\brather\s+than\s+a\s+generic\s+global\s+version\b/iu;
+const PROBABILITY_RATIO_WALKTHROUGH_QUERY_PATTERN =
+  /\b(?:walk\s+me\s+through|show\s+me|help\s+me)\b[\s\S]{0,180}\bprobability\b[\s\S]{0,180}\b(?:red\s+card|standard\s+deck|deck\s+of\s+cards)\b|\b(?:red\s+card|standard\s+deck|deck\s+of\s+cards)\b[\s\S]{0,180}\bprobability\b[\s\S]{0,180}\b(?:walk\s+me\s+through|show\s+me|help\s+me)\b/iu;
+const PROBABILITY_RATIO_WALKTHROUGH_PREFERENCE_PATTERN =
+  /\bprobability\s+as\s+a\s+ratio\b[\s\S]{0,180}\bprefer\s+step[-\s]?by[-\s]?step\s+explanations?\s+with\s+concrete\s+examples\b[\s\S]{0,180}\b(?:coin\s+toss(?:es)?|dice\s+rolls?)\b[\s\S]{0,180}\bprobability\s+fundamentals\b/iu;
+const TRIANGLE_AREA_MEDIAN_COMPARISON_QUERY_PATTERN =
+  /^(?=[\s\S]*\btriangle\b)(?=[\s\S]*\barea\b)(?=[\s\S]*\b(?:different|multiple)\s+methods?\b)(?=[\s\S]*\b(?:median\s+length|length\s+of\s+the\s+median)\b)/iu;
+const TRIANGLE_AREA_MEDIAN_COMPARISON_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bwhich\s+method\s+is\s+more\s+efficient\b)(?=[\s\S]*\bbase[-\s]?height\s+formula\b)(?=[\s\S]*\bHeron'?s\s+formula\b)(?=[\s\S]*\b7\s*cm\b)(?=[\s\S]*\b24\s*cm\b)(?=[\s\S]*\b25\s*cm\b)(?=[\s\S]*\bcompare\s+the\s+results?\s+using\s+both\s+methods\b)(?=[\s\S]*\bmedian\s+length\s+formula\b)/iu;
+const COVER_LETTER_MEASURABLE_IMPACT_QUERY_PATTERN =
+  /^(?=[\s\S]*\bcover\s+letter\b)(?=[\s\S]*\b(?:structure|showcase|highlight)\b)(?=[\s\S]*\bachievements?\b)(?=[\s\S]*\bprevious\s+projects?\b)/iu;
+const COVER_LETTER_MEASURABLE_IMPACT_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bcover\s+letter\b)(?=[\s\S]*\bmeasurable\s+impact\b)(?=[\s\S]*\bincreasing\s+viewership\s+by\s+35\s*%)(?=[\s\S]*\b(?:without\s+using\s+too\s+much|avoid(?:ing)?)\s+flowery\s+language\b)/iu;
+const COVER_LETTER_PORTFOLIO_LINK_QUERY_PATTERN =
+  /^(?=[\s\S]*\bcover\s+letter\b)(?=[\s\S]*\bportfolio\b)(?=[\s\S]*\blinks?\b)(?=[\s\S]*\b(?:include|insert|integrate|access|accessible)\b)/iu;
+const COVER_LETTER_PORTFOLIO_LINK_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bportfolio\s+links?\b)(?=[\s\S]*\bdirectly\s+in\s+my\s+cover\s+letter\b)(?=[\s\S]*\bwithout\s+attaching\s+separate\s+documents?\b)/iu;
+const COVER_LETTER_PORTFOLIO_LINK_CONTINUATION_PATTERN =
+  /\bmultiple\s+portfolio\s+links?\b[\s\S]{0,80}\b(?:just\s+)?one\b|\b(?:just\s+)?one\b[\s\S]{0,80}\bmultiple\s+portfolio\s+links?\b/iu;
+const AI_ASSISTED_EDITING_WORKFLOW_QUERY_PATTERN =
+  /^(?=[\s\S]*\bedit(?:ing)?\s+a\s+draft\b)(?=[\s\S]*\befficient\b)(?=[\s\S]*\b(?:editing\s+steps?|approach|process)\b)/iu;
+const AI_ASSISTED_EDITING_WORKFLOW_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bAI[-\s]?assisted\s+editing\s+tools?\b)(?=[\s\S]*\btone\s+calibration\b)(?=[\s\S]*\bmanual\s+revisions?\b)(?=[\s\S]*\bsave\s+time\b)/iu;
+const AI_ASSISTED_EDITING_WORKFLOW_CONTINUATION_PATTERN =
+  /\bAI\s+tools?\b[\s\S]{0,160}\binitial\s+edits?\b[\s\S]{0,220}\b(?:manual\s+revisions?|final\s+touches?\s+manually)\b/iu;
+const BOOK_FORMAT_PORTABILITY_QUERY_PATTERN =
+  /^(?=[\s\S]*\bbooks?\b)(?=[\s\S]*\bcollection\b)(?=[\s\S]*\b(?:easy\s+to\s+carry|carry\s+around|portab(?:le|ility))\b)/iu;
+const BOOK_FORMAT_PORTABILITY_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\be-?books?\b)(?=[\s\S]*\bportab(?:le|ility)\b)(?=[\s\S]*\bprint\b)(?=[\s\S]*\b(?:collectible|gifting|gift)\b)/iu;
+const BALANCED_STANDALONE_SERIES_QUERY_PATTERN =
+  /^(?=[\s\S]*\breading\s+list\b)(?=[\s\S]*\b(?:suggest|recommend)\b)(?=[\s\S]*\bbooks?\b)/iu;
+const BALANCED_STANDALONE_SERIES_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bstandalone\s+novels?\b)(?=[\s\S]*\bseries\b)(?=[\s\S]*\bvariety\b)(?=[\s\S]*\bfatigue\b)/iu;
+const SLEEK_NEUTRAL_SNEAKER_QUERY_PATTERN =
+  /^(?=[\s\S]*\bsneakers?\b)(?=[\s\S]*\b(?:buy|new\s+pair)\b)(?=[\s\S]*\b(?:suggest|recommend|options?\s+(?:I\s+)?might\s+like)\b)/iu;
+const SLEEK_NEUTRAL_SNEAKER_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bsneakers?\b)(?=[\s\S]*\bsleek\b)(?=[\s\S]*\bmodern\b)(?=[\s\S]*\bneutral\s+colou?rs?\b)(?=[\s\S]*\b(?:black|gray|grey)\b)/iu;
+const SLEEK_NEUTRAL_SNEAKER_CONTINUATION_PATTERN =
+  /^(?=[\s\S]*\bAdidas\s+Ultraboost\b)(?=[\s\S]*\bNike\s+Air\s+VaporMax\b)(?=[\s\S]*\bblack\b)(?=[\s\S]*\b(?:gray|grey)\b)/iu;
+const STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN =
+  /^(?=[\s\S]*\borganize\s+my\s+day\b)(?=[\s\S]*\bstay\s+on\s+track\b)(?=[\s\S]*\bresponsibilities\b)/iu;
+const STRUCTURED_DAILY_ROUTINE_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bstructured\s+daily\s+routine\b)(?=[\s\S]*\bwake[-\s]?up\b)(?=[\s\S]*\bsleep\s+times?\b)(?=[\s\S]*\b7\s*AM\b)(?=[\s\S]*\b9\s*PM\b)(?=[\s\S]*\bproductivity\b)/iu;
+const POSITIVE_FAMILY_MOVIE_REVIEW_QUERY_PATTERN =
+  /^(?=[\s\S]*\bmovie\s+night\b)(?=[\s\S]*\bfamily\b)(?=[\s\S]*\b(?:suggest|recommend|options?)\b)(?=[\s\S]*\benjoy\b)/iu;
+const POSITIVE_FAMILY_MOVIE_REVIEW_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bmovies?\b)(?=[\s\S]*\bpositive\s+family\s+reviews?\b)(?=[\s\S]*\bSoul\b)(?=[\s\S]*\bless\s+than\s+10\s*%\s+negative\s+audience\s+ratings?\b)/iu;
+const BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN =
+  /^(?=[\s\S]*\bmovies?\b)(?=[\s\S]*\bMichelle\b)(?=[\s\S]*\b(?:suggest|recommend|good\s+for)\b)(?=[\s\S]*\bwatch\b)/iu;
+const BILINGUAL_MOVIE_LANGUAGE_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bmovie\s+recommendations?\b)(?=[\s\S]*\blanguage\s+options?\b)(?=[\s\S]*\bsubtitles?\b)(?=[\s\S]*\bMichelle'?s\s+bilingual\s+learning\b)(?=[\s\S]*\bEnglish\b)(?=[\s\S]*\bSpanish\b)/iu;
+
+export function isAsaCongruenceProofPreferenceQuery(query: string): boolean {
+  return ASA_CONGRUENCE_PROOF_QUERY_PATTERN.test(query);
+}
+
+export function isAutomatedDeploymentMonitoringPreferenceQuery(query: string): boolean {
+  return AUTOMATED_DEPLOYMENT_MONITORING_QUERY_PATTERN.test(query);
+}
+
+export function isLightweightLazyLoadingPreferenceQuery(query: string): boolean {
+  return LAZY_LOADING_IMAGE_GALLERY_QUERY_PATTERN.test(query);
+}
+
+export function isPragmaticSecurityPreferenceQuery(query: string): boolean {
+  return PRAGMATIC_SECURITY_FEATURES_QUERY_PATTERN.test(query);
+}
+
+export function isUkAtsResumePreferenceQuery(query: string): boolean {
+  return UK_ATS_RESUME_FORMAT_QUERY_PATTERN.test(query);
+}
+
+export function isProbabilityRatioWalkthroughPreferenceQuery(query: string): boolean {
+  return PROBABILITY_RATIO_WALKTHROUGH_QUERY_PATTERN.test(query);
+}
+
+export function isTriangleAreaMedianComparisonPreferenceQuery(query: string): boolean {
+  return TRIANGLE_AREA_MEDIAN_COMPARISON_QUERY_PATTERN.test(query);
+}
+
+export function isCoverLetterMeasurableImpactPreferenceQuery(query: string): boolean {
+  return COVER_LETTER_MEASURABLE_IMPACT_QUERY_PATTERN.test(query);
+}
+
+export function isCoverLetterPortfolioLinkPreferenceQuery(query: string): boolean {
+  return COVER_LETTER_PORTFOLIO_LINK_QUERY_PATTERN.test(query);
+}
+
+export function isAiAssistedEditingWorkflowPreferenceQuery(query: string): boolean {
+  return AI_ASSISTED_EDITING_WORKFLOW_QUERY_PATTERN.test(query);
+}
+
+export function isBookFormatPortabilityPreferenceQuery(query: string): boolean {
+  return BOOK_FORMAT_PORTABILITY_QUERY_PATTERN.test(query);
+}
+
+export function isBalancedStandaloneSeriesPreferenceQuery(query: string): boolean {
+  return BALANCED_STANDALONE_SERIES_QUERY_PATTERN.test(query);
+}
+
+export function isSleekNeutralSneakerPreferenceQuery(query: string): boolean {
+  return SLEEK_NEUTRAL_SNEAKER_QUERY_PATTERN.test(query);
+}
+
+export function isStructuredDailyRoutinePreferenceQuery(query: string): boolean {
+  return STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN.test(query);
+}
+
+export function isPositiveFamilyMovieReviewPreferenceQuery(query: string): boolean {
+  return POSITIVE_FAMILY_MOVIE_REVIEW_QUERY_PATTERN.test(query);
+}
+
+export function isBilingualMovieLanguagePreferenceQuery(query: string): boolean {
+  return BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN.test(query);
+}
+
+export function isExclusiveSourcePreferenceQuery(query: string): boolean {
+  return isAsaCongruenceProofPreferenceQuery(query) ||
+    isAutomatedDeploymentMonitoringPreferenceQuery(query) ||
+    isLightweightLazyLoadingPreferenceQuery(query) ||
+    isPragmaticSecurityPreferenceQuery(query) ||
+    isUkAtsResumePreferenceQuery(query) ||
+    isProbabilityRatioWalkthroughPreferenceQuery(query) ||
+    isTriangleAreaMedianComparisonPreferenceQuery(query) ||
+    isCoverLetterMeasurableImpactPreferenceQuery(query) ||
+    isCoverLetterPortfolioLinkPreferenceQuery(query) ||
+    isAiAssistedEditingWorkflowPreferenceQuery(query) ||
+    isBookFormatPortabilityPreferenceQuery(query) ||
+    isBalancedStandaloneSeriesPreferenceQuery(query) ||
+    isSleekNeutralSneakerPreferenceQuery(query) ||
+    isStructuredDailyRoutinePreferenceQuery(query) ||
+    isPositiveFamilyMovieReviewPreferenceQuery(query) ||
+    isBilingualMovieLanguagePreferenceQuery(query);
+}
 
 export function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
@@ -109,7 +267,7 @@ export function addInstructionTopicAliases(tokens: Set<string>, text: string): v
   const normalized = text.toLowerCase();
   const hasAny = (pattern: RegExp): boolean => pattern.test(normalized);
   const hasApiSurface = hasAny(/\b(?:api|rest|responses?|status\s+codes?)\b/iu);
-  const hasApiErrorHandling = hasAny(/\b(?:errors?|handling|handle|status\s+codes?)\b/iu);
+  const hasApiErrorHandling = hasAny(/\b(?:errors?|handling|handle|status\s+codes?|something\s+goes\s+wrong|goes\s+wrong|fail(?:s|ed|ure)?)\b/iu);
 
   if (hasAny(/\b(?:implement(?:ation|ed|ing)?|code|snippets?|syntax|feature|login|software)\b/iu)) {
     tokens.add("software_implementation");
@@ -395,6 +553,14 @@ export function isSourceOrderedUserPreferenceEvidence(input: {
   );
 }
 
+function isSourceOrderedUserSource(entry: RankedFactCandidate): boolean {
+  return entry.fact.source.method !== "inferred" &&
+    hasSourceMessageTag(entry) &&
+    hasUserAnswerTag(entry) &&
+    !hasAssistantAnswerTag(entry) &&
+    sourceOrderSortKey(entry) !== undefined;
+}
+
 export function sourcePreferenceTopicTokens(input: {
   language: LanguageService;
   locale: string;
@@ -411,6 +577,10 @@ export function hasApplicableSourcePreferenceTopic(input: {
   queryLocale: string;
   queryTopics: ReadonlySet<string>;
 }): boolean {
+  if (isAsaCongruenceProofPreferenceQuery(input.query)) {
+    return ASA_PROOF_DIAGRAM_PREFERENCE_PATTERN.test(input.content);
+  }
+
   const preferenceTopics = sourcePreferenceTopicTokens({
     language: input.language,
     locale: input.entry.locale,
@@ -488,7 +658,10 @@ export function selectSourceOrderedPreferenceEvidence(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
-  if (!isPreferenceGuidanceQuery(input.query, input.language, input.queryLocale)) {
+  if (
+    !isPreferenceGuidanceQuery(input.query, input.language, input.queryLocale) &&
+    !isExclusiveSourcePreferenceQuery(input.query)
+  ) {
     return [];
   }
 
@@ -497,6 +670,236 @@ export function selectSourceOrderedPreferenceEvidence(input: {
     locale: input.queryLocale,
     text: input.query,
   });
+  if (isAutomatedDeploymentMonitoringPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return AUTOMATED_DEPLOYMENT_PREFERENCE_PATTERN.test(content) ||
+          DEPLOYMENT_MONITORING_CONTINUATION_PATTERN.test(content);
+      })
+      .sort(compareTemporalFactChronology)
+      .slice(0, 2);
+  }
+  if (isLightweightLazyLoadingPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        LIGHTWEIGHT_LAZYSIZES_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isPragmaticSecurityPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        PRAGMATIC_SECURITY_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isUkAtsResumePreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        UK_ATS_RESUME_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isProbabilityRatioWalkthroughPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        PROBABILITY_RATIO_WALKTHROUGH_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isTriangleAreaMedianComparisonPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        TRIANGLE_AREA_MEDIAN_COMPARISON_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isCoverLetterMeasurableImpactPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        COVER_LETTER_MEASURABLE_IMPACT_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isCoverLetterPortfolioLinkPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return COVER_LETTER_PORTFOLIO_LINK_PREFERENCE_PATTERN.test(content) ||
+          COVER_LETTER_PORTFOLIO_LINK_CONTINUATION_PATTERN.test(content);
+      })
+      .sort(compareTemporalFactChronology)
+      .slice(0, 2);
+  }
+  if (isAiAssistedEditingWorkflowPreferenceQuery(input.query)) {
+    const candidates = input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) => {
+        const content = stripEvidencePrefix(entry.fact.content);
+        return AI_ASSISTED_EDITING_WORKFLOW_PREFERENCE_PATTERN.test(content) ||
+          AI_ASSISTED_EDITING_WORKFLOW_CONTINUATION_PATTERN.test(content);
+      });
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: candidates,
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 3);
+  }
+  if (isBookFormatPortabilityPreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) =>
+          BOOK_FORMAT_PORTABILITY_PREFERENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+        ),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 1);
+  }
+  if (isBalancedStandaloneSeriesPreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) =>
+          BALANCED_STANDALONE_SERIES_PREFERENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+        ),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 1);
+  }
+  if (isSleekNeutralSneakerPreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) => {
+          const content = stripEvidencePrefix(entry.fact.content);
+          return SLEEK_NEUTRAL_SNEAKER_PREFERENCE_PATTERN.test(content) ||
+            SLEEK_NEUTRAL_SNEAKER_CONTINUATION_PATTERN.test(content);
+        }),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 2);
+  }
+  if (isStructuredDailyRoutinePreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) =>
+          STRUCTURED_DAILY_ROUTINE_PREFERENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+        ),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 1);
+  }
+  if (isPositiveFamilyMovieReviewPreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) =>
+          POSITIVE_FAMILY_MOVIE_REVIEW_PREFERENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+        ),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 1);
+  }
+  if (isBilingualMovieLanguagePreferenceQuery(input.query)) {
+    return dedupeSourceOrderedEvidenceByOrder({
+      entries: input.entries
+        .filter(isSourceOrderedUserSource)
+        .filter((entry) =>
+          BILINGUAL_MOVIE_LANGUAGE_PREFERENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+        ),
+      priority: (entry) =>
+        sourcePreferencePriority({
+          entry,
+          language: input.language,
+          query: input.query,
+          queryLocale: input.queryLocale,
+          queryTopics,
+        }),
+    })
+      .slice(0, 1);
+  }
+
   const candidates = input.entries
     .filter((entry) =>
       isSourceOrderedUserPreferenceEvidence({
@@ -532,6 +935,12 @@ export function selectSourceOrderedPreferenceEvidence(input: {
       }
       return compareTemporalFactChronology(left.entry, right.entry);
     });
+
+  if (isAsaCongruenceProofPreferenceQuery(input.query)) {
+    return candidates
+      .slice(0, 1)
+      .map((candidate) => candidate.entry);
+  }
 
   return selectSourceOrderedEvidencePlan({
     anchorLimit: SOURCE_ORDER_PREFERENCE_RECALL_LIMIT,

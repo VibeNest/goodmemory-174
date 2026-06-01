@@ -39,7 +39,10 @@ import {
   dedupeSourceOrderedEvidenceByOrder,
   selectSourceOrderedEvidencePlan,
 } from "./sourceOrderPlan";
-import { selectCompleteSourceOrderedEventOrderAnchors } from "./sourceOrderEventPlans";
+import {
+  isPackedSourceOrderedEventOrderPlanQuery,
+  selectCompleteSourceOrderedEventOrderAnchors,
+} from "./sourceOrderEventPlans";
 import {
   isSourceOrderFrameworkCustomizationQuery,
   sourceOrderFrameworkCustomizationPriorityBonus,
@@ -416,7 +419,13 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     priority,
     query: input.query,
   });
-  if (completeEventOrderAnchors.length >= anchorLimit) {
+  if (
+    completeEventOrderAnchors.length >= anchorLimit ||
+    (
+      isPackedSourceOrderedEventOrderPlanQuery(input.query) &&
+      completeEventOrderAnchors.length > 0
+    )
+  ) {
     return completeEventOrderAnchors;
   }
 
