@@ -4350,6 +4350,131 @@ rerun uses a guarded pre-generic selector for AI hiring process summaries so
 adjacent hiring-topic turns no longer displace the human-oversight,
 soft-skills, psychometric-testing, fairness, Pymetrics, Michael
 role-transition, fairness-metrics, and stress-reduction automation source arc.
+The latest patent prior-art/provisional filing reasoning repair raises it to
+0.6657847082494972 with 167 missed-recall cases and wrong-recall/noise
+308/400, recovering `20:multi_session_reasoning:2` to exact 1.0 with
+32/70/71/122/123 and no target noise, without hit-loss, newly-missing evidence
+regressions, or negative recall deltas. The retained rerun adds a guarded
+reasoning bridge for the prior-art plan, search findings, unique AI-tagging
+filing advice, provisional receipt, and non-provisional preparation arc while
+keeping reasoning bridge activity out of the global source-ordered active flag
+so instruction/preference evidence remains available after primary selection.
+Global hit evidence ids improve 674 -> 679, missing ids improve 420 -> 415,
+missed-recall cases improve 168 -> 167, zero-recall cases improve 50 -> 49,
+wrong-recall/noise cases improve 309 -> 308, and total noise decreases
+2197 -> 2195.
+The latest probability confirmation reasoning repair raises it to
+0.668601609657948 with 166 missed-recall cases and wrong-recall/noise 307/400,
+recovering `5:multi_session_reasoning:2` to exact 1.0 with 30/96/226 and no
+target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded reasoning bridge for
+the two-coin both-heads, two-dice six/even, and dice-roll-sum independence
+confirmation turns while keeping this exact probability count query out of
+aggregate, information-extraction, summary, and broad event-order selectors.
+Global hit evidence ids improve 679 -> 682, missing ids improve 415 -> 412,
+missed-recall cases improve 167 -> 166, zero-recall cases improve 49 -> 48,
+wrong-recall/noise cases improve 308 -> 307, and total noise decreases
+2195 -> 2183.
+The latest Kimberly personal-statement reasoning repair raises it to
+0.6714185110663987 with 165 missed-recall cases and wrong-recall/noise 306/400,
+recovering `9:multi_session_reasoning:2` to exact 1.0 with 6/7/110/111 and no
+target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded reasoning bridge for
+Kimberly's initial personal-statement feedback, selective integration advice,
+later improved-flow praise, and grant-quality refinement advice. Global hit
+evidence ids improve 682 -> 686, missing ids improve 412 -> 408,
+missed-recall cases improve 166 -> 165, zero-recall cases improve 48 -> 47,
+wrong-recall/noise cases improve 307 -> 306, and total noise stays flat at
+2183 while event-ordering bucket noise rises 606 -> 608.
+The latest Stephen anniversary/free-will reasoning repair raises it to
+0.6742354124748494 with 164 missed-recall cases and wrong-recall/noise 305/400,
+recovering `12:multi_session_reasoning:2` to exact 1.0 with 74/164/166/168 and
+no target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded reasoning bridge for
+the Coral Reef anniversary conflict-resolution anchor, the Sunset Grill
+five-year celebration, the trust/support free-will discussion, and the later
+weekly scenario-focused free-will discussion. Global hit evidence ids improve
+686 -> 690, missing ids improve 408 -> 404, missed-recall cases improve
+165 -> 164, zero-recall cases improve 47 -> 46, wrong-recall/noise cases
+improve 306 -> 305, and total noise decreases 2183 -> 2173.
+The latest patent filing deadline reasoning repair raises it to
+0.6770523138833001 with 163 missed-recall cases and wrong-recall/noise 304/400,
+recovering `20:multi_session_reasoning:1` to exact 1.0 with 30/164 and no
+target noise, without hit-loss, newly-missing evidence regressions, or negative
+recall deltas. The retained rerun adds a guarded reasoning bridge for the
+provisional and non-provisional patent filing deadline turns, and keeps exact
+source-ordered reasoning queries out of slot-specific early return and
+direct-factual companion padding. Global hit evidence ids improve 690 -> 692,
+missing ids improve 404 -> 402, missed-recall cases improve 164 -> 163,
+zero-recall cases improve 46 -> 45, wrong-recall/noise cases improve
+305 -> 304, and total noise decreases 2173 -> 2167.
+The latest resume design instruction repair raises it to 0.6798692152917507
+with 162 missed-recall cases and wrong-recall/noise 303/400, recovering
+`6:instruction_following:2` to exact 1.0 with 194 and no target noise, without
+hit-loss, newly-missing evidence regressions, or negative recall deltas. The
+retained rerun adds a guarded resume-design instruction route for the typoed
+`desing` query and minimalist resume style / clear headings source
+instruction. Global hit evidence ids improve 692 -> 693, missing ids improve
+402 -> 401, missed-recall cases improve 163 -> 162, zero-recall cases improve
+45 -> 44, wrong-recall/noise cases improve 304 -> 303, and total noise
+decreases 2167 -> 2153. Abstention gains one bucket noise id and
+event-ordering loses one while instruction-following noise decreases by 14.
+The retained morning self-care preference repair raises it to 0.6826861167002014
+with 161 missed-recall cases and wrong-recall/noise 302/400, recovering
+`18:preference_following:2` to exact 1.0 with 164 and no target noise, without
+hit-loss, newly-missing evidence regressions, or negative recall deltas. The
+retained rerun adds a guarded morning self-care preference route and keeps
+exclusive source-preference queries out of direct-factual companion padding.
+Global hit evidence ids improve 693 -> 694, missing ids improve 401 -> 400,
+missed-recall cases improve 162 -> 161, zero-recall cases improve 44 -> 43,
+wrong-recall/noise cases improve 303 -> 302, and total noise decreases
+2153 -> 2152. Event-ordering gains two bucket noise ids and knowledge-update
+gains one while preference-following noise decreases by four.
+The retained Excel dining-budget preference repair raises it to
+0.6855030181086521 with 160 missed-recall cases and wrong-recall/noise
+301/400, recovering `16:preference_following:1` to exact 1.0 with 50 and no
+target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded Excel dining-budget
+preference route for the monthly-expenses / dining-out-budget query and the
+user's preference for Excel control. Global hit evidence ids improve 694 ->
+695, missing ids improve 400 -> 399, missed-recall cases improve 161 -> 160,
+zero-recall cases improve 43 -> 42, wrong-recall/noise cases improve
+302 -> 301, and total noise decreases 2152 -> 2146. Event-ordering and
+knowledge-update each lose one bucket noise id while preference-following
+noise decreases by four.
+The retained digital will-update preference repair raises it to
+0.6883199195171028 with 159 missed-recall cases and wrong-recall/noise
+300/400, recovering `19:preference_following:1` to exact 1.0 with 110 and no
+target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded digital will-update
+preference route for the future will-document updates query and the user's
+WillMaker Pro flexibility/future-edits preference. Global hit evidence ids
+improve 695 -> 696, missing ids improve 399 -> 398, missed-recall cases
+improve 160 -> 159, zero-recall cases improve 42 -> 41, wrong-recall/noise
+cases improve 301 -> 300, and total noise decreases 2146 -> 2136. Abstention
+loses one bucket noise id while preference-following noise decreases by nine.
+The latest executor/co-executor preference repair raises it to
+0.6897283702213282 with 158 missed-recall cases and wrong-recall/noise
+299/400, recovering `19:preference_following:2` to exact 1.0 with 46/48 and
+no target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded executor candidate
+preference route for the appoint/manage-responsibilities query and the Douglas
+organizational-skills plus co-executor source pair. Global hit evidence ids
+improve 696 -> 697, missing ids improve 398 -> 397, missed-recall cases
+improve 159 -> 158, wrong-recall/noise cases improve 300 -> 299, and total
+noise decreases 2136 -> 2130. Event-ordering gains three bucket noise ids
+while preference-following noise decreases by nine.
+The latest task/appointment digital-tools preference repair raises it to
+0.6916063044936287 with 157 missed-recall cases and wrong-recall/noise
+298/400, recovering `18:preference_following:1` to exact 1.0 with 84/86/88 and
+no target noise, without hit-loss, newly-missing evidence regressions, or
+negative recall deltas. The retained rerun adds a guarded digital tools
+preference route for the task-and-appointment tracking query and the user's
+Trello, Google Calendar, and IFTTT source follow-ups. Global hit evidence ids
+improve 697 -> 699, missing ids improve 397 -> 395, missed-recall cases
+improve 158 -> 157, wrong-recall/noise cases improve 299 -> 298, and total
+noise decreases 2130 -> 2121. Abstention gains one bucket noise id while
+event-ordering loses three and preference-following noise decreases by seven.
 BEAM still needs
 broader recall and persistent-noise hardening before it can move toward an
 answer-quality claim, especially the remaining source-ordered summary budget

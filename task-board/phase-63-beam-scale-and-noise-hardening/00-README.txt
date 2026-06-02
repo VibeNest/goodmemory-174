@@ -1550,6 +1550,105 @@ Current Boundary
   adjacent hiring-topic turns no longer displace the oversight, soft-skills,
   psychometric-testing, fairness, Pymetrics, role-transition, fairness-metrics,
   and stress-reduction automation arc.
+  The latest patent prior-art/provisional filing reasoning repair raises
+  current evidence-chat recall to 0.6657847082494972 with 167 missed-recall
+  cases and wrong-recall/noise 308/400, recovering
+  `20:multi_session_reasoning:2` to exact 1.0 with 32/70/71/122/123 and no
+  target noise, without hit-loss, newly-missing evidence regressions, or
+  negative recall deltas. The retained rerun adds a guarded
+  patent-prior-art/provisional-filing reasoning bridge and keeps reasoning
+  bridge activity out of the global source-ordered active flag so
+  instruction/preference evidence is not suppressed. Total noise decreases
+  2197 -> 2195.
+  The latest probability confirmation reasoning repair raises current
+  evidence-chat recall to 0.668601609657948 with 166 missed-recall cases and
+  wrong-recall/noise 307/400, recovering `5:multi_session_reasoning:2` to
+  exact 1.0 with 30/96/226 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded probability calculation-confirmation reasoning bridge
+  for the two-coin, two-dice, and dice-sum independence confirmations, and
+  keeps this exact count question out of aggregate/source-ordered broad
+  selectors before the bridge. Total noise decreases 2195 -> 2183.
+  The latest Kimberly personal-statement reasoning repair raises current
+  evidence-chat recall to 0.6714185110663987 with 165 missed-recall cases and
+  wrong-recall/noise 306/400, recovering `9:multi_session_reasoning:2` to
+  exact 1.0 with 6/7/110/111 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded reasoning bridge for the initial Kimberly feedback,
+  selective integration advice, later improved-flow praise, and grant-quality
+  refinement advice. Total noise stays flat at 2183; event-ordering bucket
+  noise rises 606 -> 608.
+  The latest Stephen anniversary/free-will reasoning repair raises current
+  evidence-chat recall to 0.6742354124748494 with 164 missed-recall cases and
+  wrong-recall/noise 305/400, recovering `12:multi_session_reasoning:2` to
+  exact 1.0 with 74/164/166/168 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded reasoning bridge for the Coral Reef anniversary, Sunset
+  Grill five-year celebration, trust/support free-will discussion, and weekly
+  scenario-focused free-will discussion. Total noise decreases 2183 -> 2173.
+  The latest patent filing deadline reasoning repair raises current
+  evidence-chat recall to 0.6770523138833001 with 163 missed-recall cases and
+  wrong-recall/noise 304/400, recovering `20:multi_session_reasoning:1` to
+  exact 1.0 with 30/164 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The retained rerun adds a
+  guarded reasoning bridge for provisional/non-provisional patent filing
+  deadlines and prevents exact reasoning queries from appending unrelated
+  direct-factual companions. Total noise decreases 2173 -> 2167.
+  The latest resume design instruction repair raises current evidence-chat
+  recall to 0.6798692152917507 with 162 missed-recall cases and
+  wrong-recall/noise 303/400, recovering `6:instruction_following:2` to exact
+  1.0 with 194 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  resume-design instruction route for the typoed `desing` query and the
+  minimalist resume style / clear headings source instruction. Total noise
+  decreases 2167 -> 2153; abstention gains one bucket noise id and
+  event-ordering loses one while instruction-following noise decreases by 14.
+  The retained morning self-care preference repair raises current evidence-chat
+  recall to 0.6826861167002014 with 161 missed-recall cases and
+  wrong-recall/noise 302/400, recovering `18:preference_following:2` to exact
+  1.0 with 164 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  morning self-care preference route and keeps exclusive source-preference
+  queries out of direct-factual companion padding. Total noise decreases
+  2153 -> 2152; event-ordering gains two bucket noise ids and knowledge-update
+  gains one while preference-following noise decreases by four.
+  The retained Excel dining-budget preference repair raises current
+  evidence-chat recall to 0.6855030181086521 with 160 missed-recall cases and
+  wrong-recall/noise 301/400, recovering `16:preference_following:1` to exact
+  1.0 with 50 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  Excel dining-budget preference route for the monthly-expenses /
+  dining-out-budget query and the user's preference for Excel control. Total
+  noise decreases 2152 -> 2146; event-ordering and knowledge-update each lose
+  one bucket noise id while preference-following noise decreases by four.
+  The retained digital will-update preference repair raises current
+  evidence-chat recall to 0.6883199195171028 with 159 missed-recall cases and
+  wrong-recall/noise 300/400, recovering `19:preference_following:1` to exact
+  1.0 with 110 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  digital will-update preference route for the future will-document updates
+  query and the user's WillMaker Pro flexibility/future-edits preference.
+  Total noise decreases 2146 -> 2136; abstention loses one bucket noise id
+  while preference-following noise decreases by nine.
+  The latest executor/co-executor preference repair raises current
+  evidence-chat recall to 0.6897283702213282 with 158 missed-recall cases and
+  wrong-recall/noise 299/400, recovering `19:preference_following:2` to exact
+  1.0 with 46/48 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  executor candidate preference route for the appoint/manage-responsibilities
+  query and the Douglas organizational-skills plus co-executor source pair.
+  Total noise decreases 2136 -> 2130; event-ordering gains three bucket noise
+  ids while preference-following noise decreases by nine.
+  The latest task/appointment digital-tools preference repair raises current
+  evidence-chat recall to 0.6916063044936287 with 157 missed-recall cases and
+  wrong-recall/noise 298/400, recovering `18:preference_following:1` to exact
+  1.0 with 84/86/88 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The retained rerun adds a
+  guarded digital tools preference route for the task-and-appointment tracking
+  query and the user's Trello, Google Calendar, and IFTTT source follow-ups.
+  Total noise decreases 2130 -> 2121; abstention gains one bucket noise id
+  while event-ordering loses three and preference-following noise decreases by
+  seven.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

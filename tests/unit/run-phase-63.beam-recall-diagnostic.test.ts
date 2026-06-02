@@ -172,6 +172,1233 @@ function buildLatencyComparisonBeamRows(): unknown[] {
   ];
 }
 
+function buildPatentFilingDeadlineReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I aim to file a provisional patent by June 1, 2024, but I'm not sure what steps to take next, can you guide me through the process and help me achieve my goal?",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "Ok cool, do I need to conduct the prior art search myself or can the patent attorney handle it?",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "Meeting with Ashlee is a crucial step in navigating the patent process. Discuss prior art search results, the provisional patent application, non-provisional patent strategy, grant application support, documentation, timelines, deadlines, costs, budgeting, and next steps.",
+      id: 77,
+      role: "assistant",
+    },
+    {
+      content:
+        "During the Ashlee meeting, focus on prior art search findings, provisional patent application content, timeline and deadlines, required documentation, grant application support, actionable steps, and milestones.",
+      id: 79,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've got a deadline to meet for my non-provisional patent filing, which is set for November 10, 2024, and I'm hoping to get some guidance on how to move forward with the process",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what if I need to work on the patent application on Sundays occasionally?",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "Ok cool, do I need to submit all documents at once through EFS-Web, or can I send them separately?",
+      id: 186,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, filing the PCT application sounds like a good move. It gives us the flexibility to decide later which countries to enter.",
+      id: 202,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed steps. I'll make sure to finalize the written description and claims, review the drawings and technical specs, and get Ashlee's final review before submitting.",
+      id: 228,
+      role: "user",
+    },
+    {
+      content:
+        "ok cool, do I need to start looking at specific regions or countries for these additional distributors?",
+      id: 362,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-filing-deadline-reasoning",
+      conversation_plan: "BATCH 20 PLAN",
+      conversation_seed: {
+        category: "Legal and Administrative",
+        id: 25,
+        subtopics: [
+          "Filing a provisional patent",
+          "Filing a non-provisional patent",
+          "Patent deadlines",
+        ],
+        theme: "Navigating the patent process from concept to legal protection",
+        title: "Applying for a Patent to Protect a New Invention",
+      },
+      narratives: "Patent filing deadline comparison",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "June 1, 2024 for the provisional patent and November 10, 2024 for the non-provisional patent.",
+            question:
+              "What are the two different patent filing deadlines I need to meet?",
+            question_id: "patent-filing-deadline-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [30, 164],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Patent applicant",
+        user_relationships: "Ashlee, Linda",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildPatentPriorArtFilingReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I aim to file a provisional patent by June 1, 2024, but I'm not sure what steps to take next, can you guide me through the process and help me achieve my goal?",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my prior art search, which I plan to complete by April 10, 2024, using the USPTO database and Google Patents, might not be thorough enough, can you help me make sure I'm covering all bases?",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the prior art search I completed on April 10, 2024, which found 3 similar patents but none with AI tagging features, so can you help me understand how this affects my decision to file a provisional patent by May 15, 2024?",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "Based on your prior art search findings, it seems that while there are some similar patents, none of them incorporate the AI tagging feature that your invention includes. This is a positive sign for the novelty and non-obviousness of your invention. Prepare detailed descriptions and drawings, file the provisional patent application by May 15, consult your patent attorney, and document every prototype test for the non-provisional application.",
+      id: 71,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda worried about the cost, so can you help me understand how the provisional filing fee of $280 and the $1,200 attorney fee due May 15, 2024, will impact my budget",
+      id: 100,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the provisional patent I filed on May 15, 2024, with the receipt number 12345678, and I was wondering if I should be doing anything now that it's July 10, 2024, to make sure everything is on track for the non-provisional patent",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "It's great that you've already filed a provisional patent application on May 15, 2024. Continue keeping detailed records, prepare detailed descriptions and drawings, review prior art again, consult Ashlee, confirm budget and funding, and monitor competitor activity so the non-provisional patent application is well prepared.",
+      id: 123,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've got a deadline to meet for my non-provisional patent filing, which is set for November 10, 2024, and I'm hoping to get some guidance on how to move forward with the process",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working with Ashlee to draft a non-provisional patent application that we started on September 1, 2024, and I met her at her office on September 10 to review the 45-page draft including 12 drawings, so what's the best way to ensure we meet the November deadline?",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed steps. The main thing I'm worried about is making sure everything is clear and consistent during the review and revision phase.",
+      id: 190,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the budget for my patent application, I've got $12,000 approved for the non-provisional filing and international PCT application by October 15, 2024, is that enough to cover everything?",
+      id: 196,
+      role: "user",
+    },
+    {
+      content:
+        "I've been thinking about my patent strategy a lot lately, especially since I decided to file the PCT application covering the US, Canada, and EU markets on October 20, 2024, and now that it's November 25, 2024, I'm wondering if I made the right decision in terms of timing and budget, given that I had approved a $12,000 budget for the non-provisional filing and international PCT application by October 15, 2024",
+      id: 314,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-prior-art-filing-reasoning",
+      conversation_plan: "BATCH 20 PLAN",
+      conversation_seed: {
+        category: "Legal and Administrative",
+        id: 25,
+        subtopics: [
+          "Conducting a prior art search",
+          "Filing a provisional vs. non-provisional patent",
+          "Working with a patent attorney",
+        ],
+        theme: "Navigating the patent process from concept to legal protection",
+        title: "Applying for a Patent to Protect a New Invention",
+      },
+      narratives: "Patent prior art search and filing plan",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "You conducted a comprehensive prior art search covering multiple databases before filing, identified unique AI tagging features, filed the provisional on time, and kept documentation and budget steps aligned for a strong non-provisional filing.",
+            question:
+              "Given my timeline and actions from starting the prior art search to filing the provisional patent, how well did I align my search thoroughness, patent features, and budget to maximize my chances for a successful non-provisional filing?",
+            question_id: "patent-prior-art-filing-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [32, 70, 71, 122, 123],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Patent applicant",
+        user_relationships: "Ashlee, Jake",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildProbabilityCalculationConfirmationReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to solve 10 probability problems involving single events with at least 80% accuracy by February 1, and I want to make sure I'm on track to meet my goal, including a coin probability of heads as 1/2 and rolling a 4 as 1/6.",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand why tossing two coins is considered independent events, can you help me calculate P(both heads) using the formula 1/2 x 1/2 = 1/4, I want to make sure I get it right.",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble understanding the difference between mutually exclusive and independent events, especially in the context of rolling dice, and how rolling an even number on a 6-sided die relates to mutually exclusive events.",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm enjoying discussions about probability and want to calculate independent events like tossing two coins where P(both heads) = 1/2 x 1/2 = 1/4, plus drawing an ace, permutations, combinations, and rolling an even number.",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide step-by-step explanations with concrete examples when I ask about probability concepts.",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand conditional probability P(A|B) = P(A intersect B) / P(B), like drawing cards without replacement and the chance that the second card is also an ace.",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the concept of independence in probability, specifically with the example of rolling two dice, and I want to confirm if the probability of rolling a 6 on the first die and an even number on the second die is indeed 1/6 x 1/2 = 1/12, as this seems to be a fundamental principle of independent events.",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand why the complement rule is essential in complex probability calculations, including drawing cards, birthday paradox, dice roll problems, and coin toss examples.",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, I want to make sure I understand how to use the complement rule correctly in complex probability calculations, maybe with dice rolls or coin tosses.",
+      id: 152,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the concept of independence in dice roll sums, specifically after reviewing joint probability concepts, and I want to make sure I correct my earlier misunderstanding about independence in dice roll sums.",
+      id: 226,
+      role: "user",
+    },
+    {
+      content:
+        "Always combine algebraic formulas with visual diagrams when I ask about complex probability problems.",
+      id: 234,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "probability-calculation-confirmation-reasoning",
+      conversation_plan: "BATCH 5 PLAN",
+      conversation_seed: {
+        category: "Math",
+        id: 8,
+        subtopics: [
+          "Independent and dependent events",
+          "Coin toss and dice roll problems",
+          "Common misconceptions about probability",
+        ],
+        theme: "Calculating simple probabilities and exploring common probability puzzles",
+        title: "Understanding the Basics of Probability",
+      },
+      narratives: "Probability confirmation questions",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer: "Three",
+            question:
+              "In my questions about tossing coins and rolling dice, how many different probability calculations did I try to confirm?",
+            question_id: "probability-calculation-confirmation-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [30, 96, 226],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Probability learner",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildKimberlyPersonalStatementReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to finalize my personal statement and I got feedback from Kimberly, a close friend since college, on March 10, but I'm not sure if I should make all the changes she suggested, what do you think?",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "It's great that you have feedback from Kimberly, a trusted friend since college. However, deciding whether to implement all her suggestions requires careful consideration. Evaluate how each suggestion affects clarity, coherence, and effectiveness, maintain your unique voice, consider whether this is for a job application or grant proposal, and implement selected changes that enhance the statement.",
+      id: 7,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda stuck on my personal statement, and I want to make sure I meet all the deadlines, like the scholarship deadline on May 15, 2024, and the visa application due June 1, 2024, so can you help me plan this out?",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! When discussing writing aids or software, I will always include the tool names. Use Microsoft Word, Grammarly, Hemingway Editor, Google Calendar, Trello, Evernote, and Mendeley to finish the personal statement before the rescheduled professional editing session.",
+      id: 101,
+      role: "assistant",
+    },
+    {
+      content:
+        "I met Kimberly at Café Montserrat on May 7, and she praised the improved flow of my 900-word personal statement, but I'm still unsure if it's good enough for the grant application",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "It's great to hear that Kimberly praised the improved flow of your 900-word personal statement after your meeting at Cafe Montserrat on May 7. To ensure that your statement is strong enough for the grant application, review the grant requirements, seek additional feedback, focus on clarity and conciseness, highlight achievements and potential, show passion and commitment, proofread, and ensure a strong conclusion.",
+      id: 111,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "kimberly-personal-statement-reasoning",
+      conversation_plan: "BATCH 9 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 12,
+        subtopics: ["Personal statement", "Grant applications", "Feedback"],
+        theme: "Refining a personal statement through mentor feedback",
+        title: "Grant Application Personal Statement",
+      },
+      narratives: "Kimberly feedback and grant statement refinement",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Kimberly's initial feedback led me to selectively integrate suggestions while maintaining my voice and clarity, and her later praise for the improved flow showed quality improvement, though I still needed to evaluate whether the statement was strong enough for the grant application.",
+            question:
+              "How did my interactions with Kimberly and the feedback I received influence the evolution and final quality of my personal statement for the grant application?",
+            question_id: "kimberly-personal-statement-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [6, 7, 110, 111],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Grant applicant",
+        user_relationships: "Kimberly",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildStephenAnniversaryFreeWillReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda confused about how believing in free will can affect my motivation, like the 2022 University of Cambridge study said, so can you help me understand how that works, especially since I just resolved my conflict with Stephen, my romantic partner, by celebrating our anniversary at The Coral Reef restaurant?",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, that makes sense. I'll talk to Stephen about it and see what he thinks. Maybe we can start a new tradition for our anniversary, like having a special dinner or doing something we both enjoy.",
+      id: 142,
+      role: "user",
+    },
+    {
+      content:
+        "My romantic partner Stephen and I just celebrated 5 years together on May 20 with a dinner at The Sunset Grill on Bay Street, but I'm wondering how our relationship might change if I start questioning the concept of free will",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "It's wonderful that you and Stephen celebrated 5 years together, and it's natural to reflect on how your relationship might evolve as you delve deeper into philosophical questions like the concept of free will.",
+      id: 165,
+      role: "assistant",
+    },
+    {
+      content:
+        "Yeah, I think talking about free will with Stephen can really help us understand each other better. I mean, it's not just about the big decisions but also the little ones we make every day. I think it could enhance our trust and make us more supportive of each other. Let's definitely keep having these discussions and see how they shape our relationship.",
+      id: 166,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, let's definitely keep having these discussions. I think it would be really helpful to talk about specific scenarios, like deciding whether to move to a new city for a job opportunity. That could give us a clearer picture of how our understanding of free will influences our decisions. Let's aim to have these talks regularly, maybe once a week.",
+      id: 168,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, the retreat really helped me see things differently. I feel like my decisions are more aligned with my values now, and it's making me more intentional about how I spend my time.",
+      id: 214,
+      role: "user",
+    },
+    {
+      content:
+        "Starting with empathy and honesty is a powerful way to approach such a sensitive conversation with Stephen about differing views on fate and free will.",
+      id: 299,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "stephen-anniversary-free-will-reasoning",
+      conversation_plan: "BATCH 12 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 12,
+        subtopics: ["Free will", "Relationships", "Anniversaries"],
+        theme: "Considering whether to believe in and live by free will",
+        title: "Free Will and Relationship Decisions",
+      },
+      narratives: "Stephen anniversary and free-will discussions",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "The relationship moved from resolving conflict through an anniversary dinner at The Coral Reef, to a five-year celebration at The Sunset Grill, and then into regular free-will discussions about everyday decisions, trust, support, and concrete scenarios like moving for a job.",
+            question:
+              "How have my anniversary celebrations and discussions about free will with Stephen evolved in terms of location and topics we've focused on together?",
+            question_id: "stephen-anniversary-free-will-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [74, 164, 166, 168],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Philosophy learner",
+        user_relationships: "Stephen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildResumeDesignInstructionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm thinking of asking for a $10,000 salary increase based on my new resume and portfolio, but I'm not sure if that's too much, can you give me some advice on how to negotiate that?",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Negotiating a significant salary increase like $10,000 can be challenging. Research market rates, document achievements, prepare your case, and practice the conversation.",
+      id: 29,
+      role: "assistant",
+    },
+    {
+      content:
+        "I prefer using structured bullet points with quantified achievements over narrative paragraphs for clarity and ATS readability, can you help me create a sample resume section?",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Use structured bullet points with quantified achievements to make your resume clear, concise, and ATS-friendly.",
+      id: 37,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always highlight quantified achievements when I ask about resume content improvements.",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer using bullet points with quantified results over paragraphs, but how can I make sure that improves ATS parsing and recruiter readability?",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Use bullet points effectively with action verbs, quantified results, and standard resume sections for ATS parsing and recruiter readability.",
+      id: 125,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always use quantified bullet points when I ask about resume content style.",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "I just completed my certification in Advanced Digital Media Production on September 5, 2024, and I'm wondering how I can best highlight this new skill on my resume to make it pass any Applicant Tracking System.",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "Highlight the certification with relevant keywords, quantify achievements, and place the skill in your summary, skills section, and work experience.",
+      id: 151,
+      role: "assistant",
+    },
+    {
+      content:
+        "How can I effectively showcase my decision to update my resume to include my latest certification and promotion in a way that passes any applicant tracking system?",
+      id: 190,
+      role: "user",
+    },
+    {
+      content:
+        "Use a professional summary, work experience section, skills section, and ATS-friendly formatting to showcase the certification and promotion.",
+      id: 191,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always maintain a minimalist resume style with clear headings when I ask about resume design preferences.",
+      id: 194,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to improve my resume for UK job applications, and I tested a new AI resume tool that increased keyword density by 22%, so how can I best utilize this tool to pass any applicant tracking system?",
+      id: 246,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "resume-design-instruction",
+      conversation_plan: "BATCH 6 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 6,
+        subtopics: ["Resume", "ATS", "Design preferences"],
+        theme: "Building a portfolio-ready resume",
+        title: "Portfolio-Ready Resume",
+      },
+      narratives: "Resume content and design preferences",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer:
+              "Response should follow a minimalist approach with distinct section titles to organize content clearly.",
+            question: "How should I desing my resume?",
+            question_id: "resume-design-instruction",
+            question_type: "instruction_following",
+            source_chat_ids: [194],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildMorningSelfCarePreferenceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "These suggestions fit pretty well with what I'm already doing. I've started with the meditation app and it's been helping. I think I could use more support in setting up a consistent workout routine and maybe investing in better sleep habits.",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks! I think these strategies will really help. I'll start by making sure my self-care activities are truly relaxing and avoiding any distractions. I'll also try to incorporate more short breaks throughout the day when work gets stressful.",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer morning self-care routines, like the ones I've been doing, to boost my daytime energy, but I'm not sure how to make the most of them, can you help me optimize my morning routine? ->-> 2,13",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "I reported an 85% job satisfaction in my July 1 self-assessment survey, which is up from 70% in March, what are some ways I can continue to improve my job satisfaction and maintain this positive trend? ->-> 4,17",
+      id: 288,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to plan the next quarter at work and want to keep my stress low while staying productive, can you help me think through habits that support work-life balance?",
+      id: 353,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "morning-self-care-preference",
+      conversation_plan: "BATCH 18 PLAN",
+      conversation_seed: {
+        category: "Wellness",
+        id: 18,
+        subtopics: ["Self-care routines", "Energy", "Work-life balance"],
+        theme: "Building sustainable self-care routines",
+        title: "Self-Care And Energy",
+      },
+      narratives: "Self-care routine preferences",
+      probing_questions: {
+        preference_following: [
+          {
+            answer:
+              "Response should focus on recommending or optimizing self-care activities that take place in the morning to enhance daytime energy, rather than suggesting evening routines.",
+            question:
+              "What are some ways I can structure my daily self-care routine to feel more energized throughout the day?",
+            question_id: "morning-self-care-preference",
+            question_type: "preference_following",
+            source_chat_ids: [164],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Project manager",
+        user_relationships: "David",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildExcelDiningBudgetPreferenceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stressed about our budget, and I prefer using Excel for control, so can you help me figure out how to make it work with my insistence on a $150 dining out budget, which Alexis wanted to increase to $250, and we compromised on $200 starting April? ->-> 1,19",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the advice! I'll start by reviewing my current budget and seeing where I can allocate more funds to other goals. I think boosting my emergency fund to cover 6 months of expenses would be a good next step. I'll also set up new savings accounts for specific goals like a vacation fund or a car fund. And I'll keep using YNAB to track everything. Let's do it!",
+      id: 200,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to plan my expenses, and I saw that my grocery budget was increased to $550 monthly starting September 15, so how can I make the most of this change to accommodate my dietary changes? ->-> 3,22",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "My family member Ashlee's medical bills have stabilized at $250/month since February 2025, and I want to make sure I'm budgeting correctly for this expense, can you help me figure out how to factor this into my monthly budget ->-> 5,4",
+      id: 280,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to meet my renovation goal by increasing my monthly savings to $400 starting March, how can I stay on track with this new budget ->-> 5,20",
+      id: 310,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "excel-dining-budget-preference",
+      conversation_plan: "BATCH 16 PLAN",
+      conversation_seed: {
+        category: "Lifestyle",
+        id: 21,
+        subtopics: [
+          "Creating and maintaining a budget",
+          "Tracking and adjusting spending habits",
+        ],
+        theme: "Managing money wisely",
+        title: "Personal Finance",
+      },
+      narratives: "Budgeting tool and dining-out preferences",
+      probing_questions: {
+        preference_following: [
+          {
+            answer:
+              "Response should focus on using simple, customizable tools like Excel rather than recommending complex budgeting apps or software.",
+            question:
+              "I want to set up a system to track my monthly expenses and stick to a dining out budget of $200 starting next month. How would you suggest I organize this?",
+            question_id: "excel-dining-budget-preference",
+            question_type: "preference_following",
+            source_chat_ids: [50],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Finance-conscious household planner",
+        user_relationships: "Alexis",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildDigitalWillUpdatePreferenceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "That sounds like a great plan! I think adding personalized gifts and special instructions that reflect my sense of humor would be a fun way to make the will more personal. I'll definitely include some funny items and maybe even a small fund for a family game night. And I love the idea of a celebration of life where everyone can share funny stories and memories about me. Let's keep the laughter going!",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide detailed explanations of legal terms when I ask about will requirements. ->-> 1,22",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to finalize my will and I used \"WillMaker Pro\" software, which Natalie suggested on April 20, and it saved me 8 hours, but I want to make sure I've covered everything, can you review my progress? ->-> 2,4",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the probate process taking 6-9 months in Montserrat, so I wanna prepare my documents accordingly, you know, to make it smoother, especially since I chose to update my will digitally using WillMaker Pro for flexibility and ease of future edits ->-> 2,16",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a will review coming up on October 15, and I just scheduled it after some major family events, but I'm not sure if I should update my will to reflect any changes, can you guide me on what to consider during this review, especially since I've already made some updates like adding instructions for my digital assets? ->-> 2,21",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer using electronic signatures for will updates to save time and reduce paper waste, can you help me understand how this works with the new probate e-filing system that Diana explained, which reduces processing time by 20% ->-> 4,15",
+      id: 250,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm attorney names and credentials when I ask about legal representation. ->-> 4,22",
+      id: 270,
+      role: "user",
+    },
+    {
+      content:
+        "I need help understanding how these changes will affect my estate plan, considering I've already updated my will to include Erica and I have Rachel's support with the digital assets, and I want to make sure everything is in order ->-> 5,4",
+      id: 280,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "digital-will-update-preference",
+      conversation_plan: "BATCH 19 PLAN",
+      conversation_seed: {
+        category: "Legal and Administrative",
+        id: 24,
+        subtopics: [
+          "Updating your will after major life events",
+          "Digital assets and online accounts",
+        ],
+        theme: "Protecting assets and ensuring wishes are honored after death",
+        title: "Creating a Legally Valid Will and Estate Plan",
+      },
+      narratives: "Digital will update preferences",
+      probing_questions: {
+        preference_following: [
+          {
+            answer:
+              "Response should recommend or acknowledge digital methods or tools that facilitate easy future edits and flexibility in updating wills, rather than only suggesting traditional paper-based or static options.",
+            question:
+              "I'm planning to make some updates to my will in the future. How would you suggest I keep my documents so that making changes later is straightforward?",
+            question_id: "digital-will-update-preference",
+            question_type: "preference_following",
+            source_chat_ids: [110],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Estate planner",
+        user_relationships: "Douglas, Natalie, Diana, Rachel",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildExecutorCoExecutorPreferenceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Thanks for the detailed guide! I think I'd like to focus more on drafting the will and choosing an executor. Could you give me some tips on what to consider when picking an executor and how to structure the will effectively?",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "Choosing an executor involves responsibility, trustworthiness, organizational skills, legal and financial knowledge, availability, and naming an alternate executor.",
+      id: 3,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm deciding between naming Douglas or Kevin as executor, but I've got an April 1 deadline, so I'm kinda stressed about making the right choice ->-> 1,11",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "Choosing the right executor means comparing Douglas and Kevin on responsibility, organizational skills, legal knowledge, availability, emotional stability, trust, and willingness.",
+      id: 33,
+      role: "assistant",
+    },
+    {
+      content:
+        "I just read “Estate Planning Basics” by Montserrat Legal Aid on March 5 and rated it 4.5/5, now I'm wondering if I should apply some of the strategies I learned to my own estate planning, what do you think? ->-> 1,16",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "Applying estate planning strategies can help with asset inventory, beneficiaries, drafting a comprehensive will, setting up trusts, powers of attorney, digital assets, and regular updates.",
+      id: 45,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm considering naming Douglas as my executor because of his organizational skills, but I'm also thinking about Kevin's legal background, what are the pros and cons of choosing between them? ->-> 1,17",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "Douglas offers organizational skills, trust, and family support, while Kevin offers legal expertise, objectivity, and professionalism. A possible compromise is naming one primary executor and the other as secondary executor or co-executor.",
+      id: 47,
+      role: "assistant",
+    },
+    {
+      content:
+        "hmm, what if I decide to name both as co-executors, how do I ensure they work well together?",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "Naming a guardian for minor children requires consent, clear documentation, court approval, and a backup guardian.",
+      id: 77,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always include software version details when I ask about digital asset management tools. ->-> 2,23",
+      id: 128,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "executor-coexecutor-preference",
+      conversation_plan: "BATCH 19 PLAN",
+      conversation_seed: {
+        category: "Legal and Administrative",
+        id: 24,
+        subtopics: [
+          "Choosing an executor",
+          "Updating your will after major life events",
+        ],
+        theme: "Protecting assets and ensuring wishes are honored after death",
+        title: "Creating a Legally Valid Will and Estate Plan",
+      },
+      narratives: "Executor preference and co-executor follow-up",
+      probing_questions: {
+        preference_following: [
+          {
+            answer:
+              "Response should acknowledge the user's prior indication of valuing organizational skills in the executor role and recommend accordingly, rather than focusing solely on legal expertise or other unrelated factors.",
+            question:
+              "If I want to appoint someone to manage the responsibilities after I'm gone, what should I consider when choosing between different candidates?",
+            question_id: "executor-coexecutor-preference",
+            question_type: "preference_following",
+            source_chat_ids: [46, 48],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Estate planner",
+        user_relationships: "Douglas, Kevin",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildTaskAppointmentDigitalToolsPreferenceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Thanks for the tips! Right now, I'm trying to set clearer boundaries by limiting work emails after 7 PM and taking more breaks during the day. But I still feel overwhelmed with the number of tasks and deadlines. Delegating is something I need to get better at. Any advice on how to do that effectively?",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks! I think these strategies will really help. I'll start by making sure my self-care activities are truly relaxing and avoiding any distractions. I'll also try to incorporate more short breaks throughout the day and see if adding an extra 30 minutes of self-care on Wednesdays makes a difference.",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "That sounds like a great plan! By implementing these strategies, you should be able to reduce your stress levels effectively.",
+      id: 63,
+      role: "assistant",
+    },
+    {
+      content:
+        "I prefer using digital tools like Trello and Google Calendar for task organization, can you help me set it up to better manage my workload? ->-> 1,16",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Using digital tools like Trello and Google Calendar can be effective for managing workload, including boards, due dates, calendar reminders, and syncing cards through IFTTT.",
+      id: 85,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a solid plan! I'll start setting up Trello and Google Calendar right away. I think the integration with IFTTT will be super helpful for keeping everything synced. I might need a bit of help with setting up the IFTTT recipe though, so if you could walk me through that part, that'd be great. Otherwise, I'm excited to see how this streamlines my workflow!",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "That looks great! I'll head over to IFTTT and set up the recipe. I think I got it, but if I run into any issues, I'll reach out. Thanks for walking me through it!",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to reduce my weekly overtime, and I've managed to cut it down from 12 to 5 hours by April 7, which is a big achievement for me, so how can I keep this momentum going and continue to improve my focus during work hours? ->-> 2,14",
+      id: 166,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to manage my leadership stress and delegation skills, especially after my July 3 therapy session, can you help me prioritize tasks for my new role? ->-> 4,10",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to monitor my team's workload and my own task completion, so I've been using weekly Asana reports since July, but I'm not sure if this is the best way to track progress ->-> 5,8",
+      id: 324,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "task-appointment-digital-tools-preference",
+      conversation_plan: "BATCH 18 PLAN",
+      conversation_seed: {
+        category: "Therapy and Emotional Support",
+        id: 23,
+        subtopics: [
+          "Time management and workload boundaries",
+          "Lifestyle adjustments for sustained energy",
+        ],
+        theme: "Restoring energy and preventing future burnout",
+        title: "Recovering from Workplace Burnout and Chronic Stress",
+      },
+      narratives: "Digital task and appointment organization tools",
+      probing_questions: {
+        preference_following: [
+          {
+            answer:
+              "Response should recommend digital task and calendar management tools rather than paper-based planners or analog methods, aligning with the user's preference for digital organization.",
+            question:
+              "I'm trying to organize my tasks and appointments more effectively. What tools or methods would you suggest I use to keep everything on track?",
+            question_id: "task-appointment-digital-tools-preference",
+            question_type: "preference_following",
+            source_chat_ids: [84, 86, 88],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Burnout recovery planner",
+        user_relationships: "David",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildInstructionWithReasoningBridgeBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to structure my single-page portfolio website using semantic HTML5 tags for better SEO compliance, and I want to make sure I'm using the <header>, <section>, and <footer> tags correctly.",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "Your current HTML structure is a good start. Use appropriate semantic tags for better accessibility and SEO, add descriptive meta tags, and improve navigation.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to optimize my Bootstrap v5.3.0 integration to keep the CSS and JS bundle size under 150KB combined for my single-page portfolio website sections like About, Skills, Projects, and Contact.",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "To optimize Bootstrap integration and keep the bundle under 150KB, identify necessary components, use dynamic imports, and defer unused JavaScript components.",
+      id: 49,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always include semantic HTML5 tag usage details when I ask about markup structure. ->-> 1,25",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble with a modal focus issue in my project, specifically with the tabindex attribute on the modal container div.",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the performance of my modal popup, which currently has a 400ms delay due to synchronous image loading, and I'm planning lazy loading.",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "Implementing lazy loading for modal images can improve performance by deferring image loading until the images are needed.",
+      id: 97,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to integrate FontAwesome v6.4.0 CDN into my project for scalable vector icons in the skills and contact sections.",
+      id: 176,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "instruction-with-reasoning-bridge",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: ["API error handling"],
+        theme: "API error handling",
+        title: "API Error Handling",
+      },
+      narratives: "API error handling instruction and rationale",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer: "Include semantic HTML5 tag usage details.",
+            evidence_chat_ids: [54],
+            question:
+              "How should I organize the different parts of a webpage in HTML?",
+            question_id: "instruction-with-reasoning-bridge",
+            question_type: "instruction_following",
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Dev",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildEstateWillFinalizationBeamRows(): unknown[] {
   const turns = [
     {
@@ -1114,6 +2341,277 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([25, 27, 29, 63, 107, 160, 192, 224]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps patent filing deadline source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-filing-deadline-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentFilingDeadlineReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([30, 164]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps patent prior-art and provisional filing reasoning source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-prior-art-filing-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-01T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentPriorArtFilingReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([32, 70, 71, 122, 123]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps probability calculation confirmation source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-probability-calculation-confirmation-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-01T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProbabilityCalculationConfirmationReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([30, 96, 226]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Kimberly feedback and grant-statement refinement source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-kimberly-personal-statement-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-01T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildKimberlyPersonalStatementReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([6, 7, 110, 111]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Stephen anniversary and free-will discussion source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-stephen-anniversary-free-will-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildStephenAnniversaryFreeWillReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([74, 164, 166, 168]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps typoed resume design instruction source turn through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-resume-design-instruction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildResumeDesignInstructionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([194]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps morning self-care preference source turn through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-morning-self-care-preference",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildMorningSelfCarePreferenceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([164]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Excel dining budget preference source turn through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-excel-dining-budget-preference",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildExcelDiningBudgetPreferenceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([50]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps digital will update preference source turn through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-digital-will-update-preference",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildDigitalWillUpdatePreferenceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([110]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps executor and co-executor preference source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-executor-coexecutor-preference",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildExecutorCoExecutorPreferenceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([46, 48]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps task appointment digital tools preference source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-task-appointment-digital-tools-preference",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTaskAppointmentDigitalToolsPreferenceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([84, 86, 88]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("does not suppress instruction evidence after a reasoning bridge primary selection", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-instruction-with-reasoning-bridge",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-01T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildInstructionWithReasoningBridgeBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toContain(54);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 });

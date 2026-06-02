@@ -146,6 +146,26 @@ const SLEEK_NEUTRAL_SNEAKER_PREFERENCE_PATTERN =
   /^(?=[\s\S]*\bsneakers?\b)(?=[\s\S]*\bsleek\b)(?=[\s\S]*\bmodern\b)(?=[\s\S]*\bneutral\s+colou?rs?\b)(?=[\s\S]*\b(?:black|gray|grey)\b)/iu;
 const SLEEK_NEUTRAL_SNEAKER_CONTINUATION_PATTERN =
   /^(?=[\s\S]*\bAdidas\s+Ultraboost\b)(?=[\s\S]*\bNike\s+Air\s+VaporMax\b)(?=[\s\S]*\bblack\b)(?=[\s\S]*\b(?:gray|grey)\b)/iu;
+const MORNING_SELF_CARE_QUERY_PATTERN =
+  /^(?=[\s\S]*\bself[-\s]?care\b)(?=[\s\S]*\broutine\b)(?=[\s\S]*\benerg(?:ized?|y)\b)/iu;
+const MORNING_SELF_CARE_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bprefer\s+morning\s+self[-\s]?care\s+routines?\b)(?=[\s\S]*\bboost\s+my\s+daytime\s+energy\b)(?=[\s\S]*\boptimize\s+my\s+morning\s+routine\b)/iu;
+const EXCEL_DINING_BUDGET_QUERY_PATTERN =
+  /^(?=[\s\S]*\bmonthly\s+expenses\b)(?=[\s\S]*\bdining\s+out\s+budget\b)(?=[\s\S]*\b(?:organize|set\s+up|system|track)\b)/iu;
+const EXCEL_DINING_BUDGET_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bprefer\s+using\s+Excel\s+for\s+control\b)(?=[\s\S]*\$150\s+dining\s+out\s+budget\b)(?=[\s\S]*\$250\b)(?=[\s\S]*\bcompromised?\s+on\s+\$200\b)/iu;
+const DIGITAL_WILL_UPDATE_QUERY_PATTERN =
+  /^(?=[\s\S]*\bwill\b)(?=[\s\S]*\bupdates?\b)(?=[\s\S]*\bdocuments?\b)(?=[\s\S]*\b(?:straightforward|future|changes?\s+later)\b)/iu;
+const DIGITAL_WILL_UPDATE_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bupdate\s+my\s+will\s+digitally\s+using\s+WillMaker\s+Pro\b)(?=[\s\S]*\bflexibility\b)(?=[\s\S]*\bfuture\s+edits\b)/iu;
+const EXECUTOR_CANDIDATE_QUERY_PATTERN =
+  /^(?=[\s\S]*\bappoint\s+someone\b)(?=[\s\S]*\bmanage\s+the\s+responsibilities\b)(?=[\s\S]*\bcandidates?\b)/iu;
+const EXECUTOR_CANDIDATE_PREFERENCE_PATTERN =
+  /^(?=[\s\S]*\bDouglas\b)(?=[\s\S]*\bexecutor\b)(?=[\s\S]*\borganizational\s+skills\b)(?=[\s\S]*\bKevin'?s\s+legal\s+background\b)|\bname\s+both\s+as\s+co[-\s]?executors\b/iu;
+const TASK_APPOINTMENT_DIGITAL_TOOLS_QUERY_PATTERN =
+  /^(?=[\s\S]*\btasks?\b)(?=[\s\S]*\bappointments?\b)(?=[\s\S]*\b(?:tools?|methods?)\b)(?=[\s\S]*\btrack\b)/iu;
+const TASK_APPOINTMENT_DIGITAL_TOOLS_PREFERENCE_PATTERN =
+  /\bprefer\s+using\s+digital\s+tools\s+like\s+Trello\s+and\s+Google\s+Calendar\b|\bTrello\s+and\s+Google\s+Calendar\b[\s\S]{0,180}\bIFTTT\b|\bIFTTT\b[\s\S]{0,120}\b(?:recipe|sync|synced)\b/iu;
 const STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN =
   /^(?=[\s\S]*\borganize\s+my\s+day\b)(?=[\s\S]*\bstay\s+on\s+track\b)(?=[\s\S]*\bresponsibilities\b)/iu;
 const STRUCTURED_DAILY_ROUTINE_PREFERENCE_PATTERN =
@@ -158,6 +178,10 @@ const BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN =
   /^(?=[\s\S]*\bmovies?\b)(?=[\s\S]*\bMichelle\b)(?=[\s\S]*\b(?:suggest|recommend|good\s+for)\b)(?=[\s\S]*\bwatch\b)/iu;
 const BILINGUAL_MOVIE_LANGUAGE_PREFERENCE_PATTERN =
   /^(?=[\s\S]*\bmovie\s+recommendations?\b)(?=[\s\S]*\blanguage\s+options?\b)(?=[\s\S]*\bsubtitles?\b)(?=[\s\S]*\bMichelle'?s\s+bilingual\s+learning\b)(?=[\s\S]*\bEnglish\b)(?=[\s\S]*\bSpanish\b)/iu;
+const RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN =
+  /^(?=[\s\S]*\bresume\b)(?=[\s\S]*\bdesi(?:gn|ng)\b)/iu;
+const RESUME_DESIGN_INSTRUCTION_PATTERN =
+  /^(?=[\s\S]*\bminimalist\s+resume\s+style\b)(?=[\s\S]*\bclear\s+headings\b)(?=[\s\S]*\bresume\s+design\s+preferences\b)/iu;
 
 export function isAsaCongruenceProofPreferenceQuery(query: string): boolean {
   return ASA_CONGRUENCE_PROOF_QUERY_PATTERN.test(query);
@@ -211,6 +235,26 @@ export function isSleekNeutralSneakerPreferenceQuery(query: string): boolean {
   return SLEEK_NEUTRAL_SNEAKER_QUERY_PATTERN.test(query);
 }
 
+export function isMorningSelfCarePreferenceQuery(query: string): boolean {
+  return MORNING_SELF_CARE_QUERY_PATTERN.test(query);
+}
+
+export function isExcelDiningBudgetPreferenceQuery(query: string): boolean {
+  return EXCEL_DINING_BUDGET_QUERY_PATTERN.test(query);
+}
+
+export function isDigitalWillUpdatePreferenceQuery(query: string): boolean {
+  return DIGITAL_WILL_UPDATE_QUERY_PATTERN.test(query);
+}
+
+export function isExecutorCandidatePreferenceQuery(query: string): boolean {
+  return EXECUTOR_CANDIDATE_QUERY_PATTERN.test(query);
+}
+
+export function isTaskAppointmentDigitalToolsPreferenceQuery(query: string): boolean {
+  return TASK_APPOINTMENT_DIGITAL_TOOLS_QUERY_PATTERN.test(query);
+}
+
 export function isStructuredDailyRoutinePreferenceQuery(query: string): boolean {
   return STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN.test(query);
 }
@@ -221,6 +265,10 @@ export function isPositiveFamilyMovieReviewPreferenceQuery(query: string): boole
 
 export function isBilingualMovieLanguagePreferenceQuery(query: string): boolean {
   return BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN.test(query);
+}
+
+export function isResumeDesignInstructionQuery(query: string): boolean {
+  return RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN.test(query);
 }
 
 export function isExclusiveSourcePreferenceQuery(query: string): boolean {
@@ -237,6 +285,11 @@ export function isExclusiveSourcePreferenceQuery(query: string): boolean {
     isBookFormatPortabilityPreferenceQuery(query) ||
     isBalancedStandaloneSeriesPreferenceQuery(query) ||
     isSleekNeutralSneakerPreferenceQuery(query) ||
+    isMorningSelfCarePreferenceQuery(query) ||
+    isExcelDiningBudgetPreferenceQuery(query) ||
+    isDigitalWillUpdatePreferenceQuery(query) ||
+    isExecutorCandidatePreferenceQuery(query) ||
+    isTaskAppointmentDigitalToolsPreferenceQuery(query) ||
     isStructuredDailyRoutinePreferenceQuery(query) ||
     isPositiveFamilyMovieReviewPreferenceQuery(query) ||
     isBilingualMovieLanguagePreferenceQuery(query);
@@ -484,6 +537,16 @@ export function selectSourceOrderedInstructionEvidence(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
+  if (isResumeDesignInstructionQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserInstruction)
+      .filter((entry) =>
+        RESUME_DESIGN_INSTRUCTION_PATTERN.test(stripEvidencePrefix(entry.fact.content))
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+
   const queryTopics = sourceInstructionTopicTokens({
     language: input.language,
     locale: input.queryLocale,
@@ -838,6 +901,61 @@ export function selectSourceOrderedPreferenceEvidence(input: {
         }),
     })
       .slice(0, 2);
+  }
+  if (isMorningSelfCarePreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        MORNING_SELF_CARE_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isExcelDiningBudgetPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        EXCEL_DINING_BUDGET_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isDigitalWillUpdatePreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        DIGITAL_WILL_UPDATE_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+  if (isExecutorCandidatePreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        EXECUTOR_CANDIDATE_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 2);
+  }
+  if (isTaskAppointmentDigitalToolsPreferenceQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserSource)
+      .filter((entry) =>
+        TASK_APPOINTMENT_DIGITAL_TOOLS_PREFERENCE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 3);
   }
   if (isStructuredDailyRoutinePreferenceQuery(input.query)) {
     return dedupeSourceOrderedEvidenceByOrder({

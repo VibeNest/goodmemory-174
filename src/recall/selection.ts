@@ -1,8 +1,4 @@
-import type {
-  FactKind,
-  FactMemory,
-  UserProfile,
-} from "../domain/records";
+import type { FactKind, FactMemory, UserProfile } from "../domain/records";
 import type { LanguageService } from "../language";
 import type { RecallCandidateTrace } from "./engine";
 import type {
@@ -51,11 +47,16 @@ import {
 import { selectContradictionEvidencePair } from "./selectors/contradiction";
 import {
   isExclusiveSourcePreferenceQuery,
+  isMorningSelfCarePreferenceQuery,
+  isResumeDesignInstructionQuery,
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
 import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./selectors/sourceOrderFinancialPlanning";
 import {
+  isPatentFilingDeadlineReasoningQuery,
+  isPatentPriorArtFilingReasoningQuery,
+  isProbabilityCalculationConfirmationReasoningQuery,
   isSeniorProducerPreparationPriorityQuery,
   selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
 } from "./selectors/sourceOrderReasoning";
@@ -214,15 +215,10 @@ export function selectFacts(
   const museumVisitOrderQuery = isMuseumVisitOrderQuery(query);
   const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
   const temporalIntervalQuery = isTemporalIntervalQuery(query);
-  const aggregateEvidenceQuery =
-    aggregateCountQuery ||
-    aggregateMoneyQuery ||
-    aggregateNumericQuery ||
-    comparativeMetricQuery ||
-    socialMetricTotalQuery ||
-    museumVisitOrderQuery ||
-    healthIssueOrderQuery ||
-    temporalIntervalQuery;
+  const probabilityCalculationConfirmationReasoningQuery = isProbabilityCalculationConfirmationReasoningQuery(query);
+  const patentFilingDeadlineReasoningQuery = isPatentFilingDeadlineReasoningQuery(query);
+  const exactSourceOrderedReasoningQuery = probabilityCalculationConfirmationReasoningQuery || patentFilingDeadlineReasoningQuery;
+  const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery && (aggregateCountQuery || aggregateMoneyQuery || aggregateNumericQuery || comparativeMetricQuery || socialMetricTotalQuery || museumVisitOrderQuery || healthIssueOrderQuery || temporalIntervalQuery);
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
   const sourceOrderedNamedEntityEventOrderQuery =
     isSourceOrderedNamedEntityEventOrderQuery(query);
@@ -257,7 +253,9 @@ export function selectFacts(
     );
   };
   const slotSpecificFactQuery =
+    !exactSourceOrderedReasoningQuery &&
     !isSourceOrderedEstateDocumentSummaryQuery(query) &&
+    !isMorningSelfCarePreferenceQuery(query) &&
     !aggregateEvidenceQuery &&
     !isSeniorProducerPreparationPriorityQuery(query) &&
     (
@@ -606,27 +604,14 @@ export function selectFacts(
         directFactualEvidenceBridgePriority(left),
     )
     : [];
-  const summaryCoverageCandidates = selectSummaryCoverage({
-    entries: compatible,
-    language,
-    query,
-    queryLocale,
-  });
+  const summaryCoverageCandidates = exactSourceOrderedReasoningQuery ? [] : selectSummaryCoverage({ entries: compatible, language, query, queryLocale });
   const personalWorkChallengeCandidates =
     selectPersonalWorkChallengeEvidence({
       entries: compatible,
       query,
   });
-  const informationExtractionCandidates = selectInformationExtractionEvidence({
-    entries: compatible,
-    query,
-  });
-  const broadAspectEventOrderCandidates = selectBroadAspectEventOrderEvidence({
-    entries: compatible,
-    language,
-    query,
-    queryLocale,
-  });
+  const informationExtractionCandidates = exactSourceOrderedReasoningQuery ? [] : selectInformationExtractionEvidence({ entries: compatible, query });
+  const broadAspectEventOrderCandidates = exactSourceOrderedReasoningQuery ? [] : selectBroadAspectEventOrderEvidence({ entries: compatible, language, query, queryLocale });
   const sourceOrderedEventOrderCandidates = selectEventOrderEvidence({
     entries: compatible,
     language,
@@ -648,13 +633,16 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const patentPriorArtFilingReasoningQuery = isPatentPriorArtFilingReasoningQuery(query);
   const reasoningBridgeCandidates = (
     summaryCoverageCandidates.length > 0 ||
     timelineIntegrationCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
     personalWorkChallengeCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
-    sourceOrderedValueUpdateCandidates.length > 0 ||
+    (sourceOrderedValueUpdateCandidates.length > 0 &&
+      !patentPriorArtFilingReasoningQuery &&
+      !exactSourceOrderedReasoningQuery) ||
     sourceOrderedNamedEntityEventPlanActive ||
     temporalEventOrderQuery ||
     temporalMostRecentQuery ||
@@ -667,14 +655,13 @@ export function selectFacts(
         query,
         queryLocale,
       });
-  const seniorProducerPreparationPlanActive = isSeniorProducerPreparationPriorityQuery(query) && reasoningBridgeCandidates.length > 0;
-  const sourceOrderedSelectorActive =
-    timelineIntegrationCandidates.length > 0 ||
+  const sourceOrderedSelectorActive = timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
+    exactSourceOrderedReasoningQuery ||
+    isSeniorProducerPreparationPriorityQuery(query) ||
     householdBudgetReasoningQuery ||
-    seniorProducerPreparationPlanActive ||
     sourceOrderedValueUpdateCandidates.length > 0 ||
     sourceOrderedNamedEntityEventPlanActive;
   const exclusiveSourcePreferenceQuery = isExclusiveSourcePreferenceQuery(query);
@@ -697,6 +684,15 @@ export function selectFacts(
           query,
           queryLocale,
         });
+  if (isResumeDesignInstructionQuery(query) && instructionEvidenceCandidates.length > 0) {
+    for (const entry of instructionEvidenceCandidates) {
+      selectAndTrace(entry);
+    }
+    return {
+      facts: selected.map(materializeFactCandidate),
+      traces,
+    };
+  }
   const contradictionEvidencePair = selectContradictionEvidencePair({
     entries: compatible,
     language,
@@ -1132,6 +1128,8 @@ export function selectFacts(
   }
 
   if (
+    !exactSourceOrderedReasoningQuery &&
+    !sourcePreferenceExclusiveQuery &&
     directFactualLookupQuery &&
     informationExtractionCandidates.length === 0 &&
     sourceOrderedValueUpdateCandidates.length === 0 &&

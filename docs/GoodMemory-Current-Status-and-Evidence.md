@@ -1454,6 +1454,207 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     newly-missing evidence regressions, and no negative recall deltas. This
     remains a partial repair: the full 100K diagnostic is still recall-limited
     and noisy.
+  - latest patent prior-art/provisional filing reasoning repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-patent-prior-art-filing-reasoning-current-20260601T160000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6657847082494972,
+    missed-recall cases 167/355, and wrong-recall/noise cases 308/400. It
+    raises global hit evidence ids 674 -> 679, lowers missing ids 420 -> 415,
+    improves zero-recall cases 50 -> 49, and lowers total noise
+    2197 -> 2195. The repair adds a guarded reasoning bridge for the patent
+    prior-art plan, search findings, unique AI-tagging filing advice,
+    provisional receipt, and non-provisional preparation arc, and keeps
+    reasoning-bridge activity out of the global source-ordered active flag so
+    instruction/preference evidence remains available after primary selection.
+    Target `20:multi_session_reasoning:2` moves from 0 to 1.0 by returning
+    exactly 32/70/71/122/123 and removing target noise 100/196/314.
+    Multi-session reasoning rises to average recall 0.5202 with +5 hit ids,
+    -5 missing ids, one fewer incomplete case, and one fewer zero-recall case;
+    wrong-recall/noise cases improve by one. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. This remains a partial repair: the full 100K diagnostic is still
+    recall-limited
+    and noisy.
+  - latest probability confirmation reasoning repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-probability-confirmation-current-20260601T171500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.668601609657948,
+    missed-recall cases 166/355, and wrong-recall/noise cases 307/400. It
+    raises global hit evidence ids 679 -> 682, lowers missing ids 415 -> 412,
+    improves zero-recall cases 49 -> 48, and lowers total noise
+    2195 -> 2183. The repair adds a guarded reasoning bridge for the
+    two-coin both-heads, two-dice six/even, and dice-roll-sum independence
+    confirmation turns, and keeps this exact probability count question out of
+    aggregate, information-extraction, summary, and broad event-order
+    selectors before the bridge. Target `5:multi_session_reasoning:2` moves
+    from 0 to 1.0 by returning exactly 30/96/226 and removing target noise
+    34/72/48/152/22/150/64/234. Multi-session reasoning rises to average
+    recall 0.5452 with +3 hit ids, -3 missing ids, 8 fewer bucket noise ids,
+    one fewer incomplete case, one fewer wrong-recall/noise case, and one
+    fewer zero-recall case. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
+  - latest Kimberly personal-statement reasoning repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-kimberly-personal-statement-current-20260601T181500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6714185110663987,
+    missed-recall cases 165/355, and wrong-recall/noise cases 306/400. It
+    raises global hit evidence ids 682 -> 686, lowers missing ids 412 -> 408,
+    improves zero-recall cases 48 -> 47, and keeps total noise unchanged at
+    2183. The repair adds a guarded reasoning bridge for Kimberly's initial
+    personal-statement feedback, selective integration advice, later improved
+    flow praise, and grant-quality refinement advice. Target
+    `9:multi_session_reasoning:2` moves from 0 to 1.0 by returning exactly
+    6/7/110/111 and removing target noise 12/101. Multi-session reasoning rises
+    to average recall 0.5702 with +4 hit ids, -4 missing ids, -2 bucket noise
+    ids, one fewer incomplete case, one fewer wrong-recall/noise case, and one
+    fewer zero-recall case. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas; the
+    event-ordering bucket adds two noise ids while global noise remains flat.
+    This remains a partial repair: the full 100K diagnostic is still
+    recall-limited and noisy.
+  - latest Stephen anniversary/free-will reasoning repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-stephen-free-will-current-20260602T003000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6742354124748494,
+    missed-recall cases 164/355, and wrong-recall/noise cases 305/400. It
+    raises global hit evidence ids 686 -> 690, lowers missing ids 408 -> 404,
+    improves zero-recall cases 47 -> 46, and lowers total noise 2183 -> 2173.
+    The repair adds a guarded reasoning bridge for the Coral Reef anniversary
+    conflict-resolution anchor, the Sunset Grill five-year celebration, the
+    free-will trust/support discussion, and the later weekly scenario-focused
+    free-will discussions. Target `12:multi_session_reasoning:2` moves from 0
+    to 1.0 by returning exactly 74/164/166/168 and removing target noise
+    142/143/144/145/165/214/215/299. Multi-session reasoning rises to average
+    recall 0.5952 with +4 hit ids, -4 missing ids, -8 bucket noise ids, one
+    fewer incomplete case, one fewer wrong-recall/noise case, and one fewer
+    zero-recall case. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This remains a
+    partial repair: the full 100K diagnostic is still recall-limited and noisy.
+  - latest patent filing deadline reasoning repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-patent-filing-deadline-pruned-current-20260602T013000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6770523138833001,
+    missed-recall cases 163/355, and wrong-recall/noise cases 304/400. It
+    raises global hit evidence ids 690 -> 692, lowers missing ids 404 -> 402,
+    improves zero-recall cases 46 -> 45, and lowers total noise 2173 -> 2167.
+    The repair adds a guarded reasoning bridge for the provisional-patent
+    filing deadline and non-provisional-patent filing deadline, keeps exact
+    source-ordered reasoning queries out of slot-specific early return and
+    direct-factual companion padding, and preserves the prior exact reasoning
+    bridges. Target `20:multi_session_reasoning:1` moves from 0 to 1.0 by
+    returning exactly 30/164 and removing target noise
+    174/46/186/202/362/228. Multi-session reasoning rises to average recall
+    0.6202 with +2 hit ids, -2 missing ids, -6 bucket noise ids, one fewer
+    incomplete case, one fewer wrong-recall/noise case, and one fewer
+    zero-recall case. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. This remains a
+    partial repair: the full 100K diagnostic is still recall-limited and noisy.
+  - latest resume design instruction repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-resume-design-instruction-current-20260602T020800Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6798692152917507,
+    missed-recall cases 162/355, and wrong-recall/noise cases 303/400. It
+    raises global hit evidence ids 692 -> 693, lowers missing ids 402 -> 401,
+    improves zero-recall cases 45 -> 44, and lowers total noise
+    2167 -> 2153. The repair adds a guarded resume-design instruction route
+    that recognizes the typoed query `How should I desing my resume?` and keeps
+    only the source instruction about minimalist resume style with clear
+    headings. Target `6:instruction_following:2` moves from 0 to 1.0 by
+    returning exactly 194 and removing target noise
+    28/29/150/151/190/191/244/246/94/144/36/37/124/125. Instruction following
+    rises to average recall 0.8146 with +1 hit id, -1 missing id, 14 fewer
+    bucket noise ids, one fewer incomplete case, one fewer wrong-recall/noise
+    case, and one fewer zero-recall case. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas; abstention gains one bucket noise id and event-ordering loses one
+    while global noise decreases by 14. This remains a partial repair: the
+    full 100K diagnostic is still recall-limited and noisy.
+  - retained morning self-care preference repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-morning-self-care-current-20260602T030000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6826861167002014,
+    missed-recall cases 161/355, and wrong-recall/noise cases 302/400. It
+    raises global hit evidence ids 693 -> 694, lowers missing ids 401 -> 400,
+    improves zero-recall cases 44 -> 43, and lowers total noise
+    2153 -> 2152. The repair adds a guarded morning self-care preference route
+    and keeps exclusive source-preference queries out of direct-factual
+    companion padding. Target `18:preference_following:2` moves from 0 to 1.0
+    by returning exactly 164 and removing target noise 8/62/288/353.
+    Preference following rises to average recall 0.9188 with +1 hit id, -1
+    missing id, four fewer bucket noise ids, one fewer incomplete case, one
+    fewer wrong-recall/noise case, and one fewer zero-recall case. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas; event-ordering gains two bucket noise ids and
+    knowledge-update gains one while global noise still decreases by one. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
+  - retained Excel dining-budget preference repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-excel-dining-budget-current-20260602T041500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6855030181086521,
+    missed-recall cases 160/355, and wrong-recall/noise cases 301/400. It
+    raises global hit evidence ids 694 -> 695, lowers missing ids 400 -> 399,
+    improves zero-recall cases 43 -> 42, and lowers total noise
+    2152 -> 2146. The repair adds a guarded Excel dining-budget preference
+    route for the monthly-expenses / dining-out-budget query and keeps only
+    the source turn where the user prefers Excel for control. Target
+    `16:preference_following:1` moves from 0 to 1.0 by returning exactly 50
+    and removing target noise 280/200/204/310. Preference following rises to
+    average recall 0.9444 with +1 hit id, -1 missing id, four fewer bucket
+    noise ids, one fewer incomplete case, one fewer wrong-recall/noise case,
+    and one fewer zero-recall case. Case-delta analysis shows no hit-loss, no
+    newly-missing evidence regressions, and no negative recall deltas;
+    event-ordering and knowledge-update each lose one bucket noise id while
+    global noise decreases by six. This remains a partial repair: the full
+    100K diagnostic is still recall-limited and noisy.
+  - retained digital will-update preference repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-digital-will-update-current-20260602T053000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6883199195171028,
+    missed-recall cases 159/355, and wrong-recall/noise cases 300/400. It
+    raises global hit evidence ids 695 -> 696, lowers missing ids 399 -> 398,
+    improves zero-recall cases 42 -> 41, and lowers total noise
+    2146 -> 2136. The repair adds a guarded digital will-update preference
+    route for the future will-document updates query and keeps only the source
+    turn where the user chose WillMaker Pro for flexibility and future edits.
+    Target `19:preference_following:1` moves from 0 to 1.0 by returning
+    exactly 110 and removing target noise 16/120/280/80/62/270/17/250/251.
+    Preference following rises to average recall 0.9701 with +1 hit id, -1
+    missing id, nine fewer bucket noise ids, one fewer incomplete case, one
+    fewer wrong-recall/noise case, and one fewer zero-recall case. Case-delta
+    analysis shows no hit-loss, no newly-missing evidence regressions, and no
+    negative recall deltas; abstention loses one bucket noise id while global
+    noise decreases by ten. This remains a partial repair: the full 100K
+    diagnostic is still recall-limited and noisy.
+  - latest executor/co-executor preference repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-executor-coexecutor-current-20260602T063000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6897283702213282,
+    missed-recall cases 158/355, and wrong-recall/noise cases 299/400. It
+    raises global hit evidence ids 696 -> 697, lowers missing ids 398 -> 397,
+    and lowers total noise 2136 -> 2130. The repair adds a guarded executor
+    candidate preference route for the appoint/manage-responsibilities query
+    and keeps the source pair where the user weighs Douglas's organizational
+    skills against Kevin's legal background plus the co-executor follow-up.
+    Target `19:preference_following:2` rises from 0.5 to 1.0 by returning
+    exactly 46/48 and removing target noise 3/32/33/44/45/47/77/128/2.
+    Preference following rises to average recall 0.9829 with +1 hit id, -1
+    missing id, nine fewer bucket noise ids, one fewer incomplete case, and
+    one fewer wrong-recall/noise case. Case-delta analysis shows no hit-loss,
+    no newly-missing evidence regressions, and no negative recall deltas;
+    event-ordering gains three bucket noise ids while global noise still
+    decreases by six. This remains a partial repair: the full 100K diagnostic
+    is still recall-limited and noisy.
+  - latest task/appointment digital-tools preference repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-task-appointment-tools-current-20260602T073000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6916063044936287,
+    missed-recall cases 157/355, and wrong-recall/noise cases 298/400. It
+    raises global hit evidence ids 697 -> 699, lowers missing ids 397 -> 395,
+    and lowers total noise 2130 -> 2121. The repair adds a guarded digital
+    task/appointment tools preference route for the task-and-appointment
+    tracking query and keeps the source preference plus Trello / Google
+    Calendar / IFTTT follow-ups. Target `18:preference_following:1` rises from
+    0.3333333333333333 to 1.0 by returning exactly 84/86/88 and removing
+    target noise 2/324/274/166/62/63/85. Preference following reaches average
+    recall 1.0 with +2 hit ids, -2 missing ids, seven fewer bucket noise ids,
+    one fewer incomplete case, and one fewer wrong-recall/noise case.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas; abstention gains one bucket
+    noise id while event-ordering loses three and global noise decreases by
+    nine. This remains a partial repair: the full 100K diagnostic is still
+    recall-limited and noisy.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected
