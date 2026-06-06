@@ -519,6 +519,178 @@ function buildProbabilityCalculationConfirmationReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildProbabilityUnderstandingSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm a colour technologist trying to learn probability basics through paint and quality-control examples.",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "We started with probability basics for colour combinations and quality-control checks.",
+      id: 3,
+      role: "assistant",
+    },
+    {
+      content:
+        "Let's go deeper into quality control probability calculations before moving to coin tosses.",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "Quality-control probability examples can help, but they are only the introductory context.",
+      id: 5,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand probability as a ratio using simple events like coin tosses and dice rolls, including heads as 1:2.",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "Probability is favorable outcomes divided by total outcomes, so heads is 1/2 and rolling a 4 is 1/6.",
+      id: 7,
+      role: "assistant",
+    },
+    {
+      content:
+        "I want another beginner example before going into more advanced probability ideas.",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "Another basic ratio example still reinforces the same favorable-outcomes over total-outcomes idea.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand probability as a ratio of favorable outcomes to total outcomes, but I'm having trouble wrapping my head around it - can you help me with a simple example, like a coin toss, where the probability of getting heads is the number of favorable outcomes over total outcomes?",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "We broke down probability as a ratio step by step with a coin toss and then applied the same logic to a die roll.",
+      id: 11,
+      role: "assistant",
+    },
+    {
+      content:
+        "Got it! The probability of getting heads when flipping a coin is 1/2 or 0.5. So, if I wanted to find the probability of rolling an even number on a 6-sided die, how would I do that?",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "Rolling an even number has three favorable outcomes out of six, which simplifies to 1/2.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand the difference between independent and mutually exclusive events, maybe something with coin tosses or dice rolls, and I want to see the probability calculations for both cases.",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "We clarified independent and mutually exclusive events with coin tosses and dice rolls, including combined probability calculations.",
+      id: 15,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand why tossing two coins is considered independent events, can you help me calculate P(both heads) using the formula 1/2 x 1/2 = 1/4?",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "Tossing two coins is an independent-events example, and P(both heads) is 1/2 x 1/2 = 1/4.",
+      id: 31,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand if the events rolling a 2 and rolling a 5 on a die are mutually exclusive, which means P(A ∩ B) = 0, and I want to confirm this concept.",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "Rolling a 2 and rolling a 5 on one die are mutually exclusive because both cannot happen on a single roll.",
+      id: 43,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand this conditional probability concept, specifically P(A|B), and I want to dive deeper into how it works.",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "Conditional probability P(A|B) explains how the probability of one event changes when another event has occurred, with coin, dice, and card examples.",
+      id: 57,
+      role: "assistant",
+    },
+    {
+      content:
+        "For a card example, P(face card given spade) applies the conditional probability formula and gives 3/13.",
+      id: 59,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "probability-understanding-summary",
+      conversation_plan: "BATCH 5 PLAN",
+      conversation_seed: {
+        category: "Math",
+        id: 5,
+        subtopics: ["Probability basics", "Independent events"],
+        theme: "Understanding probability concepts",
+        title: "Probability Learning Journey",
+      },
+      narratives: "Probability learning progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The learning journey moved from probability as a ratio, to simple die examples, to independent and mutually exclusive events, then to conditional probability with cards.",
+            question:
+              "Can you give me a clear summary of how my understanding of probability has developed through our conversations?",
+            question_id: "probability-understanding-summary",
+            question_type: "summarization",
+            source_chat_ids: [6, 7, 11, 13, 15, 31, 43, 57, 59],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Probability learner",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildKimberlyPersonalStatementReasoningBeamRows(): unknown[] {
   const turns = [
     {
@@ -595,6 +767,922 @@ function buildKimberlyPersonalStatementReasoningBeamRows(): unknown[] {
       user_profile: {
         user_info: "USER PROFILE: Grant applicant",
         user_relationships: "Kimberly",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildPersonalStatementApplicationDeadlineExtractionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to set a goal for myself to complete this multi-purpose personal statement, but I'm not sure how to make it work for academic, visa, and grant applications, can you give me some advice on how to make it happen, considering I aim to finish it by April 20, 2024",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on my personal statement, and I want to make sure I meet all the deadlines, like the scholarship deadline on May 15, 2024, and the visa application due June 1, 2024, so can you help me plan this out?",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about my visa application, what if I don't clearly explain my ties to Montserrat and I lose the $150 application fee, how can I avoid that risk?",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "Always format dates in the month-day-year style when I ask about deadlines.",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I understand your concern about the timing of Bryan's recommendation letter for your scholarship application. Given that your scholarship deadline is May 15, 2024, and Bryan has agreed to write the letter by May 20, 2024, there is a slight overlap that needs careful management.",
+      id: 109,
+      role: "assistant",
+    },
+    {
+      content:
+        "Given your concern about missing the May 15 scholarship deadline and facing a $50 penalty, it's important to prioritize your final edits efficiently.",
+      id: 117,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide exact times when I ask about appointments or meetings.",
+      id: 152,
+      role: "user",
+    },
+    {
+      content:
+        "I have never submitted any scholarship application or uploaded documents online, so I'm looking for guidance on how to get started with the process, especially since the scholarship deadline is approaching",
+      id: 158,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-statement-application-deadline-extraction",
+      conversation_plan: "BATCH 9 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 14,
+        subtopics: [
+          "Personal statement",
+          "Application deadlines",
+          "Visa applications",
+        ],
+        theme:
+          "Balancing personal narrative with professional credibility for academic, visa, and grant applications",
+        title:
+          "Designing a Multi-Purpose Personal Statement for Global Opportunities",
+      },
+      narratives: "Personal statement application deadline planning",
+      probing_questions: {
+        information_extraction: [
+          {
+            answer:
+              "The scholarship deadline is May 15, 2024; the visa application is due June 1, 2024; and the university application is due April 30, 2024.",
+            question:
+              "What dates did I mention for the scholarship deadline, visa application, and university application?",
+            question_id: "personal-statement-application-deadline-extraction",
+            question_type: "information_extraction",
+            source_chat_ids: [12],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl Wilson",
+        user_relationships: "Bryan, Tanya",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildPersonalStatementMentorSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Of course! Incorporating specific advice from Bryan at the Montserrat Film Festival can add a unique and personalized touch to your personal statement. Discuss Bryan's insights on storytelling techniques, narrative structure, character development, and how they influenced your approach and personal growth.",
+      id: 5,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda stuck on my personal statement, and I want to make sure I meet all the deadlines, like the scholarship deadline on May 15, 2024, and the visa application due June 1, 2024, so can you help me plan this out?",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, I can help you plan out your personal statement to ensure you meet all the deadlines. Start writing the initial draft, review it with Tanya, incorporate feedback, finalize edits, and prepare for the scholarship and visa deadlines.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "To effectively incorporate the story about producing the local documentary that won second place at the Janethaven Film Awards, use it as a pivotal example that bridges your personal experiences with your professional achievements.",
+      id: 53,
+      role: "assistant",
+    },
+    {
+      content:
+        "Incorporating Shawn's insights on storytelling impact into your personal statement can add depth and credibility to your narrative. Shawn, an 81-year-old veteran producer at Montserrat Media Hub, reinforced the transformative power of storytelling and helped you frame academic goals, personal development, and authenticity.",
+      id: 61,
+      role: "assistant",
+    },
+    {
+      content:
+        "Creating a compelling conclusion that emphasizes your commitment to community media can be a powerful way to wrap up your personal statement. Summarize key points, reiterate your commitment, outline your future vision, and end with a strong statement.",
+      id: 97,
+      role: "assistant",
+    },
+    {
+      content:
+        "It's great to hear that Kimberly praised the improved flow of your 900-word personal statement after your meeting at Cafe Montserrat on May 7. Review grant requirements, seek additional feedback, focus on clarity and conciseness, highlight achievements and potential, and ensure a strong conclusion.",
+      id: 111,
+      role: "assistant",
+    },
+    {
+      content:
+        "It's natural to worry about whether your academic advisor, Danielle, truly appreciated your final draft. Ask Danielle for specific feedback on areas where you can improve, confirm her thoughts on the strong voice consistency she mentioned, add more specific examples, and refine the conclusion so it ties back to your overall goals.",
+      id: 147,
+      role: "assistant",
+    },
+    {
+      content:
+        "Your drafts are a great start, and with some fine-tuning, they can become even more engaging and impactful. Strengthen the introduction, improve the career gap section, clarify transitions, and keep the tone positive.",
+      id: 169,
+      role: "assistant",
+    },
+    {
+      content:
+        "That's great news that you met Matthew at Montserrat Media Hub and received valuable tips from him. Reaching out to him again for more advice on tailoring your personal statement for global opportunities is a smart move. Ask for specific tips on adapting the statement for scholarships, visas, grants, and different audiences.",
+      id: 165,
+      role: "assistant",
+    },
+    {
+      content:
+        "Absolutely, adding a brief section on your leadership experiences can significantly enhance your personal statement. Identify relevant leadership experiences, highlight specific achievements, use concrete examples, and align them with your future goals.",
+      id: 201,
+      role: "assistant",
+    },
+    {
+      content:
+        "I feel grateful for Danielle's support, and I'm considering how her feedback on my voice consistency can help me tailor my personal statement for different applications, such as the one I'm preparing for my enrollment in the workshop",
+      id: 250,
+      role: "user",
+    },
+    {
+      content:
+        "Danielle's feedback on your voice consistency is a valuable asset that can help you tailor your personal statement for different applications while maintaining a cohesive and authentic tone. Maintain a consistent voice, highlight relevant experiences, customize the introduction and conclusion, and seek feedback from Danielle and other trusted peers.",
+      id: 251,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-statement-mentor-summary",
+      conversation_plan: "BATCH 9 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 14,
+        subtopics: [
+          "Personal statement",
+          "Mentor feedback",
+          "Voice consistency",
+        ],
+        theme:
+          "Balancing personal narrative with professional credibility through mentor feedback",
+        title:
+          "Designing a Multi-Purpose Personal Statement for Global Opportunities",
+      },
+      narratives:
+        "Personal statement development through mentor and advisor feedback",
+      probing_questions: {
+        summarization: [
+          {
+            answer:
+              "Bryan shaped the storytelling techniques, Shawn added authenticity and storytelling impact, Danielle clarified voice consistency and draft improvements, Matthew helped tailor the statement for global opportunities, and Danielle's later feedback supported adapting the statement across applications.",
+            question:
+              "Can you summarize how my personal statement has developed through the advice and feedback I've received from different mentors and advisors over time?",
+            question_id: "personal-statement-mentor-summary",
+            question_type: "summarization",
+            source_chat_ids: [5, 61, 147, 165, 251],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl Wilson",
+        user_relationships:
+          "Bryan, Shawn, Danielle, Matthew, Kimberly, Tanya",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildProfessionalDevelopmentProjectSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about my portfolio, Greg told me to update it by April 1, what should I do to make it stand out?",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a mock interview with Greg on April 25, and I'm sorta nervous about it, can you give me some tips on how to handle potential follow-up questions and make a good impression?",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Of course, I can help you check your schedule for April 22 to ensure there are no conflicts with the new Zoom call time. Please provide your scheduled meetings and activities.",
+      id: 95,
+      role: "assistant",
+    },
+    {
+      content:
+        "Sure, here's my schedule for April 22: meeting with Laura from 9 to 10, team meeting from 10:30 to 11:30, one-on-one with Greg from 1 to 2, and project update with Michael from 3 to 4. Can you check if there are conflicts with the new Zoom call at 11 AM?",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "Based on the schedule you provided for April 22, there is a conflict with the new Zoom call at 11 AM because the team meeting overlaps from 10:30 AM to 11:30 AM.",
+      id: 97,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've planned a project to reduce production costs by 10% within the first 6 months, based on my past experience, how can I effectively communicate this impact statement in my cover letter?",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "Communicating a specific measurable impact statement, such as reducing production costs by 10% within the first 6 months, can significantly strengthen your cover letter.",
+      id: 189,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've been refining my 90-day plan with Greg since May 30, and I'm wondering if my objectives and success metrics are clear enough, can you review them and provide some feedback?",
+      id: 202,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, here are the details of my 90-day plan: Objective 1 is to streamline production processes by reducing production cycle time by 20%; Objective 2 is to improve team collaboration and communication; Objective 3 is to increase team productivity by 15%. Can you review these and let me know if they are clear and actionable?",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly, Darryl! Let's review your 30-day progress as senior producer at Island Media Group, including team integration, project planning, and a 10% improvement in team communication scores on your July 15 progress report.",
+      id: 223,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've just completed my first 30 days as senior producer and I'm thinking about my next steps, I started on June 15 and it's now July 20, 2024, can you give me some advice on how to keep improving my team's performance and communication?",
+      id: 224,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, Darryl! Continue improving team performance and communication by refining project planning, maintaining open communication channels, and using collaborative tools.",
+      id: 225,
+      role: "assistant",
+    },
+    {
+      content:
+        "Balancing multiple responsibilities, such as preparing for a workshop and meeting a project deadline, can be challenging but is manageable with the right approach.",
+      id: 231,
+      role: "assistant",
+    },
+    {
+      content:
+        "Balancing a tight project deadline with networking opportunities can be challenging, but with careful planning, you can make the most of your time.",
+      id: 237,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide how to prioritize my tasks, like preparing for the July 25 workshop and managing the July 22 project deadline, while also considering Greg's advice on stress management during busy project phases, and I'm thinking about how Leslie's feedback on my July 18 presentation might help me improve my communication skills",
+      id: 252,
+      role: "user",
+    },
+    {
+      content:
+        "Balancing multiple tasks and priorities while managing stress can be challenging, but with a structured approach you can handle the July 22 project deadline, July 25 workshop preparation, Greg's stress-management advice, and Leslie's communication feedback.",
+      id: 253,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "professional-development-project-summary",
+      conversation_plan: "BATCH 8 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 13,
+        subtopics: [
+          "Professional development",
+          "Project responsibilities",
+          "Portfolio",
+          "Interview preparation",
+        ],
+        theme:
+          "Managing professional growth and project responsibilities over time",
+        title:
+          "Crafting a Standout Cover Letter for Competitive Job Markets",
+      },
+      narratives:
+        "Professional development and project-responsibility progression",
+      probing_questions: {
+        summarization: [
+          {
+            answer:
+              "The user moved from portfolio update planning, to mock interview preparation with Greg, to refining and detailing a 90-day plan, then to prioritizing a July project deadline and workshop while applying stress-management and communication feedback.",
+            question:
+              "Can you give me a comprehensive summary of how I’ve been managing my professional development and project responsibilities over the past few months?",
+            question_id: "professional-development-project-summary",
+            question_type: "summarization",
+            source_chat_ids: [8, 84, 202, 204, 252],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl Wilson",
+        user_relationships: "Greg, Leslie, Laura, Michael",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildGregResearchWritingSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've recently met Greg, 23, at the University of Montserrat seminar on Feb 20, 2024, and we're planning to do some joint research on media influence - what are some tips for a successful collaboration with someone that much younger than me?",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "Collaborating with someone younger, like Greg, can be a rewarding experience if you approach it with openness and mutual respect. Maintain open lines of communication, listen actively, define roles and expectations, set clear goals and deadlines, and keep detailed records of progress and decisions.",
+      id: 17,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda stuck on how to effectively use NVivo for my qualitative data analysis, especially since Greg suggested it and I just installed it on April 3, which has already improved my coding speed by 30%",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the tips! I've been organizing my film scripts into nodes based on themes like gender roles and power dynamics. Coding is going pretty smoothly, but I'm still figuring out how to best use queries and visualizations. Any pointers on how to get started with those features?",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a rescheduled writing session on April 7 after missing the April 5 one due to an unexpected meeting with Greg at Studio 9, how can I make the most of this new schedule to stay on track with my essay on the representation of women in film?",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "Rescheduling your writing session is a good step to ensure you stay on track with your essay. Set clear objectives, prioritize the most important section, use a structured writing block, gather materials, and reflect on progress.",
+      id: 81,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm analyzing 10 Montserrat films for my essay, focusing on gender portrayal, and I want to know if I should prioritize films with strong female leads or those that portray gender stereotypes",
+      id: 152,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about meeting the June 5 deadline for submitting my essay to Montserrat Journal of Media Studies, as Robert recommended, and I also have to work on the conference paper with Greg by June 3, so can you help me prioritize these tasks and create a schedule",
+      id: 168,
+      role: "user",
+    },
+    {
+      content:
+        "Manage both deadlines with a clear plan. Prioritize the June 3 conference paper with Greg first, then focus on the June 5 journal submission, while staying in regular contact with Greg.",
+      id: 169,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide how to best approach the conference paper on media representation with Greg, and since Robert suggested submitting my essay to a journal, I'm wondering if I should focus on making my essay a stronger, more persuasive piece before working on the conference paper",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "Given the deadlines and importance of both tasks, focus first on making the journal essay stronger and more persuasive, then collaborate with Greg on the conference paper through outlines, divided tasks, check-ins, and feedback loops.",
+      id: 171,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've got a meeting with Greg rescheduled from 3 PM to 5 PM on June 2 due to a production deadline, how can I best manage my time to ensure I meet all my commitments without burning out?",
+      id: 182,
+      role: "user",
+    },
+    {
+      content:
+        "Adjust your June 2 schedule around the 5 PM meeting with Greg, prioritize journal work, prepare for the meeting, and include breaks so the day does not lead to burnout.",
+      id: 183,
+      role: "assistant",
+    },
+    {
+      content:
+        "What's the best way to ensure Greg and I can effectively collaborate on our conference paper draft, considering we've already submitted it to the Montserrat Media Symposium on July 12?",
+      id: 216,
+      role: "user",
+    },
+    {
+      content:
+        "After submitting to the Montserrat Media Symposium on July 12, keep the collaboration strong with regular check-ins, a shared workspace, version control, divided responsibilities, review cycles, and clear milestones.",
+      id: 217,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "greg-research-writing-summary",
+      conversation_plan: "BATCH 7 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 12,
+        subtopics: [
+          "Academic essay writing",
+          "Collaborative research",
+          "Conference preparation",
+        ],
+        theme:
+          "From research planning to compelling argumentation in essays across disciplines",
+        title: "Mastering the Art of Persuasive Academic Essay Writing",
+      },
+      narratives: "Greg research collaboration and writing-project progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The Greg collaboration began with joint research planning after the University of Montserrat seminar, moved into NVivo adoption and then queries and visualizations for gender-theme coding, continued through film-gender analysis choices, deadline balancing for the June 3 conference paper and June 5 journal essay, and later post-submission collaboration routines after the Montserrat Media Symposium submission.",
+            question:
+              "Can you give me a summary of how my collaboration with Greg and my work on the related research and writing projects have progressed over time?",
+            question_id: "greg-research-writing-summary",
+            question_type: "summarization",
+            source_chat_ids: [16, 54, 56, 152, 168, 216],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl Wilson",
+        user_relationships: "Greg, Robert, Carla",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildFictionBookBudgetSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I just subscribed to Audible's $14.95/month plan on November 25, and with December 12, 2023, approaching, I want to make the most of it, what are some must-read fiction series for winter evenings that I can access through this subscription?",
+      id: 76,
+      role: "user",
+    },
+    {
+      content:
+        "Your Audible subscription gives you access to fiction series such as The Stormlight Archive, Mistborn, The Kingkiller Chronicle, The Expanse, Dune, Outlander, The Poppy War, and other winter-evening options.",
+      id: 77,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a solid plan. I'll stick to reading print books during the day and switch to audiobooks in the evening. I think it'll help me stay engaged without straining my eyes too much.",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Sticking to a balanced approach of reading print books during the day and listening to audiobooks in the evening should help you stay engaged and meet your reading goals without straining your eyes too much.",
+      id: 85,
+      role: "assistant",
+    },
+    {
+      content:
+        "Absolutely! With a budget of $120 for print editions from Montserrat Books on Main Street, you can find must-read fiction series including The Kingkiller Chronicle, The Mistborn Trilogy, The Lies of Locke Lamora, and The Broken Empire. Combination one fits The Kingkiller Chronicle, The Mistborn Trilogy, and The Broken Empire within approximately $90-$120.",
+      id: 35,
+      role: "assistant",
+    },
+    {
+      content:
+        "Absolutely, The Poppy War trilogy is an excellent choice for your winter reading challenge. It has an engaging plot, strong reviews, and a substantial but suitable length, making it a good fit for cozy winter evenings and gifting.",
+      id: 125,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide on a must-read fiction series for winter evenings, and I prioritize print editions for series I plan to reread, while preferring audiobooks for new releases, so can you help me find a good balance?",
+      id: 200,
+      role: "user",
+    },
+    {
+      content:
+        "Finding a good balance between print editions and audiobooks can enhance your reading experience. Use print editions for series you plan to reread, while starting new releases through audiobooks, then purchase print editions later for rereading if the series proves worthwhile.",
+      id: 201,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm planning a literary event with Douglas at Montserrat Books on February 27, and I just downloaded The Witcher first novel on the Libby app on February 13, which has 450 pages, so I'm wondering if I can finish it before the event.",
+      id: 230,
+      role: "user",
+    },
+    {
+      content:
+        "With 14 days until February 27 and 450 pages to read, you would need about 32 pages per day to finish The Witcher first novel before the literary event with Douglas.",
+      id: 231,
+      role: "assistant",
+    },
+    {
+      content:
+        "Given your current book budget and expenses, entering The Witcher fan fiction contest is financially tight. Your book budget is $35 per month, February expenses are already $28, and you have only $7 remaining, so a $5-$10 contest entry fee could exceed the current budget even though the prize is $500.",
+      id: 239,
+      role: "assistant",
+    },
+    {
+      content:
+        "It sounds like you made a great decision in choosing the Outlander series for your winter evenings. The Outlander box set offers rich historical detail, complex characters, and engaging plotlines, making it a strong fit for immersive winter reading.",
+      id: 271,
+      role: "assistant",
+    },
+    {
+      content:
+        "Can you help me figure out how to make the most of my reading time, given that I've committed to reading the first 4 Outlander books by June 30 and have a discussion planned with Kelly?",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "To finish the first four Outlander books by June 30, keep a daily 40-page target, review weekly progress, use audiobooks as needed, prepare discussion questions for Kelly, and coordinate the discussion schedule.",
+      id: 275,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've been discussing books with Kelly, and we're planning a discussion on The Nightingale and The Witcher, but I also value Paul's recommendation of Outlander, should I prioritize Outlander or another series Megan might enjoy?",
+      id: 302,
+      role: "user",
+    },
+    {
+      content:
+        "Balance the interests of your book club, Paul, and Megan by considering Outlander for its historical depth and another series such as The Pillars of the Earth for shared discussion appeal.",
+      id: 303,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "fiction-book-budget-summary",
+      conversation_plan: "BATCH 13 PLAN",
+      conversation_seed: {
+        category: "Reading & Entertainment",
+        id: 13,
+        subtopics: [
+          "Fiction books",
+          "Budgeting",
+          "Format preferences",
+          "Reading goals",
+        ],
+        theme: "Choosing fiction books while balancing budgets and formats",
+        title: "Winter Fiction Reading Decisions",
+      },
+      narratives: "Fiction book selection and budgeting progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The book-planning progression started with a $120 Montserrat Books print-edition budget for fantasy series, then moved to choosing The Poppy War as a winter reading challenge, balancing print rereads with audiobooks for new releases, evaluating The Witcher contest against a tight $35 monthly budget with only $7 remaining, and finally reflecting on the Outlander box set as a fit for immersive winter reading.",
+            question:
+              "Can you give me a summary of how my plans and decisions around choosing and budgeting for fiction books evolved over our conversations?",
+            question_id: "fiction-book-budget-summary",
+            question_type: "summarization",
+            source_chat_ids: [35, 125, 201, 239, 271],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal Wilson",
+        user_relationships: "Douglas, Kelly, Paul, Megan",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildReadingGoalsStrategySummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Hmm, that sounds good. Could you suggest a way to pace the reading so I don't get overwhelmed? Maybe like reading a certain number of chapters at a time?",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "Start with 2-3 chapters per sitting, read consistently, adjust as needed, take breaks after finishing a book, and set weekly or monthly chapter goals.",
+      id: 5,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've set a goal to finish at least 3 series by February 28, 2024, averaging 350 pages per week, do you think that's achievable and can you suggest a schedule for me?",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "It's great that you've already completed 1,200 pages of The Stormlight Archive by December 1. Switching to audiobooks for evening reading after 8 PM can help you stay on track with your goal of finishing at least 3 series by February 28, 2024, averaging 350 pages per week.",
+      id: 79,
+      role: "assistant",
+    },
+    {
+      content:
+        "Glad to hear you're sticking with the schedule! Staying motivated is key to keeping up with your reading goals. Set Small Goals, track progress, create a Comfortable Reading Environment with a Cozy Nook and your 12-candle lavender diffuser, join discussions in the Montserrat Readers Facebook group, Reward Yourself for reaching milestones, mix it up, and stay flexible.",
+      id: 81,
+      role: "assistant",
+    },
+    {
+      content:
+        "Deciding between The Poppy War trilogy and The Broken Earth series depends on your reading goals, engagement, community feedback, and personal preference.",
+      id: 117,
+      role: "assistant",
+    },
+    {
+      content:
+        "Extending your reading challenge goal to 12 books by March 1 means increasing your weekly reading pace, balancing audiobooks for evening relaxation and print books for immersive weekend reading.",
+      id: 137,
+      role: "assistant",
+    },
+    {
+      content:
+        "Your goal to finish 1,500 pages of The Expanse by March 15, averaging 75 pages daily, is realistic given your current reading habits and the flexibility of alternating between print and audiobook formats.",
+      id: 195,
+      role: "assistant",
+    },
+    {
+      content:
+        "Choosing The Nightingale by Kristin Hannah as your next read after The Expanse series is an excellent decision for adding variety to your reading list. It marks a shift from science fiction to historical fiction and gives you a fresh perspective.",
+      id: 217,
+      role: "assistant",
+    },
+    {
+      content:
+        "Declining the TV pilot project to focus on your reading goals gives you 15 extra hours each week for engaging fiction series.",
+      id: 229,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "reading-goals-strategy-summary",
+      conversation_plan: "BATCH 13 PLAN",
+      conversation_seed: {
+        category: "Reading & Entertainment",
+        id: 13,
+        subtopics: [
+          "Reading goals",
+          "Reading schedules",
+          "Audiobooks",
+          "Genre variety",
+        ],
+        theme: "Reading goals and strategy progression over time",
+        title: "Winter Reading Goal Strategy",
+      },
+      narratives: "Reading goals and strategies progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The reading-goal progression began with an ambitious plan to finish at least three series by February 28 while averaging 350 pages per week, then adjusted after 1,200 Stormlight pages by using evening audiobooks after 8 PM, added motivation tactics such as small goals, a cozy reading environment, community discussion, and rewards, later refined into a realistic 1,500-page Expanse goal by March 15 at 75 pages daily, and finally shifted toward The Nightingale for genre variety after The Expanse.",
+            question:
+              "Can you summarize how my reading goals and strategies have developed over time based on our conversations?",
+            question_id: "reading-goals-strategy-summary",
+            question_type: "summarization",
+            source_chat_ids: [28, 79, 81, 195, 217],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal Wilson",
+        user_relationships: "Douglas, Kelly",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildRobertAcademicMentorSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about meeting my new academic mentor, Robert, who's 75 and a retired professor, at the East Janethaven Library on Feb 10, 2024 - how can I make a good impression on him?",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "Meeting your new academic mentor, Robert, can go well if you research his background, prepare questions and topics, bring relevant materials, arrive early, dress appropriately, engage politely, take notes, and send a thank-you note afterward.",
+      id: 15,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm really inspired by Robert's 1985 essay on gender studies that he shared during our April 4 Zoom call, and I'm thinking of using some of those argument angles in my essay, but how can I make sure I'm not copying his ideas?",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "Using Robert's 1985 essay as inspiration can enrich your work if you understand and synthesize his ideas, build on his work, develop original arguments, cite properly, and compare his observations with your own research.",
+      id: 65,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide whether to prioritize Robert's recommendation to use stronger warrants for claims on gender bias, which he mentioned when he reviewed my draft on May 9, or to focus on other aspects of my essay",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Robert's recommendation to use stronger warrants is valuable because warrants can strengthen the persuasiveness and credibility of your claims on gender bias, though you should balance that feedback with thesis clarity, counterarguments, evidence synthesis, and flow.",
+      id: 125,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've been experiencing some self-doubt about my argument strength, especially after May 7 when I had doubts, but then I consulted Robert's feedback and it really helped me overcome them, how can I continue to build my confidence in my arguments?",
+      id: 156,
+      role: "user",
+    },
+    {
+      content:
+        "Building confidence in your arguments can come from reviewing Robert's positive feedback, seeking regular check-ins, practicing your argument aloud, and deepening your research.",
+      id: 157,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm feeling really validated after Carla's May 20 praise and Robert's June 1 encouragement, how can I use this confidence boost to improve my essay structure, especially since I've decided to restructure my paper for a journal format and add a 500-word literature review section?",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "Use the confidence from Carla's praise and Robert's encouragement to restructure your paper into journal sections and add the literature review.",
+      id: 177,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide how to best approach the conference paper on media representation with Greg, and since Robert suggested submitting my essay to a journal, I'm wondering if I should focus on making my essay a stronger, more persuasive piece before working on the conference paper",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "I just received my essay grade of 92% and I'm thrilled that my argumentation and evidence synthesis were praised, what can I do to further improve my skills for the next publication, especially since Robert and I are discussing next steps on July 20?",
+      id: 212,
+      role: "user",
+    },
+    {
+      content:
+        "Congratulations on receiving a 92% on your essay. To improve for the next publication, keep engaging with Robert's feedback, expand your reading, practice writing, attend workshops, participate in peer review, and refine argumentation.",
+      id: 213,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm feeling quite confident after getting such a high grade on July 10, but I want to make sure I'm on the right track for our Zoom meeting on July 20, can you help me review my progress and plan for the conference preparation?",
+      id: 214,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "robert-academic-mentor-summary",
+      conversation_plan: "BATCH 7 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 12,
+        subtopics: [
+          "Academic essay writing",
+          "Mentor feedback",
+          "Conference preparation",
+        ],
+        theme:
+          "From research planning to compelling argumentation in essays across disciplines",
+        title: "Mastering the Art of Persuasive Academic Essay Writing",
+      },
+      narratives: "Robert academic mentorship and essay progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The Robert mentorship progressed from preparing for an initial mentor meeting, to using Robert's 1985 gender studies essay without copying, to prioritizing stronger warrants for gender-bias claims, to deciding how to balance journal submission with Greg's conference paper, and finally to reviewing progress for the July 20 Zoom meeting after a high essay grade.",
+            question:
+              "Can you give me a summary of how my work and interactions with Robert have developed over time, including the key steps and decisions I've made along the way?",
+            question_id: "robert-academic-mentor-summary",
+            question_type: "summarization",
+            source_chat_ids: [14, 64, 124, 170, 214],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl Wilson",
+        user_relationships: "Robert, Greg, Carla",
       },
       user_questions: [],
     },
@@ -1629,6 +2717,76 @@ function buildTimeStressCreativeCollaborationBeamRows(): unknown[] {
   ];
 }
 
+function buildFamilyMovieBasicProjectSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm Crystal, a TV/film producer from East Janethaven, Montserrat, and I'm gonna be free at 9:00 AM, so can you recommend some streaming movies that I can watch with my family, given my background in the film industry, to make the most of our time together?",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, mixing musicals and family-friendly content is a fantastic idea for bringing joy and sparking conversations. I recommended classic and hidden gem movies including Singin' in the Rain, The Wizard of Oz, Mary Poppins, Mamma Mia!, The Princess Bride, Paddington, and The Parent Trap.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "Given your shared love for classic films, I recommended timeless movies such as Casablanca, Gone with the Wind, It's a Wonderful Life, The Maltese Falcon, Singin' in the Rain, and Vertigo for a nostalgic movie night.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always confirm time zones when I ask about meeting or interview times.",
+      id: 266,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "family-movie-basic-project-summary",
+      conversation_plan: "BATCH 14 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 19,
+        subtopics: ["Family movies", "Streaming recommendations"],
+        theme:
+          "Balancing entertainment value, age appropriateness, and availability across platforms",
+        title: "Finding the Best Streaming Movies for a Family Weekend",
+      },
+      narratives: "Family movie recommendation project",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The project started with initial family streaming-movie planning, then moved into family-friendly classics and hidden gems, and continued with classic-film recommendations for a nostalgic movie night.",
+            question: "Can you give me a summary of what happened with the project?",
+            question_id: "family-movie-basic-project-summary",
+            question_type: "summarization",
+            source_chat_ids: [4, 9, 13],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal",
+        user_relationships: "Thomas, Amy, Kyle",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteSummaryBeamRows(): unknown[] {
   const turns = [
     {
@@ -1745,6 +2903,312 @@ function buildWeatherAutocompleteSummaryBeamRows(): unknown[] {
       user_profile: {
         user_info: "USER PROFILE: Dev",
         user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildWeatherProjectProgressSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm Christina, a colour technologist, and I'm trying to build a weather app using JavaScript and OpenWeather API v2.5, but I'm having trouble figuring out how to structure my code. I want to make sure I'm using the API correctly and handling errors properly with getWeather(), handleError(), and a simple main() function.",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "Your approach is on the right track. Improve error handling with descriptive messages, modularize the weather app code into smaller reusable functions, manage the OpenWeather API endpoint and key in a configuration object, validate city input, and use parameter objects for axios requests.",
+      id: 7,
+      role: "assistant",
+    },
+    {
+      content:
+        "hmm, got it, but what about adding the autocomplete feature with the debounce delay?",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "Adding an autocomplete feature with a debounce delay will enhance the weather app user experience. Create a debounce function, implement getAutocompleteSuggestions(), update the suggestions list dynamically, and use a 300ms delay to reduce excessive API calls.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to initialize a project using vanilla JavaScript ES2021, HTML5, and CSS3 to target the OpenWeather API endpoint api.openweathermap.org/data/2.5/weather. Can you help me build a basic implementation with error handling and validation?",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "Create an HTML weather app shell, style it with CSS, and implement fetchWeatherData() against the OpenWeather API with city validation, error messages, and DOM updates for temperature, humidity, and conditions.",
+      id: 11,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to keep my weather app under 2.5MB, so I prefer using lightweight, dependency-free solutions over heavy frameworks. Can you help me implement a simple caching mechanism for API responses without external libraries using localStorage or an in-memory cache?",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Implement a simple dependency-free weather cache with a Map for in-memory storage or localStorage for persistence. Store city weather responses, return cached data when available, and add expiration timestamps so stale OpenWeather API responses can be refreshed.",
+      id: 55,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to optimize the autocomplete feature in my weather app to reduce API calls while still providing a good user experience. I've decided to limit the results to 5 items and may add advanced caching or adjust the debounce delay.",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "Use an advanced caching mechanism, adjust the debounce delay, and consider pagination or infinite scrolling for autocomplete results to balance API call reduction with useful search results.",
+      id: 95,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to implement a custom feature for my weather app to maintain full control and avoid external dependency risks, as per my preference statement, but I'm not sure how to start.",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "Implementing custom features for your weather app helps maintain full control and avoid external dependencies. Define the feature requirements, design the UI and data structures, implement the code, integrate it into the app, test and debug thoroughly, optimize performance, and document the feature.",
+      id: 123,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to achieve 100% test coverage on my core modules, including API fetch, autocomplete, and error handling, and I've currently reached 85% as of April 9, 2024.",
+      id: 148,
+      role: "user",
+    },
+    {
+      content:
+        "To reach 100% test coverage, add Jest cases for successful autocomplete responses, empty autocomplete responses, network errors, debounce behavior, rapid input changes, HTTP errors, and general fetchWeatherData() failures.",
+      id: 149,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm working on a project that was marked feature-complete on April 9, 2024, and I'm ready to collect user feedback. The project has all MVP goals met, 85% test coverage, and an average API response time improved to 220ms after caching and code optimizations.",
+      id: 186,
+      role: "user",
+    },
+    {
+      content:
+        "Prepare the feature-complete project for high-volume user feedback with load testing, performance monitoring, scalability planning, caching refinement, database optimization, robust error logging, structured feedback collection, CI/CD, security, and documentation.",
+      id: 187,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "weather-project-progress-summary",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 3,
+        subtopics: [
+          "Working with APIs in JavaScript",
+          "Adding city autocomplete",
+          "Error handling for invalid locations",
+          "Deploying on GitHub Pages",
+        ],
+        theme: "Fetching and displaying weather data for user-specified locations",
+        title: "Developing a Weather Forecast App in JavaScript with OpenWeather API",
+      },
+      narratives: "Weather app project progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The weather app progressed from basic OpenWeather API implementation and error handling, through autocomplete with debounce, lightweight dependency-free caching, and a custom feature plan that preserved full implementation control.",
+            question:
+              "Can you give me a comprehensive summary of how my weather app project has progressed, including the key features, improvements, and development steps we've discussed so far?",
+            question_id: "weather-project-progress-summary",
+            question_type: "summarization",
+            source_chat_ids: [6, 7, 8, 9, 54, 55, 122, 123],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Christina",
+        user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildBudgetTrackerProjectLifecycleSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Sure, let's break it down for my budget tracker project. Components include user authentication with registration, login, and logout; transaction management with add income, add expense, and view transactions; and basic analytics with monthly summaries and category-wise spending. Milestones run from setting up the Flask project and initial database schema through authentication, transaction management, analytics, final adjustments, testing, and deployment.",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "Yes, this breakdown works well. Let's refine the schedule for the budget tracker project with setup, user authentication, transaction management, basic analytics, final adjustments, testing, and deployment tasks.",
+      id: 3,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm Craig, a hands-on developer with a practical mindset, eager to build a personal budget tracker using Python and Flask. I want to create a simple web application that allows users to track their expenses and income. Can you help me implement the core functionality of my budget tracker, including user authentication, expense tracking, and data visualization? I've started with the basic setup, but I need help with the implementation details.",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, Craig! Let's dive into implementing the core functionalities of your budget tracker, including user authentication, expense tracking, and data visualization using Matplotlib. We'll fill in user registration, login, and expense tracking, then add spending visualizations.",
+      id: 5,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to plan out my project and I want to make sure I meet the April 15 deadline for the MVP scope, which includes income/expense tracking, user login, and basic analytics. Can you help me create a schedule to ensure I complete all these features on time?",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "Let's create a detailed schedule to meet the April 15, 2024 MVP deadline. Break the budget tracker into phases for initial setup, user authentication, transaction management, basic analytics, final adjustments, testing, and deployment.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to keep my app lightweight and easy to maintain, so I prefer simple, minimal dependencies while still implementing the necessary features for my personal budget tracker with Flask 2.3.1, SQLite 3.39, local dev on port 5000, and the April 15 MVP deadline.",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "To keep your Flask app lightweight and maintainable, use a streamlined project structure and minimal dependencies while implementing the essential budget tracker features.",
+      id: 35,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to optimize the dashboard API response time, which has recently improved to 250ms after adding caching tweaks, but I also want clear documentation and comments in the code while implementing Flask-Login session management.",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "Use Flask, Flask-Login, Flask-SQLAlchemy, and Flask-Caching for user session management, logging, and basic API optimization.",
+      id: 109,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm finalizing the deployment of my application and I want to make sure the UI/UX is improved based on user feedback, plus I need to add some security hardening before the public launch. Can you review authentication and authorization using the latest libraries as of April 25, 2024?",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "Review the UI/UX and security hardening before public launch. Improve the secret key, password hashing, token-based authentication, role-based access control, authorization checks, HTTPS, and deployment safeguards.",
+      id: 117,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to implement the account lockout feature after 5 failed login attempts using Redis 7.0 for rate limiting. I want to make sure the lockout is triggered only after 5 attempts and properly stored in Redis.",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "Your Redis account lockout implementation is on the right track. Improve rate limiting, expiry handling, atomic operations, and error handling for the failed login attempt counter and lockout key.",
+      id: 151,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to detect a memory leak in my application using New Relic APM. I noticed session management memory usage increases by about 40MB over time and I'm considering Redis as a more efficient session store.",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "To address the Flask session memory leak, analyze memory usage, review session management, optimize session data, and consider Redis instead of filesystem-based sessions.",
+      id: 165,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm working on a project where I need to document API endpoints and architecture decisions in Confluence, and I want to share it with my remote collaborator for feedback. Can you help me create a Confluence page with API endpoint URL, HTTP method, request body, response format, technology stack, and database schema?",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "Structure the Confluence page with a title and overview, API endpoint tables, detailed endpoint descriptions, architecture decisions, technology stack, database schema, and optional diagrams for collaborator feedback.",
+      id: 177,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "budget-tracker-project-lifecycle-summary",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: [
+          "Flask project structure",
+          "User authentication",
+          "Security hardening",
+          "Project documentation",
+        ],
+        theme: "Creating a basic app to track income and expenses with simple analytics",
+        title: "Building a Personal Budget Tracker Web App in Python and Flask",
+      },
+      narratives: "Budget tracker project lifecycle",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The budget tracker progressed from initial core Flask implementation to an April 15 MVP schedule, security hardening, account lockout, and Confluence documentation for API endpoints and architecture decisions.",
+            question:
+              "Can you provide a comprehensive summary of how my budget tracker project has progressed, including the key features implemented, the development timeline, security enhancements, and documentation efforts?",
+            question_id: "budget-tracker-project-lifecycle-summary",
+            question_type: "summarization",
+            source_chat_ids: [4, 5, 8, 9, 116, 117, 150, 151, 176, 177],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Craig",
+        user_relationships: "None",
       },
       user_questions: [],
     },
@@ -2251,6 +3715,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.retrievedChatIds).toEqual([22, 45, 113, 257]);
   });
 
+  it("keeps basic family-movie project summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-family-movie-basic-project-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFamilyMovieBasicProjectSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([4, 9, 13]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps city autocomplete implementation and improvement source turns through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -2282,6 +3769,72 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       96,
       97,
     ]);
+  });
+
+  it("keeps broad weather app project progress source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-weather-project-progress-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWeatherProjectProgressSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      6,
+      7,
+      8,
+      9,
+      54,
+      55,
+      122,
+      123,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps budget tracker lifecycle summary source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-budget-tracker-project-lifecycle-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildBudgetTrackerProjectLifecycleSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      4,
+      5,
+      8,
+      9,
+      116,
+      117,
+      150,
+      151,
+      176,
+      177,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
   it("keeps web project issue-resolution source turns through the BEAM diagnostic path", async () => {
@@ -2413,6 +3966,39 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
+  it("keeps probability understanding summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-probability-understanding-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProbabilityUnderstandingSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      6,
+      7,
+      11,
+      13,
+      15,
+      31,
+      43,
+      57,
+      59,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps Kimberly feedback and grant-statement refinement source turns through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -2433,6 +4019,176 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([6, 7, 110, 111]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps personal-statement application deadline dates through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-statement-application-deadline-extraction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(
+            buildPersonalStatementApplicationDeadlineExtractionBeamRows(),
+          ),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([12]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps personal-statement mentor and advisor feedback milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-statement-mentor-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPersonalStatementMentorSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([5, 61, 147, 165, 251]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps professional-development and project-responsibility summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-professional-development-project-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProfessionalDevelopmentProjectSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([8, 84, 202, 204, 252]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Greg research and writing-project summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-greg-research-writing-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildGregResearchWritingSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      16,
+      54,
+      56,
+      152,
+      168,
+      216,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps fiction-book selection and budgeting summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-fiction-book-budget-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFictionBookBudgetSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([35, 125, 201, 239, 271]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps reading-goal and strategy progression summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-reading-goals-strategy-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildReadingGoalsStrategySummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([28, 79, 81, 195, 217]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Robert academic mentorship summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-robert-academic-mentor-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildRobertAcademicMentorSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([14, 64, 124, 170, 214]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

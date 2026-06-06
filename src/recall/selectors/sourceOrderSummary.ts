@@ -845,6 +845,7 @@ export function selectSourceOrderedSummaryCoverage(input: {
     });
   }
   const specializedSummarySelection = selectSourceOrderedSpecializedSummaryCoverage({
+    allSourceCandidates: sourceCandidates,
     companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
     limit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
     minAnchors: SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS,
@@ -1188,7 +1189,6 @@ export function selectSourceOrderedSummaryCoverage(input: {
         }
         return compareTemporalFactChronology(left, right);
       });
-
     const companion = companions[0];
     if (companion) {
       addCandidate(companion);

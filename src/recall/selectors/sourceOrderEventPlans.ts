@@ -28,6 +28,10 @@ import {
   selectSourceOrderedProfessionalPreparationAnchors,
 } from "./sourceOrderProfessionalPreparation";
 import {
+  isSourceOrderRelationshipBeliefEventQuery,
+  selectSourceOrderedRelationshipBeliefEventAnchors,
+} from "./sourceOrderRelationshipBeliefs";
+import {
   isSourceOrderWeatherErrorHandlingQuery,
   selectSourceOrderedWeatherErrorHandlingAnchors,
 } from "./sourceOrderWeatherErrorHandling";
@@ -48,6 +52,7 @@ export function isCompleteSourceOrderedEventOrderPlanQuery(query: string): boole
     isSourceOrderMovieNightContributionQuery(query) ||
     isSourceOrderPersonalStatementSupportQuery(query) ||
     isSourceOrderProfessionalPreparationQuery(query) ||
+    isSourceOrderRelationshipBeliefEventQuery(query) ||
     isSourceOrderWeatherErrorHandlingQuery(query) ||
     isSourceOrderWorkloadManagementQuery(query) ||
     isSourceOrderWritingJourneyQuery(query);
@@ -83,6 +88,9 @@ export function selectCompleteSourceOrderedEventOrderAnchors(input: {
   }
   if (isSourceOrderProfessionalPreparationQuery(input.query)) {
     return selectSourceOrderedProfessionalPreparationAnchors(input);
+  }
+  if (isSourceOrderRelationshipBeliefEventQuery(input.query)) {
+    return selectSourceOrderedRelationshipBeliefEventAnchors(input);
   }
   if (isSourceOrderWeatherErrorHandlingQuery(input.query)) {
     return selectSourceOrderedWeatherErrorHandlingAnchors(input);

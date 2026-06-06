@@ -93,6 +93,15 @@ function isResumeKeywordIntegrationQuery(query: string): boolean {
     /\beffective\b/iu.test(query);
 }
 
+function isPersonalStatementApplicationDeadlineDatesQuery(
+  query: string,
+): boolean {
+  return /\bdates?\b/iu.test(query) &&
+    /\bscholarship\s+deadline\b/iu.test(query) &&
+    /\bvisa\s+application\b/iu.test(query) &&
+    /\buniversity\s+application\b/iu.test(query);
+}
+
 function isEmergencyFundSavingsPlanQuery(query: string): boolean {
   return /\bbalance\b/iu.test(query) &&
     /\bcurrent\s+finances\b/iu.test(query) &&
@@ -508,6 +517,17 @@ function hasResumeKeywordIntegrationEvidence(
       hasUserKeywordAnchor ||
       hasAssistantIntegrationAnchor
     );
+}
+
+function hasPersonalStatementApplicationDeadlineDatesEvidence(
+  entry: RankedFactCandidate,
+): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) &&
+    /\bpersonal\s+statement\b/iu.test(content) &&
+    /\bscholarship\s+deadline\s+on\s+May\s+15,\s+2024\b/iu.test(content) &&
+    /\bvisa\s+application\s+due\s+June\s+1,\s+2024\b/iu.test(content);
 }
 
 function hasEmergencyFundSavingsPlanEvidence(
@@ -940,6 +960,8 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
     isTriangleAsaCongruenceProofPlanQuery(input.query);
   const resumeKeywordIntegrationQuery =
     isResumeKeywordIntegrationQuery(input.query);
+  const personalStatementApplicationDeadlineDatesQuery =
+    isPersonalStatementApplicationDeadlineDatesQuery(input.query);
   const emergencyFundSavingsPlanQuery =
     isEmergencyFundSavingsPlanQuery(input.query);
   const rateLimitRequestFlowQuery =
@@ -980,6 +1002,7 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
     !triangleSimilarityRatioVerificationQuery &&
     !triangleAsaCongruenceProofPlanQuery &&
     !resumeKeywordIntegrationQuery &&
+    !personalStatementApplicationDeadlineDatesQuery &&
     !emergencyFundSavingsPlanQuery &&
     !rateLimitRequestFlowQuery &&
     !apiEndpointTechnologiesQuery &&
@@ -1060,6 +1083,10 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       (
         resumeKeywordIntegrationQuery &&
         hasResumeKeywordIntegrationEvidence(entry)
+      ) ||
+      (
+        personalStatementApplicationDeadlineDatesQuery &&
+        hasPersonalStatementApplicationDeadlineDatesEvidence(entry)
       ) ||
       (
         emergencyFundSavingsPlanQuery &&

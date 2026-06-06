@@ -61,7 +61,7 @@ import {
   selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
 } from "./selectors/sourceOrderReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
-import { isSourceOrderedEstateDocumentSummaryQuery } from "./selectors/sourceOrderSummaryPatterns";
+import { isSourceOrderedEstateDocumentSummaryQuery, isSourceOrderedWeatherProjectProgressSummaryQuery } from "./selectors/sourceOrderSummaryPatterns";
 import {
   SOURCE_ORDER_EVENT_RECALL_LIMIT,
   fillSourceOrderedTemporalCompanions,
@@ -255,6 +255,7 @@ export function selectFacts(
   const slotSpecificFactQuery =
     !exactSourceOrderedReasoningQuery &&
     !isSourceOrderedEstateDocumentSummaryQuery(query) &&
+    !isSourceOrderedWeatherProjectProgressSummaryQuery(query) &&
     !isMorningSelfCarePreferenceQuery(query) &&
     !aggregateEvidenceQuery &&
     !isSeniorProducerPreparationPriorityQuery(query) &&

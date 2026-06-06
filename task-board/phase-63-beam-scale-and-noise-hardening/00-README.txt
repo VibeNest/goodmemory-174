@@ -1649,6 +1649,126 @@ Current Boundary
   Total noise decreases 2130 -> 2121; abstention gains one bucket noise id
   while event-ordering loses three and preference-following noise decreases by
   seven.
+  The latest weather-app project-progress summary repair raises current
+  evidence-chat recall to 0.6937189805499667 with 156 missed-recall cases and
+  wrong-recall/noise 297/400, recovering `2:summarization:1` to exact 1.0 with
+  6/7/8/9/54/55/122/123 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The retained rerun adds a
+  guarded source-ordered weather project-progress summary route for the
+  initial weather app implementation, autocomplete improvements, lightweight
+  caching, and custom feature planning source turns. Total noise decreases
+  2121 -> 2093; information extraction gains two bucket noise ids while
+  summarization noise decreases by 28.
+  The latest budget-tracker lifecycle summary repair raises current
+  evidence-chat recall to 0.6942823608316567 with 155 missed-recall cases and
+  wrong-recall/noise 296/400, recovering `1:summarization:1` to exact 1.0 with
+  4/5/8/9/116/117/150/151/176/177 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun tightens the generic project-lifecycle summary pair selector so core
+  implementation, public-launch security hardening, account lockout, and
+  Confluence API/architecture documentation survive ahead of broad planning,
+  API-optimization, and session-memory distractors. Total noise decreases
+  2093 -> 2085; abstention and event-ordering each gain one bucket noise id
+  while summarization noise decreases by eight and information extraction
+  noise decreases by two.
+  The latest personal-statement mentor/advisor summary repair raises current
+  evidence-chat recall to 0.6965358819584173 with 154 missed-recall cases and
+  wrong-recall/noise 295/400, recovering `9:summarization:2` to exact 1.0
+  with 5/61/147/165/251 and no target noise, without hit-loss, newly-missing
+  evidence regressions, or negative recall deltas. The retained rerun adds a
+  guarded source-ordered personal-statement mentor/advisor summary route for
+  Bryan, Shawn, Danielle, Matthew, and Danielle's later application-tailoring
+  feedback milestones. Total noise decreases 2085 -> 2071; event-ordering
+  gains one net bucket noise id while summarization noise decreases by 15.
+  The latest professional-development project-responsibility summary repair
+  raises current evidence-chat recall to 0.6987894030851779 with 153
+  missed-recall cases and wrong-recall/noise 294/400, recovering
+  `8:summarization:1` to exact 1.0 with 8/84/202/204/252 and no target noise,
+  without hit-loss, newly-missing evidence regressions, negative recall
+  deltas, or positive noise deltas. The retained rerun adds a guarded
+  source-ordered professional-development project-responsibility summary route
+  for portfolio, Greg mock-interview, 90-day plan, and July deadline/workshop
+  prioritization milestones. Total noise decreases 2071 -> 2055;
+  event-ordering loses two bucket noise ids while summarization noise
+  decreases by 14.
+  The latest personal-statement application-deadline extraction repair raises
+  current evidence-chat recall to 0.7016063044936286 with 152 missed-recall
+  cases and wrong-recall/noise 293/400, recovering
+  `9:information_extraction:1` to exact 1.0 with chat 12 and no target noise,
+  without hit-loss, newly-missing evidence regressions, or negative recall
+  deltas. The retained rerun adds a guarded information-extraction route for
+  the scholarship deadline, visa application, and university application dates
+  query. Total noise decreases 2055 -> 2051; information extraction loses six
+  bucket noise ids while three unrelated same-recall cases gain one net noise
+  id each.
+  The Robert academic mentorship summary repair raises current
+  evidence-chat recall to 0.7021696847753187 with 151 missed-recall cases and
+  wrong-recall/noise 292/400, recovering `7:summarization:1` to exact 1.0
+  with 14/64/124/170/214 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded source-ordered Robert academic mentorship summary route
+  for the first mentor meeting, Robert's essay influence, stronger-warrants
+  feedback, journal/conference decision, and July progress-review milestones.
+  Total noise decreases 2051 -> 2039; abstention gains one bucket noise id
+  while event-ordering loses two, knowledge-update loses one, and
+  summarization noise decreases by ten.
+  The Greg research/writing summary repair raises current
+  evidence-chat recall to 0.703108651911469 with 150 missed-recall cases and
+  wrong-recall/noise 291/400, recovering `7:summarization:2` to exact 1.0
+  with 16/54/56/152/168/216 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded source-ordered Greg research/writing summary route for
+  initial Greg collaboration, NVivo adoption, NVivo queries/visualizations,
+  film-gender analysis, June deadline balancing, and post-submission
+  collaboration milestones. Total noise decreases 2039 -> 2031;
+  information-extraction gains two bucket noise ids and event-ordering gains
+  one while abstention loses one and summarization noise decreases by nine.
+  The retained fiction-book choosing/budgeting summary repair raises current
+  evidence-chat recall to 0.7053621730382296 with 149 missed-recall cases and
+  wrong-recall/noise 290/400, recovering `13:summarization:2` to exact 1.0
+  with 35/125/201/239/271 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded source-ordered fiction-book budget summary route for the
+  $120 Montserrat Books print budget, Poppy War winter challenge,
+  print/audiobook format balance, Witcher contest budget constraint, and
+  Outlander winter reading reflection. Total noise decreases 2031 -> 2022;
+  same-recall noise churn adds one abstention bucket noise id and one
+  event-ordering bucket noise id while summarization noise decreases by eleven.
+  The latest reading-goals strategy summary repair raises current
+  evidence-chat recall to 0.7070523138832999 with 148 missed-recall cases and
+  wrong-recall/noise 289/400, recovering `13:summarization:1` to exact 1.0
+  with 28/79/81/195/217 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded source-ordered reading-goals strategy summary route for
+  the initial three-series schedule goal, Stormlight/audiobook adjustment,
+  motivation strategy turn, Expanse page goal, and Nightingale genre-variety
+  transition. Total noise decreases 2022 -> 2013; same-recall noise churn adds
+  one knowledge-update bucket noise id while event-ordering loses one,
+  information extraction loses two, and summarization noise decreases by
+  seven.
+  The latest probability-understanding summary repair raises current
+  evidence-chat recall to 0.7083042700648335 with 147 missed-recall cases and
+  wrong-recall/noise 288/400, recovering `5:summarization:1` to exact 1.0
+  with 6/7/11/13/15/31/43/57/59 and no target noise, without hit-loss,
+  newly-missing evidence regressions, or negative recall deltas. The retained
+  rerun adds a guarded source-ordered probability-understanding summary route
+  for the red-card ratio, even-die, coin independence, mutually-exclusive
+  event, and conditional-probability milestones while rejecting early
+  prompt/setup chatter. Total noise decreases 2013 -> 2004; same-recall noise
+  churn adds two information-extraction bucket noise ids and one event-ordering
+  bucket noise id while abstention and knowledge-update each lose one, and
+  summarization noise decreases by ten.
+  The latest family-movie basic project summary repair raises current
+  evidence-chat recall to 0.7111211714732842 with 146 missed-recall cases and
+  wrong-recall/noise 287/400, recovering `14:summarization:2` to exact 1.0
+  with 4/9/13 and no target noise, without hit-loss, newly-missing evidence
+  regressions, or negative recall deltas. The retained rerun adds a guarded
+  source-ordered family streaming-movie basic-project summary route for the
+  generic BEAM wording "summary of what happened with the project"; it only
+  returns when source candidates prove the early family-movie project pattern.
+  Total noise increases by one id from 2004 -> 2005 due to same-recall churn;
+  summarization noise decreases by one, while abstention and event-ordering
+  each gain one bucket noise id.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

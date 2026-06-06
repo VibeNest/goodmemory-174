@@ -8354,6 +8354,164 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps relationship-belief event-order source groups for personal relationship questions", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-generic-free-will-values-noise",
+        8,
+        "I think I'll start by setting some clear goals for the next few months and making conscious choices that align with what I truly value.",
+      ),
+      makeFact(
+        "fact-wendy-divine-noise",
+        48,
+        "I'm struggling with the idea of free will, especially since my mom Wendy believes in divine intervention shaping our choices.",
+      ),
+      makeFact(
+        "fact-meeting-decline",
+        58,
+        "I had to decline a 3 PM meeting with Stephen on March 14 to focus on the startup offer, do you think I should've handled that differently?",
+      ),
+      makeFact(
+        "fact-anniversary-work-call",
+        60,
+        "I'm worried that scheduling a work call on our anniversary, March 20, might hurt Stephen's feelings, what can I do to make it up to him?",
+      ),
+      makeFact(
+        "fact-dennett-noise",
+        62,
+        "I started reading Elbow Room by Daniel Dennett on March 13, can you help me understand how compatibilism applies to job offers?",
+      ),
+      makeFact(
+        "fact-coral-reef-anniversary",
+        74,
+        "I'm confused about how believing in free will can affect my motivation, like the 2022 University of Cambridge study said, especially since I just resolved my conflict with Stephen by celebrating our anniversary at The Coral Reef restaurant.",
+      ),
+      makeFact(
+        "fact-journaling-accountability-noise",
+        80,
+        "I've committed to daily journaling to track my decisions and consequences, and I'm wondering if this self-accountability practice will help me make better choices.",
+      ),
+      makeFact(
+        "fact-trip-limit",
+        110,
+        "I agreed to limit my work trips to 3 per quarter starting June for Stephen, but I'm not sure how this will affect my career growth.",
+      ),
+      makeFact(
+        "fact-trip-plan",
+        112,
+        "I'll talk to Stephen about prioritizing the most important trips, using tech to stay connected, and doing quarterly reviews.",
+      ),
+      makeFact(
+        "fact-tanya-noise",
+        158,
+        "I'm struggling to understand how Tanya's moral dilemmas about free will might influence my own beliefs.",
+      ),
+      makeFact(
+        "fact-sunset-grill",
+        164,
+        "My romantic partner Stephen and I just celebrated 5 years together on May 20 with a dinner at The Sunset Grill on Bay Street, but I'm wondering how our relationship might change if I start questioning the concept of free will.",
+      ),
+      makeFact(
+        "fact-trust-support",
+        166,
+        "I think talking about free will with Stephen can help us understand each other better, enhance our trust, and make us more supportive of each other.",
+      ),
+      makeFact(
+        "fact-weekly-free-will-scenarios",
+        168,
+        "Let's talk about specific scenarios, like deciding whether to move to a new city for a job opportunity, so we can see how free will influences our decisions once a week.",
+      ),
+      makeFact(
+        "fact-matthew-time-noise",
+        200,
+        "I feel bad about missing the meeting with Matthew, and now it's rescheduled for June 3 at 11 AM.",
+      ),
+      makeFact(
+        "fact-weekly-checkins",
+        232,
+        "I prefer resolving conflicts through calm dialogue, which is why I scheduled weekly check-ins with Stephen every Sunday at 6 PM.",
+      ),
+      makeFact(
+        "fact-weekly-checkins-plan",
+        234,
+        "I'll set clear objectives, share the agenda with Stephen beforehand, start with positive feedback, use I statements, and keep a soft tone.",
+      ),
+      makeFact(
+        "fact-weekly-checkins-written-plan",
+        236,
+        "I'll write down key points, share the agenda with Stephen ahead of time, start with positive feedback, use I statements, and stay calm.",
+      ),
+      makeFact(
+        "fact-spiritual-noise",
+        248,
+        "I'll journal about how my decisions align with Wendy's belief and seek guidance through prayer.",
+      ),
+      makeFact(
+        "fact-daily-journaling",
+        258,
+        "I'm considering how my daily journaling starting April 1 will help me understand if I truly have free will, given the University of Cambridge study linking belief in free will to higher motivation and goal persistence.",
+      ),
+      makeFact(
+        "fact-daily-journaling-plan",
+        260,
+        "I'll keep up with my daily journaling and see how it helps me understand my beliefs about free will and how much they impact motivation and persistence.",
+      ),
+      makeFact(
+        "fact-daily-journaling-commitment",
+        262,
+        "I'll stick to journaling every day and pay attention to patterns or insights that come up about my beliefs in free will.",
+      ),
+      makeFact(
+        "fact-startup-offer-noise",
+        270,
+        "I accepted the $95,000 streaming startup offer on April 2 and wonder whether free will or other factors shaped the decision.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different aspects of balancing my personal relationship and beliefs throughout our conversations, in order? Mention ONLY and ONLY seven items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-meeting-decline",
+      "fact-anniversary-work-call",
+      "fact-coral-reef-anniversary",
+      "fact-trip-limit",
+      "fact-trip-plan",
+      "fact-sunset-grill",
+      "fact-trust-support",
+      "fact-weekly-free-will-scenarios",
+      "fact-weekly-checkins",
+      "fact-weekly-checkins-plan",
+      "fact-weekly-checkins-written-plan",
+      "fact-daily-journaling",
+      "fact-daily-journaling-plan",
+      "fact-daily-journaling-commitment",
+    ]);
+  });
+
   it("keeps professional preparation milestones for broad source-ordered event questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
@@ -12054,7 +12212,6 @@ describe("recall selection", () => {
 
     const selectedIds = result.facts.map((fact) => fact.id);
     for (const expectedId of [
-      "fact-field-application",
       "fact-ratio-user",
       "fact-ratio-assistant",
       "fact-independent",
@@ -12064,6 +12221,7 @@ describe("recall selection", () => {
     ]) {
       expect(selectedIds).toContain(expectedId);
     }
+    expect(selectedIds).not.toContain("fact-field-application");
     expect(selectedIds).not.toContain("fact-date-distractor");
   });
 

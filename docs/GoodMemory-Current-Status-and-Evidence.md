@@ -1655,6 +1655,220 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     noise id while event-ordering loses three and global noise decreases by
     nine. This remains a partial repair: the full 100K diagnostic is still
     recall-limited and noisy.
+  - latest weather-app project-progress summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-weather-project-progress-current-20260606T034500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6937189805499667,
+    missed-recall cases 156/355, and wrong-recall/noise cases 297/400. It
+    raises global hit evidence ids 699 -> 705, lowers missing ids 395 -> 389,
+    and lowers total noise 2121 -> 2093. The repair adds a guarded
+    source-ordered project-progress summary route for the weather app
+    implementation, autocomplete improvements, lightweight caching, and custom
+    feature planning turns. Target `2:summarization:1` rises from 0.25 to 1.0
+    by returning exactly 6/7/8/9/54/55/122/123 and removing target noise
+    10/11/62/63/80/75/81/94/95/124/112/113/125/148/53/74/84/85/87/89/92/93/97/132/133/149/186/187.
+    Summarization improves by +6 hit ids, -6 missing ids, 28 fewer bucket
+    noise ids, one fewer incomplete case, and one fewer wrong-recall/noise
+    case; average summarization recall rises by 0.0209. Case-delta analysis
+    shows no hit-loss, no newly-missing evidence regressions, and no negative
+    recall deltas; information extraction gains two bucket noise ids while
+    global noise decreases by 28. This remains a partial repair: the full 100K
+    diagnostic is still recall-limited and noisy.
+  - latest budget-tracker lifecycle summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-budget-lifecycle-current-20260606T064500Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6942823608316567,
+    missed-recall cases 155/355, and wrong-recall/noise cases 296/400. It
+    raises global hit evidence ids 705 -> 707, lowers missing ids 389 -> 387,
+    and lowers total noise 2093 -> 2085. The repair tightens the generic
+    project-lifecycle summary pair selector so covered lifecycle facets stop
+    filling with lower-value source anchors, and so core implementation,
+    public-launch security hardening, and Confluence API/architecture
+    documentation outrank API-response/session-management distractors. Target
+    `1:summarization:1` rises from 0.8 to 1.0 by returning exactly
+    4/5/8/9/116/117/150/151/176/177 and removing target noise
+    2/3/34/35/108/109/164/165. Summarization improves by +2 hit ids, -2
+    missing ids, eight fewer bucket noise ids, one fewer incomplete case, and
+    one fewer wrong-recall/noise case; average summarization recall rises by
+    0.0055. Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas; information extraction loses
+    two bucket noise ids while abstention and event-ordering each gain one.
+    This remains a partial repair: the full 100K diagnostic is still
+    recall-limited and noisy.
+  - latest personal-statement mentor/advisor summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-personal-statement-mentor-current-20260606T052702Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6965358819584173,
+    missed-recall cases 154/355, and wrong-recall/noise cases 295/400. It
+    raises global hit evidence ids 707 -> 711, lowers missing ids 387 -> 383,
+    and lowers total noise 2085 -> 2071. The repair adds a guarded
+    source-ordered personal-statement mentor/advisor summary route for Bryan's
+    storytelling technique advice, Shawn's storytelling-impact advice,
+    Danielle's voice-consistency draft feedback, Matthew's global tailoring
+    advice, and Danielle's later application-tailoring feedback. Target
+    `9:summarization:2` rises from 0.2 to 1.0 by returning exactly
+    5/61/147/165/251 and removing target noise
+    12/13/52/53/70/71/96/97/110/111/168/169/200/201/250. Summarization
+    improves by +4 hit ids, -4 missing ids, 15 fewer bucket noise ids, one
+    fewer incomplete case, and one fewer wrong-recall/noise case; average
+    summarization recall rises by 0.0223. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas; event-ordering gains one net bucket noise id while global noise
+    decreases by 14. This remains a partial repair: the full 100K diagnostic
+    is still recall-limited and noisy.
+  - latest professional-development project-responsibility summary repair
+    diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-professional-development-project-current-20260606T060909Z`
+    has `executionFailures: 0`, evidence-chat recall 0.6987894030851779,
+    missed-recall cases 153/355, and wrong-recall/noise cases 294/400. It
+    raises global hit evidence ids 711 -> 715, lowers missing ids 383 -> 379,
+    and lowers total noise 2071 -> 2055. The repair adds a guarded
+    source-ordered professional-development project-responsibility summary
+    route for portfolio update planning, Greg mock-interview preparation,
+    90-day plan review/details, and July project-deadline/workshop
+    prioritization with stress-management and communication feedback. Target
+    `8:summarization:1` rises from 0.2 to 1.0 by returning exactly
+    8/84/202/204/252 and removing target noise
+    96/95/97/188/189/222/223/224/225/231/237/253/254/255. Summarization
+    improves by +4 hit ids, -4 missing ids, 14 fewer bucket noise ids, one
+    fewer incomplete case, and one fewer wrong-recall/noise case; average
+    summarization recall rises by 0.0222. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, no negative recall
+    deltas, and no positive noise deltas; event-ordering loses two bucket
+    noise ids while global noise decreases by 16. This remains a partial
+    repair: the full 100K diagnostic is still recall-limited and noisy.
+  - personal-statement application-deadline extraction repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-personal-statement-application-deadline-current-20260606T063212Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7016063044936286,
+    missed-recall cases 152/355, and wrong-recall/noise cases 293/400. It
+    raises global hit evidence ids 715 -> 716, lowers missing ids 379 -> 378,
+    and lowers total noise 2055 -> 2051. The repair adds a guarded
+    information-extraction route for the personal-statement application
+    deadline question that asks for scholarship, visa, and university
+    application dates. Target `9:information_extraction:1` rises from 0 to 1.0
+    by returning chat 12 exactly and removing target noise
+    34/158/48/152/109/117. Information extraction improves by +1 hit id, -1
+    missing id, six fewer bucket noise ids, one fewer incomplete case, one
+    fewer wrong-recall/noise case, and one fewer zero-recall case; average
+    information-extraction recall rises by 0.025. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas. Three unrelated same-recall cases add one net noise id each, while
+    global noise still decreases by four. This remains a partial repair: the
+    full 100K diagnostic is still recall-limited and noisy.
+  - Robert academic mentorship summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-robert-academic-mentor-current-20260606T065044Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7021696847753187,
+    missed-recall cases 151/355, and wrong-recall/noise cases 292/400. It
+    raises global hit evidence ids 716 -> 717, lowers missing ids 378 -> 377,
+    and lowers total noise 2051 -> 2039. The repair adds a guarded
+    source-ordered Robert academic mentorship summary route for the first
+    mentor meeting, Robert's gender-studies essay influence, stronger-warrants
+    feedback, journal/conference decision, and July progress-review milestones.
+    Target `7:summarization:1` rises from 0.8 to 1.0 by returning exactly
+    chats 14/64/124/170/214 and removing target noise
+    15/65/125/156/157/168/176/177/212/213. Summarization improves by +1 hit
+    id, -1 missing id, ten fewer bucket noise ids, one fewer incomplete case,
+    one fewer wrong-recall/noise case, and average summarization recall rises
+    by 0.0055. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. One abstention case
+    adds one net noise id, while global noise still decreases by twelve. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
+  - Greg research/writing summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-greg-research-writing-current-20260606T072449Z`
+    has `executionFailures: 0`, evidence-chat recall 0.703108651911469,
+    missed-recall cases 150/355, and wrong-recall/noise cases 291/400. It
+    raises global hit evidence ids 717 -> 719, lowers missing ids 377 -> 375,
+    and lowers total noise 2039 -> 2031. The repair adds a guarded
+    source-ordered Greg research/writing summary route for the initial Greg
+    collaboration, NVivo adoption, NVivo queries/visualizations, film-gender
+    analysis, June deadline balancing, and post-submission collaboration
+    milestones. Target `7:summarization:2` rises from 0.6667 to 1.0 by
+    returning exactly chats 16/54/56/152/168/216 and removing target noise
+    17/80/81/169/170/171/182/183/217. Summarization improves by +2 hit ids,
+    -2 missing ids, nine fewer bucket noise ids, one fewer incomplete case,
+    one fewer wrong-recall/noise case, and average summarization recall rises
+    by 0.0093. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. Same-recall noise
+    churn adds two information-extraction bucket noise ids and one
+    event-ordering bucket noise id, while abstention loses one and global noise
+    still decreases by eight. This remains a partial repair: the full 100K
+    diagnostic is still recall-limited and noisy.
+  - retained fiction-book choosing/budgeting summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-fiction-book-budget-current-20260606T090000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7053621730382296,
+    missed-recall cases 149/355, and wrong-recall/noise cases 290/400. It
+    raises global hit evidence ids 719 -> 723, lowers missing ids 375 -> 371,
+    and lowers total noise 2031 -> 2022. The repair adds a guarded
+    source-ordered fiction-book budget summary route for the $120 Montserrat
+    Books print budget, Poppy War winter challenge, print/audiobook format
+    balance, Witcher contest budget constraint, and Outlander winter reading
+    reflection. Target `13:summarization:2` rises from 0.2 to 1.0 by returning
+    exactly chats 35/125/201/239/271 and removing target noise
+    76/77/84/85/200/230/231/274/275/302/303. Summarization improves by +4 hit
+    ids, -4 missing ids, eleven fewer bucket noise ids, one fewer incomplete
+    case, one fewer wrong-recall/noise case, and average summarization recall
+    rises by 0.0222. Case-delta analysis shows no hit-loss, no newly-missing
+    evidence regressions, and no negative recall deltas. Same-recall noise
+    churn adds one abstention bucket noise id and one event-ordering bucket
+    noise id, while global noise still decreases by nine. This remains a
+    partial repair: the full 100K diagnostic is still recall-limited and noisy.
+  - latest reading-goals strategy summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-reading-goals-strategy-facet-current-20260606T103000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7070523138832999,
+    missed-recall cases 148/355, and wrong-recall/noise cases 289/400. It
+    raises global hit evidence ids 723 -> 726, lowers missing ids 371 -> 368,
+    and lowers total noise 2022 -> 2013. The repair adds a guarded
+    source-ordered reading-goals strategy summary route for the initial
+    three-series schedule goal, Stormlight/audiobook adjustment, motivation
+    strategy turn, Expanse page goal, and Nightingale genre-variety transition.
+    Target `13:summarization:1` rises from 0.4 to 1.0 by returning exactly
+    chats 28/79/81/195/217 and removing target noise
+    4/5/117/137/229/235/281. Summarization improves by +3 hit ids, -3 missing
+    ids, seven fewer bucket noise ids, one fewer incomplete case, one fewer
+    wrong-recall/noise case, and average summarization recall rises by 0.0167.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. Same-recall noise churn adds
+    one knowledge-update bucket noise id while event-ordering loses one and
+    information extraction loses two. This remains a partial repair: the full
+    100K diagnostic is still recall-limited and noisy.
+  - latest probability-understanding summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-probability-understanding-summary-even-die-current-20260606T140000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7083042700648335,
+    missed-recall cases 147/355, and wrong-recall/noise cases 288/400. It
+    raises global hit evidence ids 726 -> 730, lowers missing ids 368 -> 364,
+    and lowers total noise 2013 -> 2004. The repair adds a guarded
+    source-ordered probability-understanding summary route for the red-card
+    ratio, even-die, coin independence, mutually-exclusive event, and
+    conditional-probability milestones while rejecting early prompt/setup
+    chatter. Target `5:summarization:1` rises from 0.5556 to 1.0 by returning
+    exactly chats 6/7/11/13/15/31/43/57/59 and removing target noise
+    2/3/4/5/8/9/10/12/14/16. Summarization improves by +4 hit ids, -4 missing
+    ids, ten fewer bucket noise ids, one fewer incomplete case, one fewer
+    wrong-recall/noise case, and average summarization recall rises by 0.0123.
+    Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. Same-recall noise churn adds
+    two information-extraction bucket noise ids and one event-ordering bucket
+    noise id while abstention and knowledge-update each lose one. This remains
+    a partial repair: the full 100K diagnostic is still recall-limited and
+    noisy.
+  - latest family-movie basic project summary repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-basic-project-current-20260606T150000Z`
+    has `executionFailures: 0`, evidence-chat recall 0.7111211714732842,
+    missed-recall cases 146/355, and wrong-recall/noise cases 287/400. It
+    raises global hit evidence ids 730 -> 733 and lowers missing ids
+    364 -> 361, while total noise increases by one id from 2004 -> 2005 due to
+    same-recall churn outside the target. The repair adds a guarded
+    source-ordered family streaming-movie basic-project summary route for the
+    generic BEAM wording "summary of what happened with the project"; it only
+    returns when source candidates prove the early family-movie project
+    pattern. Target `14:summarization:2` rises from 0 to 1.0 by returning
+    exactly chats 4/9/13 and removing target instruction noise 266.
+    Summarization improves by +3 hit ids, -3 missing ids, one fewer bucket
+    noise id, one fewer incomplete case, one fewer wrong-recall/noise case,
+    one fewer zero-recall case, and average summarization recall rises by
+    0.0278. Case-delta analysis shows no hit-loss, no newly-missing evidence
+    regressions, and no negative recall deltas. Same-recall noise churn adds
+    one abstention bucket noise id and one event-ordering bucket noise id. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

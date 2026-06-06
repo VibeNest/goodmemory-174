@@ -4,7 +4,10 @@ import {
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
-import { isSourceOrderedWeatherAutocompleteSummaryQuery } from "./sourceOrderSummaryPatterns";
+import {
+  isSourceOrderedWeatherAutocompleteSummaryQuery,
+  isSourceOrderedWeatherProjectProgressSummaryQuery,
+} from "./sourceOrderSummaryPatterns";
 import { compareTemporalFactChronology } from "./temporal";
 
 type WeatherAutocompleteSummaryFacet =
@@ -18,6 +21,16 @@ type WeatherAutocompleteSummaryFacet =
   | "loadingIndicatorImplementation"
   | "loadingIndicatorPrompt"
   | "slowResponseCancellation";
+
+type WeatherProjectProgressSummaryFacet =
+  | "customFeaturePlan"
+  | "customFeaturePrompt"
+  | "initialAutocompleteImplementation"
+  | "initialAutocompletePrompt"
+  | "initialImplementationPrompt"
+  | "initialImplementationReview"
+  | "lightweightCacheImplementation"
+  | "lightweightCachePrompt";
 
 const FACETS = [
   {
@@ -96,6 +109,80 @@ const FACETS = [
   role: "assistant" | "user";
 }>;
 
+const PROJECT_PROGRESS_FACETS = [
+  {
+    facet: "initialImplementationPrompt",
+    role: "user",
+    patterns: [
+      /^(?=[\s\S]*\bweather\s+app\b)(?=[\s\S]*\bJavaScript\b)(?=[\s\S]*\bOpenWeather\s+API\s+v2\.5\b)(?=[\s\S]*\bstructure\s+my\s+code\b)(?=[\s\S]*\bhandling\s+errors?\s+properly\b)/iu,
+    ],
+  },
+  {
+    facet: "initialImplementationReview",
+    role: "assistant",
+    patterns: [
+      /^(?=[\s\S]*\bweather\b)(?=[\s\S]*\berror\s+handling\b)(?=[\s\S]*\bmodulari[sz](?:e|ation)\b)(?=[\s\S]*\bconfiguration\s+(?:object|management)\b)(?=[\s\S]*\b(?:input\s+validation|validat(?:e|ion)\s+city)\b)/iu,
+    ],
+  },
+  {
+    facet: "initialAutocompletePrompt",
+    role: "user",
+    patterns: [
+      /\badding\s+the\s+autocomplete\s+feature\s+with\s+the\s+debounce\s+delay\b/iu,
+    ],
+  },
+  {
+    facet: "initialAutocompleteImplementation",
+    role: "assistant",
+    patterns: [
+      /^(?=[\s\S]*\bAdding\s+an\s+autocomplete\s+feature\s+with\s+a\s+debounce\s+delay\b)(?=[\s\S]*\bdebounce\s+function\b)(?=[\s\S]*(?:\bAutocomplete\s+Function\b|\bgetAutocompleteSuggestions\b))(?=[\s\S]*(?:\bHTML\s+Input\s+Element\b|\bsuggestions?\s+list\b))/iu,
+    ],
+  },
+  {
+    facet: "lightweightCachePrompt",
+    role: "user",
+    patterns: [
+      /^(?=[\s\S]*\bweather\s+app\b)(?=[\s\S]*\bunder\s+2\.5MB\b)(?=[\s\S]*\blightweight,\s+dependency-free\s+solutions?\b)(?=[\s\S]*\bsimple\s+caching\s+mechanism\b)(?=[\s\S]*\bwithout\s+(?:using\s+)?(?:any\s+)?external\s+librar(?:y|ies)\b)/iu,
+    ],
+  },
+  {
+    facet: "lightweightCacheImplementation",
+    role: "assistant",
+    patterns: [
+      /^(?=[\s\S]*(?:\bsimple\s+caching\s+mechanism\b|\bdependency-free\s+weather\s+cache\b))(?=[\s\S]*\blocalStorage\b)(?=[\s\S]*\bin-memory\s+(?:cache|storage)\b)(?=[\s\S]*(?:\bwithout\s+using\s+(?:any\s+)?external\s+librar(?:y|ies)\b|\bdependency-free\b))/iu,
+    ],
+  },
+  {
+    facet: "customFeaturePrompt",
+    role: "user",
+    patterns: [
+      /^(?=[\s\S]*\bcustom\s+feature\s+for\s+my\s+weather\s+app\b)(?=[\s\S]*\bmaintain\s+full\s+control\b)(?=[\s\S]*\bavoid\s+external\s+dependency\s+risks\b)/iu,
+    ],
+  },
+  {
+    facet: "customFeaturePlan",
+    role: "assistant",
+    patterns: [
+      /^(?=[\s\S]*\bImplementing\s+custom\s+features?\s+for\s+your\s+weather\s+app\b)(?=[\s\S]*\bdefine\s+the\s+feature\s+requirements\b)(?=[\s\S]*\bdesign\s+(?:the\s+feature|the\s+UI)\b)(?=[\s\S]*\bimplement\s+(?:the\s+feature|the\s+code)\b)(?=[\s\S]*\boptimi[sz]e\s+performance\b)/iu,
+    ],
+  },
+] as const satisfies ReadonlyArray<{
+  facet: WeatherProjectProgressSummaryFacet;
+  patterns: readonly RegExp[];
+  role: "assistant" | "user";
+}>;
+
+const PROJECT_PROGRESS_FACET_ORDER: readonly WeatherProjectProgressSummaryFacet[] = [
+  "initialImplementationPrompt",
+  "initialImplementationReview",
+  "initialAutocompletePrompt",
+  "initialAutocompleteImplementation",
+  "lightweightCachePrompt",
+  "lightweightCacheImplementation",
+  "customFeaturePrompt",
+  "customFeaturePlan",
+];
+
 function shouldEvaluateFacet(
   facet: WeatherAutocompleteSummaryFacet,
   normalizedContent: string,
@@ -160,6 +247,23 @@ function weatherAutocompleteSummaryFacets(
   return facets;
 }
 
+function weatherProjectProgressSummaryFacets(
+  entry: RankedFactCandidate,
+): Set<WeatherProjectProgressSummaryFacet> {
+  const content = stripEvidencePrefix(entry.fact.content);
+  const facets = new Set<WeatherProjectProgressSummaryFacet>();
+  for (const facet of PROJECT_PROGRESS_FACETS) {
+    if (
+      matchesSourceRole(entry, facet.role) &&
+      facet.patterns.some((pattern) => pattern.test(content))
+    ) {
+      facets.add(facet.facet);
+    }
+  }
+
+  return facets;
+}
+
 function matchesSourceRole(
   entry: RankedFactCandidate,
   role: "assistant" | "user",
@@ -187,6 +291,34 @@ export function selectSourceOrderedWeatherAutocompleteSummaryCoverage(input: {
   query: string;
   sourceCandidates: RankedFactCandidate[];
 }): RankedFactCandidate[] {
+  if (isSourceOrderedWeatherProjectProgressSummaryQuery(input.query)) {
+    const bestByFacet = new Map<
+      WeatherProjectProgressSummaryFacet,
+      RankedFactCandidate
+    >();
+
+    for (const entry of input.sourceCandidates) {
+      const facets = weatherProjectProgressSummaryFacets(entry);
+      for (const facet of facets) {
+        const current = bestByFacet.get(facet);
+        if (
+          !current ||
+          compareTemporalFactChronology(entry, current) < 0
+        ) {
+          bestByFacet.set(facet, entry);
+        }
+      }
+    }
+
+    const selected = PROJECT_PROGRESS_FACET_ORDER
+      .map((facet) => bestByFacet.get(facet))
+      .filter((entry): entry is RankedFactCandidate => entry !== undefined);
+
+    return selected.length === PROJECT_PROGRESS_FACET_ORDER.length
+      ? selected.slice(0, input.limit)
+      : [];
+  }
+
   if (!isSourceOrderedWeatherAutocompleteSummaryQuery(input.query)) {
     return [];
   }

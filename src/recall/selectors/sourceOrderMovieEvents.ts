@@ -1,9 +1,17 @@
 import type { RankedFactCandidate } from "../scoring";
 import {
+  hasAssistantAnswerTag,
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
-import { isSourceOrderedConversationSummaryQuery } from "./sourceOrderSummaryPatterns";
+import {
+  isSourceOrderedBasicProjectSummaryQuery,
+  isSourceOrderedConversationSummaryQuery,
+} from "./sourceOrderSummaryPatterns";
+import {
+  isLowInformationSourceSummaryFollowUp,
+  isSourceOrderedSummaryInstructionLike,
+} from "./sourceOrderSummarySignals";
 import {
   compareTemporalFactChronology,
   sourceOrderSortKey,
@@ -24,6 +32,11 @@ type MovieNightContributionFacet =
   | "movieChoice"
   | "playlist";
 
+type MovieBasicProjectFacet =
+  | "classicPartnerRecommendations"
+  | "familyFriendlyRecommendations"
+  | "initialMovieRequest";
+
 const MOVIE_EVENT_SUMMARY_QUERY_PATTERN =
   /\bsummary\b[\s\S]{0,220}\b(?:activit(?:y|ies)|organiz(?:e|ed|ing)|plann(?:ed|ing))\b[\s\S]{0,220}\b(?:family\s+movie|movie\s+events?|movie\s+night|movie\s+weekend|movie\s+marathon)\b|\bsummary\b[\s\S]{0,220}\b(?:family\s+movie|movie\s+events?|movie\s+night|movie\s+weekend|movie\s+marathon)\b[\s\S]{0,220}\b(?:activit(?:y|ies)|organiz(?:e|ed|ing)|plann(?:ed|ing))\b|\b(?:family\s+movie|movie\s+events?|movie\s+night|movie\s+weekend|movie\s+marathon)\b[\s\S]{0,220}\b(?:activit(?:y|ies)|organiz(?:e|ed|ing)|plann(?:ed|ing))\b[\s\S]{0,220}\bsummary\b/iu;
 
@@ -32,6 +45,33 @@ const MOVIE_NIGHT_CONTRIBUTION_QUERY_PATTERN =
 
 const MOVIE_DISTRACTOR_PATTERN =
   /\b(?:alternative\s+movie\s+suggestions?|blocking\s+4\s+hours|cupcakes?|platform\s+availability|work\s+deadlines?)\b/iu;
+
+const BASIC_PROJECT_FACETS = [
+  {
+    facet: "initialMovieRequest",
+    patterns: [
+      /\bTV\/film\s+producer\b[\s\S]{0,220}\bstreaming\s+movies?\b[\s\S]{0,220}\bfamily\b/iu,
+      /\bstreaming\s+movies?\b[\s\S]{0,180}\bfamily\b[\s\S]{0,220}\bfilm\s+industry\b/iu,
+    ],
+  },
+  {
+    facet: "familyFriendlyRecommendations",
+    patterns: [
+      /\bmixing\s+musicals\b[\s\S]{0,220}\bfamily-friendly\s+content\b[\s\S]{0,260}\b(?:Singin'?'\s+in\s+the\s+Rain|Wizard\s+of\s+Oz|Mary\s+Poppins|Mamma\s+Mia|Princess\s+Bride|Paddington|Parent\s+Trap)\b/iu,
+      /\bfamily-friendly\s+content\b[\s\S]{0,260}\b(?:classic|hidden\s+gem)\s+recommendations?\b/iu,
+    ],
+  },
+  {
+    facet: "classicPartnerRecommendations",
+    patterns: [
+      /\bshared\s+love\s+for\s+classic\s+films\b[\s\S]{0,260}\b(?:Casablanca|Gone\s+with\s+the\s+Wind|It's\s+a\s+Wonderful\s+Life|Maltese\s+Falcon|Vertigo)\b/iu,
+      /\btimeless\s+movies?\b[\s\S]{0,240}\bnostalgic\s+movie\s+night\b/iu,
+    ],
+  },
+] as const satisfies ReadonlyArray<{
+  facet: MovieBasicProjectFacet;
+  patterns: readonly RegExp[];
+}>;
 
 const SUMMARY_FACETS = [
   {
@@ -139,6 +179,27 @@ function movieEventSummaryFacets(
   return facets;
 }
 
+function movieBasicProjectFacets(
+  entry: RankedFactCandidate,
+): Set<MovieBasicProjectFacet> {
+  const content = stripEvidencePrefix(entry.fact.content);
+  if (
+    isSourceOrderedSummaryInstructionLike(content) ||
+    isLowInformationSourceSummaryFollowUp(content)
+  ) {
+    return new Set();
+  }
+
+  const facets = new Set<MovieBasicProjectFacet>();
+  for (const facet of BASIC_PROJECT_FACETS) {
+    if (facet.patterns.some((pattern) => pattern.test(content))) {
+      facets.add(facet.facet);
+    }
+  }
+
+  return facets;
+}
+
 function movieNightContributionFacets(
   entry: RankedFactCandidate,
 ): Set<MovieNightContributionFacet> {
@@ -157,12 +218,62 @@ function movieNightContributionFacets(
   return facets;
 }
 
+function hasValidMovieBasicProjectRole(
+  entry: RankedFactCandidate,
+  facet: MovieBasicProjectFacet,
+): boolean {
+  if (facet === "initialMovieRequest") {
+    return hasUserAnswerTag(entry);
+  }
+  return hasAssistantAnswerTag(entry);
+}
+
+function selectSourceOrderedMovieBasicProjectSummaryCoverage(input: {
+  query: string;
+  sourceCandidates: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  if (!isSourceOrderedBasicProjectSummaryQuery(input.query)) {
+    return [];
+  }
+
+  const selected = new Map<string, RankedFactCandidate>();
+  const selectedOrders = new Set<number>();
+  for (const facet of BASIC_PROJECT_FACETS) {
+    const candidate = input.sourceCandidates
+      .filter((entry) =>
+        movieBasicProjectFacets(entry).has(facet.facet) &&
+        hasValidMovieBasicProjectRole(entry, facet.facet)
+      )
+      .sort(compareTemporalFactChronology)[0];
+    if (!candidate) {
+      return [];
+    }
+
+    const order = sourceOrderSortKey(candidate);
+    if (order !== undefined && selectedOrders.has(order)) {
+      return [];
+    }
+    selected.set(candidate.fact.id, candidate);
+    if (order !== undefined) {
+      selectedOrders.add(order);
+    }
+  }
+
+  return [...selected.values()].sort(compareTemporalFactChronology);
+}
+
 export function selectSourceOrderedMovieEventSummaryCoverage(input: {
   limit: number;
   minAnchors: number;
   query: string;
   sourceCandidates: RankedFactCandidate[];
 }): RankedFactCandidate[] {
+  const basicProjectSelection =
+    selectSourceOrderedMovieBasicProjectSummaryCoverage(input);
+  if (basicProjectSelection.length > 0) {
+    return basicProjectSelection;
+  }
+
   if (!isSourceOrderedMovieEventSummaryQuery(input.query)) {
     return [];
   }

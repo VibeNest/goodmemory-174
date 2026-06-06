@@ -108,17 +108,15 @@ Active Phase
 - Current BEAM failure surface: first real rules-only diagnostic
   `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`
   starts at recall 0.11625896794910878 with missed recall 340/355. The latest
-  task/appointment digital-tools preference rerun
-  `run-phase63-beam-100k-recall-diagnostic-rules-task-appointment-tools-current-20260602T073000Z`
-  reaches recall 0.6916063044936287, missed 157/355, wrong-recall/noise
-  298/400, and preserves prior retained repairs. It recovers
-  `18:preference_following:1` to 84/86/88 exactly, removes target noise
-  2/324/274/166/62/63/85, shows no hit-loss, newly-missing evidence, or
-  negative recall delta, and reduces total noise 2130 -> 2121. Abstention adds
-  one noise id while event-ordering loses three, so this remains partial
-  progress: full-run misses and noise remain.
-  Same-three-case live evidence
-  tops out at
+  family-movie basic project summary rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-basic-project-current-20260606T150000Z`
+  reaches recall 0.7111211714732842, missed 146/355, wrong-recall/noise
+  287/400, and preserves prior retained repairs. It recovers
+  `14:summarization:2` to chats 4/9/13 exactly, removes target instruction
+  noise 266, shows no hit-loss, newly-missing evidence, or negative recall
+  delta, and improves hit ids 730 -> 733 while total noise increases
+  2004 -> 2005 due to same-recall churn. This remains partial progress.
+  Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
   wrong-recall/noise 2/3.

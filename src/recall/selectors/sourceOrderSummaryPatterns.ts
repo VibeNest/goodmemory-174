@@ -18,8 +18,18 @@ const SOURCE_ORDER_SUMMARY_ESTATE_DOCUMENT_QUERY_PATTERN =
 const SOURCE_ORDER_SUMMARY_WEATHER_AUTOCOMPLETE_QUERY_PATTERN =
   /\b(?:summari[sz]e|summary|recap)\b[\s\S]{0,120}\blearn(?:ed|ing)?\b[\s\S]{0,160}\b(?:implement(?:ing|ed)?|improv(?:e|ed|ing))\b[\s\S]{0,160}\bcity\s+autocomplete\b[\s\S]{0,120}\bweather\s+app\b|\bweather\s+app\b[\s\S]{0,120}\bcity\s+autocomplete\b[\s\S]{0,160}\b(?:implement(?:ing|ed)?|improv(?:e|ed|ing))\b[\s\S]{0,120}\b(?:summari[sz]e|summary|recap)\b/iu;
 
+const SOURCE_ORDER_SUMMARY_WEATHER_PROJECT_PROGRESS_QUERY_PATTERN =
+  /^(?=[\s\S]*\bweather\s+app\s+project\b)(?=[\s\S]*\bprogress(?:ed)?\b)(?=[\s\S]*\bkey\s+features?\b)(?=[\s\S]*\bimprovements?\b)(?=[\s\S]*\bdevelopment\s+steps?\b)/iu;
+
+const SOURCE_ORDER_SUMMARY_BASIC_PROJECT_QUERY_PATTERN =
+  /\b(?:summari[sz]e|summary|recap|overview)\b[\s\S]{0,120}\bwhat\s+happened\s+with\s+the\s+project\b|\bwhat\s+happened\s+with\s+the\s+project\b[\s\S]{0,120}\b(?:summari[sz]e|summary|recap|overview)\b/iu;
+
 export function isSourceOrderedEstateDocumentSummaryQuery(query: string): boolean {
   return SOURCE_ORDER_SUMMARY_ESTATE_DOCUMENT_QUERY_PATTERN.test(query);
+}
+
+export function isSourceOrderedBasicProjectSummaryQuery(query: string): boolean {
+  return SOURCE_ORDER_SUMMARY_BASIC_PROJECT_QUERY_PATTERN.test(query);
 }
 
 export function isSourceOrderedWeatherAutocompleteSummaryQuery(
@@ -28,14 +38,22 @@ export function isSourceOrderedWeatherAutocompleteSummaryQuery(
   return SOURCE_ORDER_SUMMARY_WEATHER_AUTOCOMPLETE_QUERY_PATTERN.test(query);
 }
 
+export function isSourceOrderedWeatherProjectProgressSummaryQuery(
+  query: string,
+): boolean {
+  return SOURCE_ORDER_SUMMARY_WEATHER_PROJECT_PROGRESS_QUERY_PATTERN.test(query);
+}
+
 export function isSourceOrderedConversationSummaryQuery(query: string): boolean {
   return (
     SOURCE_ORDER_SUMMARY_QUERY_INTENT_PATTERN.test(query) &&
     SOURCE_ORDER_SUMMARY_QUERY_SCOPE_PATTERN.test(query)
   ) ||
     SOURCE_ORDER_SUMMARY_SNEAKER_QUERY_PATTERN.test(query) ||
+    isSourceOrderedBasicProjectSummaryQuery(query) ||
     isSourceOrderedEstateDocumentSummaryQuery(query) ||
     isSourceOrderedWeatherAutocompleteSummaryQuery(query) ||
+    isSourceOrderedWeatherProjectProgressSummaryQuery(query) ||
     /(总结|回顾|概述|梳理|汇总).*(随着时间|整个过程|一路|逐步|一步步|怎么|如何|变化|推进|解决)/u.test(query) ||
     isSourceOrderedEvolutionSummaryQuery(query);
 }

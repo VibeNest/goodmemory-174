@@ -1,10 +1,16 @@
 import type { RankedFactCandidate } from "../scoring";
+import { selectSourceOrderedAcademicMentorSummaryCoverage } from "./sourceOrderAcademicMentorSummary";
 import { selectSourceOrderedAiHiringComplianceSummaryCoverage } from "./sourceOrderAiHiringComplianceSummary";
 import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderAiHiringProcessSummary";
 import { selectSourceOrderedEstatePlanningSummaryCoverage } from "./sourceOrderEstatePlanningSummary";
+import { selectSourceOrderedFictionBookBudgetSummaryCoverage } from "./sourceOrderFictionBookBudgetSummary";
+import { selectSourceOrderedGregResearchWritingSummaryCoverage } from "./sourceOrderGregResearchWritingSummary";
 import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderMovieEvents";
+import { selectSourceOrderedPersonalStatementMentorSummaryCoverage } from "./sourceOrderPersonalStatementMentorSummary";
+import { selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage } from "./sourceOrderProfessionalDevelopmentProjectSummary";
 import { selectSourceOrderedProbabilityConceptSummaryCoverage } from "./sourceOrderProbabilityConceptSummary";
 import { selectSourceOrderedProfessionalPreparationSummaryCoverage } from "./sourceOrderProfessionalPreparationSummary";
+import { selectSourceOrderedReadingGoalsStrategySummaryCoverage } from "./sourceOrderReadingGoalsStrategySummary";
 import { selectSourceOrderedRelationshipWorkSummaryCoverage } from "./sourceOrderRelationshipWorkSummary";
 import { selectSourceOrderedResumeStrategySummaryCoverage } from "./sourceOrderResumeStrategySummary";
 import { selectSourceOrderedSneakerSummaryCoverage } from "./sourceOrderSneakerSummary";
@@ -13,6 +19,7 @@ import { selectSourceOrderedTimeStressCollaborationSummaryCoverage } from "./sou
 import { selectSourceOrderedTriangleGeometrySummaryCoverage } from "./sourceOrderTriangleGeometrySummary";
 
 export function selectSourceOrderedSpecializedSummaryCoverage(input: {
+  allSourceCandidates?: RankedFactCandidate[];
   companionDistance: number;
   limit: number;
   minAnchors: number;
@@ -37,6 +44,45 @@ export function selectSourceOrderedSpecializedSummaryCoverage(input: {
     return professionalPreparationSelection;
   }
 
+  const professionalDevelopmentProjectSelection =
+    selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage(input);
+  if (professionalDevelopmentProjectSelection.length > 0) {
+    return professionalDevelopmentProjectSelection;
+  }
+
+  const academicMentorSelection =
+    selectSourceOrderedAcademicMentorSummaryCoverage(input);
+  if (academicMentorSelection.length > 0) {
+    return academicMentorSelection;
+  }
+
+  const fictionBookBudgetSelection =
+    selectSourceOrderedFictionBookBudgetSummaryCoverage({
+      ...input,
+      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+    });
+  if (fictionBookBudgetSelection.length > 0) {
+    return fictionBookBudgetSelection;
+  }
+
+  const readingGoalsStrategySelection =
+    selectSourceOrderedReadingGoalsStrategySummaryCoverage({
+      ...input,
+      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+    });
+  if (readingGoalsStrategySelection.length > 0) {
+    return readingGoalsStrategySelection;
+  }
+
+  const gregResearchWritingSelection =
+    selectSourceOrderedGregResearchWritingSummaryCoverage({
+      ...input,
+      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+    });
+  if (gregResearchWritingSelection.length > 0) {
+    return gregResearchWritingSelection;
+  }
+
   const aiHiringComplianceSelection =
     selectSourceOrderedAiHiringComplianceSummaryCoverage(input);
   if (aiHiringComplianceSelection.length > 0) {
@@ -55,8 +101,17 @@ export function selectSourceOrderedSpecializedSummaryCoverage(input: {
     return resumeStrategySelection;
   }
 
+  const personalStatementMentorSelection =
+    selectSourceOrderedPersonalStatementMentorSummaryCoverage(input);
+  if (personalStatementMentorSelection.length > 0) {
+    return personalStatementMentorSelection;
+  }
+
   const probabilityConceptSelection =
-    selectSourceOrderedProbabilityConceptSummaryCoverage(input);
+    selectSourceOrderedProbabilityConceptSummaryCoverage({
+      ...input,
+      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+    });
   if (probabilityConceptSelection.length > 0) {
     return probabilityConceptSelection;
   }

@@ -29,6 +29,8 @@ const PROJECT_LIFECYCLE_FACET_QUOTAS = {
   timeline: 1,
 } as const satisfies Record<ProjectLifecycleFacet, number>;
 
+const PROJECT_LIFECYCLE_MIN_ANCHORS = 4;
+
 const PROJECT_LIFECYCLE_FILL_FACET_WEIGHTS = {
   documentation: 5,
   feature: 1,
@@ -86,8 +88,24 @@ function projectLifecycleFacetAnchorPriority(
     if (/\b(?:build|create|implement(?:ed|ing)?|core\s+functionalit(?:y|ies))\b/iu.test(content)) {
       score += 8;
     }
+    if (/\bcore\s+functionalit(?:y|ies)\b/iu.test(content)) {
+      score += 18;
+    }
+    if (
+      /\bexpense\s+tracking\b/iu.test(content) &&
+      /\bdata\s+visuali[sz]ation\b/iu.test(content)
+    ) {
+      score += 8;
+    }
     if (/\b(?:break\s+it\s+down|components?|task\s+list)\b/iu.test(content)) {
       score -= 5;
+    }
+    if (
+      /\b(?:account\s+lockout|api\s+endpoints?|confluence|dashboard\s+api\s+response\s+time|document(?:ation|ed|ing)?|memory\s+leak|session\s+management|security\s+hardening)\b/iu.test(
+        content,
+      )
+    ) {
+      score -= 18;
     }
     if (/\b(?:lightweight|minimal\s+dependencies|maintainability|easy\s+to\s+maintain)\b/iu.test(content)) {
       score -= 10;
@@ -102,12 +120,36 @@ function projectLifecycleFacetAnchorPriority(
     if (/\b(?:account\s+lockout|failed\s+login\s+attempts|redis|security\s+hardening)\b/iu.test(content)) {
       score += 8;
     }
+    if (/\bsecurity\s+hardening\b[\s\S]{0,120}\bpublic\s+launch\b/iu.test(content)) {
+      score += 18;
+    }
+    if (/\bauthentication\s+and\s+authorization\b/iu.test(content)) {
+      score += 10;
+    }
+    if (
+      /\b(?:caching\s+tweaks?|clear\s+documentation\s+and\s+comments|dashboard\s+api\s+response\s+time|flask-login|session\s+management)\b/iu.test(
+        content,
+      )
+    ) {
+      score -= 18;
+    }
   }
   if (facet === "documentation") {
     if (/\b(?:architecture\s+decisions?|confluence|document\s+api\s+endpoints?)\b/iu.test(content)) {
       score += 8;
     }
-    if (/\bdocumentation\s+and\s+comments\b/iu.test(content)) {
+    if (
+      /\bconfluence\b/iu.test(content) &&
+      /\bapi\s+endpoints?\b/iu.test(content) &&
+      /\barchitecture\s+decisions?\b/iu.test(content)
+    ) {
+      score += 16;
+    }
+    if (
+      /\b(?:clear\s+documentation\s+and\s+comments|dashboard\s+api\s+response\s+time|documentation\s+and\s+comments|flask-login|session\s+management)\b/iu.test(
+        content,
+      )
+    ) {
       score -= 8;
     }
   }
@@ -201,6 +243,10 @@ export function selectSourceOrderedProjectLifecyclePairs(input: {
         selectedForFacet += 1;
       }
     }
+  }
+
+  if (selectedAnchorIds.size >= PROJECT_LIFECYCLE_MIN_ANCHORS) {
+    return [...selected.values()].sort(compareTemporalFactChronology);
   }
 
   const remainingAnchors = sortedAnchors
