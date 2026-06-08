@@ -49,263 +49,22 @@ import { selectSourceOrderedSpecializedSummaryCoverage } from "./sourceOrderSpec
 import { selectSourceOrderedPreGenericSummaryCoverage } from "./sourceOrderPreGenericSummaries";
 import { compareTemporalFactChronology, sourceOrderSortKey } from "./temporal";
 import { contradictionTopicTokens } from "./contradiction";
+import {
+  dedupeSourceOrderedSummaryTurns,
+  selectSourceOrderedNamedEntitySummaryMilestones,
+  sourceOrderedSummaryNamedEntityOverlap,
+  sourceOrderedSummaryNamedEntityTokens,
+} from "./sourceOrderRules/summaryNamedEntity";
+import { selectSourceOrderedTechnicalChallengeMilestones } from "./sourceOrderRules/summaryTechnicalChallenge";
 
 export const SOURCE_ORDER_SUMMARY_RECALL_LIMIT = 16;
 export const SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT = 8;
 export const SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE = 1;
 export const SOURCE_ORDER_SUMMARY_MILESTONE_MIN_ANCHORS = 4;
 const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_MIN_ANCHORS = 2;
-const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_STOPWORDS = new Set([
-  "ai",
-  "beam",
-  "can",
-  "clear",
-  "complete",
-  "comprehensive",
-  "give",
-  "how",
-  "i",
-  "only",
-  "quick",
-  "summary",
-  "the",
-  "what",
-  "when",
-  "where",
-  "why",
-]);
-const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_PATTERN =
-  /\b(?:agree(?:d|ing)?\s+to|commit(?:ted|ting)?\s+to|decid(?:e|ed|ing)\s+(?:to|whether)|declin(?:e|ed|ing)|limit(?:ed|ing)?|negotiat(?:e|ed|ing)|prioriti[sz](?:e|ed|ing)|reduc(?:e|ed|ing)|reschedul(?:e|ed|ing)|resolv(?:e|ed|ing)|schedul(?:e|ed|ing)|set\s+(?:a\s+)?boundar(?:y|ies)|started?|switch(?:ed|ing)|will\s+(?:host|limit|prioriti[sz]e|reduce|reschedule|schedule|support|talk))\b/iu;
-const SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_ZH_PATTERN =
-  /(同意|承诺|决定|拒绝|减少|限制|重新安排|安排|协商|优先|解决|设定边界|开始|切换)/u;
 
 export function isSourceOrderedSummaryCandidate(entry: RankedFactCandidate): boolean {
   return hasSourceMessageTag(entry) && sourceOrderSortKey(entry) !== undefined;
-}
-
-function hasSourceOrderedSummarySourceEnvelope(entry: RankedFactCandidate): boolean {
-  const content = entry.fact.content;
-  return /\b(?:chat[_-]?id|source[_-]?order|sourceOrder)\s*[:=]\s*\d+\b/iu.test(
-    content,
-  ) || /\brole\s*=\s*(?:assistant|user)\b/iu.test(content);
-}
-
-function sourceOrderedSummaryNamedEntityTokens(value: string): Set<string> {
-  const tokens = new Set<string>();
-  for (const match of value.matchAll(/\b[A-Z][A-Za-z0-9]*(?:[-.][A-Za-z0-9]+)*\b/gu)) {
-    const token = match[0].toLowerCase();
-    if (
-      token.length > 2 &&
-      !SOURCE_ORDER_SUMMARY_NAMED_ENTITY_STOPWORDS.has(token)
-    ) {
-      tokens.add(token);
-    }
-  }
-
-  return tokens;
-}
-
-function sourceOrderedSummaryNamedEntityOverlap(
-  value: string,
-  queryNamedTokens: ReadonlySet<string>,
-): number {
-  const contentNamedTokens = sourceOrderedSummaryNamedEntityTokens(value);
-  let overlap = 0;
-  for (const token of queryNamedTokens) {
-    if (contentNamedTokens.has(token)) {
-      overlap += 1;
-    }
-  }
-
-  return overlap;
-}
-
-function hasSourceOrderedNamedEntitySummaryDecisionMilestone(
-  content: string,
-): boolean {
-  return SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_PATTERN.test(
-    content,
-  ) || SOURCE_ORDER_SUMMARY_NAMED_ENTITY_DECISION_MILESTONE_ZH_PATTERN.test(
-    content,
-  ) || hasSourceOrderedSummaryMilestoneAction(content);
-}
-
-function sourceOrderedSummaryRepresentativeScore(input: {
-  entry: RankedFactCandidate;
-  priority: (entry: RankedFactCandidate) => number;
-}): number {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  let score = input.priority(input.entry);
-  if (hasSourceOrderedSummarySourceEnvelope(input.entry)) {
-    score += 1000;
-  }
-  score += Math.min(content.length, 2000) / 100;
-  return score;
-}
-
-function dedupeSourceOrderedSummaryTurns(input: {
-  entries: RankedFactCandidate[];
-  priority: (entry: RankedFactCandidate) => number;
-}): RankedFactCandidate[] {
-  const bySourceOrder = new Map<number, RankedFactCandidate>();
-  for (const entry of input.entries) {
-    const order = sourceOrderSortKey(entry);
-    if (order === undefined) {
-      continue;
-    }
-
-    const current = bySourceOrder.get(order);
-    if (!current) {
-      bySourceOrder.set(order, entry);
-      continue;
-    }
-
-    const scoreDelta =
-      sourceOrderedSummaryRepresentativeScore({
-        entry,
-        priority: input.priority,
-      }) -
-      sourceOrderedSummaryRepresentativeScore({
-        entry: current,
-        priority: input.priority,
-      });
-    if (
-      scoreDelta > 0 ||
-      (
-        scoreDelta === 0 &&
-        compareTemporalFactChronology(entry, current) < 0
-      )
-    ) {
-      bySourceOrder.set(order, entry);
-    }
-  }
-
-  return [...bySourceOrder.values()].sort(compareTemporalFactChronology);
-}
-
-function sourceOrderedNamedEntitySummaryPriority(input: {
-  entry: RankedFactCandidate;
-  language: LanguageService;
-  priority: (entry: RankedFactCandidate) => number;
-  queryNamedTokens: ReadonlySet<string>;
-  querySpecificTopics: ReadonlySet<string>;
-}): number {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  const decisionMilestone =
-    hasSourceOrderedNamedEntitySummaryDecisionMilestone(content);
-  const factTopics = selectorTopicTokens(
-    content,
-    input.language,
-    input.entry.locale,
-  );
-  let score = input.priority(input.entry) +
-    sourceOrderedSummaryNamedEntityOverlap(content, input.queryNamedTokens) * 500 +
-    selectorTopicOverlapCount(input.querySpecificTopics, factTopics) * 140;
-
-  if (hasUserAnswerTag(input.entry)) {
-    score += 120;
-  }
-  if (decisionMilestone) {
-    score += 540;
-  }
-  if (isLowInformationSourceSummaryFollowUp(content)) {
-    score -= 300;
-  }
-  if (isSourceOrderedSummaryInstructionLike(content)) {
-    score -= 500;
-  }
-
-  return score;
-}
-
-function selectSourceOrderedNamedEntitySummaryMilestones(input: {
-  candidates: RankedFactCandidate[];
-  language: LanguageService;
-  priority: (entry: RankedFactCandidate) => number;
-  queryNamedTokens: ReadonlySet<string>;
-  querySpecificTopics: ReadonlySet<string>;
-  sourceCandidates: RankedFactCandidate[];
-}): RankedFactCandidate[] {
-  const sortedCandidates = [...input.candidates].sort(compareTemporalFactChronology);
-  const selected = new Map<string, RankedFactCandidate>();
-  const addCandidate = (entry: RankedFactCandidate): void => {
-    if (selected.size < SOURCE_ORDER_SUMMARY_RECALL_LIMIT) {
-      selected.set(entry.fact.id, entry);
-    }
-  };
-  const bucketCount = Math.min(
-    SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
-    sortedCandidates.length,
-  );
-  const namedPriority = (entry: RankedFactCandidate): number =>
-    sourceOrderedNamedEntitySummaryPriority({
-      entry,
-      language: input.language,
-      priority: input.priority,
-      queryNamedTokens: input.queryNamedTokens,
-      querySpecificTopics: input.querySpecificTopics,
-    });
-
-  for (let index = 0; index < bucketCount; index += 1) {
-    const start = Math.floor(index * sortedCandidates.length / bucketCount);
-    const end = Math.floor((index + 1) * sortedCandidates.length / bucketCount);
-    const bucket = sortedCandidates.slice(start, Math.max(start + 1, end));
-    const best = [...bucket].sort((left, right) => {
-      const priorityDelta = namedPriority(right) - namedPriority(left);
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-      return compareTemporalFactChronology(left, right);
-    })[0];
-    if (best) {
-      addCandidate(best);
-    }
-  }
-
-  for (const entry of [...sortedCandidates].sort((left, right) => {
-    const priorityDelta = namedPriority(right) - namedPriority(left);
-    if (priorityDelta !== 0) {
-      return priorityDelta;
-    }
-    return compareTemporalFactChronology(left, right);
-  })) {
-    if (selected.size >= SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT) {
-      break;
-    }
-    addCandidate(entry);
-  }
-
-  for (const anchor of [...selected.values()].sort(compareTemporalFactChronology)) {
-    const anchorOrder = sourceOrderSortKey(anchor);
-    if (anchorOrder === undefined) {
-      continue;
-    }
-
-    const companion = input.sourceCandidates
-      .filter((entry) => !selected.has(entry.fact.id))
-      .filter((entry) => {
-        const order = sourceOrderSortKey(entry);
-        if (
-          order === undefined ||
-          !hasAssistantAnswerTag(entry) ||
-          order <= anchorOrder ||
-          order - anchorOrder > SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE
-        ) {
-          return false;
-        }
-
-        return sourceOrderedSummaryNamedEntityOverlap(
-          stripEvidencePrefix(entry.fact.content),
-          input.queryNamedTokens,
-        ) > 0;
-      })
-      .sort(compareTemporalFactChronology)[0];
-    if (companion) {
-      addCandidate(companion);
-    }
-  }
-
-  return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
 export function sourceOrderedSummaryPriority(input: {
@@ -644,85 +403,6 @@ function selectSourceOrderedCareerPhilosophyPairs(input: {
   return [...selected.values()].sort(compareTemporalFactChronology);
 }
 
-function sourceOrderedTechnicalChallengePriority(input: {
-  entry: RankedFactCandidate;
-  priority: (entry: RankedFactCandidate) => number;
-}): number {
-  const content = stripEvidencePrefix(input.entry.fact.content);
-  let score = input.priority(input.entry);
-
-  if (
-    /\b(?:integrityerror|unique\s+constraint|operationalerror|csrf(?:\s+token)?|account\s+lockout|failed\s+login\s+attempts|redis[\s\S]{0,80}rate\s+limit(?:ing)?|rate\s+limit(?:ing)?[\s\S]{0,80}redis)\b/iu.test(
-      content,
-    )
-  ) {
-    score += 520;
-  }
-  if (/\bcsrf\s+token\s+missing\s+or\s+incorrect\b/iu.test(content)) {
-    score += 260;
-  }
-  if (
-    /\b(?:basic\s+password\s+hashing|werkzeug\.security|securely\s+hashing\s+passwords)\b/iu.test(
-      content,
-    )
-  ) {
-    score += 420;
-  }
-  if (
-    /\b(?:error|failed|incorrect|missing|trouble|try-except|http\s+500|error\s+logs?)\b/iu.test(
-      content,
-    )
-  ) {
-    score += 140;
-  }
-  if (hasAssistantAnswerTag(input.entry)) {
-    score += 20;
-  }
-  if (
-    /\b(?:core\s+functionalit(?:y|ies)|data\s+visualization|estimate\s+the\s+time|task\s+list|template(?:notfound)?|no\s+such\s+table|unauthorized\s+access|blueprints?|lightweight|minimal\s+dependencies|session\s+login|rest\s+api|pull\s+request|code\s+review|caching\s+tweaks?|dashboard\s+api\s+response\s+time)\b/iu.test(
-      content,
-    )
-  ) {
-    score -= 520;
-  }
-  if (
-    /\b(?:sqlalchemy\s+for\s+database\s+interactions|starting\s+from\s+scratch|flask\s+routes|ui\/ux|refactor(?:ing)?|maintainability|security\s+best\s+practices)\b/iu.test(
-      content,
-    )
-  ) {
-    score -= 420;
-  }
-  if (content.length > 2500) {
-    score -= 120;
-  }
-
-  return score;
-}
-
-function selectSourceOrderedTechnicalChallengeMilestones(input: {
-  candidates: RankedFactCandidate[];
-  priority: (entry: RankedFactCandidate) => number;
-}): RankedFactCandidate[] {
-  return [...input.candidates]
-    .sort((left, right) => {
-      const priorityDelta =
-        sourceOrderedTechnicalChallengePriority({
-          entry: right,
-          priority: input.priority,
-        }) -
-        sourceOrderedTechnicalChallengePriority({
-          entry: left,
-          priority: input.priority,
-        });
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-      return compareTemporalFactChronology(left, right);
-    })
-    .slice(0, SOURCE_ORDER_SUMMARY_RECALL_LIMIT)
-    .sort(compareTemporalFactChronology);
-}
-
 export function selectSourceOrderedSummaryCoverage(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -1036,6 +716,7 @@ export function selectSourceOrderedSummaryCoverage(input: {
     return selectSourceOrderedTechnicalChallengeMilestones({
       candidates: technicalChallengeCandidates,
       priority,
+      recallLimit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
     });
   }
   if (
@@ -1043,11 +724,14 @@ export function selectSourceOrderedSummaryCoverage(input: {
       SOURCE_ORDER_SUMMARY_NAMED_ENTITY_MIN_ANCHORS
   ) {
     return selectSourceOrderedNamedEntitySummaryMilestones({
+      anchorLimit: SOURCE_ORDER_SUMMARY_ANCHOR_LIMIT,
       candidates: namedEntitySummaryCandidates,
+      companionDistance: SOURCE_ORDER_SUMMARY_COMPANION_DISTANCE,
       language: input.language,
       priority,
       queryNamedTokens,
       querySpecificTopics,
+      recallLimit: SOURCE_ORDER_SUMMARY_RECALL_LIMIT,
       sourceCandidates: namedEntitySourceCandidates,
     });
   }

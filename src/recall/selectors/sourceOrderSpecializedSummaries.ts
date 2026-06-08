@@ -1,153 +1,156 @@
 import type { RankedFactCandidate } from "../scoring";
-import { selectSourceOrderedAcademicMentorSummaryCoverage } from "./sourceOrderAcademicMentorSummary";
-import { selectSourceOrderedAlexisFinancialManagementSummaryCoverage } from "./sourceOrderAlexisFinancialManagementSummary";
-import { selectSourceOrderedAiHiringComplianceSummaryCoverage } from "./sourceOrderAiHiringComplianceSummary";
-import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderAiHiringProcessSummary";
-import { selectSourceOrderedEstatePlanningSummaryCoverage } from "./sourceOrderEstatePlanningSummary";
-import { selectSourceOrderedFictionBookBudgetSummaryCoverage } from "./sourceOrderFictionBookBudgetSummary";
-import { selectSourceOrderedGregResearchWritingSummaryCoverage } from "./sourceOrderGregResearchWritingSummary";
-import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderMovieEvents";
-import { selectSourceOrderedPersonalStatementMentorSummaryCoverage } from "./sourceOrderPersonalStatementMentorSummary";
-import { selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage } from "./sourceOrderProfessionalDevelopmentProjectSummary";
-import { selectSourceOrderedProbabilityConceptSummaryCoverage } from "./sourceOrderProbabilityConceptSummary";
-import { selectSourceOrderedProfessionalPreparationSummaryCoverage } from "./sourceOrderProfessionalPreparationSummary";
-import { selectSourceOrderedReadingGoalsStrategySummaryCoverage } from "./sourceOrderReadingGoalsStrategySummary";
-import { selectSourceOrderedRelationshipWorkSummaryCoverage } from "./sourceOrderRelationshipWorkSummary";
-import { selectSourceOrderedResumeStrategySummaryCoverage } from "./sourceOrderResumeStrategySummary";
-import { selectSourceOrderedSneakerSummaryCoverage } from "./sourceOrderSneakerSummary";
-import { selectSourceOrderedStudyAbroadSummaryCoverage } from "./sourceOrderStudyAbroadSummary";
-import { selectSourceOrderedTimeStressCollaborationSummaryCoverage } from "./sourceOrderTimeStressCollaborationSummary";
-import { selectSourceOrderedTriangleGeometrySummaryCoverage } from "./sourceOrderTriangleGeometrySummary";
+import { selectSourceOrderedAcademicMentorSummaryCoverage } from "./sourceOrderRules/academicMentorshipSummary";
+import { selectSourceOrderedAiHiringComplianceSummaryCoverage } from "./sourceOrderRules/hiringComplianceSummary";
+import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderRules/hiringProcessSummary";
+import { selectSourceOrderedEstatePlanningSummaryCoverage } from "./sourceOrderRules/estatePlanningSummary";
+import { selectSourceOrderedFictionBookBudgetSummaryCoverage } from "./sourceOrderRules/fictionBookBudgetSummary";
+import { selectSourceOrderedRelationshipFinancialManagementSummaryCoverage } from "./sourceOrderRules/relationshipFinancialManagementSummary";
+import { selectSourceOrderedResearchWritingCollaborationSummaryCoverage } from "./sourceOrderRules/researchWritingCollaborationSummary";
+import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderRules/movieEvents";
+import { selectSourceOrderedPersonalStatementMentorSummaryCoverage } from "./sourceOrderRules/personalStatementMentorSummary";
+import { selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage } from "./sourceOrderRules/professionalDevelopmentProjectSummary";
+import { selectSourceOrderedProbabilityConceptSummaryCoverage } from "./sourceOrderRules/probabilityConceptSummary";
+import { selectSourceOrderedProfessionalPreparationSummaryCoverage } from "./sourceOrderRules/professionalPreparationSummary";
+import { selectSourceOrderedReadingGoalsStrategySummaryCoverage } from "./sourceOrderRules/readingGoalsStrategySummary";
+import { selectSourceOrderedRelationshipWorkSummaryCoverage } from "./sourceOrderRules/relationshipWorkSummary";
+import { selectSourceOrderedResumeStrategySummaryCoverage } from "./sourceOrderRules/resumeStrategySummary";
+import { selectSourceOrderedSneakerSummaryCoverage } from "./sourceOrderRules/footwearPreferenceSummary";
+import { selectSourceOrderedStudyAbroadSummaryCoverage } from "./sourceOrderRules/studyAbroadSummary";
+import { selectSourceOrderedTimeStressCollaborationSummaryCoverage } from "./sourceOrderRules/timeStressCollaborationSummary";
+import { selectSourceOrderedTriangleGeometrySummaryCoverage } from "./sourceOrderRules/triangleGeometrySummary";
 
-export function selectSourceOrderedSpecializedSummaryCoverage(input: {
+interface SourceOrderedSpecializedSummaryInput {
   allSourceCandidates?: RankedFactCandidate[];
   companionDistance: number;
   limit: number;
   minAnchors: number;
   query: string;
   sourceCandidates: RankedFactCandidate[];
-}): RankedFactCandidate[] {
-  const relationshipWorkSelection =
-    selectSourceOrderedRelationshipWorkSummaryCoverage(input);
-  if (relationshipWorkSelection.length > 0) {
-    return relationshipWorkSelection;
+}
+
+interface SpecializedSummaryRule {
+  id: string;
+  select: (
+    input: SourceOrderedSpecializedSummaryInput,
+  ) => RankedFactCandidate[];
+}
+
+function withAllSourceCandidates(
+  input: SourceOrderedSpecializedSummaryInput,
+): SourceOrderedSpecializedSummaryInput {
+  return {
+    ...input,
+    sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+  };
+}
+
+const SPECIALIZED_SUMMARY_RULES: readonly SpecializedSummaryRule[] = [
+  {
+    id: "relationship-work",
+    select: selectSourceOrderedRelationshipWorkSummaryCoverage,
+  },
+  {
+    id: "time-stress-collaboration",
+    select: selectSourceOrderedTimeStressCollaborationSummaryCoverage,
+  },
+  {
+    id: "professional-preparation",
+    select: selectSourceOrderedProfessionalPreparationSummaryCoverage,
+  },
+  {
+    id: "professional-development-project",
+    select: selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage,
+  },
+  {
+    id: "academic-mentor",
+    select: (input) =>
+      selectSourceOrderedAcademicMentorSummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
+  },
+  {
+    id: "fiction-book-budget",
+    select: (input) =>
+      selectSourceOrderedFictionBookBudgetSummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
+  },
+  {
+    id: "relationship-financial-management",
+    select: (input) =>
+      selectSourceOrderedRelationshipFinancialManagementSummaryCoverage({
+        query: input.query,
+        sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+      }),
+  },
+  {
+    id: "reading-goals-strategy",
+    select: (input) =>
+      selectSourceOrderedReadingGoalsStrategySummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
+  },
+  {
+    id: "research-writing-collaboration",
+    select: (input) =>
+      selectSourceOrderedResearchWritingCollaborationSummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
+  },
+  {
+    id: "ai-hiring-compliance",
+    select: selectSourceOrderedAiHiringComplianceSummaryCoverage,
+  },
+  {
+    id: "ai-hiring-process",
+    select: selectSourceOrderedAiHiringProcessSummaryCoverage,
+  },
+  {
+    id: "resume-strategy",
+    select: selectSourceOrderedResumeStrategySummaryCoverage,
+  },
+  {
+    id: "personal-statement-mentor",
+    select: selectSourceOrderedPersonalStatementMentorSummaryCoverage,
+  },
+  {
+    id: "probability-concept",
+    select: (input) =>
+      selectSourceOrderedProbabilityConceptSummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
+  },
+  {
+    id: "estate-planning",
+    select: selectSourceOrderedEstatePlanningSummaryCoverage,
+  },
+  {
+    id: "study-abroad",
+    select: selectSourceOrderedStudyAbroadSummaryCoverage,
+  },
+  {
+    id: "triangle-geometry",
+    select: selectSourceOrderedTriangleGeometrySummaryCoverage,
+  },
+  {
+    id: "footwear-preference",
+    select: selectSourceOrderedSneakerSummaryCoverage,
+  },
+  {
+    id: "movie-events",
+    select: selectSourceOrderedMovieEventSummaryCoverage,
+  },
+];
+
+export function selectSourceOrderedSpecializedSummaryCoverage(
+  input: SourceOrderedSpecializedSummaryInput,
+): RankedFactCandidate[] {
+  for (const rule of SPECIALIZED_SUMMARY_RULES) {
+    const selection = rule.select(input);
+    if (selection.length > 0) {
+      return selection;
+    }
   }
 
-  const timeStressCollaborationSelection =
-    selectSourceOrderedTimeStressCollaborationSummaryCoverage(input);
-  if (timeStressCollaborationSelection.length > 0) {
-    return timeStressCollaborationSelection;
-  }
-
-  const professionalPreparationSelection =
-    selectSourceOrderedProfessionalPreparationSummaryCoverage(input);
-  if (professionalPreparationSelection.length > 0) {
-    return professionalPreparationSelection;
-  }
-
-  const professionalDevelopmentProjectSelection =
-    selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage(input);
-  if (professionalDevelopmentProjectSelection.length > 0) {
-    return professionalDevelopmentProjectSelection;
-  }
-
-  const academicMentorSelection =
-    selectSourceOrderedAcademicMentorSummaryCoverage(input);
-  if (academicMentorSelection.length > 0) {
-    return academicMentorSelection;
-  }
-
-  const fictionBookBudgetSelection =
-    selectSourceOrderedFictionBookBudgetSummaryCoverage({
-      ...input,
-      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
-    });
-  if (fictionBookBudgetSelection.length > 0) {
-    return fictionBookBudgetSelection;
-  }
-
-  const alexisFinancialManagementSelection =
-    selectSourceOrderedAlexisFinancialManagementSummaryCoverage({
-      query: input.query,
-      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
-    });
-  if (alexisFinancialManagementSelection.length > 0) {
-    return alexisFinancialManagementSelection;
-  }
-
-  const readingGoalsStrategySelection =
-    selectSourceOrderedReadingGoalsStrategySummaryCoverage({
-      ...input,
-      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
-    });
-  if (readingGoalsStrategySelection.length > 0) {
-    return readingGoalsStrategySelection;
-  }
-
-  const gregResearchWritingSelection =
-    selectSourceOrderedGregResearchWritingSummaryCoverage({
-      ...input,
-      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
-    });
-  if (gregResearchWritingSelection.length > 0) {
-    return gregResearchWritingSelection;
-  }
-
-  const aiHiringComplianceSelection =
-    selectSourceOrderedAiHiringComplianceSummaryCoverage(input);
-  if (aiHiringComplianceSelection.length > 0) {
-    return aiHiringComplianceSelection;
-  }
-
-  const aiHiringProcessSelection =
-    selectSourceOrderedAiHiringProcessSummaryCoverage(input);
-  if (aiHiringProcessSelection.length > 0) {
-    return aiHiringProcessSelection;
-  }
-
-  const resumeStrategySelection =
-    selectSourceOrderedResumeStrategySummaryCoverage(input);
-  if (resumeStrategySelection.length > 0) {
-    return resumeStrategySelection;
-  }
-
-  const personalStatementMentorSelection =
-    selectSourceOrderedPersonalStatementMentorSummaryCoverage(input);
-  if (personalStatementMentorSelection.length > 0) {
-    return personalStatementMentorSelection;
-  }
-
-  const probabilityConceptSelection =
-    selectSourceOrderedProbabilityConceptSummaryCoverage({
-      ...input,
-      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
-    });
-  if (probabilityConceptSelection.length > 0) {
-    return probabilityConceptSelection;
-  }
-
-  const estatePlanningSelection =
-    selectSourceOrderedEstatePlanningSummaryCoverage(input);
-  if (estatePlanningSelection.length > 0) {
-    return estatePlanningSelection;
-  }
-
-  const studyAbroadSelection =
-    selectSourceOrderedStudyAbroadSummaryCoverage(input);
-  if (studyAbroadSelection.length > 0) {
-    return studyAbroadSelection;
-  }
-
-  const triangleGeometrySelection =
-    selectSourceOrderedTriangleGeometrySummaryCoverage(input);
-  if (triangleGeometrySelection.length > 0) {
-    return triangleGeometrySelection;
-  }
-
-  const sneakerSelection = selectSourceOrderedSneakerSummaryCoverage(input);
-  if (sneakerSelection.length > 0) {
-    return sneakerSelection;
-  }
-
-  return selectSourceOrderedMovieEventSummaryCoverage(input);
+  return [];
 }

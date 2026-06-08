@@ -33,7 +33,7 @@ const FLASK_LOGIN_SESSION_MANAGEMENT_EVIDENCE_PATTERN =
 const FLASK_LOGIN_CONTRADICTION_CONTEXT_PATTERN =
   /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,180}\b(?:flask\s+routes?|http\s+requests?|managed\s+user\s+sessions?|manual\s+session\s+handling|session\s+management)\b/iu;
 
-export function isFlaskLoginSessionManagementContradictionQuery(
+export function isSessionManagementContradictionQuery(
   query: string,
 ): boolean {
   return FLASK_LOGIN_SESSION_MANAGEMENT_CONFIRMATION_QUERY_PATTERN.test(query);
@@ -122,11 +122,11 @@ function selectAutocompleteBugFixConfirmationEvidence(input: {
     .slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT);
 }
 
-function selectFlaskLoginSessionManagementContradictionEvidence(input: {
+function selectSessionManagementContradictionEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  if (!isFlaskLoginSessionManagementContradictionQuery(input.query)) {
+  if (!isSessionManagementContradictionQuery(input.query)) {
     return [];
   }
 
@@ -154,10 +154,10 @@ export function selectContradictionEvidencePair(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
-  const flaskLoginSessionManagementContradictionEvidence =
-    selectFlaskLoginSessionManagementContradictionEvidence(input);
-  if (flaskLoginSessionManagementContradictionEvidence.length > 0) {
-    return flaskLoginSessionManagementContradictionEvidence;
+  const sessionManagementContradictionEvidence =
+    selectSessionManagementContradictionEvidence(input);
+  if (sessionManagementContradictionEvidence.length > 0) {
+    return sessionManagementContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

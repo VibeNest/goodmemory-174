@@ -18,6 +18,25 @@ const CORE_CONTRACT_FILES = new Set([
   "evolution/contracts.ts",
   "storage/contracts.ts",
 ]);
+const RECALL_SELECTION_MAX_LINES = 900;
+const RECALL_SELECTOR_MAX_LINES = 900;
+const RECALL_SELECTOR_TOP_LEVEL_FILE_LIMIT = 35;
+const SOURCE_ORDER_SELECTOR_TOP_LEVEL_FILE_LIMIT = 25;
+const ALLOWED_RECALL_SELECTION_QUERY_IMPORTS = new Set([
+  "selectContradictionEvidencePair",
+  "resolveContradictionSelection",
+  "selectSourceOrderedInformationExtractionEvidence",
+  "selectSourceOrderedInstructionEvidence",
+  "selectSourceOrderedPreferenceEvidence",
+  "selectSourceOrderedReasoningBridgeEvidence",
+  "selectSourceOrderedSummaryCoverage",
+  "selectSourceOrderedTemporalIntervalEvidence",
+  "selectSourceOrderedTimelineIntegrationEvidence",
+]);
+const DISALLOWED_SELECTOR_FILENAME_PATTERN =
+  /(?:Alexis|Greg|Kimberly|Stephen|FlaskLogin|WeatherAutocomplete|AiHiring|Sneaker)/u;
+const DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN =
+  /\b(?:ashlee|bay-street|bay\s+street|laura|mason|michael|michele|patrick|robert|stephanie|thomas)\b/iu;
 
 async function collectTypeScriptFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -36,6 +55,13 @@ async function collectTypeScriptFiles(directory: string): Promise<string[]> {
   }
 
   return files;
+}
+
+async function collectTopLevelTypeScriptFiles(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .map((entry) => join(directory, entry.name));
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -446,41 +472,130 @@ describe("architecture boundaries", () => {
   });
 
   it("keeps recall selection split into orchestration plus bounded selector modules", async () => {
+    const selectorDirectory = join(SRC_ROOT, "recall", "selectors");
     const selectionSource = await readFile(
       join(SRC_ROOT, "recall", "selection.ts"),
       "utf8",
     );
-    const selectorFiles = await collectTypeScriptFiles(
-      join(SRC_ROOT, "recall", "selectors"),
+    const selectorFiles = await collectTypeScriptFiles(selectorDirectory);
+    const topLevelSelectorFiles = await collectTopLevelTypeScriptFiles(selectorDirectory);
+    const topLevelSourceOrderSelectorFiles = topLevelSelectorFiles.filter((file) =>
+      file.split("/").at(-1)?.startsWith("sourceOrder") === true
     );
     const oversizedSelectorFiles: Array<{ file: string; lines: number }> = [];
     const wildcardBarrels: string[] = [];
+    const benchmarkLiteralFiles: Array<{ file: string; literal: string }> = [];
+    const caseNamedSelectorFiles: string[] = [];
+    const caseLiteralSelectorFiles: string[] = [];
+    const disallowedSelectionQueryImports: string[] = [];
 
-    expect(selectionSource.split("\n").length).toBeLessThanOrEqual(1200);
+    expect(selectionSource.split("\n").length).toBeLessThanOrEqual(
+      RECALL_SELECTION_MAX_LINES,
+    );
     expect(
       await fileExists(join(SRC_ROOT, "recall", "selectors", "factSelection.ts")),
     ).toBe(false);
     expect(
       await fileExists(join(SRC_ROOT, "recall", "selectors", "sourceOrder.ts")),
     ).toBe(false);
+    expect(topLevelSelectorFiles.length).toBeLessThanOrEqual(
+      RECALL_SELECTOR_TOP_LEVEL_FILE_LIMIT,
+    );
+    expect(topLevelSourceOrderSelectorFiles.length).toBeLessThanOrEqual(
+      SOURCE_ORDER_SELECTOR_TOP_LEVEL_FILE_LIMIT,
+    );
+
+    for (const binding of await collectImportedBindingsForTarget(
+      join(SRC_ROOT, "recall", "selection.ts"),
+      "recall/selectors/contradiction.ts",
+    )) {
+      if (
+        /^is[A-Z].*Query$/u.test(binding) &&
+        !ALLOWED_RECALL_SELECTION_QUERY_IMPORTS.has(binding)
+      ) {
+        disallowedSelectionQueryImports.push(binding);
+      }
+    }
+
+    const selectionSourceFile = ts.createSourceFile(
+      "selection.ts",
+      selectionSource,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    for (const statement of selectionSourceFile.statements) {
+      if (!ts.isImportDeclaration(statement)) {
+        continue;
+      }
+
+      const moduleSpecifier = statement.moduleSpecifier;
+      if (
+        !ts.isStringLiteral(moduleSpecifier) ||
+        !moduleSpecifier.text.startsWith("./selectors/")
+      ) {
+        continue;
+      }
+
+      const importClause = statement.importClause;
+      if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+        continue;
+      }
+
+      for (const element of importClause.namedBindings.elements) {
+        const binding = element.propertyName?.text ?? element.name.text;
+        if (
+          /^is[A-Z].*Query$/u.test(binding) &&
+          !ALLOWED_RECALL_SELECTION_QUERY_IMPORTS.has(binding)
+        ) {
+          disallowedSelectionQueryImports.push(binding);
+        }
+      }
+    }
 
     for (const file of selectorFiles) {
       const source = await readFile(file, "utf8");
       const lines = source.split("\n").length;
+      const relativePath = toSourceRelativePath(file);
 
-      if (lines > 1200) {
+      if (lines > RECALL_SELECTOR_MAX_LINES) {
         oversizedSelectorFiles.push({
-          file: toSourceRelativePath(file),
+          file: relativePath,
           lines,
         });
       }
       if (/export\s+\*\s+from/u.test(source)) {
-        wildcardBarrels.push(toSourceRelativePath(file));
+        wildcardBarrels.push(relativePath);
+      }
+      if (
+        relativePath !== "recall/selectors/sourceEnvelope.ts" &&
+        /\b(?:external_benchmark|BEAM)\b/u.test(source)
+      ) {
+        benchmarkLiteralFiles.push({
+          file: relativePath,
+          literal: source.includes("external_benchmark")
+            ? "external_benchmark"
+            : "BEAM",
+        });
+      }
+      if (DISALLOWED_SELECTOR_FILENAME_PATTERN.test(relativePath)) {
+        caseNamedSelectorFiles.push(relativePath);
+      }
+      if (
+        relativePath !== "recall/selectors/sourceEnvelope.ts" &&
+        DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN.test(source)
+      ) {
+        caseLiteralSelectorFiles.push(relativePath);
       }
     }
 
+    expect(selectionSource).not.toMatch(/\b(?:external_benchmark|BEAM)\b/u);
+    expect([...new Set(disallowedSelectionQueryImports)].sort()).toEqual([]);
     expect(oversizedSelectorFiles).toEqual([]);
     expect(wildcardBarrels).toEqual([]);
+    expect(benchmarkLiteralFiles).toEqual([]);
+    expect(caseNamedSelectorFiles).toEqual([]);
+    expect(caseLiteralSelectorFiles).toEqual([]);
   });
 
   it("keeps eval reporting limited to function exports", async () => {

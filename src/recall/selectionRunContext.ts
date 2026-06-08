@@ -1,0 +1,587 @@
+import type { UserProfile } from "../domain/records";
+import type { LanguageService } from "../language";
+import type { RoutingDecision } from "./router";
+import type { RankedFactCandidate } from "./scoring";
+import { rankFactCandidates } from "./scoring";
+import {
+  aggregateEvidencePriority,
+  hasAggregateFactCountSignal,
+  isAggregateFactCountQuery,
+  isAggregateMoneyQuery,
+  isAggregateNumericQuery,
+  isAggregateOpenLoopQuery,
+  isComparativeMetricQuery,
+  isHealthIssueOrderQuery,
+  isMuseumVisitOrderQuery,
+  isSocialMetricTotalQuery,
+  isWeatherFeatureConcernCountQuery,
+} from "./selectors/aggregate";
+import {
+  conversationEvidencePriority,
+  directFactualEvidenceBridgePriority,
+  hasConversationEvidenceRecallSignal,
+  hasDirectFactualEvidenceBridgeSignal,
+  hasPreferenceEvidenceRecallSignal,
+  hasSleepBeforeAppointmentEvidenceSignal,
+  isCouponRedemptionLocationQuery,
+  isResearchRecommendationQuery,
+  preferenceEvidencePriority,
+  sleepBeforeAppointmentEvidencePriority,
+} from "./selectors/conversationEvidence";
+import {
+  isSessionManagementContradictionQuery,
+  selectContradictionEvidencePair,
+} from "./selectors/contradiction";
+import {
+  hasGenericFactSelectionSignal,
+  isAssistantProvidedDetailRecallQuery,
+  isUserGroundedRecallQuery,
+  TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
+  UPDATE_EVIDENCE_RECALL_LIMIT,
+} from "./selectors/selectionContext";
+import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./selectors/sourceOrderFinancialPlanning";
+import {
+  isExclusiveSourcePreferenceQuery,
+  isMorningSelfCarePreferenceQuery,
+  isResumeDesignInstructionQuery,
+  selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
+  selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
+} from "./selectors/sourceOrderInstruction";
+import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "./selectors/sourceOrderInstructionPruning";
+import {
+  selectSourceOrderedInformationExtractionEvidence as selectInformationExtractionEvidence,
+} from "./selectors/sourceOrderInformationExtraction";
+import { isCompleteSourceOrderedEventOrderPlanQuery } from "./selectors/sourceOrderEventPlans";
+import {
+  isPatentFilingDeadlineReasoningQuery,
+  isPatentPriorArtFilingReasoningQuery,
+  isProbabilityCalculationConfirmationReasoningQuery,
+  isSeniorProducerPreparationPriorityQuery,
+  selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
+} from "./selectors/sourceOrderReasoning";
+import { isSourceOrderedSecurityFeatureCountReasoningQuery } from "./selectors/sourceOrderSecurityReasoning";
+import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
+import {
+  isSourceOrderedEstateDocumentSummaryQuery,
+  isSourceOrderedWeatherProjectProgressSummaryQuery,
+} from "./selectors/sourceOrderSummaryPatterns";
+import {
+  isSourceOrderedNamedEntityEventOrderQuery,
+  selectSourceOrderedBroadAspectEvidence as selectBroadAspectEventOrderEvidence,
+  selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
+  selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
+} from "./selectors/sourceOrderTemporal";
+import { selectSourceOrderedTemporalIntervalEvidence } from "./selectors/sourceOrderTemporalInterval";
+import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
+import {
+  isSleepBeforeAppointmentQuery,
+  isTemporalEventOrderQuery,
+  isTemporalIntervalQuery,
+  isTemporalMostRecentQuery,
+  isTemporalRelativeEventQuery,
+} from "./selectors/temporal";
+import {
+  collapseLatestUpdateSeries,
+  hasTrustedUpdateEvidenceSignal,
+  isMortgagePreapprovalQuery,
+  isRecentFamilyTripQuery,
+  isRelationshipLatestLocationQuery,
+  isSharedGroceryListMethodQuery,
+  selectSourceOrderedUpdateEvidence,
+} from "./selectors/updateSeries";
+
+export interface SelectionRunContext {
+  aggregateEvidenceQuery: boolean;
+  aggregateOpenLoopQuery: boolean;
+  answerCompositionQuery: boolean;
+  assistantEvidenceRecallQuery: boolean;
+  broadAspectEventOrderCandidates: RankedFactCandidate[];
+  contradictionEvidencePair: RankedFactCandidate[];
+  conversationEvidenceCandidates: RankedFactCandidate[];
+  couponRedemptionLocationQuery: boolean;
+  directFactualEvidenceBridgeCandidates: RankedFactCandidate[];
+  directFactualLookupQuery: boolean;
+  exactSourceOrderedReasoningQuery: boolean;
+  factConfirmationQuery: boolean;
+  informationExtractionCandidates: RankedFactCandidate[];
+  instructionEvidenceCandidates: RankedFactCandidate[];
+  limit: number;
+  personalWorkChallengeCandidates: RankedFactCandidate[];
+  preferenceEvidenceCandidates: RankedFactCandidate[];
+  referenceOnlyQuery: boolean;
+  reasoningBridgeCandidates: RankedFactCandidate[];
+  researchRecommendationQuery: boolean;
+  resumeDesignInstructionQuery: boolean;
+  slotSpecificFactQuery: boolean;
+  sourceOrderedEventOrderCandidates: RankedFactCandidate[];
+  sourceOrderedNamedEntityEventPlanActive: boolean;
+  sourceOrderedTemporalIntervalCandidates: RankedFactCandidate[];
+  sourceOrderedValueUpdateCandidates: RankedFactCandidate[];
+  sourcePreferenceCandidates: RankedFactCandidate[];
+  sourcePreferenceExclusiveQuery: boolean;
+  sourcePreferenceOverrideByContradiction: boolean;
+  summaryCoverageCandidates: RankedFactCandidate[];
+  temporalBridgeEvidenceCandidates: RankedFactCandidate[];
+  temporalEventOrderQuery: boolean;
+  temporalMostRecentQuery: boolean;
+  temporalRelativeEventQuery: boolean;
+  timelineIntegrationCandidates: RankedFactCandidate[];
+  trelloSprintPrioritizationCriteriaAbstentionQuery: boolean;
+  updateEvidenceCandidates: RankedFactCandidate[];
+  updateEvidencePool: RankedFactCandidate[];
+  updateEvidenceSeriesOptions: {
+    collapseMortgagePreapproval: boolean;
+    collapseRecentFamilyTrip: boolean;
+    collapseRelationshipRelocation: boolean;
+    collapseSharedGroceryListMethod: boolean;
+    includeBehavioralUpdateSeries: boolean;
+  };
+  updateSeriesOptions: {
+    collapseMortgagePreapproval: boolean;
+    collapseRecentFamilyTrip: boolean;
+    collapseRelationshipRelocation: boolean;
+    collapseSharedGroceryListMethod: boolean;
+  };
+  userGroundedRecallQuery: boolean;
+  weatherFeatureConcernCountQuery: boolean;
+  withIntentSignal: RankedFactCandidate[];
+  withLexicalOrSubjectSignal: RankedFactCandidate[];
+}
+
+interface BuildSelectionRunContextInput {
+  compatible: RankedFactCandidate[];
+  language: LanguageService;
+  profile: UserProfile | null;
+  query: string;
+  queryLocale: string;
+  routingDecision: RoutingDecision;
+}
+
+export function buildSelectionRunContext(
+  input: BuildSelectionRunContextInput,
+): SelectionRunContext {
+  const {
+    compatible,
+    language,
+    profile,
+    query,
+    queryLocale,
+    routingDecision,
+  } = input;
+  const answerCompositionQuery = language.isAnswerCompositionQuery(
+    query,
+    queryLocale,
+  );
+  const factConfirmationQuery = language.isFactConfirmationQuery(
+    query,
+    queryLocale,
+  );
+  const aggregateCountQuery = isAggregateFactCountQuery(
+    query,
+    language,
+    queryLocale,
+  );
+  const aggregateMoneyQuery = isAggregateMoneyQuery(query);
+  const aggregateNumericQuery = isAggregateNumericQuery(query);
+  const comparativeMetricQuery = isComparativeMetricQuery(query);
+  const socialMetricTotalQuery = isSocialMetricTotalQuery(query);
+  const museumVisitOrderQuery = isMuseumVisitOrderQuery(query);
+  const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
+  const temporalIntervalQuery = isTemporalIntervalQuery(query);
+  const exactSourceOrderedReasoningQuery =
+    isProbabilityCalculationConfirmationReasoningQuery(query) ||
+    isPatentFilingDeadlineReasoningQuery(query) ||
+    isSourceOrderedSecurityFeatureCountReasoningQuery(query);
+  const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery && (
+    aggregateCountQuery ||
+    aggregateMoneyQuery ||
+    aggregateNumericQuery ||
+    comparativeMetricQuery ||
+    socialMetricTotalQuery ||
+    museumVisitOrderQuery ||
+    healthIssueOrderQuery ||
+    temporalIntervalQuery
+  );
+  const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const sourceOrderedNamedEntityEventOrderQuery =
+    isSourceOrderedNamedEntityEventOrderQuery(query);
+  const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
+  const temporalRelativeEventQuery = isTemporalRelativeEventQuery(query);
+  const directFactualLookupQuery = language.isDirectFactualLookupQuery(
+    query,
+    queryLocale,
+  );
+  const referenceOnlyQuery =
+    !aggregateEvidenceQuery &&
+    !temporalEventOrderQuery &&
+    !temporalMostRecentQuery &&
+    !temporalRelativeEventQuery &&
+    routingDecision.requestedSlots.includes("reference") &&
+    !routingDecision.supportSlots.includes("project_state_support") &&
+    !routingDecision.requestedSlots.includes("blocker") &&
+    !routingDecision.requestedSlots.includes("open_loop") &&
+    !routingDecision.requestedSlots.includes("focus") &&
+    !(
+      routingDecision.requestedSlots.includes("role") &&
+      (!profile?.identity.role || routingDecision.requestedSlots.length > 1)
+    );
+  const slotSpecificFactQuery =
+    !exactSourceOrderedReasoningQuery &&
+    !isSourceOrderedEstateDocumentSummaryQuery(query) &&
+    !isSourceOrderedWeatherProjectProgressSummaryQuery(query) &&
+    !isMorningSelfCarePreferenceQuery(query) &&
+    !aggregateEvidenceQuery &&
+    !isSeniorProducerPreparationPriorityQuery(query) &&
+    (
+      routingDecision.requestedSlots.includes("role") ||
+      routingDecision.requestedSlots.includes("focus") ||
+      routingDecision.requestedSlots.includes("blocker") ||
+      routingDecision.requestedSlots.includes("open_loop") ||
+      routingDecision.requestedSlots.includes("reference") ||
+      routingDecision.supportSlots.includes("project_state_support")
+    );
+  const sleepBeforeAppointmentQuery = isSleepBeforeAppointmentQuery(query);
+  const recommendationStyleQuery = language.isRecommendationStyleQuery(
+    query,
+    queryLocale,
+  );
+  const assistantEvidenceRecallQuery =
+    language.isAssistantEvidenceRecallQuery(query, queryLocale) ||
+    /\bremind me\b/iu.test(query) ||
+    isAssistantProvidedDetailRecallQuery(query);
+  const updateSeriesOptions = {
+    collapseMortgagePreapproval: isMortgagePreapprovalQuery(query),
+    collapseRecentFamilyTrip: isRecentFamilyTripQuery(query),
+    collapseRelationshipRelocation: isRelationshipLatestLocationQuery(query),
+    collapseSharedGroceryListMethod: isSharedGroceryListMethodQuery(query),
+  };
+  const updateEvidenceSeriesOptions = {
+    ...updateSeriesOptions,
+    includeBehavioralUpdateSeries: true,
+  };
+  const limit = answerCompositionQuery || factConfirmationQuery
+    ? 3
+    : temporalEventOrderQuery || temporalRelativeEventQuery
+      ? 6
+      : temporalMostRecentQuery
+        ? TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT
+        : 2;
+  const aggregateOpenLoopQuery = isAggregateOpenLoopQuery(
+    query,
+    language,
+    queryLocale,
+  );
+  const trelloSprintPrioritizationCriteriaAbstentionQuery =
+    isTrelloSprintPrioritizationCriteriaAbstentionQuery(query);
+  const userGroundedRecallQuery = isUserGroundedRecallQuery(query);
+  const emptyCandidateContext = (): SelectionRunContext => ({
+    aggregateEvidenceQuery,
+    aggregateOpenLoopQuery,
+    answerCompositionQuery,
+    assistantEvidenceRecallQuery,
+    broadAspectEventOrderCandidates: [],
+    contradictionEvidencePair: [],
+    conversationEvidenceCandidates: [],
+    couponRedemptionLocationQuery: isCouponRedemptionLocationQuery(query),
+    directFactualEvidenceBridgeCandidates: [],
+    directFactualLookupQuery,
+    exactSourceOrderedReasoningQuery,
+    factConfirmationQuery,
+    informationExtractionCandidates: [],
+    instructionEvidenceCandidates: [],
+    limit,
+    personalWorkChallengeCandidates: [],
+    preferenceEvidenceCandidates: [],
+    referenceOnlyQuery,
+    reasoningBridgeCandidates: [],
+    researchRecommendationQuery: isResearchRecommendationQuery(query),
+    resumeDesignInstructionQuery: isResumeDesignInstructionQuery(query),
+    slotSpecificFactQuery,
+    sourceOrderedEventOrderCandidates: [],
+    sourceOrderedNamedEntityEventPlanActive: false,
+    sourceOrderedTemporalIntervalCandidates: [],
+    sourceOrderedValueUpdateCandidates: [],
+    sourcePreferenceCandidates: [],
+    sourcePreferenceExclusiveQuery: false,
+    sourcePreferenceOverrideByContradiction: false,
+    summaryCoverageCandidates: [],
+    temporalBridgeEvidenceCandidates: [],
+    temporalEventOrderQuery,
+    temporalMostRecentQuery,
+    temporalRelativeEventQuery,
+    timelineIntegrationCandidates: [],
+    trelloSprintPrioritizationCriteriaAbstentionQuery,
+    updateEvidenceCandidates: [],
+    updateEvidencePool: [],
+    updateEvidenceSeriesOptions,
+    updateSeriesOptions,
+    userGroundedRecallQuery,
+    weatherFeatureConcernCountQuery: isWeatherFeatureConcernCountQuery(query),
+    withIntentSignal: [],
+    withLexicalOrSubjectSignal: [],
+  });
+  if (
+    referenceOnlyQuery ||
+    slotSpecificFactQuery ||
+    trelloSprintPrioritizationCriteriaAbstentionQuery
+  ) {
+    return emptyCandidateContext();
+  }
+  const withIntentSignal = rankFactCandidates(
+    collapseLatestUpdateSeries(
+      compatible.filter((entry) => entry.intentScore > 0),
+      updateSeriesOptions,
+    ),
+    routingDecision.strategy,
+  );
+  const withLexicalOrSubjectSignal = rankFactCandidates(
+    collapseLatestUpdateSeries(
+      compatible.filter(hasGenericFactSelectionSignal),
+      updateSeriesOptions,
+    ),
+    routingDecision.strategy,
+  );
+  const conversationEvidenceCandidates = assistantEvidenceRecallQuery
+    ? rankFactCandidates(
+        compatible.filter((item) =>
+          hasConversationEvidenceRecallSignal(item, query, language, queryLocale)
+        ),
+        routingDecision.strategy,
+      ).sort(
+        (left, right) =>
+          conversationEvidencePriority(right, query, language, queryLocale) -
+          conversationEvidencePriority(left, query, language, queryLocale),
+      )
+    : [];
+  const preferenceEvidenceCandidates = recommendationStyleQuery
+    ? rankFactCandidates(
+        compatible.filter((item) =>
+          hasPreferenceEvidenceRecallSignal(item, query, language, queryLocale)
+        ),
+        routingDecision.strategy,
+      ).sort(
+        (left, right) =>
+          preferenceEvidencePriority(right, query, language, queryLocale) -
+          preferenceEvidencePriority(left, query, language, queryLocale),
+      )
+    : [];
+  const updateEvidencePool = temporalEventOrderQuery
+    ? []
+    : rankFactCandidates(
+        compatible.filter((item) =>
+          hasTrustedUpdateEvidenceSignal(
+            item,
+            query,
+            updateEvidenceSeriesOptions,
+            language,
+            queryLocale,
+          )
+        ),
+        routingDecision.strategy,
+      );
+  const updateEvidenceCandidates = rankFactCandidates(
+    collapseLatestUpdateSeries(
+      updateEvidencePool,
+      updateEvidenceSeriesOptions,
+    ),
+    routingDecision.strategy,
+  );
+  const sourceOrderedValueUpdateCandidates = selectSourceOrderedUpdateEvidence({
+    entries: compatible,
+    language,
+    limit: UPDATE_EVIDENCE_RECALL_LIMIT,
+    query,
+    queryLocale,
+  });
+  const householdBudgetReasoningQuery =
+    isSourceOrderedHouseholdBudgetReasoningQuery(query);
+  const temporalBridgeEvidenceCandidates = sleepBeforeAppointmentQuery
+    ? rankFactCandidates(
+        compatible.filter((item) =>
+          hasSleepBeforeAppointmentEvidenceSignal(item, query)
+        ),
+        routingDecision.strategy,
+      ).sort(
+        (left, right) =>
+          sleepBeforeAppointmentEvidencePriority(right) -
+          sleepBeforeAppointmentEvidencePriority(left),
+      )
+    : [];
+  const directFactualEvidenceBridgeCandidates = directFactualLookupQuery
+    ? rankFactCandidates(
+        compatible.filter((item) =>
+          hasDirectFactualEvidenceBridgeSignal(item, query)
+        ),
+        routingDecision.strategy,
+      ).sort(
+        (left, right) =>
+          directFactualEvidenceBridgePriority(right) -
+          directFactualEvidenceBridgePriority(left),
+      )
+    : [];
+  const summaryCoverageCandidates = exactSourceOrderedReasoningQuery
+    ? []
+    : selectSummaryCoverage({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
+  const personalWorkChallengeCandidates =
+    selectPersonalWorkChallengeEvidence({
+      entries: compatible,
+      query,
+    });
+  const informationExtractionCandidates = exactSourceOrderedReasoningQuery
+    ? []
+    : selectInformationExtractionEvidence({
+        entries: compatible,
+        query,
+      });
+  const broadAspectEventOrderCandidates = exactSourceOrderedReasoningQuery
+    ? []
+    : selectBroadAspectEventOrderEvidence({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
+  const sourceOrderedTemporalIntervalCandidates =
+    selectSourceOrderedTemporalIntervalEvidence({
+      entries: compatible,
+      query,
+    });
+  const sourceOrderedEventOrderCandidates = selectEventOrderEvidence({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
+  const completeSourceOrderedEventOrderPlanActive =
+    isCompleteSourceOrderedEventOrderPlanQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
+  const sourceOrderedNamedEntityEventPlanActive =
+    (
+      sourceOrderedNamedEntityEventOrderQuery ||
+      completeSourceOrderedEventOrderPlanActive
+    ) &&
+    sourceOrderedEventOrderCandidates.length > 0;
+  const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
+  const patentPriorArtFilingReasoningQuery =
+    isPatentPriorArtFilingReasoningQuery(query);
+  const reasoningBridgeCandidates = (
+    summaryCoverageCandidates.length > 0 ||
+    timelineIntegrationCandidates.length > 0 ||
+    informationExtractionCandidates.length > 0 ||
+    personalWorkChallengeCandidates.length > 0 ||
+    sourceOrderedTemporalIntervalCandidates.length > 0 ||
+    broadAspectEventOrderCandidates.length > 0 ||
+    (sourceOrderedValueUpdateCandidates.length > 0 &&
+      !patentPriorArtFilingReasoningQuery &&
+      !exactSourceOrderedReasoningQuery) ||
+    sourceOrderedNamedEntityEventPlanActive ||
+    temporalEventOrderQuery ||
+    temporalMostRecentQuery ||
+    temporalRelativeEventQuery
+  )
+    ? []
+    : selectReasoningBridgeEvidence({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
+  const sourceOrderedSelectorActive =
+    timelineIntegrationCandidates.length > 0 ||
+    summaryCoverageCandidates.length > 0 ||
+    broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedTemporalIntervalCandidates.length > 0 ||
+    informationExtractionCandidates.length > 0 ||
+    exactSourceOrderedReasoningQuery ||
+    isSeniorProducerPreparationPriorityQuery(query) ||
+    householdBudgetReasoningQuery ||
+    sourceOrderedValueUpdateCandidates.length > 0 ||
+    sourceOrderedNamedEntityEventPlanActive;
+  const exclusiveSourcePreferenceQuery = isExclusiveSourcePreferenceQuery(query);
+  const sourcePreferenceCandidates =
+    sourceOrderedSelectorActive && !exclusiveSourcePreferenceQuery
+      ? []
+      : selectSourcePreferenceEvidence({
+          entries: compatible,
+          language,
+          query,
+          queryLocale,
+        });
+  const sourcePreferenceExclusiveQuery =
+    exclusiveSourcePreferenceQuery && sourcePreferenceCandidates.length > 0;
+  const instructionEvidenceCandidates =
+    sourceOrderedSelectorActive || sourcePreferenceExclusiveQuery
+      ? []
+      : selectInstructionEvidence({
+          entries: compatible,
+          language,
+          query,
+          queryLocale,
+        });
+  const contradictionEvidencePair = selectContradictionEvidencePair({
+    entries: compatible,
+    language,
+    query,
+    queryLocale,
+  });
+  const sourcePreferenceOverrideByContradiction =
+    contradictionEvidencePair.length > 0 &&
+    isSessionManagementContradictionQuery(query);
+
+  return {
+    aggregateEvidenceQuery,
+    aggregateOpenLoopQuery,
+    answerCompositionQuery,
+    assistantEvidenceRecallQuery,
+    broadAspectEventOrderCandidates,
+    contradictionEvidencePair,
+    conversationEvidenceCandidates,
+    couponRedemptionLocationQuery: isCouponRedemptionLocationQuery(query),
+    directFactualEvidenceBridgeCandidates,
+    directFactualLookupQuery,
+    exactSourceOrderedReasoningQuery,
+    factConfirmationQuery,
+    informationExtractionCandidates,
+    instructionEvidenceCandidates,
+    limit,
+    personalWorkChallengeCandidates,
+    preferenceEvidenceCandidates,
+    referenceOnlyQuery,
+    reasoningBridgeCandidates,
+    researchRecommendationQuery: isResearchRecommendationQuery(query),
+    resumeDesignInstructionQuery: isResumeDesignInstructionQuery(query),
+    slotSpecificFactQuery,
+    sourceOrderedEventOrderCandidates,
+    sourceOrderedNamedEntityEventPlanActive,
+    sourceOrderedTemporalIntervalCandidates,
+    sourceOrderedValueUpdateCandidates,
+    sourcePreferenceCandidates,
+    sourcePreferenceExclusiveQuery,
+    sourcePreferenceOverrideByContradiction,
+    summaryCoverageCandidates,
+    temporalBridgeEvidenceCandidates,
+    temporalEventOrderQuery,
+    temporalMostRecentQuery,
+    temporalRelativeEventQuery,
+    timelineIntegrationCandidates,
+    trelloSprintPrioritizationCriteriaAbstentionQuery,
+    updateEvidenceCandidates,
+    updateEvidencePool,
+    updateEvidenceSeriesOptions,
+    updateSeriesOptions,
+    userGroundedRecallQuery,
+    weatherFeatureConcernCountQuery: isWeatherFeatureConcernCountQuery(query),
+    withIntentSignal,
+    withLexicalOrSubjectSignal,
+  };
+}

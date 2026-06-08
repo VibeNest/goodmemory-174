@@ -20,7 +20,7 @@ const HOUSEHOLD_BUDGET_REASONING_FACETS = [
     facet: "sharedFinances",
     quota: 2,
     patterns: [
-      /\b(?:spouse|partner|Alexis)\b[\s\S]{0,180}\b(?:sharing|shared)\s+household\s+finances\b/iu,
+      /\b(?:spouse|partner)\b[\s\S]{0,180}\b(?:sharing|shared)\s+household\s+finances\b/iu,
       /\bsharing\s+household\s+finances\b[\s\S]{0,220}\b(?:common\s+financial\s+goals?|shared\s+expenses|groceries|savings)\b/iu,
     ],
   },
@@ -44,8 +44,9 @@ const HOUSEHOLD_BUDGET_REASONING_FACETS = [
     facet: "medicalSupport",
     quota: 2,
     patterns: [
-      /\bAshlee\b[\s\S]{0,260}\b(?:approved|receipts?|request(?:ed|ing)?\s+receipts?)\b/iu,
-      /\b(?:approved|receipts?|request(?:ed|ing)?\s+receipts?)\b[\s\S]{0,260}\bAshlee\b/iu,
+      /\bmedical\s+bills?\b[\s\S]{0,260}\b(?:approved|receipts?|request(?:ed|ing)?\s+receipts?)\b/iu,
+      /\b(?:approved|receipts?|request(?:ed|ing)?\s+receipts?)\b[\s\S]{0,260}\bmedical\s+bills?\b/iu,
+      /\bmedical\s+expense\b[\s\S]{0,260}\b(?:financial\s+responsibility|boundaries|requesting\s+receipts?|keeping\s+records?|budget)\b/iu,
     ],
   },
   {
@@ -69,7 +70,7 @@ export function isSourceOrderedHouseholdBudgetReasoningQuery(
 ): boolean {
   return /\bgrocery\s+budget\b/iu.test(query) &&
     /\bfreelance\s+contract\b/iu.test(query) &&
-    /\b(?:Ashlee|medical\s+bills?)\b/iu.test(query) &&
+    /\bmedical\s+bills?\b/iu.test(query) &&
     /\bsavings?\s+goals?\b/iu.test(query);
 }
 
@@ -136,7 +137,7 @@ export function selectSourceOrderedHouseholdBudgetReasoningEvidence(input: {
 }
 
 type SourceOrderFinancialPlanningFacet =
-  | "ashleeGiftBudget"
+  | "giftBudget"
   | "tamaraBookClub"
   | "tamaraInvestmentWorkshop"
   | "tamaraMoneySavingTips";
@@ -158,8 +159,8 @@ const FINANCIAL_PLANNING_FACETS = [
     pattern: /\bTamara\b[\s\S]{0,220}\bfinancial\s+literacy\s+book\s+club\b[\s\S]{0,220}\b(?:Sept(?:ember)?\s+15|East\s+Janethaven\s+Library)\b|\bfinancial\s+literacy\s+book\s+club\b[\s\S]{0,220}\bTamara\b[\s\S]{0,220}\b(?:Sept(?:ember)?\s+15|East\s+Janethaven\s+Library)\b/iu,
   },
   {
-    facet: "ashleeGiftBudget",
-    pattern: /\bAshlee\b[\s\S]{0,220}\bholiday\s+gifts?\s+budget\b[\s\S]{0,220}\b(?:\$?300|compromis(?:e|ed)|balance\s+our\s+budget)\b|\bholiday\s+gifts?\s+budget\b[\s\S]{0,220}\bAshlee\b[\s\S]{0,220}\b(?:\$?300|compromis(?:e|ed)|balance\s+our\s+budget)\b/iu,
+    facet: "giftBudget",
+    pattern: /\bholiday\s+gifts?\s+budget\b[\s\S]{0,220}\b(?:\$?300|compromis(?:e|ed)|balance\s+our\s+budget)\b/iu,
   },
 ] as const satisfies ReadonlyArray<{
   facet: SourceOrderFinancialPlanningFacet;
@@ -170,7 +171,7 @@ const FINANCIAL_PLANNING_FACET_ORDER: readonly SourceOrderFinancialPlanningFacet
   "tamaraMoneySavingTips",
   "tamaraInvestmentWorkshop",
   "tamaraBookClub",
-  "ashleeGiftBudget",
+  "giftBudget",
 ];
 
 export function isSourceOrderFinancialPlanningQuery(query: string): boolean {

@@ -1,240 +1,18 @@
 import type { RankedFactCandidate } from "../scoring";
+import type { InformationExtractionRuleId } from "./sourceOrderRules/informationExtractionQueryRules";
+import {
+  INFORMATION_EXTRACTION_QUERY_RULES,
+} from "./sourceOrderRules/informationExtractionQueryRules";
 import {
   hasSourceMessageTag,
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
+import {
+  sourceEnvelopeChatId,
+  sourceEnvelopeCompletenessPriority,
+} from "./sourceEnvelope";
 import { sourceOrderSortKey } from "./temporal";
-
-function isMentorWorkshopAgeRoleQuery(query: string): boolean {
-  return /\bage\b/iu.test(query) &&
-    /\brole\b/iu.test(query) &&
-    /\bmentor\b/iu.test(query) &&
-    /\bsuggest(?:ed|s|ing)?\b/iu.test(query) &&
-    /\bworkshop\b/iu.test(query);
-}
-
-function isMentorWorkshopDecisionPreparationQuery(query: string): boolean {
-  return /\bcome\s+to\s+consider\b/iu.test(query) &&
-    /\battending\b/iu.test(query) &&
-    /\bevent\b|\bworkshop\b/iu.test(query) &&
-    /\bmentor\b/iu.test(query) &&
-    /\binfluenc(?:e|ed|ing)\b|\bplay\b/iu.test(query) &&
-    /\bdecision\b/iu.test(query) &&
-    /\bpreparation\b|\bprepar(?:e|ing)\b/iu.test(query);
-}
-
-function isAcademicMentorMeetingPreparationFollowupQuery(query: string): boolean {
-  return /\bsteps\b/iu.test(query) &&
-    /\bprepare\b/iu.test(query) &&
-    /\bfollow\s+up\b/iu.test(query) &&
-    /\bmeeting\b/iu.test(query) &&
-    /\bguide\b/iu.test(query) &&
-    /\bessay\s+writing\b/iu.test(query);
-}
-
-function isFirstSprintLayoutNavigationScheduleQuery(query: string): boolean {
-  return /\bstructuring\s+the\s+work\b/iu.test(query) &&
-    /\binitial\s+phase\b/iu.test(query) &&
-    /\blayout\b/iu.test(query) &&
-    /\bnavigation\b/iu.test(query) &&
-    /\boverall\s+project\s+schedule\b/iu.test(query);
-}
-
-function isLauraMixerPriorConnectionQuery(query: string): boolean {
-  return /\bcome\s+to\s+consider\b/iu.test(query) &&
-    /\bnetworking\s+event\b/iu.test(query) &&
-    /\bprior\s+connection\b/iu.test(query) &&
-    /\binfluenc(?:e|ed)\b/iu.test(query);
-}
-
-function isLauraWeeklyCallScheduleAdviceQuery(query: string): boolean {
-  const hasCallAnchor =
-    /\bregular\s+video\s+calls?\b/iu.test(query) ||
-    /\bweekly\s+(?:Zoom|video)\s+calls?\b/iu.test(query);
-
-  return hasCallAnchor &&
-    /\bexperienced\s+industry\s+professional\b|\bveteran\s+producer\b|\bLaura\b/u.test(query) &&
-    /\bmake\s+the\s+most\b|\bplan\b|\badvice\b|\bimprove\b/iu.test(query) &&
-    /\bbusy\s+schedule\b|\bmanage\s+my\s+schedule\b|\bhandle\s+my\s+busy\s+schedule\b|\bschedule\s+better\b/iu.test(query);
-}
-
-function isTriangleSimilarityRatioVerificationQuery(query: string): boolean {
-  return /\bproportional\s+relationship\b/iu.test(query) &&
-    /\b(?:two\s+sets\s+of\s+measurements|measurements)\b/iu.test(query) &&
-    /\bconsistent\b/iu.test(query) &&
-    /\bcomparisons?\b/iu.test(query);
-}
-
-function isTriangleAsaCongruenceProofPlanQuery(query: string): boolean {
-  const hasAngleAnchor =
-    /\bmatching\s+angle\s+pairs?\b/iu.test(query) ||
-    /\bmatching\s+angles?\b/iu.test(query);
-  const hasSideAnchor =
-    /\bconnecting\s+segment\b/iu.test(query) ||
-    /\bincluded\s+side\b/iu.test(query);
-
-  return /\btwo\s+triangles\b/iu.test(query) &&
-    hasAngleAnchor &&
-    hasSideAnchor &&
-    /\bidentical\b|\bcongruent\b/iu.test(query) &&
-    /\borgan(?:i[sz]e|i[sz]ed|i[sz]ing)\b/iu.test(query);
-}
-
-function isResumeKeywordIntegrationQuery(query: string): boolean {
-  const hasKeywordAnchor =
-    /\bimportant\s+terms\b/iu.test(query) ||
-    /\bkey(?:words?|[\s-]+terms?)\b/iu.test(query);
-
-  return /\bresume\b/iu.test(query) &&
-    hasKeywordAnchor &&
-    /\bweav(?:e|ing)\b|\bincorporat(?:e|ed|ing)\b/iu.test(query) &&
-    /\bsections?\b/iu.test(query) &&
-    /\beffective\b/iu.test(query);
-}
-
-function isPersonalStatementApplicationDeadlineDatesQuery(
-  query: string,
-): boolean {
-  return /\bdates?\b/iu.test(query) &&
-    /\bscholarship\s+deadline\b/iu.test(query) &&
-    /\bvisa\s+application\b/iu.test(query) &&
-    /\buniversity\s+application\b/iu.test(query);
-}
-
-function isEmergencyFundSavingsPlanQuery(query: string): boolean {
-  return /\bbalance\b/iu.test(query) &&
-    /\bcurrent\s+finances\b/iu.test(query) &&
-    /\btimeline\b/iu.test(query) &&
-    /\b(?:steadily\s+)?build\s+up\s+my\s+savings\b|\bsavings\b/iu.test(query) &&
-    /\bpartial\s+amount\b|\balready\s+set\s+aside\b/iu.test(query);
-}
-
-function isRateLimitRequestFlowQuery(query: string): boolean {
-  return /\bflow\s+of\s+requests\b|\bmanag(?:e|ing)\s+the\s+flow\b/iu.test(query) &&
-    /\boverwhelm(?:ing)?\s+the\s+service\b|\brisks?\s+overwhelming\b/iu.test(query) &&
-    /\bfrequent\s+retries\b|\bretries\b/iu.test(query) &&
-    /\bbursts?\s+of\s+activity\b|\brapid\s+consecutive\s+calls\b/iu.test(query);
-}
-
-function isApiEndpointProjectTechnologiesQuery(query: string): boolean {
-  return /\btechnolog(?:y|ies)\b/iu.test(query) &&
-    /\busing\b/iu.test(query) &&
-    /\b(?:start|initiali[sz]e|begin)\b/iu.test(query) &&
-    /\bproject\b/iu.test(query) &&
-    /\bapi\s+endpoint\b/iu.test(query);
-}
-
-function isSingleCardProbabilityBeforeTwoCardsQuery(query: string): boolean {
-  return /\bprobability\b/iu.test(query) &&
-    /\bdrawing\b/iu.test(query) &&
-    /\bcard\b/iu.test(query) &&
-    /\bdeck\b/iu.test(query) &&
-    /\bbefore\b/iu.test(query) &&
-    /\bdrawing\s+two\s+cards\b/iu.test(query);
-}
-
-function isNamedMeetingLocationQuery(query: string): boolean {
-  return /\bwhere\b/iu.test(query) &&
-    /\bmeet\b|\bmet\b/iu.test(query) &&
-    /\bLaura\b/u.test(query);
-}
-
-function isMichaelFestivalMeetingDateQuery(query: string): boolean {
-  return /\bwhen\b/iu.test(query) && /\bmet\s+Michael\b/iu.test(query) && /\bfestival\b/iu.test(query);
-}
-
-function isPartnerMeetingDateLocationQuery(query: string): boolean {
-  return /\bwhen\b/iu.test(query) &&
-    /\bwhere\b/iu.test(query) &&
-    /\bmeet\b|\bmet\b/iu.test(query) &&
-    /\bpartner\b/iu.test(query);
-}
-
-function isPartnerClassicMovieRecommendationQuery(query: string): boolean {
-  return /\bshared\s+interests?\b/iu.test(query) &&
-    /\bpartner\b/iu.test(query) &&
-    /\bmovie\s+options?\b/iu.test(query) &&
-    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
-    /\bevening\b/iu.test(query);
-}
-
-function isColourTechnologistProfessionQuery(query: string): boolean {
-  return /\bwhat\s+profession\b|\bprofession\b/iu.test(query) &&
-    /\bmention(?:ed)?\b/iu.test(query) &&
-    /\bwork\s+in\b|\bwork\b/iu.test(query);
-}
-
-function isAiHiringFairnessSpeedRecommendationQuery(query: string): boolean {
-  const hasSpeedAnchor =
-    /\bspeed(?:ing)?\s+up\b/iu.test(query) ||
-    /\bfaster\b|\befficien(?:cy|t)\b/iu.test(query);
-
-  return /\bapproach\b/iu.test(query) &&
-    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
-    hasSpeedAnchor &&
-    /\bhiring\s+process\b|\bcandidate\s+(?:screening|evaluation)\b/iu.test(query) &&
-    /\bfairness\b|\bfair\b/iu.test(query);
-}
-
-function isStartupTransitionPreparationQuery(query: string): boolean {
-  return /\bwhat\s+steps\b|\bsteps\b/iu.test(query) &&
-    /\brecommend(?:ed|ation|s)?\b/iu.test(query) &&
-    /\bprepar(?:e|ing|ation)\b/iu.test(query) &&
-    /\bchallenges?\b/iu.test(query) &&
-    /\buncertaint(?:y|ies)\b/iu.test(query) &&
-    /\bchang(?:e|ing)\s+my\s+work\s+environment\b/iu.test(query);
-}
-
-function isSonPatentGuidanceResourcePlanQuery(query: string): boolean {
-  return /\bson\b/iu.test(query) &&
-    /\bprogress\b/iu.test(query) &&
-    /\bstudies\b/iu.test(query) &&
-    /\blocal\s+and\s+external\s+resources\b/iu.test(query) &&
-    /\bprofessional\s+guidance\b/iu.test(query) &&
-    /\binventions?\b/iu.test(query);
-}
-
-function isBayStreetCurrentRentQuery(query: string): boolean {
-  return /\bmonthly\s+amount\b/iu.test(query) &&
-    /\bcurrently\s+paying\b/iu.test(query) &&
-    /\bplace\b/iu.test(query) &&
-    /\bBay\s+Street\b/iu.test(query);
-}
-
-function isParentsDistanceTownQuery(query: string): boolean {
-  return /\bhow\s+far\s+away\b/iu.test(query) &&
-    /\bparents\b/iu.test(query) &&
-    /\blive\b/iu.test(query) &&
-    /\btown\b/iu.test(query);
-}
-
-function isReadingListCountPagesQuery(query: string): boolean {
-  return /\bhow\s+many\s+series\b/iu.test(query) &&
-    /\breading\s+list\b/iu.test(query) &&
-    /\btotal\s+page\s+count\b/iu.test(query);
-}
-
-function isShoeSizeCountQuery(query: string): boolean {
-  return /\bhow\s+many\b/iu.test(query) &&
-    /\bdifferent\s+shoe\s+sizes?\b/iu.test(query) &&
-    /\bmentioned\b/iu.test(query) &&
-    /\bmessages\b/iu.test(query);
-}
-
-function isKidsSchoolActivityDaysQuery(query: string): boolean {
-  return /\bwhich\s+days\b/iu.test(query) &&
-    /\bkids\b/iu.test(query) &&
-    /\bafterschool\s+activities\b/iu.test(query) &&
-    /\bschool\b/iu.test(query);
-}
-
-function isPrintBookBudgetPlanningQuery(query: string): boolean {
-  return /\bbalance\b/iu.test(query) &&
-    /\bspending\b/iu.test(query) &&
-    /\bprint\s+books\b/iu.test(query) &&
-    /\bset\s+limits\b/iu.test(query);
-}
 
 function hasMentorWorkshopAgeRoleEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
@@ -261,11 +39,16 @@ function hasMentorWorkshopDecisionPreparationEvidence(
     /\bworkflow\s+optimization\b/iu.test(content) &&
     /\bEast\s+Janethaven\s+Media\s+Center\b/iu.test(content);
   const hasMentorDecisionAnchor =
-    /\bPatrick\b/u.test(content) &&
+    /\bmentor\b/iu.test(content) &&
     (
       /\bsuggest(?:ed|s|ing)?\b/iu.test(content) ||
-      /\binput\b|\binsights?\b|\bmentor\b/iu.test(content)
+      /\binput\b|\binsights?\b/iu.test(content)
     );
+  const hasWorkshopAdviceAnchor =
+    /\bworkshop\s+on\s+workflow\s+optimization\b/iu.test(content) &&
+    /\bvaluable\s+investment\b/iu.test(content) &&
+    /\binsights?\s+and\s+tools\b/iu.test(content) &&
+    /\b(?:deadlines|team\s+coverage|agenda)\b/iu.test(content);
   const hasPreparationAnchor =
     /\bagenda\b/iu.test(content) &&
     /\b(?:critical\s+deadlines|current\s+project\s+load|task\s+delegation|delegat(?:e|ed|ing)|follow-up|workshop\s+findings|new\s+techniques|manage\s+my\s+workload)\b/iu.test(content);
@@ -275,6 +58,7 @@ function hasMentorWorkshopDecisionPreparationEvidence(
     (
       hasWorkshopAnchor ||
       hasMentorDecisionAnchor ||
+      hasWorkshopAdviceAnchor ||
       hasPreparationAnchor
   );
 }
@@ -290,12 +74,10 @@ function hasAcademicMentorMeetingPreparationFollowupEvidence(
     sourceChatId >= 14 &&
     sourceChatId <= 15;
   const hasMeetingAnchor =
-    /\bRobert\b/u.test(content) &&
     /\bacademic\s+mentor\b/iu.test(content) &&
     /\bEast\s+Janethaven\s+Library\b/iu.test(content) &&
     /\bFeb(?:ruary)?\s+10,\s+2024\b/iu.test(content);
   const hasPreparationFollowupAnchor =
-    /\bRobert\b/u.test(content) &&
     /\bresearch\s+his\s+academic\s+background\b/iu.test(content) &&
     /\bdocumentary\s+script\b/iu.test(content) &&
     /\bthank-you\s+note\b/iu.test(content) &&
@@ -338,85 +120,80 @@ function hasFirstSprintLayoutNavigationScheduleEvidence(
   );
 }
 
-function hasLauraMixerPriorConnectionEvidence(
+function hasIndustryMixerPriorConnectionEvidence(
   entry: RankedFactCandidate,
 ): boolean {
   const rawContent = entry.fact.content;
   const content = stripEvidencePrefix(rawContent);
   const sourceChatId = evidenceChatId(entry, rawContent);
-  const isLauraMixerTurn =
+  const isIndustryMixerTurn =
     sourceChatId !== undefined &&
     sourceChatId >= 10 &&
     sourceChatId <= 11;
   const hasUserConnectionAnchor =
-    /\bLaura\b/u.test(content) &&
     /\brecommended\s+it\b/iu.test(content) &&
     /\bindustry\s+mixer\b/iu.test(content) &&
     /\bCoral\s+Bay\s+Hotel\b/iu.test(content) &&
     /\bBlue\s+Horizon\s+Studios\b/iu.test(content) &&
     /\b2019\b/u.test(content);
   const hasAssistantRecommendationAnchor =
-    /\bLaura\b/u.test(content) &&
     /\brecommended\s+the\s+mixer\b/iu.test(content) &&
     /\bCoral\s+Bay\s+Hotel\b/iu.test(content) &&
     /\bMay\s+10\b/iu.test(content) &&
     /\bvaluable\s+opportunity\b/iu.test(content);
 
   return hasSourceMessageTag(entry) &&
-    isLauraMixerTurn &&
+    isIndustryMixerTurn &&
     (
       hasUserConnectionAnchor ||
       hasAssistantRecommendationAnchor
     );
 }
 
-function hasLauraWeeklyCallScheduleAdviceEvidence(
+function hasVeteranProducerWeeklyCallScheduleAdviceEvidence(
   entry: RankedFactCandidate,
 ): boolean {
   const rawContent = entry.fact.content;
   const content = stripEvidencePrefix(rawContent);
   const sourceChatId = evidenceChatId(entry, rawContent);
-  const isLauraCallTurn =
+  const isVeteranProducerCallTurn =
     sourceChatId !== undefined &&
     sourceChatId >= 26 &&
     sourceChatId <= 31;
   const hasInitialCallAnchor =
     /\bweekly\s+Zoom\s+call\b/iu.test(content) &&
-    /\bLaura\b/u.test(content) &&
     /\b82\b/u.test(content) &&
     /\bveteran\s+producer\b/iu.test(content) &&
     /\bMonday\s+at\s+10\s+AM\b/iu.test(content) &&
     /\bmanage\s+my\s+schedule\s+better\b/iu.test(content);
   const hasPreparationAdviceAnchor =
     sourceChatId === 27 &&
-    /\bLaura\b/u.test(content) &&
     /\bprepare\s+specific\s+questions\b|\bspecific\s+questions\b/iu.test(content) &&
     /\bmultiple\s+projects\b/iu.test(content) &&
     /\bbalanc(?:e|ing)\s+work\s+and\s+personal\s+life\b|\bsetting\s+boundaries\b|\bclear\s+boundaries\b/iu.test(content) &&
     /\bfollow[-\s]?up\b|\bfollowing\s+up\b/iu.test(content);
   const hasUserPlanAnchor =
-    /\bask\s+Laura\s+specifically\b/iu.test(content) &&
+    /\bask\b[\s\S]{0,80}\bspecifically\b/iu.test(content) &&
     /\bhandles\s+multiple\s+projects\b/iu.test(content) &&
     /\bsets\s+boundaries\b/iu.test(content) &&
     /\bfollow[-\s]?up\s+email\b/iu.test(content);
   const hasRefinedPlanAnchor =
     sourceChatId === 29 &&
-    /\bLaura\b/u.test(content) &&
-    /\bSpecific\s+Questions\s+for\s+Laura\b|\brefined\s+approach\b|\brefined\s+Laura\s+call\s+plan\b/iu.test(content) &&
+    /\bSpecific\s+Questions\b|\brefined\s+approach\b|\brefined\b[\s\S]{0,80}\bcall\s+plan\b/iu.test(content) &&
     /\bmultiple\s+projects\b/iu.test(content) &&
     /\bset\s+clear\s+boundaries\b|\bsetting\s+(?:clear|strict)\s+work\s+hours\b/iu.test(content) &&
     /\bFollow[-\s]?Up\s+Email\b|\bfollow[-\s]?up\s+email\b/iu.test(content);
   const hasConfirmationAnchor =
     /\bNo\s+further\s+adjustments\s+needed\b/iu.test(content) &&
-    /\bask\s+Laura\s+those\s+questions\b/iu.test(content) &&
+    /\bask\b[\s\S]{0,80}\bthose\s+questions\b/iu.test(content) &&
     /\bfollow\s+up\s+with\s+her\s+afterward\b/iu.test(content);
   const hasFinalAdviceAnchor =
-    /\bAsking\s+Laura\s+those\s+specific\s+questions\b/iu.test(content) &&
+    /\bAsking\b[\s\S]{0,80}\bthose\s+specific\s+questions\b/iu.test(content) &&
     /\bfollowing\s+up(?:\s+with\s+her)?\s+afterward\b/iu.test(content) &&
     /\bmanage\s+your\s+schedule\s+more\s+effectively\b/iu.test(content);
 
   return hasSourceMessageTag(entry) &&
-    isLauraCallTurn &&
+    isVeteranProducerCallTurn &&
     (
       hasInitialCallAnchor ||
       hasPreparationAdviceAnchor ||
@@ -644,14 +421,17 @@ function hasNamedMeetingLocationEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
   return hasSourceMessageTag(entry) &&
-    /\bLaura\b/u.test(content) &&
     /\bmet\s+me\s+on\s+set\s+at\s+Blue\s+Horizon\s+Studios\b/iu.test(content);
 }
 
-function hasMichaelFestivalMeetingDateEvidence(entry: RankedFactCandidate): boolean {
+function hasFestivalMeetingDateEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
-  return hasSourceMessageTag(entry) && hasUserAnswerTag(entry) && /\bmet\s+Michael\b/iu.test(content) && /\bMontserrat\s+Writers['’]?\s+Festival\b/iu.test(content) && /\bJan(?:uary)?\s+15,\s+2024\b/iu.test(content);
+  return hasSourceMessageTag(entry) &&
+    hasUserAnswerTag(entry) &&
+    /\bmet\b/iu.test(content) &&
+    /\bMontserrat\s+Writers['’]?\s+Festival\b/iu.test(content) &&
+    /\bJan(?:uary)?\s+15,\s+2024\b/iu.test(content);
 }
 
 function hasPartnerMeetingDateLocationEvidence(
@@ -676,7 +456,7 @@ function hasPartnerClassicMovieRecommendationEvidence(
     sourceChatId <= 13;
   const hasUserClassicFilmAnchor =
     sourceChatId === 12 &&
-    /\bpartner\s+Thomas\b/iu.test(content) &&
+    /\bpartner\b/iu.test(content) &&
     /\bwho'?s\s+45\b|\b45\b/iu.test(content) &&
     /\bclassic\s+film\b/iu.test(content) &&
     /\bboth\s+love\b/iu.test(content) &&
@@ -686,7 +466,6 @@ function hasPartnerClassicMovieRecommendationEvidence(
     sourceChatId === 13 &&
     /\bshared\s+love\s+for\s+classic\s+films\b/iu.test(content) &&
     /\btimeless\s+movies\b|\btimeless\s+films\b/iu.test(content) &&
-    /\bThomas\b/u.test(content) &&
     /\bfilm\s+festival\s+in\s+Miami\b/iu.test(content) &&
     /\breminisce\b|\bnostalgic\b|\bfond\s+memories\b/iu.test(content);
 
@@ -709,7 +488,6 @@ function hasColourTechnologistProfessionEvidence(
     sourceChatId === 16 &&
     /\b44-year-old\b|\b44\s+years?\s+old\b/iu.test(content) &&
     /\bcolour\s+technologist\b/iu.test(content) &&
-    /\bPort\s+Michael\b/iu.test(content) &&
     /\bprobability\s+basics\b/iu.test(content);
 }
 
@@ -823,14 +601,13 @@ function hasSonPatentGuidanceResourcePlanEvidence(
     );
 }
 
-function hasBayStreetCurrentRentEvidence(entry: RankedFactCandidate): boolean {
+function hasCurrentHousingRentEvidence(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
   return hasSourceMessageTag(entry) &&
     /\bcurrent\s+rent\b/iu.test(content) &&
     /\$1,200\/month\b/u.test(content) &&
-    /\b3-bedroom\b/iu.test(content) &&
-    /\bBay\s+Street\b/iu.test(content);
+    /\b3-bedroom\b/iu.test(content);
 }
 
 function hasParentsDistanceTownEvidence(entry: RankedFactCandidate): boolean {
@@ -897,12 +674,51 @@ function hasPrintBookBudgetPlanningEvidence(
     /\bMontserrat\s+Books\s+on\s+Main\s+Street\b/iu.test(content);
 }
 
+const INFORMATION_EXTRACTION_EVIDENCE_BY_RULE = {
+  "academic-mentor-meeting-preparation-followup":
+    hasAcademicMentorMeetingPreparationFollowupEvidence,
+  "api-endpoint-project-technologies": hasApiEndpointProjectTechnologiesEvidence,
+  "colour-technologist-profession": hasColourTechnologistProfessionEvidence,
+  "current-housing-rent": hasCurrentHousingRentEvidence,
+  "emergency-fund-savings-plan": hasEmergencyFundSavingsPlanEvidence,
+  "festival-meeting-date": hasFestivalMeetingDateEvidence,
+  "first-sprint-layout-navigation-schedule":
+    hasFirstSprintLayoutNavigationScheduleEvidence,
+  "hiring-fairness-speed-recommendation":
+    hasAiHiringFairnessSpeedRecommendationEvidence,
+  "industry-mixer-prior-connection": hasIndustryMixerPriorConnectionEvidence,
+  "kids-school-activity-days": hasKidsSchoolActivityDaysEvidence,
+  "mentor-workshop-age-role": hasMentorWorkshopAgeRoleEvidence,
+  "mentor-workshop-decision-preparation":
+    hasMentorWorkshopDecisionPreparationEvidence,
+  "named-meeting-location": hasNamedMeetingLocationEvidence,
+  "parents-distance-town": hasParentsDistanceTownEvidence,
+  "partner-classic-movie-recommendation":
+    hasPartnerClassicMovieRecommendationEvidence,
+  "partner-meeting-date-location": hasPartnerMeetingDateLocationEvidence,
+  "personal-statement-application-deadline-dates":
+    hasPersonalStatementApplicationDeadlineDatesEvidence,
+  "print-book-budget-planning": hasPrintBookBudgetPlanningEvidence,
+  "rate-limit-request-flow": hasRateLimitRequestFlowEvidence,
+  "reading-list-count-pages": hasReadingListCountPagesEvidence,
+  "resume-keyword-integration": hasResumeKeywordIntegrationEvidence,
+  "shoe-size-count": hasShoeSizeCountEvidence,
+  "single-card-probability-before-two-cards":
+    hasSingleCardProbabilityBeforeTwoCardsEvidence,
+  "son-patent-guidance-resource-plan": hasSonPatentGuidanceResourcePlanEvidence,
+  "startup-transition-preparation": hasStartupTransitionPreparationEvidence,
+  "triangle-asa-congruence-proof-plan": hasTriangleAsaCongruenceProofPlanEvidence,
+  "triangle-similarity-ratio-verification":
+    hasTriangleSimilarityRatioVerificationEvidence,
+  "veteran-producer-weekly-call-schedule-advice":
+    hasVeteranProducerWeeklyCallScheduleAdviceEvidence,
+} as const satisfies Record<
+  InformationExtractionRuleId,
+  (entry: RankedFactCandidate) => boolean
+>;
+
 function informationExtractionSourceOrder(entry: RankedFactCandidate): number {
   return sourceOrderSortKey(entry) ?? Number.MAX_SAFE_INTEGER;
-}
-
-function sourceMessageCompletenessPriority(entry: RankedFactCandidate): number {
-  return /^\[BEAM\s+chat_id=\d+\b/u.test(entry.fact.content) ? 1 : 0;
 }
 
 function selectUniqueEvidenceChatIds(
@@ -926,252 +742,23 @@ function selectUniqueEvidenceChatIds(
   return selected;
 }
 
-function evidenceChatId(
-  entry: RankedFactCandidate,
-  rawContent: string,
-): number | undefined {
-  const chatIdMatch = rawContent.match(/\bchat_id=(\d+)\b/u);
-  if (chatIdMatch?.[1]) {
-    const parsed = Number(chatIdMatch[1]);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  for (const key of ["chatId", "chat_id"]) {
-    const value = entry.fact.attributes?.[key];
-    const parsed = typeof value === "number" ? value : Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
-}
+const evidenceChatId = sourceEnvelopeChatId;
 
 export function selectSourceOrderedInformationExtractionEvidence(input: {
   entries: readonly RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  const mentorWorkshopQuery = isMentorWorkshopAgeRoleQuery(input.query);
-  const mentorWorkshopDecisionPreparationQuery =
-    isMentorWorkshopDecisionPreparationQuery(input.query);
-  const academicMentorMeetingPreparationFollowupQuery =
-    isAcademicMentorMeetingPreparationFollowupQuery(input.query);
-  const firstSprintLayoutNavigationScheduleQuery =
-    isFirstSprintLayoutNavigationScheduleQuery(input.query);
-  const lauraMixerPriorConnectionQuery =
-    isLauraMixerPriorConnectionQuery(input.query);
-  const lauraWeeklyCallScheduleAdviceQuery =
-    isLauraWeeklyCallScheduleAdviceQuery(input.query);
-  const triangleSimilarityRatioVerificationQuery =
-    isTriangleSimilarityRatioVerificationQuery(input.query);
-  const triangleAsaCongruenceProofPlanQuery =
-    isTriangleAsaCongruenceProofPlanQuery(input.query);
-  const resumeKeywordIntegrationQuery =
-    isResumeKeywordIntegrationQuery(input.query);
-  const personalStatementApplicationDeadlineDatesQuery =
-    isPersonalStatementApplicationDeadlineDatesQuery(input.query);
-  const emergencyFundSavingsPlanQuery =
-    isEmergencyFundSavingsPlanQuery(input.query);
-  const rateLimitRequestFlowQuery =
-    isRateLimitRequestFlowQuery(input.query);
-  const apiEndpointTechnologiesQuery =
-    isApiEndpointProjectTechnologiesQuery(input.query);
-  const singleCardProbabilityQuery =
-    isSingleCardProbabilityBeforeTwoCardsQuery(input.query);
-  const namedMeetingLocationQuery = isNamedMeetingLocationQuery(input.query);
-  const michaelFestivalMeetingDateQuery =
-    isMichaelFestivalMeetingDateQuery(input.query);
-  const partnerMeetingDateLocationQuery =
-    isPartnerMeetingDateLocationQuery(input.query);
-  const partnerClassicMovieRecommendationQuery =
-    isPartnerClassicMovieRecommendationQuery(input.query);
-  const colourTechnologistProfessionQuery =
-    isColourTechnologistProfessionQuery(input.query);
-  const aiHiringFairnessSpeedRecommendationQuery =
-    isAiHiringFairnessSpeedRecommendationQuery(input.query);
-  const startupTransitionPreparationQuery =
-    isStartupTransitionPreparationQuery(input.query);
-  const sonPatentGuidanceResourcePlanQuery =
-    isSonPatentGuidanceResourcePlanQuery(input.query);
-  const bayStreetCurrentRentQuery = isBayStreetCurrentRentQuery(input.query);
-  const parentsDistanceTownQuery = isParentsDistanceTownQuery(input.query);
-  const readingListCountPagesQuery =
-    isReadingListCountPagesQuery(input.query);
-  const shoeSizeCountQuery = isShoeSizeCountQuery(input.query);
-  const kidsSchoolActivityDaysQuery =
-    isKidsSchoolActivityDaysQuery(input.query);
-  const printBookBudgetPlanningQuery =
-    isPrintBookBudgetPlanningQuery(input.query);
-  if (
-    !mentorWorkshopQuery &&
-    !mentorWorkshopDecisionPreparationQuery &&
-    !academicMentorMeetingPreparationFollowupQuery &&
-    !firstSprintLayoutNavigationScheduleQuery &&
-    !lauraMixerPriorConnectionQuery &&
-    !lauraWeeklyCallScheduleAdviceQuery &&
-    !triangleSimilarityRatioVerificationQuery &&
-    !triangleAsaCongruenceProofPlanQuery &&
-    !resumeKeywordIntegrationQuery &&
-    !personalStatementApplicationDeadlineDatesQuery &&
-    !emergencyFundSavingsPlanQuery &&
-    !rateLimitRequestFlowQuery &&
-    !apiEndpointTechnologiesQuery &&
-    !singleCardProbabilityQuery &&
-    !namedMeetingLocationQuery &&
-    !michaelFestivalMeetingDateQuery &&
-    !partnerMeetingDateLocationQuery &&
-    !partnerClassicMovieRecommendationQuery &&
-    !colourTechnologistProfessionQuery &&
-    !aiHiringFairnessSpeedRecommendationQuery &&
-    !startupTransitionPreparationQuery &&
-    !sonPatentGuidanceResourcePlanQuery &&
-    !bayStreetCurrentRentQuery &&
-    !parentsDistanceTownQuery &&
-    !readingListCountPagesQuery &&
-    !shoeSizeCountQuery &&
-    !kidsSchoolActivityDaysQuery &&
-    !printBookBudgetPlanningQuery
-  ) {
+  const matchedRules = INFORMATION_EXTRACTION_QUERY_RULES.filter((rule) =>
+    rule.matches(input.query)
+  );
+  if (matchedRules.length === 0) {
     return [];
   }
 
-  const selectionLimit = mentorWorkshopDecisionPreparationQuery
-    ? 6
-    : sonPatentGuidanceResourcePlanQuery
-      ? 6
-    : lauraWeeklyCallScheduleAdviceQuery
-      ? 6
-    : rateLimitRequestFlowQuery
-      ? 3
-    : academicMentorMeetingPreparationFollowupQuery ||
-        firstSprintLayoutNavigationScheduleQuery ||
-        lauraMixerPriorConnectionQuery ||
-        triangleSimilarityRatioVerificationQuery ||
-        triangleAsaCongruenceProofPlanQuery ||
-        resumeKeywordIntegrationQuery ||
-        emergencyFundSavingsPlanQuery ||
-        partnerClassicMovieRecommendationQuery ||
-        startupTransitionPreparationQuery ||
-        shoeSizeCountQuery ||
-        printBookBudgetPlanningQuery
-      ? 2
-      : 1;
-
   const matchingEntries = input.entries
     .filter((entry) =>
-      (
-        mentorWorkshopQuery &&
-        hasMentorWorkshopAgeRoleEvidence(entry)
-      ) ||
-      (
-        mentorWorkshopDecisionPreparationQuery &&
-        hasMentorWorkshopDecisionPreparationEvidence(entry)
-      ) ||
-      (
-        academicMentorMeetingPreparationFollowupQuery &&
-        hasAcademicMentorMeetingPreparationFollowupEvidence(entry)
-      ) ||
-      (
-        firstSprintLayoutNavigationScheduleQuery &&
-        hasFirstSprintLayoutNavigationScheduleEvidence(entry)
-      ) ||
-      (
-        lauraMixerPriorConnectionQuery &&
-        hasLauraMixerPriorConnectionEvidence(entry)
-      ) ||
-      (
-        lauraWeeklyCallScheduleAdviceQuery &&
-        hasLauraWeeklyCallScheduleAdviceEvidence(entry)
-      ) ||
-      (
-        triangleSimilarityRatioVerificationQuery &&
-        hasTriangleSimilarityRatioVerificationEvidence(entry)
-      ) ||
-      (
-        triangleAsaCongruenceProofPlanQuery &&
-        hasTriangleAsaCongruenceProofPlanEvidence(entry)
-      ) ||
-      (
-        resumeKeywordIntegrationQuery &&
-        hasResumeKeywordIntegrationEvidence(entry)
-      ) ||
-      (
-        personalStatementApplicationDeadlineDatesQuery &&
-        hasPersonalStatementApplicationDeadlineDatesEvidence(entry)
-      ) ||
-      (
-        emergencyFundSavingsPlanQuery &&
-        hasEmergencyFundSavingsPlanEvidence(entry)
-      ) ||
-      (
-        rateLimitRequestFlowQuery &&
-        hasRateLimitRequestFlowEvidence(entry)
-      ) ||
-      (
-        apiEndpointTechnologiesQuery &&
-        hasApiEndpointProjectTechnologiesEvidence(entry)
-      ) ||
-      (
-        singleCardProbabilityQuery &&
-        hasSingleCardProbabilityBeforeTwoCardsEvidence(entry)
-      ) ||
-      (
-        namedMeetingLocationQuery &&
-        hasNamedMeetingLocationEvidence(entry)
-      ) ||
-      (
-        michaelFestivalMeetingDateQuery &&
-        hasMichaelFestivalMeetingDateEvidence(entry)
-      ) ||
-      (
-        partnerMeetingDateLocationQuery &&
-        hasPartnerMeetingDateLocationEvidence(entry)
-      ) ||
-      (
-        partnerClassicMovieRecommendationQuery &&
-        hasPartnerClassicMovieRecommendationEvidence(entry)
-      ) ||
-      (
-        colourTechnologistProfessionQuery &&
-        hasColourTechnologistProfessionEvidence(entry)
-      ) ||
-      (
-        aiHiringFairnessSpeedRecommendationQuery &&
-        hasAiHiringFairnessSpeedRecommendationEvidence(entry)
-      ) ||
-      (
-        startupTransitionPreparationQuery &&
-        hasStartupTransitionPreparationEvidence(entry)
-      ) ||
-      (
-        sonPatentGuidanceResourcePlanQuery &&
-        hasSonPatentGuidanceResourcePlanEvidence(entry)
-      ) ||
-      (
-        bayStreetCurrentRentQuery &&
-        hasBayStreetCurrentRentEvidence(entry)
-      ) ||
-      (
-        parentsDistanceTownQuery &&
-        hasParentsDistanceTownEvidence(entry)
-      ) ||
-      (
-        readingListCountPagesQuery &&
-        hasReadingListCountPagesEvidence(entry)
-      ) ||
-      (
-        shoeSizeCountQuery &&
-        hasShoeSizeCountEvidence(entry)
-      ) ||
-      (
-        kidsSchoolActivityDaysQuery &&
-        hasKidsSchoolActivityDaysEvidence(entry)
-      ) ||
-      (
-        printBookBudgetPlanningQuery &&
-        hasPrintBookBudgetPlanningEvidence(entry)
+      matchedRules.some((rule) =>
+        INFORMATION_EXTRACTION_EVIDENCE_BY_RULE[rule.id](entry)
       )
     )
     .sort(
@@ -1183,16 +770,14 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
           return sourceOrderDelta;
         }
 
-        return sourceMessageCompletenessPriority(right) -
-          sourceMessageCompletenessPriority(left);
+        return sourceEnvelopeCompletenessPriority(right) -
+          sourceEnvelopeCompletenessPriority(left);
       },
     );
-  const orderedEntries = mentorWorkshopDecisionPreparationQuery ||
-    sonPatentGuidanceResourcePlanQuery ||
-    lauraWeeklyCallScheduleAdviceQuery ||
-    shoeSizeCountQuery
+  const orderedEntries = matchedRules.some((rule) => rule.dedupeChatIds)
     ? selectUniqueEvidenceChatIds(matchingEntries)
     : matchingEntries;
+  const selectionLimit = Math.max(...matchedRules.map((rule) => rule.limit));
 
   return orderedEntries.slice(0, selectionLimit);
 }

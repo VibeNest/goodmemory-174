@@ -2,15 +2,15 @@ import type { RankedFactCandidate } from "../scoring";
 import {
   isSourceOrderAppDevelopmentDeploymentQuery,
   selectSourceOrderedAppDevelopmentDeploymentAnchors,
-} from "./sourceOrderAppDevelopmentDeployment";
+} from "./sourceOrderRules/appDevelopmentDeployment";
 import {
   isSourceOrderBookClubActivitiesQuery,
   selectSourceOrderedBookClubActivityAnchors,
-} from "./sourceOrderBookClubActivities";
+} from "./sourceOrderRules/bookClubActivities";
 import {
   isSourceOrderFrameworkCustomizationQuery,
   selectSourceOrderedFrameworkCustomizationAnchors,
-} from "./sourceOrderFrameworkCustomization";
+} from "./sourceOrderRules/frameworkCustomization";
 import {
   isSourceOrderFinancialPlanningQuery,
   isSourceOrderStressFinancialConcernQuery,
@@ -20,15 +20,15 @@ import {
 import {
   isSourceOrderFreeWillReflectionQuery,
   selectSourceOrderedFreeWillReflectionAnchors,
-} from "./sourceOrderFreeWillReflection";
+} from "./sourceOrderRules/freeWillReflection";
 import {
   isSourceOrderMovieNightContributionQuery,
   selectSourceOrderedMovieNightContributionAnchors,
-} from "./sourceOrderMovieEvents";
+} from "./sourceOrderRules/movieEvents";
 import {
   isSourceOrderPersonalStatementSupportQuery,
   selectSourceOrderedPersonalStatementSupportAnchors,
-} from "./sourceOrderPersonalStatementSupport";
+} from "./sourceOrderRules/personalStatementSupport";
 import {
   isSourceOrderProfessionalPreparationQuery,
   selectSourceOrderedProfessionalPreparationAnchors,
@@ -36,23 +36,23 @@ import {
 import {
   isSourceOrderRelationshipBeliefEventQuery,
   selectSourceOrderedRelationshipBeliefEventAnchors,
-} from "./sourceOrderRelationshipBeliefs";
+} from "./sourceOrderRules/relationshipBeliefs";
 import {
   isSourceOrderWeatherAutocompleteEventQuery,
   selectSourceOrderedWeatherAutocompleteEventAnchors,
-} from "./sourceOrderWeatherAutocompleteEventOrder";
+} from "./sourceOrderRules/weatherSuggestionEventOrder";
 import {
   isSourceOrderWeatherErrorHandlingQuery,
   selectSourceOrderedWeatherErrorHandlingAnchors,
-} from "./sourceOrderWeatherErrorHandling";
+} from "./sourceOrderRules/weatherErrorHandling";
 import {
   isSourceOrderWorkloadManagementQuery,
   selectSourceOrderedWorkloadManagementAnchors,
-} from "./sourceOrderWorkloadManagement";
+} from "./sourceOrderRules/workloadManagement";
 import {
   isSourceOrderWritingJourneyQuery,
   selectSourceOrderedWritingJourneyAnchors,
-} from "./sourceOrderWritingJourney";
+} from "./sourceOrderRules/writingJourney";
 
 export function isCompleteSourceOrderedEventOrderPlanQuery(query: string): boolean {
   return isSourceOrderAppDevelopmentDeploymentQuery(query) ||

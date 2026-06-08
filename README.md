@@ -30,6 +30,27 @@ and the model runtime.
 - Evaluation and release evidence paths for deterministic tests, live evals,
   provider-backed evals, package smoke tests, and quality gates.
 
+## Benchmark Results
+
+GoodMemory is moving through memory benchmarks one at a time. The compact table
+below shows accepted current evidence first, with empty rows left as `-` until
+the matching benchmark is completed and backed by a report.
+
+| Benchmark | Primary metric | GoodMemory result | Baseline / reference | Evidence |
+|---|---|---:|---:|---|
+| ImplicitMemBench Full-300 | overall score | 213.26 / 300 (71.09%) with `goodmemory-distilled-feedback+controlled-priming` | 128 / 300 (42.67%) upstream-chat baseline | [live full-300 summary](./reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json) |
+| LongMemEval full 500 | answer accuracy plus evidence-session recall | answer accuracy 454 / 500 (90.8%); evidence-session recall 0.9590 with `goodmemory-hybrid` | answer accuracy 451 / 500 (90.2%) latest accepted full-context reference | [accepted report](./reports/eval/research/phase-62/longmemeval/run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z/report.json) |
+| BEAM | - | - | - | - |
+| MemoryAgentBench | - | - | - | - |
+| LoCoMo | - | - | - | - |
+
+These rows are research and hardening evidence, not a final public leaderboard.
+The current external benchmark order is LongMemEval -> BEAM ->
+MemoryAgentBench -> LoCoMo. Use
+[task-board/00-README.txt](./task-board/00-README.txt) for execution order and
+[docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
+for claim boundaries.
+
 ## Choose Your Integration Path
 
 GoodMemory has three primary product entry points. They are not the only APIs:

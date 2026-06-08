@@ -11,6 +11,7 @@ import {
   stripEvidencePrefix,
   valueBearingFactContent,
 } from "./selectionContext";
+import { isSourceEnvelopeCandidate } from "./sourceEnvelope";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 
 export const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
@@ -251,8 +252,12 @@ export function hasTemporalEventOrderSignal(
     return false;
   }
 
-  if (
+  const importedSourceOrder =
     isSourceOrderedFact(entry) &&
+    isSourceEnvelopeCandidate(entry);
+
+  if (
+    importedSourceOrder &&
     isUserGroundedRecallQuery(query) &&
     !hasUserAnswerTag(entry)
   ) {
@@ -260,7 +265,7 @@ export function hasTemporalEventOrderSignal(
   }
 
   if (
-    isSourceOrderedFact(entry) &&
+    importedSourceOrder &&
     isPersonalWorkChallengeEventOrderQuery(query) &&
     !hasPersonalWorkChallengeEventSignal(entry)
   ) {
@@ -269,7 +274,7 @@ export function hasTemporalEventOrderSignal(
 
   return (
     (
-      entry.fact.category === "external_benchmark" ||
+      importedSourceOrder ||
       entry.intentScore > 0 ||
       entry.lexicalScore >= 0.03 ||
       entry.subjectScore > 0 ||

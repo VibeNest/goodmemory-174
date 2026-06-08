@@ -22,11 +22,11 @@ const FACETS = [
   },
   {
     facet: "coverLetterFeedback",
-    pattern: /\bcover\s+letter\b[\s\S]{0,240}\b(?:Laura|emotional\s+intelligence|shared\s+feedback|HR)\b|\b(?:Laura|emotional\s+intelligence|shared\s+feedback|HR)\b[\s\S]{0,240}\bcover\s+letter\b/iu,
+    pattern: /\bcover\s+letter\b[\s\S]{0,240}\b(?:emotional\s+intelligence|shared\s+feedback|HR)\b|\b(?:emotional\s+intelligence|shared\s+feedback|HR)\b[\s\S]{0,240}\bcover\s+letter\b/iu,
   },
   {
     facet: "storytellingInterview",
-    pattern: /\bstorytelling\b[\s\S]{0,240}\b(?:cultural\s+diversity|interview|Island\s+Media|Laura\s+suggested|Laura)\b|\b(?:cultural\s+diversity|interview|Island\s+Media|Laura\s+suggested|Laura)\b[\s\S]{0,240}\bstorytelling\b/iu,
+    pattern: /\bstorytelling\b[\s\S]{0,240}\b(?:cultural\s+diversity|interview|Island\s+Media|suggested)\b|\b(?:cultural\s+diversity|interview|Island\s+Media|suggested)\b[\s\S]{0,240}\bstorytelling\b/iu,
   },
   {
     facet: "employeeHandbook",

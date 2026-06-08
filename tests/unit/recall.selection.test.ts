@@ -16515,6 +16515,61 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("does not treat non-imported source_order as sufficient temporal relevance", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-source-order-noise",
+        userId: "user-1",
+        category: "project",
+        content:
+          "Imported metadata marker for an unrelated watercolor preference.",
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder: 1 },
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-nursery-dated",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/02/05, I helped my friend prepare the nursery.",
+        source: SOURCE,
+        tags: ["answer_session", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-phone-dated",
+        userId: "user-1",
+        category: "external_benchmark",
+        content: "On 2023/02/20, I ordered a customized phone case for my friend's birthday.",
+        source: SOURCE,
+        tags: ["user_answer", "dated_event"],
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Which events happened from earliest to latest: the day I helped my friend prepare the nursery and the day I ordered a customized phone case?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-nursery-dated",
+      "fact-phone-dated",
+    ]);
+    expect(
+      result.traces.find((trace) => trace.memoryId === "fact-source-order-noise")
+        ?.returned,
+    ).toBe(false);
+  });
+
   it("keeps appliesTo-distinct feedback variants separate and prioritizes coding-agent guidance", () => {
     const feedback = [
       createFeedbackMemory({

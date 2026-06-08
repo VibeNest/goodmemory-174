@@ -1,7 +1,7 @@
 import type { RankedFactCandidate } from "../scoring";
-import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderAiHiringProcessSummary";
-import { selectSourceOrderedWeatherAutocompleteSummaryCoverage } from "./sourceOrderWeatherAutocompleteSummary";
-import { selectSourceOrderedWebProjectIssueResolutionSummaryCoverage } from "./sourceOrderWebProjectIssueResolutionSummary";
+import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderRules/hiringProcessSummary";
+import { selectSourceOrderedWeatherAutocompleteSummaryCoverage } from "./sourceOrderRules/weatherSuggestionSummary";
+import { selectSourceOrderedWebProjectIssueResolutionSummaryCoverage } from "./sourceOrderRules/webProjectIssueResolutionSummary";
 
 export function selectSourceOrderedPreGenericSummaryCoverage(input: {
   limit: number;

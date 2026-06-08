@@ -12,6 +12,7 @@ import {
   hasUserAnswerTag,
   stripEvidencePrefix,
 } from "./selectionContext";
+import { isSourceEnvelopeAcronym } from "./sourceEnvelope";
 
 export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANION_DISTANCE = 3;
 export const SOURCE_ORDER_SUMMARY_TOPICAL_COMPANIONS_PER_ANCHOR = 2;
@@ -231,7 +232,7 @@ export function sourceOrderedSummaryTopicalPriority(input: {
 function collectAcronyms(value: string): Set<string> {
   return new Set(
     (value.match(/\b[A-Z]{2,5}\b/gu) ?? []).filter(
-      (token) => token !== "BEAM",
+      (token) => !isSourceEnvelopeAcronym(token),
     ),
   );
 }
