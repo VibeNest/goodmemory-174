@@ -6,7 +6,7 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
 
 ## Stable OSS Surface
 
-- Current published package target for the stable v0.2 line is `0.2.3`; Phase
+- Current published package target for the stable v0.2 line is `0.2.5`; Phase
   40 remains the initial `0.2.0` release-proof gate for the line.
 - Public memory API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
 - Public domain write customization is now accepted through `GoodMemoryConfig.remember`, `RememberProfile`, `rememberRules`, `RememberInput.annotations`, and traceable extractor composition.

@@ -113,13 +113,13 @@ policy. GoodMemory owns the memory loop and storage boundary.
 
 ## Install
 
-GoodMemory `0.2.3` has two normal install paths.
+GoodMemory `0.2.5` has two normal install paths.
 
 Use the global CLI when you want memory enhancement inside installed coding
 agents:
 
 ```bash
-npm install -g goodmemory@0.2.3
+npm install -g goodmemory@0.2.5
 goodmemory setup
 goodmemory status
 ```
@@ -127,11 +127,11 @@ goodmemory status
 Use the package dependency when you are building an application:
 
 ```bash
-npm install goodmemory@0.2.3
+npm install goodmemory@0.2.5
 ```
 
 If you want to type `goodmemory` directly, install the global CLI.
-A project-local `npm install goodmemory@0.2.3` does not put `goodmemory` on your shell `PATH`.
+A project-local `npm install goodmemory@0.2.5` does not put `goodmemory` on your shell `PATH`.
 Use `npx goodmemory`, `npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`
 from that project instead.
 
@@ -142,13 +142,13 @@ npx goodmemory -V
 Bun consumers can install it directly:
 
 ```bash
-bun add goodmemory@0.2.3
+bun add goodmemory@0.2.5
 ```
 
 Tarball verification for release rehearsal:
 
 ```bash
-npm install ./goodmemory-0.2.3.tgz
+npm install ./goodmemory-0.2.5.tgz
 ```
 
 The installed CLI is Bun-backed for non-version commands. The package bin is
@@ -160,7 +160,7 @@ delegate to Bun.
 For most users, the first useful path is installed-host memory.
 
 ```bash
-npm install -g goodmemory@0.2.3
+npm install -g goodmemory@0.2.5
 goodmemory setup
 goodmemory status
 ```
@@ -656,7 +656,7 @@ Current Claude/Codex examples stay in `file-assisted` mode by default.
 ## CLI Reference
 
 The `goodmemory` command on your shell `PATH` is the global CLI installed with
-`npm install -g goodmemory@0.2.3`. In a local dependency install, invoke the
+`npm install -g goodmemory@0.2.5`. In a local dependency install, invoke the
 package bin as `npx goodmemory`, `npm exec -- goodmemory`, or
 `./node_modules/.bin/goodmemory`. The repo-local `bun run goodmemory` script is
 for development only.
