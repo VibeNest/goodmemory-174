@@ -116,7 +116,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          NPM_USER="$(npm whoami)"
+          NPM_USER="$(npm whoami 2>/dev/null || true)"
           if npm view "goodmemory@${VERSION}" version >/tmp/goodmemory-published-version.txt 2>/dev/null; then
             PUBLISHED_VERSION="$(cat /tmp/goodmemory-published-version.txt)"
             echo "goodmemory@$VERSION already exists on npm; skipping publish."
@@ -142,5 +142,5 @@ jobs:
             echo "## npm publish"
             echo "- Verified: goodmemory@$VERSION"
             echo "- Verified dist tag: latest -> $LATEST_VERSION"
-            echo "- npm user: $NPM_USER"
+            echo "- npm user: ${NPM_USER:-unknown}"
           } >> "$GITHUB_STEP_SUMMARY"

@@ -3362,7 +3362,8 @@ describe("release metadata and docs", () => {
     expect(workflow).toContain("NPM_TOKEN");
     expect(workflow).toContain("Skipped: NPM_TOKEN secret is not configured.");
     expect(workflow).toContain("does not block the tarball-first stable release contract");
-    expect(workflow).toContain("NPM_USER=\"$(npm whoami)\"");
+    expect(workflow).toContain("NPM_USER=\"$(npm whoami 2>/dev/null || true)\"");
+    expect(workflow).toContain("npm user: ${NPM_USER:-unknown}");
     expect(workflow).toContain("already exists on npm; skipping publish.");
     expect(workflow).toContain("npm publish --access public");
     expect(workflow).toContain('npm view "goodmemory@${VERSION}" version');
