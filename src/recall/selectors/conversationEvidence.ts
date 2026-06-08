@@ -1,5 +1,7 @@
 import type { LanguageService } from "../../language";
+import type { RecallRouterStrategy } from "../router";
 import type { RankedFactCandidate } from "../scoring";
+import { rankFactCandidates } from "../scoring";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
   DATE_OR_TIME_FACT_PATTERN,
@@ -7,6 +9,7 @@ import {
 } from "./temporal";
 import {
   ASSISTANT_COUNT_HEADING_FACT_PATTERN,
+  DIRECT_FACTUAL_COMPANION_LIMIT,
   hasAssistantAnswerTag,
   hasConversationEvidenceTag,
   hasDirectFactualCompanionTag,
@@ -403,6 +406,31 @@ export function isStoreContextFact(entry: RankedFactCandidate): boolean {
   );
 }
 
+export function selectCouponStoreContextCompanions(input: {
+  entries: RankedFactCandidate[];
+  selectedEntries: RankedFactCandidate[];
+  selectedIds: Set<string>;
+  strategy: RecallRouterStrategy;
+}): RankedFactCandidate[] {
+  const couponSessions = new Set(
+    input.selectedEntries
+      .filter(isCouponRedemptionFact)
+      .map((entry) => entry.fact.sessionId)
+      .filter((sessionId): sessionId is string => typeof sessionId === "string"),
+  );
+
+  return rankFactCandidates(
+    input.entries.filter(
+      (entry) =>
+        !input.selectedIds.has(entry.fact.id) &&
+        entry.fact.sessionId !== undefined &&
+        couponSessions.has(entry.fact.sessionId) &&
+        isStoreContextFact(entry),
+    ),
+    input.strategy,
+  ).slice(0, 1);
+}
+
 export function hasDirectFactualCompanionSignal(entry: RankedFactCandidate): boolean {
   const valueContent = valueBearingFactContent(entry.fact.content);
 
@@ -414,6 +442,35 @@ export function hasDirectFactualCompanionSignal(entry: RankedFactCandidate): boo
       DATE_OR_TIME_FACT_PATTERN.test(valueContent)
     )
   );
+}
+
+export function selectDirectFactualCompanions(input: {
+  entries: RankedFactCandidate[];
+  limit: number;
+  selectedEntries: RankedFactCandidate[];
+  selectedIds: Set<string>;
+  strategy: RecallRouterStrategy;
+}): RankedFactCandidate[] {
+  const selectedSessionIds = new Set(
+    input.selectedEntries
+      .map((entry) => entry.fact.sessionId)
+      .filter((sessionId): sessionId is string => typeof sessionId === "string"),
+  );
+  const companionLimit = Math.min(
+    DIRECT_FACTUAL_COMPANION_LIMIT,
+    input.limit,
+  );
+
+  return rankFactCandidates(
+    input.entries.filter(
+      (entry) =>
+        !input.selectedIds.has(entry.fact.id) &&
+        entry.fact.sessionId !== undefined &&
+        selectedSessionIds.has(entry.fact.sessionId) &&
+        hasDirectFactualCompanionSignal(entry),
+    ),
+    input.strategy,
+  ).slice(0, companionLimit);
 }
 
 export function hasDirectFactualEvidenceBridgeSignal(

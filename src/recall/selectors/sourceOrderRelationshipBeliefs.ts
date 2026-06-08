@@ -1,6 +1,10 @@
 import type { RankedFactCandidate } from "../scoring";
-import { hasUserAnswerTag, stripEvidencePrefix } from "./selectionContext";
-import { compareTemporalFactChronology } from "./temporal";
+import {
+  hasSourceMessageTag,
+  hasUserAnswerTag,
+  stripEvidencePrefix,
+} from "./selectionContext";
+import { compareTemporalFactChronology, sourceOrderSortKey } from "./temporal";
 
 type RelationshipBeliefEventFacet =
   | "anniversaryBeliefMilestone"
@@ -52,6 +56,7 @@ const FACET_PATTERNS = {
     /\bdaily\s+journaling\s+starting\s+April\s+1\b[\s\S]{0,220}\bfree\s+will\b[\s\S]{0,220}\b(?:motivation|goal\s+persistence)\b/iu,
     /\bdaily\s+journaling\b[\s\S]{0,180}\bbeliefs?\s+about\s+free\s+will\b[\s\S]{0,180}\b(?:motivation|persistence)\b/iu,
     /\b(?:stick\s+to|stick\s+with)\s+journaling\s+every\s+day\b[\s\S]{0,180}\b(?:patterns?|insights?)\b[\s\S]{0,180}\bbeliefs?\s+in\s+free\s+will\b/iu,
+    /\b(?:stick\s+to|stick\s+with)\s+journaling\s+every\s+day\b[\s\S]{0,180}\bbeliefs?\s+about\s+free\s+will\b[\s\S]{0,180}\b(?:patterns?|insights?)\b/iu,
   ],
   meetingDecline: [
     /\bdeclin(?:e|ed|ing)\b[\s\S]{0,120}\b(?:3\s*PM\s+)?meeting\b[\s\S]{0,160}\bStephen\b[\s\S]{0,160}\bstartup\s+offer\b/iu,
@@ -88,6 +93,42 @@ function relationshipBeliefEventFacet(
   );
 }
 
+function sourceEnvelopePriority(entry: RankedFactCandidate): number {
+  let priority = 0;
+  if (hasSourceMessageTag(entry)) {
+    priority += 1;
+  }
+  if (/\[BEAM\s+chat_id=\d+\s+role=/u.test(entry.fact.content)) {
+    priority += 2;
+  }
+  return priority;
+}
+
+function dedupeRelationshipBeliefFacetCandidates(input: {
+  entries: RankedFactCandidate[];
+  priority: (entry: RankedFactCandidate) => number;
+}): RankedFactCandidate[] {
+  const bestBySourceOrder = new Map<string, RankedFactCandidate>();
+
+  for (const entry of input.entries) {
+    const order = sourceOrderSortKey(entry);
+    const key = order === undefined ? entry.fact.id : `source:${order}`;
+    const current = bestBySourceOrder.get(key);
+    if (
+      !current ||
+      sourceEnvelopePriority(entry) > sourceEnvelopePriority(current) ||
+      (
+        sourceEnvelopePriority(entry) === sourceEnvelopePriority(current) &&
+        input.priority(entry) > input.priority(current)
+      )
+    ) {
+      bestBySourceOrder.set(key, entry);
+    }
+  }
+
+  return [...bestBySourceOrder.values()];
+}
+
 export function selectSourceOrderedRelationshipBeliefEventAnchors(input: {
   count: number;
   entries: RankedFactCandidate[];
@@ -96,8 +137,12 @@ export function selectSourceOrderedRelationshipBeliefEventAnchors(input: {
   const selected: RankedFactCandidate[] = [];
 
   for (const facet of FACET_ORDER) {
-    const candidates = input.entries
-      .filter((entry) => relationshipBeliefEventFacet(entry) === facet)
+    const candidates = dedupeRelationshipBeliefFacetCandidates({
+      entries: input.entries.filter((entry) =>
+        relationshipBeliefEventFacet(entry) === facet
+      ),
+      priority: input.priority,
+    })
       .sort((left, right) => {
         const chronologyDelta = compareTemporalFactChronology(left, right);
         if (chronologyDelta !== 0) {

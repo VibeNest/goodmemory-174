@@ -172,6 +172,924 @@ function buildLatencyComparisonBeamRows(): unknown[] {
   ];
 }
 
+function buildWeatherFeatureConcernCountBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "We reviewed asynchronous fetch error handling and validated OpenWeather weather responses.",
+      id: 15,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to implement a responsive design for my weather app using CSS Grid and Flexbox, targeting mobile and desktop devices.",
+      id: 26,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to handle errors for invalid city names in my weather app, and I want to display user-friendly messages for HTTP 404 and 400 status codes.",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Use try-catch around the OpenWeather API call and show friendly invalid city messages.",
+      id: 29,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to handle the API rate limit for my weather app; can I use a simple counter to track the number of calls made per minute and per day? How can I improve this to handle the 60 calls/minute and 1000 calls/day rate limits for my OpenWeather API key obtained on March 10, 2024?",
+      id: 32,
+      role: "user",
+    },
+    {
+      content: "hmm, what happens if the user makes rapid consecutive calls?",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "Handling rapid consecutive API calls is crucial to ensure that your application does not exceed the rate limits set by the API provider. This approach helps manage rapid consecutive calls effectively and prevents exceeding the API rate limits.",
+      id: 35,
+      role: "assistant",
+    },
+    {
+      content:
+        "hmm, what if the user keeps retrying after hitting the rate limit? How do we handle that?",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the autocomplete feature for my weather app, which has been tested with over 100 city inputs and has an average API response time of 280ms with a 95% success rate on valid cities.",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement a custom feature for my weather app to maintain full control and avoid external dependency risks, as per my preference statement, but I'm not sure how to start.",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the recent uptime monitoring results, which show a perfect 100% availability over the past 7 days, and I want to know how this reflects on our improved stability.",
+      id: 190,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "weather-feature-concern-count",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 3,
+        subtopics: ["Weather app", "API rate limits", "Monitoring"],
+        theme: "Weather app reliability and feature development",
+        title: "Developing a Weather Forecast App in JavaScript with OpenWeather API",
+      },
+      narratives: "Weather app features and concerns",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer: "Four",
+            question:
+              "How many different features or concerns did I mention wanting to handle across my weather app conversations?",
+            question_id: "weather-feature-concern-count",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [32, 34, 36, 122, 190],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Weather app developer",
+        user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildDashboardApiResponseTimeUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm working on a project with a Time Anchor of March 15, 2024, and I need to plan my tasks accordingly.",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to handle errors in my Flask app, specifically for 404 and 500 errors, and I want to return custom JSON responses for my API endpoints.",
+      id: 26,
+      role: "user",
+    },
+    {
+      content:
+        "Return custom JSON responses with proper HTTP status codes for 404 and 500 errors.",
+      id: 27,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to integrate Flask-Login v0.6.2 for session management with secure password hashing and proper error handling.",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "Your dashboard API response time can improve through SQL query optimization, indexes, and caching.",
+      id: 105,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to optimize the dashboard API response time, which was initially 800ms, and I've managed to reduce it to 300ms by optimizing SQL queries and caching results for 60 seconds.",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the dashboard API response time, which has recently improved to 250ms after adding some caching tweaks, but I want to make sure I'm using the latest versions of my dependencies, like Flask-Login, which I've never actually integrated into this project, so I'm starting from scratch.",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the dashboard API response time, which has recently improved to 250ms after adding some caching tweaks, but I want to make sure I'm using the latest versions of my dependencies, like Flask-Login, which I've never actually integrated into this project, so I'm starting from scratch, and also considering the fact that I've already completed the user registration and login modules, now focusing on transaction CRUD and analytics integration.",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        "Integrate Flask-Login 0.6.2 with login, logout, session validation, and dashboard caching.",
+      id: 115,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "dashboard-api-response-time-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: ["Flask", "Analytics", "Performance"],
+        theme: "Building and optimizing a Flask budget tracker",
+        title: "Budget Tracker Analytics",
+      },
+      narratives: "Dashboard API response-time update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "Around 250ms due to caching optimizations.",
+            question: "What is the average response time of the dashboard API?",
+            question_id: "dashboard-api-response-time-update",
+            question_type: "knowledge_update",
+            source_chat_ids: [86, 114],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Budget tracker developer",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildAlexisFinancialManagementSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "My spouse Alexis, who's 32 and works in graphic design, and I have been sharing household finances since 2020, and I'm wondering if that's a good idea, we've been partners since 2018 ->-> 1,4",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "Sharing household finances with your spouse, Alexis, can be a great way to manage your combined resources efficiently and work towards common financial goals. Consider open communication, joint and separate accounts, and regular budget reviews.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "Thanks for the detailed advice! I think the biggest concern I have is making sure we're both on the same page with our spending habits. We usually agree on big things, but the little day-to-day expenses can add up.",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "Ensuring both you and Alexis are aligned on daily spending habits is crucial. Establish daily spending limits, use separate and joint accounts, track receipts, and schedule regular financial check-ins.",
+      id: 15,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a solid plan. I think setting daily spending limits and having regular check-ins will really help us stay on track. I'll keep using Excel to track our expenses since I prefer its simplicity.",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "Daily spending limits, Excel tracking, regular check-ins, and sharing receipts and statements with Alexis will help keep everything transparent.",
+      id: 17,
+      role: "assistant",
+    },
+    {
+      content:
+        "I feel like I made a good decision compromising with Alexis on the dining out budget to $200 monthly starting April, but I'm not sure if it's the right call.",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "Compromising on the dining out budget to $200 monthly is reasonable if it helps maintain a balanced budget. Validate it against your overall financial goals and stick to it through planning and tracking.",
+      id: 53,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda stressed about managing our finances with my spouse Alexis, and I was thinking, since she suggested switching to a joint savings account at First National Bank on May 5, how can I make sure we're both on the same page with our spending? ->-> 2,2",
+      id: 64,
+      role: "user",
+      time_anchor: "June-10-2024",
+    },
+    {
+      content:
+        "To ensure that both you and Alexis are on the same page with spending and improve transparency, set shared financial goals, create a joint budget, open the joint savings account, and hold regular check-ins.",
+      id: 65,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've agreed with Alexis on a $500 monthly joint budget for groceries starting Sept 1, which is up from $400, and I'm thinking about how this change will affect our expenses, especially with the contract I'm considering ->-> 3,3",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "You and Alexis agreed on increasing the grocery budget to $500 per month starting September 1. This change, plus the potential freelance contract, affects expenses and financial planning by adding grocery cost while adding possible income.",
+      id: 127,
+      role: "assistant",
+    },
+    {
+      content:
+        "Yeah, that analysis makes sense. I do feel better knowing it could improve my work. I'll keep an eye on how it affects my projects and maybe talk to Alexis about it too.",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "Monitor how the new camera gear impacts project quality and discuss the purchase with Alexis to stay aligned on financial decisions.",
+      id: 131,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've agreed with Alexis to reduce my work hours to 30 hours a week starting January 6, and I'm hoping this will help support her freelance design business and give me more time to focus on our finances. ->-> 4,17",
+      id: 252,
+      role: "user",
+    },
+    {
+      content:
+        "Reducing your work hours to 30 hours a week starting January 6 is a significant decision. Review the new income, adjust fixed expenses, prioritize essentials, and make sure you stay on track with savings goals.",
+      id: 253,
+      role: "assistant",
+    },
+    {
+      content:
+        "How should I adjust my budget and investment strategy for an upcoming investment club meeting while supporting Alexis's business launch, which started on February 1?",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "Review current income and expenses, savings, investments, and any allocation for supporting Alexis's business launch before the investment club meeting.",
+      id: 275,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "time_anchor" in turn ? turn.time_anchor : "unknown",
+        })),
+      ],
+      conversation_id: "alexis-financial-management-summary",
+      conversation_plan: "BATCH 16 PLAN",
+      conversation_seed: {
+        category: "Lifestyle",
+        id: 16,
+        subtopics: ["Household finances", "Budgeting", "Partner support"],
+        theme: "Managing finances with Alexis",
+        title: "Shared Household Finance",
+      },
+      narratives: "Alexis financial management progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The financial-management progression started with shared household finances and regular budget reviews, moved into daily spending limits and transparency, added a $200 dining-out compromise, considered a joint savings account, increased the grocery budget with freelance-contract planning, and ended with reducing work hours to support Alexis's business while protecting savings goals.",
+            question:
+              "Can you summarize how my approach to managing finances with Alexis has developed over time?",
+            question_id: "alexis-financial-management-summary",
+            question_type: "summarization",
+            source_chat_ids: [13, 15, 53, 65, 127, 253],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Household budget planner",
+        user_relationships: "Alexis",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildPortfolioSprintDeadlineUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to plan out my project timeline and I have a deadline of April 1, 2024, for the first sprint, which covers the basic layout and navigation of my single-page portfolio website. The project is estimated to take 3 sprints of 2 weeks each. ->-> 1,4",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "To meet the April 1, 2024 deadline within the estimated 6 weeks, break the project into 3 sprints of 2 weeks each. Sprint 1 covers Basic Layout and Navigation.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "Certainly! Prioritizing tasks effectively is crucial for meeting deadlines and ensuring that the most critical work gets done first. Use a Trello board for Sprint 1.",
+      id: 39,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to update my project timeline to reflect the new sprint deadline of April 5, 2024, but I'm having trouble figuring out how to adjust my Trello board to accommodate the extra time for accessibility improvements. ->-> 1,20",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "Adjusting your project timeline to meet the new sprint deadline of April 5, 2024 while accommodating accessibility improvements requires careful planning and prioritization.",
+      id: 53,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always include semantic HTML5 tag usage details when I ask about markup structure. ->-> 1,25",
+      id: 54,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "portfolio-sprint-deadline-update",
+      conversation_plan: "BATCH 3 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 3,
+        subtopics: ["Portfolio website", "Project timeline", "Sprint deadline"],
+        theme: "Creating a personal portfolio website",
+        title: "Portfolio Website",
+      },
+      narratives: "Portfolio first-sprint deadline update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "April 5, 2024",
+            question:
+              "What is the deadline for completing the first sprint focused on the basic layout and navigation?",
+            question_id: "portfolio-sprint-deadline-update",
+            question_type: "knowledge_update",
+            source_chat_ids: {
+              original_info: [12],
+              updated_info: [52],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Portfolio website builder",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildConditionalProbabilityPracticeUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand how my accuracy in conditional probability problems improved from 60% to 85% over 2 weeks, after completing 8 problems - can you help me calculate the rate of improvement and how many more problems I need to solve to reach 100% accuracy? ->-> 2,9",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, that makes sense. So I've improved by about 3.125% per problem. To get to 100%, I'd need to solve around 5 more problems. Makes sense, thanks for breaking it down!",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "No, I think I'm good for now. Thanks for the help with my probability problems! I'll keep practicing and come back if I need more guidance.",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I've spent 4 hours practicing dependent event problems, including 3 card draw and 5 dice roll scenarios, and I'm trying to understand drawing 2 aces in a row.",
+      id: 98,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to solve a conditional probability problem and I need help, I've recently increased my practice sessions to 12 conditional probability problems, which has further boosted my accuracy and confidence, but I'm stuck on this one.",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "Always include visual aids like tree diagrams when I ask about dependent event probability problems.",
+      id: 132,
+      role: "user",
+    },
+    {
+      content:
+        "I don't understand why I have never practiced any conditional probability problems before, it seems like I should have.",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to solve a complex probability puzzle about the birthday paradox and the complement rule.",
+      id: 232,
+      role: "user",
+    },
+    {
+      content:
+        "Always combine algebraic formulas with visual diagrams when I ask about complex probability problems.",
+      id: 234,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "conditional-probability-practice-update",
+      conversation_plan: "BATCH 5 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 5,
+        subtopics: ["Probability", "Practice progress", "Knowledge update"],
+        theme: "Learning conditional probability",
+        title: "Conditional Probability Practice",
+      },
+      narratives: "Conditional probability practice quantity update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "12 conditional probability problems",
+            question:
+              "How many conditional probability problems have I been practicing to improve my accuracy and confidence?",
+            question_id: "conditional-probability-practice-update",
+            question_type: "knowledge_update",
+            source_chat_ids: {
+              original_info: [84, 86, 88],
+              updated_info: [130],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Craig",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildRaiseRejectionFinalMeetingIntervalBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda torn about rejecting that $10,000 raise on March 12, was that a smart move considering my current situation? ->-> 1,17",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about making the right decision on March 30, so I rescheduled my final meeting to have more time, but I'm not sure if it's gonna help ->-> 1,21",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I rescheduled a call with Matthew from April 4 to April 6, and I'm wondering if that was a good time management decision.",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Always include cultural context when I ask about social norms. ->-> 2,23",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm dates when I ask about scheduled events. ->-> 3,22",
+      id: 264,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "raise-rejection-final-meeting-interval",
+      conversation_plan: "BATCH 12 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 12,
+        subtopics: ["Raise decision", "Final meeting", "Career timing"],
+        theme: "Career decisions and meeting timing",
+        title: "Career Decision Timing",
+      },
+      narratives: "Raise rejection and final meeting interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "18 days passed between rejecting the raise on March 12 and rescheduling the final meeting on March 30.",
+            question:
+              "How many days passed between when I decided to reject the raise and when I rescheduled my final meeting to give myself more time?",
+            question_id: "raise-rejection-final-meeting-interval",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {
+              first_event: [56],
+              second_event: [64],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Senior producer considering career decisions",
+        user_relationships: "Matthew",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildBudgetTrackerSprintAnalyticsTemporalBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I am using March 15, 2024 as the project planning time anchor for my Flask budget tracker.",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's break it down for my budget tracker project: user authentication, transaction management, analytics, final testing, and deployment milestones.",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on a project with scheduled two-week sprints, and the first sprint ends on March 29, focusing on user registration and login. I need to plan the sprint carefully to ensure we meet the deadline.",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I want the app to stay lightweight while still implementing tracking, login, and analytics.",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my project timeline, and I noticed that the first sprint now targets completion by March 31, which gives us two extra days for final testing and bug fixes.",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to integrate Flask-Login v0.6.2 for session management with secure password hashing and proper error handling.",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I'm improving the dashboard charts and analytics UI for the budget tracker.",
+      id: 148,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide security best practices when I ask about authentication or authorization features.",
+      id: 184,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "budget-tracker-sprint-analytics-temporal",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: ["Budget tracker", "Sprint planning", "Analytics"],
+        theme: "Budget tracker sprint planning and analytics deadline",
+        title: "Budget tracker sprint timeline",
+      },
+      narratives: "Budget tracker sprint timing",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer: "20 days.",
+            question:
+              "How many days were there between the end of my first sprint and the deadline for completing the analytics features in sprint 2?",
+            question_id: "budget-tracker-sprint-analytics-temporal",
+            question_type: "temporal_reasoning",
+            source_chat_ids: [28, 86],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Craig",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildLoginInstructionContinuationBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Can you help me plan the first sprint for user registration and login features?",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely! Let's create a detailed sprint plan for the first two-week sprint ending on March 29, focusing on user registration and login features.",
+      id: 29,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! Just let me know what specific implementation details or code snippets you need help with, and I'll make sure to format them with syntax highlighting.",
+      id: 56,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide security best practices when I ask about authentication or authorization features.",
+      id: 184,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "login-instruction-continuation",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: ["Flask", "Login", "Formatting"],
+        theme: "Building a Flask login feature",
+        title: "Login Feature Implementation",
+      },
+      narratives: "Login feature instruction continuation",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer:
+              "Response should include code examples formatted with syntax highlighting.",
+            question: "Could you show me how to implement a login feature?",
+            question_id: "login-instruction-continuation",
+            question_type: "instruction_following",
+            source_chat_ids: [54, 56],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Flask developer",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildSecurityFeatureCountReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I implemented basic password hashing for my personal budget tracker using Werkzeug.security with a password_hash field.",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I'm improving expense tracking validation and error messages for the Flask budget tracker.",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement role-based access control for my application, specifically for the 'user' role, and I want to make sure I'm doing it correctly. I've added a role-based access control stub for future multi-user support.",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "I'm improving dashboard analytics and deployment planning after finishing the budget tracker API.",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to achieve 90% coverage on the auth.py and security.py modules with my new tests for security features.",
+      id: 154,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the account lockout feature after 5 failed login attempts using Redis 7.0 for rate limiting, can you help me with that? I want to make sure that the lockout is triggered only after 5 attempts and properly stored in Redis.",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to enhance the security of my application without compromising the user experience, so I'd like to implement a pragmatic approach to security enhancements.",
+      id: 178,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement a secure authentication system for my application and ensure authentication and authorization features follow best practices.",
+      id: 182,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide security best practices when I ask about authentication or authorization features.",
+      id: 184,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "security-feature-count-reasoning",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: [
+          "User authentication",
+          "Role-based access control",
+          "Security features",
+        ],
+        theme: "Building a Personal Budget Tracker Web App in Python and Flask",
+        title: "Security Features for a Budget Tracker",
+      },
+      narratives: "Security feature count reasoning",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Three: password hashing, role-based access control, and account lockout after failed login attempts.",
+            question:
+              "How many different user roles and security features am I trying to implement across my sessions?",
+            question_id: "security-feature-count-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [16, 84, 150],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Budget tracker developer",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildPatentFilingDeadlineReasoningBeamRows(): unknown[] {
   const turns = [
     {
@@ -1783,6 +2701,202 @@ function buildStephenAnniversaryFreeWillReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildStephenRelationshipBeliefEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I think I'll start by setting some clear goals for the next few months and making conscious choices that align with what I truly value.",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "I'm struggling with the idea of free will, especially since my mom Wendy believes in divine intervention shaping our choices.",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I had to decline a 3 PM meeting with Stephen on March 14 to focus on the startup offer, do you think I should've handled that differently?",
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        "I'm worried that scheduling a work call on our anniversary, March 20, might hurt Stephen's feelings, what can I do to make it up to him?",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I started reading Elbow Room by Daniel Dennett on March 13, can you help me understand how compatibilism applies to job offers?",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm confused about how believing in free will can affect my motivation, like the 2022 University of Cambridge study said, especially since I just resolved my conflict with Stephen by celebrating our anniversary at The Coral Reef restaurant.",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "I've committed to daily journaling to track my decisions and consequences, and I'm wondering if this self-accountability practice will help me make better choices.",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I agreed to limit my work trips to 3 per quarter starting June for Stephen, but I'm not sure how this will affect my career growth.",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "I'll talk to Stephen about prioritizing the most important trips, using tech to stay connected, and doing quarterly reviews.",
+      id: 112,
+      role: "user",
+    },
+    {
+      content:
+        "I'm struggling to understand how Tanya's moral dilemmas about free will might influence my own beliefs.",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        "My romantic partner Stephen and I just celebrated 5 years together on May 20 with a dinner at The Sunset Grill on Bay Street, but I'm wondering how our relationship might change if I start questioning the concept of free will.",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "I think talking about free will with Stephen can help us understand each other better, enhance our trust, and make us more supportive of each other.",
+      id: 166,
+      role: "user",
+    },
+    {
+      content:
+        "Let's talk about specific scenarios, like deciding whether to move to a new city for a job opportunity, so we can see how free will influences our decisions once a week.",
+      id: 168,
+      role: "user",
+    },
+    {
+      content:
+        "I feel bad about missing the meeting with Matthew, and now it's rescheduled for June 3 at 11 AM.",
+      id: 200,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer resolving conflicts through calm dialogue, which is why I scheduled weekly check-ins with Stephen every Sunday at 6 PM.",
+      id: 232,
+      role: "user",
+    },
+    {
+      content:
+        "I'll set clear objectives, share the agenda with Stephen beforehand, start with positive feedback, use I statements, and keep a soft tone.",
+      id: 234,
+      role: "user",
+    },
+    {
+      content:
+        "I'll write down key points, share the agenda with Stephen ahead of time, start with positive feedback, use I statements, and stay calm.",
+      id: 236,
+      role: "user",
+    },
+    {
+      content:
+        "I'll journal about how my decisions align with Wendy's belief and seek guidance through prayer.",
+      id: 248,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering how my daily journaling starting April 1 will help me understand if I truly have free will, given the University of Cambridge study linking belief in free will to higher motivation and goal persistence.",
+      id: 258,
+      role: "user",
+    },
+    {
+      content:
+        "I'll keep up with my daily journaling and see how it helps me understand my beliefs about free will and how much they impact motivation and persistence.",
+      id: 260,
+      role: "user",
+    },
+    {
+      content:
+        "I'll stick to journaling every day and see how it helps me understand my beliefs about free will. I'll definitely pay attention to any patterns or insights that come up.",
+      id: 262,
+      role: "user",
+    },
+    {
+      content:
+        "I accepted the $95,000 streaming startup offer on April 2 and wonder whether free will or other factors shaped the decision.",
+      id: 270,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "stephen-relationship-belief-event-order",
+      conversation_plan: "BATCH 12 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 17,
+        subtopics: ["Free will", "Relationships", "Motivation"],
+        theme:
+          "Weighing personal relationships and beliefs while considering free will",
+        title: "Free Will and Relationship Balance",
+      },
+      narratives: "Stephen relationship-belief event order",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: declining a Stephen meeting for the startup offer, worrying about a work call on the anniversary, resolving conflict through the Coral Reef anniversary celebration, limiting work trips for Stephen, reflecting on the five-year anniversary and free-will beliefs, scheduling Sunday weekly check-ins, and starting daily journaling about free will and motivation.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of balancing my personal relationship and beliefs throughout our conversations, in order? Mention ONLY and ONLY seven items.",
+            question_id: "stephen-relationship-belief-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [
+              58,
+              60,
+              74,
+              110,
+              112,
+              164,
+              166,
+              168,
+              232,
+              234,
+              236,
+              258,
+              260,
+              262,
+            ],
+            total_mentions: 7,
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Philosophy learner",
+        user_relationships: "Stephen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildResumeDesignInstructionBeamRows(): unknown[] {
   const turns = [
     {
@@ -2909,6 +4023,297 @@ function buildWeatherAutocompleteSummaryBeamRows(): unknown[] {
   ];
 }
 
+function buildWeatherAutocompleteEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm building a weather app using JavaScript and OpenWeather API v2.5, and I need help structuring the code before adding more advanced features.",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement city autocomplete using OpenWeather's Geocoding API v1, and I want to add a debounce delay of 300ms to reduce API calls.",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "Handling cases where the API response time exceeds the debounce delay of 300ms is important. Cancel previous autocomplete requests when a new one is initiated and ignore stale autocomplete responses.",
+      id: 22,
+      role: "assistant",
+    },
+    {
+      content:
+        "If the user types quickly and the debounce delay isn't sufficient, dynamically adjust the debounce delay based on typing speed and ensure only the most recent autocomplete request is processed.",
+      id: 24,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to handle errors for invalid city names in my weather app, and I want to display user-friendly messages for HTTP 404 and 400 status codes while using fetch with async/await.",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I obtained an OpenWeather API key and completed the UI wireframe for the weather app.",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide between using pure JavaScript or React for my frontend, but I chose vanilla JavaScript for simplicity and faster deployment.",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I've never actually obtained an API key for this project, so I'm not sure how to proceed with implementing the weather app.",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to integrate city autocomplete into my weather app and want to make sure I'm handling API errors more robustly with a try-catch block around the OpenWeather API call.",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the autocomplete feature in my weather app to reduce API calls while still providing a good user experience, so I limited the results to 5 items.",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I fixed a bug where autocomplete suggestions disappeared too early after clicking a result, and I updated autocomplete.js to keep the selected city stable.",
+      id: 132,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement an error boundary component in vanilla JavaScript to catch runtime errors and show a fallback UI.",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on the final autocomplete implementation pass: cache the last three searched cities, preserve selected city state, and keep the suggestions list consistent after async updates.",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I'm adding Cypress end-to-end tests for search, autocomplete, error display, and the retry mechanism.",
+      id: 172,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "weather-autocomplete-event-order",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 3,
+        subtopics: [
+          "Working with APIs in JavaScript",
+          "Adding city autocomplete",
+          "Error handling for invalid locations",
+        ],
+        theme: "Fetching and displaying weather data for user-specified locations",
+        title: "Developing a Weather Forecast App in JavaScript with OpenWeather API",
+      },
+      narratives: "Weather app city autocomplete implementation ordering",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The city autocomplete implementation came up in this order: initial OpenWeather Geocoding API v1 with 300ms debounce, stale request cancellation, dynamic debounce adjustment, robust try-catch API error handling, and the final autocomplete implementation pass with cache and selected-city state.",
+            question:
+              "Can you list the order in which I brought up different aspects of implementing the city autocomplete feature across our conversations, in order? Mention ONLY and ONLY five items.",
+            question_id: "weather-autocomplete-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [20, 22, 24, 74, 160],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Weather app developer",
+        user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to optimize the autocomplete feature for my weather app, which has been tested with over 100 city inputs and has an average API response time of 280ms with a 95% success rate on valid cities.",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I fixed a bug in autocomplete where duplicate city suggestions appeared after rapid typing, and I updated the debounce cleanup logic.",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I reduced autocomplete latency from 520ms to 290ms, but I still need fetchWeatherData error handling.",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "I fixed a bug where autocomplete suggestions disappeared too early after clicking a result, and I updated autocomplete.js to keep the selected city stable.",
+      id: 132,
+      role: "user",
+    },
+    {
+      content:
+        "I'm adding Cypress end-to-end tests for search, autocomplete, error display, and the retry mechanism.",
+      id: 172,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "weather-autocomplete-bug-confirmation",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 3,
+        subtopics: [
+          "Working with APIs in JavaScript",
+          "Adding city autocomplete",
+          "Error handling for invalid locations",
+        ],
+        theme: "Fetching and displaying weather data for user-specified locations",
+        title: "Developing a Weather Forecast App in JavaScript with OpenWeather API",
+      },
+      narratives: "Weather app autocomplete bug fixes",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer:
+              "Yes. You fixed duplicate autocomplete suggestions after rapid typing and fixed suggestions disappearing too early after selecting a result.",
+            question:
+              "Have I ever fixed any bugs related to the autocomplete feature in my project?",
+            question_id: "weather-autocomplete-bug-confirmation",
+            question_type: "contradiction_resolution",
+            source_chat_ids: [88, 132],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Weather app developer",
+        user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildFlaskLoginSessionManagementContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Understood! I will ensure that all code snippets are formatted with syntax highlighting when you ask about implementation details.",
+      id: 55,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to integrate Flask-Login v0.6.2 for session management in my Flask app, specifically for handling user logins and sessions, and I want to replace my manual session handling. I've never written any Flask routes or handled HTTP requests in this project before, but I've completed the user registration and login modules and now I'm focusing on transaction CRUD and analytics integration.",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, let's integrate Flask-Login into your Flask application to handle user sessions securely with registration, login, session management, transaction CRUD integration, and secure password hashing.",
+      id: 67,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "flask-login-session-management-contradiction",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: [
+          "Flask-Login",
+          "Session management",
+          "Transaction CRUD",
+        ],
+        theme: "Building a monolithic Flask budget tracker",
+        title: "Flask budget tracker",
+      },
+      narratives: "Flask-Login session management contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            ideal_answer:
+              "I notice you've mentioned contradictory information about this. You said you have never integrated Flask-Login or managed user sessions in this project, but you also mentioned that Flask-Login v0.6.2 was integrated for session management replacing manual session handling. Could you clarify which is correct?",
+            question:
+              "Have I integrated Flask-Login for session management in my project?",
+            question_id: "flask-login-session-management-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {
+              first_statement: [66],
+              second_statement: [66],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Flask app developer",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherProjectProgressSummaryBeamRows(): unknown[] {
   const turns = [
     {
@@ -3203,6 +4608,135 @@ function buildBudgetTrackerProjectLifecycleSummaryBeamRows(): unknown[] {
             question_id: "budget-tracker-project-lifecycle-summary",
             question_type: "summarization",
             source_chat_ids: [4, 5, 8, 9, 116, 117, 150, 151, 176, 177],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Craig",
+        user_relationships: "None",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildBudgetTrackerAppDevelopmentDeploymentOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Sure, let's break it down for my budget tracker project. Components include user authentication, transaction management, and basic analytics, with setup, schema, auth, transaction management, analytics, final testing, and deployment milestones.",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "I'm Craig, a hands-on developer with a practical mindset, eager to build a personal budget tracker using Python and Flask. I want core functionality including user authentication, expense tracking, and data visualization.",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to initialize a Flask 2.3.1 project on Python 3.11 with SQLite 3.39 as my database, and I want it to run on local dev at port 5000. I need help setting up the project and database connection.",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to set up a Flask 2.3.1 project with Jinja2 templating and Bootstrap 5.3 for a responsive UI.",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to design the database schema for my budget tracker, with users and transactions tables.",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to keep my app lightweight and easy to maintain, so I prefer simple, minimal dependencies while still implementing the necessary budget tracker features.",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my project timeline, and I noticed that the first sprint now targets completion by March 31, which gives us two extra days for final testing and bug fixes.",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the transaction CRUD in my Flask app, specifically the POST /transactions route, and I want to make sure it returns a 201 status code when a new transaction is created successfully.",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I'm finalizing the deployment of my application and I want to make sure the UI/UX is improved based on user feedback, plus I need to add security hardening before public launch.",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having some issues with my deployment on Render.com, specifically with the Gunicorn configuration. I've set up my app to use 3 workers and listen on port 10000, and my integration tests cover user auth, transaction CRUD, and analytics endpoints with a 95% pass rate.",
+      id: 118,
+      role: "user",
+    },
+    {
+      content:
+        "I will add more tests to cover edge cases and security vulnerabilities, specifically SQL injection and XSS before deployment.",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I'm documenting API endpoints and architecture decisions in Confluence for my remote collaborator.",
+      id: 176,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "budget-tracker-app-development-deployment-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: [
+          "Flask project structure",
+          "Transaction management",
+          "Deployment",
+          "Testing",
+        ],
+        theme: "Creating a basic app to track income and expenses with simple analytics",
+        title: "Building a Personal Budget Tracker Web App in Python and Flask",
+      },
+      narratives: "Budget tracker app development and deployment ordering",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You mentioned the app development and deployment aspects in order: setup/database/local server, transaction POST handling, Render/Gunicorn deployment, and security-related test expansion.",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+            question_id: "budget-tracker-app-development-deployment-order",
+            question_type: "event_ordering",
+            source_chat_ids: [6, 62, 118, 120],
           },
         ],
       },
@@ -3671,6 +5205,190 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.retrievedChatIds).toEqual([38, 80]);
   });
 
+  it("keeps weather feature and concern count source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-weather-feature-concern-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWeatherFeatureConcernCountBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([32, 34, 36, 122, 190]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps dashboard API response-time update source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-dashboard-api-response-time-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildDashboardApiResponseTimeUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([86, 114]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Alexis financial-management summary synthesis turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-alexis-financial-management-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAlexisFinancialManagementSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([13, 15, 53, 65, 127, 253]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps portfolio first-sprint deadline updates through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-portfolio-sprint-deadline-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPortfolioSprintDeadlineUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([12, 52]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps conditional probability practice quantity updates through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-conditional-probability-practice-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildConditionalProbabilityPracticeUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([84, 86, 88, 130]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps raise rejection and final meeting interval boundaries through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-raise-rejection-final-meeting-interval",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildRaiseRejectionFinalMeetingIntervalBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([56, 64]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps sprint deadline date boundaries without instruction noise through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-budget-tracker-sprint-analytics-temporal",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildBudgetTrackerSprintAnalyticsTemporalBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([28, 86]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps login implementation instruction continuations through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-login-instruction-continuation",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildLoginInstructionContinuationBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([54, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps will finalization source turns through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -3771,6 +5489,75 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     ]);
   });
 
+  it("keeps city autocomplete implementation event-order source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-weather-autocomplete-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWeatherAutocompleteEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([20, 22, 24, 74, 160]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps autocomplete bug-fix confirmation source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-weather-autocomplete-bug-confirmation",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWeatherAutocompleteBugFixConfirmationBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([88, 132]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps same-message Flask-Login contradiction source turn through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-flask-login-session-management-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFlaskLoginSessionManagementContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([66]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps broad weather app project progress source turns through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -3834,6 +5621,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       176,
       177,
     ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps app development and deployment event-order source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-budget-tracker-app-development-deployment-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildBudgetTrackerAppDevelopmentDeploymentOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([6, 62, 118, 120]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
@@ -3917,6 +5727,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([30, 164]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps security feature count source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-security-feature-count-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-02T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildSecurityFeatureCountReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([16, 84, 150]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
@@ -4212,6 +6045,44 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([74, 164, 166, 168]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Stephen relationship-belief event-order source groups through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-stephen-relationship-belief-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-06T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildStephenRelationshipBeliefEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      58,
+      60,
+      74,
+      110,
+      112,
+      164,
+      166,
+      168,
+      232,
+      234,
+      236,
+      258,
+      260,
+      262,
+    ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

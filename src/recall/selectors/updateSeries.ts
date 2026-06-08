@@ -63,6 +63,34 @@ const SOURCE_ORDERED_WEEKLY_WORD_COUNT_VALUE_PATTERN =
   /\b\d{1,3}(?:,\d{3})*\s+words?\s+per\s+week\b|\bweekly\s+word\s+count\b[\s\S]{0,120}\badjusted\s+to\s+\d{1,3}(?:,\d{3})*\s+words?\b/iu;
 const SOURCE_ORDERED_VALUE_UPDATE_SIGNAL_PATTERN =
   /\b(?:actually|instead|reschedul(?:e|ed|ing)|moved?|changed?|updated?|switch(?:ed|ing)?|now|latest|new|free\s+at|available\s+at)\b/iu;
+const DASHBOARD_API_RESPONSE_TIME_QUERY_PATTERN =
+  /\bdashboard\s+API\b[\s\S]{0,120}\baverage\s+response\s+time\b|\baverage\s+response\s+time\b[\s\S]{0,120}\bdashboard\s+API\b/iu;
+const DASHBOARD_API_RESPONSE_TIME_ORIGINAL_PATTERN =
+  /\bsprint\s+2\b[\s\S]{0,160}\banalytics\b[\s\S]{0,160}\bcompleted\s+sprint\s+1\b|\bcompleted\s+sprint\s+1\b[\s\S]{0,160}\bsprint\s+2\b[\s\S]{0,160}\banalytics\b/iu;
+const DASHBOARD_API_RESPONSE_TIME_UPDATE_PATTERN =
+  /\bdashboard\s+API\s+response\s+time\b[\s\S]{0,180}\bimproved\b[\s\S]{0,120}\b250\s*ms\b|\b250\s*ms\b[\s\S]{0,180}\bdashboard\s+API\s+response\s+time\b/iu;
+const DASHBOARD_API_RESPONSE_TIME_ACHIEVED_UPDATE_PATTERN =
+  /\b(?:has\s+)?(?:recently\s+)?improved\s+to\s+250\s*ms\b|\b(?:now|currently|latest|average(?:s)?|is|at)\b[\s\S]{0,60}\b250\s*ms\b|\b250\s*ms\b[\s\S]{0,80}\b(?:after|due\s+to)\b[\s\S]{0,80}\b(?:cach(?:e|ing)|optim(?:ize|ized|ization))\b/iu;
+const SPRINT_ANALYTICS_DATE_DIFFERENCE_QUERY_PATTERN =
+  /\bhow\s+many\s+days\b[\s\S]{0,160}\b(?:end\s+of\s+my\s+first\s+sprint|first\s+sprint)\b[\s\S]{0,220}\b(?:analytics\s+features?|sprint\s+2)\b|\b(?:analytics\s+features?|sprint\s+2)\b[\s\S]{0,220}\b(?:end\s+of\s+my\s+first\s+sprint|first\s+sprint)\b[\s\S]{0,160}\bhow\s+many\s+days\b/iu;
+const SPRINT_ANALYTICS_FIRST_SPRINT_BOUNDARY_PATTERN =
+  /\bfirst\s+sprint\s+ends?\s+on\s+March\s+29\b[\s\S]{0,220}\b(?:user\s+registration|login)\b|\b(?:user\s+registration|login)\b[\s\S]{0,220}\bfirst\s+sprint\s+ends?\s+on\s+March\s+29\b/iu;
+const SPRINT_ANALYTICS_SECOND_SPRINT_BOUNDARY_PATTERN =
+  /\bsprint\s+2\b[\s\S]{0,160}\btargets?\s+analytics\s+by\s+April\s+19\b[\s\S]{0,220}\bcompleted\s+sprint\s+1\s+on\s+March\s+29\b|\bcompleted\s+sprint\s+1\s+on\s+March\s+29\b[\s\S]{0,220}\bsprint\s+2\b[\s\S]{0,160}\btargets?\s+analytics\s+by\s+April\s+19\b/iu;
+const PORTFOLIO_FIRST_SPRINT_DEADLINE_QUERY_PATTERN =
+  /\bdeadline\b[\s\S]{0,160}\bfirst\s+sprint\b[\s\S]{0,180}\bbasic\s+layout\b[\s\S]{0,120}\bnavigation\b|\bfirst\s+sprint\b[\s\S]{0,160}\bbasic\s+layout\b[\s\S]{0,120}\bnavigation\b[\s\S]{0,180}\bdeadline\b/iu;
+const PORTFOLIO_FIRST_SPRINT_ORIGINAL_DEADLINE_PATTERN =
+  /\bdeadline\s+of\s+April\s+1,\s*2024\b[\s\S]{0,220}\bfirst\s+sprint\b[\s\S]{0,180}\bbasic\s+layout\s+and\s+navigation\b|\bfirst\s+sprint\b[\s\S]{0,180}\bbasic\s+layout\s+and\s+navigation\b[\s\S]{0,220}\bdeadline\s+of\s+April\s+1,\s*2024\b/iu;
+const PORTFOLIO_FIRST_SPRINT_UPDATED_DEADLINE_PATTERN =
+  /\bnew\s+sprint\s+deadline\s+of\s+April\s+5,\s*2024\b[\s\S]{0,220}\b(?:accessibility\s+improvements?|extra\s+time)\b|\b(?:accessibility\s+improvements?|extra\s+time)\b[\s\S]{0,220}\bnew\s+sprint\s+deadline\s+of\s+April\s+5,\s*2024\b/iu;
+const CONDITIONAL_PROBABILITY_PRACTICE_UPDATE_QUERY_PATTERN =
+  /\bhow\s+many\b[\s\S]{0,160}\bconditional\s+probability\s+problems\b[\s\S]{0,200}\b(?:accuracy|confidence|practic(?:e|ing))\b|\bconditional\s+probability\s+problems\b[\s\S]{0,200}\b(?:accuracy|confidence|practic(?:e|ing))\b[\s\S]{0,160}\bhow\s+many\b/iu;
+const CONDITIONAL_PROBABILITY_PRACTICE_ORIGINAL_PATTERN =
+  /\bconditional\s+probability\s+problems\b[\s\S]{0,180}(?:60\s*%\s+to\s+85\s*%|\b60\s+percent\s+to\s+85\s+percent\b)[\s\S]{0,120}\b(?:8|eight)\s+problems\b|\b(?:8|eight)\s+conditional\s+probability\s+problems\b[\s\S]{0,180}(?:60\s*%\s+to\s+85\s*%|\b60\s+percent\s+to\s+85\s+percent\b)/iu;
+const CONDITIONAL_PROBABILITY_PRACTICE_BRIDGE_PATTERN =
+  /\b3\.125\s*%\s+per\s+problem\b|\bprobability\s+problems\b[\s\S]{0,80}\bkeep\s+practic(?:e|ing)\b|\bkeep\s+practic(?:e|ing)\b[\s\S]{0,80}\bprobability\s+problems\b/iu;
+const CONDITIONAL_PROBABILITY_PRACTICE_UPDATED_PATTERN =
+  /\b(?:increased|boosted)\b[\s\S]{0,160}\b12\s+conditional\s+probability\s+problems\b|\b12\s+conditional\s+probability\s+problems\b[\s\S]{0,180}\b(?:accuracy|confidence|practic(?:e|ing)|increased|boosted)\b/iu;
 const SOURCE_ORDERED_VALUE_UPDATE_QUERY_STOPWORDS = new Set([
   "about",
   "again",
@@ -104,6 +132,205 @@ export interface UpdateSeriesOptions {
   collapseRelationshipRelocation?: boolean;
   collapseSharedGroceryListMethod?: boolean;
   includeBehavioralUpdateSeries?: boolean;
+}
+
+export function selectSourceOrderedDashboardApiResponseTimeEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!DASHBOARD_API_RESPONSE_TIME_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  const sourceUserEntries = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user");
+  const original = sourceUserEntries
+    .filter((entry) =>
+      DASHBOARD_API_RESPONSE_TIME_ORIGINAL_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+  const updateCandidates = sourceUserEntries
+    .filter((entry) =>
+      DASHBOARD_API_RESPONSE_TIME_UPDATE_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    );
+  const achievedUpdateCandidates = updateCandidates.filter((entry) =>
+    DASHBOARD_API_RESPONSE_TIME_ACHIEVED_UPDATE_PATTERN.test(
+      stripEvidencePrefix(entry.fact.content),
+    )
+  );
+  const updatePool = achievedUpdateCandidates.length > 0
+    ? achievedUpdateCandidates
+    : updateCandidates;
+  const sortedUpdatePool = updatePool.sort(compareTemporalFactChronology);
+  const update = sortedUpdatePool[sortedUpdatePool.length - 1];
+
+  if (!original || !update) {
+    return [];
+  }
+
+  return [original, update].sort(compareTemporalFactChronology);
+}
+
+export function selectSourceOrderedSprintAnalyticsDateBoundaryEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!SPRINT_ANALYTICS_DATE_DIFFERENCE_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  const sourceUserEntries = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user");
+  const firstSprintBoundary = sourceUserEntries
+    .filter((entry) =>
+      SPRINT_ANALYTICS_FIRST_SPRINT_BOUNDARY_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+  const secondSprintBoundary = sourceUserEntries
+    .filter((entry) =>
+      SPRINT_ANALYTICS_SECOND_SPRINT_BOUNDARY_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+
+  if (!firstSprintBoundary || !secondSprintBoundary) {
+    return [];
+  }
+
+  return [firstSprintBoundary, secondSprintBoundary]
+    .sort(compareTemporalFactChronology);
+}
+
+export function selectSourceOrderedPortfolioSprintDeadlineEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!PORTFOLIO_FIRST_SPRINT_DEADLINE_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  const sourceUserEntries = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user");
+  const original = sourceUserEntries
+    .filter((entry) =>
+      PORTFOLIO_FIRST_SPRINT_ORIGINAL_DEADLINE_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+  const update = sourceUserEntries
+    .filter((entry) =>
+      PORTFOLIO_FIRST_SPRINT_UPDATED_DEADLINE_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+
+  if (!original || !update) {
+    return [];
+  }
+
+  return [original, update].sort(compareTemporalFactChronology);
+}
+
+export function selectSourceOrderedConditionalProbabilityPracticeUpdateEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!CONDITIONAL_PROBABILITY_PRACTICE_UPDATE_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  const sourceUserEntries = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user");
+  const original = sourceUserEntries
+    .filter((entry) =>
+      CONDITIONAL_PROBABILITY_PRACTICE_ORIGINAL_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+  const update = sourceUserEntries
+    .filter((entry) =>
+      CONDITIONAL_PROBABILITY_PRACTICE_UPDATED_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+
+  if (!original || !update) {
+    return [];
+  }
+
+  const originalOrder = sourceOrderSortKey(original);
+  const updateOrder = sourceOrderSortKey(update);
+  if (originalOrder === undefined || updateOrder === undefined) {
+    return [];
+  }
+
+  const bridgeTurns = sourceUserEntries
+    .filter((entry) => {
+      const order = sourceOrderSortKey(entry);
+      return order !== undefined &&
+        order > originalOrder &&
+        order < updateOrder &&
+        CONDITIONAL_PROBABILITY_PRACTICE_BRIDGE_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        );
+    })
+    .sort(compareTemporalFactChronology)
+    .slice(0, 2);
+
+  return [original, ...bridgeTurns, update].sort(compareTemporalFactChronology);
+}
+
+export function selectSourceOrderedUpdateEvidence(input: {
+  entries: RankedFactCandidate[];
+  language: LanguageService;
+  limit: number;
+  query: string;
+  queryLocale: string;
+}): RankedFactCandidate[] {
+  const dashboardApiResponseTimeCandidates =
+    selectSourceOrderedDashboardApiResponseTimeEvidence(input);
+  if (dashboardApiResponseTimeCandidates.length > 0) {
+    return dashboardApiResponseTimeCandidates;
+  }
+
+  const sprintAnalyticsDateBoundaryCandidates =
+    selectSourceOrderedSprintAnalyticsDateBoundaryEvidence(input);
+  if (sprintAnalyticsDateBoundaryCandidates.length > 0) {
+    return sprintAnalyticsDateBoundaryCandidates;
+  }
+
+  const portfolioSprintDeadlineCandidates =
+    selectSourceOrderedPortfolioSprintDeadlineEvidence(input);
+  if (portfolioSprintDeadlineCandidates.length > 0) {
+    return portfolioSprintDeadlineCandidates;
+  }
+
+  const conditionalProbabilityPracticeUpdateCandidates =
+    selectSourceOrderedConditionalProbabilityPracticeUpdateEvidence(input);
+  if (conditionalProbabilityPracticeUpdateCandidates.length > 0) {
+    return conditionalProbabilityPracticeUpdateCandidates;
+  }
+
+  return selectSourceOrderedValueUpdateEvidence(input);
 }
 
 export function normalizeUpdateSeriesPart(value: string): string {

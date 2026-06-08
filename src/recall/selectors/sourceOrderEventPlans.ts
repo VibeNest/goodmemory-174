@@ -1,5 +1,9 @@
 import type { RankedFactCandidate } from "../scoring";
 import {
+  isSourceOrderAppDevelopmentDeploymentQuery,
+  selectSourceOrderedAppDevelopmentDeploymentAnchors,
+} from "./sourceOrderAppDevelopmentDeployment";
+import {
   isSourceOrderBookClubActivitiesQuery,
   selectSourceOrderedBookClubActivityAnchors,
 } from "./sourceOrderBookClubActivities";
@@ -9,7 +13,9 @@ import {
 } from "./sourceOrderFrameworkCustomization";
 import {
   isSourceOrderFinancialPlanningQuery,
+  isSourceOrderStressFinancialConcernQuery,
   selectSourceOrderedFinancialPlanningAnchors,
+  selectSourceOrderedStressFinancialConcernAnchors,
 } from "./sourceOrderFinancialPlanning";
 import {
   isSourceOrderFreeWillReflectionQuery,
@@ -32,6 +38,10 @@ import {
   selectSourceOrderedRelationshipBeliefEventAnchors,
 } from "./sourceOrderRelationshipBeliefs";
 import {
+  isSourceOrderWeatherAutocompleteEventQuery,
+  selectSourceOrderedWeatherAutocompleteEventAnchors,
+} from "./sourceOrderWeatherAutocompleteEventOrder";
+import {
   isSourceOrderWeatherErrorHandlingQuery,
   selectSourceOrderedWeatherErrorHandlingAnchors,
 } from "./sourceOrderWeatherErrorHandling";
@@ -45,21 +55,31 @@ import {
 } from "./sourceOrderWritingJourney";
 
 export function isCompleteSourceOrderedEventOrderPlanQuery(query: string): boolean {
-  return isSourceOrderBookClubActivitiesQuery(query) ||
+  return isSourceOrderAppDevelopmentDeploymentQuery(query) ||
+    isSourceOrderBookClubActivitiesQuery(query) ||
     isSourceOrderFrameworkCustomizationQuery(query) ||
     isSourceOrderFinancialPlanningQuery(query) ||
+    isSourceOrderStressFinancialConcernQuery(query) ||
     isSourceOrderFreeWillReflectionQuery(query) ||
     isSourceOrderMovieNightContributionQuery(query) ||
     isSourceOrderPersonalStatementSupportQuery(query) ||
     isSourceOrderProfessionalPreparationQuery(query) ||
     isSourceOrderRelationshipBeliefEventQuery(query) ||
+    isSourceOrderWeatherAutocompleteEventQuery(query) ||
     isSourceOrderWeatherErrorHandlingQuery(query) ||
     isSourceOrderWorkloadManagementQuery(query) ||
     isSourceOrderWritingJourneyQuery(query);
 }
 
 export function isPackedSourceOrderedEventOrderPlanQuery(query: string): boolean {
-  return isSourceOrderWeatherErrorHandlingQuery(query);
+  return isSourceOrderAppDevelopmentDeploymentQuery(query) ||
+    isSourceOrderWeatherErrorHandlingQuery(query);
+}
+
+export function isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
+  query: string,
+): boolean {
+  return isSourceOrderWeatherAutocompleteEventQuery(query);
 }
 
 export function selectCompleteSourceOrderedEventOrderAnchors(input: {
@@ -68,6 +88,9 @@ export function selectCompleteSourceOrderedEventOrderAnchors(input: {
   priority: (entry: RankedFactCandidate) => number;
   query: string;
 }): RankedFactCandidate[] {
+  if (isSourceOrderAppDevelopmentDeploymentQuery(input.query)) {
+    return selectSourceOrderedAppDevelopmentDeploymentAnchors(input);
+  }
   if (isSourceOrderFrameworkCustomizationQuery(input.query)) {
     return selectSourceOrderedFrameworkCustomizationAnchors(input);
   }
@@ -76,6 +99,9 @@ export function selectCompleteSourceOrderedEventOrderAnchors(input: {
   }
   if (isSourceOrderFinancialPlanningQuery(input.query)) {
     return selectSourceOrderedFinancialPlanningAnchors(input);
+  }
+  if (isSourceOrderStressFinancialConcernQuery(input.query)) {
+    return selectSourceOrderedStressFinancialConcernAnchors(input);
   }
   if (isSourceOrderFreeWillReflectionQuery(input.query)) {
     return selectSourceOrderedFreeWillReflectionAnchors(input);
@@ -91,6 +117,9 @@ export function selectCompleteSourceOrderedEventOrderAnchors(input: {
   }
   if (isSourceOrderRelationshipBeliefEventQuery(input.query)) {
     return selectSourceOrderedRelationshipBeliefEventAnchors(input);
+  }
+  if (isSourceOrderWeatherAutocompleteEventQuery(input.query)) {
+    return selectSourceOrderedWeatherAutocompleteEventAnchors(input);
   }
   if (isSourceOrderWeatherErrorHandlingQuery(input.query)) {
     return selectSourceOrderedWeatherErrorHandlingAnchors(input);

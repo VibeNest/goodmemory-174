@@ -1769,6 +1769,45 @@ Current Boundary
   Total noise increases by one id from 2004 -> 2005 due to same-recall churn;
   summarization noise decreases by one, while abstention and event-ordering
   each gain one bucket noise id.
+  The latest relationship-belief event-order plus dashboard API update repair
+  raises current evidence-chat recall to 0.7151453163424996 with 145
+  missed-recall cases, wrong-recall/noise 286/400, zero-recall 38, and total
+  noise 1971. It recovers `12:event_ordering:1` to exact 1.0 with chats
+  58/60/74/110/112/164/166/168/232/234/236/258/260/262 and no target noise,
+  improves `1:knowledge_update:1` from 0 to 0.5 by recovering chat 86, and
+  shows no hit-loss, newly-missing evidence, positive missing-id deltas,
+  positive net noise deltas, or negative recall deltas. The dashboard API row
+  still misses evidence chat 114 and retrieves chat 108, so this remains
+  partial progress.
+  The same current-data dashboard API latest-update rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-dashboard-api-latest-update-current-20260606T162000Z`
+  reaches evidence-chat recall 0.6643244314371075 on the restored GitHub-raw
+  cohort, improves hit/missing/noise ids 697/397/1326 -> 700/394/1324 versus
+  the weather-count current-data report, and recovers `1:knowledge_update:1`
+  exactly to chats 86/114 while removing chat 108. It has no hit-loss,
+  newly-missing evidence, or negative recall deltas, but remains partial
+  progress.
+  The accepted same-current-data Alexis summary, deadline, interval, and
+  conditional probability update rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-alexis-summary-deadline-interval-conditional-update-current-20260606T203000Z`
+  reaches evidence-chat recall 0.6692540089018963, missed 148/355,
+  wrong-recall/noise 279/400, and zero-recall 77. It improves
+  hit/missing/noise ids 700/394/1324 -> 707/387/1301, makes
+  `16:summarization:1`, `3:knowledge_update:1`, `12:temporal_reasoning:1`,
+  and `5:knowledge_update:2` exact, and has no non-null negative recall
+  deltas, hit-loss, newly-missing evidence, positive missing-id deltas, or
+  positive noise deltas. It remains partial progress.
+  The accepted same-current-data Flask-Login/session-management and noise-guard
+  rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-flask-login-session-management-final-guards-current-20260606T172124Z`
+  reaches evidence-chat recall 0.6766483750990794, missed 145/355,
+  wrong-recall/noise 274/400, and zero-recall 75. It improves
+  hit/missing/noise ids 707/387/1301 -> 715/379/1263, recovers
+  `1:contradiction_resolution:2`, `20:temporal_reasoning:2`, and
+  `16:event_ordering:2`, trims `10:information_extraction:1` noise, suppresses
+  the `3:abstention:1` Trello criteria fallback, and has no non-null negative
+  recall deltas, hit-loss, newly-missing evidence, positive missing-id deltas,
+  or positive noise deltas. It remains partial progress.
   The next executable boundary is reducing remaining full-slice misses plus
   wrong-recall/noise on long imported conversations, especially source-ordered
   summary budget quality and the broad noise surface, using same-source

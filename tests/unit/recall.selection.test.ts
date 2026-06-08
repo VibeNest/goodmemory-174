@@ -4131,6 +4131,187 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps dashboard API response-time update context before session-management noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "user" ? "user_answer" : "assistant_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-project-schedule-noise",
+        0,
+        "user",
+        "[BEAM chat_id=0 role=user time=unknown] I'm working on a project with a Time Anchor of March 15, 2024, and need to plan my tasks.",
+      ),
+      makeSourceFact(
+        "fact-error-handler-noise-user",
+        26,
+        "user",
+        "[BEAM chat_id=26 role=user time=unknown] I'm trying to handle 404 and 500 errors in my Flask app and return custom JSON responses for API endpoints.",
+      ),
+      makeSourceFact(
+        "fact-error-handler-noise-assistant",
+        27,
+        "assistant",
+        "[BEAM chat_id=27 role=assistant time=unknown] Return custom JSON responses with proper HTTP status codes for 404 and 500 errors.",
+      ),
+      makeSourceFact(
+        "fact-flask-login-noise",
+        66,
+        "user",
+        "[BEAM chat_id=66 role=user time=unknown] I'm trying to integrate Flask-Login v0.6.2 for session management with secure password hashing and proper error handling.",
+      ),
+      makeSourceFact(
+        "fact-analytics-original",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      ),
+      makeSourceFact(
+        "fact-cache-advice-noise",
+        105,
+        "assistant",
+        "[BEAM chat_id=105 role=assistant time=unknown] Your dashboard API response time can improve through SQL query optimization, indexes, and caching.",
+      ),
+      makeSourceFact(
+        "fact-dashboard-api-old-measurement",
+        104,
+        "user",
+        "[BEAM chat_id=104 role=user time=unknown] I'm trying to optimize the dashboard API response time, which was initially 800ms, and I've managed to reduce it to 300ms by optimizing SQL queries and caching results for 60 seconds.",
+      ),
+      makeSourceFact(
+        "fact-dashboard-api-intermediate-progress",
+        108,
+        "user",
+        "[BEAM chat_id=108 role=user time=unknown] I'm trying to optimize the dashboard API response time, which has recently improved to 250ms after adding some caching tweaks, but I want to make sure I'm using the latest versions of my dependencies, like Flask-Login, which I've never actually integrated into this project, so I'm starting from scratch.",
+      ),
+      makeSourceFact(
+        "fact-dashboard-api-updated",
+        114,
+        "user",
+        "[BEAM chat_id=114 role=user time=unknown] I'm trying to optimize the dashboard API response time, which has recently improved to 250ms after adding some caching tweaks, but I want to make sure I'm using the latest versions of my dependencies, like Flask-Login, which I've never actually integrated into this project, so I'm starting from scratch, and also considering the fact that I've already completed the user registration and login modules, now focusing on transaction CRUD and analytics integration.",
+      ),
+      makeSourceFact(
+        "fact-flask-login-answer-noise",
+        115,
+        "assistant",
+        "[BEAM chat_id=115 role=assistant time=unknown] Integrate Flask-Login 0.6.2 with login, logout, session validation, and dashboard caching.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the average response time of the dashboard API?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-analytics-original",
+      "fact-dashboard-api-updated",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-flask-login-noise")?.returned)
+      .toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-dashboard-api-old-measurement")?.returned)
+      .toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-cache-advice-noise")?.returned)
+      .toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-dashboard-api-intermediate-progress")?.returned)
+      .toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-flask-login-answer-noise")?.returned)
+      .toBe(false);
+  });
+
+  it("keeps sprint deadline date boundaries without later sprint-update or instruction noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-project-time-anchor",
+        0,
+        "[BEAM chat_id=0 role=user time=unknown] I am using March 15, 2024 as the project planning time anchor for my Flask budget tracker.",
+      ),
+      makeSourceFact(
+        "fact-first-sprint-boundary",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I'm working on a project with scheduled two-week sprints, and the first sprint ends on March 29, focusing on user registration and login. I need to plan the sprint carefully to ensure we meet the deadline.",
+      ),
+      makeSourceFact(
+        "fact-first-sprint-update-noise",
+        52,
+        "[BEAM chat_id=52 role=user time=unknown] I'm trying to update my project timeline, and I noticed that the first sprint now targets completion by March 31, which gives us two extra days for final testing and bug fixes.",
+      ),
+      makeSourceFact(
+        "fact-login-noise",
+        66,
+        "[BEAM chat_id=66 role=user time=unknown] I'm trying to integrate Flask-Login v0.6.2 for session management with secure password hashing and proper error handling.",
+      ),
+      makeSourceFact(
+        "fact-sprint-two-analytics-boundary",
+        86,
+        "[BEAM chat_id=86 role=user time=unknown] I'm working on sprint 2 which targets analytics by April 19, and I've already completed sprint 1 on March 29 with user auth and basic transaction CRUD.",
+      ),
+      makeSourceFact(
+        "fact-auth-instruction-noise",
+        184,
+        "[BEAM chat_id=184 role=user time=unknown] Always provide security best practices when I ask about authentication or authorization features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days were there between the end of my first sprint and the deadline for completing the analytics features in sprint 2?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-first-sprint-boundary",
+      "fact-sprint-two-analytics-boundary",
+    ]);
+  });
+
   it("selects paired source turns for percentage improvement order questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -4803,6 +4984,266 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-trello-priority-final-snippet-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-lighthouse-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-lighthouse-schedule-snippet-noise")?.returned).toBe(false);
+  });
+
+  it("keeps portfolio first-sprint deadline updates on source user turns", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-3",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-layout-original-deadline",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] I'm trying to plan out my project timeline and I have a deadline of April 1, 2024, for the first sprint, which covers the basic layout and navigation of my single-page portfolio website.",
+      ),
+      makeSourceFact(
+        "fact-priority-assistant-noise",
+        39,
+        "assistant",
+        "[BEAM chat_id=39 role=assistant time=unknown] Prioritizing tasks effectively is crucial for meeting deadlines in Sprint 1 using a Trello board.",
+      ),
+      makeSourceFact(
+        "fact-layout-updated-deadline",
+        52,
+        "user",
+        "[BEAM chat_id=52 role=user time=unknown] I'm trying to update my project timeline to reflect the new sprint deadline of April 5, 2024, with extra time for accessibility improvements.",
+      ),
+      makeSourceFact(
+        "fact-update-assistant-noise",
+        53,
+        "assistant",
+        "[BEAM chat_id=53 role=assistant time=unknown] Adjusting your project timeline to meet the new sprint deadline of April 5, 2024 requires careful planning and prioritization.",
+      ),
+      makeSourceFact(
+        "fact-html-instruction-noise",
+        54,
+        "user",
+        "[BEAM chat_id=54 role=user time=unknown] Always include semantic HTML5 tag usage details when I ask about markup structure. ->-> 1,25",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the deadline for completing the first sprint focused on the basic layout and navigation?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-layout-original-deadline",
+      "fact-layout-updated-deadline",
+    ]);
+  });
+
+  it("keeps Michael festival date recall on the exact source turn", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-michael-festival-date",
+        6,
+        "[BEAM chat_id=6 role=user time=unknown] I met Michael at Montserrat Writers' Festival on Jan 15, 2024, and we share script editing tips weekly.",
+      ),
+      makeSourceFact(
+        "fact-confidence-deadline-noise",
+        82,
+        "[BEAM chat_id=82 role=user time=unknown] I completed my first draft on April 1 and increased my confidence score from 4 to 7 out of 10.",
+      ),
+      makeSourceFact(
+        "fact-percentage-instruction-noise",
+        172,
+        "[BEAM chat_id=172 role=user time=unknown] Always provide percentage improvements when I ask about editing progress.",
+      ),
+      makeSourceFact(
+        "fact-literary-festival-deadline-noise",
+        274,
+        "[BEAM chat_id=274 role=user time=unknown] I'm anxious about the September 22 deadline for the Montserrat Literary Festival where I'm invited to speak.",
+      ),
+      makeSourceFact(
+        "fact-ai-editing-panel-noise",
+        332,
+        "[BEAM chat_id=332 role=user time=unknown] I've been invited to moderate a panel at the Montserrat Literary Festival on October 20 focusing on AI editing tools.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "When did I say I met Michael at the festival?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-michael-festival-date",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-ai-editing-panel-noise")?.returned).toBe(false);
+  });
+
+  it("keeps Ashlee meeting and patent response deadline boundaries for interval questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-patent-attorney-meeting",
+        102,
+        "[BEAM chat_id=102 role=user time=unknown] I have a meeting with Ashlee at 3 PM on May 14, 2024, at her Montserrat office about my patent application.",
+      ),
+      makeSourceFact(
+        "fact-patent-response-deadline",
+        152,
+        "[BEAM chat_id=152 role=user time=unknown] I'm stressed about balancing production deadlines with the patent response that's due July 20.",
+      ),
+      makeSourceFact(
+        "fact-attorney-advice-noise",
+        77,
+        "[BEAM chat_id=77 role=assistant time=unknown] Meeting with a patent attorney like Ashlee is a crucial step in navigating the patent process.",
+      ),
+      makeSourceFact(
+        "fact-non-provisional-noise",
+        164,
+        "[BEAM chat_id=164 role=user time=unknown] I've got a deadline for my non-provisional patent filing set for November 10, 2024.",
+      ),
+      makeSourceFact(
+        "fact-patent-summary-instruction-noise",
+        302,
+        "[BEAM chat_id=302 role=user time=unknown] Always provide clear summaries when I ask about patent drafting progress.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days do I have between my meeting with Ashlee and the patent response deadline?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-patent-attorney-meeting",
+      "fact-patent-response-deadline",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-patent-summary-instruction-noise")?.returned).toBe(false);
+  });
+
+  it("does not add weak fallback evidence for Trello sprint prioritization criteria abstention", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-sprint-trello-board",
+        38,
+        "user",
+        "[BEAM chat_id=38 role=user time=unknown] I'm trying to prioritize tasks for my sprint 1 using a Trello board with 15 tasks, including responsive layout and SEO meta tags.",
+      ),
+      makeSourceFact(
+        "fact-sprint-trello-plan",
+        39,
+        "assistant",
+        "[BEAM chat_id=39 role=assistant time=unknown] Prioritizing tasks effectively is crucial for meeting deadlines and ensuring that the most critical work gets done first.",
+      ),
+      makeSourceFact(
+        "fact-retry-code-noise",
+        87,
+        "assistant",
+        "[BEAM chat_id=87 role=assistant time=unknown] To add retry logic and proper error handling to your submitForm function, use try-catch blocks and setTimeout retries.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What specific criteria did I use to prioritize tasks on the Trello board during sprint 1?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-retry-code-noise")?.returned).toBe(false);
   });
 
   it("keeps Laura mixer recommendation and prior connection evidence source ordered", () => {
@@ -5755,6 +6196,114 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-uptime-quota-noise")?.returned).toBe(false);
   });
 
+  it("keeps conditional probability practice quantity updates source ordered", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-5",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-conditional-probability-original",
+        84,
+        "user",
+        "[BEAM chat_id=84 role=user time=unknown] I'm trying to understand how my accuracy in conditional probability problems improved from 60% to 85% over 2 weeks, after completing 8 problems.",
+      ),
+      makeSourceFact(
+        "fact-conditional-probability-rate",
+        86,
+        "user",
+        "[BEAM chat_id=86 role=user time=unknown] Yeah, that makes sense. So I've improved by about 3.125% per problem. To get to 100%, I'd need to solve around 5 more problems.",
+      ),
+      makeSourceFact(
+        "fact-conditional-probability-closing",
+        88,
+        "user",
+        "[BEAM chat_id=88 role=user time=unknown] No, I think I'm good for now. Thanks for the help with my probability problems! I'll keep practicing.",
+      ),
+      makeSourceFact(
+        "fact-dependent-event-noise",
+        98,
+        "user",
+        "[BEAM chat_id=98 role=user time=unknown] I've spent 4 hours practicing dependent event problems, including 3 card draw and 5 dice roll scenarios.",
+      ),
+      makeSourceFact(
+        "fact-conditional-probability-update",
+        130,
+        "user",
+        "[BEAM chat_id=130 role=user time=unknown] I'm trying to solve a conditional probability problem and I need help, I've recently increased my practice sessions to 12 conditional probability problems, which has further boosted my accuracy and confidence.",
+      ),
+      makeSourceFact(
+        "fact-visual-aid-instruction-noise",
+        132,
+        "user",
+        "[BEAM chat_id=132 role=user time=unknown] Always include visual aids like tree diagrams when I ask about dependent event probability problems.",
+      ),
+      makeSourceFact(
+        "fact-never-practiced-contradiction-noise",
+        134,
+        "user",
+        "[BEAM chat_id=134 role=user time=unknown] I don't understand why I have never practiced any conditional probability problems before.",
+      ),
+      makeSourceFact(
+        "fact-complex-probability-noise",
+        232,
+        "user",
+        "[BEAM chat_id=232 role=user time=unknown] I'm trying to solve a complex probability puzzle about the birthday paradox.",
+      ),
+      makeSourceFact(
+        "fact-complex-probability-instruction-noise",
+        234,
+        "user",
+        "[BEAM chat_id=234 role=user time=unknown] Always combine algebraic formulas with visual diagrams when I ask about complex probability problems.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many conditional probability problems have I been practicing to improve my accuracy and confidence?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-conditional-probability-original",
+      "fact-conditional-probability-rate",
+      "fact-conditional-probability-closing",
+      "fact-conditional-probability-update",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-dependent-event-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-visual-aid-instruction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-never-practiced-contradiction-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-complex-probability-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-complex-probability-instruction-noise")?.returned).toBe(false);
+  });
+
   it("keeps weekly writing target update evidence source ordered", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -5955,6 +6504,236 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-review-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-weather-error-handling-noise")?.returned).toBe(false);
     expect(result.traces.find((trace) => trace.memoryId === "fact-load-testing-noise")?.returned).toBe(false);
+  });
+
+  it("keeps distinct security feature evidence for cross-session count questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-1",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-password-hashing",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] I implemented basic password hashing for my personal budget tracker using Werkzeug.security with a password_hash field.",
+      ),
+      makeSourceFact(
+        "fact-validation-noise",
+        36,
+        "user",
+        "[BEAM chat_id=36 role=user time=unknown] I'm improving expense tracking validation and error messages for the Flask budget tracker.",
+      ),
+      makeSourceFact(
+        "fact-formatting-instruction-noise",
+        54,
+        "user",
+        "[BEAM chat_id=54 role=user time=unknown] Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      ),
+      makeSourceFact(
+        "fact-rbac-user-role",
+        84,
+        "user",
+        "[BEAM chat_id=84 role=user time=unknown] I'm trying to implement role-based access control for my application, specifically for the 'user' role, and I want to make sure I'm doing it correctly.",
+      ),
+      makeSourceFact(
+        "fact-analytics-noise",
+        122,
+        "user",
+        "[BEAM chat_id=122 role=user time=unknown] I'm improving dashboard analytics and deployment planning after finishing the budget tracker API.",
+      ),
+      makeSourceFact(
+        "fact-security-tests-noise",
+        154,
+        "user",
+        "[BEAM chat_id=154 role=user time=unknown] I'm trying to achieve 90% coverage on the auth.py and security.py modules with my new tests for security features.",
+      ),
+      makeSourceFact(
+        "fact-lockout",
+        150,
+        "user",
+        "[BEAM chat_id=150 role=user time=unknown] I'm trying to implement the account lockout feature after 5 failed login attempts using Redis 7.0 for rate limiting.",
+      ),
+      makeSourceFact(
+        "fact-pragmatic-security-noise",
+        178,
+        "user",
+        "[BEAM chat_id=178 role=user time=unknown] I'm trying to enhance the security of my application without compromising the user experience.",
+      ),
+      makeSourceFact(
+        "fact-secure-auth-noise",
+        182,
+        "user",
+        "[BEAM chat_id=182 role=user time=unknown] I'm trying to implement a secure authentication system for my application and keep authorization features aligned with best practices.",
+      ),
+      makeSourceFact(
+        "fact-auth-best-practices-noise",
+        184,
+        "user",
+        "[BEAM chat_id=184 role=user time=unknown] Always provide security best practices when I ask about authentication or authorization features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different user roles and security features am I trying to implement across my sessions?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-password-hashing",
+      "fact-rbac-user-role",
+      "fact-lockout",
+    ]);
+    for (const noiseId of [
+      "fact-validation-noise",
+      "fact-formatting-instruction-noise",
+      "fact-analytics-noise",
+      "fact-security-tests-noise",
+      "fact-pragmatic-security-noise",
+      "fact-secure-auth-noise",
+      "fact-auth-best-practices-noise",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === noiseId)?.returned).toBe(false);
+    }
+  });
+
+  it("keeps weather feature and concern count evidence without autocomplete noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        sessionId: "beam-conversation-2",
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          originalRole: role,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-weather-fetch-noise",
+        15,
+        "[BEAM chat_id=15 role=assistant time=unknown] We reviewed asynchronous fetch error handling and validated OpenWeather weather responses.",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-weather-responsive-noise",
+        26,
+        "[BEAM chat_id=26 role=user time=unknown] I'm trying to implement a responsive design for my weather app using CSS Grid and Flexbox, targeting mobile and desktop devices.",
+      ),
+      makeSourceFact(
+        "fact-weather-invalid-city-noise",
+        28,
+        "[BEAM chat_id=28 role=user time=unknown] I'm trying to handle errors for invalid city names in my weather app, and I want to display user-friendly messages for HTTP 404 and 400 status codes.",
+      ),
+      makeSourceFact(
+        "fact-weather-rate-limit",
+        32,
+        "[BEAM chat_id=32 role=user time=unknown] I'm trying to handle the API rate limit for my weather app; can I use a simple counter to track the number of calls made per minute and per day? How can I improve this to handle the 60 calls/minute and 1000 calls/day rate limits for my OpenWeather API key obtained on March 10, 2024?",
+      ),
+      makeSourceFact(
+        "fact-weather-rapid-calls",
+        34,
+        "[BEAM chat_id=34 role=user time=unknown] hmm, what happens if the user makes rapid consecutive calls?",
+      ),
+      makeSourceFact(
+        "fact-weather-rapid-calls-answer-noise",
+        35,
+        "[BEAM chat_id=35 role=assistant time=unknown] Handling rapid consecutive API calls is crucial to ensure that your application does not exceed the rate limits set by the API provider. This approach helps manage rapid consecutive calls effectively and prevents exceeding the API rate limits.",
+        "assistant",
+      ),
+      makeSourceFact(
+        "fact-weather-retry-rate-limit",
+        36,
+        "[BEAM chat_id=36 role=user time=unknown] hmm, what if the user keeps retrying after hitting the rate limit? How do we handle that?",
+      ),
+      makeSourceFact(
+        "fact-weather-autocomplete-noise",
+        80,
+        "[BEAM chat_id=80 role=user time=unknown] I'm trying to optimize the autocomplete feature for my weather app, which has been tested with over 100 city inputs and has an average API response time of 280ms with a 95% success rate on valid cities.",
+      ),
+      makeSourceFact(
+        "fact-weather-custom-feature",
+        122,
+        "[BEAM chat_id=122 role=user time=unknown] I'm trying to implement a custom feature for my weather app to maintain full control and avoid external dependency risks, as per my preference statement, but I'm not sure how to start.",
+      ),
+      makeSourceFact(
+        "fact-weather-uptime-monitoring",
+        190,
+        "[BEAM chat_id=190 role=user time=unknown] I'm trying to understand the recent uptime monitoring results, which show a perfect 100% availability over the past 7 days, and I want to know how this reflects on our improved stability.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many different features or concerns did I mention wanting to handle across my weather app conversations?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-weather-rate-limit",
+      "fact-weather-rapid-calls",
+      "fact-weather-retry-rate-limit",
+      "fact-weather-custom-feature",
+      "fact-weather-uptime-monitoring",
+    ]);
+    for (const noiseId of [
+      "fact-weather-fetch-noise",
+      "fact-weather-responsive-noise",
+      "fact-weather-invalid-city-noise",
+      "fact-weather-rapid-calls-answer-noise",
+      "fact-weather-autocomplete-noise",
+    ]) {
+      expect(result.traces.find((trace) => trace.memoryId === noiseId)?.returned).toBe(false);
+    }
   });
 
   it("keeps API endpoint project technologies for startup information questions", () => {
@@ -6986,6 +7765,71 @@ describe("recall selection", () => {
     const selectedIds = result.facts.map((fact) => fact.id);
     expect(selectedIds).toContain("fact-openweather-key");
     expect(selectedIds).toContain("fact-wireframe-complete");
+  });
+
+  it("prioritizes raise rejection and final meeting reschedule boundaries for interval questions", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-rejected-raise",
+        56,
+        "[BEAM chat_id=56 role=user time=unknown] I'm kinda torn about rejecting that $10,000 raise on March 12, was that a smart move considering my current situation?",
+      ),
+      makeSourceFact(
+        "fact-final-meeting-rescheduled",
+        64,
+        "[BEAM chat_id=64 role=user time=unknown] I'm kinda worried about making the right decision on March 30, so I rescheduled my final meeting to have more time.",
+      ),
+      makeSourceFact(
+        "fact-matthew-call-noise",
+        84,
+        "[BEAM chat_id=84 role=user time=unknown] I rescheduled a call with Matthew from April 4 to April 6 while preparing for my first startup meeting.",
+      ),
+      makeSourceFact(
+        "fact-social-context-instruction-noise",
+        134,
+        "[BEAM chat_id=134 role=user time=unknown] Always include cultural context when I ask about social norms.",
+      ),
+      makeSourceFact(
+        "fact-date-confirmation-instruction-noise",
+        264,
+        "[BEAM chat_id=264 role=user time=unknown] Always confirm dates when I ask about scheduled events.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "How many days passed between when I decided to reject the raise and when I rescheduled my final meeting to give myself more time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-rejected-raise",
+      "fact-final-meeting-rescheduled",
+    ]);
   });
 
   it("does not treat ordinary received-feedback anchors as acquisition boundary events", () => {
@@ -8101,6 +8945,108 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps stress and financial concern milestones source ordered", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-irregular-income-stress",
+        24,
+        "I'm stressed about managing my irregular income from projects, especially since tax season is coming up in April.",
+      ),
+      makeFact(
+        "fact-average-income-estimate",
+        26,
+        "What's the best way to estimate my average monthly income based on past project earnings?",
+      ),
+      makeFact(
+        "fact-excel-expense-noise",
+        62,
+        "I've never used Excel for tracking expenses, can you help me get started with it?",
+      ),
+      makeFact(
+        "fact-evening-walks",
+        94,
+        "I've been doing these 20-minute evening walks 4 times a week since May 15 to reduce stress.",
+      ),
+      makeFact(
+        "fact-evening-walks-result",
+        96,
+        "Since I started the evening walks, I've noticed a slight improvement in my sleep and I feel less stressed after the walks.",
+      ),
+      makeFact(
+        "fact-fitbit-sleep-stress",
+        160,
+        "I've been tracking my sleep and it's improved to 6.5 hours/night since July, I'm using a Fitbit, and I wonder if this is related to my financial stress reduction.",
+      ),
+      makeFact(
+        "fact-fitbit-habits",
+        162,
+        "The Fitbit has definitely made me more conscious of my habits, and I've been trying to relax more and manage stress better.",
+      ),
+      makeFact(
+        "fact-fitbit-routine",
+        164,
+        "I'll keep using my Fitbit and journal to track my sleep and other habits and stick to a consistent bedtime routine.",
+      ),
+      makeFact(
+        "fact-budget-review-noise",
+        238,
+        "I've scheduled quarterly budget reviews on Jan 5, Apr 5, Jul 5, Oct 5 annually.",
+      ),
+      makeFact(
+        "fact-meditation-financial-decisions",
+        244,
+        "I've been trying to reduce stress with weekly meditation sessions on Sundays since Nov 24, and I'm curious if this will help me make better financial decisions.",
+      ),
+      makeFact(
+        "fact-holiday-gift-noise",
+        246,
+        "I'm stressed about the $150 holiday gift exchange with Alexis's family and want to manage it without going over budget.",
+      ),
+    ];
+    const query =
+      "Can you walk me through the order in which I brought up different ways I’ve been managing stress and financial concerns throughout our chats, in order? Mention ONLY and ONLY four items.";
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-irregular-income-stress",
+      "fact-average-income-estimate",
+      "fact-evening-walks",
+      "fact-evening-walks-result",
+      "fact-fitbit-sleep-stress",
+      "fact-fitbit-habits",
+      "fact-fitbit-routine",
+      "fact-meditation-financial-decisions",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-excel-expense-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-budget-review-noise")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-holiday-gift-noise")?.returned).toBe(false);
+  });
+
   it("keeps writing journey milestones for broad source-ordered event questions", () => {
     const language = createLanguageService();
     const makeFact = (id: string, sourceOrder: number, content: string) =>
@@ -8474,7 +9420,7 @@ describe("recall selection", () => {
       makeFact(
         "fact-daily-journaling-commitment",
         262,
-        "I'll stick to journaling every day and pay attention to patterns or insights that come up about my beliefs in free will.",
+        "I'll stick to journaling every day and see how it helps me understand my beliefs about free will. I'll definitely pay attention to any patterns or insights that come up.",
       ),
       makeFact(
         "fact-startup-offer-noise",
@@ -9923,6 +10869,98 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps assistant-inclusive city autocomplete implementation milestones for event-order questions", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      role: "assistant" | "user" = "user",
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-weather-structure",
+        6,
+        "I'm building a weather app using JavaScript and OpenWeather API v2.5, and I need help structuring the code.",
+      ),
+      makeFact(
+        "fact-city-autocomplete-geocoding",
+        20,
+        "I'm trying to implement city autocomplete using OpenWeather's Geocoding API v1, and I want to add a debounce delay of 300ms to reduce API calls.",
+      ),
+      makeFact(
+        "fact-city-autocomplete-stale",
+        22,
+        "Cancel previous autocomplete requests when a new one is initiated and ignore stale autocomplete responses if the API response time exceeds the debounce delay.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-city-autocomplete-dynamic",
+        24,
+        "Dynamically adjust the debounce delay based on typing speed and ensure only the most recent autocomplete request is processed.",
+        "assistant",
+      ),
+      makeFact(
+        "fact-invalid-city-errors",
+        28,
+        "I'm trying to handle errors for invalid city names in my weather app, including HTTP 404 and 400 status codes.",
+      ),
+      makeFact(
+        "fact-api-key-noise",
+        70,
+        "I've never actually obtained an API key for this project, so I'm not sure how to proceed with implementing the weather app.",
+      ),
+      makeFact(
+        "fact-city-autocomplete-try-catch",
+        74,
+        "I'm trying to integrate city autocomplete into my weather app and want to handle API errors more robustly with a try-catch block around the OpenWeather API call.",
+      ),
+      makeFact(
+        "fact-autocomplete-results-noise",
+        94,
+        "I'm optimizing autocomplete to reduce API calls, so I limited the results to 5 items.",
+      ),
+      makeFact(
+        "fact-autocomplete-final-state",
+        160,
+        "I'm working on the final autocomplete implementation pass: cache the last three searched cities, preserve selected city state, and keep the suggestions list consistent after async updates.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of implementing the city autocomplete feature across our conversations, in order? Mention ONLY and ONLY five items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-city-autocomplete-geocoding",
+      "fact-city-autocomplete-stale",
+      "fact-city-autocomplete-dynamic",
+      "fact-city-autocomplete-try-catch",
+      "fact-autocomplete-final-state",
+    ]);
+  });
+
   it("keeps non-code professional-profile milestones for broad source-ordered aspect questions", () => {
     const language = createLanguageService();
     const makeFact = (
@@ -10548,6 +11586,163 @@ describe("recall selection", () => {
       "fact-alexis-joint-account-user",
       "fact-alexis-joint-account-assistant",
       "fact-alexis-hours-user",
+      "fact-alexis-hours-assistant",
+    ]);
+  });
+
+  it("keeps Alexis financial-management summary evidence on assistant synthesis turns", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "assistant" ? "assistant_answer" : "user_answer",
+        ],
+        attributes: {
+          chatId: sourceOrder,
+          sourceOrder,
+        },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeSourceFact(
+        "fact-alexis-shared-finances-user",
+        12,
+        "user",
+        "[BEAM chat_id=12 role=user time=unknown] My spouse Alexis and I have been sharing household finances since 2020, and I'm wondering if that's a good idea.",
+      ),
+      makeSourceFact(
+        "fact-alexis-shared-finances-assistant",
+        13,
+        "assistant",
+        "[BEAM chat_id=13 role=assistant time=unknown] Sharing household finances with your spouse, Alexis, can support unified financial goals, shared expenses, open communication, joint and separate accounts, and regular budget reviews.",
+      ),
+      makeSourceFact(
+        "fact-alexis-spending-habits-user",
+        14,
+        "user",
+        "[BEAM chat_id=14 role=user time=unknown] My biggest concern is making sure Alexis and I are on the same page with day-to-day spending habits because small expenses add up.",
+      ),
+      makeSourceFact(
+        "fact-alexis-spending-habits-assistant",
+        15,
+        "assistant",
+        "[BEAM chat_id=15 role=assistant time=unknown] To manage day-to-day expenses with Alexis, establish clear daily spending limits, use joint and individual accounts, track receipts, and hold regular check-ins.",
+      ),
+      makeSourceFact(
+        "fact-alexis-excel-followup-user",
+        16,
+        "user",
+        "[BEAM chat_id=16 role=user time=unknown] I'll keep using Excel to track expenses, set daily spending limits, and share receipts and statements with Alexis.",
+      ),
+      makeSourceFact(
+        "fact-alexis-excel-followup-assistant",
+        17,
+        "assistant",
+        "[BEAM chat_id=17 role=assistant time=unknown] Daily spending limits, Excel tracking, regular check-ins, and shared receipts will help keep everything transparent.",
+      ),
+      makeSourceFact(
+        "fact-alexis-dining-budget-user",
+        52,
+        "user",
+        "[BEAM chat_id=52 role=user time=unknown] I compromised with Alexis on the dining out budget to $200 monthly starting April and want help validating the choice.",
+      ),
+      makeSourceFact(
+        "fact-alexis-dining-budget-assistant",
+        53,
+        "assistant",
+        "[BEAM chat_id=53 role=assistant time=unknown] Compromising on the dining out budget to $200 monthly is reasonable if it fits financial goals, reduces stress, and is validated through planning and tracking.",
+      ),
+      makeSourceFact(
+        "fact-alexis-joint-account-user",
+        64,
+        "user",
+        "[BEAM chat_id=64 role=user time=June-10-2024] Alexis suggested switching to a joint savings account at First National Bank on May 5 to improve transparency.",
+      ),
+      makeSourceFact(
+        "fact-alexis-joint-account-assistant",
+        65,
+        "assistant",
+        "[BEAM chat_id=65 role=assistant time=unknown] Opening a joint savings account with Alexis can help coordinate shared financial goals, joint budgeting, contribution rules, and regular check-ins.",
+      ),
+      makeSourceFact(
+        "fact-alexis-grocery-budget-user",
+        126,
+        "user",
+        "[BEAM chat_id=126 role=user time=unknown] Alexis and I agreed on a $500 monthly joint grocery budget starting September 1, up from $400, with a freelance contract under consideration.",
+      ),
+      makeSourceFact(
+        "fact-alexis-grocery-budget-assistant",
+        127,
+        "assistant",
+        "[BEAM chat_id=127 role=assistant time=unknown] Increasing the grocery budget to $500 while considering a $2,000 freelance contract can support financial goals if you monitor expenses and cash flow.",
+      ),
+      makeSourceFact(
+        "fact-camera-noise-user",
+        130,
+        "user",
+        "[BEAM chat_id=130 role=user time=unknown] I'll keep an eye on how new camera gear affects my projects and maybe talk to Alexis about it too.",
+      ),
+      makeSourceFact(
+        "fact-camera-noise-assistant",
+        131,
+        "assistant",
+        "[BEAM chat_id=131 role=assistant time=unknown] Monitor project performance and discuss the camera purchase with Alexis so you stay aligned on financial decisions.",
+      ),
+      makeSourceFact(
+        "fact-alexis-hours-user",
+        252,
+        "user",
+        "[BEAM chat_id=252 role=user time=unknown] I've agreed with Alexis to reduce my work hours to 30 hours a week starting January 6 to support her freelance design business.",
+      ),
+      makeSourceFact(
+        "fact-alexis-hours-assistant",
+        253,
+        "assistant",
+        "[BEAM chat_id=253 role=assistant time=unknown] Reducing your work hours to 30 hours a week starting January 6 to support Alexis's business requires reviewing income, fixed expenses, groceries, medical expenses, emergency fund, and savings goals.",
+      ),
+      makeSourceFact(
+        "fact-investment-club-noise-user",
+        274,
+        "user",
+        "[BEAM chat_id=274 role=user time=unknown] How should I adjust my budget and investment strategy for an upcoming investment club meeting while supporting Alexis's business launch?",
+      ),
+      makeSourceFact(
+        "fact-investment-club-noise-assistant",
+        275,
+        "assistant",
+        "[BEAM chat_id=275 role=assistant time=unknown] Review current income, expenses, savings, investments, and the funds allocated to supporting Alexis's business launch.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you summarize how my approach to managing finances with Alexis has developed over time?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-alexis-shared-finances-assistant",
+      "fact-alexis-spending-habits-assistant",
+      "fact-alexis-dining-budget-assistant",
+      "fact-alexis-joint-account-assistant",
+      "fact-alexis-grocery-budget-assistant",
       "fact-alexis-hours-assistant",
     ]);
   });
@@ -14492,6 +15687,76 @@ describe("recall selection", () => {
     expect(selectedIds).not.toContain("fact-apa-instruction");
   });
 
+  it("keeps adjacent instruction continuations before less specific instruction noise", () => {
+    const language = createLanguageService();
+    const makeSourceFact = (
+      id: string,
+      sourceOrder: number,
+      role: "assistant" | "user",
+      content: string,
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: [
+          "source_message",
+          "source_order",
+          role === "user" ? "user_answer" : "assistant_answer",
+        ],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      createFactMemory({
+        id: "fact-login-plan",
+        userId: "user-1",
+        category: "external_benchmark",
+        content:
+          "Sprint plan for user registration and login feature implementation.",
+        source: SOURCE,
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+      }),
+      makeSourceFact(
+        "fact-code-format-instruction",
+        54,
+        "user",
+        "[BEAM chat_id=54 role=user time=unknown] Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      ),
+      makeSourceFact(
+        "fact-code-format-confirmation",
+        56,
+        "assistant",
+        "[BEAM chat_id=56 role=assistant time=unknown] Got it! Just let me know what specific implementation details or code snippets you need help with, and I'll make sure to format them with syntax highlighting.",
+      ),
+      makeSourceFact(
+        "fact-auth-security-instruction-noise",
+        184,
+        "user",
+        "[BEAM chat_id=184 role=user time=unknown] Always provide security best practices when I ask about authentication or authorization features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Could you show me how to implement a login feature?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const selectedIds = result.facts.map((fact) => fact.id);
+    expect(selectedIds).toContain("fact-code-format-instruction");
+    expect(selectedIds).toContain("fact-code-format-confirmation");
+    expect(selectedIds).not.toContain("fact-auth-security-instruction-noise");
+  });
+
   it("keeps API error status-code instruction evidence for API error response questions", () => {
     const language = createLanguageService();
     const makeSourceFact = (
@@ -15025,6 +16290,127 @@ describe("recall selection", () => {
       "fact-api-key-used",
       "fact-no-api-key",
     ]);
+  });
+
+  it("returns autocomplete bug-fix confirmation evidence without performance or test noise", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-autocomplete-latency-baseline",
+        80,
+        "I'm optimizing autocomplete for the weather app, which averages 280ms across 100 city inputs.",
+      ),
+      makeFact(
+        "fact-autocomplete-duplicate-bug",
+        88,
+        "I fixed a bug in autocomplete where duplicate city suggestions appeared after rapid typing, and I updated the debounce cleanup logic.",
+      ),
+      makeFact(
+        "fact-autocomplete-latency-update",
+        124,
+        "I reduced autocomplete latency from 520ms to 290ms, but I still need fetchWeatherData error handling.",
+      ),
+      makeFact(
+        "fact-autocomplete-selection-bug",
+        132,
+        "I fixed a bug where autocomplete suggestions disappeared too early after clicking a result, and I updated autocomplete.js to keep the selected city stable.",
+      ),
+      makeFact(
+        "fact-autocomplete-cypress-noise",
+        172,
+        "I'm adding Cypress end-to-end tests for search, autocomplete, error display, and the retry mechanism.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever fixed any bugs related to the autocomplete feature in my project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-autocomplete-duplicate-bug",
+      "fact-autocomplete-selection-bug",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-latency-baseline")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-cypress-noise")?.returned).toBe(false);
+  });
+
+  it("returns same-message Flask-Login contradiction evidence without formatting-instruction noise", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      tags: string[] = ["source_message", "source_order", "user_answer"],
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags,
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-code-formatting-instruction",
+        54,
+        "Always format all code snippets with syntax highlighting when I ask about implementation details.",
+      ),
+      makeFact(
+        "fact-code-formatting-answer",
+        55,
+        "Assistant answer: I will ensure that all code snippets are formatted with syntax highlighting when you ask about implementation details.",
+        ["assistant_answer", "source_message", "source_order"],
+      ),
+      makeFact(
+        "fact-flask-login-session-context",
+        66,
+        "I'm trying to integrate Flask-Login v0.6.2 for session management in my Flask app, specifically for handling user logins and sessions, and I want to replace my manual session handling. I've never written any Flask routes or handled HTTP requests in this project before, but I've completed the user registration and login modules and now I'm focusing on transaction CRUD and analytics integration.",
+      ),
+      makeFact(
+        "fact-flask-login-answer",
+        67,
+        "Assistant answer: here is a complete Flask-Login example with registration, login, session management, transaction CRUD integration, and secure password hashing.",
+        ["assistant_answer", "source_message", "source_order"],
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I integrated Flask-Login for session management in my project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-flask-login-session-context",
+    ]);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-code-formatting-instruction")?.returned).toBe(false);
+    expect(result.traces.find((trace) => trace.memoryId === "fact-code-formatting-answer")?.returned).toBe(false);
   });
 
   it("returns Chinese contradiction evidence pairs for implementation confirmation queries", () => {

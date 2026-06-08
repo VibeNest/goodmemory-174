@@ -5,6 +5,7 @@ import {
   dedupeSourceOrderedEvidenceByOrder,
   selectSourceOrderedEvidencePlan,
 } from "./sourceOrderPlan";
+import { selectSourceOrderedSecurityFeatureCountReasoningEvidence } from "./sourceOrderSecurityReasoning";
 import { isSourceOrderedSummaryCandidate } from "./sourceOrderSummary";
 import {
   sourceOrderAspectTopics,
@@ -1046,6 +1047,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedWeatherAppLatencyComparisonEvidence(input);
   if (weatherAppLatencyComparison.length > 0) {
     return weatherAppLatencyComparison;
+  }
+
+  const securityFeatureCountReasoning =
+    selectSourceOrderedSecurityFeatureCountReasoningEvidence(input);
+  if (securityFeatureCountReasoning.length > 0) {
+    return securityFeatureCountReasoning;
   }
 
   const probabilityCalculationConfirmation =

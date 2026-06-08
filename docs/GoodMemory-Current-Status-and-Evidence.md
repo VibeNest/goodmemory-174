@@ -1869,6 +1869,75 @@ It intentionally replaces phase-by-phase navigation at the top level of `README.
     one abstention bucket noise id and one event-ordering bucket noise id. This
     remains a partial repair: the full 100K diagnostic is still recall-limited
     and noisy.
+  - latest relationship-belief event-order plus dashboard API update repair
+    diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-relationship-beliefs-dashboard-current-20260606T180000Z`
+    compares against the family-movie basic project run, has
+    `executionFailures: 0`, evidence-chat recall 0.7151453163424996,
+    missed-recall cases 145/355, wrong-recall/noise cases 286/400, zero-recall
+    cases 38, global hit evidence ids 733 -> 747, missing ids 361 -> 347, and
+    total noise 2005 -> 1971. The repair adds a guarded source-ordered
+    relationship/belief event-order selector that keeps all seven Stephen
+    relationship and belief source groups together, plus a dashboard API
+    response-time update route that prefers source turns over
+    session-management noise. Target `12:event_ordering:1` rises from
+    0.07142857142857142 to 1.0 by returning exactly chats
+    58/60/74/110/112/164/166/168/232/234/236/258/260/262 and removing 29
+    noise ids. Target `1:knowledge_update:1` improves from 0 to 0.5 by
+    recovering chat 86 and removing five prior noise ids, but still misses
+    evidence chat 114 and newly retrieves chat 108. Case-delta analysis shows
+    no hit-loss, no newly-missing evidence regressions, no positive missing-id
+    deltas, no positive net noise deltas, and no negative recall deltas. This
+    remains a partial repair: the full 100K diagnostic is still recall-limited
+    and noisy, and the dashboard API update row still needs exact second-turn
+    recovery.
+  - same current-data dashboard API latest-update repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-dashboard-api-latest-update-current-20260606T162000Z`
+    compares against the restored GitHub-raw weather feature/concern count
+    report
+    `run-phase63-beam-100k-recall-diagnostic-rules-weather-feature-concern-count-user-grounded-current-20260606T151300Z`,
+    has `executionFailures: 0`, evidence-chat recall 0.6643244314371075,
+    missed-recall cases 151/355, wrong-recall/noise cases 283/400, zero-recall
+    cases 77, global hit evidence ids 697 -> 700, missing ids 397 -> 394, and
+    total noise 1326 -> 1324. The dashboard target `1:knowledge_update:1`
+    now returns exactly chats 86/114, recovers chat 114, and removes same-topic
+    Flask-Login/session-management noise chat 108. Case-delta analysis shows no
+    hit-loss, no newly-missing evidence regressions, and no negative recall
+    deltas; same-recall noise swaps include one abstention bucket noise increase
+    while global noise still decreases by two. This remains partial Phase 63
+    progress, not BEAM closure.
+  - same current-data Alexis summary, deadline, interval, and conditional
+    probability update repair diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-alexis-summary-deadline-interval-conditional-update-current-20260606T203000Z`
+    compares against the dashboard API latest-update report, has
+    `executionFailures: 0`, evidence-chat recall 0.6692540089018963,
+    missed-recall cases 148/355, wrong-recall/noise cases 279/400,
+    zero-recall cases 77, global hit evidence ids 700 -> 707, missing ids
+    394 -> 387, and total noise 1324 -> 1301. The repair makes
+    `16:summarization:1` exact at chats 13/15/53/65/127/253, makes
+    `3:knowledge_update:1` exact at chats 12/52, keeps
+    `12:temporal_reasoning:1` exact at chats 56/64 while removing interval
+    noise 264/84, and makes `5:knowledge_update:2` exact at chats
+    84/86/88/130 while removing 234/132/134/98. Case-delta analysis shows no
+    non-null negative recall deltas, no hit-loss, no newly-missing evidence,
+    no positive missing-id deltas, and no positive noise deltas. This remains
+    partial Phase 63 progress, not BEAM closure.
+  - same current-data Flask-Login/session-management and noise-guard repair
+    diagnostic
+    `run-phase63-beam-100k-recall-diagnostic-rules-flask-login-session-management-final-guards-current-20260606T172124Z`
+    compares against the Alexis/deadline/interval/conditional-update report,
+    has `executionFailures: 0`, evidence-chat recall 0.6766483750990794,
+    missed-recall cases 145/355, wrong-recall/noise cases 274/400,
+    zero-recall cases 75, global hit evidence ids 707 -> 715, missing ids
+    387 -> 379, and total noise 1301 -> 1263. The repair recovers
+    `1:contradiction_resolution:2` to chat 66 while removing instruction noise
+    54/55, recovers `20:temporal_reasoning:2` to chats 102/152, improves
+    `16:event_ordering:2` by recovering five more source ids while dropping
+    23 noise ids, trims `10:information_extraction:1` noise, and suppresses
+    the `3:abstention:1` Trello criteria fallback. Case-delta analysis shows
+    no non-null negative recall deltas, no hit-loss, no newly-missing evidence,
+    no positive missing-id deltas, and no positive noise deltas. This remains
+    partial Phase 63 progress, not BEAM closure.
   - initial miss/noise analysis
     `reports/eval/research/phase-63/beam/run-phase63-beam-100k-full-initial-20260518T000335Z/miss-case-analysis.json`
     has status `needs-live-retrieval-analysis`: no-memory is the expected

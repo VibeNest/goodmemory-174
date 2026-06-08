@@ -2207,6 +2207,73 @@ Case-delta analysis shows no hit-loss, no newly-missing evidence, and no
 negative recall deltas. This remains partial BEAM progress, not closure:
 146 evidence cases still miss, the full diagnostic remains noisy at
 wrong-recall/noise 287/400, and total noise still needs broad hardening.
+The next retained repair adds a Stephen relationship/belief event-order
+selector and a dashboard API response-time update route. The accepted rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-relationship-beliefs-dashboard-current-20260606T180000Z`
+compares against the family-movie run, has `executionFailures: 0`, and raises
+evidence-chat recall from 0.7111211714732842 to 0.7151453163424996. Global hit
+evidence ids improve 733 -> 747, missing ids improve 361 -> 347, missed-recall
+cases improve 146 -> 145, wrong-recall/noise cases improve 287 -> 286,
+zero-recall cases improve 39 -> 38, and total noise decreases 2005 -> 1971.
+Event ordering improves by +13 hit ids, -13 missing ids, -30 bucket noise ids,
+one fewer incomplete case, and one fewer wrong-recall/noise case; target
+`12:event_ordering:1` moves from 0.07142857142857142 to exact 1.0 by returning
+chats 58/60/74/110/112/164/166/168/232/234/236/258/260/262 and no target
+noise. Knowledge update improves by +1 hit id, -1 missing id, -4 net noise ids,
+one fewer zero-recall case, and target `1:knowledge_update:1` moves from 0 to
+0.5 by recovering chat 86. That dashboard target still misses chat 114 and
+newly retrieves chat 108, so this is partial BEAM progress, not closure.
+Case-delta analysis shows no hit-loss, no newly-missing evidence, no positive
+missing-id deltas, no positive net noise deltas, and no negative recall deltas.
+A follow-up same-current-data dashboard API latest-update repair tightens the
+duplicate 250ms update selection after the restored GitHub-raw weather-count
+run. The retained rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-dashboard-api-latest-update-current-20260606T162000Z`
+compares against
+`run-phase63-beam-100k-recall-diagnostic-rules-weather-feature-concern-count-user-grounded-current-20260606T151300Z`,
+has `executionFailures: 0`, and raises evidence-chat recall from
+0.6600990793244315 to 0.6643244314371075. Global hit evidence ids improve
+697 -> 700, missing ids improve 397 -> 394, missed-recall cases improve
+153 -> 151, wrong-recall/noise cases improve 284 -> 283, zero-recall cases
+improve 78 -> 77, and total noise decreases 1326 -> 1324. Target
+`1:knowledge_update:1` moves from 0.5 to exact 1.0 by returning chats 86/114,
+recovering chat 114, and removing noise chat 108. Case-delta analysis shows no
+hit-loss, no newly-missing evidence, and no negative recall deltas; same-recall
+noise swaps include one abstention bucket noise increase, so this remains
+partial BEAM progress rather than closure.
+The latest same-current-data Alexis summary, deadline, interval, and conditional
+probability update repair builds on that checkpoint. The retained rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-alexis-summary-deadline-interval-conditional-update-current-20260606T203000Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.6643244314371075 to 0.6692540089018963. Global hit evidence ids improve
+700 -> 707, missing ids improve 394 -> 387, missed-recall cases improve
+151 -> 148, wrong-recall/noise cases improve 283 -> 279, zero-recall cases
+stay at 77, and total noise decreases 1324 -> 1301. Targets
+`16:summarization:1`, `3:knowledge_update:1`, `12:temporal_reasoning:1`, and
+`5:knowledge_update:2` now return exact evidence sets
+13/15/53/65/127/253, 12/52, 56/64, and 84/86/88/130 respectively. Case-delta
+analysis shows no non-null negative recall deltas, no hit-loss, no
+newly-missing evidence, no positive missing-id deltas, and no positive noise
+deltas. This is partial BEAM progress rather than closure; remaining work is
+still the full-slice miss/noise surface, especially source-ordered summary
+budget quality and broad long-conversation noise.
+The latest same-current-data Flask-Login/session-management and noise-guard
+repair builds on that checkpoint. The retained rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-flask-login-session-management-final-guards-current-20260606T172124Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.6692540089018963 to 0.6766483750990794. Global hit evidence ids improve
+707 -> 715, missing ids improve 387 -> 379, missed-recall cases improve
+148 -> 145, wrong-recall/noise cases improve 279 -> 274, zero-recall cases
+improve 77 -> 75, and total noise decreases 1301 -> 1263. It recovers
+`1:contradiction_resolution:2` to chat 66 while removing instruction noise
+54/55, recovers `20:temporal_reasoning:2` to chats 102/152, improves
+`16:event_ordering:2` by recovering five more source ids while dropping 23
+noise ids, trims `10:information_extraction:1` noise, and suppresses the
+`3:abstention:1` Trello criteria fallback. Case-delta analysis shows no
+non-null negative recall deltas, no hit-loss, no newly-missing evidence, no
+positive missing-id deltas, and no positive noise deltas. This is still partial
+BEAM progress rather than closure; remaining work is the broader full-slice
+miss/noise surface.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

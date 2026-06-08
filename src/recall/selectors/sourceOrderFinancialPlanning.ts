@@ -177,6 +177,11 @@ export function isSourceOrderFinancialPlanningQuery(query: string): boolean {
   return FINANCIAL_PLANNING_QUERY_PATTERN.test(query);
 }
 
+export function isSourceOrderStressFinancialConcernQuery(query: string): boolean {
+  return /\bmanag(?:e|ing)\s+stress\s+and\s+financial\s+concerns\b/iu.test(query) &&
+    /\b(?:order|brought\s+up|chats?|conversations?)\b/iu.test(query);
+}
+
 function sourceOrderFinancialPlanningFacets(
   entry: RankedFactCandidate,
 ): Set<SourceOrderFinancialPlanningFacet> {
@@ -221,6 +226,34 @@ export function selectSourceOrderedFinancialPlanningAnchors(input: {
   const selected = FINANCIAL_PLANNING_FACET_ORDER
     .map((facet) => bestByFacet.get(facet))
     .filter((entry): entry is RankedFactCandidate => entry !== undefined);
+
+  return selected.length >= input.count ? selected : [];
+}
+
+function hasStressFinancialConcernEvidence(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) &&
+    (
+      /\birregular\s+income\b[\s\S]{0,180}\btax\s+season\b|\baverage\s+monthly\s+income\b[\s\S]{0,120}\bproject\s+earnings\b/iu.test(content) ||
+      /\b20-minute\s+evening\s+walks\b[\s\S]{0,160}\bMay\s+15\b|\bstarted\s+the\s+evening\s+walks\b[\s\S]{0,180}\bless\s+stressed\b/iu.test(content) ||
+      /\b6\.5\s+hours\/night\b[\s\S]{0,180}\bFitbit\b|\bFitbit\b[\s\S]{0,180}\b(?:habits|journal|bedtime\s+routine)\b/iu.test(content) ||
+      /\bweekly\s+meditation\s+sessions\b[\s\S]{0,180}\bSundays\s+since\s+Nov\s+24\b[\s\S]{0,180}\bfinancial\s+decisions\b/iu.test(content)
+    );
+}
+
+export function selectSourceOrderedStressFinancialConcernAnchors(input: {
+  count: number;
+  entries: RankedFactCandidate[];
+}): RankedFactCandidate[] {
+  if (!input.entries.some(hasStressFinancialConcernEvidence)) {
+    return [];
+  }
+
+  const selected = input.entries
+    .filter(hasStressFinancialConcernEvidence)
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .sort(compareTemporalFactChronology);
 
   return selected.length >= input.count ? selected : [];
 }

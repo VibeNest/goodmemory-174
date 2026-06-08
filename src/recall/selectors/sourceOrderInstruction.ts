@@ -20,6 +20,7 @@ import { hasPreferenceAdviceBridgeSignal } from "./conversationEvidence";
 
 export const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 export const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
+export const SOURCE_ORDER_INSTRUCTION_COMPANION_DISTANCE = 2;
 export const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 4;
 export const SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD = 130;
 export const SOURCE_ORDER_PREFERENCE_COMPANION_DISTANCE = 1;
@@ -182,6 +183,8 @@ const RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN =
   /^(?=[\s\S]*\bresume\b)(?=[\s\S]*\bdesi(?:gn|ng)\b)/iu;
 const RESUME_DESIGN_INSTRUCTION_PATTERN =
   /^(?=[\s\S]*\bminimalist\s+resume\s+style\b)(?=[\s\S]*\bclear\s+headings\b)(?=[\s\S]*\bresume\s+design\s+preferences\b)/iu;
+const SOURCE_INSTRUCTION_CONTINUATION_PATTERN =
+  /\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b[\s\S]{0,180}\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b|\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b[\s\S]{0,180}\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b/iu;
 
 export function isAsaCongruenceProofPreferenceQuery(query: string): boolean {
   return ASA_CONGRUENCE_PROOF_QUERY_PATTERN.test(query);
@@ -531,6 +534,67 @@ export function sourceInstructionPriority(input: {
   return priority;
 }
 
+function isSourceOrderedInstructionContinuation(input: {
+  anchor: RankedFactCandidate;
+  candidate: RankedFactCandidate;
+  language: LanguageService;
+}): boolean {
+  if (input.anchor.fact.id === input.candidate.fact.id) {
+    return false;
+  }
+
+  if (!hasSourceMessageTag(input.candidate)) {
+    return false;
+  }
+
+  const anchorOrder = sourceOrderSortKey(input.anchor);
+  const candidateOrder = sourceOrderSortKey(input.candidate);
+  if (anchorOrder === undefined || candidateOrder === undefined) {
+    return false;
+  }
+
+  if (
+    Math.abs(candidateOrder - anchorOrder) >
+      SOURCE_ORDER_INSTRUCTION_COMPANION_DISTANCE
+  ) {
+    return false;
+  }
+
+  const content = stripEvidencePrefix(input.candidate.fact.content);
+  if (!SOURCE_INSTRUCTION_CONTINUATION_PATTERN.test(content)) {
+    return false;
+  }
+
+  const anchorTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.anchor.locale,
+    text: stripEvidencePrefix(input.anchor.fact.content),
+  });
+  const candidateTopics = sourceInstructionTopicTokens({
+    language: input.language,
+    locale: input.candidate.locale,
+    text: content,
+  });
+
+  return countInstructionAliasOverlap(anchorTopics, candidateTopics) > 0;
+}
+
+function sourceOrderedInstructionCompanion(
+  entries: RankedFactCandidate[],
+  anchor: RankedFactCandidate,
+  language: LanguageService,
+): RankedFactCandidate | undefined {
+  return entries
+    .filter((candidate) =>
+      isSourceOrderedInstructionContinuation({
+        anchor,
+        candidate,
+        language,
+      })
+    )
+    .sort(compareTemporalFactChronology)[0];
+}
+
 export function selectSourceOrderedInstructionEvidence(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -581,9 +645,49 @@ export function selectSourceOrderedInstructionEvidence(input: {
       return compareTemporalFactChronology(left.entry, right.entry);
     });
 
-  return candidates
-    .slice(0, SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT)
-    .map((candidate) => candidate.entry);
+  const candidatesWithCompanions = candidates
+    .map((candidate) => ({
+      ...candidate,
+      companion: sourceOrderedInstructionCompanion(
+        input.entries,
+        candidate.entry,
+        input.language,
+      ),
+    }))
+    .sort((left, right) => {
+      if (Boolean(left.companion) !== Boolean(right.companion)) {
+        return left.companion ? -1 : 1;
+      }
+      if (left.priority !== right.priority) {
+        return right.priority - left.priority;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    });
+
+  const selected: RankedFactCandidate[] = [];
+  const selectedIds = new Set<string>();
+  for (const candidate of candidatesWithCompanions) {
+    if (selected.length >= SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT) {
+      break;
+    }
+    if (selectedIds.has(candidate.entry.fact.id)) {
+      continue;
+    }
+
+    selected.push(candidate.entry);
+    selectedIds.add(candidate.entry.fact.id);
+
+    if (
+      candidate.companion &&
+      selected.length < SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT &&
+      !selectedIds.has(candidate.companion.fact.id)
+    ) {
+      selected.push(candidate.companion);
+      selectedIds.add(candidate.companion.fact.id);
+    }
+  }
+
+  return selected;
 }
 
 export function isPreferenceGuidanceQuery(

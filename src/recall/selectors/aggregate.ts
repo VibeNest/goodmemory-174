@@ -6,6 +6,7 @@ import {
   isTemporalIntervalEvidenceFact,
   isTemporalIntervalQuery,
   REALIZED_TEMPORAL_EVENT_FACT_PATTERN,
+  sourceOrderSortKey,
   temporalIntervalBoundaryPriority,
 } from "./temporal";
 import {
@@ -78,6 +79,10 @@ export const SOCIAL_REACH_METRIC_FACT_PATTERN =
   /\bSocial reach metric:\s*(?:Facebook ad campaign|Instagram influencer collaboration)\b[\s\S]{0,120}\b(?:reached|followers?)\b[\s\S]{0,80}\b[\d,]+\b/iu;
 export const VIDEO_VIEW_METRIC_FACT_PATTERN =
   /\bVideo view metric:\s*(?:YouTube|TikTok)\b[\s\S]{0,120}\b[\d,]+\s+views\b/iu;
+export const WEATHER_FEATURE_CONCERN_COUNT_QUERY_PATTERN =
+  /\bhow\s+many\b[\s\S]{0,80}\bdifferent\b[\s\S]{0,80}\bfeatures?\s+or\s+concerns?\b[\s\S]{0,160}\bweather\s+app\b/iu;
+export const WEATHER_FEATURE_CONCERN_COUNT_FACT_PATTERN =
+  /\bweather\s+app\b[\s\S]{0,180}\bAPI\s+rate\s+limits?\b[\s\S]{0,220}\b(?:calls?\s+made\s+per\s+minute|calls?\/minute|calls?\s+per\s+day|calls?\/day|OpenWeather\s+API\s+key)\b|\bAPI\s+rate\s+limits?\b[\s\S]{0,180}\bweather\s+app\b[\s\S]{0,220}\b(?:calls?\s+made\s+per\s+minute|calls?\/minute|calls?\s+per\s+day|calls?\/day|OpenWeather\s+API\s+key)\b|\brapid\s+consecutive\s+calls\b|\b(?:keeps?\s+retrying|retrying)\b[\s\S]{0,160}\bhitting\s+the\s+rate\s+limit\b|\bcustom\s+feature\b[\s\S]{0,180}\bweather\s+app\b[\s\S]{0,180}\bmaintain\s+full\s+control\b[\s\S]{0,160}\bavoid\s+external\s+dependency\s+risks\b|\buptime\s+monitoring\s+results\b[\s\S]{0,160}\b100\s*%\s+availability\b[\s\S]{0,160}\bpast\s+7\s+days\b/iu;
 export const MUSEUM_VISIT_ORDER_FACT_PATTERN =
   /\b(?:Museum or gallery I visited|Art-related event I attended|I visited\b[\s\S]{0,80}\bMuseum|Museum\b[\s\S]{0,80}\b(?:exhibition|guided tour|lecture|tour))\b/iu;
 export const FAMILY_AGE_FACT_PATTERN =
@@ -252,6 +257,10 @@ export function isPropertyViewingAggregateQuery(query: string): boolean {
 export function isFoodDeliveryServiceAggregateQuery(query: string): boolean {
   return /\bhow many\b/i.test(query) &&
     /\b(?:food delivery|delivery services?|Domino'?s|Uber Eats|Fresh Fusion)\b/i.test(query);
+}
+
+export function isWeatherFeatureConcernCountQuery(query: string): boolean {
+  return WEATHER_FEATURE_CONCERN_COUNT_QUERY_PATTERN.test(query);
 }
 
 export function isMedicalProviderAggregateQuery(query: string): boolean {
@@ -519,6 +528,13 @@ export function hasAggregateFactCountSignal(
     )
   ) {
     return true;
+  }
+
+  if (isWeatherFeatureConcernCountQuery(query)) {
+    return hasUserAnswerTag(entry) &&
+      WEATHER_FEATURE_CONCERN_COUNT_FACT_PATTERN.test(
+        valueBearingFactContent(entry.fact.content),
+      );
   }
 
   if (
@@ -831,6 +847,13 @@ export function aggregateEvidencePriority(
     FITNESS_CLASS_FACT_PATTERN.test(valueContent)
   ) {
     priority += 60;
+  }
+  if (
+    isWeatherFeatureConcernCountQuery(query) &&
+    WEATHER_FEATURE_CONCERN_COUNT_FACT_PATTERN.test(valueContent)
+  ) {
+    const sourceOrder = sourceOrderSortKey(entry) ?? Number.MAX_SAFE_INTEGER;
+    priority += 100_000 - Math.min(sourceOrder, 1000) * 100;
   }
   if (
     hasAggregateCategoryInstanceSignal({

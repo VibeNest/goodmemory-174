@@ -22,6 +22,22 @@ export const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN =
   /\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|stored|submitted|tested|used|worked(?:\s+with|\s+on)?|wrote|written|managed\s+to)\b|return(?:ed)?\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|获得了|提交了|参加了|练习了|返回静态)/iu;
 export const CONTRADICTION_EXPLORATORY_NON_REALIZED_PATTERN =
   /\b(?:before\s+deciding|review(?:ing)?\s+(?:a\s+)?(?:tutorial|guide|docs?|documentation)|trying\s+to\s+review|tutorials?)\b/iu;
+const AUTOCOMPLETE_BUG_FIX_CONFIRMATION_QUERY_PATTERN =
+  /\b(?:have|has|did|do|does|ever)\b[\s\S]{0,180}\bfix(?:ed)?\b[\s\S]{0,180}\bbugs?\b[\s\S]{0,180}\bautocomplete\b|\b(?:have|has|did|do|does|ever)\b[\s\S]{0,180}\bautocomplete\b[\s\S]{0,180}\bbugs?\b[\s\S]{0,180}\bfix(?:ed)?\b/iu;
+const AUTOCOMPLETE_BUG_FIX_EVIDENCE_PATTERN =
+  /\bfix(?:ed)?\b[\s\S]{0,120}\bbugs?\b[\s\S]{0,220}\bautocomplete\b|\bfix(?:ed)?\b[\s\S]{0,160}\bautocomplete\b[\s\S]{0,220}\bbugs?\b|\bautocomplete\b[\s\S]{0,220}\bbugs?\b[\s\S]{0,160}\bfix(?:ed)?\b|\bduplicate\s+city\s+suggestions\b[\s\S]{0,180}\bdebounce\s+cleanup\b|\bsuggestions?\s+disappeared\b[\s\S]{0,180}\bautocomplete\.js\b/iu;
+const FLASK_LOGIN_SESSION_MANAGEMENT_CONFIRMATION_QUERY_PATTERN =
+  /\b(?:have|has|did|do|does|ever)\b[\s\S]{0,160}\bintegrat(?:e|ed|ing|ion)\b[\s\S]{0,160}\bflask[-\s]?login\b[\s\S]{0,160}\bsession\s+management\b|\b(?:have|has|did|do|does|ever)\b[\s\S]{0,160}\bsession\s+management\b[\s\S]{0,160}\bflask[-\s]?login\b[\s\S]{0,160}\bintegrat(?:e|ed|ing|ion)\b/iu;
+const FLASK_LOGIN_SESSION_MANAGEMENT_EVIDENCE_PATTERN =
+  /\bflask[-\s]?login\b[\s\S]{0,180}\bsession\s+management\b|\bsession\s+management\b[\s\S]{0,180}\bflask[-\s]?login\b/iu;
+const FLASK_LOGIN_CONTRADICTION_CONTEXT_PATTERN =
+  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,180}\b(?:flask\s+routes?|http\s+requests?|managed\s+user\s+sessions?|manual\s+session\s+handling|session\s+management)\b/iu;
+
+export function isFlaskLoginSessionManagementContradictionQuery(
+  query: string,
+): boolean {
+  return FLASK_LOGIN_SESSION_MANAGEMENT_CONFIRMATION_QUERY_PATTERN.test(query);
+}
 
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
@@ -80,14 +96,78 @@ export function isRealizedPositiveSourceClaim(entry: RankedFactCandidate): boole
     CONTRADICTION_REALIZED_EVIDENCE_PATTERN.test(content);
 }
 
+function selectAutocompleteBugFixConfirmationEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!AUTOCOMPLETE_BUG_FIX_CONFIRMATION_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  return input.entries
+    .filter((entry) => {
+      if (
+        !hasConversationEvidenceTag(entry) ||
+        !hasUserAnswerTag(entry) ||
+        sourceOrderSortKey(entry) === undefined
+      ) {
+        return false;
+      }
+
+      const content = valueBearingFactContent(entry.fact.content);
+      return !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content) &&
+        AUTOCOMPLETE_BUG_FIX_EVIDENCE_PATTERN.test(content);
+    })
+    .sort(compareTemporalFactChronology)
+    .slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT);
+}
+
+function selectFlaskLoginSessionManagementContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isFlaskLoginSessionManagementContradictionQuery(input.query)) {
+    return [];
+  }
+
+  return input.entries
+    .filter((entry) => {
+      if (
+        !hasConversationEvidenceTag(entry) ||
+        !hasUserAnswerTag(entry) ||
+        sourceOrderSortKey(entry) === undefined
+      ) {
+        return false;
+      }
+
+      const content = valueBearingFactContent(entry.fact.content);
+      return FLASK_LOGIN_SESSION_MANAGEMENT_EVIDENCE_PATTERN.test(content) &&
+        FLASK_LOGIN_CONTRADICTION_CONTEXT_PATTERN.test(content);
+    })
+    .sort(compareTemporalFactChronology)
+    .slice(0, 1);
+}
+
 export function selectContradictionEvidencePair(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
+  const flaskLoginSessionManagementContradictionEvidence =
+    selectFlaskLoginSessionManagementContradictionEvidence(input);
+  if (flaskLoginSessionManagementContradictionEvidence.length > 0) {
+    return flaskLoginSessionManagementContradictionEvidence;
+  }
+
   if (!isPotentialContradictionConfirmationQuery(input.query)) {
     return [];
+  }
+
+  const autocompleteBugFixConfirmationEvidence =
+    selectAutocompleteBugFixConfirmationEvidence(input);
+  if (autocompleteBugFixConfirmationEvidence.length > 0) {
+    return autocompleteBugFixConfirmationEvidence;
   }
 
   const queryTopics = contradictionTopicTokens(

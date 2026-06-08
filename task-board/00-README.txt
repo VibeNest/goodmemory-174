@@ -7,16 +7,13 @@ This folder is the executable development plan for GoodMemory. This file is a
 router, not a history dump. Read it to find the current phase and the few recent
 accepted boundaries that matter for new work.
 
-Source documents:
-- `docs/README.md`
-- `docs/GoodMemory-PRD.md`
-- `docs/GoodMemory-TDD-and-Evaluation-Strategy.md`
-- `docs/GoodMemory-OSS-Architecture-v1.md`
-- `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`
-- `docs/GoodMemory-Current-Status-and-Evidence.md`
+Source documents: `docs/README.md`, `docs/GoodMemory-PRD.md`,
+`docs/GoodMemory-TDD-and-Evaluation-Strategy.md`,
+`docs/GoodMemory-OSS-Architecture-v1.md`,
+`docs/GoodMemory-First-Principles-and-Reference-Architecture.md`, and
+`docs/GoodMemory-Current-Status-and-Evidence.md`.
 
-Do not bulk-read all phase files. Closed phase detail lives in its own phase
-file, quality-gate archive, and generated reports.
+Do not bulk-read all phase files. Closed phase detail lives in its own phase file, quality-gate archive, and generated reports.
 
 Working Rules
 -------------
@@ -54,25 +51,19 @@ Read and execute these current/recent phase files in order:
 3. 67-phase-62-longmemeval-sequential-hardening.txt
 4. 68-phase-63-beam-scale-and-noise-hardening.txt
 
-For older phases, open the specific numbered phase file only when a task names
-that phase or a current document points to a specific archived gate/report.
+For older phases, open the specific numbered phase file only when a task names that phase or a current document points to a specific archived gate/report.
 
 Recent Accepted Boundary
 ------------------------
-- Phase 60 is closed as the ImplicitMemBench overall and priming protocol.
-  Canonical overall summary:
-  `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`
-  Canonical fallback report (ignored generated):
-  `reports/eval/fallback/phase-60/run-phase60-fallback-current/report.json`
-  Canonical gate:
-  `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`
-- Phase 61 is accepted as priming abstraction and contamination-safe output.
-  The post-Phase-61 / Phase 62A recovery full-300 rerun is the latest canonical
-  internal research result for this protocol line:
+- Phase 60 is closed as the ImplicitMemBench overall and priming protocol:
+  `reports/eval/fallback/phase-60/run-phase60-fallback-current/overall-summary.json`,
+  `reports/eval/fallback/phase-60/run-phase60-fallback-current/report.json`,
+  and `reports/quality-gates/phase-60/run-20260505120000/phase-60-quality-gate.json`.
+- Phase 61 is accepted as priming abstraction and contamination-safe output:
   `reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json`
-  It reports `213.26 / 300 = 71.09%` for
-  `goodmemory-distilled-feedback+controlled-priming`, versus baseline
-  `128 / 300 = 42.67%`. This remains internal research evidence, not a release
+  reports `213.26 / 300 = 71.09%` for
+  `goodmemory-distilled-feedback+controlled-priming` versus baseline
+  `128 / 300 = 42.67%`; this remains internal research evidence, not a release
   gate or public leaderboard claim.
 
 Active Phase
@@ -80,10 +71,8 @@ Active Phase
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark
   hardening slice; Phase 63 BEAM is now active.
 - Current entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
-- Current breakdown:
-  `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
-- Previous accepted entrypoint:
-  `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
+- Current breakdown: `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
+- Previous accepted entrypoint: `task-board/67-phase-62-longmemeval-sequential-hardening.txt`
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
 - Current accepted tooling includes `eval:phase-62`, `gate:phase-62`,
   `eval:phase-62-recall-diagnostic`, `prepare:phase-63-beam`,
@@ -116,6 +105,20 @@ Active Phase
   noise 266, shows no hit-loss, newly-missing evidence, or negative recall
   delta, and improves hit ids 730 -> 733 while total noise increases
   2004 -> 2005 due to same-recall churn. This remains partial progress.
+  The relationship-belief/dashboard rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-relationship-beliefs-dashboard-current-20260606T180000Z`
+  reaches recall 0.7151453163424996, missed 145/355, wrong-recall/noise
+  286/400, zero-recall 38, and total noise 1971; it recovers
+  `12:event_ordering:1` exactly and improves `1:knowledge_update:1` from 0 to
+  0.5 by recovering chat 86, but still misses chat 114 and retrieves 108.
+  The latest same-current-data Flask-Login/noise-guard rerun
+  `run-phase63-beam-100k-recall-diagnostic-rules-flask-login-session-management-final-guards-current-20260606T172124Z`
+  reaches recall 0.6766483750990794, missed 145/355, wrong-recall/noise
+  274/400, zero-recall 75, and improves hit/missing/noise ids
+  707/387/1301 -> 715/379/1263. It recovers `1:contradiction_resolution:2`,
+  `20:temporal_reasoning:2`, and `16:event_ordering:2`, trims
+  `10:information_extraction:1` and `3:abstention:1` noise, with clean
+  filters; still partial.
   Same-three-case live evidence tops out at
   `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`:
   recall 1.0, answer accuracy 3/3, `executionFailures: 0`, and
@@ -133,5 +136,4 @@ Documentation Hygiene
 - `task-board/00-README.txt` must stay a slim execution router.
 - Superseded design drafts belong under `docs/archive/design-inputs/`.
 - Copied reference material belongs under `docs/archive/reference-corpus/`.
-- Do not add a new root-level docs plan if an existing current-truth document can
-  be updated.
+- Do not add a new root-level docs plan if an existing current-truth document can be updated.

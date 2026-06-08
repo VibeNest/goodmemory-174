@@ -1,11 +1,7 @@
 import type { FactKind, FactMemory, UserProfile } from "../domain/records";
 import type { LanguageService } from "../language";
 import type { RecallCandidateTrace } from "./engine";
-import type {
-  RecallSlot,
-  RetrievalProfile,
-  RoutingDecision,
-} from "./router";
+import type { RecallSlot, RetrievalProfile, RoutingDecision } from "./router";
 import {
   buildFactCandidates,
   materializeFactCandidate,
@@ -25,26 +21,25 @@ import {
   isComparativeMetricQuery,
   isHealthIssueOrderQuery,
   isMuseumVisitOrderQuery,
-  isSocialMetricTotalQuery,
+  isSocialMetricTotalQuery, isWeatherFeatureConcernCountQuery,
 } from "./selectors/aggregate";
 import {
   conversationEvidencePriority,
   directFactualEvidenceBridgePriority,
   hasConversationEvidenceRecallSignal,
-  hasDirectFactualCompanionSignal,
   hasDirectFactualEvidenceBridgeSignal,
   hasPreferenceEvidenceRecallSignal,
   hasResearchRecommendationSignal,
   hasSleepBeforeAppointmentEvidenceSignal,
-  isCouponRedemptionFact,
   isCouponRedemptionLocationQuery,
   isResearchRecommendationQuery,
-  isStoreContextFact,
   preferenceEvidencePriority,
+  selectCouponStoreContextCompanions,
+  selectDirectFactualCompanions,
   sleepBeforeAppointmentEvidencePriority,
   userGroundedEvidencePriority,
 } from "./selectors/conversationEvidence";
-import { selectContradictionEvidencePair } from "./selectors/contradiction";
+import { isFlaskLoginSessionManagementContradictionQuery, selectContradictionEvidencePair } from "./selectors/contradiction";
 import {
   isExclusiveSourcePreferenceQuery,
   isMorningSelfCarePreferenceQuery,
@@ -60,6 +55,7 @@ import {
   isSeniorProducerPreparationPriorityQuery,
   selectSourceOrderedReasoningBridgeEvidence as selectReasoningBridgeEvidence,
 } from "./selectors/sourceOrderReasoning";
+import { isSourceOrderedSecurityFeatureCountReasoningQuery } from "./selectors/sourceOrderSecurityReasoning";
 import { selectSourceOrderedSummaryCoverage as selectSummaryCoverage } from "./selectors/sourceOrderSummary";
 import { isSourceOrderedEstateDocumentSummaryQuery, isSourceOrderedWeatherProjectProgressSummaryQuery } from "./selectors/sourceOrderSummaryPatterns";
 import {
@@ -72,6 +68,7 @@ import {
   selectSourceOrderedEventOrderEvidence as selectEventOrderEvidence,
   selectSourceOrderedPersonalWorkChallengeEvidence as selectPersonalWorkChallengeEvidence,
 } from "./selectors/sourceOrderTemporal";
+import { selectSourceOrderedTemporalIntervalEvidence } from "./selectors/sourceOrderTemporalInterval";
 import { isCompleteSourceOrderedEventOrderPlanQuery } from "./selectors/sourceOrderEventPlans";
 import { selectSourceOrderedInformationExtractionEvidence as selectInformationExtractionEvidence } from "./selectors/sourceOrderInformationExtraction";
 import { selectSourceOrderedTimelineIntegrationEvidence as selectTimelineIntegrationEvidence } from "./selectors/sourceOrderTimeline";
@@ -79,7 +76,6 @@ import {
   ASSISTANT_COUNT_HEADING_FACT_PATTERN,
   ASSISTANT_EVIDENCE_RECALL_LIMIT,
   ASSISTANT_EVIDENCE_TAG,
-  DIRECT_FACTUAL_COMPANION_LIMIT,
   DIRECT_FACTUAL_RECALL_LIMIT,
   PREFERENCE_EVIDENCE_RECALL_LIMIT,
   PROJECT_STATE_SUPPORT_FALLBACK_KINDS,
@@ -97,6 +93,7 @@ import {
   slotMatchesFact,
   stripEvidencePrefix,
 } from "./selectors/selectionContext";
+import { isTrelloSprintPrioritizationCriteriaAbstentionQuery, pruneSourceInstructionNoiseSelections } from "./selectors/sourceOrderInstructionPruning";
 import {
   compareTemporalFactChronology,
   hasTemporalEventOrderSignal,
@@ -115,7 +112,7 @@ import {
   isRecentFamilyTripQuery,
   isRelationshipLatestLocationQuery,
   isSharedGroceryListMethodQuery,
-  selectSourceOrderedValueUpdateEvidence,
+  selectSourceOrderedUpdateEvidence,
   selectUpdateHistoryCompanions,
 } from "./selectors/updateSeries";
 
@@ -124,6 +121,7 @@ const PRIMARY_FACT_SELECTION_ORDER = [
   "source_ordered_information_extraction",
   "aggregate_evidence",
   "source_ordered_personal_work_challenge",
+  "source_ordered_temporal_interval",
   "source_ordered_summary",
   "source_ordered_timeline",
   "source_ordered_reasoning_bridge",
@@ -215,9 +213,8 @@ export function selectFacts(
   const museumVisitOrderQuery = isMuseumVisitOrderQuery(query);
   const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
   const temporalIntervalQuery = isTemporalIntervalQuery(query);
-  const probabilityCalculationConfirmationReasoningQuery = isProbabilityCalculationConfirmationReasoningQuery(query);
-  const patentFilingDeadlineReasoningQuery = isPatentFilingDeadlineReasoningQuery(query);
-  const exactSourceOrderedReasoningQuery = probabilityCalculationConfirmationReasoningQuery || patentFilingDeadlineReasoningQuery;
+  const exactSourceOrderedReasoningQuery = isProbabilityCalculationConfirmationReasoningQuery(query) ||
+    isPatentFilingDeadlineReasoningQuery(query) || isSourceOrderedSecurityFeatureCountReasoningQuery(query);
   const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery && (aggregateCountQuery || aggregateMoneyQuery || aggregateNumericQuery || comparativeMetricQuery || socialMetricTotalQuery || museumVisitOrderQuery || healthIssueOrderQuery || temporalIntervalQuery);
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
   const sourceOrderedNamedEntityEventOrderQuery =
@@ -252,6 +249,7 @@ export function selectFacts(
       fallback,
     );
   };
+  if (isTrelloSprintPrioritizationCriteriaAbstentionQuery(query)) return { facts: [], traces };
   const slotSpecificFactQuery =
     !exactSourceOrderedReasoningQuery &&
     !isSourceOrderedEstateDocumentSummaryQuery(query) &&
@@ -572,15 +570,14 @@ export function selectFacts(
     ),
     routingDecision.strategy,
   );
-  const sourceOrderedValueUpdateCandidates = selectSourceOrderedValueUpdateEvidence({
+  const sourceOrderedValueUpdateCandidates = selectSourceOrderedUpdateEvidence({
     entries: compatible,
-    language,
     limit: UPDATE_EVIDENCE_RECALL_LIMIT,
+    language,
     query,
     queryLocale,
   });
-  const householdBudgetReasoningQuery =
-    isSourceOrderedHouseholdBudgetReasoningQuery(query);
+  const householdBudgetReasoningQuery = isSourceOrderedHouseholdBudgetReasoningQuery(query);
   const temporalBridgeEvidenceCandidates = sleepBeforeAppointmentQuery
     ? rankFactCandidates(
       compatible.filter((item) =>
@@ -613,6 +610,11 @@ export function selectFacts(
   });
   const informationExtractionCandidates = exactSourceOrderedReasoningQuery ? [] : selectInformationExtractionEvidence({ entries: compatible, query });
   const broadAspectEventOrderCandidates = exactSourceOrderedReasoningQuery ? [] : selectBroadAspectEventOrderEvidence({ entries: compatible, language, query, queryLocale });
+  const sourceOrderedTemporalIntervalCandidates =
+    selectSourceOrderedTemporalIntervalEvidence({
+      entries: compatible,
+      query,
+    });
   const sourceOrderedEventOrderCandidates = selectEventOrderEvidence({
     entries: compatible,
     language,
@@ -640,6 +642,7 @@ export function selectFacts(
     timelineIntegrationCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
     personalWorkChallengeCandidates.length > 0 ||
+    sourceOrderedTemporalIntervalCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
     (sourceOrderedValueUpdateCandidates.length > 0 &&
       !patentPriorArtFilingReasoningQuery &&
@@ -659,6 +662,7 @@ export function selectFacts(
   const sourceOrderedSelectorActive = timelineIntegrationCandidates.length > 0 ||
     summaryCoverageCandidates.length > 0 ||
     broadAspectEventOrderCandidates.length > 0 ||
+    sourceOrderedTemporalIntervalCandidates.length > 0 ||
     informationExtractionCandidates.length > 0 ||
     exactSourceOrderedReasoningQuery ||
     isSeniorProducerPreparationPriorityQuery(query) ||
@@ -700,6 +704,7 @@ export function selectFacts(
     query,
     queryLocale,
   });
+  const sourcePreferenceOverrideByContradiction = contradictionEvidencePair.length > 0 && isFlaskLoginSessionManagementContradictionQuery(query);
   const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
     if (!directFactualLookupQuery) {
       return entries.slice(0, limit);
@@ -723,7 +728,7 @@ export function selectFacts(
   };
 
   const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
-    if (sourcePreferenceExclusiveQuery) return false;
+    if (sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction) return false;
     switch (selectorId) {
       case "contradiction_evidence_pair": {
         if (contradictionEvidencePair.length === 0) {
@@ -736,7 +741,10 @@ export function selectFacts(
         return true;
       }
       case "aggregate_evidence": {
-        if (sourceOrderedValueUpdateCandidates.length > 0) {
+        if (
+          sourceOrderedValueUpdateCandidates.length > 0 ||
+          sourceOrderedTemporalIntervalCandidates.length > 0
+        ) {
           return false;
         }
 
@@ -762,6 +770,16 @@ export function selectFacts(
           aggregateCandidates,
           AGGREGATE_FACT_COUNT_LIMIT,
         )) {
+          selectAndTrace(entry);
+        }
+        return true;
+      }
+      case "source_ordered_temporal_interval": {
+        if (sourceOrderedTemporalIntervalCandidates.length === 0) {
+          return false;
+        }
+
+        for (const entry of sourceOrderedTemporalIntervalCandidates) {
           selectAndTrace(entry);
         }
         return true;
@@ -821,7 +839,10 @@ export function selectFacts(
         return true;
       }
       case "conversation_evidence": {
-        if (sourceOrderedNamedEntityEventPlanActive) {
+        if (
+          sourceOrderedNamedEntityEventPlanActive ||
+          sourceOrderedValueUpdateCandidates.length > 0
+        ) {
           return false;
         }
 
@@ -1090,20 +1111,24 @@ export function selectFacts(
     }
   }
 
-  for (const entry of instructionEvidenceCandidates) {
-    if (selectedIds.has(entry.fact.id)) {
-      continue;
+  if (!sourcePreferenceOverrideByContradiction) {
+    pruneSourceInstructionNoiseSelections({ instructionEvidenceCandidates, selected, selectedIds, traces });
+
+    for (const entry of instructionEvidenceCandidates) {
+      if (selectedIds.has(entry.fact.id)) {
+        continue;
+      }
+
+      selectAndTrace(entry);
     }
 
-    selectAndTrace(entry);
-  }
+    for (const entry of sourcePreferenceCandidates) {
+      if (selectedIds.has(entry.fact.id)) {
+        continue;
+      }
 
-  for (const entry of sourcePreferenceCandidates) {
-    if (selectedIds.has(entry.fact.id)) {
-      continue;
+      selectAndTrace(entry);
     }
-
-    selectAndTrace(entry);
   }
 
   if (
@@ -1131,55 +1156,30 @@ export function selectFacts(
   if (
     !exactSourceOrderedReasoningQuery &&
     !sourcePreferenceExclusiveQuery &&
-    directFactualLookupQuery &&
+    directFactualLookupQuery && !isWeatherFeatureConcernCountQuery(query) &&
     informationExtractionCandidates.length === 0 &&
     sourceOrderedValueUpdateCandidates.length === 0 &&
+    sourceOrderedTemporalIntervalCandidates.length === 0 &&
     selected.length < DIRECT_FACTUAL_RECALL_LIMIT
   ) {
-    const selectedSessionIds = new Set(
-      selected
-        .map((entry) => entry.fact.sessionId)
-        .filter((sessionId): sessionId is string => typeof sessionId === "string"),
-    );
-    const companionLimit = Math.min(
-      DIRECT_FACTUAL_COMPANION_LIMIT,
-      DIRECT_FACTUAL_RECALL_LIMIT - selected.length,
-    );
-    const companions = rankFactCandidates(
-      compatible.filter(
-        (entry) =>
-          !selectedIds.has(entry.fact.id) &&
-          entry.fact.sessionId !== undefined &&
-          selectedSessionIds.has(entry.fact.sessionId) &&
-          hasDirectFactualCompanionSignal(entry),
-      ),
-      routingDecision.strategy,
-    ).slice(0, companionLimit);
-
-    for (const entry of companions) {
+    for (const entry of selectDirectFactualCompanions({
+      entries: compatible,
+      limit: DIRECT_FACTUAL_RECALL_LIMIT - selected.length,
+      selectedEntries: selected,
+      selectedIds,
+      strategy: routingDecision.strategy,
+    })) {
       selectAndTrace(entry);
     }
   }
 
   if (isCouponRedemptionLocationQuery(query)) {
-    const couponSessions = new Set(
-      selected
-        .filter(isCouponRedemptionFact)
-        .map((entry) => entry.fact.sessionId)
-        .filter((sessionId): sessionId is string => typeof sessionId === "string"),
-    );
-    const storeCompanions = rankFactCandidates(
-      compatible.filter(
-        (entry) =>
-          !selectedIds.has(entry.fact.id) &&
-          entry.fact.sessionId !== undefined &&
-          couponSessions.has(entry.fact.sessionId) &&
-          isStoreContextFact(entry),
-      ),
-      routingDecision.strategy,
-    ).slice(0, 1);
-
-    for (const entry of storeCompanions) {
+    for (const entry of selectCouponStoreContextCompanions({
+      entries: compatible,
+      selectedEntries: selected,
+      selectedIds,
+      strategy: routingDecision.strategy,
+    })) {
       selectAndTrace(entry);
     }
   }

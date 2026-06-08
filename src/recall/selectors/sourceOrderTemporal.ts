@@ -40,6 +40,7 @@ import {
   selectSourceOrderedEvidencePlan,
 } from "./sourceOrderPlan";
 import {
+  isAssistantInclusiveSourceOrderedEventOrderPlanQuery,
   isPackedSourceOrderedEventOrderPlanQuery,
   selectCompleteSourceOrderedEventOrderAnchors,
 } from "./sourceOrderEventPlans";
@@ -413,9 +414,14 @@ export function selectSourceOrderedEventOrderEvidence(input: {
   const sourceUserEntries = input.entries
     .filter(isSourceOrderedSummaryCandidate)
     .filter(hasUserAnswerTag);
+  const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
+    input.query,
+  )
+    ? input.entries.filter(isSourceOrderedSummaryCandidate)
+    : sourceUserEntries;
   const completeEventOrderAnchors = selectCompleteSourceOrderedEventOrderAnchors({
     count: anchorLimit,
-    entries: sourceUserEntries,
+    entries: sourceEventPlanEntries,
     priority,
     query: input.query,
   });

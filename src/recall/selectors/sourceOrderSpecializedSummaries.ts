@@ -1,5 +1,6 @@
 import type { RankedFactCandidate } from "../scoring";
 import { selectSourceOrderedAcademicMentorSummaryCoverage } from "./sourceOrderAcademicMentorSummary";
+import { selectSourceOrderedAlexisFinancialManagementSummaryCoverage } from "./sourceOrderAlexisFinancialManagementSummary";
 import { selectSourceOrderedAiHiringComplianceSummaryCoverage } from "./sourceOrderAiHiringComplianceSummary";
 import { selectSourceOrderedAiHiringProcessSummaryCoverage } from "./sourceOrderAiHiringProcessSummary";
 import { selectSourceOrderedEstatePlanningSummaryCoverage } from "./sourceOrderEstatePlanningSummary";
@@ -63,6 +64,15 @@ export function selectSourceOrderedSpecializedSummaryCoverage(input: {
     });
   if (fictionBookBudgetSelection.length > 0) {
     return fictionBookBudgetSelection;
+  }
+
+  const alexisFinancialManagementSelection =
+    selectSourceOrderedAlexisFinancialManagementSummaryCoverage({
+      query: input.query,
+      sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+    });
+  if (alexisFinancialManagementSelection.length > 0) {
+    return alexisFinancialManagementSelection;
   }
 
   const readingGoalsStrategySelection =

@@ -4621,6 +4621,62 @@ fewer bucket noise id, one fewer incomplete case, one fewer
 wrong-recall/noise case, and one fewer zero-recall case. Same-recall noise
 churn adds one abstention bucket noise id and one event-ordering bucket noise
 id.
+The latest relationship-belief event-order plus dashboard API update repair
+raises it to 0.7151453163424996 with 145 missed-recall cases,
+wrong-recall/noise 286/400, and zero-recall 38. The retained rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-relationship-beliefs-dashboard-current-20260606T180000Z`
+adds a guarded source-ordered relationship/belief event selector for the
+Stephen seven-item personal relationship and belief order question, plus a
+dashboard API response-time update route that prefers source turns over
+session-management noise. Target `12:event_ordering:1` reaches exact 1.0 with
+chats 58/60/74/110/112/164/166/168/232/234/236/258/260/262 and no target
+noise. Target `1:knowledge_update:1` improves from 0 to 0.5 by recovering chat
+86, but still misses evidence chat 114 and newly retrieves chat 108. Global
+hit evidence ids improve 733 -> 747, missing ids improve 361 -> 347,
+missed-recall cases improve 146 -> 145, wrong-recall/noise cases improve
+287 -> 286, and total noise drops 2005 -> 1971. Case-delta analysis shows no
+hit-loss, newly-missing evidence, positive missing-id deltas, positive net
+noise deltas, or negative recall deltas. This is still partial Phase 63
+progress because the dashboard API row is not exact and the full 100K
+diagnostic remains recall-limited and noisy.
+A follow-up same-current-data dashboard API latest-update repair makes that
+row exact on the restored GitHub-raw cohort. The retained rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-dashboard-api-latest-update-current-20260606T162000Z`
+compares against the weather feature/concern count current-data report, reaches
+evidence-chat recall 0.6643244314371075, missed-recall cases 151/355,
+wrong-recall/noise 283/400, and zero-recall 77. Target
+`1:knowledge_update:1` now returns exactly chats 86/114, recovers chat 114, and
+removes chat 108. Global hit evidence ids improve 697 -> 700, missing ids
+improve 397 -> 394, and total noise drops 1326 -> 1324. Case-delta analysis
+shows no hit-loss, newly-missing evidence, or negative recall deltas; same-recall
+noise swaps include one abstention bucket noise increase, so this remains
+partial Phase 63 progress.
+The accepted same-current-data Alexis summary, deadline, interval, and
+conditional probability update repair
+`run-phase63-beam-100k-recall-diagnostic-rules-alexis-summary-deadline-interval-conditional-update-current-20260606T203000Z`
+compares against that dashboard checkpoint and reaches evidence-chat recall
+0.6692540089018963, missed-recall cases 148/355, wrong-recall/noise 279/400,
+and zero-recall 77. Global hit/missing/noise ids improve
+700/394/1324 -> 707/387/1301. It makes `16:summarization:1`,
+`3:knowledge_update:1`, `12:temporal_reasoning:1`, and
+`5:knowledge_update:2` exact at chats 13/15/53/65/127/253, 12/52, 56/64, and
+84/86/88/130. Case-delta analysis shows no non-null negative recall deltas,
+hit-loss, newly-missing evidence, positive missing-id deltas, or positive noise
+deltas. This remains partial Phase 63 progress.
+The accepted same-current-data Flask-Login/session-management and noise-guard
+repair
+`run-phase63-beam-100k-recall-diagnostic-rules-flask-login-session-management-final-guards-current-20260606T172124Z`
+compares against the Alexis/deadline/interval/conditional-update checkpoint and
+reaches evidence-chat recall 0.6766483750990794, missed 145/355,
+wrong-recall/noise 274/400, and zero-recall 75. Global hit/missing/noise ids
+improve 707/387/1301 -> 715/379/1263. It recovers
+`1:contradiction_resolution:2` to chat 66, `20:temporal_reasoning:2` to
+chats 102/152, improves `16:event_ordering:2` by five hit ids while removing
+23 noise ids, trims `10:information_extraction:1` noise, and suppresses the
+`3:abstention:1` Trello criteria fallback. Case-delta analysis shows no
+non-null negative recall deltas, hit-loss, newly-missing evidence, positive
+missing-id deltas, or positive noise deltas. This remains partial Phase 63
+progress.
 BEAM still needs
 broader recall and persistent-noise hardening before it can move toward an
 answer-quality claim, especially the remaining source-ordered summary budget

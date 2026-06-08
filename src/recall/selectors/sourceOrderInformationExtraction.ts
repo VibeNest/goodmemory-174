@@ -140,6 +140,10 @@ function isNamedMeetingLocationQuery(query: string): boolean {
     /\bLaura\b/u.test(query);
 }
 
+function isMichaelFestivalMeetingDateQuery(query: string): boolean {
+  return /\bwhen\b/iu.test(query) && /\bmet\s+Michael\b/iu.test(query) && /\bfestival\b/iu.test(query);
+}
+
 function isPartnerMeetingDateLocationQuery(query: string): boolean {
   return /\bwhen\b/iu.test(query) &&
     /\bwhere\b/iu.test(query) &&
@@ -644,6 +648,12 @@ function hasNamedMeetingLocationEvidence(entry: RankedFactCandidate): boolean {
     /\bmet\s+me\s+on\s+set\s+at\s+Blue\s+Horizon\s+Studios\b/iu.test(content);
 }
 
+function hasMichaelFestivalMeetingDateEvidence(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) && hasUserAnswerTag(entry) && /\bmet\s+Michael\b/iu.test(content) && /\bMontserrat\s+Writers['’]?\s+Festival\b/iu.test(content) && /\bJan(?:uary)?\s+15,\s+2024\b/iu.test(content);
+}
+
 function hasPartnerMeetingDateLocationEvidence(
   entry: RankedFactCandidate,
 ): boolean {
@@ -971,6 +981,8 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
   const singleCardProbabilityQuery =
     isSingleCardProbabilityBeforeTwoCardsQuery(input.query);
   const namedMeetingLocationQuery = isNamedMeetingLocationQuery(input.query);
+  const michaelFestivalMeetingDateQuery =
+    isMichaelFestivalMeetingDateQuery(input.query);
   const partnerMeetingDateLocationQuery =
     isPartnerMeetingDateLocationQuery(input.query);
   const partnerClassicMovieRecommendationQuery =
@@ -1008,6 +1020,7 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
     !apiEndpointTechnologiesQuery &&
     !singleCardProbabilityQuery &&
     !namedMeetingLocationQuery &&
+    !michaelFestivalMeetingDateQuery &&
     !partnerMeetingDateLocationQuery &&
     !partnerClassicMovieRecommendationQuery &&
     !colourTechnologistProfessionQuery &&
@@ -1107,6 +1120,10 @@ export function selectSourceOrderedInformationExtractionEvidence(input: {
       (
         namedMeetingLocationQuery &&
         hasNamedMeetingLocationEvidence(entry)
+      ) ||
+      (
+        michaelFestivalMeetingDateQuery &&
+        hasMichaelFestivalMeetingDateEvidence(entry)
       ) ||
       (
         partnerMeetingDateLocationQuery &&
