@@ -8,6 +8,11 @@ import {
   rankFactCandidates,
 } from "./scoring";
 import type { RankedFactCandidate } from "./scoring";
+import { createSelectionDraft } from "./factSelection/draft";
+import {
+  PRIMARY_FACT_SELECTION_ORDER,
+  type PrimaryFactSelectionId,
+} from "./factSelection/routeTable";
 import { buildSelectionRunContext } from "./selectionRunContext";
 import { selectSlotFacts } from "./selectionSlot";
 import {
@@ -41,7 +46,6 @@ import {
   diversifyRankedFactCandidatesBySession,
   hasConversationEvidenceTag,
   hasUserAnswerTag,
-  markSelectedTrace,
   slotMatchesFact,
   stripEvidencePrefix,
 } from "./selectors/selectionContext";
@@ -58,29 +62,6 @@ import {
   selectUpdateHistoryCompanions,
 } from "./selectors/updateSeries";
 
-const PRIMARY_FACT_SELECTION_ORDER = [
-  "contradiction_evidence_pair",
-  "source_ordered_information_extraction",
-  "aggregate_evidence",
-  "source_ordered_personal_work_challenge",
-  "source_ordered_temporal_interval",
-  "source_ordered_summary",
-  "source_ordered_timeline",
-  "source_ordered_reasoning_bridge",
-  "conversation_evidence",
-  "preference_evidence",
-  "update_evidence",
-  "temporal_bridge",
-  "direct_factual_bridge",
-  "temporal_order",
-  "intent_signal",
-  "lexical_or_subject_signal",
-  "research_recommendation",
-  "answer_or_confirmation",
-  "coding_agent_fallback",
-] as const;
-
-type PrimaryFactSelectionId = (typeof PRIMARY_FACT_SELECTION_ORDER)[number];
 
 export {
   selectArchives,
@@ -195,30 +176,10 @@ export function selectFacts(
     queryLocale,
     routingDecision,
   });
-  const selected: RankedFactCandidate[] = [];
-  const selectedIds = new Set<string>();
-  const selectAndTrace = (
-    entry: RankedFactCandidate,
-    slot: RecallSlot | "generic" = "generic",
-    fallback: RecallCandidateTrace["fallback"] = "none",
-  ) => {
-    selected.push(entry);
-    selectedIds.add(entry.fact.id);
-    markSelectedTrace(
-      traces,
-      entry.fact.id,
-      slot,
-      entry.intentScore,
-      entry.lexicalScore,
-      entry.freshnessScore,
-      entry.explicitnessScore,
-      entry.usageScore,
-      entry.evidenceScore,
-      entry.outcomeScore,
-      entry.verificationPenaltyScore,
-      fallback,
-    );
-  };
+  const draft = createSelectionDraft({ traces });
+  const selected = draft.selected;
+  const selectedIds = draft.selectedIds;
+  const selectAndTrace = draft.select;
   if (trelloSprintPrioritizationCriteriaAbstentionQuery) {
     return { facts: [], traces };
   }
