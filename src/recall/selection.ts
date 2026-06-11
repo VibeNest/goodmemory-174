@@ -15,6 +15,7 @@ import {
   finalizeSuppressionReasons,
 } from "./factSelection/draft";
 import {
+  FACT_SELECTION_ROUTES_BY_ID,
   PRIMARY_FACT_SELECTION_ORDER,
   type PrimaryFactSelectionId,
 } from "./factSelection/routeTable";
@@ -38,17 +39,11 @@ import {
   fillSourceOrderedTemporalMilestones,
 } from "./selectors/sourceOrderTemporal";
 import {
-  ASSISTANT_EVIDENCE_RECALL_LIMIT,
-  DIRECT_FACTUAL_RECALL_LIMIT,
-  PREFERENCE_EVIDENCE_RECALL_LIMIT,
   RESEARCH_RECOMMENDATION_LIMIT,
-  TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
-  UPDATE_EVIDENCE_RECALL_LIMIT,
   diversifyRankedFactCandidatesBySession,
   hasConversationEvidenceTag,
   hasUserAnswerTag,
   slotMatchesFact,
-  stripEvidencePrefix,
 } from "./selectors/selectionContext";
 import { isSourceEnvelopeCandidate } from "./selectors/sourceEnvelope";
 import {
@@ -57,10 +52,7 @@ import {
   isSourceOrderedFact as isImportedSourceFact,
   temporalOrderEvidencePriority,
 } from "./selectors/temporal";
-import {
-  collapseLatestUpdateSeries,
-  selectUpdateHistoryCompanions,
-} from "./selectors/updateSeries";
+import { collapseLatestUpdateSeries } from "./selectors/updateSeries";
 
 
 export {
@@ -323,18 +315,22 @@ export function selectFacts(
   let contradictionPairSelected = false;
   const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
     if (sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction) return false;
-    switch (selectorId) {
-      case "contradiction_evidence_pair": {
-        if (contradictionEvidencePair.length === 0) {
-          return false;
-        }
-
-        for (const entry of contradictionEvidencePair) {
-          selectAndTrace(entry);
-        }
-        contradictionPairSelected = true;
-        return true;
+    const route = FACT_SELECTION_ROUTES_BY_ID[selectorId];
+    if (route) {
+      if (!route.isEligible({ ctx, runtime })) {
+        return false;
       }
+
+      const outcome = route.select({ ctx, runtime });
+      for (const entry of outcome.entries) {
+        selectAndTrace(entry);
+      }
+      if (outcome.claimsContradictionPair === true) {
+        contradictionPairSelected = true;
+      }
+      return true;
+    }
+    switch (selectorId) {
       case "aggregate_evidence": {
         if (
           sourceOrderedValueUpdateCandidates.length > 0 ||
@@ -364,176 +360,6 @@ export function selectFacts(
         for (const entry of diversifyRankedFactCandidatesBySession(
           aggregateCandidates,
           AGGREGATE_FACT_COUNT_LIMIT,
-        )) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_temporal_interval": {
-        if (sourceOrderedTemporalIntervalCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of sourceOrderedTemporalIntervalCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_information_extraction": {
-        if (informationExtractionCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of informationExtractionCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_personal_work_challenge": {
-        if (personalWorkChallengeCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of personalWorkChallengeCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_summary": {
-        if (sourceOrderedValueUpdateCandidates.length > 0) {
-          return false;
-        }
-
-        if (summaryCoverageCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of summaryCoverageCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_timeline": {
-        if (timelineIntegrationCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of timelineIntegrationCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "source_ordered_reasoning_bridge": {
-        if (reasoningBridgeCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of reasoningBridgeCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "conversation_evidence": {
-        if (
-          sourceOrderedNamedEntityEventPlanActive ||
-          sourceOrderedValueUpdateCandidates.length > 0
-        ) {
-          return false;
-        }
-
-        if (conversationEvidenceCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of conversationEvidenceCandidates.slice(
-          0,
-          ASSISTANT_EVIDENCE_RECALL_LIMIT,
-        )) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "preference_evidence": {
-        if (sourceOrderedNamedEntityEventPlanActive) {
-          return false;
-        }
-
-        if (preferenceEvidenceCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of preferenceEvidenceCandidates.slice(
-          0,
-          PREFERENCE_EVIDENCE_RECALL_LIMIT,
-        )) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "update_evidence": {
-        if (sourceOrderedValueUpdateCandidates.length > 0) {
-          for (const entry of sourceOrderedValueUpdateCandidates) {
-            selectAndTrace(entry);
-          }
-          return true;
-        }
-
-        if (updateEvidenceCandidates.length === 0) {
-          return false;
-        }
-
-        const primaryUpdateSelections = updateEvidenceCandidates.slice(
-          0,
-          UPDATE_EVIDENCE_RECALL_LIMIT,
-        );
-
-        for (const entry of primaryUpdateSelections) {
-          selectAndTrace(entry);
-        }
-
-        const companionSelections = selectUpdateHistoryCompanions({
-          entries: updateEvidencePool,
-          limit: UPDATE_EVIDENCE_RECALL_LIMIT - selected.length,
-          options: updateEvidenceSeriesOptions,
-          query,
-          selectedEntries: primaryUpdateSelections,
-          selectedIds,
-        });
-
-        for (const entry of companionSelections) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "temporal_bridge": {
-        if (sourceOrderedNamedEntityEventPlanActive) {
-          return false;
-        }
-
-        if (temporalBridgeEvidenceCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of diversifyRankedFactCandidatesBySession(
-          temporalBridgeEvidenceCandidates,
-          TEMPORAL_BRIDGE_EVIDENCE_RECALL_LIMIT,
-        )) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "direct_factual_bridge": {
-        if (sourceOrderedNamedEntityEventPlanActive) {
-          return false;
-        }
-
-        if (directFactualEvidenceBridgeCandidates.length === 0) {
-          return false;
-        }
-
-        for (const entry of diversifyRankedFactCandidatesBySession(
-          directFactualEvidenceBridgeCandidates,
-          DIRECT_FACTUAL_RECALL_LIMIT,
         )) {
           selectAndTrace(entry);
         }
@@ -703,6 +529,9 @@ export function selectFacts(
         return true;
       }
     }
+    // Converted ids return through the route table above; the residual switch
+    // only covers the not-yet-migrated cases.
+    return false;
   };
 
   for (const selectorId of PRIMARY_FACT_SELECTION_ORDER) {

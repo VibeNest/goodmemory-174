@@ -1,3 +1,19 @@
+import type { FactSelectionRoute } from "./contracts";
+import {
+  conversationEvidenceRoute,
+  directFactualBridgeRoute,
+  preferenceEvidenceRoute,
+  sourceOrderedInformationExtractionRoute,
+  sourceOrderedPersonalWorkChallengeRoute,
+  sourceOrderedReasoningBridgeRoute,
+  sourceOrderedSummaryRoute,
+  sourceOrderedTemporalIntervalRoute,
+  sourceOrderedTimelineRoute,
+  temporalBridgeRoute,
+} from "./routes/contextCandidates";
+import { contradictionPairRoute } from "./routes/contradictionPair";
+import { updateEvidenceRoute } from "./routes/updateEvidence";
+
 export const PRIMARY_FACT_SELECTION_ORDER = [
   "contradiction_evidence_pair",
   "source_ordered_information_extraction",
@@ -22,3 +38,25 @@ export const PRIMARY_FACT_SELECTION_ORDER = [
 
 export type PrimaryFactSelectionId =
   (typeof PRIMARY_FACT_SELECTION_ORDER)[number];
+
+/**
+ * Routes converted from the legacy switch. Partial while the migration is in
+ * flight; the engine falls back to the residual switch for unconverted ids
+ * and the map becomes total when the switch is deleted.
+ */
+export const FACT_SELECTION_ROUTES_BY_ID: Partial<
+  Record<PrimaryFactSelectionId, FactSelectionRoute>
+> = {
+  contradiction_evidence_pair: contradictionPairRoute,
+  conversation_evidence: conversationEvidenceRoute,
+  direct_factual_bridge: directFactualBridgeRoute,
+  preference_evidence: preferenceEvidenceRoute,
+  source_ordered_information_extraction: sourceOrderedInformationExtractionRoute,
+  source_ordered_personal_work_challenge: sourceOrderedPersonalWorkChallengeRoute,
+  source_ordered_reasoning_bridge: sourceOrderedReasoningBridgeRoute,
+  source_ordered_summary: sourceOrderedSummaryRoute,
+  source_ordered_temporal_interval: sourceOrderedTemporalIntervalRoute,
+  source_ordered_timeline: sourceOrderedTimelineRoute,
+  temporal_bridge: temporalBridgeRoute,
+  update_evidence: updateEvidenceRoute,
+};
