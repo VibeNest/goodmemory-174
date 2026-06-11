@@ -14,35 +14,14 @@ import {
   createSelectionDraft,
   finalizeSuppressionReasons,
 } from "./factSelection/draft";
-import {
-  FACT_SELECTION_ROUTES_BY_ID,
-  PRIMARY_FACT_SELECTION_ORDER,
-  type PrimaryFactSelectionId,
-} from "./factSelection/routeTable";
+import { FACT_SELECTION_ROUTE_TABLE } from "./factSelection/routeTable";
 import { buildSelectionRunContext } from "./selectionRunContext";
 import { selectSlotFacts } from "./selectionSlot";
 import {
   AGGREGATE_OPEN_LOOP_LIMIT,
   hasAggregateOpenLoopSignal,
 } from "./selectors/aggregate";
-import {
-  SOURCE_ORDER_EVENT_RECALL_LIMIT,
-  fillSourceOrderedTemporalCompanions,
-  fillSourceOrderedTemporalGaps,
-  fillSourceOrderedTemporalMilestones,
-} from "./selectors/sourceOrderTemporal";
-import {
-  diversifyRankedFactCandidatesBySession,
-  hasUserAnswerTag,
-  slotMatchesFact,
-} from "./selectors/selectionContext";
-import { isSourceEnvelopeCandidate } from "./selectors/sourceEnvelope";
-import {
-  compareTemporalFactChronology,
-  hasTemporalEventOrderSignal,
-  isSourceOrderedFact as isImportedSourceFact,
-  temporalOrderEvidencePriority,
-} from "./selectors/temporal";
+import { slotMatchesFact } from "./selectors/selectionContext";
 
 
 export {
@@ -251,131 +230,21 @@ export function selectFacts(
       traces,
     };
   }
-  let contradictionPairSelected = false;
-  const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
-    if (sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction) return false;
-    const route = FACT_SELECTION_ROUTES_BY_ID[selectorId];
-    if (route) {
+  const exclusivitySkipsPrimary =
+    sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction;
+  if (!exclusivitySkipsPrimary) {
+    for (const route of FACT_SELECTION_ROUTE_TABLE) {
       if (!route.isEligible({ ctx, runtime })) {
-        return false;
+        continue;
       }
 
       const outcome = route.select({ ctx, runtime });
       for (const entry of outcome.entries) {
         selectAndTrace(entry);
       }
-      if (outcome.claimsContradictionPair === true) {
-        contradictionPairSelected = true;
-      }
-      return true;
-    }
-    switch (selectorId) {
-      case "temporal_order": {
-        if (
-          !temporalEventOrderQuery &&
-          !temporalMostRecentQuery &&
-          !temporalRelativeEventQuery &&
-          broadAspectEventOrderCandidates.length === 0 &&
-          !sourceOrderedNamedEntityEventPlanActive
-        ) {
-          return false;
-        }
-
-        if (broadAspectEventOrderCandidates.length > 0) {
-          for (const entry of broadAspectEventOrderCandidates) {
-            selectAndTrace(entry);
-          }
-          return true;
-        }
-
-        if (
-          sourceOrderedNamedEntityEventPlanActive
-        ) {
-          for (const entry of sourceOrderedEventOrderCandidates) {
-            selectAndTrace(entry);
-          }
-          return true;
-        }
-
-        const rankedTemporalCandidatePool = rankFactCandidates(
-          compatible.filter((entry) => hasTemporalEventOrderSignal(entry, query)),
-          routingDecision.strategy,
-        ).sort(
-          (left, right) =>
-            temporalOrderEvidencePriority(right, query) -
-            temporalOrderEvidencePriority(left, query),
-        );
-        const userAnsweredTemporalCandidates =
-          rankedTemporalCandidatePool.filter(hasUserAnswerTag);
-        const rankedTemporalCandidates =
-          userBroughtUpEventOrderQuery &&
-            userAnsweredTemporalCandidates.length > 0
-            ? userAnsweredTemporalCandidates
-            : rankedTemporalCandidatePool;
-        const fallbackTemporalCandidates = diversifyRankedFactCandidatesBySession(
-          rankedTemporalCandidates,
-          compatible.some(isImportedSourceFact) ? SOURCE_ORDER_EVENT_RECALL_LIMIT : limit,
-        );
-        const temporalCandidates = sourceOrderedEventOrderCandidates.length > 0
-          ? [
-            ...sourceOrderedEventOrderCandidates,
-            ...fallbackTemporalCandidates.filter(
-              (entry) =>
-                !sourceOrderedEventOrderCandidates.some(
-                  (candidate) => candidate.fact.id === entry.fact.id,
-                ),
-            ),
-          ]
-          : fallbackTemporalCandidates;
-        const gapFilledTemporalCandidates = temporalEventOrderQuery &&
-          temporalCandidates.some(isImportedSourceFact)
-          ? fillSourceOrderedTemporalGaps({
-            language,
-            pool: rankedTemporalCandidates.filter(isImportedSourceFact),
-            query,
-            queryLocale,
-            selected: temporalCandidates,
-          })
-          : temporalCandidates;
-        const companionFilledTemporalCandidates = temporalEventOrderQuery &&
-          gapFilledTemporalCandidates.some(isImportedSourceFact)
-          ? fillSourceOrderedTemporalCompanions({
-            pool: rankedTemporalCandidates.filter(isImportedSourceFact),
-            query,
-            selected: gapFilledTemporalCandidates,
-          })
-          : gapFilledTemporalCandidates;
-        const milestoneFilledTemporalCandidates = temporalEventOrderQuery &&
-          companionFilledTemporalCandidates.some(isImportedSourceFact)
-          ? fillSourceOrderedTemporalMilestones({
-            language,
-            pool: rankedTemporalCandidates.filter(isImportedSourceFact),
-            query,
-            queryLocale,
-            selected: companionFilledTemporalCandidates,
-          })
-          : companionFilledTemporalCandidates;
-        const orderedTemporalCandidates = temporalEventOrderQuery &&
-          milestoneFilledTemporalCandidates.every(isSourceEnvelopeCandidate)
-          ? [...milestoneFilledTemporalCandidates].sort(compareTemporalFactChronology)
-          : milestoneFilledTemporalCandidates;
-
-        for (const entry of orderedTemporalCandidates) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-    }
-    // Converted ids return through the route table above; the residual switch
-    // only covers the not-yet-migrated cases.
-    return false;
-  };
-
-  for (const selectorId of PRIMARY_FACT_SELECTION_ORDER) {
-    if (runPrimarySelector(selectorId)) {
       draft.summary.winner = {
-        claimsContradictionPair: contradictionPairSelected,
-        routeId: selectorId,
+        claimsContradictionPair: outcome.claimsContradictionPair === true,
+        routeId: route.id,
       };
       break;
     }

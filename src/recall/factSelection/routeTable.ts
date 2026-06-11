@@ -20,6 +20,7 @@ import {
   lexicalOrSubjectSignalRoute,
   researchRecommendationRoute,
 } from "./routes/genericSignals";
+import { temporalOrderRoute } from "./routes/temporalOrder";
 import { updateEvidenceRoute } from "./routes/updateEvidence";
 
 export const PRIMARY_FACT_SELECTION_ORDER = [
@@ -47,13 +48,9 @@ export const PRIMARY_FACT_SELECTION_ORDER = [
 export type PrimaryFactSelectionId =
   (typeof PRIMARY_FACT_SELECTION_ORDER)[number];
 
-/**
- * Routes converted from the legacy switch. Partial while the migration is in
- * flight; the engine falls back to the residual switch for unconverted ids
- * and the map becomes total when the switch is deleted.
- */
-export const FACT_SELECTION_ROUTES_BY_ID: Partial<
-  Record<PrimaryFactSelectionId, FactSelectionRoute>
+export const FACT_SELECTION_ROUTES_BY_ID: Record<
+  PrimaryFactSelectionId,
+  FactSelectionRoute
 > = {
   aggregate_evidence: aggregateEvidenceRoute,
   answer_or_confirmation: answerOrConfirmationRoute,
@@ -72,5 +69,10 @@ export const FACT_SELECTION_ROUTES_BY_ID: Partial<
   source_ordered_temporal_interval: sourceOrderedTemporalIntervalRoute,
   source_ordered_timeline: sourceOrderedTimelineRoute,
   temporal_bridge: temporalBridgeRoute,
+  temporal_order: temporalOrderRoute,
   update_evidence: updateEvidenceRoute,
 };
+
+/** The primary chain as route objects, in priority order. */
+export const FACT_SELECTION_ROUTE_TABLE: readonly FactSelectionRoute[] =
+  PRIMARY_FACT_SELECTION_ORDER.map((id) => FACT_SELECTION_ROUTES_BY_ID[id]);

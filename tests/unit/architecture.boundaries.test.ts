@@ -18,7 +18,7 @@ const CORE_CONTRACT_FILES = new Set([
   "evolution/contracts.ts",
   "storage/contracts.ts",
 ]);
-const RECALL_SELECTION_MAX_LINES = 900;
+const RECALL_SELECTION_MAX_LINES = 300;
 const RECALL_SELECTOR_MAX_LINES = 900;
 const RECALL_FACT_SELECTION_MAX_LINES = 350;
 const RECALL_FACT_SELECTION_FILE_LIMIT = 14;
@@ -699,6 +699,10 @@ describe("architecture boundaries", () => {
     // must route every mutation through it.
     expect(selectionSource).not.toMatch(draftMutationPattern);
     expect(selectionSource).not.toMatch(/\bmarkSelectedTrace\b/u);
+
+    // The engine is a small declarative loop: route bodies live in the route
+    // modules, never as inline switch cases.
+    expect(selectionSource).not.toMatch(/\bswitch\s*\(/u);
 
     // The post-primary override pipeline must stay declarative: pruning lives
     // in the augmenter stages, never inline in the engine.

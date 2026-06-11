@@ -4,6 +4,10 @@ import { createLanguageService } from "../../src/language";
 import type { RecallCandidateTrace } from "../../src/recall/engine";
 import { buildFactCandidates, rankFactCandidates } from "../../src/recall/scoring";
 import { createSelectionDraft } from "../../src/recall/factSelection/draft";
+import {
+  FACT_SELECTION_ROUTE_TABLE,
+  PRIMARY_FACT_SELECTION_ORDER,
+} from "../../src/recall/factSelection/routeTable";
 
 const TIMESTAMP = "2026-01-10T00:00:00.000Z";
 
@@ -77,5 +81,13 @@ describe("selection draft", () => {
     expect(draft.summary).toEqual({ augmenterStages: [] });
     expect(draft.selected).toEqual([]);
     expect(draft.selectedIds.size).toBe(0);
+  });
+});
+
+describe("fact selection route table", () => {
+  it("keeps the route table aligned with the primary selection order", () => {
+    expect(FACT_SELECTION_ROUTE_TABLE.map((route) => route.id)).toEqual([
+      ...PRIMARY_FACT_SELECTION_ORDER,
+    ]);
   });
 });
