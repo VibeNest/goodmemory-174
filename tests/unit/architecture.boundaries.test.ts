@@ -20,6 +20,8 @@ const CORE_CONTRACT_FILES = new Set([
 ]);
 const RECALL_SELECTION_MAX_LINES = 900;
 const RECALL_SELECTOR_MAX_LINES = 900;
+const RECALL_FACT_SELECTION_MAX_LINES = 350;
+const RECALL_FACT_SELECTION_FILE_LIMIT = 14;
 const RECALL_SELECTOR_TOP_LEVEL_FILE_LIMIT = 35;
 const SOURCE_ORDER_SELECTOR_TOP_LEVEL_FILE_LIMIT = 25;
 const ALLOWED_RECALL_SELECTION_QUERY_IMPORTS = new Set([
@@ -596,6 +598,114 @@ describe("architecture boundaries", () => {
     expect(benchmarkLiteralFiles).toEqual([]);
     expect(caseNamedSelectorFiles).toEqual([]);
     expect(caseLiteralSelectorFiles).toEqual([]);
+
+    for (const reExport of [
+      "selectArchives",
+      "selectEpisodes",
+      "selectFeedback",
+      "selectFeedbackForProfile",
+      "selectFeedbackForQuery",
+      "selectPreferencesForQuery",
+      "selectReferences",
+    ]) {
+      expect(selectionSource).toContain(reExport);
+    }
+  });
+
+  it("keeps fact-selection orchestration modules bounded and mutation-owned", async () => {
+    const factSelectionDirectory = join(SRC_ROOT, "recall", "factSelection");
+    if (!(await fileExists(factSelectionDirectory))) {
+      // Rules activate once the factSelection extraction lands.
+      return;
+    }
+
+    const factSelectionFiles = await collectTypeScriptFiles(factSelectionDirectory);
+    const selectionSource = await readFile(
+      join(SRC_ROOT, "recall", "selection.ts"),
+      "utf8",
+    );
+    const oversizedFiles: Array<{ file: string; lines: number }> = [];
+    const wildcardBarrels: string[] = [];
+    const benchmarkLiteralFiles: string[] = [];
+    const fixtureLiteralFiles: string[] = [];
+    const disallowedQueryImports: string[] = [];
+    const unauthorizedDraftMutations: string[] = [];
+    const draftMutationPattern =
+      /\bselected\s*\.\s*(?:push|splice)\s*\(|\bselectedIds\s*\.\s*(?:add|delete)\s*\(/u;
+
+    expect(factSelectionFiles.length).toBeLessThanOrEqual(
+      RECALL_FACT_SELECTION_FILE_LIMIT,
+    );
+
+    for (const file of factSelectionFiles) {
+      const source = await readFile(file, "utf8");
+      const relativePath = toSourceRelativePath(file);
+      const lines = source.split("\n").length;
+      if (lines > RECALL_FACT_SELECTION_MAX_LINES) {
+        oversizedFiles.push({ file: relativePath, lines });
+      }
+      if (/export\s+\*\s+from/u.test(source)) {
+        wildcardBarrels.push(relativePath);
+      }
+      if (/\b(?:external_benchmark|BEAM)\b/u.test(source)) {
+        benchmarkLiteralFiles.push(relativePath);
+      }
+      if (DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN.test(source)) {
+        fixtureLiteralFiles.push(relativePath);
+      }
+
+      const isDraftModule = relativePath === "recall/factSelection/draft.ts";
+      if (!isDraftModule) {
+        if (draftMutationPattern.test(source)) {
+          unauthorizedDraftMutations.push(relativePath);
+        }
+        if (/\bmarkSelectedTrace\b/u.test(source)) {
+          unauthorizedDraftMutations.push(`${relativePath} (markSelectedTrace)`);
+        }
+      }
+
+      const sourceFile = ts.createSourceFile(
+        relativePath,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS,
+      );
+      for (const statement of sourceFile.statements) {
+        if (!ts.isImportDeclaration(statement)) {
+          continue;
+        }
+        const moduleSpecifier = statement.moduleSpecifier;
+        if (!ts.isStringLiteral(moduleSpecifier) || !moduleSpecifier.text.startsWith(".")) {
+          continue;
+        }
+        const importClause = statement.importClause;
+        if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+          continue;
+        }
+        for (const element of importClause.namedBindings.elements) {
+          const binding = element.propertyName?.text ?? element.name.text;
+          if (
+            /^is[A-Z].*Query$/u.test(binding) &&
+            !ALLOWED_RECALL_SELECTION_QUERY_IMPORTS.has(binding)
+          ) {
+            disallowedQueryImports.push(`${relativePath}: ${binding}`);
+          }
+        }
+      }
+    }
+
+    // Once the draft module owns selection-state mutation, the engine itself
+    // must route every mutation through it.
+    expect(selectionSource).not.toMatch(draftMutationPattern);
+    expect(selectionSource).not.toMatch(/\bmarkSelectedTrace\b/u);
+
+    expect(oversizedFiles).toEqual([]);
+    expect(wildcardBarrels).toEqual([]);
+    expect(benchmarkLiteralFiles).toEqual([]);
+    expect(fixtureLiteralFiles).toEqual([]);
+    expect(disallowedQueryImports).toEqual([]);
+    expect(unauthorizedDraftMutations).toEqual([]);
   });
 
   it("keeps eval reporting limited to function exports", async () => {
