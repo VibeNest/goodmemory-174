@@ -14,12 +14,29 @@ import {
 } from "./temporal";
 
 export const CONTRADICTION_POSITIVE_RECALL_LIMIT = 3;
-export const CONTRADICTION_NEGATED_CLAIM_PATTERN =
-  /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,120}\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b|\bno\s+(?:prior\s+)?experience\s+with\b|(?:从来)?(?:没|没有|未)[\s\S]{0,120}(?:写过|做过|处理过|实现过|构建过|创建过|完成过|修复过|测试过|获得过|提交过|参加过|练习过|用过|使用过|接触过|经验)/iu;
-export const CONTRADICTION_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:attended|built|collaborated|completed|configured|created|downloaded|enrolled|fixed|got|handled|implemented|managed\s+to|missed|obtained|practi[cs]ed|received|stored|submitted|tested|used|worked(?:\s+with|\s+on)?|wrote|written|current\s+code|@app\.route|return(?:ed)?\s+static)\b|(?:已经|成功|实际)?(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|配置了|获得了|提交了|参加了|练习了|用过|使用过|返回静态)|@app\.route/iu;
-export const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN =
-  /\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|stored|submitted|tested|used|worked(?:\s+with|\s+on)?|wrote|written|managed\s+to)\b|return(?:ed)?\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|获得了|提交了|参加了|练习了|返回静态)/iu;
+const GENERIC_PAST_TENSE_VERB_FRAGMENT =
+  "(?!(?:need|feed|seed|deed|reed|weed|bleed|breed|speed|indeed|exceed|proceed|succeed)\\b)\\w{2,}ed";
+const IRREGULAR_PAST_VERB_FRAGMENT =
+  "met|made|gone|done|read|taken|given|seen|known|held|paid|sent|spent|told|bought|brought|caught|taught|found|heard|kept|left|lost|said|sat|stood|won|drawn|drunk|eaten|fallen|flown|ridden|sung|spoken|worn|written|wrote|been\\s+(?:to|using)";
+const CHINESE_EXPERIENCE_VERB_FRAGMENT =
+  "写过|做过|处理过|实现过|构建过|创建过|完成过|修复过|测试过|获得过|提交过|参加过|练习过|用过|使用过|接触过|见过|去过|读过|听过|看过|买过|下过|点过|邀请过|庆祝过|拒绝过|委托过|错过|报名过|尝试过|聊过|谈过|联系过|合作过|练过|学过|庆祝了|委托了|邀请了";
+export const CONTRADICTION_NEGATED_CLAIM_PATTERN = new RegExp(
+  "\\b(?:never|haven['’]t|hasn['’]t|hadn['’]t|didn['’]t|don['’]t|doesn['’]t|ha(?:ve|s|d)\\s+not|d(?:o|oes|id)\\s+not)\\b" +
+    `[\\s\\S]{0,120}\\b(?:${GENERIC_PAST_TENSE_VERB_FRAGMENT}|${IRREGULAR_PAST_VERB_FRAGMENT}|worked(?:\\s+with|\\s+on)?)\\b` +
+    "|\\bno\\s+(?:prior\\s+)?experience\\s+with\\b" +
+    `|(?:从来)?(?:没|没有|未)[\\s\\S]{0,120}(?:${CHINESE_EXPERIENCE_VERB_FRAGMENT}|经验)`,
+  "iu",
+);
+export const CONTRADICTION_REALIZED_EVIDENCE_PATTERN = new RegExp(
+  `\\b(?:${GENERIC_PAST_TENSE_VERB_FRAGMENT}|${IRREGULAR_PAST_VERB_FRAGMENT}|got|managed\\s+to|worked(?:\\s+with|\\s+on)?|current\\s+code|@app\\.route|return(?:ed)?\\s+static)\\b` +
+    `|(?:已经|成功|实际)?(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|配置了|获得了|提交了|参加了|练习了|返回静态|${CHINESE_EXPERIENCE_VERB_FRAGMENT})|@app\\.route`,
+  "iu",
+);
+export const CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN = new RegExp(
+  `\\b(?:attended|built|collaborated|completed|created|downloaded|enrolled|fixed|handled|implemented|missed|obtained|practi[cs]ed|stored|submitted|tested|used|worked(?:\\s+with|\\s+on)?|wrote|written|managed\\s+to|${IRREGULAR_PAST_VERB_FRAGMENT})\\b` +
+    `|return(?:ed)?\\s+static|(?:实现了|写了|处理了|构建了|创建了|完成了|修复了|测试了|获得了|提交了|参加了|练习了|返回静态|${CHINESE_EXPERIENCE_VERB_FRAGMENT})`,
+  "iu",
+);
 export const CONTRADICTION_EXPLORATORY_NON_REALIZED_PATTERN =
   /\b(?:before\s+deciding|review(?:ing)?\s+(?:a\s+)?(?:tutorial|guide|docs?|documentation)|trying\s+to\s+review|tutorials?)\b/iu;
 const AUTOCOMPLETE_BUG_FIX_CONFIRMATION_QUERY_PATTERN =
@@ -32,6 +49,15 @@ const FLASK_LOGIN_SESSION_MANAGEMENT_EVIDENCE_PATTERN =
   /\bflask[-\s]?login\b[\s\S]{0,180}\bsession\s+management\b|\bsession\s+management\b[\s\S]{0,180}\bflask[-\s]?login\b/iu;
 const FLASK_LOGIN_CONTRADICTION_CONTEXT_PATTERN =
   /\b(?:never|haven't|hasn't|hadn't|didn't|don't|doesn't)\b[\s\S]{0,180}\b(?:flask\s+routes?|http\s+requests?|managed\s+user\s+sessions?|manual\s+session\s+handling|session\s+management)\b/iu;
+
+const LEGACY_CONFIRMATION_QUERY_VERB_PATTERN =
+  /\b(?:attended|built|collaborat(?:ed|e)|completed|created|done|download(?:ed)?|enroll(?:ed)?|fix(?:ed)?|handled|implemented|miss(?:ed)?|obtain(?:ed)?|practi[cs](?:ed|e)|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b/iu;
+const YES_NO_CONFIRMATION_QUERY_SHAPE_PATTERN =
+  /^\s*(?:have|has|did|do|does)\b/iu;
+const GENERALIZED_CONFIRMATION_QUERY_PAST_VERB_PATTERN = new RegExp(
+  `\\b(?:${GENERIC_PAST_TENSE_VERB_FRAGMENT}|${IRREGULAR_PAST_VERB_FRAGMENT})\\b`,
+  "iu",
+);
 
 export function isSessionManagementContradictionQuery(
   query: string,
@@ -52,11 +78,16 @@ export function isPotentialContradictionConfirmationQuery(query: string): boolea
 
   return (
     /\b(?:have|has|did|do|does|ever)\b/iu.test(query) &&
-    /\b(?:attended|built|collaborat(?:ed|e)|completed|created|done|download(?:ed)?|enroll(?:ed)?|fix(?:ed)?|handled|implemented|miss(?:ed)?|obtain(?:ed)?|practi[cs](?:ed|e)|received|submitted|tested|used|worked(?:\s+with|\s+on)?|written|wrote)\b/iu.test(query)
+    LEGACY_CONFIRMATION_QUERY_VERB_PATTERN.test(query)
   ) ||
-    /(?:有没有|是否|是不是|有无|曾经|之前|到底).*(?:写过|做过|处理过|实现过|构建过|创建过|完成过|用过|使用过|接触过)/u.test(
-      query,
-    );
+    (
+      YES_NO_CONFIRMATION_QUERY_SHAPE_PATTERN.test(query) &&
+      GENERALIZED_CONFIRMATION_QUERY_PAST_VERB_PATTERN.test(query)
+    ) ||
+    new RegExp(
+      `(?:有没有|是否|是不是|有无|曾经|之前|到底).*(?:${CHINESE_EXPERIENCE_VERB_FRAGMENT})`,
+      "u",
+    ).test(query);
 }
 
 export function contradictionTopicTokens(
@@ -146,6 +177,105 @@ function selectSessionManagementContradictionEvidence(input: {
     })
     .sort(compareTemporalFactChronology)
     .slice(0, 1);
+}
+
+const DENIAL_ANCHOR_MINIMUM_QUERY_OVERLAP = 2;
+const DENIAL_ANCHORED_POSITIVE_MINIMUM_QUERY_OVERLAP = 2;
+
+function selectQueryAnchoredDenialEvidence(input: {
+  language: LanguageService;
+  preferredNegatedClaims: RankedFactCandidate[];
+  preferredPositiveClaims: RankedFactCandidate[];
+  queryTopics: ReadonlySet<string>;
+}): RankedFactCandidate[] {
+  const scoredDenials = input.preferredNegatedClaims
+    .filter(
+      (entry) =>
+        hasUserAnswerTag(entry) && sourceOrderSortKey(entry) !== undefined,
+    )
+    .map((entry) => ({
+      entry,
+      overlap: selectorTopicOverlapCount(
+        input.queryTopics,
+        contradictionTopicTokens(entry.fact.content, input.language, entry.locale),
+      ),
+    }))
+    .filter(({ overlap }) => overlap >= DENIAL_ANCHOR_MINIMUM_QUERY_OVERLAP)
+    .sort((left, right) => {
+      if (left.overlap !== right.overlap) {
+        return right.overlap - left.overlap;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    });
+  const anchor = scoredDenials[0];
+  if (!anchor) {
+    return [];
+  }
+
+  const anchorTopics = contradictionTopicTokens(
+    anchor.entry.fact.content,
+    input.language,
+    anchor.entry.locale,
+  );
+  const anchoredPositives = input.preferredPositiveClaims
+    .filter(
+      (entry) =>
+        entry.fact.id !== anchor.entry.fact.id &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .map((entry) => {
+      const topics = contradictionTopicTokens(
+        entry.fact.content,
+        input.language,
+        entry.locale,
+      );
+      const queryOverlap = selectorTopicOverlapCount(input.queryTopics, topics);
+      const anchorOverlap = selectorTopicOverlapCount(anchorTopics, topics);
+      if (
+        queryOverlap < DENIAL_ANCHORED_POSITIVE_MINIMUM_QUERY_OVERLAP ||
+        anchorOverlap < 1
+      ) {
+        return null;
+      }
+
+      const score =
+        Math.min(queryOverlap, 4) * 10 +
+        Math.min(anchorOverlap, 4) * 8 +
+        entry.lexicalScore * 20 +
+        (
+          CONTRADICTION_STRONG_REALIZED_EVIDENCE_PATTERN.test(
+            stripEvidencePrefix(entry.fact.content),
+          )
+            ? 40
+            : 0
+        );
+
+      return {
+        entry,
+        score,
+      };
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: RankedFactCandidate;
+        score: number;
+      } => candidate !== null,
+    )
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return right.score - left.score;
+      }
+      return compareTemporalFactChronology(left.entry, right.entry);
+    })
+    .slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT)
+    .map((candidate) => candidate.entry);
+
+  return [anchor.entry, ...anchoredPositives].sort(
+    compareTemporalFactChronology,
+  );
 }
 
 export function selectContradictionEvidencePair(input: {
@@ -264,7 +394,12 @@ export function selectContradictionEvidencePair(input: {
   }
 
   if (!best) {
-    return [];
+    return selectQueryAnchoredDenialEvidence({
+      language: input.language,
+      preferredNegatedClaims,
+      preferredPositiveClaims,
+      queryTopics,
+    });
   }
 
   const bestNegatedTopics = contradictionTopicTokens(

@@ -16455,6 +16455,191 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("pairs contradiction evidence for confirmation verbs outside the legacy list", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-met-kelly",
+        16,
+        "I met Kelly at the book club event last month and we discussed the reading list together.",
+      ),
+      makeFact(
+        "fact-never-met-kelly",
+        64,
+        "I've never met Kelly at any book club or library events, so I wouldn't recognize her in person.",
+      ),
+      makeFact(
+        "fact-library-schedule-noise",
+        90,
+        "The library reading room schedule changes every month and I keep forgetting the new hours.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever met Kelly at any book club or library event?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-met-kelly",
+      "fact-never-met-kelly",
+    ]);
+  });
+
+  it("returns the query-anchored denial when no realized positive pair resolves", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-greg-coffee-noise",
+        30,
+        "Greg and I grabbed coffee and talked about the conference schedule for next quarter.",
+      ),
+      makeFact(
+        "fact-task-list-noise",
+        44,
+        "My tasks for this sprint include the colleagues onboarding doc and the quarterly Greg sync notes.",
+      ),
+      makeFact(
+        "fact-never-delegated",
+        88,
+        "I have never delegated any of my tasks to Greg or other colleagues; I handle everything myself.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever delegated any of my tasks to Greg or other colleagues?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-never-delegated",
+    ]);
+  });
+
+  it("returns a same-turn contradiction denial that carries its own positive claim", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-triangle-same-turn",
+        58,
+        "I've never attempted any triangle classification problems before, but I recently completed a set of triangle classification exercises with my study group.",
+      ),
+      makeFact(
+        "fact-geometry-noise",
+        70,
+        "I am reviewing a geometry textbook chapter about angles and circles this week.",
+      ),
+      makeFact(
+        "fact-classification-noise",
+        74,
+        "The textbook classification problems chapter lists triangle worksheets I have not opened yet.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever worked on triangle classification problems before?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-triangle-same-turn",
+    ]);
+  });
+
+  it("returns Chinese contradiction evidence for confirmation verbs outside the legacy list", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-expo-met-zh",
+        14,
+        "我上个月在球鞋展会上见过 Kyle，还和他聊了限量款的发售计划。",
+      ),
+      makeFact(
+        "fact-expo-never-zh",
+        60,
+        "我从来没见过 Kyle，也没参加过任何球鞋展会。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "我有没有见过 Kyle 或者参加过球鞋展会？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-expo-met-zh",
+      "fact-expo-never-zh",
+    ]);
+  });
+
   it("prioritizes compact dated nursery facts for temporal event-order questions", () => {
     const language = createLanguageService();
     const facts = [

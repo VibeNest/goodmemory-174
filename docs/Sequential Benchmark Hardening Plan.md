@@ -2274,6 +2274,46 @@ non-null negative recall deltas, no hit-loss, no newly-missing evidence, no
 positive missing-id deltas, and no positive noise deltas. This is still partial
 BEAM progress rather than closure; remaining work is the broader full-slice
 miss/noise surface.
+The local `/private/tmp/BEAM` root was missing again on 2026-06-10, so the
+GitHub-raw 100K export was regenerated and validates at 20 rows, 400 probing
+cases, and 5732 chat turns. Because the upstream cohort drifted slightly, a
+same-code rebaseline
+`run-phase63-beam-100k-recall-diagnostic-rules-github-raw-source-rebaseline-current-20260610T120500Z`
+was captured first: `executionFailures: 0`, evidence-chat recall
+0.6738314736906287, missed-recall cases 146/355, wrong-recall/noise cases
+275/400, hit evidence ids 710, missing ids 384, and noise ids 1279. Future
+same-source comparisons should use this 2026-06-10 rebaseline.
+The next same-source pass generalizes contradiction-confirmation retrieval
+instead of adding another case-specific selector: the negated-claim,
+realized-evidence, and confirmation-query patterns now accept generic English
+past-tense verbs plus bounded irregular forms and wider Chinese experience
+verbs; the generalized verb gate is start-anchored to yes/no question shape so
+`how long did ... take` style wh-questions cannot be hijacked into the
+contradiction route; and when no positive/negated pair resolves, a bounded
+query-anchored denial fallback returns the user source turn whose denial
+mirrors the question plus up to three denial-anchored positive companions.
+The kept rerun
+`run-phase63-beam-100k-recall-diagnostic-rules-contradiction-confirmation-generalized-v2-current-20260610T123000Z`
+has `executionFailures: 0` and raises evidence-chat recall from
+0.6738314736906287 to 0.6890427412962624 versus that rebaseline, with global
+hit evidence ids 710 -> 722, missing ids 384 -> 372, noise ids 1279 -> 1265,
+missed-recall cases 146 -> 141, wrong-recall/noise cases 275 -> 271, and
+zero-recall cases 76 -> 70. Contradiction-resolution recall improves from
+0.1917 to 0.3225 with +12 hit ids, -12 noise ids, and seven fewer zero-recall
+cases; temporal reasoning adds one hit with two fewer noise ids; the
+same-turn Excel tracking and Bryan storytelling denial cases move to exact
+1.0 recall. An earlier ungated v1 attempt
+`run-phase63-beam-100k-recall-diagnostic-rules-contradiction-confirmation-generalized-current-20260610T113500Z`
+was rejected because its broad verb gate let `did`/`have` wh-questions route
+into contradiction confirmation and regressed seven non-contradiction cases.
+The kept v2 case-delta analysis shows one documented tradeoff rather than
+zero: `9:multi_session_reasoning:1` loses one hit id because the rebaseline's
+contradiction query had retrieved that chat id as noise and incidentally
+reinforced it for the later same-row question; all other case deltas are
+non-negative. This remains partial BEAM progress, not closure: 22
+contradiction cases are still zero-recall because the mirrored denial turn
+does not reach the recall candidate pool, and the full diagnostic remains
+miss-limited and noisy at 141 missed-recall and 271 wrong-recall/noise cases.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,
