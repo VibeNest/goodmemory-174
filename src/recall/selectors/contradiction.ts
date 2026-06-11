@@ -90,12 +90,17 @@ export function isPotentialContradictionConfirmationQuery(query: string): boolea
     ).test(query);
 }
 
+const CONTRADICTION_TOPIC_AUXILIARY_TOKENS = new Set(["been", "being"]);
+
 export function contradictionTopicTokens(
   text: string,
   language: LanguageService,
   locale: string,
 ): Set<string> {
   const tokens = selectorTopicTokens(text, language, locale);
+  for (const token of CONTRADICTION_TOPIC_AUXILIARY_TOKENS) {
+    tokens.delete(token);
+  }
   for (const match of text.toLowerCase().matchAll(/\b(?:api|ats|ci|css|gpa|qa|seo|ui|uk)\b/gu)) {
     tokens.add(match[0]);
   }
@@ -113,6 +118,9 @@ export function isNegatedSourceClaim(entry: RankedFactCandidate): boolean {
     );
 }
 
+const CONTRADICTION_CLAUSE_BOUNDARY_PATTERN =
+  /[,;.!?，；。！？]+|\b(?:but|however|although|though)\b|(?:但是|不过|然而|可是|虽然)/iu;
+
 export function isRealizedPositiveSourceClaim(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
   if (
@@ -121,10 +129,20 @@ export function isRealizedPositiveSourceClaim(entry: RankedFactCandidate): boole
   ) {
     return false;
   }
+  if (!hasConversationEvidenceTag(entry)) {
+    return false;
+  }
+  if (!CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content)) {
+    return CONTRADICTION_REALIZED_EVIDENCE_PATTERN.test(content);
+  }
 
-  return hasConversationEvidenceTag(entry) &&
-    !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content) &&
-    CONTRADICTION_REALIZED_EVIDENCE_PATTERN.test(content);
+  return content
+    .split(CONTRADICTION_CLAUSE_BOUNDARY_PATTERN)
+    .some(
+      (clause) =>
+        !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(clause) &&
+        CONTRADICTION_REALIZED_EVIDENCE_PATTERN.test(clause),
+    );
 }
 
 function selectAutocompleteBugFixConfirmationEvidence(input: {
@@ -181,6 +199,28 @@ function selectSessionManagementContradictionEvidence(input: {
 
 const DENIAL_ANCHOR_MINIMUM_QUERY_OVERLAP = 2;
 const DENIAL_ANCHORED_POSITIVE_MINIMUM_QUERY_OVERLAP = 2;
+
+function hasOnTopicNegatedClause(input: {
+  entry: RankedFactCandidate;
+  language: LanguageService;
+  queryTopics: ReadonlySet<string>;
+}): boolean {
+  const content = stripEvidencePrefix(input.entry.fact.content);
+  if (!CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content)) {
+    return false;
+  }
+
+  return content
+    .split(CONTRADICTION_CLAUSE_BOUNDARY_PATTERN)
+    .some(
+      (clause) =>
+        CONTRADICTION_NEGATED_CLAIM_PATTERN.test(clause) &&
+        selectorTopicOverlapCount(
+          input.queryTopics,
+          contradictionTopicTokens(clause, input.language, input.entry.locale),
+        ) >= 1,
+    );
+}
 
 function selectQueryAnchoredDenialEvidence(input: {
   language: LanguageService;
@@ -311,9 +351,18 @@ export function selectContradictionEvidencePair(input: {
   const preferredNegatedClaims = negatedClaims.some(hasUserAnswerTag)
     ? negatedClaims.filter(hasUserAnswerTag)
     : negatedClaims;
-  const preferredPositiveClaims = positiveClaims.some(hasUserAnswerTag)
-    ? positiveClaims.filter(hasUserAnswerTag)
-    : positiveClaims;
+  const preferredPositiveClaims = (
+    positiveClaims.some(hasUserAnswerTag)
+      ? positiveClaims.filter(hasUserAnswerTag)
+      : positiveClaims
+  ).filter(
+    (entry) =>
+      !hasOnTopicNegatedClause({
+        entry,
+        language: input.language,
+        queryTopics,
+      }),
+  );
   const hasEarlierPositiveContradiction = preferredNegatedClaims.some((negated) => {
     const negatedOrder = sourceOrderSortKey(negated);
     return negatedOrder !== undefined &&

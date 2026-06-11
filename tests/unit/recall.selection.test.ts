@@ -13,6 +13,7 @@ import {
   selectFacts,
   selectReferences,
 } from "../../src/recall/selection";
+import { selectContradictionEvidencePair } from "../../src/recall/selectors/contradiction";
 import {
   isSleekNeutralSneakerPreferenceQuery,
   sourceInstructionTopicTokens,
@@ -16637,6 +16638,196 @@ describe("recall selection", () => {
     expect(result.facts.map((fact) => fact.id)).toEqual([
       "fact-expo-met-zh",
       "fact-expo-never-zh",
+    ]);
+  });
+
+  it("pairs dual-clause contradiction evidence when the positive turn carries an unrelated denial", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-met-kelly-dual-clause",
+        16,
+        "I met Kelly at the book club event last month, but I've never finished a full reading challenge before.",
+      ),
+      makeFact(
+        "fact-never-met-kelly-dual",
+        64,
+        "I've never met Kelly at any book club or library events, so I wouldn't recognize her in person.",
+      ),
+      makeFact(
+        "fact-library-schedule-noise-dual",
+        90,
+        "The library reading room schedule changes every month and I keep forgetting the new hours.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever met Kelly at any book club or library event?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-met-kelly-dual-clause",
+      "fact-never-met-kelly-dual",
+    ]);
+  });
+
+  it("keeps contradiction evidence pairs ahead of source instruction appends for confirmation queries", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-met-kyle-expo",
+        14,
+        "I met Kyle back in 2018 at a sneaker expo in Bridgetown, Barbados, and he seems to know his stuff, but I've never tried Nike Air Max before, so should I give it a shot",
+      ),
+      makeFact(
+        "fact-sneaker-comparison-instruction",
+        58,
+        "Always provide detailed comparisons when I ask about sneaker features.",
+      ),
+      makeFact(
+        "fact-never-met-kyle-expo",
+        60,
+        "I've never met anyone like Kyle or been to sneaker expos, can you help me find some comfortable and stylish sneakers for daily wear?",
+      ),
+      makeFact(
+        "fact-sneaker-health-instruction",
+        160,
+        "Always highlight health benefits when I ask about sneaker features.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever met Kyle or been to any sneaker expos?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-met-kyle-expo",
+      "fact-never-met-kyle-expo",
+    ]);
+  });
+
+  it("does not bridge contradiction pairs through auxiliary been topic tokens", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-running-technique-unrelated",
+        126,
+        "I've been learning about running technique from Christopher, who taught me heel-to-toe running form on May 7, and I want to keep my sneakers in good condition",
+      ),
+      makeFact(
+        "fact-sneaker-return-denial",
+        216,
+        "I've been thinking about my sneaker collection and I realized I have never returned or reordered any sneakers",
+      ),
+    ];
+    const ranked = rankFactCandidates(
+      buildFactCandidates(
+        facts,
+        "Have I ever met Kyle or been to any sneaker expos?",
+        language,
+        "en",
+        TIMESTAMP,
+      ),
+      "rules-only",
+    );
+
+    const selected = selectContradictionEvidencePair({
+      entries: ranked,
+      language,
+      query: "Have I ever met Kyle or been to any sneaker expos?",
+      queryLocale: "en",
+    });
+
+    expect(selected).toEqual([]);
+  });
+
+  it("pairs Chinese dual-clause contradiction evidence when the positive turn carries an unrelated denial", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-expo-met-dual-zh",
+        14,
+        "我上个月在球鞋展会上见过 Kyle，不过我从来没用过 Sketch 这类设计软件。",
+      ),
+      makeFact(
+        "fact-expo-never-dual-zh",
+        60,
+        "我从来没见过 Kyle，也没参加过任何球鞋展会。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "我有没有见过 Kyle 或者参加过球鞋展会？",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-expo-met-dual-zh",
+      "fact-expo-never-dual-zh",
     ]);
   });
 

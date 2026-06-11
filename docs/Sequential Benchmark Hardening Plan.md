@@ -2314,6 +2314,61 @@ non-negative. This remains partial BEAM progress, not closure: 22
 contradiction cases are still zero-recall because the mirrored denial turn
 does not reach the recall candidate pool, and the full diagnostic remains
 miss-limited and noisy at 141 missed-recall and 271 wrong-recall/noise cases.
+
+The next kept pass repairs that 22-case contradiction family at its true
+root cause: tracing `15:contradiction_resolution:1` end to end showed the
+denial and positive turns were both present, active, and tagged in the
+candidate pool (the denial was even the top lexical candidate), so the gap
+was selection-stage, not retrieval-stage. Three generic defects compounded:
+(a) the auxiliary token `been` counted as a topic token, letting unrelated
+`I've been ...` turns bridge the >=2 query/pair overlap gates and form wrong
+contradiction pairs that preempted the denial-anchored fallback; (b)
+dual-clause turns such as `I met Kyle ... but I've never tried Nike Air Max`
+failed `isRealizedPositiveSourceClaim` because the whole-content negation
+test vetoed the realized clause, so the true positive could never pair with
+its mirrored denial; and (c) `pruneSourceInstructionNoiseSelections` removed
+contradiction-pair selections (they carry `source_message` tags) whenever
+source-instruction candidates existed, then appended the instruction turns,
+which is how `Have I ever met Kyle or been to any sneaker expos?` returned
+two `Always ... sneaker features` instructions instead of the evidence pair.
+The repairs are all generic: `contradictionTopicTokens` now drops
+auxiliary `been`/`being` tokens; realized-positive classification falls back
+to clause-level analysis (splitting on `,;.!?`/`but`/`however` and Chinese
+equivalents) so a negation-bearing turn still counts as a pair positive when
+a negation-free clause carries realized evidence, guarded by a new
+query-aware `hasOnTopicNegatedClause` check so same-turn self-contradictions
+(whose own denial is on the query topic) stay anchored to the fallback
+rather than pairing with noise denials; and the post-primary instruction/
+source-preference append-and-prune block now yields whenever the
+contradiction pair won primary selection. Four failing tests were written
+first (dual-clause English pair, instruction-append yield on the real Kyle
+fixture, auxiliary-been wrong-pair rejection at the selector level, and the
+Chinese dual-clause mirror) and all pass after the repair alongside the full
+suite. Against the kept v2 baseline on the same verified-identical
+github-raw data root (all 400 evidence sets matched, so no cohort drift),
+the kept run
+`run-phase63-beam-100k-recall-diagnostic-rules-contradiction-pair-quality-v1-current-20260610T150000Z`
+lifts global rules-only evidence recall from 0.6890427412962624 to
+0.7304511920004878 — the largest single-pass gain of the BEAM loop so far —
+with hit evidence ids 722 -> 750, missing ids 372 -> 344, missed-recall
+cases 141 -> 127, and zero-recall cases 70 -> 54, at the cost of noise ids
+1265 -> 1282. The contradiction-resolution bucket improves from 0.3225 to
+0.69 average recall with zero-recall cases dropping from 22 to 5; sixteen of
+the twenty-two diagnosed cases now recall their denial turns, thirteen at
+exact 1.0. The case-delta analysis shows nineteen improved cases and two
+documented tradeoffs, both in conversation 4 (`4:knowledge_update:1` and
+`4:temporal_reasoning:2`, each -0.5 recall): both queries were verified to
+fail the contradiction confirmation gate, so their selection code path is
+unchanged, and the regressions are retrieval-reinforcement coincidences —
+the same row's contradiction queries now retrieve their true denial turns
+(chats 58 and 134) instead of shared noise, shifting later same-row
+tie-breaks — the same documented tradeoff family as kept passes 19/24 and
+the v2 `9:multi_session_reasoning:1` case, and the same conversation gains
+four improved cases in exchange. Remaining work for the next loop: 5
+contradiction cases are still zero-recall, the diagnostic remains
+miss-limited at 127 missed-recall and 271 wrong-recall/noise cases, and the
++17 noise regression from contradiction support positives is a candidate
+for a tightening pass.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

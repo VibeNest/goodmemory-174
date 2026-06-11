@@ -348,6 +348,7 @@ export function selectFacts(
     );
   };
 
+  let contradictionPairSelected = false;
   const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
     if (sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction) return false;
     switch (selectorId) {
@@ -359,6 +360,7 @@ export function selectFacts(
         for (const entry of contradictionEvidencePair) {
           selectAndTrace(entry);
         }
+        contradictionPairSelected = true;
         return true;
       }
       case "aggregate_evidence": {
@@ -730,7 +732,7 @@ export function selectFacts(
     }
   }
 
-  if (!sourcePreferenceOverrideByContradiction) {
+  if (!sourcePreferenceOverrideByContradiction && !contradictionPairSelected) {
     pruneSourceInstructionNoiseSelections({ instructionEvidenceCandidates, selected, selectedIds, traces });
 
     for (const entry of instructionEvidenceCandidates) {
