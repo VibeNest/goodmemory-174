@@ -106,6 +106,7 @@ export interface GoodMemoryConfig {
     vectorStore?: VectorStore;
   };
   testing?: {
+    createId?: () => string;
     extractor?: MemoryExtractor;
     now?: () => Date;
   };

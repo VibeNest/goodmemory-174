@@ -235,6 +235,7 @@
     "gate:phase-60": "bun run scripts/run-phase-60-gate.ts",
     "gate:phase-62": "bun run scripts/run-phase-62-gate.ts",
     "gate:phase-63": "bun run scripts/run-phase-63-gate.ts",
+    "verify:selection-refactor": "bun run scripts/verify-selection-refactor.ts",
     "release:rc-dry-run": "bun run scripts/run-phase-29-rc-dry-run.ts",
     "eval:live": "bun run scripts/run-eval.ts --mode=live",
     "eval:live-memory": "bun run scripts/run-eval.ts --mode=live-memory",

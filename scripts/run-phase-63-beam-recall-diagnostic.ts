@@ -362,12 +362,29 @@ function createDiagnosticEmbeddingAdapter(): EmbeddingAdapter {
 }
 
 export function createPhase63BeamDiagnosticMemory(): GoodMemory {
+  // Deterministic id and clock seams: ranking tie-breaks fall back to
+  // fact-id and timestamp comparisons, so random UUIDs and wall-clock
+  // timestamps made repeated diagnostic runs diverge on equal-scored
+  // candidates. Every conversation gets a fresh memory from this factory,
+  // so the counters reset per conversation and runs are reproducible.
+  let idCounter = 0;
+  let clockTick = 0;
   return createGoodMemory({
     adapters: {
       embeddingAdapter: createDiagnosticEmbeddingAdapter(),
     },
     storage: {
       provider: "memory",
+    },
+    testing: {
+      createId: () => {
+        idCounter += 1;
+        return `beam-diagnostic-${String(idCounter).padStart(6, "0")}`;
+      },
+      now: () => {
+        clockTick += 1;
+        return new Date(Date.UTC(2026, 0, 1, 0, 0, 0, clockTick));
+      },
     },
   });
 }

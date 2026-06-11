@@ -859,6 +859,10 @@ class GoodMemoryImpl implements GoodMemory {
       language,
       remember: config.remember,
       policy: config.policy,
+      createId: config.testing?.createId,
+      now: config.testing?.now
+        ? () => config.testing!.now!().toISOString()
+        : undefined,
     });
     this.jobs = createGoodMemoryJobsFacade({
       now: this.now,
