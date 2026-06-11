@@ -541,6 +541,164 @@ function buildAlexisFinancialManagementSummaryBeamRows(): unknown[] {
   ];
 }
 
+function buildPersonalFinancePlanningSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "That sounds like a really thorough plan. I think the most important thing for my mom is to have a clear budget and to build up that emergency fund.",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "Creating a clear budget and building an emergency fund are crucial for financial security. Use a simple Excel spreadsheet, track income and expenses, and take advantage of senior discounts.",
+      id: 21,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've decided to create a monthly budget by April 1, and I'm gonna track all expenses over $20, but I'm not sure if that's the right move.",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Creating a monthly budget by April 1 and tracking expenses over $20 is a solid budgeting approach for irregular income. Review categories regularly and adjust as needed.",
+      id: 29,
+      role: "assistant",
+    },
+    {
+      content:
+        "Reducing your expenses, especially on rent, can significantly ease your financial burden. Evaluate your current living situation, consider roommates or downsizing, negotiate with your landlord, explore cheaper housing options, review utilities and subscriptions, and create a detailed budget.",
+      id: 31,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm thinking about buying a family car within 3 years and I've got a budget of $15,000 in mind for 2027.",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Planning to buy a family car within three years with a $15,000 budget means setting a savings goal, automating transfers, checking credit, comparing financing, and monitoring progress.",
+      id: 37,
+      role: "assistant",
+    },
+    {
+      content:
+        "Sticking with Excel for budgeting is a great choice, especially if you prefer a customizable and straightforward method. While the Mint app trial has ended, you can still use Excel effectively to track investments, including index funds and ETFs, with investment rows, totals, and regular updates.",
+      id: 83,
+      role: "assistant",
+    },
+    {
+      content:
+        "You can set up automatic updates for the Yahoo Finance API in Excel to save time. Use Power Query to import and refresh market data automatically, then keep your investment tracker current without manual price entry.",
+      id: 87,
+      role: "assistant",
+    },
+    {
+      content:
+        "I started using the YNAB app on Sept 2, and I synced it with my bank accounts. Can you help me understand how this affects my financial planning and my new car savings goal?",
+      id: 172,
+      role: "user",
+    },
+    {
+      content:
+        "Using YNAB with synced bank accounts can improve financial planning by keeping the budget current, categorizing transactions, and tracking your $5,000 family car savings goal.",
+      id: 173,
+      role: "assistant",
+    },
+    {
+      content:
+        "To stay on track with your budget and lower dining out expenses, review current spending in YNAB or Excel, set a stricter dining-out target, cook at home, meal prep, limit restaurant meals, use discounts, and monitor your emergency fund progress.",
+      id: 193,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've increased my grocery budget to $550/month starting Dec 1 due to holiday meals and guests.",
+      id: 230,
+      role: "user",
+    },
+    {
+      content:
+        "Increasing your grocery budget to $550/month starting December 1 to accommodate holiday meals and guests is reasonable. To ensure this does not affect your other financial goals, review fixed expenses, cut back on dining out and entertainment, optimize grocery spending, keep emergency fund and car savings contributions, and use regular budget check-ins.",
+      id: 231,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've never approved any holiday medical supply budgets, can you explain why this might be relevant to our current financial planning?",
+      id: 270,
+      role: "user",
+    },
+    {
+      content:
+        "Including a small holiday medical supplies budget can help prepare for unexpected expenses, support family members like Ashlee, and keep the holiday gift budget balanced.",
+      id: 271,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've set a new goal to save $10,000 for a home renovation by Dec 2027, and I'd like some advice on how to create a realistic plan.",
+      id: 288,
+      role: "user",
+    },
+    {
+      content:
+        "To save $10,000 for a home renovation by December 2027, calculate a monthly savings target, reduce non-essential spending, automate transfers, and review progress quarterly.",
+      id: 289,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-finance-planning-summary",
+      conversation_plan: "BATCH 15 PLAN",
+      conversation_seed: {
+        category: "Lifestyle",
+        id: 15,
+        subtopics: [
+          "Creating and maintaining a budget",
+          "Cutting unnecessary expenses",
+          "Basic investing for beginners",
+        ],
+        theme: "Managing money wisely",
+        title: "Personal Finance for Everyday Life",
+      },
+      narratives: "Personal finance planning progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The financial planning progression started with reducing housing costs, moved into using Excel for investment tracking and Yahoo Finance price updates, addressed discretionary dining-out spending, and then adjusted the grocery budget for holiday meals without harming other financial goals.",
+            question:
+              "Can you give me a summary of how my financial planning and budgeting efforts have developed over our conversations?",
+            question_id: "personal-finance-planning-summary",
+            question_type: "summarization",
+            source_chat_ids: [31, 83, 87, 193, 231],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Darryl",
+        user_relationships: "Alexis, Ashlee",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildPortfolioSprintDeadlineUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -1785,6 +1943,158 @@ function buildPersonalStatementApplicationDeadlineExtractionBeamRows(): unknown[
       user_profile: {
         user_info: "USER PROFILE: Darryl Wilson",
         user_relationships: "Bryan, Tanya",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildTriangleSimilarityCongruenceSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to prove triangle congruence using SSS, SAS, ASA criteria and I have two triangles with sides 6, 8, 10 cm and 9, 12, 15 cm, can you help me verify if they are similar by SSS criterion? I want to make sure I understand how to apply the scale factors correctly in similarity problems.",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "To verify the two triangles are similar using the Side-Side-Side (SSS) criterion, compare the side ratios 9/6, 12/8, and 15/10. Each ratio equals 1.5, so the corresponding sides are proportional and the triangles are similar by SSS.",
+      id: 145,
+      role: "assistant",
+    },
+    {
+      content:
+        "You now understand that the triangles with sides 6, 8, 10 cm and 9, 12, 15 cm are similar, with a scale factor of 1.5 between corresponding sides.",
+      id: 147,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to prove triangle congruence using ASA with angles 50 degrees, 60 degrees and included side 7 cm, but I'm not sure how to plan the proof steps.",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "For ASA congruence, identify the two corresponding angles, confirm the included side is equal, label the triangles, then state that the triangles are congruent because two angles and the included side match.",
+      id: 151,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to prove triangle congruence using the SAS and ASA methods for a triangle with sides 5, 7, 8 cm and angles 40 degrees and 70 degrees. Can you help me compare the two approaches step by step?",
+      id: 152,
+      role: "user",
+    },
+    {
+      content:
+        "Comparing SAS and ASA for the triangle with sides 5 cm, 7 cm, 8 cm and angles 40 degrees and 70 degrees means checking whether you have two sides and the included angle for SAS, or two angles and the included side for ASA, then deciding which method is more direct for the given information.",
+      id: 153,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to prove that triangles with sides in ratio 2:3 and equal included angles are similar. Can you help me with the constructed formal proof?",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        "A formal proof uses the SAS similarity criterion: if two pairs of corresponding sides are proportional in the ratio 2:3 and the included angles are equal, then the triangles are similar.",
+      id: 159,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand why SSA is not a valid congruence criterion. Can you explain it with a counterexample using two triangles with sides 6, 8, 10 cm and 9, 12, 15 cm?",
+      id: 162,
+      role: "user",
+    },
+    {
+      content:
+        "SSA is not a valid congruence criterion because two sides and a non-included angle can create ambiguous cases. For the triangles with sides 6 cm, 8 cm, 10 cm and 9 cm, 12 cm, 15 cm, your example shows similar side lengths but not congruent triangles, so SSA cannot prove congruence.",
+      id: 163,
+      role: "assistant",
+    },
+    {
+      content:
+        "Can you help me use GeoGebra plugins to draw triangle congruence diagrams?",
+      id: 184,
+      role: "user",
+    },
+    {
+      content:
+        "GeoGebra already includes the segment, angle, and distance tools needed for drawing triangle congruence diagrams.",
+      id: 185,
+      role: "assistant",
+    },
+    {
+      content:
+        "I scored 18/20 on my practice test involving triangle congruence proofs and similarity ratio problems.",
+      id: 172,
+      role: "user",
+    },
+    {
+      content:
+        "Review the two missed practice-test questions and revisit SSS, SAS, ASA, and scale-factor steps.",
+      id: 173,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "triangle-similarity-congruence-summary",
+      conversation_plan: "BATCH 4 PLAN",
+      conversation_seed: {
+        category: "Math",
+        id: 4,
+        subtopics: [
+          "Triangle congruence",
+          "Triangle similarity",
+          "Formal geometric proof",
+        ],
+        theme: "Triangle similarity and congruence learning progression",
+        title: "Developing Triangle Proof Skills",
+      },
+      narratives: "Triangle similarity and congruence learning progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The learning journey began with SSS similarity and scale factors, moved to ASA congruence proof planning, compared SAS and ASA methods, added a formal SAS similarity proof for sides in a 2:3 ratio with equal included angles, and ended by understanding why SSA is not a valid congruence criterion.",
+            question:
+              "Can you give me a clear summary of how my understanding and application of triangle similarity and congruence developed throughout our conversations?",
+            question_id: "triangle-similarity-congruence-summary",
+            question_type: "summarization",
+            source_chat_ids: [
+              144,
+              145,
+              147,
+              150,
+              151,
+              152,
+              153,
+              158,
+              159,
+              162,
+              163,
+            ],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Geometry learner",
+        user_relationships: "None",
       },
       user_questions: [],
     },
@@ -3601,6 +3911,178 @@ function buildInstructionWithReasoningBridgeBeamRows(): unknown[] {
   ];
 }
 
+function buildEstatePlanningProcessSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm Crystal, a TV/film producer in East Janethaven, Montserrat, and I was thinking about my estate plan as of March 15, 2024. Can you guide me through making sure my assets are distributed according to my wishes?",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "Inventory your assets, identify beneficiaries, draft a will, consider trusts and powers of attorney, review with an attorney, and update the estate plan regularly.",
+      id: 5,
+      role: "assistant",
+    },
+    {
+      content:
+        "Including Douglas in your estate plan starts with listing assets, specifying provisions for Douglas, updating beneficiary designations, formalizing everything in your will, and reviewing the plan with an attorney.",
+      id: 23,
+      role: "assistant",
+    },
+    {
+      content:
+        "Choosing the right executor before the April 1 deadline means comparing Douglas and Kevin on responsibility, organizational skills, legal and financial knowledge, availability, emotional stability, trust, and willingness.",
+      id: 33,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm stressed about meeting my May 15 deadline to complete a legally valid will. Can you help me stay on track?",
+      id: 40,
+      role: "user",
+    },
+    {
+      content:
+        "Create a timeline, inventory assets, draft the will, consult an attorney in April, finalize the will in May, gather witnesses, and execute the document.",
+      id: 41,
+      role: "assistant",
+    },
+    {
+      content:
+        "Choosing an executor can be sensitive when it involves family dynamics. Given that Kimberly and Bradley attended the meeting where you discussed this, communicate clearly about why Douglas is the best fit, discuss the possibility of a co-executor like Kevin, seek professional advice from Stephanie, and document your decision clearly in your will.",
+      id: 69,
+      role: "assistant",
+    },
+    {
+      content:
+        "Here is my WillMaker Pro summary: Douglas is executor, Kevin is alternate executor, Stephanie is guardian, assets are listed, beneficiaries are recorded, and legal requirements are checked.",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "Review the will summary by checking beneficiary addresses, executor roles, guardianship details, asset distribution, trust provisions, funeral instructions, and witness requirements.",
+      id: 83,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm worried about the probate process and how it was shortened to 5-7 months, especially because I have never used WillMaker Pro to draft my will.",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "The probate process involves filing the will, court verification, appointment of the executor, inventory and appraisal, creditor notices, debt payment, and distribution of remaining assets.",
+      id: 123,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm worried about my estate plan being 90% complete, and I have a final review scheduled for September 15. How should I wrap everything up?",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "To wrap up your estate plan, review and update documents, secure originals in the fireproof safe, provide copies, confirm beneficiary designations, and prepare questions for the final review.",
+      id: 161,
+      role: "assistant",
+    },
+    {
+      content:
+        "Discussing the $5,000 emergency fund for guardianship expenses with Douglas should include medical costs, educational needs, living expenses, the purpose of the emergency fund, and a productive conversation so you are on the same page with him as guardian supporter.",
+      id: 179,
+      role: "assistant",
+    },
+    {
+      content:
+        "Having Kevin, a paralegal, review your will draft means organizing documents, summarizing your wishes, and listing concerns about guardianship, asset distribution, and digital assets so his legal insights can be incorporated before attorney approval.",
+      id: 189,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm finalizing my will with Diana before Stephanie retires and I have a December 15 deadline after attending an Estate Tax Planning workshop.",
+      id: 228,
+      role: "user",
+    },
+    {
+      content:
+        "Prioritize workshop notes, update the will, secure digital assets, finalize beneficiary designations, prepare for Diana, and keep the December 15 deadline visible.",
+      id: 229,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to finalize my estate plan by February 15 and have a completed binder with the home deed, insurance policies, and digital asset passwords.",
+      id: 282,
+      role: "user",
+    },
+    {
+      content:
+        "Use a comprehensive checklist for finalizing the estate plan: current will, witnesses, executor, digital assets, insurance, property records, taxes, and secure storage.",
+      id: 283,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to finalize my will and had a disagreement with Douglas about charitable donations, but we agreed on 10% of my estate going to charity.",
+      id: 298,
+      role: "user",
+    },
+    {
+      content:
+        "Allocating 10% to charity can affect tax benefits, clarity, designated charities, alternative charities, beneficiary expectations, and the legal drafting of your estate plan.",
+      id: 299,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "estate-planning-process-summary",
+      conversation_plan: "BATCH 19 PLAN",
+      conversation_seed: {
+        category: "Estate planning",
+        id: 19,
+        subtopics: ["Executor", "Guardianship", "Asset management"],
+        theme: "Estate planning",
+        title: "Estate planning process",
+      },
+      narratives: "Estate planning process progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The estate planning process developed from including Douglas in the estate plan, to deciding between Douglas and Kevin as executor, to family discussion, guardianship emergency fund planning, and Kevin's paralegal review of the will draft.",
+            question:
+              "Can you give me a complete summary of how my estate planning process has developed, including the key decisions and discussions I've had about executors, guardianship, and asset management?",
+            question_id: "estate-planning-process-summary",
+            question_type: "summarization",
+            source_chat_ids: [23, 33, 69, 179, 189],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal",
+        user_relationships: "Douglas, Kevin, Kimberly, Bradley",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildEstateWillFinalizationBeamRows(): unknown[] {
   const turns = [
     {
@@ -5274,6 +5756,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
+  it("keeps personal finance planning summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-finance-planning-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-11T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPersonalFinancePlanningSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([31, 83, 87, 193, 231]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps portfolio first-sprint deadline updates through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -5408,6 +5913,28 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
     expect(testCase?.evidenceChatRecall).toBe(1);
     expect(testCase?.retrievedChatIds).toEqual([34, 85, 183, 221]);
+  });
+
+  it("keeps estate-planning process summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-estate-planning-process-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-11T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEstatePlanningProcessSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+    expect(testCase?.retrievedChatIds).toEqual([23, 33, 69, 179, 189]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
   it("keeps time stress and creative collaboration source turns through the BEAM diagnostic path", async () => {
@@ -5828,6 +6355,41 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       43,
       57,
       59,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps triangle similarity and congruence summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-triangle-similarity-congruence-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-11T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTriangleSimilarityCongruenceSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      144,
+      145,
+      147,
+      150,
+      151,
+      152,
+      153,
+      158,
+      159,
+      162,
+      163,
     ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });

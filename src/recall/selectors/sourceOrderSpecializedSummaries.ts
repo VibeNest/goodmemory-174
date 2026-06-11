@@ -7,6 +7,7 @@ import { selectSourceOrderedFictionBookBudgetSummaryCoverage } from "./sourceOrd
 import { selectSourceOrderedRelationshipFinancialManagementSummaryCoverage } from "./sourceOrderRules/relationshipFinancialManagementSummary";
 import { selectSourceOrderedResearchWritingCollaborationSummaryCoverage } from "./sourceOrderRules/researchWritingCollaborationSummary";
 import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderRules/movieEvents";
+import { selectSourceOrderedPersonalFinancePlanningSummaryCoverage } from "./sourceOrderRules/personalFinancePlanningSummary";
 import { selectSourceOrderedPersonalStatementMentorSummaryCoverage } from "./sourceOrderRules/personalStatementMentorSummary";
 import { selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage } from "./sourceOrderRules/professionalDevelopmentProjectSummary";
 import { selectSourceOrderedProbabilityConceptSummaryCoverage } from "./sourceOrderRules/probabilityConceptSummary";
@@ -84,6 +85,14 @@ const SPECIALIZED_SUMMARY_RULES: readonly SpecializedSummaryRule[] = [
       }),
   },
   {
+    id: "personal-finance-planning",
+    select: (input) =>
+      selectSourceOrderedPersonalFinancePlanningSummaryCoverage({
+        query: input.query,
+        sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+      }),
+  },
+  {
     id: "reading-goals-strategy",
     select: (input) =>
       selectSourceOrderedReadingGoalsStrategySummaryCoverage(
@@ -130,7 +139,10 @@ const SPECIALIZED_SUMMARY_RULES: readonly SpecializedSummaryRule[] = [
   },
   {
     id: "triangle-geometry",
-    select: selectSourceOrderedTriangleGeometrySummaryCoverage,
+    select: (input) =>
+      selectSourceOrderedTriangleGeometrySummaryCoverage(
+        withAllSourceCandidates(input),
+      ),
   },
   {
     id: "footwear-preference",

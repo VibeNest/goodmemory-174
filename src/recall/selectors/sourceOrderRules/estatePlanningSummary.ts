@@ -44,7 +44,7 @@ const ESTATE_PROCESS_FACETS = [
     facet: "familyExecutorMeeting",
     role: "assistant",
     patterns: [
-      /^(?=[\s\S]*\bexecutor\s+meeting\b)(?=[\s\S]*\bco[-\s]?executor\b)(?=[\s\S]*\bclear\s+communication\b)(?=[\s\S]*(?:\bdocument(?:ing)?\s+the\s+decision\b|\battorney\b|\bwill\b))/iu,
+      /^(?=[\s\S]*(?:\bexecutor\s+meeting\b|\bmeeting\s+where\s+you\s+discussed\b|\bfamily\s+meeting\b))(?=[\s\S]*\bco[-\s]?executor\b)(?=[\s\S]*(?:\bclear\s+communication\b|\bcommunicat(?:e|ing)\s+clearly\b))(?=[\s\S]*(?:\bdocument(?:ing)?\s+(?:the\s+)?(?:decision|your\s+decision)\b|\battorney\b|\bwill\b))/iu,
     ],
   },
   {
