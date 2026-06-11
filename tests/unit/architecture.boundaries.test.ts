@@ -700,6 +700,33 @@ describe("architecture boundaries", () => {
     expect(selectionSource).not.toMatch(draftMutationPattern);
     expect(selectionSource).not.toMatch(/\bmarkSelectedTrace\b/u);
 
+    // The post-primary override pipeline must stay declarative: pruning lives
+    // in the augmenter stages, never inline in the engine.
+    const augmenterTablePath = join(
+      factSelectionDirectory,
+      "augmenterTable.ts",
+    );
+    if (await fileExists(augmenterTablePath)) {
+      expect(selectionSource).not.toContain(
+        "pruneSourceInstructionNoiseSelections",
+      );
+      const { FACT_SELECTION_AUGMENTER_TABLE } = await import(
+        "../../src/recall/factSelection/augmenterTable"
+      );
+      expect(
+        FACT_SELECTION_AUGMENTER_TABLE.map((stage: { id: string }) => stage.id),
+      ).toEqual([
+        "instruction_and_source_preference",
+        "assistant_count_headings",
+        "direct_factual_companions",
+        "coupon_store_companions",
+      ]);
+      const pruningStages = FACT_SELECTION_AUGMENTER_TABLE.filter(
+        (stage: { canPrune: boolean }) => stage.canPrune,
+      ).map((stage: { id: string }) => stage.id);
+      expect(pruningStages).toEqual(["instruction_and_source_preference"]);
+    }
+
     expect(oversizedFiles).toEqual([]);
     expect(wildcardBarrels).toEqual([]);
     expect(benchmarkLiteralFiles).toEqual([]);

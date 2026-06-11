@@ -8,7 +8,12 @@ import {
   rankFactCandidates,
 } from "./scoring";
 import type { RankedFactCandidate } from "./scoring";
-import { createSelectionDraft } from "./factSelection/draft";
+import { FACT_SELECTION_AUGMENTER_TABLE } from "./factSelection/augmenterTable";
+import type { FactSelectionRuntime } from "./factSelection/contracts";
+import {
+  createSelectionDraft,
+  finalizeSuppressionReasons,
+} from "./factSelection/draft";
 import {
   PRIMARY_FACT_SELECTION_ORDER,
   type PrimaryFactSelectionId,
@@ -24,8 +29,6 @@ import {
 } from "./selectors/aggregate";
 import {
   hasResearchRecommendationSignal,
-  selectCouponStoreContextCompanions,
-  selectDirectFactualCompanions,
   userGroundedEvidencePriority,
 } from "./selectors/conversationEvidence";
 import {
@@ -35,9 +38,7 @@ import {
   fillSourceOrderedTemporalMilestones,
 } from "./selectors/sourceOrderTemporal";
 import {
-  ASSISTANT_COUNT_HEADING_FACT_PATTERN,
   ASSISTANT_EVIDENCE_RECALL_LIMIT,
-  ASSISTANT_EVIDENCE_TAG,
   DIRECT_FACTUAL_RECALL_LIMIT,
   PREFERENCE_EVIDENCE_RECALL_LIMIT,
   RESEARCH_RECOMMENDATION_LIMIT,
@@ -49,7 +50,6 @@ import {
   slotMatchesFact,
   stripEvidencePrefix,
 } from "./selectors/selectionContext";
-import { pruneSourceInstructionNoiseSelections } from "./selectors/sourceOrderInstructionPruning";
 import { isSourceEnvelopeCandidate } from "./selectors/sourceEnvelope";
 import {
   compareTemporalFactChronology,
@@ -122,6 +122,14 @@ export function selectFacts(
       entry.fact.lifecycle === "active" &&
       language.localesCompatible(queryLocale, entry.locale),
   );
+  const ctx = buildSelectionRunContext({
+    compatible,
+    language,
+    profile,
+    query,
+    queryLocale,
+    routingDecision,
+  });
   const {
     aggregateEvidenceQuery,
     aggregateOpenLoopQuery,
@@ -168,14 +176,15 @@ export function selectFacts(
     weatherFeatureConcernCountQuery,
     withIntentSignal,
     withLexicalOrSubjectSignal,
-  } = buildSelectionRunContext({
+  } = ctx;
+  const runtime: FactSelectionRuntime = {
     compatible,
     language,
-    profile,
     query,
     queryLocale,
-    routingDecision,
-  });
+    retrievalProfile,
+    strategy: routingDecision.strategy,
+  };
   const draft = createSelectionDraft({ traces });
   const selected = draft.selected;
   const selectedIds = draft.selectedIds;
@@ -698,90 +707,29 @@ export function selectFacts(
 
   for (const selectorId of PRIMARY_FACT_SELECTION_ORDER) {
     if (runPrimarySelector(selectorId)) {
+      draft.summary.winner = {
+        claimsContradictionPair: contradictionPairSelected,
+        routeId: selectorId,
+      };
       break;
     }
   }
 
-  if (!sourcePreferenceOverrideByContradiction && !contradictionPairSelected) {
-    pruneSourceInstructionNoiseSelections({ instructionEvidenceCandidates, selected, selectedIds, traces });
-
-    for (const entry of instructionEvidenceCandidates) {
-      if (selectedIds.has(entry.fact.id)) {
-        continue;
-      }
-
-      selectAndTrace(entry);
+  for (const stage of FACT_SELECTION_AUGMENTER_TABLE) {
+    if (
+      draft.summary.winner &&
+      stage.yieldsToWinners.includes(draft.summary.winner.routeId)
+    ) {
+      continue;
+    }
+    if (!stage.gate({ ctx, draft, runtime, winner: draft.summary.winner })) {
+      continue;
     }
 
-    for (const entry of sourcePreferenceCandidates) {
-      if (selectedIds.has(entry.fact.id)) {
-        continue;
-      }
-
-      selectAndTrace(entry);
-    }
+    draft.summary.augmenterStages.push(stage.apply({ ctx, draft, runtime }));
   }
 
-  if (
-    assistantEvidenceRecallQuery &&
-    /\bhow many\b/iu.test(query) &&
-    selected.length < ASSISTANT_EVIDENCE_RECALL_LIMIT
-  ) {
-    const assistantCountHeadings = rankFactCandidates(
-      compatible.filter(
-        (entry) =>
-          !selectedIds.has(entry.fact.id) &&
-          entry.fact.tags?.includes(ASSISTANT_EVIDENCE_TAG) === true &&
-          ASSISTANT_COUNT_HEADING_FACT_PATTERN.test(
-            stripEvidencePrefix(entry.fact.content),
-          ),
-      ),
-      routingDecision.strategy,
-    ).slice(0, ASSISTANT_EVIDENCE_RECALL_LIMIT - selected.length);
-
-    for (const entry of assistantCountHeadings) {
-      selectAndTrace(entry);
-    }
-  }
-
-  if (
-    !exactSourceOrderedReasoningQuery &&
-    !sourcePreferenceExclusiveQuery &&
-    directFactualLookupQuery &&
-    !weatherFeatureConcernCountQuery &&
-    informationExtractionCandidates.length === 0 &&
-    sourceOrderedValueUpdateCandidates.length === 0 &&
-    sourceOrderedTemporalIntervalCandidates.length === 0 &&
-    selected.length < DIRECT_FACTUAL_RECALL_LIMIT
-  ) {
-    for (const entry of selectDirectFactualCompanions({
-      entries: compatible,
-      limit: DIRECT_FACTUAL_RECALL_LIMIT - selected.length,
-      selectedEntries: selected,
-      selectedIds,
-      strategy: routingDecision.strategy,
-    })) {
-      selectAndTrace(entry);
-    }
-  }
-
-  if (couponRedemptionLocationQuery) {
-    for (const entry of selectCouponStoreContextCompanions({
-      entries: compatible,
-      selectedEntries: selected,
-      selectedIds,
-      strategy: routingDecision.strategy,
-    })) {
-      selectAndTrace(entry);
-    }
-  }
-
-  for (const entry of compatible) {
-    const trace = traces.find((item) => item.memoryId === entry.fact.id);
-    if (trace && !trace.returned && trace.whySuppressed === "not selected") {
-      trace.whySuppressed = "below generic threshold";
-    }
-  }
+  finalizeSuppressionReasons({ compatible, traces });
 
   return {
     facts: selected.map(materializeFactCandidate),
