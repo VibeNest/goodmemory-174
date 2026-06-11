@@ -11,7 +11,15 @@ import {
   sourceOrderedTimelineRoute,
   temporalBridgeRoute,
 } from "./routes/contextCandidates";
+import { aggregateEvidenceRoute } from "./routes/aggregateEvidence";
 import { contradictionPairRoute } from "./routes/contradictionPair";
+import {
+  answerOrConfirmationRoute,
+  codingAgentFallbackRoute,
+  intentSignalRoute,
+  lexicalOrSubjectSignalRoute,
+  researchRecommendationRoute,
+} from "./routes/genericSignals";
 import { updateEvidenceRoute } from "./routes/updateEvidence";
 
 export const PRIMARY_FACT_SELECTION_ORDER = [
@@ -47,8 +55,14 @@ export type PrimaryFactSelectionId =
 export const FACT_SELECTION_ROUTES_BY_ID: Partial<
   Record<PrimaryFactSelectionId, FactSelectionRoute>
 > = {
+  aggregate_evidence: aggregateEvidenceRoute,
+  answer_or_confirmation: answerOrConfirmationRoute,
+  coding_agent_fallback: codingAgentFallbackRoute,
   contradiction_evidence_pair: contradictionPairRoute,
   conversation_evidence: conversationEvidenceRoute,
+  intent_signal: intentSignalRoute,
+  lexical_or_subject_signal: lexicalOrSubjectSignalRoute,
+  research_recommendation: researchRecommendationRoute,
   direct_factual_bridge: directFactualBridgeRoute,
   preference_evidence: preferenceEvidenceRoute,
   source_ordered_information_extraction: sourceOrderedInformationExtractionRoute,

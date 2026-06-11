@@ -22,16 +22,9 @@ import {
 import { buildSelectionRunContext } from "./selectionRunContext";
 import { selectSlotFacts } from "./selectionSlot";
 import {
-  AGGREGATE_FACT_COUNT_LIMIT,
   AGGREGATE_OPEN_LOOP_LIMIT,
-  aggregateEvidencePriority,
-  hasAggregateFactCountSignal,
   hasAggregateOpenLoopSignal,
 } from "./selectors/aggregate";
-import {
-  hasResearchRecommendationSignal,
-  userGroundedEvidencePriority,
-} from "./selectors/conversationEvidence";
 import {
   SOURCE_ORDER_EVENT_RECALL_LIMIT,
   fillSourceOrderedTemporalCompanions,
@@ -39,9 +32,7 @@ import {
   fillSourceOrderedTemporalMilestones,
 } from "./selectors/sourceOrderTemporal";
 import {
-  RESEARCH_RECOMMENDATION_LIMIT,
   diversifyRankedFactCandidatesBySession,
-  hasConversationEvidenceTag,
   hasUserAnswerTag,
   slotMatchesFact,
 } from "./selectors/selectionContext";
@@ -52,7 +43,6 @@ import {
   isSourceOrderedFact as isImportedSourceFact,
   temporalOrderEvidencePriority,
 } from "./selectors/temporal";
-import { collapseLatestUpdateSeries } from "./selectors/updateSeries";
 
 
 export {
@@ -123,51 +113,22 @@ export function selectFacts(
     routingDecision,
   });
   const {
-    aggregateEvidenceQuery,
     aggregateOpenLoopQuery,
-    answerCompositionQuery,
-    assistantEvidenceRecallQuery,
     broadAspectEventOrderCandidates,
-    contradictionEvidencePair,
-    conversationEvidenceCandidates,
-    couponRedemptionLocationQuery,
-    directFactualEvidenceBridgeCandidates,
-    directFactualLookupQuery,
-    exactSourceOrderedReasoningQuery,
-    factConfirmationQuery,
-    informationExtractionCandidates,
     instructionEvidenceCandidates,
     limit,
-    personalWorkChallengeCandidates,
-    preferenceEvidenceCandidates,
     referenceOnlyQuery,
-    reasoningBridgeCandidates,
-    researchRecommendationQuery,
     resumeDesignInstructionQuery,
     slotSpecificFactQuery,
     sourceOrderedEventOrderCandidates,
     sourceOrderedNamedEntityEventPlanActive,
-    sourceOrderedTemporalIntervalCandidates,
-    sourceOrderedValueUpdateCandidates,
-    sourcePreferenceCandidates,
     sourcePreferenceExclusiveQuery,
     sourcePreferenceOverrideByContradiction,
-    summaryCoverageCandidates,
-    temporalBridgeEvidenceCandidates,
     temporalEventOrderQuery,
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
-    timelineIntegrationCandidates,
     trelloSprintPrioritizationCriteriaAbstentionQuery,
-    updateEvidenceCandidates,
-    updateEvidencePool,
-    updateEvidenceSeriesOptions,
-    updateSeriesOptions,
-    userGroundedRecallQuery,
-    weatherFeatureConcernCountQuery,
-    withIntentSignal,
-    withLexicalOrSubjectSignal,
   } = ctx;
   const runtime: FactSelectionRuntime = {
     compatible,
@@ -290,28 +251,6 @@ export function selectFacts(
       traces,
     };
   }
-  const pickGenericCandidates = (entries: RankedFactCandidate[]) => {
-    if (!directFactualLookupQuery) {
-      return entries.slice(0, limit);
-    }
-
-    const explicitEvidenceEntries = entries.filter(hasConversationEvidenceTag);
-    const candidatePool =
-      explicitEvidenceEntries.length > 0 ? explicitEvidenceEntries : entries;
-    const orderedCandidatePool = userGroundedRecallQuery
-      ? [...candidatePool].sort(
-        (left, right) =>
-          userGroundedEvidencePriority(right) -
-          userGroundedEvidencePriority(left),
-      )
-      : candidatePool;
-
-    return diversifyRankedFactCandidatesBySession(
-      orderedCandidatePool,
-      limit,
-    );
-  };
-
   let contradictionPairSelected = false;
   const runPrimarySelector = (selectorId: PrimaryFactSelectionId): boolean => {
     if (sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction) return false;
@@ -331,40 +270,6 @@ export function selectFacts(
       return true;
     }
     switch (selectorId) {
-      case "aggregate_evidence": {
-        if (
-          sourceOrderedValueUpdateCandidates.length > 0 ||
-          sourceOrderedTemporalIntervalCandidates.length > 0
-        ) {
-          return false;
-        }
-
-        if (!aggregateEvidenceQuery) {
-          return false;
-        }
-
-        const aggregateCandidates = rankFactCandidates(
-          collapseLatestUpdateSeries(
-            compatible.filter((item) =>
-              hasAggregateFactCountSignal(item, query, language, queryLocale)
-            ),
-            updateSeriesOptions,
-          ),
-          routingDecision.strategy,
-        ).sort(
-          (left, right) =>
-            aggregateEvidencePriority(right, query, language, queryLocale) -
-            aggregateEvidencePriority(left, query, language, queryLocale),
-        );
-
-        for (const entry of diversifyRankedFactCandidatesBySession(
-          aggregateCandidates,
-          AGGREGATE_FACT_COUNT_LIMIT,
-        )) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
       case "temporal_order": {
         if (
           !temporalEventOrderQuery &&
@@ -457,74 +362,6 @@ export function selectFacts(
 
         for (const entry of orderedTemporalCandidates) {
           selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "intent_signal": {
-        if (sourcePreferenceExclusiveQuery || withIntentSignal.length === 0) {
-          return false;
-        }
-
-        for (const entry of pickGenericCandidates(withIntentSignal)) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "lexical_or_subject_signal": {
-        if (sourcePreferenceExclusiveQuery || withLexicalOrSubjectSignal.length === 0) {
-          return false;
-        }
-
-        for (const entry of pickGenericCandidates(withLexicalOrSubjectSignal)) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "research_recommendation": {
-        if (!researchRecommendationQuery) {
-          return false;
-        }
-
-        for (const entry of rankFactCandidates(
-          compatible.filter(hasResearchRecommendationSignal),
-          routingDecision.strategy,
-        ).slice(0, RESEARCH_RECOMMENDATION_LIMIT)) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "answer_or_confirmation": {
-        if (!answerCompositionQuery && !factConfirmationQuery) {
-          return false;
-        }
-
-        for (const entry of rankFactCandidates(
-          compatible.filter(
-            (item) =>
-              item.fact.category === "project" || item.fact.category === "technical",
-          ),
-          routingDecision.strategy,
-        ).slice(0, limit)) {
-          selectAndTrace(entry);
-        }
-        return true;
-      }
-      case "coding_agent_fallback": {
-        if (retrievalProfile !== "coding_agent") {
-          return false;
-        }
-
-        const fallback = rankFactCandidates(
-          compatible.filter(
-            (entry) =>
-              entry.fact.category !== "personal" &&
-              entry.fact.category !== "relationship" &&
-              entry.fact.category !== "event",
-          ),
-          routingDecision.strategy,
-        )[0];
-        if (fallback) {
-          selectAndTrace(fallback);
         }
         return true;
       }
