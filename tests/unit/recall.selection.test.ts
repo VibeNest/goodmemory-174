@@ -16353,6 +16353,54 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-autocomplete-cypress-noise")?.returned).toBe(false);
   });
 
+  it("pairs null-check error-rate improvement with autocomplete bug-fix denial", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-null-check-error-rate",
+        88,
+        "I'm trying to reduce the error rate in my weather app by adding null checks before accessing API response properties, and I've managed to bring it down from 12% to 1%.",
+      ),
+      makeFact(
+        "fact-long-autocomplete-review-noise",
+        124,
+        "I've completed the city autocomplete feature, but I'm still getting TypeError in autocomplete.js and I want a long review of fetchWeatherData, CSS media queries, Jest tests, retry logic, and autocomplete alternatives.",
+      ),
+      makeFact(
+        "fact-never-fixed-autocomplete",
+        132,
+        "I've never fixed any bugs related to the autocomplete feature, but I want to make sure I'm handling errors properly.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Have I ever fixed any bugs related to the autocomplete feature in my project?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-null-check-error-rate",
+      "fact-never-fixed-autocomplete",
+    ]);
+  });
+
   it("returns same-message Flask-Login contradiction evidence without formatting-instruction noise", () => {
     const language = createLanguageService();
     const makeFact = (

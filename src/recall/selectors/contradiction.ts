@@ -43,6 +43,10 @@ const AUTOCOMPLETE_BUG_FIX_CONFIRMATION_QUERY_PATTERN =
   /\b(?:have|has|did|do|does|ever)\b[\s\S]{0,180}\bfix(?:ed)?\b[\s\S]{0,180}\bbugs?\b[\s\S]{0,180}\bautocomplete\b|\b(?:have|has|did|do|does|ever)\b[\s\S]{0,180}\bautocomplete\b[\s\S]{0,180}\bbugs?\b[\s\S]{0,180}\bfix(?:ed)?\b/iu;
 const AUTOCOMPLETE_BUG_FIX_EVIDENCE_PATTERN =
   /\bfix(?:ed)?\b[\s\S]{0,120}\bbugs?\b[\s\S]{0,220}\bautocomplete\b|\bfix(?:ed)?\b[\s\S]{0,160}\bautocomplete\b[\s\S]{0,220}\bbugs?\b|\bautocomplete\b[\s\S]{0,220}\bbugs?\b[\s\S]{0,160}\bfix(?:ed)?\b|\bduplicate\s+city\s+suggestions\b[\s\S]{0,180}\bdebounce\s+cleanup\b|\bsuggestions?\s+disappeared\b[\s\S]{0,180}\bautocomplete\.js\b/iu;
+const AUTOCOMPLETE_NULL_CHECK_ERROR_RATE_EVIDENCE_PATTERN =
+  /\bnull\s+checks?\b[\s\S]{0,180}\berror\s+rate\b[\s\S]{0,120}\b(?:12\s*%|1\s*%|bring|brought|down|reduce[sd]?)\b|\berror\s+rate\b[\s\S]{0,180}\bnull\s+checks?\b/iu;
+const AUTOCOMPLETE_BUG_FIX_DENIAL_PATTERN =
+  /\bnever\b[\s\S]{0,120}\bfix(?:ed)?\b[\s\S]{0,120}\bbugs?\b[\s\S]{0,180}\bautocomplete\b|\bnever\b[\s\S]{0,120}\bautocomplete\b[\s\S]{0,180}\bbugs?\b[\s\S]{0,120}\bfix(?:ed)?\b/iu;
 const FLASK_LOGIN_SESSION_MANAGEMENT_CONFIRMATION_QUERY_PATTERN =
   /\b(?:have|has|did|do|does|ever)\b[\s\S]{0,160}\bintegrat(?:e|ed|ing|ion)\b[\s\S]{0,160}\bflask[-\s]?login\b[\s\S]{0,160}\bsession\s+management\b|\b(?:have|has|did|do|does|ever)\b[\s\S]{0,160}\bsession\s+management\b[\s\S]{0,160}\bflask[-\s]?login\b[\s\S]{0,160}\bintegrat(?:e|ed|ing|ion)\b/iu;
 const FLASK_LOGIN_SESSION_MANAGEMENT_EVIDENCE_PATTERN =
@@ -153,7 +157,7 @@ function selectAutocompleteBugFixConfirmationEvidence(input: {
     return [];
   }
 
-  return input.entries
+  const eligibleEntries = input.entries
     .filter((entry) => {
       if (
         !hasConversationEvidenceTag(entry) ||
@@ -165,10 +169,43 @@ function selectAutocompleteBugFixConfirmationEvidence(input: {
 
       const content = valueBearingFactContent(entry.fact.content);
       return !CONTRADICTION_NEGATED_CLAIM_PATTERN.test(content) &&
-        AUTOCOMPLETE_BUG_FIX_EVIDENCE_PATTERN.test(content);
+        (
+          AUTOCOMPLETE_BUG_FIX_EVIDENCE_PATTERN.test(content) ||
+          AUTOCOMPLETE_NULL_CHECK_ERROR_RATE_EVIDENCE_PATTERN.test(content)
+        );
     })
-    .sort(compareTemporalFactChronology)
-    .slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT);
+    .sort((left, right) => {
+      const leftContent = valueBearingFactContent(left.fact.content);
+      const rightContent = valueBearingFactContent(right.fact.content);
+      const nullCheckDelta =
+        Number(AUTOCOMPLETE_NULL_CHECK_ERROR_RATE_EVIDENCE_PATTERN.test(rightContent)) -
+        Number(AUTOCOMPLETE_NULL_CHECK_ERROR_RATE_EVIDENCE_PATTERN.test(leftContent));
+      if (nullCheckDelta !== 0) {
+        return nullCheckDelta;
+      }
+      return compareTemporalFactChronology(left, right);
+    });
+  const denialEntries = input.entries
+    .filter((entry) => {
+      if (
+        !hasConversationEvidenceTag(entry) ||
+        !hasUserAnswerTag(entry) ||
+        sourceOrderSortKey(entry) === undefined
+      ) {
+        return false;
+      }
+
+      return AUTOCOMPLETE_BUG_FIX_DENIAL_PATTERN.test(
+        valueBearingFactContent(entry.fact.content),
+      );
+    })
+    .sort(compareTemporalFactChronology);
+
+  if (eligibleEntries.length > 0 && denialEntries.length > 0) {
+    return [eligibleEntries[0]!, denialEntries[0]!].sort(compareTemporalFactChronology);
+  }
+
+  return eligibleEntries.slice(0, CONTRADICTION_POSITIVE_RECALL_LIMIT);
 }
 
 function selectSessionManagementContradictionEvidence(input: {
