@@ -1,3 +1,5 @@
+import { narrowGate } from "../../narrowGates";
+
 export const SOURCE_PREFERENCE_DECLARATION_PATTERN =
   /\b(?:prefer|preference|i['’]d\s+like|i\s+would\s+like|looking\s+for|interested\s+in|enjoy|love|rather\s+than|over\s+(?:heavy|manual|generic|external|third-party)|without\s+compromising|avoid(?:ing)?)\b|(?:偏好|更喜欢|喜欢|想要|希望|不想|不希望|尽量不要|避免|轻量|无外部依赖|不用很重|不要很重)/iu;
 export const SIMPLE_SOLUTION_QUERY_PATTERN =
@@ -100,89 +102,110 @@ const POSITIVE_FAMILY_MOVIE_REVIEW_QUERY_PATTERN =
 const BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN =
   /^(?=[\s\S]*\bmovies?\b)(?=[\s\S]*\bMichelle\b)(?=[\s\S]*\b(?:suggest|recommend|good\s+for)\b)(?=[\s\S]*\bwatch\b)/iu;
 
-export function isAsaCongruenceProofPreferenceQuery(query: string): boolean {
-  return ASA_CONGRUENCE_PROOF_QUERY_PATTERN.test(query);
-}
+export const isAsaCongruenceProofPreferenceQuery = narrowGate(
+  "preference.asaCongruenceProof",
+  (query: string): boolean => ASA_CONGRUENCE_PROOF_QUERY_PATTERN.test(query),
+);
 
-export function isAutomatedDeploymentMonitoringPreferenceQuery(query: string): boolean {
-  return AUTOMATED_DEPLOYMENT_MONITORING_QUERY_PATTERN.test(query);
-}
+export const isAutomatedDeploymentMonitoringPreferenceQuery = narrowGate(
+  "preference.automatedDeploymentMonitoring",
+  (query: string): boolean => AUTOMATED_DEPLOYMENT_MONITORING_QUERY_PATTERN.test(query),
+);
 
-export function isLightweightLazyLoadingPreferenceQuery(query: string): boolean {
-  return LAZY_LOADING_IMAGE_GALLERY_QUERY_PATTERN.test(query);
-}
+export const isLightweightLazyLoadingPreferenceQuery = narrowGate(
+  "preference.lightweightLazyLoading",
+  (query: string): boolean => LAZY_LOADING_IMAGE_GALLERY_QUERY_PATTERN.test(query),
+);
 
-export function isPragmaticSecurityPreferenceQuery(query: string): boolean {
-  return PRAGMATIC_SECURITY_FEATURES_QUERY_PATTERN.test(query);
-}
+export const isPragmaticSecurityPreferenceQuery = narrowGate(
+  "preference.pragmaticSecurity",
+  (query: string): boolean => PRAGMATIC_SECURITY_FEATURES_QUERY_PATTERN.test(query),
+);
 
-export function isUkAtsResumePreferenceQuery(query: string): boolean {
-  return UK_ATS_RESUME_FORMAT_QUERY_PATTERN.test(query);
-}
+export const isUkAtsResumePreferenceQuery = narrowGate(
+  "preference.ukAtsResume",
+  (query: string): boolean => UK_ATS_RESUME_FORMAT_QUERY_PATTERN.test(query),
+);
 
-export function isProbabilityRatioWalkthroughPreferenceQuery(query: string): boolean {
-  return PROBABILITY_RATIO_WALKTHROUGH_QUERY_PATTERN.test(query);
-}
+export const isProbabilityRatioWalkthroughPreferenceQuery = narrowGate(
+  "preference.probabilityRatioWalkthrough",
+  (query: string): boolean => PROBABILITY_RATIO_WALKTHROUGH_QUERY_PATTERN.test(query),
+);
 
-export function isTriangleAreaMedianComparisonPreferenceQuery(query: string): boolean {
-  return TRIANGLE_AREA_MEDIAN_COMPARISON_QUERY_PATTERN.test(query);
-}
+export const isTriangleAreaMedianComparisonPreferenceQuery = narrowGate(
+  "preference.triangleAreaMedianComparison",
+  (query: string): boolean => TRIANGLE_AREA_MEDIAN_COMPARISON_QUERY_PATTERN.test(query),
+);
 
-export function isCoverLetterMeasurableImpactPreferenceQuery(query: string): boolean {
-  return COVER_LETTER_MEASURABLE_IMPACT_QUERY_PATTERN.test(query);
-}
+export const isCoverLetterMeasurableImpactPreferenceQuery = narrowGate(
+  "preference.coverLetterMeasurableImpact",
+  (query: string): boolean => COVER_LETTER_MEASURABLE_IMPACT_QUERY_PATTERN.test(query),
+);
 
-export function isCoverLetterPortfolioLinkPreferenceQuery(query: string): boolean {
-  return COVER_LETTER_PORTFOLIO_LINK_QUERY_PATTERN.test(query);
-}
+export const isCoverLetterPortfolioLinkPreferenceQuery = narrowGate(
+  "preference.coverLetterPortfolioLink",
+  (query: string): boolean => COVER_LETTER_PORTFOLIO_LINK_QUERY_PATTERN.test(query),
+);
 
-export function isAiAssistedEditingWorkflowPreferenceQuery(query: string): boolean {
-  return AI_ASSISTED_EDITING_WORKFLOW_QUERY_PATTERN.test(query);
-}
+export const isAiAssistedEditingWorkflowPreferenceQuery = narrowGate(
+  "preference.aiAssistedEditingWorkflow",
+  (query: string): boolean => AI_ASSISTED_EDITING_WORKFLOW_QUERY_PATTERN.test(query),
+);
 
-export function isBookFormatPortabilityPreferenceQuery(query: string): boolean {
-  return BOOK_FORMAT_PORTABILITY_QUERY_PATTERN.test(query);
-}
+export const isBookFormatPortabilityPreferenceQuery = narrowGate(
+  "preference.bookFormatPortability",
+  (query: string): boolean => BOOK_FORMAT_PORTABILITY_QUERY_PATTERN.test(query),
+);
 
-export function isBalancedStandaloneSeriesPreferenceQuery(query: string): boolean {
-  return BALANCED_STANDALONE_SERIES_QUERY_PATTERN.test(query);
-}
+export const isBalancedStandaloneSeriesPreferenceQuery = narrowGate(
+  "preference.balancedStandaloneSeries",
+  (query: string): boolean => BALANCED_STANDALONE_SERIES_QUERY_PATTERN.test(query),
+);
 
-export function isSleekNeutralSneakerPreferenceQuery(query: string): boolean {
-  return SLEEK_NEUTRAL_SNEAKER_QUERY_PATTERN.test(query);
-}
+export const isSleekNeutralSneakerPreferenceQuery = narrowGate(
+  "preference.sleekNeutralSneaker",
+  (query: string): boolean => SLEEK_NEUTRAL_SNEAKER_QUERY_PATTERN.test(query),
+);
 
-export function isMorningSelfCarePreferenceQuery(query: string): boolean {
-  return MORNING_SELF_CARE_QUERY_PATTERN.test(query);
-}
+export const isMorningSelfCarePreferenceQuery = narrowGate(
+  "preference.morningSelfCare",
+  (query: string): boolean => MORNING_SELF_CARE_QUERY_PATTERN.test(query),
+);
 
-export function isExcelDiningBudgetPreferenceQuery(query: string): boolean {
-  return EXCEL_DINING_BUDGET_QUERY_PATTERN.test(query);
-}
+export const isExcelDiningBudgetPreferenceQuery = narrowGate(
+  "preference.excelDiningBudget",
+  (query: string): boolean => EXCEL_DINING_BUDGET_QUERY_PATTERN.test(query),
+);
 
-export function isDigitalWillUpdatePreferenceQuery(query: string): boolean {
-  return DIGITAL_WILL_UPDATE_QUERY_PATTERN.test(query);
-}
+export const isDigitalWillUpdatePreferenceQuery = narrowGate(
+  "preference.digitalWillUpdate",
+  (query: string): boolean => DIGITAL_WILL_UPDATE_QUERY_PATTERN.test(query),
+);
 
-export function isExecutorCandidatePreferenceQuery(query: string): boolean {
-  return EXECUTOR_CANDIDATE_QUERY_PATTERN.test(query);
-}
+export const isExecutorCandidatePreferenceQuery = narrowGate(
+  "preference.executorCandidate",
+  (query: string): boolean => EXECUTOR_CANDIDATE_QUERY_PATTERN.test(query),
+);
 
-export function isTaskAppointmentDigitalToolsPreferenceQuery(query: string): boolean {
-  return TASK_APPOINTMENT_DIGITAL_TOOLS_QUERY_PATTERN.test(query);
-}
+export const isTaskAppointmentDigitalToolsPreferenceQuery = narrowGate(
+  "preference.taskAppointmentDigitalTools",
+  (query: string): boolean => TASK_APPOINTMENT_DIGITAL_TOOLS_QUERY_PATTERN.test(query),
+);
 
-export function isStructuredDailyRoutinePreferenceQuery(query: string): boolean {
-  return STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN.test(query);
-}
+export const isStructuredDailyRoutinePreferenceQuery = narrowGate(
+  "preference.structuredDailyRoutine",
+  (query: string): boolean => STRUCTURED_DAILY_ROUTINE_QUERY_PATTERN.test(query),
+);
 
-export function isPositiveFamilyMovieReviewPreferenceQuery(query: string): boolean {
-  return POSITIVE_FAMILY_MOVIE_REVIEW_QUERY_PATTERN.test(query);
-}
+export const isPositiveFamilyMovieReviewPreferenceQuery = narrowGate(
+  "preference.positiveFamilyMovieReview",
+  (query: string): boolean => POSITIVE_FAMILY_MOVIE_REVIEW_QUERY_PATTERN.test(query),
+);
 
-export function isBilingualMovieLanguagePreferenceQuery(query: string): boolean {
-  return BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN.test(query);
-}
+export const isBilingualMovieLanguagePreferenceQuery = narrowGate(
+  "preference.bilingualMovieLanguage",
+  (query: string): boolean => BILINGUAL_MOVIE_LANGUAGE_QUERY_PATTERN.test(query),
+);
 
 export function isExclusiveSourcePreferenceQuery(query: string): boolean {
   return isAsaCongruenceProofPreferenceQuery(query) ||

@@ -739,6 +739,30 @@ describe("architecture boundaries", () => {
     expect(unauthorizedDraftMutations).toEqual([]);
   });
 
+  it("keeps the narrow-gate registry as the only recall environment seam", async () => {
+    const narrowGatesPath = join(SRC_ROOT, "recall", "narrowGates.ts");
+    if (!(await fileExists(narrowGatesPath))) {
+      return;
+    }
+
+    const narrowGatesSource = await readFile(narrowGatesPath, "utf8");
+    expect(narrowGatesSource.split("\n").length).toBeLessThanOrEqual(200);
+
+    const recallFiles = await collectTypeScriptFiles(join(SRC_ROOT, "recall"));
+    const envReaders: string[] = [];
+    for (const file of recallFiles) {
+      const relativePath = toSourceRelativePath(file);
+      if (relativePath === "recall/narrowGates.ts") {
+        continue;
+      }
+      const source = await readFile(file, "utf8");
+      if (/\bprocess\.env\b/u.test(source)) {
+        envReaders.push(relativePath);
+      }
+    }
+    expect(envReaders).toEqual([]);
+  });
+
   it("keeps eval reporting limited to function exports", async () => {
     expect(Object.keys(reporting).sort()).toEqual([
       "aggregateJudgedCases",

@@ -1,3 +1,4 @@
+import { narrowGate } from "../narrowGates";
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
@@ -63,11 +64,12 @@ const GENERALIZED_CONFIRMATION_QUERY_PAST_VERB_PATTERN = new RegExp(
   "iu",
 );
 
-export function isSessionManagementContradictionQuery(
-  query: string,
-): boolean {
+export const isSessionManagementContradictionQuery = narrowGate(
+  "contradiction.sessionManagement",
+  (query: string): boolean => {
   return FLASK_LOGIN_SESSION_MANAGEMENT_CONFIRMATION_QUERY_PATTERN.test(query);
-}
+  },
+);
 
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (

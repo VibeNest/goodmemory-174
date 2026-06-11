@@ -1,3 +1,4 @@
+import { narrowGate } from "../narrowGates";
 import type { LanguageService } from "../../language";
 import type { RecallRouterStrategy } from "../router";
 import type { RankedFactCandidate } from "../scoring";
@@ -392,9 +393,12 @@ export function hasResearchRecommendationSignal(entry: RankedFactCandidate): boo
   );
 }
 
-export function isCouponRedemptionLocationQuery(query: string): boolean {
+export const isCouponRedemptionLocationQuery = narrowGate(
+  "conversation.couponRedemptionLocation",
+  (query: string): boolean => {
   return /\bwhere\b/i.test(query) && /\bredeem(?:ed)?\b/i.test(query) && /\bcoupon\b/i.test(query);
-}
+  },
+);
 
 export function isCouponRedemptionFact(entry: RankedFactCandidate): boolean {
   return /\bredeemed\b/i.test(entry.fact.content) && /\bcoupon\b/i.test(entry.fact.content);

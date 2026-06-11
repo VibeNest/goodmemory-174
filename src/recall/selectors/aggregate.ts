@@ -21,6 +21,52 @@ import {
   valueBearingFactContent,
 } from "./selectionContext";
 
+import {
+  isAccommodationCostQuery,
+  isAquariumTankAggregateQuery,
+  isBikeServiceAggregateQuery,
+  isCountableEventActivityAggregateQuery,
+  isDeclinedFinancialOpportunityQuery,
+  isFeedWeightAggregateQuery,
+  isFoodDeliveryServiceAggregateQuery,
+  isFormalEducationDurationQuery,
+  isFurnitureActivityAggregateQuery,
+  isHealthIssueOrderQuery,
+  isMagazineSubscriptionAggregateQuery,
+  isMedicalProviderAggregateQuery,
+  isModelKitCountQuery,
+  isMuseumVisitOrderQuery,
+  isOwnershipCountAggregateQuery,
+  isPersonalElectronicsCostQuery,
+  isPlantAcquisitionAggregateQuery,
+  isPropertyViewingAggregateQuery,
+  isSiblingCountAggregateQuery,
+  isWeatherFeatureConcernCountQuery,
+} from "./aggregateNarrowGates";
+
+export {
+  isAccommodationCostQuery,
+  isAquariumTankAggregateQuery,
+  isBikeServiceAggregateQuery,
+  isCountableEventActivityAggregateQuery,
+  isDeclinedFinancialOpportunityQuery,
+  isFeedWeightAggregateQuery,
+  isFoodDeliveryServiceAggregateQuery,
+  isFormalEducationDurationQuery,
+  isFurnitureActivityAggregateQuery,
+  isHealthIssueOrderQuery,
+  isMagazineSubscriptionAggregateQuery,
+  isMedicalProviderAggregateQuery,
+  isModelKitCountQuery,
+  isMuseumVisitOrderQuery,
+  isOwnershipCountAggregateQuery,
+  isPersonalElectronicsCostQuery,
+  isPlantAcquisitionAggregateQuery,
+  isPropertyViewingAggregateQuery,
+  isSiblingCountAggregateQuery,
+  isWeatherFeatureConcernCountQuery,
+};
+
 export const AGGREGATE_OPEN_LOOP_LIMIT = 6;
 export const AGGREGATE_FACT_COUNT_LIMIT = 6;
 export const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
@@ -191,11 +237,6 @@ export function isAggregateMoneyQuery(query: string): boolean {
     /(多少钱|总共.*(?:花|费用|花费)|一共.*(?:花|费用|花费)|合计.*(?:花|费用|花费)|花了多少钱|花费多少|费用|价格)/u.test(query);
 }
 
-export function isDeclinedFinancialOpportunityQuery(query: string): boolean {
-  return DECLINED_FINANCIAL_OPPORTUNITY_QUERY_PATTERN.test(query) ||
-    DECLINED_FINANCIAL_OPPORTUNITY_QUERY_ZH_PATTERN.test(query);
-}
-
 export function isDeclinedFinancialOpportunityFact(content: string): boolean {
   return DECLINED_FINANCIAL_OPPORTUNITY_FACT_PATTERN.test(content) ||
     DECLINED_FINANCIAL_OPPORTUNITY_FACT_ZH_PATTERN.test(content);
@@ -228,100 +269,6 @@ export function isComparativeMetricQuery(query: string): boolean {
 export function isSocialMetricTotalQuery(query: string): boolean {
   return /\btotal(?:\s+number)?\b/i.test(query) &&
     /\b(?:people\s+reached|reached|views?|Facebook|Instagram|YouTube|TikTok|influencer)\b/i.test(query);
-}
-
-export function isMuseumVisitOrderQuery(query: string): boolean {
-  return /\border\b[\s\S]{0,120}\b(?:museums?|gallery|galleries)\b/iu.test(query) ||
-    /\b(?:museums?|gallery|galleries)\b[\s\S]{0,120}\border\b/iu.test(query);
-}
-
-export function isHealthIssueOrderQuery(query: string): boolean {
-  return /\bwhich\b[\s\S]{0,120}\bhealth\s+issues?\b[\s\S]{0,120}\bfirst\b/iu.test(query);
-}
-
-export function isAccommodationCostQuery(query: string): boolean {
-  return /\b(?:accommodations?|lodging|hotel|hostel|resort|motel|airbnb|room|stay|staying)\b/i.test(query) &&
-    /\b(?:per\s+night|nightly|how much|cost|costs|spent|spend|paid|price|prices)\b/i.test(query);
-}
-
-export function isFurnitureActivityAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:furniture|pieces?|items?|buy|bought|assemble|assembled|sell|sold|fix|fixed)\b/i.test(query);
-}
-
-export function isPropertyViewingAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:properties|property|view|viewed|saw|seen|offer|townhouse|condo|house|home)\b/i.test(query);
-}
-
-export function isFoodDeliveryServiceAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:food delivery|delivery services?|Domino'?s|Uber Eats|Fresh Fusion)\b/i.test(query);
-}
-
-export function isWeatherFeatureConcernCountQuery(query: string): boolean {
-  return WEATHER_FEATURE_CONCERN_COUNT_QUERY_PATTERN.test(query);
-}
-
-export function isMedicalProviderAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:doctor|doctors|physician|physicians|specialist|specialists)\b/i.test(query);
-}
-
-export function isPlantAcquisitionAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:plants?|lily|succulent|fern|basil|rose|snake plant|spider plant)\b/i.test(query) &&
-    /\b(?:acquire|acquired|got|bought|purchased|picked up|received|last month|initially|planted|growing)\b/i.test(query);
-}
-
-export function isAquariumTankAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:tank|tanks|aquariums?)\b/i.test(query);
-}
-
-export function isBikeServiceAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\bbikes?\b/i.test(query) &&
-    /\b(?:service|serviced|plan|planned|maintenance|replace|replaced|cleaned|lubricated)\b/i.test(query);
-}
-
-export function isMagazineSubscriptionAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:magazine|subscription|subscriptions|publications?)\b/i.test(query);
-}
-
-export function isFormalEducationDurationQuery(query: string): boolean {
-  return /\b(?:how many years|total)\b/i.test(query) &&
-    /\b(?:formal education|high school|Bachelor'?s|degree|education)\b/i.test(query);
-}
-
-export function isFeedWeightAggregateQuery(query: string): boolean {
-  return /\b(?:total|combined|sum)\b/i.test(query) &&
-    /\b(?:weight|pounds?|feed|grains)\b/i.test(query);
-}
-
-export function isSiblingCountAggregateQuery(query: string): boolean {
-  return /\b(?:how many|total(?:\s+number)?)\b/i.test(query) &&
-    /\bsiblings?\b/i.test(query);
-}
-
-export function isPersonalElectronicsCostQuery(query: string): boolean {
-  return isAggregateMoneyQuery(query) &&
-    /\b(?:headphones?|iPad|tablet|phone|watch|electronics?)\b/i.test(query);
-}
-
-export function isCountableEventActivityAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:events?|activities?|classes?|appointments?|ceremonies?|sports?|instruments?|points?|rewards?|museums?|galleries?|workshops?|lectures?|tours?)\b/i.test(query);
-}
-
-export function isModelKitCountQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) && /\bmodel kits?\b/i.test(query);
-}
-
-export function isOwnershipCountAggregateQuery(query: string): boolean {
-  return /\bhow many\b/i.test(query) &&
-    /\b(?:own|owns|owned|have|has|currently|bring|bringing)\b/i.test(query);
 }
 
 export function hasAggregateDomainSignal(input: {

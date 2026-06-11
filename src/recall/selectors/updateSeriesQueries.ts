@@ -1,23 +1,37 @@
-export function isRelationshipLatestLocationQuery(query: string): boolean {
+import { narrowGate } from "../narrowGates";
+
+export const isRelationshipLatestLocationQuery = narrowGate(
+  "updateSeries.relationshipLatestLocation",
+  (query: string): boolean => {
   return /\bwhere\b/i.test(query) &&
     /\b(?:moved?|relocation|move to|move back)\b/i.test(query);
-}
+  },
+);
 
-export function isMortgagePreapprovalQuery(query: string): boolean {
+export const isMortgagePreapprovalQuery = narrowGate(
+  "updateSeries.mortgagePreapproval",
+  (query: string): boolean => {
   return /\b(?:pre[-\s]?approved|pre[-\s]?approval|mortgage|wells fargo)\b/i.test(query) &&
     /\b(?:amount|how much|what|pre[-\s]?approved|pre[-\s]?approval)\b/i.test(query);
-}
+  },
+);
 
-export function isSharedGroceryListMethodQuery(query: string): boolean {
+export const isSharedGroceryListMethodQuery = narrowGate(
+  "updateSeries.sharedGroceryListMethod",
+  (query: string): boolean => {
   return /\b(?:mom|mother)\b/i.test(query) &&
     /\bgrocery\s+list\b/i.test(query) &&
     /\b(?:same|method|using|uses|app|paper)\b/i.test(query);
-}
+  },
+);
 
-export function isRecentFamilyTripQuery(query: string): boolean {
+export const isRecentFamilyTripQuery = narrowGate(
+  "updateSeries.recentFamilyTrip",
+  (query: string): boolean => {
   return /\b(?:most recent|recent|latest)\b/i.test(query) &&
     /\bfamily\s+trip\b/i.test(query);
-}
+  },
+);
 
 export function shouldSelectUpdateHistoryCompanions(
   seriesKey: string,

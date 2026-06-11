@@ -1,3 +1,4 @@
+import { narrowGate } from "../narrowGates";
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
 import {
@@ -154,9 +155,12 @@ const RESUME_DESIGN_INSTRUCTION_PATTERN =
 const SOURCE_INSTRUCTION_CONTINUATION_PATTERN =
   /\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b[\s\S]{0,180}\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b|\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b[\s\S]{0,180}\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b/iu;
 
-export function isResumeDesignInstructionQuery(query: string): boolean {
+export const isResumeDesignInstructionQuery = narrowGate(
+  "instruction.resumeDesign",
+  (query: string): boolean => {
   return RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN.test(query);
-}
+  },
+);
 
 export function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);

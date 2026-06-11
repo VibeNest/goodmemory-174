@@ -1,3 +1,4 @@
+import { narrowGate } from "../narrowGates";
 import type { RankedFactCandidate } from "../scoring";
 import {
   hasSourceMessageTag,
@@ -65,14 +66,15 @@ const HOUSEHOLD_BUDGET_REASONING_FACETS = [
   quota: number;
 }>;
 
-export function isSourceOrderedHouseholdBudgetReasoningQuery(
-  query: string,
-): boolean {
+export const isSourceOrderedHouseholdBudgetReasoningQuery = narrowGate(
+  "reasoning.householdBudget",
+  (query: string): boolean => {
   return /\bgrocery\s+budget\b/iu.test(query) &&
     /\bfreelance\s+contract\b/iu.test(query) &&
     /\bmedical\s+bills?\b/iu.test(query) &&
     /\bsavings?\s+goals?\b/iu.test(query);
-}
+  },
+);
 
 function householdBudgetReasoningFacets(
   entry: RankedFactCandidate,

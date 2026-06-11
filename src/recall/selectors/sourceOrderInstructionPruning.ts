@@ -1,15 +1,17 @@
+import { narrowGate } from "../narrowGates";
 import type { RecallCandidateTrace } from "../engine";
 import type { RankedFactCandidate } from "../scoring";
 import { hasSourceMessageTag } from "./selectionContext";
 
-export function isTrelloSprintPrioritizationCriteriaAbstentionQuery(
-  query: string,
-): boolean {
+export const isTrelloSprintPrioritizationCriteriaAbstentionQuery = narrowGate(
+  "instruction.trelloSprintCriteriaAbstention",
+  (query: string): boolean => {
   return /\bspecific\s+criteria\b/iu.test(query) &&
     /\bprioriti[sz]e\s+tasks\b/iu.test(query) &&
     /\bTrello\s+board\b/iu.test(query) &&
     /\bsprint\s*1\b/iu.test(query);
-}
+  },
+);
 
 export function pruneSourceInstructionNoiseSelections(input: {
   instructionEvidenceCandidates: RankedFactCandidate[];

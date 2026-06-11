@@ -1,3 +1,4 @@
+import { narrowGate } from "../../narrowGates";
 import type { RankedFactCandidate } from "../../scoring";
 import {
   hasAssistantAnswerTag,
@@ -89,14 +90,17 @@ const WEATHER_APP_LATENCY_COMPARISON_FACETS = [
   "autocompleteApiResponseTime",
 ] as const satisfies readonly WeatherAppLatencyComparisonFacet[];
 
-export function isSeniorProducerPreparationPriorityQuery(query: string): boolean {
+export const isSeniorProducerPreparationPriorityQuery = narrowGate(
+  "reasoning.seniorProducerPreparationPriority",
+  (query: string): boolean => {
   return /\bcover\s+letter\b[\s\S]{0,80}\bdeadlines?\b/iu.test(query) &&
     /\bzoom\b[\s\S]{0,80}\bcreative\s+director\b/iu.test(query) &&
     /\binterview\b[\s\S]{0,80}\bclarity\b[\s\S]{0,80}\bimprovements?\b/iu.test(query) &&
     /\bprioriti[sz]e\b[\s\S]{0,80}\bpreparation\b/iu.test(query) &&
     /\bmaximi[sz]e\b[\s\S]{0,80}\bchances\b/iu.test(query) &&
     /\bsenior\s+producer\s+role\b/iu.test(query);
-}
+  },
+);
 
 function isWeatherAppLatencyComparisonQuery(query: string): boolean {
   return /\bfetch\s+call\s+latenc(?:y|ies)\b/iu.test(query) &&
@@ -105,30 +109,37 @@ function isWeatherAppLatencyComparisonQuery(query: string): boolean {
     /\b(?:based\s+on|tests?)\b/iu.test(query);
 }
 
-export function isPatentPriorArtFilingReasoningQuery(query: string): boolean {
+export const isPatentPriorArtFilingReasoningQuery = narrowGate(
+  "reasoning.patentPriorArtFiling",
+  (query: string): boolean => {
   return /\bprior\s+art\s+search\b/iu.test(query) &&
     /\bfil(?:e|ing)\s+the\s+provisional\s+patent\b/iu.test(query) &&
     /\bsearch\s+thoroughness\b/iu.test(query) &&
     /\bpatent\s+features?\b/iu.test(query) &&
     /\bbudget\b/iu.test(query) &&
     /\bsuccessful\s+non-provisional\s+filing\b/iu.test(query);
-}
+  },
+);
 
-export function isPatentFilingDeadlineReasoningQuery(query: string): boolean {
+export const isPatentFilingDeadlineReasoningQuery = narrowGate(
+  "reasoning.patentFilingDeadline",
+  (query: string): boolean => {
   return /\btwo\s+different\b/iu.test(query) &&
     /\bpatent\s+filing\s+deadlines?\b/iu.test(query) &&
     /\bneed\s+to\s+meet\b/iu.test(query);
-}
+  },
+);
 
-export function isProbabilityCalculationConfirmationReasoningQuery(
-  query: string,
-): boolean {
+export const isProbabilityCalculationConfirmationReasoningQuery = narrowGate(
+  "reasoning.probabilityCalculationConfirmation",
+  (query: string): boolean => {
   return /\btossing\s+coins?\b/iu.test(query) &&
     /\brolling\s+dice\b/iu.test(query) &&
     /\bhow\s+many\b/iu.test(query) &&
     /\bprobability\s+calculations?\b/iu.test(query) &&
     /\b(?:confirm|try\s+to\s+confirm|tried\s+to\s+confirm)\b/iu.test(query);
-}
+  },
+);
 
 function isPersonalStatementFeedbackReasoningQuery(query: string): boolean {
   return /\bfeedback\b/iu.test(query) &&
