@@ -2369,6 +2369,67 @@ contradiction cases are still zero-recall, the diagnostic remains
 miss-limited at 127 missed-recall and 271 wrong-recall/noise cases, and the
 +17 noise regression from contradiction support positives is a candidate
 for a tightening pass.
+
+The next kept pass targets the event-ordering zero-recall family (10 cases,
+the lowest bucket at 0.4891 average recall with 122 missing evidence ids).
+End-to-end tracing of `4:event_ordering:1` showed the
+`Can you list the order in which I brought up different aspects of X ...
+Mention ONLY and ONLY N items` family failing through three compounding
+selection-stage defects rather than a retrieval gap: (a) the same
+`pruneSourceInstructionNoiseSelections` override family fixed for
+contradictions — the `temporal_order` route won primary selection with 32
+source-ordered evidence turns, then the instruction append-and-prune block
+removed every one of them (they carry `source_message` tags) and returned
+the conversation's on-topic instruction turns instead, which is why all ten
+zero-recall cases retrieved only one to six instruction-shaped ids; the
+architecture already protects timeline/summary/broad-aspect routes by
+emptying instruction candidates under `sourceOrderedSelectorActive`, but
+the event-order route was never included (and the broad-aspect selector
+itself is hard-scoped to resume/profile queries, so these conversations
+never reach it); (b) `selectSourceOrderedEventOrderEvidence` built its
+eligible and named candidate pools from all imported source turns rather
+than the user-only plan entries, so long topic-rich assistant replies
+outscored the terse user turns that `I brought up` questions ask about; and
+(c) the temporal-order fill stages (gap/companion/milestone) drew from an
+unfiltered pool and re-introduced assistant turns even after the anchors
+were user-only. The repairs are generic and architecture-consistent: the
+run context now computes `userBroughtUpEventOrderQuery` (the existing
+bilingual `isUserBroughtUpEventOrderQuery` gate minus the
+assistant-inclusive plan exception) and empties instruction candidates for
+those queries, the selector's eligible/named pools now reuse the
+user-filtered `sourceEventPlanEntries`, and the temporal route's ranked
+candidate pool prefers user-answer turns when any exist; the query-shape
+boolean lives in `selectionRunContext` per the architecture boundary that
+forbids query-classifier imports inside `selection.ts`. Three TDD tests
+cover the instruction-append yield (garden fixture), the user-over-assistant
+anchor preference (marathon fixture, selector and selectFacts levels), and
+a Chinese mirror that pins the post-repair behavior (it passes pre-repair
+because Chinese instruction-topic tokenization does not surface instruction
+candidates for brought-up queries — the yield gate's Chinese surface is the
+`我...提到` branch of the brought-up gate). Against the kept pair-quality
+baseline, the kept run
+`run-phase63-beam-100k-recall-diagnostic-rules-event-order-user-anchored-v1-current-20260610T170000Z`
+lifts global rules-only evidence recall from 0.7305 to 0.7415, with hit
+evidence ids 750 -> 771, missing ids 344 -> 323, and zero-recall cases
+54 -> 44; the event-ordering bucket improves from 0.4891 to 0.5792 average
+recall with zero-recall cases dropping from 10 to 1, and fourteen cases
+improve overall. The cost is noise ids 1282 -> 1488, because recovered
+event-order cases now retrieve the same ~24-30-id fill plans as the
+previously-working ones. One documented tradeoff: `17:knowledge_update:2`
+(-0.5 recall, chat 170 to 250 in the final tie-break slot) was verified
+gate-false for both event-order gates, so its code path is unchanged —
+another retrieval-reinforcement coincidence in a conversation whose
+event-ordering case improved. During this pass a stale May 29 working-copy
+duplicate `tests/unit/recall.selection 2.test.ts` (a Finder-style copy, the
+same phenomenon as the untracked `dist 2/` directory) was found shadowing
+the suite with pre-rebaseline fixtures; it contains no unique content and
+was moved out of the test tree. Remaining next-loop candidates: the
+event-order fill plans over-retrieve (~20 noise ids per case — trimming
+fills toward the requested item count is the highest-leverage noise pass),
+the coverage bucketing spreads anchors across the whole conversation while
+several evidence sets cluster in the earliest turns (the residual
+incomplete-recall gap in this family), 5 contradiction and 1 event-ordering
+cases remain zero-recall, and 127 missed-recall cases remain overall.
 The accepted current-code LongMemEval checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` covers all 500 cleaned cases with `executionFailures: 0`,

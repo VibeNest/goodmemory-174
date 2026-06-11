@@ -342,16 +342,14 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     return completeEventOrderAnchors;
   }
 
-  const eligibleSourceEntries = input.entries
-    .filter(isImportedSourceOrderedSummaryCandidate)
+  const eligibleSourceEntries = sourceEventPlanEntries
     .filter((entry) => priority(entry) >= SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD);
   const broadSourceCandidates = dedupeSourceOrderedEvidenceByOrder({
     entries: eligibleSourceEntries,
     priority,
   });
   const namedSourceCandidates = dedupeSourceOrderedEvidenceByOrder({
-    entries: input.entries
-      .filter(isImportedSourceOrderedSummaryCandidate)
+    entries: sourceEventPlanEntries
       .filter((entry) =>
         [...sourceOrderEventNamedTokens(stripEvidencePrefix(entry.fact.content))]
           .some((token) => queryNamedTokens.has(token))

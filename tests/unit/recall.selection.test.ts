@@ -16831,6 +16831,202 @@ describe("recall selection", () => {
     ]);
   });
 
+  it("keeps source-ordered event-order selections ahead of instruction appends for brought-up queries", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { chatId: sourceOrder, sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-garden-layout",
+        10,
+        "I'm planning my garden redesign and I started by measuring the backyard layout and sketching planting zones.",
+      ),
+      makeFact(
+        "fact-garden-beds",
+        12,
+        "I built three raised garden beds for the redesign and tested the drainage with a soaker hose.",
+      ),
+      makeFact(
+        "fact-garden-lighting",
+        14,
+        "I installed solar path lighting around the redesigned garden borders and updated the watering schedule.",
+      ),
+      makeFact(
+        "fact-garden-instruction-noise",
+        16,
+        "Always include sunlight requirements when I ask about garden redesign options.",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "Can you list the order in which I brought up different aspects of my garden redesign throughout our conversations, in order? Mention ONLY and ONLY three items.",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const ids = result.facts.map((fact) => fact.id);
+    expect(ids).toContain("fact-garden-layout");
+    expect(ids).toContain("fact-garden-beds");
+    expect(ids).toContain("fact-garden-lighting");
+    expect(ids.length).toBeLessThanOrEqual(4);
+  });
+
+  it("prefers user turns over assistant replies for brought-up event-order anchors", () => {
+    const language = createLanguageService();
+    const makeFact = (
+      id: string,
+      sourceOrder: number,
+      content: string,
+      tags: string[],
+    ) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: SOURCE,
+        tags,
+        attributes: { chatId: sourceOrder, sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const userTags = ["source_message", "source_order", "user_answer"];
+    const assistantTags = ["source_message", "source_order", "assistant_answer"];
+    const facts = [
+      makeFact(
+        "fact-trail-shoes",
+        10,
+        "I bought new trail running shoes for my marathon training plan.",
+        userTags,
+      ),
+      makeFact(
+        "fact-trail-coach",
+        11,
+        "Great progress! For your marathon training plan, the trail running shoes you bought should be paired with interval runs, recovery days, hydration tracking, stretching routines, and weekly mileage targets that build gradually toward race day.",
+        assistantTags,
+      ),
+      makeFact(
+        "fact-trail-intervals",
+        20,
+        "I completed my first interval run for the marathon training plan this week.",
+        userTags,
+      ),
+      makeFact(
+        "fact-trail-summary",
+        21,
+        "Excellent work! Completing interval runs in your marathon training plan alongside trail running shoes, hydration tracking, recovery days, stretching routines, and weekly mileage targets shows you are progressing toward race day shape.",
+        assistantTags,
+      ),
+      makeFact(
+        "fact-trail-mileage",
+        30,
+        "I updated my weekly mileage target for the marathon training plan to 30 miles.",
+        userTags,
+      ),
+    ];
+
+    const query =
+      "Can you list the order in which I brought up different aspects of my marathon training plan throughout our conversations, including how I first bought trail running shoes, then completed interval runs, and finally updated my weekly mileage target, in order? Mention ONLY and ONLY three items.";
+    const selectedIds = selectSourceOrderedEventOrderEvidence({
+      entries: rankFactCandidates(
+        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
+        "rules-only",
+      ),
+      language,
+      query,
+      queryLocale: "en",
+    }).map((entry) => entry.fact.id);
+
+    expect(selectedIds).toEqual([
+      "fact-trail-shoes",
+      "fact-trail-intervals",
+      "fact-trail-mileage",
+    ]);
+
+    const result = selectFacts(
+      facts,
+      query,
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-trail-shoes",
+      "fact-trail-intervals",
+      "fact-trail-mileage",
+    ]);
+  });
+
+  it("keeps Chinese source-ordered event selections ahead of instruction appends for brought-up queries", () => {
+    const language = createLanguageService();
+    const makeFact = (id: string, sourceOrder: number, content: string) =>
+      createFactMemory({
+        id,
+        userId: "user-1",
+        category: "external_benchmark",
+        content,
+        source: { ...SOURCE, locale: "zh-CN" },
+        tags: ["source_message", "source_order", "user_answer"],
+        attributes: { chatId: sourceOrder, sourceOrder },
+        updatedAt: TIMESTAMP,
+      });
+    const facts = [
+      makeFact(
+        "fact-garden-layout-zh",
+        10,
+        "我开始做花园改造，先测量了后院的布局并画了种植分区草图。",
+      ),
+      makeFact(
+        "fact-garden-beds-zh",
+        20,
+        "我为花园改造搭建了三个高架种植床，还测试了排水效果。",
+      ),
+      makeFact(
+        "fact-garden-lighting-zh",
+        30,
+        "我在改造后的花园边界安装了太阳能小路灯，并更新了浇水计划。",
+      ),
+      makeFact(
+        "fact-garden-instruction-noise-zh",
+        40,
+        "每次我问花园改造的不同方面时，请总是包含日照需求和对话要点的说明。",
+      ),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "请按时间顺序列出我在我们的对话中提到的关于花园改造的不同方面。",
+      language,
+      "zh-CN",
+      "general_chat",
+      buildRoutingDecision({}),
+      null,
+      TIMESTAMP,
+    );
+
+    const ids = result.facts.map((fact) => fact.id);
+    expect(ids).toContain("fact-garden-layout-zh");
+    expect(ids).toContain("fact-garden-beds-zh");
+    expect(ids).toContain("fact-garden-lighting-zh");
+  });
+
   it("prioritizes compact dated nursery facts for temporal event-order questions", () => {
     const language = createLanguageService();
     const facts = [

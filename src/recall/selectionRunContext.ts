@@ -51,7 +51,10 @@ import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "./selectors
 import {
   selectSourceOrderedInformationExtractionEvidence as selectInformationExtractionEvidence,
 } from "./selectors/sourceOrderInformationExtraction";
-import { isCompleteSourceOrderedEventOrderPlanQuery } from "./selectors/sourceOrderEventPlans";
+import {
+  isAssistantInclusiveSourceOrderedEventOrderPlanQuery,
+  isCompleteSourceOrderedEventOrderPlanQuery,
+} from "./selectors/sourceOrderEventPlans";
 import {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,
@@ -79,6 +82,7 @@ import {
   isTemporalIntervalQuery,
   isTemporalMostRecentQuery,
   isTemporalRelativeEventQuery,
+  isUserBroughtUpEventOrderQuery,
 } from "./selectors/temporal";
 import {
   collapseLatestUpdateSeries,
@@ -123,6 +127,7 @@ export interface SelectionRunContext {
   summaryCoverageCandidates: RankedFactCandidate[];
   temporalBridgeEvidenceCandidates: RankedFactCandidate[];
   temporalEventOrderQuery: boolean;
+  userBroughtUpEventOrderQuery: boolean;
   temporalMostRecentQuery: boolean;
   temporalRelativeEventQuery: boolean;
   timelineIntegrationCandidates: RankedFactCandidate[];
@@ -203,6 +208,9 @@ export function buildSelectionRunContext(
     temporalIntervalQuery
   );
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);
+  const userBroughtUpEventOrderQuery =
+    isUserBroughtUpEventOrderQuery(query) &&
+    !isAssistantInclusiveSourceOrderedEventOrderPlanQuery(query);
   const sourceOrderedNamedEntityEventOrderQuery =
     isSourceOrderedNamedEntityEventOrderQuery(query);
   const temporalMostRecentQuery = isTemporalMostRecentQuery(query);
@@ -307,6 +315,7 @@ export function buildSelectionRunContext(
     summaryCoverageCandidates: [],
     temporalBridgeEvidenceCandidates: [],
     temporalEventOrderQuery,
+    userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
     timelineIntegrationCandidates: [],
@@ -520,7 +529,9 @@ export function buildSelectionRunContext(
   const sourcePreferenceExclusiveQuery =
     exclusiveSourcePreferenceQuery && sourcePreferenceCandidates.length > 0;
   const instructionEvidenceCandidates =
-    sourceOrderedSelectorActive || sourcePreferenceExclusiveQuery
+    sourceOrderedSelectorActive ||
+    sourcePreferenceExclusiveQuery ||
+    (temporalEventOrderQuery && userBroughtUpEventOrderQuery)
       ? []
       : selectInstructionEvidence({
           entries: compatible,
@@ -571,6 +582,7 @@ export function buildSelectionRunContext(
     summaryCoverageCandidates,
     temporalBridgeEvidenceCandidates,
     temporalEventOrderQuery,
+    userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
     timelineIntegrationCandidates,

@@ -40,6 +40,7 @@ import {
   UPDATE_EVIDENCE_RECALL_LIMIT,
   diversifyRankedFactCandidatesBySession,
   hasConversationEvidenceTag,
+  hasUserAnswerTag,
   markSelectedTrace,
   slotMatchesFact,
   stripEvidencePrefix,
@@ -173,6 +174,7 @@ export function selectFacts(
     summaryCoverageCandidates,
     temporalBridgeEvidenceCandidates,
     temporalEventOrderQuery,
+    userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
     timelineIntegrationCandidates,
@@ -594,7 +596,7 @@ export function selectFacts(
           return true;
         }
 
-        const rankedTemporalCandidates = rankFactCandidates(
+        const rankedTemporalCandidatePool = rankFactCandidates(
           compatible.filter((entry) => hasTemporalEventOrderSignal(entry, query)),
           routingDecision.strategy,
         ).sort(
@@ -602,6 +604,13 @@ export function selectFacts(
             temporalOrderEvidencePriority(right, query) -
             temporalOrderEvidencePriority(left, query),
         );
+        const userAnsweredTemporalCandidates =
+          rankedTemporalCandidatePool.filter(hasUserAnswerTag);
+        const rankedTemporalCandidates =
+          userBroughtUpEventOrderQuery &&
+            userAnsweredTemporalCandidates.length > 0
+            ? userAnsweredTemporalCandidates
+            : rankedTemporalCandidatePool;
         const fallbackTemporalCandidates = diversifyRankedFactCandidatesBySession(
           rankedTemporalCandidates,
           compatible.some(isImportedSourceFact) ? SOURCE_ORDER_EVENT_RECALL_LIMIT : limit,
