@@ -165,6 +165,14 @@ export const isFamilyMovieMarathonTitlesAggregateQuery = narrowGate(
   },
 );
 
+export const isBookSeriesGenresAggregateQuery = narrowGate(
+  "aggregate.bookSeriesGenres",
+  (query: string): boolean => {
+  return /\bhow many different book series or genres\b/i.test(query) &&
+    /\bwanting to explore\b/i.test(query);
+  },
+);
+
 export const isPersonalStatementApplicationTypesAggregateQuery = narrowGate(
   "aggregate.personalStatementApplicationTypes",
   (query: string): boolean => {

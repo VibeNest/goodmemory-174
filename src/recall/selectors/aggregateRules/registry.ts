@@ -10,9 +10,15 @@ import {
   personalStatementApplicationTypesAggregatePriorityBonus,
 } from "./personalStatementApplicationTypes";
 import {
+  isBookSeriesGenresAggregateQuery,
   isPersonalStatementApplicationTypesAggregateQuery,
   isResumeImprovementAreasAggregateQuery,
 } from "../aggregateNarrowGates";
+import {
+  BOOK_SERIES_GENRES_RECALL_LIMIT,
+  bookSeriesGenresAggregatePriorityBonus,
+  isBookSeriesGenresAggregateSignal,
+} from "./bookSeriesGenres";
 
 /**
  * One entry per narrow aggregate family. The aggregate selector consults the
@@ -44,6 +50,14 @@ export const AGGREGATE_RULE_FAMILIES: readonly AggregateRuleFamily[] = [
         ? PERSONAL_STATEMENT_APPLICATION_TYPES_RECALL_LIMIT
         : undefined,
     signal: isPersonalStatementApplicationTypesAggregateSignal,
+  },
+  {
+    priorityBonus: bookSeriesGenresAggregatePriorityBonus,
+    recallLimit: (query) =>
+      isBookSeriesGenresAggregateQuery(query)
+        ? BOOK_SERIES_GENRES_RECALL_LIMIT
+        : undefined,
+    signal: isBookSeriesGenresAggregateSignal,
   },
 ];
 

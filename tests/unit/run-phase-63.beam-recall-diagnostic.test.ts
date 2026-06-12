@@ -5881,6 +5881,107 @@ function buildFinalDecisionMeetingBeamRows(): unknown[] {
   ];
 }
 
+function buildBookSeriesGenresBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've allocated $120 for book purchases this winter and I'm looking to buy print editions from Montserrat Books on Main Street, can you suggest some must-read fiction series that fit my budget? ->-> 1,10",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide detailed genre descriptions when I ask about book recommendations. ->-> 1,22",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I've been thinking of joining an online discussion like the one Wyatt organized on December 8 for \"The Poppy War\", which had 25 participants, to find my next favorite series ->-> 2,19",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide on a must-read fiction series for winter evenings and I've been invited to co-host a live chat on sci-fi series with Wyatt on January 28, so I want to make sure I've got a good grasp on the genre ->-> 3,15",
+      id: 190,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking to spend my increased January book budget of $50 on a new series, can you recommend something that fits my winter evening reading preferences? ->-> 3,21",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "Declining the TV pilot project to focus on your reading goals is a great decision, especially with the extra 15 hours you now have each week. To make the most of this time, you should look for a series that is both engaging and rich in storytelling and character development. Here are some recommendations that can fill your newfound time with captivating narratives:\n\n### Engaging Series with Rich Storytelling and Characters\n\n1. **\"A Song of Ice and Fire\" by George R.R. Martin**\n   - **Overview**: This series, also known as \"A Song of Ice and Fire,\" is the basis for the HBO series \"Game of Thrones.\" It features a complex web of political intrigue, family rivalries, and magical elements set in a richly detailed world.\n   - **Length**: The series currently consists of 5 books, with the latest being \"A Dance with Dragons.\" There are plans for more books in the series.\n   - **Why It Fits**: The intricate plotting and deep character development will keep you engaged for many hours. The series is known for its unexpected twists and turns, making it a perfect fit for your extra time.\n\n2. **\"The Wheel of Time\" by Robert Jordan**\n   - **Overview**: This epic fantasy series follows a group of young people who are drawn into a world of magic and prophecy. The series is known for its extensive world-building and complex characters.\n   - **Length**: The series originally consisted of 14 books, with the final book being published posthumously by Brandon Sanderson. There are plans for additional books.\n   - **Why It Fits**: The series is vast and detailed, providing ample material to fill your 15 hours each week. The rich storytelling and diverse cast of characters will keep you immersed in the narrative.\n\n3. **\"The Malazan Book of the Fallen\" by Steven Erikson**\n   - **Overview**: This series is a sprawling epic fantasy that follows the rise and fall of empires, the machinations of gods, and the struggles of mortals caught in the middle. The series is known for its complex plot and intricate world-building.\n   - **Length**: The series consists of 10 books, with the latest being \"Dust of Dreams.\"\n   - **Why It Fits**: The series is dense and detailed, offering a wealth of material to explore. The deep character development and intricate plotting will keep you engaged for many hours.\n\n4. **\"The Chronicles of Narnia\" by C.S. Lewis**\n   - **Overview**: This series is a classic of children's literature, but it has a broad appeal and can be enjoyed by readers of all ages. The series follows the adventures of four siblings who discover a magical world called Narnia.\n   - **Length**: The series consists of 7 books, with the latest being \"The Last Battle.\"\n   - **Why It Fits**: The series is shorter in terms of individual book length but offers a rich and imaginative world to explore. The moral and philosophical themes will provide a thoughtful and engaging reading experience.\n\n5.  **\"The Dresden Files\" by Jim Butcher**\n   - **Overview**: This urban fantasy series follows Harry Dresden, a professional wizard and private investigator in modern-day Chicago. The series blends elements of mystery, action, and supernatural thriller.\n   - **Length**: The series consists of 15 books, with the latest being \"Side Jobs.\"\n   - **Why It Fits**: The series is fast-paced and engaging, with a strong central character and a rich supporting cast. The blend of mystery and supernatural elements will keep you entertained for many hours.\n\n### Next Steps\n\n1. **Choose a Series**: Based on your interests and the recommendations above, select a series that you think will be the most engaging and fulfilling for your extra time.\n   \n2. **Check Availability**: Verify the availability of the series in your preferred format (print, e-book, or audiobook). Ensure that you can access all the books in the series.\n\n3. **Plan Your Reading Schedule**: With 15 extra hours each week, you can read a significant portion of a long series. Plan how much you can read each day or week to make steady progress.\n\n4. **Prepare for Discussion**: If you plan to discuss the series with your book club or friends, prepare some discussion questions in advance. This will help facilitate a lively and insightful conversation.\n\nBy choosing a series that is both engaging and rich in storytelling, you can make the most of your extra time and enjoy a fulfilling reading experience. Enjoy your winter evenings with these captivating series!",
+      id: 229,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always suggest related literary events when I ask about book series recommendations. ->-> 5,23",
+      id: 306,
+      role: "user",
+    },
+    {
+      content:
+        "Starting to post book reviews on platforms like Goodreads can be a rewarding experience. Not only does it help you track your reading progress, but it also allows you to share your thoughts and discoveries with others. Here are some reasons why you should consider posting reviews and some tips on how to get started:\n\n### Benefits of Posting Book Reviews\n\n1. **Track Your Progress**: Keeping a record of the books you read and your thoughts about them can help you remember what you've read and how you felt about each book.\n2. **Discover New Books**: Reading reviews from others can expose you to new books and authors you might not have discovered otherwise.\n3. **Engage with the Community**: Participating in discussions and connecting with other readers can enrich your reading experience and provide new perspectives.\n4. **Improve Your Writing Skills**: Regularly writing reviews can help you develop your writing skills and become more articulate in expressing your thoughts and opinions.\n\n### Tips for Getting Started\n\n1. **Create an Account**: Sign up for Goodreads or another platform where you can post reviews.\n2. **Add Books to Your Shelf**: Start by adding the books you have read or are currently reading to your \"Shelf\" on Goodreads.\n3. **Write Your First Review**: Begin with a book you have recently finished and write a brief review. Here are some elements to include:\n   - **Summary**: A brief overview of the book without giving away major spoilers.\n   - **Your Thoughts**: Share your impressions, what you liked or didn't like, and any standout moments.\n   - **Rating**: Give the book a rating out of 5 stars.\n   - **Recommendations**: Mention who might enjoy the book and why.\n\n4. **Be Honest and Constructive**: Be honest about your feelings towards the book, but also be constructive. Even if you didn't enjoy a book, explain why and what could have improved it.\n5. **Engage with Others**: Read and respond to reviews from other users. Engaging in discussions can help you discover new books and authors.\n6. **Consistency**: Try to post reviews regularly to keep track of your reading and to stay active in the community.\n\n### Example Review\n\nHere's an example of how you might write a review for \"The Nightingale\" by Kristin Hannah:\n\n---\n\n**Title**: The Nightingale by Kristin Hannah\n\n**Rating**: 5 stars\n\n**Summary**: \"The Nightingale\" is a powerful and emotional novel set during World War II, focusing on the lives of two sisters in occupied France. The story explores themes of courage, sacrifice, and resilience.\n\n**Your Thoughts**: I was deeply moved by the strength and determination of the characters, especially Vianne and Isabelle. The historical context is richly detailed, and the emotional depth of the story kept me engaged from start to finish. The narrative is beautifully crafted, and the characters are incredibly well-developed.\n\n**Recommendations**: I highly recommend this book to anyone who enjoys historical fiction and stories that explore the human spirit during times of adversity. It's a must-read for fans of \"The Pillars of the Earth\" and \"Outlander.\"\n\n---\n\n### Conclusion\n\nStarting to post book reviews on platforms like Goodreads can be a fulfilling way to track your reading progress, share your thoughts, and discover new books and authors. It also allows you to engage with a vibrant community of readers who share your passion for books. Give it a try and see how it enhances your reading experience!",
+      id: 309,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "book-series-genres",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 18,
+        subtopics: [
+          "Popular fantasy, sci-fi, and historical fiction series",
+          "Standalone novels vs. multi-book sagas",
+          "Award-winning authors and emerging voices",
+          "Balancing page count with storytelling depth",
+        ],
+        theme:
+          "Exploring different genres to find a captivating long-form reading experience",
+        title:
+          "Selecting a Must-Read Fiction Series for Winter Evenings",
+      },
+      narratives: "Book series and genres aggregation",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Four different series or genres: three fiction series from Montserrat Books and one sci-fi series for the live chat.",
+            question:
+              "How many different book series or genres have I mentioned wanting to explore across my conversations?",
+            question_id: "book-series-genres",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [34,130,190],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Reader planning winter book purchases",
+        user_relationships: "Wyatt",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8127,6 +8228,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([38, 40, 64]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps book series and genre anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-book-series-genres",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildBookSeriesGenresBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([34, 130, 190]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
