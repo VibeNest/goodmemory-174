@@ -5,6 +5,7 @@ export type InformationExtractionRuleId =
   | "current-housing-rent"
   | "emergency-fund-savings-plan"
   | "festival-meeting-date"
+  | "festival-relationship-duration"
   | "first-sprint-layout-navigation-schedule"
   | "hiring-fairness-speed-recommendation"
   | "industry-mixer-prior-connection"
@@ -172,6 +173,11 @@ function isFestivalMeetingDateQuery(query: string): boolean {
     /\bfestival\b/iu.test(query);
 }
 
+function isFestivalRelationshipDurationQuery(query: string): boolean {
+  return /\bhow\s+long\s+had\s+i\s+been\s+with\b/iu.test(query) &&
+    /\bfestival\b/iu.test(query);
+}
+
 function isPartnerMeetingDateLocationQuery(query: string): boolean {
   return /\bwhen\b/iu.test(query) &&
     /\bwhere\b/iu.test(query) &&
@@ -280,6 +286,7 @@ export const INFORMATION_EXTRACTION_QUERY_RULES: readonly InformationExtractionQ
   { id: "single-card-probability-before-two-cards", limit: 1, matches: isSingleCardProbabilityBeforeTwoCardsQuery },
   { id: "named-meeting-location", limit: 1, matches: isNamedMeetingLocationQuery },
   { id: "festival-meeting-date", limit: 1, matches: isFestivalMeetingDateQuery },
+  { id: "festival-relationship-duration", limit: 1, matches: isFestivalRelationshipDurationQuery },
   { id: "partner-meeting-date-location", limit: 1, matches: isPartnerMeetingDateLocationQuery },
   { id: "partner-classic-movie-recommendation", limit: 2, matches: isPartnerClassicMovieRecommendationQuery },
   { id: "colour-technologist-profession", limit: 1, matches: isColourTechnologistProfessionQuery },

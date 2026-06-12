@@ -7430,6 +7430,88 @@ function buildTimelineDateFormatInstructionBeamRows(): unknown[] {
 }
 
 
+function buildFestivalRelationshipDurationBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda curious, as someone who's 60 and has a pretty established career in TV/film production, earning about $85,000 annually, how do I balance my professional life with the idea of free will, you know, like making choices that truly reflect my desires ->-> 1,2",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Balancing your professional life with the concept of free will involves aligning your career choices with your personal values and desires. At 60, you have a wealth of experience and a unique perspective that can guide you in making decisions that are true to yourself. Here are some steps you might consider:\n\n1. **Reflect on Your Values**: Take time to think about what is most important to you in life. Is it creative fulfillment, financial security, work-life balance, or something else? Understanding your core values can help you make choices that resonate with your inner self.\n\n2. **Assess Your Current Situation**: Evaluate your current role and responsibilities. Are there aspects of your job that you love and others that feel like a burden? Identifying these can help you decide whether to stay in your current position or seek new opportunities.\n\n3. **Set Personal Goals**: Define what success looks like for you outside of just financial gain. This could involve setting goals related to personal growth, health, family, or community involvement. These goals can serve as a compass for your decision-making process.\n\n4. **Explore New Opportunities**: If you find that your current role doesn't fully align with your desires, consider exploring new opportunities within your field or even outside of it. This could mean taking on different projects, learning new skills, or even starting a side business that aligns more closely with your passions.\n\n5. **Seek Feedback and Support**: Sometimes, talking things through with trusted colleagues, mentors, or friends can provide valuable insights and support. They might offer perspectives you haven't considered or encourage you to take risks that align with your true desires.\n\n6. **Take Action**: Once you've reflected and planned, it's important to take action. Whether this means making small changes in your daily routine or pursuing a significant career shift, the key is to move forward in a way that feels authentic to you.\n\nWould you like to explore specific strategies for finding new opportunities that align with your personal values?",
+      id: 1,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've been in a relationship with Stephen, 53, for 5 years now, and we met at the Montserrat Film Festival in 2018, but I'm not sure how he'd react if I told him I'm having doubts about whether our choices are really our own ->-> 1,6)",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "It's important to approach this conversation thoughtfully, especially given the depth of your relationship with Stephen. Discussing philosophical and existential topics can be sensitive, but it can also be an opportunity for deeper connection and understanding. Here are some steps to help you navigate this conversation:\n\n1. **Choose the Right Time and Setting**:\n   - Find a quiet and comfortable setting where you both can talk without distractions.\n   - Choose a time when Stephen is likely to be relaxed and receptive to a thoughtful conversation.\n\n2. **Express Your Thoughts Gently**:\n   - Start by expressing your appreciation for your relationship and the trust you share.\n   - Introduce the topic gently, explaining that you've been reflecting on the nature of free will and how it relates to your choices.\n\n3. **Provide Context**:\n   - Share some background on why this topic is important to you, such as recent readings, discussions with friends, or personal experiences.\n\n4. **Use Examples**:\n   - Provide specific examples of how you've been trying to balance discipline with the idea of free will in your daily life.\n   - Share a recent experience where you felt you were able to make a choice that was both disciplined and reflective of your free will.\n\n5. **Ask for His Perspective**:\n   - Politely ask Stephen for his thoughts on the balance between discipline and free will.\n   - Encourage him to share any experiences or insights he has gained over the years that might be relevant to this discussion.\n\n6. **Listen Actively**:\n   - Pay close attention to his responses and show genuine interest in his perspective.\n   - Avoid interrupting or dismissing his views, even if they differ from yours.\n\n7. **Seek Common Ground**:\n   - Look for areas where your views align with his and emphasize the mutual benefits of maintaining discipline while also embracing free will.\n\nHere's a refined version of the script to help you get started:\n\n---\n\n\"Stephen, I hope you're doing well. I wanted to talk to you about something that's been on my mind lately. First, I just want to say how much I appreciate our relationship and the trust we share. We've been together for five years now, and I feel very fortunate to have you in my life.\n\nRecently, I've been reflecting on the nature of free will and how it relates to our choices. I've been thinking about how to balance the discipline we both value with the idea of making choices that truly reflect our desires. For example, I've started setting aside time each week to try new activities or explore different hobbies. I find that this helps me stay engaged and open to new experiences.\n\nCould you share your thoughts on this? I'd love to hear your perspective on how to balance discipline with the freedom to make meaningful choices. I think your insights could be really helpful as I continue to grow and evolve.\"\n\n---\n\nThis approach shows respect for Stephen's perspective while also opening up a dialogue about your evolving thoughts on free will. Good luck with your conversation! Let me know how it goes, and feel free to reach out if you need any further assistance.",
+      id: 29,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "festival-relationship-duration",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 17,
+        subtopics: [
+          "Philosophical definitions of free will",
+          "Determinism and scientific perspectives",
+          "Compatibilism vs. incompatibilism",
+          "Impact on personal responsibility",
+        ],
+        theme:
+          "Weighing philosophical, scientific, and practical consequences of accepting or rejecting free will",
+        title:
+          "Considering Whether to Believe in and Live by the Idea of Free Will",
+      },
+      narratives: "Festival relationship duration extraction",
+      probing_questions: {
+        information_extraction: [
+          {
+            answer: "You said you had been with Stephen for 5 years, and you met him at the Montserrat Film Festival in 2018.",
+            conversation_reference:
+              "Turn 1: Early mention of relationship details",
+            difficulty: "medium",
+            key_facts_tested: ["duration: 5 years", "meeting event: Montserrat Film Festival", "relationship start timing"],
+            question:
+              "How long had I been with the person I mentioned meeting at that festival before we started dating?",
+            question_id: "festival-relationship-duration",
+            question_type: "duration_recall",
+            rubric: ["LLM response should state: 5 years"],
+            source_chat_ids: [1],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: TV/film producer reflecting on free will",
+        user_relationships: "Stephen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10044,6 +10126,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([66]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the festival relationship duration designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-festival-relationship-duration",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFestivalRelationshipDurationBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([1]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
