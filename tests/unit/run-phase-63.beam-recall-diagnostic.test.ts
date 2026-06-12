@@ -5982,6 +5982,101 @@ function buildBookSeriesGenresBeamRows(): unknown[] {
   ];
 }
 
+function buildTransactionDeploymentWeeksBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm working on a project with a Time Anchor of March 15, 2024, and I need to plan my tasks accordingly, can you help me create a schedule to ensure I meet my deadlines by then? ->-> 1,1",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's break it down for my budget tracker project. \n\n### Components:\n1. **User Authentication**\n   - Registration\n   - Login\n   - Logout\n\n2. **Transaction Management**\n   - Add Income\n   - Add Expense\n   - View Transactions\n\n3. **Basic Analytics**\n   - Monthly Summary\n   - Category-wise Spending\n\n### Milestones:\n- **Nov 1 - Nov 15, 2023:** Setup Flask project, virtual environment, and initial database schema.\n- **Nov 16 - Dec 15, 2023:** Implement user authentication (registration, login, logout).\n- **Dec 16, 2023 - Jan 15, 2024:** Develop transaction management features (add income, add expense, view transactions).\n- **Jan 16 - Feb 15, 2024:** Integrate basic analytics (monthly summary, category-wise spending).\n- **Feb 16 - Mar 15, 2024:** Final adjustments, testing, and deployment.\n\nDoes this breakdown work for you?",
+      id: 2,
+      role: "user",
+    },
+    {
+      content:
+        "Yes, this breakdown works well! Let's refine the schedule and ensure each component is covered with specific tasks and timelines. Here's a detailed plan for your budget tracker project:\n\n### Detailed Schedule\n\n#### **Nov 1 - Nov 15, 2023: Setup Flask Project**\n- **Task 1:** Set up the development environment (Flask, virtual environment).\n- **Task 2:** Initialize the project structure.\n- **Task 3:** Create the initial database schema (users table).\n\n#### **Nov 16 - Dec 15, 2023: User Authentication**\n- **Task 1:** Implement user registration.\n- **Task 2:** Implement user login.\n- **Task 3:** Implement user logout.\n- **Task 4:** Add validation and error handling for authentication processes.\n\n#### **Dec 16, 2023 - Jan 15, 2024: Transaction Management**\n- **Task 1:** Create tables for income and expenses in the database.\n- **Task 2:** Implement functionality to add income.\n- **Task 3:** Implement functionality to add expenses.\n- **Task 4:** Implement functionality to view transactions.\n- **Task 5:** Add validation and error handling for transaction management.\n\n#### **Jan 16 - Feb 15, 2024: Basic Analytics**\n- **Task 1:** Implement monthly summary generation.\n- **Task 2:** Implement category-wise spending analysis.\n- **Task 3:** Display analytics on the user interface.\n- **Task 4:** Add validation and error handling for analytics.\n\n#### **Feb 16 - Mar 15, 2024: Final Adjustments, Testing, and Deployment**\n- **Task 1:** Conduct thorough testing (unit tests, integration tests).\n- **Task 2:** Fix any bugs identified during testing.\n- **Task 3:** Optimize performance and security.\n- **Task 4:** Prepare for deployment (configure server, set up hosting).\n- **Task 5:** Deploy the application.\n- **Task 6:** Finalize documentation and user guides.\n\n### Milestones Recap\n- **Nov 15, 2023:** Initial setup and database schema.\n- **Dec 15, 2023:** User authentication implemented.\n- **Jan 15, 2024:** Transaction management features developed.\n- **Feb 15, 2024:** Basic analytics integrated.\n- **Mar 15, 2024:** Final adjustments, testing, and deployment completed.\n\nThis schedule should help you stay on track and meet your deadline. If you need further details or adjustments, feel free to let me know!",
+      id: 3,
+      role: "assistant",
+    },
+    {
+      content:
+        "Of course! Let's create a detailed schedule to ensure you meet the April 15, 2024, deadline for your MVP scope, which includes income/expense tracking, user login, and basic analytics. We'll break down the project into phases and assign specific tasks and milestones to each phase.\n\n### Project Phases and Timeline\n\n#### Phase 1: Initial Setup and Planning (November 1 - November 15, 2023)\n- **Task 1:** Set up the development environment (Flask, virtual environment).\n- **Task 2:** Initialize the project structure.\n- **Task 3:** Create the initial database schema (users table).\n\n#### Phase 2: User Authentication (November 16 - December 15, 2023)\n- **Task 1:** Implement user registration.\n- **Task 2:** Implement user login.\n- **Task 3:** Implement user logout.\n- **Task 4:** Add validation and error handling for authentication processes.\n\n#### Phase 3: Transaction Management (December 16, 2023 - January 15, 2024)\n- **Task 1:** Create tables for income and expenses in the database.\n- **Task 2:** Implement functionality to add income.\n- **Task 3:** Implement functionality to add expenses.\n- **Task 4:** Implement functionality to view transactions.\n- **Task 5:** Add validation and error handling for transaction management.\n\n#### Phase 4: Basic Analytics (January 16 - February 15, 2024)\n- **Task 1:** Implement monthly summary generation.\n- **Task 2:** Implement category-wise spending analysis.\n- **Task 3:** Display analytics on the user interface.\n- **Task 4:** Add validation and error handling for analytics.\n\n#### Phase 5: Final Adjustments, Testing, and Deployment (February 16 - April 15, 2024)\n- **Task 1:** Conduct thorough testing (unit tests, integration tests).\n- **Task 2:** Fix any bugs identified during testing.\n- **Task 3:** Optimize performance and security.\n- **Task 4:** Prepare for deployment (configure server, set up hosting).\n- **Task 5:** Deploy the application.\n- **Task 6:** Finalize documentation and user guides.\n\n### Detailed Schedule\n\n#### **November 1 - November 15, 2023: Initial Setup and Planning**\n- **Task 1:** Set up the development environment (Flask, virtual environment).\n  - Install Flask, SQLAlchemy, and other dependencies.\n  - Initialize the project structure.\n- **Task 2:** Initialize the project structure.\n  - Create the project directory structure.\n  - Set up the `requirements.txt` file.\n- **Task 3:** Create the initial database schema (users table).\n  - Define the `User` model.\n  - Create the `users` table in the database.\n\n#### **November 16 - December 15, 2023: User Authentication**\n- **Task 1:** Implement user registration.\n  - Create the `/register` endpoint.\n  - Validate input data.\n  - Hash passwords before storing them.\n- **Task 2:** Implement user login.\n  - Create the `/login` endpoint.\n  - Validate input data.\n  - Check password hashes.\n- **Task 3:** Implement user logout.\n  - Create the `/logout` endpoint.\n  - Clear session data.\n- **Task 4:** Add validation and error handling for authentication processes.\n  - Ensure proper error messages are returned.\n  - Handle edge cases (e.g., duplicate usernames).\n\n#### **December 16, 2023 - January 15, 2024: Transaction Management**\n- **Task 1:** Create tables for income and expenses in the database.\n  - Define the `Expense` model.\n  - Create the `expenses` table in the database.\n- **Task 2:** Implement functionality to add income.\n  - Create the `/income` endpoint.\n  - Validate input data.\n  - Store income data in the database.\n- **Task 3:** Implement functionality to add expenses.\n  - Create the `/expenses` endpoint.\n  - Validate input data.\n  - Store expense data in the database.\n- **Task 4:** Implement functionality to view transactions.\n  - Create the `/transactions` endpoint.\n  - Retrieve and display transaction data.\n- **Task 5:** Add validation and error handling for transaction management.\n  - Ensure proper error messages are returned.\n  - Handle edge cases (e.g., invalid dates).\n\n#### **January 16 - February 15, 2024: Basic Analytics**\n- **Task 1:** Implement monthly summary generation.\n  - Create the `/monthly_summary` endpoint.\n  - Generate monthly summaries based on transaction data.\n- **Task 2:** Implement category-wise spending analysis.\n  - Create the `/category_spending` endpoint.\n  - Generate category-wise spending reports.\n- **Task 3:** Display analytics on the user interface.\n  - Integrate analytics data into the user interface.\n- **Task 4:** Add validation and error handling for analytics.\n  - Ensure proper error messages are returned.\n  - Handle edge cases (e.g., no transactions).\n\n#### **February 16 - April 15, 2024: Final Adjustments, Testing, and Deployment**\n- **Task 1:** Conduct thorough testing (unit tests, integration tests).\n  - Write unit tests for each module.\n  - Perform integration testing to ensure all components work together.\n- **Task 2:** Fix any bugs identified during testing.\n  - Address any issues found during testing.\n- **Task 3:** Optimize performance and security.\n  - Review and optimize code for performance.\n  - Ensure security measures are in place (e.g., input validation, secure hashing).\n- **Task 4:** Prepare for deployment (configure server, set up hosting).\n  - Set up the production environment.\n  - Configure the server and hosting.\n- **Task 5:** Deploy the application.\n  - Push the code to the production server.\n  - Ensure the application runs smoothly.\n- **Task 6:** Finalize documentation and user guides.\n  - Write comprehensive documentation.\n  - Create user guides for easy onboarding.\n\n### Milestones Recap\n- **November 15, 2023:** Initial setup and planning completed.\n- **December 15, 2023:** User authentication implemented.\n- **January 15, 2024:** Transaction management features developed.\n- **February 15, 2024:** Basic analytics integrated.\n- **April 15, 2024:** Final adjustments, testing, and deployment completed.\n\nThis schedule should help you stay on track and meet your deadline. If you need further details or adjustments, feel free to let me know!",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm working on a project with scheduled two-week sprints, and the first sprint ends on March 29, focusing on user registration and login. I need to plan the sprint carefully to ensure we meet the deadline. Can you help me create a sprint plan that includes user registration and login features, considering we have only two weeks for this sprint? ->-> 1,14",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "To keep your Flask app lightweight and easy to maintain while implementing essential features, you can focus on simplicity and avoid unnecessary dependencies. Here's a streamlined approach to building your personal budget tracker with Flask 2.3.1, SQLite 3.39, and a deadline of April 15.\n\n### Project Structure\n\nFirst, organize your project structure to keep things clean and manageable:\n\n```\nbudget_tracker/\n|-- app.py\n|-- models.py\n|-- routes.py\n|-- templates/\n|   |-- base.html\n|   |-- index.html\n|   |-- login.html\n|   |-- register.html\n|-- static/\n|   |-- css/\n|   |-- js/\n|-- migrations/\n```\n\n### Dependencies\n\nEnsure you have the necessary dependencies installed:\n\n```bash\npip install Flask Flask-SQLAlchemy Flask-Migrate Werkzeug\n```\n\n### Step-by-Step Implementation\n\n#### 1. Setup Flask App\n\nCreate `app.py` to initialize your Flask app and configure the database:\n\n```python\nfrom flask import Flask, render_template, request, redirect, url_for, flash\nfrom flask_sqlalchemy import SQLAlchemy\nfrom flask_migrate import Migrate\nfrom werkzeug.security import generate_password_hash, check_password_hash\n\napp = Flask(__name__)\napp.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///budget_tracker.db'\napp.config['SQLALCHEMY_TRACK_MODIFICATIONS']_ = False\napp.config['SECRET_KEY'] = 'your_secret_key'\n\ndb = SQLAlchemy(app)\nmigrate = Migrate(app, db)\n```\n\n#### 2. Define Models\n\nCreate `models.py` to define your database models:\n\n```python\nfrom app import db\n\nclass User(db.Model):\n    id = db.Column(db.Integer, primary_key=True)\n    username = db.Column(db.String(80), unique=True, nullable=False)\n    password_hash = db.Column(db.String(120), nullable=False)\n\nclass Transaction(db.Model):\n    id = db.Column(db.Integer, primary_key=True)\n    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)\n    type = db.Column(db.String(80), nullable=False)\n    amount = db.Column(db.Float, nullable=False)\n    date = db.Column(db.DateTime, nullable=False)\n```\n\n#### 3. Setup Routes\n\nCreate `routes.py` to define your routes:\n\n```python\nfrom flask import Blueprint, render_template, request, redirect, url_for, flash\nfrom app import db, User, Transaction\nfrom werkzeug.security import generate_password_hash, check_password_hash\n\nauth_bp = Blueprint('auth', __name__)\n\n@auth_bp.route('/register', methods=['GET', 'POST'])\ndef register():\n    if request.method == 'POST':\n        username = request.form['username']\n        password = request.form['password']\n        hashed_password = generate_password_hash(password)\n        user = User(username=username, password_hash=hashed_password)\n        db.session.add(user)\n        db.session.commit()\n        flash('Registration successful!', 'success')\n        return redirect(url_for('auth.login'))\n    return render_template('register.html')\n\n@auth_bp.route('/login', methods=['GET', 'POST'])\ndef login():\n    if request.method == 'POST':\n        username = request.form['username']\n        password = request.form['password']\n        user = User.query.filter_by(username=username).first()\n        if user and check_password_hash(user.password_hash, password):\n            flash('Login successful!', 'success')\n            return redirect(url_for('main.index'))\n        else:\n            flash('Invalid username or password.', 'danger')\n    return render_template('login.html')\n\nmain_bp = Blueprint('main', __name__)\n\n@main_bp.route('/')\ndef index():\n    return render_template('index.html')\n\n@main_bp.route('/add_transaction', methods=['GET', 'POST'])\ndef add_transaction():\n    if request.method == 'POST':\n        user_id = 1  # Simplified for MVP\n        transaction_type = request.form['type']\n        amount = float(request.form['amount'])\n        date = request.form['date']\n        transaction = Transaction(user_id=user_id, type=transaction_type, amount=amount, date=date)\n        db.session.add(transaction)\n        db.session.commit()\n        flash('Transaction added successfully!', 'success')\n        return redirect(url_for('main.index'))\n    return render_template('add_transaction.html')\n```\n\n#### 4. Initialize Blueprints\n\nIn `app.py`, initialize the blueprints and run the app:\n\n```python\nfrom routes import auth_bp, main_bp\n\napp.register_blueprint(auth_bp)\napp.register_blueprint(main_bp)\n\nif __name__ == '__main__':\n    with app.app_context():\n        db.create_all()\n    app.run(port=5000, debug=True)\n```\n\n#### 5. Create Templates\n\nCreate the necessary HTML templates in the `templates` directory:\n\n- `base.html`: Base template for inheritance.\n- `index.html`: Main dashboard.\n- `login.html`: Login form.\n- `register.html`: Registration form.\n- `add_transaction.html`: Form to add transactions.\n\n#### 6. Setup Migrations\n\nInitialize and run migrations:\n\n```bash\nflask db init\nflask db migrate -m \"Initial migration.\"\nflask db upgrade\n```\n\n### Summary\n\nBy following these steps, you can build a lightweight and maintainable Flask app for your personal budget tracker. Focus on simplicity and essential features to meet your deadline of April 15. This approach ensures you have a solid foundation for future enhancements while keeping the project manageable.",
+      id: 35,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide security best practices when I ask about authentication or authorization features. ->-> 3,28",
+      id: 184,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "transaction-deployment-weeks",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Coding",
+        id: 1,
+        subtopics: [
+          "Setting up Flask project structure",
+          "Designing HTML/CSS UI",
+          "Connecting SQLite database",
+          "User authentication basics",
+        ],
+        theme:
+          "Creating a basic app to track income and expenses with simple analytics",
+        title:
+          "Building a Personal Budget Tracker Web App in Python and Flask",
+      },
+      narratives: "Transaction management to deployment interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "I have exactly 4 weeks between finishing the transaction management features on January 15, 2024, and the final deployment deadline on March 15, 2024.",
+            question:
+              "How many weeks do I have between finishing the transaction management features and the final deployment deadline?",
+            question_id: "transaction-deployment-weeks",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[2],"second_event":[0]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a Flask budget tracker",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8251,6 +8346,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([34, 130, 190]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the transaction-to-deployment interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-transaction-deployment-weeks",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTransactionDeploymentWeeksBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([0, 2]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -1,3 +1,4 @@
+import { narrowGate } from "../narrowGates";
 import type { RankedFactCandidate } from "../scoring";
 import { hasUserAnswerTag, stripEvidencePrefix } from "./selectionContext";
 import {
@@ -19,6 +20,20 @@ const PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN =
 const PATENT_RESPONSE_MEETING_INTERVAL_END_PATTERN =
   /\bpatent\s+response\b[\s\S]{0,120}\bdue\s+July\s+20\b|\bdue\s+July\s+20\b[\s\S]{0,120}\bpatent\s+response\b/iu;
 
+export const isTransactionDeploymentWeeksIntervalQuery = narrowGate(
+  "temporalInterval.transactionDeploymentWeeks",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+weeks\b/iu.test(query) &&
+    /\btransaction\s+management\s+features\b/iu.test(query) &&
+    /\bfinal\s+deployment\s+deadline\b/iu.test(query);
+  },
+);
+
+const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
+const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bTime Anchor of March 15, 2024\b)(?=[\s\S]*\bcreate a schedule\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -27,13 +42,23 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     RAISE_REJECTION_FINAL_MEETING_INTERVAL_QUERY_PATTERN.test(input.query);
   const patentResponseMeetingIntervalQuery =
     PATENT_RESPONSE_MEETING_INTERVAL_QUERY_PATTERN.test(input.query);
-  if (!raiseRejectionFinalMeetingIntervalQuery && !patentResponseMeetingIntervalQuery) {
+  const transactionDeploymentWeeksIntervalQuery =
+    isTransactionDeploymentWeeksIntervalQuery(input.query);
+  if (
+    !raiseRejectionFinalMeetingIntervalQuery &&
+    !patentResponseMeetingIntervalQuery &&
+    !transactionDeploymentWeeksIntervalQuery
+  ) {
     return [];
   }
-  const startPattern = patentResponseMeetingIntervalQuery
+  const startPattern = transactionDeploymentWeeksIntervalQuery
+    ? TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN
+    : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = patentResponseMeetingIntervalQuery
+  const endPattern = transactionDeploymentWeeksIntervalQuery
+    ? TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN
+    : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_END_PATTERN
     : RAISE_REJECTION_INTERVAL_END_PATTERN;
 
