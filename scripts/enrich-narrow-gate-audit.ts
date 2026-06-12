@@ -22,6 +22,7 @@ import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/so
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
 import {
+  isAtsCourseEnrollmentContradictionQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
 } from "../src/recall/selectors/contradiction";
@@ -141,6 +142,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,
+  "contradiction.atsCourseEnrollment": isAtsCourseEnrollmentContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 

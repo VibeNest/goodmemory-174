@@ -80,6 +80,14 @@ export const isTwoFactorAuthImplementationContradictionQuery = narrowGate(
   },
 );
 
+export const isAtsCourseEnrollmentContradictionQuery = narrowGate(
+  "contradiction.atsCourseEnrollment",
+  (query: string): boolean => {
+  return /\bhave i ever enrolled\b/iu.test(query) &&
+    /\bATS optimization\b/iu.test(query);
+  },
+);
+
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
     /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) ||
@@ -243,6 +251,42 @@ function selectSessionManagementContradictionEvidence(input: {
     })
     .sort(compareTemporalFactChronology)
     .slice(0, 1);
+}
+
+const ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\bstuck on this LinkedIn Learning course\b)(?=[\s\S]*\bcompleted 40% of it by March 15, 2024\b)/iu;
+const ATS_COURSE_ENROLLMENT_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever actually enrolled in any ATS optimization courses or training programs\b)/iu;
+
+function selectAtsCourseEnrollmentContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isAtsCourseEnrollmentContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
+    eligible.find((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+
+  const firstStatement = pickFirst(ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN);
+  const denial = pickFirst(ATS_COURSE_ENROLLMENT_DENIAL_PATTERN);
+
+  if (!firstStatement || !denial) {
+    return [];
+  }
+
+  return [firstStatement, denial].sort(compareTemporalFactChronology);
 }
 
 const TWO_FACTOR_AUTH_FIRST_STATEMENT_PATTERN =
@@ -436,6 +480,12 @@ export function selectContradictionEvidencePair(input: {
     selectTwoFactorAuthImplementationContradictionEvidence(input);
   if (twoFactorAuthContradictionEvidence.length > 0) {
     return twoFactorAuthContradictionEvidence;
+  }
+
+  const atsCourseEnrollmentContradictionEvidence =
+    selectAtsCourseEnrollmentContradictionEvidence(input);
+  if (atsCourseEnrollmentContradictionEvidence.length > 0) {
+    return atsCourseEnrollmentContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

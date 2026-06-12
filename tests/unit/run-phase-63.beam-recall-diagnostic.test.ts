@@ -6166,6 +6166,94 @@ function buildTriangleProblemCountBeamRows(): unknown[] {
   ];
 }
 
+function buildAtsCourseEnrollmentBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stuck on this LinkedIn Learning course, I've only completed 40% of it by March 15, 2024, and I'm not sure if I'll be able to optimize my resume for ATS by the time I'm done ->-> 1,11",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda confused about how to apply the skills I learned from completing 75% of the LinkedIn Learning ATS optimization course to my resume, can you help me with that? ->-> 1,21",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "I've never actually enrolled in any ATS optimization courses or training programs, so what are the essential skills I should focus on to make my resume pass any applicant tracking system? ->-> 1,23",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda motivated now that I've completed 90% of my ATS optimization course by April 28, 2024, so can you help me figure out how to use this momentum to finish the last 10% and apply to executive producer roles by June 1, 2024? ->-> 2,2",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I feel motivated after completing 90% of my ATS optimization course by April 28, 2024, and I'm exploring a shift from traditional TV production to digital streaming platforms, targeting roles at Netflix and Hulu, but I need help highlighting my achievements, like \"increased viewership by 40%,\" in my resume to pass any applicant tracking system ->-> 3,2",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "I feel a bit confused because I have never attended any workshops or training sessions related to resume standards or ATS optimization, but I'm exploring a shift from traditional TV production to digital streaming platforms, can you give me some advice on how to proceed? ->-> 3,23",
+      id: 146,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "ats-course-enrollment",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 11,
+        subtopics: [
+          "ATS keyword optimization",
+          "Action verb libraries",
+          "Formatting for machine readability",
+          "Industry-specific resume tailoring",
+        ],
+        theme:
+          "Structuring, optimizing, and tailoring resumes for multiple industries and career stages",
+        title:
+          "Building a Portfolio-Ready Resume that Passes Any Applicant Tracking System",
+      },
+      narratives: "ATS course enrollment contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever enrolled in any courses or training programs on ATS optimization?",
+            question_id: "ats-course-enrollment",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {"first_statement":[22],"second_statement":[48]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Job seeker optimizing a resume for ATS",
+        user_relationships: "Karen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8481,6 +8569,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([30, 82]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the ATS course enrollment contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-ats-course-enrollment",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAtsCourseEnrollmentBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([22, 48]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
