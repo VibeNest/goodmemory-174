@@ -5792,6 +5792,95 @@ function buildTwoFactorAuthImplementationBeamRows(): unknown[] {
   ];
 }
 
+function buildFinalDecisionMeetingBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm deciding between a $95,000 offer from a streaming startup and my current $85,000 job, can you help me weigh the pros and cons of each option? ->-> 1,9",
+      id: 38,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for breaking it down! I think I'll lean towards the startup for the higher salary and the potential for growth. The innovative environment and new challenges sound exciting. I'll just need to make sure I can handle the workload and pressure. I might talk to some of my colleagues about their experiences with startups too. What do you think about that plan?",
+      id: 40,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about making the right decision on March 30, so I rescheduled my final meeting to have more time, but I'm not sure if it's gonna help ->-> 1,21",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide detailed summaries when I ask about philosophical concepts. ->-> 1,22",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I rescheduled a call with Matthew from April 4 to April 6, and I'm wondering if that was a good time management decision, considering I had to prepare for my first startup meeting, what do you think? ->-> 2,9",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm dates when I ask about scheduled events. ->-> 3,22",
+      id: 264,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "final-decision-meeting",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 17,
+        subtopics: [
+          "Philosophical definitions of free will",
+          "Determinism and scientific perspectives",
+          "Compatibilism vs. incompatibilism",
+          "Impact on personal responsibility",
+        ],
+        theme:
+          "Weighing philosophical, scientific, and practical consequences of accepting or rejecting free will",
+        title:
+          "Considering Whether to Believe in and Live by the Idea of Free Will",
+      },
+      narratives: "Final decision meeting knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "The final decision meeting is scheduled for March 30 to allow more time for thorough evaluation.",
+            question:
+              "When is my final decision meeting scheduled to take place?",
+            question_id: "final-decision-meeting",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[38,40],"updated_info":[64]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Professional weighing a startup offer",
+        user_relationships: "Matthew",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8015,6 +8104,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([142, 180, 182]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps final decision meeting update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-final-decision-meeting",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFinalDecisionMeetingBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([38, 40, 64]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

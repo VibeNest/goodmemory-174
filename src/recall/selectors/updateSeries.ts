@@ -8,6 +8,7 @@ import {
   valueBearingFactContent,
 } from "./selectionContext";
 import { sourceOrderedEvidenceRole } from "./sourceOrderPlan";
+import { selectSourceOrderedFinalDecisionMeetingEvidence } from "./updateSeriesRules/finalDecisionMeeting";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./updateSeriesRules/writingGroupDeadline";
 import {
   compareTemporalFactChronology,
@@ -341,6 +342,12 @@ export function selectSourceOrderedUpdateEvidence(input: {
     selectSourceOrderedWritingGroupDeadlineEvidence(input);
   if (writingGroupDeadlineCandidates.length > 0) {
     return writingGroupDeadlineCandidates;
+  }
+
+  const finalDecisionMeetingCandidates =
+    selectSourceOrderedFinalDecisionMeetingEvidence(input);
+  if (finalDecisionMeetingCandidates.length > 0) {
+    return finalDecisionMeetingCandidates;
   }
 
   const dashboardApiResponseTimeCandidates =

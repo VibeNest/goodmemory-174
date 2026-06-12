@@ -13,6 +13,7 @@ import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sou
 import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
 import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/writingGroupDeadline";
+import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updateSeriesRules/finalDecisionMeeting";
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
@@ -111,6 +112,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     updateSeriesQueries.isSharedGroceryListMethodQuery,
   "updateSeries.recentFamilyTrip": updateSeriesQueries.isRecentFamilyTripQuery,
   "updateSeries.writingGroupDeadline": isWritingGroupDeadlineUpdateQuery,
+  "updateSeries.finalDecisionMeeting": isFinalDecisionMeetingUpdateQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,
