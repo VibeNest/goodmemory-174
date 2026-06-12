@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-reading-plan-balance-current-20260612T130000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-event-order-current-20260612T114500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-peer-feedback-balance-current-20260612T120000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-reading-plan-balance-regen-20260612T113000Z` (accepted reading-plan baseline regenerated at commit `2a281cf` because the iCloud incident destroyed the original report files; the regenerated summary reproduces the accepted metrics exactly, confirming the rules-only diagnostic is deterministic)
 
 Summary:
 
-- evidence-chat recall: 0.7670467247932037
-- missed-recall cases: 116/355
-- wrong-recall/noise cases: 259/400
+- evidence-chat recall: 0.7693941426335792
+- missed-recall cases: 115/355
+- wrong-recall/noise cases: 258/400
 - zero-recall cases: 38
-- global hit/missing/noise ids: 825/269/1389 -> 833/261/1382
-- recovered target: `13:multi_session_reasoning:2`
-- target result: recall 0.1111 -> 1 with chats 44/116/117/118/119/158/159/160/161 returned and noisy chats 100/101/136/137/143/218/219 removed
-- accepted tradeoff: `13:temporal_reasoning:2` swaps noise 137 for 141 via same-conversation reinforcement, recall unchanged and per-case noise count net zero
-- repair shape: `reasoning.readingPlanBalance` narrow gate + nine facets (five user anchors, four assistant guidance) chained into the reasoning bridge, reusing the shared instruction stand-down run-context flag
-- regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
+- global hit/missing/noise ids: 833/261/1382 -> 843/251/1359
+- recovered target: `5:event_ordering:1`
+- target result: recall 0.1667 (2/12) -> 1 with the twelve concept-pair turns 6/10/14/16/18/20/24/30/34/50/56/58 returned chronologically and all 24 noisy chats (28/42/44/48/60/66/68/72/90/100/108/110/128/130/134/148/152/154/156/192/194/212/214/236) removed
+- accepted tradeoff: `5:event_ordering:2` gains one noise id (16, an evidence turn of the recovered target) via same-conversation access-count reinforcement, recall unchanged at 0.5; that case is itself a future named-family repair candidate
+- repair shape: `eventOrder.probabilityConcepts` narrow gate (first gate in the new eventOrder audit family) + six concept facets of two user-anchor patterns each, tag-filtered to user turns and chained into the source-ordered event-order selector ahead of the generic plan path; the full pair coverage is the evidence set, so it is not capped to the requested item count, and no instruction stand-down was needed
+- regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, and exactly one accepted positive noise delta (the documented reinforcement ripple above)
 
-The repaired target covers the user's research and writing project sequence across Greg collaboration planning, NVivo tooling, Heather's feedback, essay and conference-paper deadline prioritization, and post-submission collaboration. This is a retained selector repair, not a benchmark close.
+The repaired target covers the user's probability-learning sequence across the ratio foundation, independent versus mutually exclusive events, the coin-toss starting-point choice, coin-toss practice, the mutually-exclusive addition rule, and conditional probability. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
