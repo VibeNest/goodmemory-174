@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-resume-improvement-areas-current-20260612T123000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-entertainment-spending-current-20260612T124500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-probability-concepts-event-order-current-20260612T114500Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-resume-improvement-areas-current-20260612T123000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7722110440420299
-- missed-recall cases: 114/355
-- wrong-recall/noise cases: 257/400
-- zero-recall cases: 37
-- global hit/missing/noise ids: 843/251/1359 -> 847/247/1354
-- recovered target: `6:multi_session_reasoning:1`
-- target result: recall 0 -> 1 with the four improvement-area turns 28/72/122/158 returned chronologically and all five noisy chats (94/144/192/46/112, three of them standing "Always ..." resume instructions) removed
-- repair shape: `aggregate.resumeImprovementAreas` narrow gate + four facet anchors in a dedicated aggregateRules module (user-tag plus raw source-order-marker filtered so assistant echoes and the extractor's suffix-stripped duplicate of turn 72 cannot eat facet slots), folded into aggregateEvidencePriority with a family recall limit of 4, and the direct-factual-companions augmenter added to the shared complete-evidence stand-down (provably inert for the four earlier stand-down families, whose winners saturate the six-slot direct-factual limit)
+- evidence-chat recall: 0.7750279454504806
+- missed-recall cases: 113/355
+- wrong-recall/noise cases: 256/400
+- zero-recall cases: 36
+- global hit/missing/noise ids: 847/247/1354 -> 851/243/1348
+- recovered target: `14:multi_session_reasoning:2`
+- target result: recall 0 -> 1 with the four entertainment-spending turns 26/27/66/142 returned chronologically and all six noisy chats (158/52/28/29/48/49, two of them standing "Always ..." movie instructions) removed
+- repair shape: `reasoning.entertainmentSpendingOptimization` narrow gate + four facets (three user anchors and one assistant guidance turn, role-tag filtered; calibrated against all 268 conversation turns with zero over-match) in a dedicated sourceOrderRules module chained into the reasoning bridge, with the family added to the shared instructionAugmentationStandDownQuery flag — the pre-repair winner was the generic reasoning bridge already holding three of four evidence ids before augmenter stage 1 overrode it with the standing instructions
 - regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the user's four professional improvement areas: the $10,000 salary-increase negotiation, the five award-winning portfolio projects after Alexis's storytelling advice, Karen's international resume standards for UK and US markets, and Nicole's remote-leadership resume guidance. This is a retained selector repair, not a benchmark close.
+The repaired target covers the user's entertainment-spending reasoning: the HBO Max addition against the Netflix and Disney+ lineup, the assistant's exclusive-content guidance, the $65 snack budget with simultaneous multi-device streaming, and the Paddington 2 rental-instead-of-subscription savings. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
