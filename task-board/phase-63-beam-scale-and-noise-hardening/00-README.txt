@@ -19,12 +19,12 @@ Accepted Evidence
 - BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`, real 100K export, all four profiles, `executionFailures: 0`.
 - First rules-only recall diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`, evidence-chat recall 0.11625896794910878, missed 340/355.
 - Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0.
-- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-outlander-reading-days-current-20260612T185300Z`, evidence-chat recall 0.8398166778448468, missed 90/355, wrong-recall/noise 233/400, zero-recall 13.
+- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-movie-list-game-night-days-current-20260612T191900Z`, evidence-chat recall 0.8426335792532975, missed 89/355, wrong-recall/noise 232/400, zero-recall 12.
 
 Current Task Queue
 ------------------
 
-1. Keep the latest outlander-reading-days interval repair.
+1. Keep the latest movie-list-game-night-days interval repair.
 2. Continue with one named retained miss/noise family at a time.
 3. Prefer source-ordered summary and event-order fill/noise cases for the next loop.
 4. Reject broad selector rewrites unless analyzer deltas prove they do not add regressions.
