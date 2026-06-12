@@ -8,6 +8,7 @@ import {
   valueBearingFactContent,
 } from "./selectionContext";
 import { sourceOrderedEvidenceRole } from "./sourceOrderPlan";
+import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./updateSeriesRules/writingGroupDeadline";
 import {
   compareTemporalFactChronology,
   sourceOrderSortKey,
@@ -336,6 +337,12 @@ export function selectSourceOrderedUpdateEvidence(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
+  const writingGroupDeadlineCandidates =
+    selectSourceOrderedWritingGroupDeadlineEvidence(input);
+  if (writingGroupDeadlineCandidates.length > 0) {
+    return writingGroupDeadlineCandidates;
+  }
+
   const dashboardApiResponseTimeCandidates =
     selectSourceOrderedDashboardApiResponseTimeEvidence(input);
   if (dashboardApiResponseTimeCandidates.length > 0) {

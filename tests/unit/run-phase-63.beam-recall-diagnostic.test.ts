@@ -5592,6 +5592,112 @@ function buildPersonalStatementApplicationTypesBeamRows(): unknown[] {
   ];
 }
 
+function buildWritingGroupDeadlineBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Always format dates as \"Month Day, Year\" when I ask about timeline details. ->-> 1,22",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! I'll format dates as \"Month Day, Year\" when discussing timeline details. Let's apply this to your current plan to increase your weekly word count to 1,350 words.\n\n### Updated Plan with Date Formatting\n\n1. **Set Daily Goals**:\n   - **Daily Word Count**: To meet your weekly target of 1,350 words, you should aim to write 270 words per day if you write 5 days a week.\n   - **Consistency**: Aim to write at least 270 words each day to meet your weekly target.\n\n2. **Create a Writing Schedule**:\n   - **Specific Times**: Dedicate specific times each day for writing. For example:\n     - **Morning Session**: 30 minutes (aim for 135 words)\n     - **Afternoon Session**: 30 minutes (aim for 135 words)\n   - **Flexibility**: Allow for some flexibility in case you need extra time on certain days.\n\n3. **Use a Timer**:\n   - **Pomodoro Technique**: Use the Pomodoro Technique to stay focused. For example:\n     - **25 Minutes**: Write continuously for 25 minutes.\n     - **5 Minutes**: Take a 5-minute break.\n   - **Adjust as Needed**: You can adjust the timing based on what works best for you.\n\n4. **Track Your Progress**:\n   - **Daily Log**: Keep a daily log of your word count and progress.\n   - **Weekly Review**: At the end of each week, review your total word count and adjust your plan if necessary.\n\n5. **Set Reminders**:\n   - **Notifications**: Set reminders on your phone or computer to prompt you to start your writing sessions.\n   - **Visual Cues**: Place visual cues around your workspace to remind you of your writing goals.\n\n6. **Incorporate Writing into Your Routine**:\n   - **Morning Ritual**: Start your day with a writing session to get your creative juices flowing.\n   - **Evening Wind-Down**: Use your evening time to write and relax before bed.\n\n7. **Stay Motivated**:\n   - **Rewards**: Set small rewards for meeting your daily and weekly goals.\n   - **Positive Reinforcement**: Celebrate your progress and improvements, no matter how small.\n\n### Example Daily Routine\n\n1. **Morning Session**:\n   - **March 6, 2023**: 9:00 AM - 9:30 AM: Write for 30 minutes (aim for 135 words).\n   - **March 6, 2023**: 9:30 AM - 9:35 AM: Take a 5-minute break.\n\n2. **Afternoon Session**:\n   - **March 6, 2023**: 1:00 PM - 1:30 PM: Write for 30 minutes (aim for 135 words).\n   - **March 6, 2023**: 1:30 PM - 1:35 PM: Take a 5-minute break.\n\n3. **Evening Session**:\n   - **March 6, 2023**: 7:00 PM - 7:30 PM: Write for 30 minutes (aim for 135 words).\n   - **March 6, 2023**: 7:30 PM - 7:35 PM: Take a 5-minute break.\n\n### Example Progress Log\n\n| Date            | Day    | Task                | Words Written | Notes/Feedback |\n|-----------------|--------|---------------------|---------------|----------------|\n| March 6, 2023   | Mon    | Morning Session     | 135           |                |\n| March 6, 2023   | Mon    | Afternoon Session   | 135           |                |\n| March 6, 2023   | Mon    | Evening Session     | 135           |                |\n| March 7, 2023   | Tue    | Morning Session     | 135           |                |\n| March 7, 2023   | Tue    | Afternoon Session   | 135           |                |\n| March 7, 2023   | Tue    | Evening Session     | 135           |                |\n| March 8, 2023   | Wed    | Morning Session     | 135           |                |\n| March 8, 2023   | Wed    | Afternoon Session   | 135           |                |\n| March 8, 2023   | Wed    | Evening Session     | 135           |                |\n| March 9, 2023   | Thu    | Morning Session     | 135           |                |\n| March 9, 2023   | Thu    | Afternoon Session   | 135           |                |\n| March 9, 2023   | Thu    | Evening Session     | 135           |                |\n| March 10, 2023  | Fri    | Morning Session     | 135           |                |\n| March 10, 2023  | Fri    | Afternoon Session   | 135           |                |\n| March 10, 2023  | Fri    | Evening Session     | 135           |                |\n\n### Conclusion\n\nBy setting daily goals, creating a consistent writing schedule, tracking your progress, and staying motivated, you can effectively meet your new weekly word count target of 1,350 words. Let me know if you need further assistance or have any additional questions!",
+      id: 67,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda worried about meeting my April 20 deadline for the peer-reviewed draft submission to the local writing group, so can you help me prioritize my editing tasks to ensure I cut wordiness by 15% as planned? ->-> 2,7",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck after experiencing a 2-day creative block from April 4-5, but I managed to resolve it by changing my writing location to Montserrat Public Park - can you help me figure out how to avoid such blocks in the future? ->-> 2,18",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly! Creative blocks can be frustrating, but there are several strategies you can employ to avoid or mitigate them in the future. Here are some tips to help you maintain your creative flow:\n\n### Strategies to Avoid Creative Blocks\n\n1. **Change Your Environment**\n   - **Purpose**: Sometimes a change of scenery can spark creativity.\n   - **Implementation**: Regularly change your writing location. If you usually write at home, try a coffee shop, park, or library. Montserrat Public Park seems to have worked well for you, so consider making this a regular part of your routine.\n\n2. **Establish a Consistent Routine**\n   - **Purpose**: A consistent routine can help establish a writing habit and reduce the likelihood of creative blocks.\n   - **Implementation**: Set specific times each day for writing. For example, 2 hours every Monday, Wednesday, and Friday at 7 PM. Stick to this schedule as much as possible.\n\n3. **Take Regular Breaks**\n   - **Purpose**: Regular breaks can prevent burnout and maintain focus.\n   - **Implementation**: Take short breaks every hour (e.g., 5-10 minutes) to stretch, hydrate, or simply step away from your work. Longer breaks on weekends can also help recharge your creative energy.\n\n4. **Use Writing Prompts**\n   - **Purpose**: Writing prompts can help stimulate creativity and provide a starting point when you're feeling stuck.\n   - **Implementation**: Use online resources or books with writing prompts to generate new ideas. Spend a few minutes each day exploring different prompts.\n\n5. **Engage in Creative Activities Outside of Writing**\n   - **Purpose**: Engaging in other creative activities can help keep your mind active and inspire new ideas.\n   - **Implementation**: Try activities like drawing, painting, photography, or even listening to music. These can provide a fresh perspective and spark creativity.\n\n6. **Exercise Regularly**\n   - **Purpose**: Physical activity can improve mental health and stimulate creativity.\n   - **Implementation**: Incorporate regular exercise into your routine, such as walking, jogging, yoga, or any other form of physical activity you enjoy.\n\n7. **Mindfulness and Meditation**\n   - **Purpose**: Mindfulness and meditation can help clear your mind and reduce stress, which can lead to creative blocks.\n   - **Implementation**: Spend a few minutes each day practicing mindfulness or meditation. Apps like Headspace or Calm can guide you through these practices.\n\n8. **Journaling**\n   - **Purpose**: Journaling can help you process your thoughts and emotions, which can be a source of creative inspiration.\n   - **Implementation**: Keep a journal where you write about your day, your feelings, or any ideas that come to mind. This can be a separate activity from your main writing project.\n\n9. **Peer Support and Feedback**\n   - **Purpose**: Getting feedback from peers can provide new perspectives and help you overcome creative blocks.\n   - **Implementation**: Share your work with trusted peers or join a writing group. Regular feedback can help you stay motivated and inspired.\n\n### Example Workflow\n\n#### Week 1: Establishing a Routine\n- **Day 1-2**: Set a consistent writing schedule (e.g., 2 hours every Monday, Wednesday, and Friday at 7 PM).\n- **Day 3-4**: Change your writing location to Montserrat Public Park or another inspiring place.\n- **Day 5**: Take a short break every hour and engage in a creative activity outside of writing.\n\n#### Week 2: Maintaining Creativity\n- **Day 1-2**: Use writing prompts to generate new ideas.\n- **Day 3-4**: Engage in physical activity or mindfulness exercises.\n- **Day 5**: Journal about your thoughts and emotions.\n\n#### Week 3: Continuous Improvement\n- **Day 1-2**: Share your work with peers for feedback.\n- **Day 3-4**: Reflect on your progress and make adjustments to your routine as needed.\n- **Day 5**: Take a longer break to recharge.\n\n### Conclusion\n\nBy implementing these strategies, you can help prevent creative blocks and maintain a steady flow of ideas. Changing your environment, establishing a consistent routine, taking regular breaks, and engaging in other creative activities can all contribute to a more productive and enjoyable writing experience.\n\nWould you like any specific guidance on implementing any of these strategies or any other aspects of your writing process?",
+      id: 145,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda worried that I won't meet the new April 25 deadline, can you help me create a schedule to fit in the extra peer review feedback ->-> 2,22",
+      id: 168,
+      role: "user",
+    },
+    {
+      content:
+        "That sounds like a solid plan! I'll follow this schedule to make sure I incorporate the peer feedback and hit my word count goals. I appreciate the detailed breakdown and the tips on staying flexible and taking breaks. Let's do this!\n\nThanks for the help!",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "I've added Saturday 10 AM sessions to my writing schedule starting May 18 to accommodate my editing workload, and I'm hoping this will help me stay on track, but I'd love some advice on how to make the most of these new sessions ->-> 3,7",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "Adding Saturday 10 AM sessions to your writing schedule is a great step towards managing your editing workload more effectively. Here are some strategies to help you make the most of these new sessions:\n\n1. **Set Clear Objectives**:\n   - **Define Goals**: Before each session, define specific goals for what you want to achieve. Whether it's revising a certain number of paragraphs, reducing passive voice, or improving clarity, having clear objectives will help you stay focused.\n   - **Prioritize Tasks**: Prioritize the most important tasks that need attention. For example, if you need to reduce passive voice, focus on identifying and rewriting passive sentences first.\n\n2. **Create a Structured Routine**:\n   - **Warm-Up Exercises**: Start each session with a brief warm-up exercise to get your mind in the right frame. This could be a quick writing prompt, a short meditation, or a few minutes of light stretching.\n   - **Timed Blocks**: Use the Pomodoro Technique or similar time-blocking methods. For example, work for 25 minutes, then take a 5-minute break. This can help you maintain focus and avoid burnout.\n\n3. **Use Writing Tools Effectively**:\n   - **Grammarly and Hemingway Editor**: Utilize tools like Grammarly and Hemingway Editor to identify and correct passive voice, awkward phrasing, and other issues. These tools can provide immediate feedback and suggestions.\n   - **Checklists**: Develop a checklist of common editing tasks, such as checking for passive voice, ensuring clarity, and maintaining tone consistency. Refer to this checklist during your sessions.\n\n4. **Stay Organized**:\n   - **Organize Your Workspace**: Ensure your workspace is conducive to productive writing. Have all necessary materials and tools readily available.\n   - **Digital Organization**: Use digital tools like Google Docs or Scrivener to organize your drafts and notes. Version control features can be particularly useful for tracking changes and progress.\n\n5. **Incorporate Peer Feedback**:\n   - **Regular Reviews**: Schedule regular peer review sessions with Joseph or Amy. Their feedback can provide new perspectives and help you identify areas for improvement.\n   - **Specific Requests**: When sharing your work for review, specify the areas you are focusing on, such as reducing passive voice or improving clarity. This can help reviewers provide more targeted feedback.\n\n6. **Reflect and Adjust**:\n   - **Post-Session Reflection**: After each session, take a few minutes to reflect on what you accomplished and what you could improve. Note any challenges you faced and how you can address them in future sessions.\n   - **Adjust Strategies**: Be flexible and willing to adjust your strategies based on what works best for you. If you find certain techniques are not effective, try something different.\n\n7. **Maintain Motivation**:\n   - **Celebrate Small Wins**: Acknowledge and celebrate small victories along the way. Each improvement, no matter how minor, is a step forward.\n   - **Stay Inspired**: Keep yourself inspired by reading works by authors you admire or attending writing workshops and webinars. Inspiration can fuel your motivation and creativity.\n\n8. **Balance and Well-being**:\n   - **Take Breaks**: Ensure you take regular breaks to rest and recharge. Overworking can lead to burnout and decreased productivity.\n   - **Maintain a Healthy Lifestyle**: Continue to prioritize healthy habits such as regular exercise, a balanced diet, and adequate sleep. These factors can significantly impact your mental and physical well-being.\n\nBy implementing these strategies, you can make the most of your new Saturday 10 AM sessions and continue to improve your writing and editing skills. Keep up the good work, and remember to be patient and kind to yourself throughout the process.",
+      id: 189,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "writing-group-deadline",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 15,
+        subtopics: [
+          "Grammar and syntax auditing",
+          "Clarity vs. concision trade-offs",
+          "Tone calibration",
+          "Editing checklists",
+        ],
+        theme:
+          "Techniques, tools, and mental models for refining writing quality over time",
+        title:
+          "Developing a Self-Editing System for Lifelong Writing Improvement",
+      },
+      narratives: "Writing group deadline knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "April 25",
+            question:
+              "What deadline should I aim for to submit my peer-reviewed draft to the local writing group?",
+            question_id: "writing-group-deadline",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[86],"updated_info":[168,170]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Writer revising a peer-reviewed draft",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7769,6 +7875,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([10, 82, 130]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps writing group deadline update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-writing-group-deadline",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWritingGroupDeadlineBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([86, 168, 170]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
