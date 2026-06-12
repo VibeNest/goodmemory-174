@@ -29,6 +29,20 @@ export const isTransactionDeploymentWeeksIntervalQuery = narrowGate(
   },
 );
 
+export const isTriangleProblemCountIntervalQuery = narrowGate(
+  "temporalInterval.triangleProblemCount",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+more\s+problems\b/iu.test(query) &&
+    /\btriangle\s+classification\b/iu.test(query) &&
+    /\barea\s+calculations\b/iu.test(query);
+  },
+);
+
+const TRIANGLE_PROBLEM_COUNT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bcompleted 10 classification problems\b)(?=[\s\S]*\bscoring 8\/10 correct\b)/iu;
+const TRIANGLE_PROBLEM_COUNT_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bimproved from 70% to 90% after completing 12 problems\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -44,19 +58,26 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     PATENT_RESPONSE_MEETING_INTERVAL_QUERY_PATTERN.test(input.query);
   const transactionDeploymentWeeksIntervalQuery =
     isTransactionDeploymentWeeksIntervalQuery(input.query);
+  const triangleProblemCountIntervalQuery =
+    isTriangleProblemCountIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
-    !transactionDeploymentWeeksIntervalQuery
+    !transactionDeploymentWeeksIntervalQuery &&
+    !triangleProblemCountIntervalQuery
   ) {
     return [];
   }
-  const startPattern = transactionDeploymentWeeksIntervalQuery
+  const startPattern = triangleProblemCountIntervalQuery
+    ? TRIANGLE_PROBLEM_COUNT_INTERVAL_START_PATTERN
+    : transactionDeploymentWeeksIntervalQuery
     ? TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = transactionDeploymentWeeksIntervalQuery
+  const endPattern = triangleProblemCountIntervalQuery
+    ? TRIANGLE_PROBLEM_COUNT_INTERVAL_END_PATTERN
+    : transactionDeploymentWeeksIntervalQuery
     ? TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_END_PATTERN

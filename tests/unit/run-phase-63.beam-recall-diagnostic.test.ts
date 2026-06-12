@@ -6077,6 +6077,95 @@ function buildTransactionDeploymentWeeksBeamRows(): unknown[] {
   ];
 }
 
+function buildTriangleProblemCountBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to classify triangles by sides and angles, and I've completed 10 classification problems, scoring 8/10 correct in identifying triangle types, but I'm having trouble understanding how to apply this to more complex problems, like the ones involving the Law of Cosines to find unknown angles in a triangle with sides 7, 9, 12 cm, so can you help me figure out how to use my knowledge of equilateral, isosceles, and scalene triangles to solve these kinds of problems? ->-> 1,12",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly, Christina! Let's build on your existing knowledge of classifying triangles by sides and angles and apply it to more complex problems, such as using the Law of Cosines to find unknown angles in a triangle with sides 7 cm, 9 cm, and 12 cm.\n\n### Review of Triangle Classification\n1. **Equilateral Triangle**: All three sides are equal, and all angles are 60 degrees.\n2. **Isosceles Triangle**: At least two sides are equal, and the angles opposite the equal sides are also equal.\n3. **Scalene Triangle**: No sides are equal, and no angles are equal.\n\n### Applying Knowledge to Complex Problems\n\n#### Step 1: Classify the Triangle by Sides\nGiven the sides 7 cm, 9 cm, and 12 cm:\n- No sides are equal.\n\nTherefore, this triangle is a **scalene triangle**.\n\n#### Step 2: Use the Law of Cosines to Find Unknown Angles\nTo find an unknown angle in a scalene triangle, we can use the Law of Cosines. Let's find the angle opposite the longest side, which is 12 cm. We'll denote this angle as \\(C\\).\n\nThe Law of Cosines states:\n\\[\nc^2 = a^2 + b^2 - 2ab \\cos(C)\n\\]\n\nRearranging to solve for \\(\\cos(C)\\):\n\\[\n\\cos(C) = \\frac{a^2 + b^2 - c^2}{2ab}\n\\]\n\nGiven:\n- \\(a = 7\\)\n- \\(b = 9\\)\n- \\(c = 12\\)\n\nSubstitute these values into the formula:\n\\[\n\\cos(C) = \\frac{7^2 + 9^2 - 12^2}{2 \\cdot 7 \\cdot 9}\n\\]\n\nCalculate the squares:\n\\[\n7^2 = 49\n\\]\n\\[\n9^2 = 81\n\\]\n\\[\n12^2 = 144\n\\]\n\nSubstitute these values back into the formula:\n\\[\n\\cos(C) = \\frac{49 + 81 - 144}{2 \\cdot 7 \\cdot 9}\n\\]\n\nPerform the arithmetic inside the numerator:\n\\[\n49 + 81 - 144 = 130 - 144 = -14\n\\]\n\nCalculate the denominator:\n\\[\n2 \\cdot 7 \\cdot 9 = 126\n\\]\n\nCombine the results:\n\\[\n\\cos(C) = \\frac{-14}{126} = -\\frac{1}{9}\n\\]\n\nFind the angle \\(C\\) using the inverse cosine function:\n\\[\nC = \\cos^{-1}\\left(-\\frac{1}{9}\\right)\n\\]\n\nUsing a calculator:\n\\[\nC \\approx \\cos^{-1}\\left(-\\frac{1}{9}\\right) \\approx 96.38^\\circ\n\\]\n\n#### Step 3: Find the Other Angles\nTo find the other two angles, we can use the fact that the sum of the angles in a triangle is 180 degrees. Let's denote the other two angles as \\(A\\) and \\(B\\).\n\nUsing the Law of Cosines again, we can find angle \\(A\\) opposite side \\(a = 7\\):\n\\[\na^2 = b^2 + c^2 - 2bc \\cos(A)\n\\]\n\\[\n7^2 = 9^2 + 12^2 - 2 \\cdot 9 \\cdot 12 \\cos(A)\n\\]\n\\[\n49 = 81 + 144 - 216 \\cos(A)\n\\]\n\\[\n49 = 225 - 216 \\cos(A)\n\\]\n\\[\n216 \\cos(A) = 176\n\\]\n\\[\n\\cos(A) = \\frac{176}{216} = \\frac{22}{27}\n\\]\n\\[\nA = \\cos^{-1}\\left(\\frac{22}{27}\\right) \\approx 33.56^\\circ\n\\]\n\nSimilarly, for angle \\(B\\) opposite side \\(b = 9\\):\n\\[\nb^2 = a^2 + c^2 - 2ac \\cos(B)\n\\]\n\\[\n9^2 = 7^2 + 12^2 - 2 \\cdot 7 \\cdot 12 \\cos(B)\n\\]\n\\[\n81 = 49 + 144 - 168 \\cos(B)\n\\]\n\\[\n81 = 193 - 168 \\cos(B)\n\\]\n\\[\n168 \\cos(B) = 112\n\\]\n\\[\n\\cos(B) = \\frac{112}{168} = \\frac{2}{3}\n\\]\n\\[\nB = \\cos^{-1}\\left(\\frac{2}{3}\\right) \\approx 48.19^\\circ\n\\]\n\n### Summary\n- **Classification**: The triangle with sides 7 cm, 9 cm, and 12 cm is a **scalene triangle**.\n- **Angles**:\n  - \\(C \\approx 96.38^\\circ\\)\n  - \\(A \\approx 33.56^\\circ\\)\n  - \\(B \\approx 48.19^\\circ\\)\n\nBy applying the Law of Cosines and understanding the properties of different types of triangles, you can solve more complex problems effectively. If you have any more questions or need further examples, feel free to ask!",
+      id: 31,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand how my accuracy in area calculation problems improved from 70% to 90% after completing 12 problems, can you help me identify what I did differently or what concepts I grasped better during this time to achieve such a significant improvement in my accuracy? ->-> 2,7",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to calculate the area of a triangle using Heron's formula, but I want to compare it with the base-height formula to see which one is more efficient for the triangle with sides 7 cm, 24 cm, 25 cm, and I've already completed 15 problems with 95% accuracy, so I'm looking for a method that can help me improve my understanding of triangle area calculations ->-> 2,27",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "I've been studying triangle geometry and I want to know how to apply the concept of medians and altitudes to calculate the area of a triangle, considering I've never completed any problems involving medians or altitudes before, and I prefer comparing multiple solution methods to understand which is more efficient or accurate, so can you help me with that, given that I've been working on triangle area formulas and special lines like medians and altitudes, and I've improved my quiz score from 70% to 90% after completing 12 area calculation problems ->-> 2,28",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble understanding the difference between congruence and similarity in triangles, can you explain it to me using precise mathematical language, like how congruence means having the same size and shape, while similarity means having the same shape but not necessarily the same size, and how this applies to triangles with sides 6, 8, 10 cm and 9, 12, 15 cm, and also how to prove triangle congruence using SSS, SAS, ASA criteria, and solve similarity problems with scale factors, and maybe provide an example of how to apply this to a real-world problem, like designing a triangular window with a scale factor of 1.25, and calculating the new side lengths, and also how to use medians and altitudes in triangles to solve problems, like finding the load distribution in a triangular roof truss, and how to apply the concept of centroid and the median length formula to solve problems, and I want to make sure I understand the concept of similarity and congruence correctly, so can you please provide a step-by-step explanation and examples, and also explain why the centroid is always inside the triangle regardless of its type, and how to use coordinate geometry to verify triangle similarity, and I'm also interested in learning about the historical development of triangle geometry and how it has been applied in different fields, like engineering and architecture, and how to use mathematical software like GeoGebra to simulate triangle transformations and prove congruence, and I prefer to learn through visual aids and step-by-step explanations, so please provide diagrams and examples to illustrate the concepts, and I'm looking forward to deepening my understanding of triangle geometry and its applications, and I hope to achieve a high level of accuracy in solving problems related to congruence and similarity, and I'm excited to learn about the different methods and techniques used to solve triangle problems, and I'm confident that with practice and dedication, I can master the concepts of triangle geometry and apply them to real-world problems, and I'm eager to start solving problems and exploring the different aspects of triangle geometry, so please provide me with some challenging problems to solve, and I'll make sure to follow the instructions and provide my solutions in the required format, and I'll also make sure to ask for help when I need it, and I'll be patient and persistent in my learning journey, and I'll keep track of my progress and adjust my strategy as needed, and I'll celebrate my successes and learn from my mistakes, and I'll stay motivated and focused on my goal of becoming proficient in triangle geometry, and I'll use the resources available to me, like textbooks, online tutorials, and study groups, to help me achieve my goal, and I'll also seek feedback from my instructors and peers to help me improve my understanding and skills, and I'll be open to new ideas and perspectives, and I'll be willing to take risks and try new approaches, and I'll be confident in my abilities and trust myself to make good decisions, and I'll stay positive and enthusiastic throughout my learning journey, and I'll enjoy the process of learning and discovering new things, and I'll find joy and satisfaction in solving problems and achieving my goals, and I'll be proud of myself for my hard work and dedication, and I'll know that I've earned my success, and I'll be happy and fulfilled, and I'll feel a sense of accomplishment and pride, and I'll be excited to share my knowledge and skills with others, and I'll be eager to help others learn and grow, and I'll be a positive influence on those around me, and I'll make a difference in the world, and I'll leave a lasting impact, and I'll be remembered for my contributions, and I'll be proud of my legacy, and I'll know that I've made a difference, and I'll be happy and content, and I'll feel fulfilled and satisfied, and I'll be at peace, and I'll be happy, and I'll be me, and I'll be free, and I'll be alive, and I'll be me, and I'll be happy, and I'll be free, and I'll be alive, and I'll be me ->-> 3,22",
+      id: 190,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "triangle-problem-count",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Math",
+        id: 7,
+        subtopics: [
+          "Classifying triangles by angles and sides",
+          "Pythagoras’ theorem applications",
+          "Properties of equilateral, isosceles, and scalene triangles",
+          "Area formulas",
+        ],
+        theme:
+          "Investigating properties, theorems, and problem-solving techniques related to triangles",
+        title:
+          "Exploring the Geometry of Triangles",
+      },
+      narratives: "Triangle problem count interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "You completed 2 more problems between scoring 8/10 on triangle classification (after 10 problems) and improving your accuracy from 70% to 90% in area calculations (after 12 problems). This is inferred by comparing the problem counts mentioned in the two sessions.",
+            question:
+              "How many more problems did I complete between when I scored 8 out of 10 on triangle classification and when my accuracy improved from 70% to 90% in area calculations?",
+            question_id: "triangle-problem-count",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[30],"second_event":[82]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student practicing triangle geometry",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8369,6 +8458,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([0, 2]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the triangle problem-count interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-triangle-problem-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTriangleProblemCountBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([30, 82]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
