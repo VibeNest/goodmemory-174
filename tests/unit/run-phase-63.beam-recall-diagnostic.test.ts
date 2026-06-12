@@ -7333,6 +7333,103 @@ function buildImmigrationConsultantSessionBeamRows(): unknown[] {
 }
 
 
+function buildTimelineDateFormatInstructionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that I met Michael at Montserrat Writers’ Festival on Jan 15, 2024, and we share script editing tips weekly, but I don't know if that's enough to really improve my writing, can you help me figure out how to make the most of it?? ->-> 1,3",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "Always format dates as \"Month Day, Year\" when I ask about timeline details. ->-> 1,22",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I'm feeling kinda motivated after Amy's invitation on May 30, and I rated my motivation 8/10, so how can I keep this renewed motivation going, especially since I've been networking with writers and editors like the 30 I met at the Montserrat Literary Festival on May 18? ->-> 3,18",
+      id: 214,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the joint editing webinar with Carla on September 10, how can I make sure we get at least 50 attendees from Montserrat Writers’ Guild, and what's the best way to promote it to them? ->-> 4,2",
+      id: 228,
+      role: "user",
+    },
+    {
+      content:
+        "I'm feeling kinda anxious about my writing deadlines, like the one on September 22 for the Montserrat Literary Festival, where I'm invited to speak, and I'm wondering how to manage my time effectively to meet all my commitments without increasing my anxiety level, which is already at 5/10 ->-> 4,18",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, staying focused is crucial, especially given your tight deadlines and the recent activities you've been involved in. Here are some key points to emphasize the importance of staying focused and how to manage your time effectively:\n\n### Importance of Staying Focused\n1. **Meeting Deadlines**: With your final draft deadline set for October 1, 2024, maintaining focus ensures you meet this critical milestone. Missing this deadline could impact your ability to submit your work for opportunities like the Montserrat Film Festival or local TV pitches.\n\n2. **Quality of Work**: Consistent focus allows you to produce higher-quality writing. Rushing or being distracted can lead to errors and less polished content, which can affect the reception of your work.\n\n3. **Mental Health**: Regular writing sessions help maintain a routine, which is beneficial for your mental health. It reduces stress and anxiety associated with looming deadlines and helps you stay motivated.\n\n### Managing Your Time Effectively\n1. **Block Dedicated Writing Time**: Continue blocking off specific times for writing, such as your scheduled 2-hour sessions on Mondays, Wednesdays, and Fridays at 7 PM. Additionally, consider adding more time if needed, like the Saturday 10 AM sessions you started in May.\n\n2. **Prioritize Tasks**: Prioritize your writing tasks based on urgency and importance. For example, focus on completing the 1,800-word weekly targets first, then move on to editing and revising.\n\n3. **Use Tools and Resources**: Leverage the tools and resources you have, such as Grammarly, Hemingway Editor, and ProWritingAid, to streamline your editing process. This can save you time and ensure your writing is polished.\n\n4. **Set Milestones**: Break down your final draft into smaller, manageable milestones. For instance, aim to complete certain sections or chapters by specific dates leading up to October 1. This can help you track your progress and stay motivated.\n\n5. **Limit Distractions**: Minimize distractions during your writing sessions. Turn off notifications on your phone, close unnecessary tabs on your computer, and create a quiet environment conducive to focused work.\n\n### Recent Activities and Their Impact\n1. **Webinar Success**: The success of the September 10 webinar with Carla is a positive sign. It shows that you can handle multiple projects simultaneously. Use this momentum to push forward with your writing.\n\n2. **Feedback Utilization**: Incorporate the feedback from the webinar and previous peer reviews into your writing. This can help you refine your work and stay on track with your goals.\n\n### Next Steps\n1. **Review Progress**: Check your progress against your weekly 1,800-word targets. If you find you are falling behind, adjust your schedule to dedicate more time to writing.\n\n2. **Seek Support**: Don't hesitate to reach out to your writing community, including Michael, Joseph, and Amy, for support and encouragement. They can provide valuable insights and motivation.\n\n3. **Celebrate Milestones**: As you reach each milestone, take a moment to celebrate your progress. This can boost your morale and keep you motivated.\n\nBy staying focused and managing your time effectively, you can successfully meet your deadline and produce a high-quality final draft. Good luck!",
+      id: 297,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "timeline-date-format-instruction",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 15,
+        subtopics: [
+          "Grammar and syntax auditing",
+          "Clarity vs. concision trade-offs",
+          "Tone calibration",
+          "Editing checklists",
+        ],
+        theme:
+          "Techniques, tools, and mental models for refining writing quality over time",
+        title:
+          "Developing a Self-Editing System for Lifelong Writing Improvement",
+      },
+      narratives: "Timeline date format instruction following",
+      probing_questions: {
+        instruction_following: [
+          {
+            compliance_indicators: ["Month Day, Year format", "full month name", "numerical day and year"],
+            difficulty: "medium",
+            expected_compliance:
+              "Response should present the date in the specified format with the full month name, day, and year.",
+            instruction_being_tested:
+              "Always format dates as \"Month Day, Year\" when I ask about timeline details.",
+            instruction_type: "format_instruction",
+            non_compliance_signs: ["numeric-only dates", "abbreviated month names", "dates without day or year", "other date formats"],
+            question:
+              "When was the Montserrat Writers’ Festival?",
+            question_id: "timeline-date-format-instruction",
+            question_type: "instruction_following",
+            rubric: ["LLM response should contain: Month Day, Year format"],
+            source_chat_ids: [66],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Writer tracking literary festival timelines",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9924,6 +10021,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([138]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the timeline date format instruction evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-timeline-date-format-instruction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTimelineDateFormatInstructionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([66]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

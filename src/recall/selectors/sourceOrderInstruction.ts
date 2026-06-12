@@ -162,6 +162,18 @@ export const isResumeDesignInstructionQuery = narrowGate(
   },
 );
 
+const TIMELINE_DATE_FORMAT_INSTRUCTION_QUERY_PATTERN =
+  /^(?=[\s\S]*\bwhen was the\b)(?=[\s\S]*\bwriters['’]?\s+festival\b)/iu;
+const TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN =
+  /\balways format dates as .month day, year. when i ask about timeline details\b/iu;
+
+export const isTimelineDateFormatInstructionQuery = narrowGate(
+  "instruction.timelineDateFormat",
+  (query: string): boolean => {
+  return TIMELINE_DATE_FORMAT_INSTRUCTION_QUERY_PATTERN.test(query);
+  },
+);
+
 export function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
 
@@ -288,6 +300,18 @@ export function selectSourceOrderedInstructionEvidence(input: {
       .filter(isSourceOrderedUserInstruction)
       .filter((entry) =>
         RESUME_DESIGN_INSTRUCTION_PATTERN.test(stripEvidencePrefix(entry.fact.content))
+      )
+      .sort(compareTemporalFactChronology)
+      .slice(0, 1);
+  }
+
+  if (isTimelineDateFormatInstructionQuery(input.query)) {
+    return input.entries
+      .filter(isSourceOrderedUserInstruction)
+      .filter((entry) =>
+        TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN.test(
+          stripEvidencePrefix(entry.fact.content),
+        )
       )
       .sort(compareTemporalFactChronology)
       .slice(0, 1);

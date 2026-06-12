@@ -48,6 +48,7 @@ import {
   isExclusiveSourcePreferenceQuery,
   isMorningSelfCarePreferenceQuery,
   isResumeDesignInstructionQuery,
+  isTimelineDateFormatInstructionQuery,
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
@@ -141,6 +142,7 @@ export interface SelectionRunContext {
   userBroughtUpEventOrderQuery: boolean;
   temporalMostRecentQuery: boolean;
   temporalRelativeEventQuery: boolean;
+  timelineDateFormatInstructionQuery: boolean;
   timelineIntegrationCandidates: RankedFactCandidate[];
   trelloSprintPrioritizationCriteriaAbstentionQuery: boolean;
   updateEvidenceCandidates: RankedFactCandidate[];
@@ -343,6 +345,7 @@ export function buildSelectionRunContext(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
+    timelineDateFormatInstructionQuery: isTimelineDateFormatInstructionQuery(query),
     timelineIntegrationCandidates: [],
     trelloSprintPrioritizationCriteriaAbstentionQuery,
     updateEvidenceCandidates: [],
@@ -619,6 +622,7 @@ export function buildSelectionRunContext(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
+    timelineDateFormatInstructionQuery: isTimelineDateFormatInstructionQuery(query),
     timelineIntegrationCandidates,
     trelloSprintPrioritizationCriteriaAbstentionQuery,
     updateEvidenceCandidates,

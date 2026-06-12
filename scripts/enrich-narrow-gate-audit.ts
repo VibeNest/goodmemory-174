@@ -30,7 +30,10 @@ import {
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
-import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
+import {
+  isResumeDesignInstructionQuery,
+  isTimelineDateFormatInstructionQuery,
+} from "../src/recall/selectors/sourceOrderInstruction";
 import {
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -163,6 +166,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,
+  "instruction.timelineDateFormat": isTimelineDateFormatInstructionQuery,
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,

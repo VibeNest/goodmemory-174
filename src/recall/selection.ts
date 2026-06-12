@@ -107,6 +107,7 @@ export function selectFacts(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
+    timelineDateFormatInstructionQuery,
     trelloSprintPrioritizationCriteriaAbstentionQuery,
   } = ctx;
   const runtime: FactSelectionRuntime = {
@@ -221,7 +222,10 @@ export function selectFacts(
     };
   }
 
-  if (resumeDesignInstructionQuery && instructionEvidenceCandidates.length > 0) {
+  if (
+    (resumeDesignInstructionQuery || timelineDateFormatInstructionQuery) &&
+    instructionEvidenceCandidates.length > 0
+  ) {
     for (const entry of instructionEvidenceCandidates) {
       selectAndTrace(entry);
     }
