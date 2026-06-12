@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-ethics-webinar-v2-current-20260612T162500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-winter-reading-challenge-current-20260612T163500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-editing-challenge-days-current-20260612T160000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-ethics-webinar-v2-current-20260612T162500Z`
 
 Summary:
 
-- evidence-chat recall: 0.8144645651687904
-- missed-recall cases: 99/355
-- wrong-recall/noise cases: 242/400
-- zero-recall cases: 22
-- global hit/missing/noise ids: 882/212/1288 -> 884/210/1283
-- recovered target: `11:knowledge_update:1`
-- target result: recall 0 -> 1 with the webinar update pair 70/82 returned chronologically and all five noisy chats (229/89/311/297/362) removed
-- repair shape: `updateSeries.aiEthicsWebinar` narrow gate + an original/reschedule pattern pair in a dedicated updateSeriesRules module; the pass also extracted the update-series family chain into updateSeriesRules/registry.ts after the architecture cap caught updateSeries.ts at 905 lines (mirroring the aggregateRules registry; future update-series families cost zero lines in the parent module), and the v2 retained run reproduces the pre-refactor result exactly
+- evidence-chat recall: 0.8172814665772411
+- missed-recall cases: 98/355
+- wrong-recall/noise cases: 241/400
+- zero-recall cases: 21
+- global hit/missing/noise ids: 884/210/1283 -> 886/208/1277
+- recovered target: `13:knowledge_update:1`
+- target result: recall 0 -> 1 with the challenge-goal update pair 126/136 returned chronologically and all six noisy chats (62/306/229/309/247/255) removed
+- repair shape: `updateSeries.winterReadingChallenge` narrow gate + an original/extended pattern pair registered in the updateSeriesRules registry (one module plus one registry line; assistant echoes of both turns excluded by the user-role filter)
 - regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the AI-ethics webinar date update: the original March 20 announcement hosted by Montserrat Business Council and the user's reschedule-recall turn answered with March 27. This is a retained selector repair, not a benchmark close.
+The repaired target covers the winter reading challenge goal update: the original 10-book Goodreads target extended to 12 books by March 1. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
