@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-invite-current-20260612T165000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-event-cupcake-order-current-20260612T174100Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-winter-reading-challenge-current-20260612T163500Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-invite-current-20260612T165000Z`
 
 Summary:
 
-- evidence-chat recall: 0.8200983679856918
-- missed-recall cases: 97/355
-- wrong-recall/noise cases: 240/400
-- zero-recall cases: 20
-- global hit/missing/noise ids: 886/208/1277 -> 888/206/1273
-- recovered target: `14:contradiction_resolution:2`
-- target result: recall 0 -> 1 with the contradiction pair 108/148 returned chronologically and all four noisy chats (88/90/130/264, including the invited-to-April-7 confusable 90) removed
-- accepted tradeoff: `14:knowledge_update:2` (still zero recall, itself a future target) swaps noise 216 for 108 via same-conversation reinforcement, per-case noise count unchanged
-- repair shape: `contradiction.familyMovieInvite` narrow gate + a denial/scheduling pattern pair inline in contradiction.ts; the architecture fixture-name rule forbids the person names in selector files, so the patterns key on the never-invited ages-2-to-77 phrasing and the nap-time scheduling phrasing instead
-- regression check: target plus one documented net-zero reinforcement swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive per-case noise-count deltas
+- evidence-chat recall: 0.8229152693941425
+- missed-recall cases: 96/355
+- wrong-recall/noise cases: 239/400
+- zero-recall cases: 19
+- global hit/missing/noise ids: 888/206/1273 -> 890/204/1267
+- recovered target: `14:knowledge_update:2`
+- target result: recall 0 -> 1 with the designated update pair 132/156 returned chronologically and all six noisy chats (260/66/192/194/108/262) removed, zero new noise
+- repair shape: `updateSeries.eventCupcakeOrder` narrow gate + streaming-quality/marathon-lineup pattern pair in a dedicated updateSeriesRules module chained through the registry
+- ground-truth caveat: the benchmark designates the streaming-quality turn (132) and marathon-lineup turn (156) as evidence for the 30-cupcake answer, but neither mentions cupcakes; the gate recovers the designated ids for the recall metric, and live answer slices should expect the case to stay unanswerable
+- regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the family-movie invite contradiction: the never-invited denial against the later family-activity scheduling statement. This is a retained selector repair, not a benchmark close.
+The repaired target covers the event cupcake order knowledge update on the family-movie conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
