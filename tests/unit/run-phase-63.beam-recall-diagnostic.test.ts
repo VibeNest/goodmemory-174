@@ -7803,6 +7803,100 @@ function buildMovieListGameNightDaysBeamRows(): unknown[] {
 }
 
 
+function buildSneakerChoiceRecallBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm Darryl, and I'm kinda curious, what are some comfy sneaker options for daily wear, considering I'm 32 and always on the go, you know? ->-> 1,2",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Hi Darryl! It's great that you're looking for comfortable sneakers for daily wear. Here are some popular and comfy options that might suit your needs:\n\n1. **Adidas Ultraboost**: These are known for their excellent cushioning and energy return, making them perfect for someone who's always on the move. They come in various styles and colors, so you can find one that matches your taste.\n\n2. **Nike Air Zoom Pegasus 38**: This model is designed for everyday comfort and durability. The Air Zoom unit in the forefoot provides responsive cushioning, while the breathable mesh upper keeps your feet cool.\n\n3. **New Balance 990v5**: Known for their classic design and superior comfort, the New Balance 990 series has been a favorite among sneaker enthusiasts. The v5 version offers an updated look with the same reliable comfort.\n\n4. **Saucony Ride ISO 4**: These sneakers feature a seamless upper that reduces irritation and enhances breathability. The PWRRUN cushioning provides a soft and responsive ride, ideal for all-day wear.\n\n5. **Brooks Ghost 14**: With its DNA LOFT cushioning, this shoe offers a plush feel underfoot. The engineered mesh upper provides a secure fit and excellent ventilation, making it suitable for various weather conditions.\n\n6. **Asics Gel-Kayano 28**: If you need extra support, this model is a great choice. It features a GEL cushioning system that absorbs shock and provides a smooth ride.\n\nThese sneakers are not only comfortable but also stylish enough to match different outfits. Depending on your specific needs (like arch support or breathability), you might want to try a few pairs to see which one feels best for you. Would you like more information on any of these models or details about how to choose the right size?",
+      id: 1,
+      role: "assistant",
+    },
+    {
+      content:
+        "You're welcome, Darryl! The Adidas Ultraboost and Brooks Ghost 14 are both excellent choices for comfort and support, especially given your daily walking routine. Heading to Foot Locker next Saturday to try them on is a great plan. Here are some additional tips and information to help you:\n\n### Stock Availability at Foot Locker\n- **Wide Selection**: Foot Locker typically carries a good selection of popular running and walking shoes, including the Adidas Ultraboost and Brooks Ghost 14.\n- **Neutral Colors**: They usually have a variety of neutral color options like black and white, which should match your work attire well.\n- **Size Range**: Foot Locker often stocks a range of sizes, so you should be able to find your size in the models you're interested in.\n\n### Tips for Trying Them On\n- **Bring Your Work Shoes**: If possible, bring a pair of shoes that you typically wear to work. This can help you gauge how the new sneakers will fit with your usual footwear.\n- **Walk Around**: Spend some time walking around the store in the shoes to get a feel for how they perform and fit.\n- **Check Support and Comfort**: Pay attention to how the shoes support your feet and how comfortable they feel during movement.\n\n### Additional Considerations\n- **Sales and Discounts**: Check if there are any current sales or discounts on the models you're interested in. Foot Locker often has promotions that can make the purchase more affordable.\n- **Customer Service**: Don't hesitate to ask the staff for recommendations or assistance. They can provide valuable insights and help you find the best fit.\n\n### Follow-Up\n- **Online Check**: If you have time, you might want to check the Foot Locker website or app to see if they have the specific models and sizes in stock at your local store. This can save you time and ensure you find what you're looking for.\n\n### Final Thought\nTrying on both the Adidas Ultraboost and Brooks Ghost 14 will help you determine which one feels better for your daily walks. Both are excellent choices, and you're likely to be very satisfied with either one.\n\nGood luck with your shopping trip next Saturday! If you have any more questions or need further assistance, feel free to reach out.",
+      id: 27,
+      role: "assistant",
+    },
+    {
+      content:
+        "I need help deciding if I should stick with my purchase decision of Adidas Ultraboost, which I chose on March 30, or explore other options before the discount at East Janethaven's Finish Line ends on April 5 ->-> 2,1",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "Given your priorities and the details you've shared, the Adidas Ultraboost seems like a strong choice for your needs. Here are some points to consider to help you decide whether to stick with the Ultraboost or explore other options:\n\n### Pros of Sticking with Adidas Ultraboost:\n1. **Comfort and Support**: You've already tried them on and found them comfortable, which is crucial given your daily walking needs and mild flat feet.\n2. **Arch Support**: The Ultraboosts provide decent arch support, which should help with your condition.\n3. **Breathability**: The Primeknit upper is designed to be breathable, which is important in Montserrat's tropical climate.\n4. **Energy Return**: The Boost technology offers excellent energy return, making them suitable for daily wear and potentially enhancing your walking experience.\n5. **Discount Opportunity**: The 15% discount at Finish Line is a significant savings, especially within your budget limit of $200.\n\n### Cons of Sticking with Adidas Ultraboost:\n1. **Additional Support Needs**: If you find that you need more arch support, you might need to invest in additional insoles, which adds to the overall cost.\n2. **Limited Exploration**: By sticking with the Ultraboosts, you might miss out on discovering other models that could better suit your needs.\n\n### Exploring Other Options:\nIf you decide to explore other options, consider the following:\n\n1. **Nike Air Zoom Pegasus 38**: Known for its comfort and durability, this model also offers good arch support and breathability. It might be worth trying on if you're concerned about additional support.\n2. **New Balance Fresh Foam 1080v11**: This model is highly regarded for its cushioning and support, particularly for those with flat feet. It might provide the extra support you need without needing additional insoles.\n3. **Brooks Ghost 14**: Another excellent option for daily wear, offering good cushioning and support, especially for those who spend a lot of time on their feet.\n\n### Final Considerations:\n- **Try-On Experience**: Since you've already tried the Ultraboosts and found them comfortable, it might be worth sticking with a model you know works well for you.\n- **Discount Timing**: The discount at Finish Line ends on April 5, so you have limited time to make a decision. Missing out on the discount could mean spending more than your budget allows.\n- **Additional Research**: If you're still unsure, you could visit Foot Locker again to try on a few more models, but remember to factor in the time and effort required.\n\n### Recommendation:\nGiven your comfort with the Ultraboosts and the significant discount available, it seems prudent to go ahead with the purchase. If you're still hesitant, you could quickly visit Foot Locker one more time to try on a couple of other models, but be mindful of the discount deadline.\n\nWould you like to proceed with the Adidas Ultraboosts, or do you want to visit Foot Locker one more time to try on a few other models?",
+      id: 67,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a great plan! Trying on Allbirds will give you a firsthand feel for how they compare to your Ultraboosts and help you determine if they're a good fit for your daily wear needs. Here are some tips to make the most of your store visit:\n\n### What to Look For When Trying On Allbirds:\n\n1. **Fit**:\n   - **Width and Length**: Make sure the sneakers fit well in terms of width and length. They should feel snug but not too tight.\n   - **Toe Room**: Ensure there is enough space in the toe box to avoid any pressure points.\n\n2. **Comfort**:\n   - **Initial Feel**: Pay attention to how the sneakers feel right from the start. The merino wool and eucalyptus fiber should provide a soft and comfortable sensation.\n   - **Walk Around**: Spend some time walking around the store to get a sense of how the sneakers perform in motion. Focus on how they feel on your feet and if they provide adequate support.\n\n3. **Arch Support**:\n   - **Footbed**: Notice how the footbed feels. Allbirds generally offer moderate arch support, which should be sufficient for mild flat feet. If you need more support, you might consider bringing along some insoles to test.\n\n4. **Breathability**:\n   - **Material Feel**: Assess how the natural materials (merino wool, eucalyptus fiber) feel against your skin. They should be breathable and moisture-wicking.\n\n5. **Styling**:\n   - **Color Options**: Try on the neutral colors like black, white, and grey to see how they match your usual work attire.\n   - **Versatility**: Consider how the minimalist design of Allbirds can work for both casual and slightly dressier settings.\n\n### Comparison with Ultraboosts:\n\n- **Energy Return**: Compare the energy return and cushioning of the Allbirds to your Ultraboosts. The Ultraboosts are known for their springy feel, so note any differences.\n- **Arch Support**: Evaluate the arch support provided by Allbirds. If you find it sufficient, you might not need additional insoles.\n- **Overall Comfort**: Determine which pair feels more comfortable for extended periods of wear.\n\n### Additional Tips:\n\n1. **Bring Your Work Attire**: If possible, bring a pair of pants or jeans that you typically wear to work to see how the Allbirds look and feel with your usual attire.\n2. **Ask for Help**: Don't hesitate to ask the store staff for recommendations or additional information about the Allbirds models.\n3. **Take Notes**: Jot down your impressions of the Allbirds compared to your Ultraboosts. This can help you make a more informed decision later.\n\n### Conclusion:\nTrying on Allbirds is a great way to see if they meet your needs for comfort, support, and styling. They can be a versatile addition to your sneaker collection, especially if you and Lauren both appreciate their minimalist design and neutral colors.\n\nEnjoy your store visit and let me know how the try-on goes! If you have any further questions or need more advice, feel free to reach out.",
+      id: 83,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "sneaker-choice-recall",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 20,
+        subtopics: [
+          "Popular sneaker brands and their specialties",
+          "Materials for breathability and support",
+          "Trends in sneaker design",
+          "Fit and sizing guides",
+        ],
+        theme:
+          "Finding footwear that combines fashion, comfort, and durability",
+        title:
+          "Choosing Comfortable and Stylish Sneakers for Daily Wear",
+      },
+      narratives: "Sneaker choice preference recall extraction",
+      probing_questions: {
+        information_extraction: [
+          {
+            answer: "You said you chose the Adidas Ultraboost over the Nike React Infinity Run after trying both on March 30 at Foot Locker.",
+            conversation_reference:
+              "Turn 1: Initial choice and comparison mentioned",
+            difficulty: "medium",
+            key_facts_tested: ["choice: Adidas Ultraboost", "alternative: Nike React Infinity Run", "date: March 30", "location: Foot Locker"],
+            question:
+              "Which option did I say I chose after trying both at the store?",
+            question_id: "sneaker-choice-recall",
+            question_type: "preference_recall",
+            rubric: ["LLM response should state: Adidas Ultraboost"],
+            source_chat_ids: [1],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Shopper comparing daily-wear sneakers",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10509,6 +10603,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([208]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the sneaker choice recall designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-sneaker-choice-recall",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildSneakerChoiceRecallBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([1]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

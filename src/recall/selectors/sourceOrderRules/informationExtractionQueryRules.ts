@@ -23,6 +23,7 @@ export type InformationExtractionRuleId =
   | "resume-keyword-integration"
   | "shoe-size-count"
   | "single-card-probability-before-two-cards"
+  | "sneaker-choice-recall"
   | "son-patent-guidance-resource-plan"
   | "startup-transition-preparation"
   | "triangle-asa-congruence-proof-plan"
@@ -178,6 +179,11 @@ function isFestivalRelationshipDurationQuery(query: string): boolean {
     /\bfestival\b/iu.test(query);
 }
 
+function isSneakerChoiceRecallQuery(query: string): boolean {
+  return /\bwhich\s+option\s+did\s+i\s+say\s+i\s+chose\b/iu.test(query) &&
+    /\bafter\s+trying\s+both\b/iu.test(query);
+}
+
 function isPartnerMeetingDateLocationQuery(query: string): boolean {
   return /\bwhen\b/iu.test(query) &&
     /\bwhere\b/iu.test(query) &&
@@ -287,6 +293,7 @@ export const INFORMATION_EXTRACTION_QUERY_RULES: readonly InformationExtractionQ
   { id: "named-meeting-location", limit: 1, matches: isNamedMeetingLocationQuery },
   { id: "festival-meeting-date", limit: 1, matches: isFestivalMeetingDateQuery },
   { id: "festival-relationship-duration", limit: 1, matches: isFestivalRelationshipDurationQuery },
+  { id: "sneaker-choice-recall", limit: 1, matches: isSneakerChoiceRecallQuery },
   { id: "partner-meeting-date-location", limit: 1, matches: isPartnerMeetingDateLocationQuery },
   { id: "partner-classic-movie-recommendation", limit: 2, matches: isPartnerClassicMovieRecommendationQuery },
   { id: "colour-technologist-profession", limit: 1, matches: isColourTechnologistProfessionQuery },

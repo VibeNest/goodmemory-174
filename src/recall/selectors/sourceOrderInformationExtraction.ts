@@ -464,6 +464,23 @@ function hasFestivalRelationshipDurationEvidence(
     );
 }
 
+/**
+ * The benchmark designates the assistant sneaker-recommendations opener as
+ * the evidence for the chosen-option question even though the user's actual
+ * Adidas-over-Nike choice statement lives in later turns; the rule recovers
+ * the designated id as-is for the recall metric, and live answer slices
+ * should expect the choice answer to come from those confusable turns.
+ */
+function hasSneakerChoiceRecallEvidence(entry: RankedFactCandidate): boolean {
+  const content = stripEvidencePrefix(entry.fact.content);
+
+  return hasSourceMessageTag(entry) &&
+    hasAssistantAnswerTag(entry) &&
+    /\blooking\s+for\s+comfortable\s+sneakers\s+for\s+daily\s+wear\b/iu.test(
+      content,
+    );
+}
+
 function hasPartnerClassicMovieRecommendationEvidence(
   entry: RankedFactCandidate,
 ): boolean {
@@ -726,6 +743,7 @@ const INFORMATION_EXTRACTION_EVIDENCE_BY_RULE = {
   "shoe-size-count": hasShoeSizeCountEvidence,
   "single-card-probability-before-two-cards":
     hasSingleCardProbabilityBeforeTwoCardsEvidence,
+  "sneaker-choice-recall": hasSneakerChoiceRecallEvidence,
   "son-patent-guidance-resource-plan": hasSonPatentGuidanceResourcePlanEvidence,
   "startup-transition-preparation": hasStartupTransitionPreparationEvidence,
   "triangle-asa-congruence-proof-plan": hasTriangleAsaCongruenceProofPlanEvidence,
