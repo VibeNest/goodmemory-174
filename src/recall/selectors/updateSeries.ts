@@ -8,6 +8,7 @@ import {
   valueBearingFactContent,
 } from "./selectionContext";
 import { sourceOrderedEvidenceRole } from "./sourceOrderPlan";
+import { selectSourceOrderedExecutiveProducerInterviewsEvidence } from "./updateSeriesRules/executiveProducerInterviews";
 import { selectSourceOrderedFinalDecisionMeetingEvidence } from "./updateSeriesRules/finalDecisionMeeting";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./updateSeriesRules/writingGroupDeadline";
 import {
@@ -348,6 +349,12 @@ export function selectSourceOrderedUpdateEvidence(input: {
     selectSourceOrderedFinalDecisionMeetingEvidence(input);
   if (finalDecisionMeetingCandidates.length > 0) {
     return finalDecisionMeetingCandidates;
+  }
+
+  const executiveProducerInterviewsCandidates =
+    selectSourceOrderedExecutiveProducerInterviewsEvidence(input);
+  if (executiveProducerInterviewsCandidates.length > 0) {
+    return executiveProducerInterviewsCandidates;
   }
 
   const dashboardApiResponseTimeCandidates =

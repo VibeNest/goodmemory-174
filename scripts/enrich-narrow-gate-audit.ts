@@ -14,6 +14,7 @@ import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sour
 import { isEntertainmentSpendingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
 import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/writingGroupDeadline";
 import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updateSeriesRules/finalDecisionMeeting";
+import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selectors/updateSeriesRules/executiveProducerInterviews";
 import {
   isTransactionDeploymentWeeksIntervalQuery,
   isTriangleProblemCountIntervalQuery,
@@ -120,6 +121,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "updateSeries.recentFamilyTrip": updateSeriesQueries.isRecentFamilyTripQuery,
   "updateSeries.writingGroupDeadline": isWritingGroupDeadlineUpdateQuery,
   "updateSeries.finalDecisionMeeting": isFinalDecisionMeetingUpdateQuery,
+  "updateSeries.executiveProducerInterviews":
+    isExecutiveProducerInterviewsUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,
   "temporalInterval.triangleProblemCount": isTriangleProblemCountIntervalQuery,

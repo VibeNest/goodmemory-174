@@ -6254,6 +6254,107 @@ function buildAtsCourseEnrollmentBeamRows(): unknown[] {
   ];
 }
 
+function buildExecutiveProducerInterviewsBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda motivated now that I've completed 90% of my ATS optimization course by April 28, 2024, so can you help me figure out how to use this momentum to finish the last 10% and apply to executive producer roles by June 1, 2024? ->-> 2,2",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that I only secured 3 interviews for executive producer roles between April 25 and May 1, 2024, is that a good sign for my resume? ->-> 2,7",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda curious, between April 25 and May 1, 2024, how can I leverage the fact that I secured 5 interviews to further improve my resume and increase my chances of getting more callbacks? ->-> 2,21",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my new role as a digital media executive producer at StreamWave starting August 1, 2024, and I'm wondering if my $98,000 salary is competitive, considering I've been preparing for this transition since May 2, 2024 ->-> 3,1",
+      id: 100,
+      role: "user",
+    },
+    {
+      content:
+        "I updated my LinkedIn headline to “Executive Producer | Digital Storytelling | Caribbean Media Innovator” on July 5, 2024, will this help me stand out to potential employers and get more profile views ->-> 3,3",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my budget proposal after it was successfully submitted on July 11, 2024, but I've never accepted any executive producer roles or started new employment in digital media, can you help me with that? ->-> 3,21",
+      id: 142,
+      role: "user",
+    },
+    {
+      content:
+        "I recently got promoted to Senior Executive Producer on September 1, 2024, with a 12% salary increase to $110,000, and I'm wondering how to best showcase this achievement on my resume to make it pass any Applicant Tracking System ->-> 4,6",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I have an interview on November 25, and I want to make sure my resume passes any applicant tracking system, especially since I've updated it to comply with the latest ATS parser versions, and I'm also looking forward to my November 18 time anchor, so can you help me review my resume and provide tips on how to prepare for the interview, given that I've already completed my certification in Advanced Digital Media Production and launched my new portfolio website featuring 20 projects with detailed metrics and client testimonials, and I've been promoted to Senior Executive Producer with a 12% salary increase to $110,000, and I've updated my resume format to improve ranking by 18% in StreamWave's ATS parser version 3.2, and I've attended the Caribbean Media Innovation Summit, and I've secured a $12,000 raise, and I've included salary negotiation outcomes in my resume as suggested by Joshua, and I've emphasized leadership in remote work settings as suggested by Nicole ->-> 5,2",
+      id: 200,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "executive-producer-interviews",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 11,
+        subtopics: [
+          "ATS keyword optimization",
+          "Action verb libraries",
+          "Formatting for machine readability",
+          "Industry-specific resume tailoring",
+        ],
+        theme:
+          "Structuring, optimizing, and tailoring resumes for multiple industries and career stages",
+        title:
+          "Building a Portfolio-Ready Resume that Passes Any Applicant Tracking System",
+      },
+      narratives: "Executive producer interview count knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "You secured 5 interviews for executive producer roles during that period.",
+            question:
+              "How many interviews have I secured for executive producer roles during the recent period?",
+            question_id: "executive-producer-interviews",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[62],"updated_info":[92]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer interviewing for executive roles",
+        user_relationships: "Karen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8592,6 +8693,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([22, 48]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the executive producer interview update pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-executive-producer-interviews",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildExecutiveProducerInterviewsBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([62, 92]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
