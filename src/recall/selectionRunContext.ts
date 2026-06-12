@@ -57,6 +57,7 @@ import {
   isCompleteSourceOrderedEventOrderPlanQuery,
 } from "./selectors/sourceOrderEventPlans";
 import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrderRules/researchWritingProjectsEventOrder";
+import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,
@@ -109,7 +110,7 @@ export interface SelectionRunContext {
   directFactualLookupQuery: boolean;
   exactSourceOrderedReasoningQuery: boolean;
   factConfirmationQuery: boolean;
-  familyMovieMarathonTitlesAggregateQuery: boolean;
+  instructionAugmentationStandDownQuery: boolean;
   informationExtractionCandidates: RankedFactCandidate[];
   instructionEvidenceCandidates: RankedFactCandidate[];
   limit: number;
@@ -189,8 +190,12 @@ export function buildSelectionRunContext(
     language,
     queryLocale,
   );
-  const familyMovieMarathonTitlesAggregateQuery =
-    isFamilyMovieMarathonTitlesAggregateQuery(query);
+  // Query families whose winning route returns a complete evidence set; the
+  // instruction append-and-prune augmenter stands down for them so standing
+  // "Always ..." instructions cannot override the winner.
+  const instructionAugmentationStandDownQuery =
+    isFamilyMovieMarathonTitlesAggregateQuery(query) ||
+    isResumeAtsSequencingReasoningQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
@@ -300,7 +305,7 @@ export function buildSelectionRunContext(
     directFactualLookupQuery,
     exactSourceOrderedReasoningQuery,
     factConfirmationQuery,
-    familyMovieMarathonTitlesAggregateQuery,
+    instructionAugmentationStandDownQuery,
     informationExtractionCandidates: [],
     instructionEvidenceCandidates: [],
     limit,
@@ -572,7 +577,7 @@ export function buildSelectionRunContext(
     directFactualLookupQuery,
     exactSourceOrderedReasoningQuery,
     factConfirmationQuery,
-    familyMovieMarathonTitlesAggregateQuery,
+    instructionAugmentationStandDownQuery,
     informationExtractionCandidates,
     instructionEvidenceCandidates,
     limit,

@@ -1,3 +1,4 @@
+export { isResumeAtsSequencingReasoningQuery } from "./sourceOrderRules/resumeAtsSequencingReasoning";
 export {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,

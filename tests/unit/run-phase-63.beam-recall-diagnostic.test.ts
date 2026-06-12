@@ -6164,6 +6164,128 @@ function buildFamilyMovieMarathonTitlesBeamRows(): unknown[] {
   ];
 }
 
+function buildResumeAtsSequencingBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stuck on this LinkedIn Learning course, I've only completed 40% of it by March 15, 2024, and I'm not sure if I'll be able to optimize my resume for ATS by the time I'm done",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "I understand your concern about completing the LinkedIn Learning course and optimizing your resume for ATS by the time you finish. Here are some steps to help you stay on track: Prioritize Key Concepts and focus on the most critical concepts that will help you optimize your resume for ATS, identifying the key takeaways and practical tips that are immediately applicable.",
+      id: 23,
+      role: "assistant",
+    },
+    {
+      content:
+        "I prefer using structured bullet points with quantified achievements over narrative paragraphs for clarity and ATS readability, can you help me create a sample resume section that showcases my skills in a way that's clear and concise, like using numbers and percentages to demonstrate my accomplishments?",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, using structured bullet points with quantified achievements can make your resume more clear, concise, and ATS-friendly. Here's a sample resume section that showcases your skills and accomplishments using numbers and percentages for your work experience as a television and film producer.",
+      id: 37,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always use structured bullet points with quantified achievements when I ask about resume formatting preferences.",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda curious, between April 25 and May 1, 2024, how can I leverage the fact that I secured 5 interviews to further improve my resume and increase my chances of getting more callbacks?",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "Securing 5 interviews in a short period is a strong indication that your resume is effective, but there are still ways to further improve it to increase your chances of getting more callbacks. Here are some strategies: Analyze Feedback from Interviews by collecting and reviewing any feedback from the interviews you have had, which can provide valuable insights.",
+      id: 93,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always highlight quantified achievements when I ask about resume content improvements.",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer using bullet points with quantified results over paragraphs, but how can I make sure that improves ATS parsing and recruiter readability, like you would with a normal resume?",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Using bullet points with quantified results is an excellent approach for both ATS parsing and recruiter readability. This format is clear, concise, and easy to scan, which can significantly improve your chances of advancing in the hiring process.",
+      id: 125,
+      role: "assistant",
+    },
+    {
+      content:
+        "I just achieved something big, completing those 3 online courses on digital media leadership with a 95% average score by July 6, 2024, and I'm wondering how I can best highlight this achievement in my resume to make it pass any applicant tracking system - any tips?",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "Congratulations on completing those three online courses on digital media leadership with a 95% average score! Highlighting this significant achievement in your resume is crucial for making it stand out and ensuring it passes through applicant tracking systems (ATS). Use a clear and prominent dedicated section in your resume for these courses.",
+      id: 137,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "resume-ats-sequencing",
+      conversation_plan: "BATCH 6 PLAN",
+      conversation_seed: {
+        category: "Career Development",
+        id: 6,
+        subtopics: [
+          "Resume optimization",
+          "ATS compatibility",
+          "Interview preparation",
+        ],
+        theme: "Sequencing resume updates across course progress and interviews",
+        title: "Resume ATS Optimization Journey",
+      },
+      narratives: "Resume ATS sequencing reasoning across course and interview sessions",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "First integrate key ATS optimization concepts from the course progress, then highlight recent interview feedback and quantified achievements, then prominently feature the completed digital media leadership courses.",
+            question:
+              "Considering my progress, achievements, and interview successes, how can I best sequence my resume updates to maximize ATS compatibility and increase interview callbacks?",
+            question_id: "resume-ats-sequencing",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [22, 23, 92, 93, 136, 137],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Television and film producer seeking executive roles",
+        user_relationships: "Recruiters, hiring managers",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 describe("phase-63 BEAM recall diagnostic runner", () => {
   it("parses recall diagnostic cli flags", () => {
     expect(
@@ -7185,6 +7307,36 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       152,
       168,
       216,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps resume ATS sequencing reasoning source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-resume-ats-sequencing",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildResumeAtsSequencingBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      22,
+      23,
+      92,
+      93,
+      136,
+      137,
     ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });

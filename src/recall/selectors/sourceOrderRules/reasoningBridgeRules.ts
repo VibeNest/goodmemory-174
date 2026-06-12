@@ -17,6 +17,7 @@ import {
 } from "../selectionContext";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "../topic";
 import { sourceOrderSortKey } from "../temporal";
+import { selectSourceOrderedResumeAtsSequencingReasoningEvidence } from "./resumeAtsSequencingReasoning";
 import {
   selectSourceOrderedPatentFilingDeadlineReasoningEvidence,
   selectSourceOrderedPatentPriorArtFilingReasoningEvidence,
@@ -171,6 +172,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedSeniorProducerPreparationPriorityEvidence(input);
   if (seniorProducerPreparationPriority.length > 0) {
     return seniorProducerPreparationPriority;
+  }
+
+  const resumeAtsSequencingReasoning =
+    selectSourceOrderedResumeAtsSequencingReasoningEvidence(input);
+  if (resumeAtsSequencingReasoning.length > 0) {
+    return resumeAtsSequencingReasoning;
   }
 
   const weatherAppLatencyComparison =
