@@ -7030,6 +7030,107 @@ function buildFamilyMovieInviteBeamRows(): unknown[] {
   ];
 }
 
+function buildEventCupcakeOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm planning a family movie weekend and I've increased my snack budget to $65, so I can order themed cupcakes from The Sweet Spot bakery on Market Street, can you help me find some movies that fit my new budget and are available on platforms that allow simultaneous streaming on multiple devices? ->-> 2,6",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I've never invited Mason or Michael to any family movie events, can you help me find some family-friendly movies suitable for ages 2 to 77 that are available on Netflix or Disney+? ->-> 2,24",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having some issues with Netflix, like I noticed buffering on \"Soul\" when it was playing in 4K, so I had to switch to 1080p to keep it smooth, what can I do to avoid this in the future? ->-> 3,9",
+      id: 132,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a movie marathon for April 6-7 and I've finalized 8 movies including \"Soul,\" \"Paddington 2,\" \"The Mitchells vs. The Machines,\" and \"Coco,\" can you help me find more movies like these for my family ->-> 3,21",
+      id: 156,
+      role: "user",
+    },
+    {
+      content:
+        "Hi, I've reviewed the plans and here's the message I'll send to Lily's parents:\n\n---\n\nHi [Lily's Parents' Names],\n\nI hope this message finds you well! We are looking forward to having you join us for our family movie weekend on May 11-12. Below are the final details to ensure everything goes smoothly:\n\n### Movie Schedule\n\n#### May 11, 2024\n- **2:00 PM:** \"Encanto\"\n- **4:30 PM:** \"Turning Red\"\n- **7:00 PM:** \"Onward\"\n- **9:00 PM:** \"The Princess Bride\" (with babysitter for Francis)\n\n#### May 12, 2024\n- **2:00 PM:** \"Strange World\"\n- **4:30 PM:** \"The One and Only Ivan\"\n- **7:00 PM:** \"Coco\"\n\n### Snacks and Activities\n- **Snacks:** We will have a variety of snacks, including tropical fruit platters, popcorn with custom seasonings, and themed cupcakes from The Sweet Spot bakery.\n- **Activities:** We have planned arts and crafts sessions, board games, and a karaoke session.\n\n### Supervision and Allergies\n- **Supervision:** We will have designated adults supervising the children during breaks and activities.\n- **Allergies:** Please let us know if there are any specific food allergies or dietary restrictions we should be aware of.\n\n### Final Confirmation\nCould you please confirm your attendance once more? We are excited to have you join us and look forward to a fun-filled weekend!\n\nThank you,\nCrystal\n\n---\n\nI'll send this now and await their response.",
+      id: 192,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good, Crystal! I'll send the message now and wait for their response. Thanks for the help with the details!\n\n---\n\nHi [Lily's Parents' Names],\n\nI hope this message finds you well! We are looking forward to having you join us for our family movie weekend on May 11-12. Below are the final details to ensure everything goes smoothly:\n\n### Movie Schedule\n\n#### May 11, 2024\n- **2:00 PM:** \"Encanto\"\n- **4:30 PM:** \"Turning Red\"\n- **7:00 PM:** \"Onward\"\n- **9:00 PM:** \"The Princess Bride\" (with babysitter for Francis)\n\n#### May 12, 2024\n- **2:00 PM:** \"Strange World\"\n- **4:30 PM:** \"The One and Only Ivan\"\n- **7:00 PM:** \"Coco\"\n\n### Snacks and Activities\n- **Snacks:** We will have a variety of snacks, including tropical fruit platters, popcorn with custom seasonings, and themed cupcakes from The Sweet Spot bakery.\n- **Activities:** We have planned arts and crafts sessions, board games, and a karaoke session.\n\n### Supervision and Allergies\n- **Supervision:** We will have designated adults supervising the children during breaks and activities.\n- **Allergies:** Please let us know if there are any specific food allergies or dietary restrictions we should be aware of.\n\n### Final Confirmation\nCould you please confirm your attendance once more? We are excited to have you join us and look forward to a fun-filled weekend!\n\nThank you,\nCrystal\n\n---\n\nSent! Looking forward to their response.",
+      id: 194,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a family movie night and I want to make sure I have enough snacks, so can you help me decide how many cupcakes to order from The Sweet Spot, considering I've already allocated $70 for snacks and I'm thinking of adding some specialty star-shaped cookie cutters and extra blue punch supplies? ->-> 5,22",
+      id: 260,
+      role: "user",
+    },
+    {
+      content:
+        "Always include attendee counts when I ask about event planning details. ->-> 5,23",
+      id: 262,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "event-cupcake-order",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 19,
+        subtopics: [
+          "Popular family-friendly genres",
+          "Award-winning films and hidden gems",
+          "Age ratings and content advisories",
+          "Streaming platform exclusives",
+        ],
+        theme:
+          "Balancing entertainment value, age appropriateness, and availability across platforms",
+        title:
+          "Finding the Best Streaming Movies for a Family Weekend",
+      },
+      narratives: "Event cupcake order knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "30 cupcakes",
+            question:
+              "How many cupcakes did I order for the event?",
+            question_id: "event-cupcake-order",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[132],"updated_info":[156]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie weekends",
+        user_relationships: "Francis, Michelle, Lily, Crystal",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9552,6 +9653,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([108, 148]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the event cupcake order designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-event-cupcake-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEventCupcakeOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([132, 156]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

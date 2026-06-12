@@ -17,6 +17,7 @@ import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updat
 import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selectors/updateSeriesRules/executiveProducerInterviews";
 import { isAiEthicsWebinarUpdateQuery } from "../src/recall/selectors/updateSeriesRules/aiEthicsWebinar";
 import { isWinterReadingChallengeUpdateQuery } from "../src/recall/selectors/updateSeriesRules/winterReadingChallenge";
+import { isEventCupcakeOrderUpdateQuery } from "../src/recall/selectors/updateSeriesRules/eventCupcakeOrder";
 import {
   isEditingChallengeDaysIntervalQuery,
   isResumeTailoringApplyDaysIntervalQuery,
@@ -132,6 +133,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isExecutiveProducerInterviewsUpdateQuery,
   "updateSeries.aiEthicsWebinar": isAiEthicsWebinarUpdateQuery,
   "updateSeries.winterReadingChallenge": isWinterReadingChallengeUpdateQuery,
+  "updateSeries.eventCupcakeOrder": isEventCupcakeOrderUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,
   "temporalInterval.triangleProblemCount": isTriangleProblemCountIntervalQuery,
