@@ -19,12 +19,12 @@ Accepted Evidence
 - BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`, real 100K export, all four profiles, `executionFailures: 0`.
 - First rules-only recall diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`, evidence-chat recall 0.11625896794910878, missed 340/355.
 - Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0.
-- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-two-factor-auth-current-20260612T133000Z`, evidence-chat recall 0.7834786496758328, missed 110/355, wrong-recall/noise 253/400, zero-recall 33.
+- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-final-decision-meeting-current-20260612T134500Z`, evidence-chat recall 0.7862955510842835, missed 109/355, wrong-recall/noise 252/400, zero-recall 32.
 
 Current Task Queue
 ------------------
 
-1. Keep the latest two-factor-authentication contradiction repair.
+1. Keep the latest final-decision meeting update repair.
 2. Continue with one named retained miss/noise family at a time.
 3. Prefer source-ordered summary and event-order fill/noise cases for the next loop.
 4. Reject broad selector rewrites unless analyzer deltas prove they do not add regressions.

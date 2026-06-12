@@ -23,24 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-two-factor-auth-current-20260612T133000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-final-decision-meeting-current-20260612T134500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-writing-group-deadline-current-20260612T131500Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-two-factor-auth-current-20260612T133000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7834786496758328
-- missed-recall cases: 110/355
-- wrong-recall/noise cases: 253/400
-- zero-recall cases: 33
-- global hit/missing/noise ids: 857/237/1336 -> 860/234/1333
-- recovered target: `11:contradiction_resolution:2`
-- target result: recall 0 -> 1 with the contradiction triple 142/180/182 returned chronologically and all three noisy chats (136/170/306, including the near-confusable 2FA-implemented turn 136) removed
-- accepted tradeoffs: `11:instruction_following:2` and `11:preference_following:1` each swap one noise id (94 and 226 respectively) for 142 via same-conversation access-count reinforcement; recall and per-case noise counts unchanged
-- repair shape: `contradiction.twoFactorAuthImplementation` narrow gate + a first-statement/second-statement pattern triple inline in contradiction.ts (the sessionManagement precedent), with the second-statement turns selected as the latest chronological matches because the all-platforms commitment repeats byte-identically (turns 174/180) and the contradiction's second statement is the latest assertion
-- regression check: target plus two documented net-zero reinforcement swaps; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive per-case noise-count deltas
+- evidence-chat recall: 0.7862955510842835
+- missed-recall cases: 109/355
+- wrong-recall/noise cases: 252/400
+- zero-recall cases: 32
+- global hit/missing/noise ids: 860/234/1333 -> 863/231/1329
+- recovered target: `12:knowledge_update:2`
+- target result: recall 0 -> 1 with the meeting update triple 38/40/64 returned chronologically and all four noisy chats (264/84/387/66, including the near-confusable Matthew call-reschedule turn 84) removed
+- repair shape: `updateSeries.finalDecisionMeeting` narrow gate + an original/context/update pattern triple in a dedicated updateSeriesRules module chained in selectSourceOrderedUpdateEvidence after the writing-group deadline family; the update-evidence winner again needed no stand-down
+- regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the two-factor authentication contradiction: the April 20 already-set-up claim against the later June 5 meeting commitments to enable 2FA across platforms. This is a retained selector repair, not a benchmark close.
+The repaired target covers the final-decision meeting series: the $95,000 startup offer weighed against the $85,000 current job, the startup-lean follow-up, and the final meeting rescheduled to March 30 for more evaluation time. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
