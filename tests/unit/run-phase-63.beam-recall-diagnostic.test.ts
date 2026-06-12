@@ -7720,6 +7720,89 @@ function buildOutlanderReadingDaysBeamRows(): unknown[] {
 }
 
 
+function buildMovieListGameNightDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to plan a family movie weekend and I need to adjust the schedule since Mason is arriving at 12 PM on April 7, so I shifted the movie start time from 1 PM to 12:30 PM, can you help me figure out if this new schedule will work for everyone? ->-> 3,5",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "Hi, I've reviewed the plans and here's the message I'll send to Lily's parents:\n\n---\n\nHi [Lily's Parents' Names],\n\nI hope this message finds you well! We are looking forward to having you join us for our family movie weekend on May 11-12. Below are the final details to ensure everything goes smoothly:\n\n### Movie Schedule\n\n#### May 11, 2024\n- **2:00 PM:** \"Encanto\"\n- **4:30 PM:** \"Turning Red\"\n- **7:00 PM:** \"Onward\"\n- **9:00 PM:** \"The Princess Bride\" (with babysitter for Francis)\n\n#### May 12, 2024\n- **2:00 PM:** \"Strange World\"\n- **4:30 PM:** \"The One and Only Ivan\"\n- **7:00 PM:** \"Coco\"\n\n### Snacks and Activities\n- **Snacks:** We will have a variety of snacks, including tropical fruit platters, popcorn with custom seasonings, and themed cupcakes from The Sweet Spot bakery.\n- **Activities:** We have planned arts and crafts sessions, board games, and a karaoke session.\n\n### Supervision and Allergies\n- **Supervision:** We will have designated adults supervising the children during breaks and activities.\n- **Allergies:** Please let us know if there are any specific food allergies or dietary restrictions we should be aware of.\n\n### Final Confirmation\nCould you please confirm your attendance once more? We are excited to have you join us and look forward to a fun-filled weekend!\n\nThank you,\nCrystal\n\n---\n\nI'll send this now and await their response.",
+      id: 192,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good, Crystal! I'll send the message now and wait for their response. Thanks for the help with the details!\n\n---\n\nHi [Lily's Parents' Names],\n\nI hope this message finds you well! We are looking forward to having you join us for our family movie weekend on May 11-12. Below are the final details to ensure everything goes smoothly:\n\n### Movie Schedule\n\n#### May 11, 2024\n- **2:00 PM:** \"Encanto\"\n- **4:30 PM:** \"Turning Red\"\n- **7:00 PM:** \"Onward\"\n- **9:00 PM:** \"The Princess Bride\" (with babysitter for Francis)\n\n#### May 12, 2024\n- **2:00 PM:** \"Strange World\"\n- **4:30 PM:** \"The One and Only Ivan\"\n- **7:00 PM:** \"Coco\"\n\n### Snacks and Activities\n- **Snacks:** We will have a variety of snacks, including tropical fruit platters, popcorn with custom seasonings, and themed cupcakes from The Sweet Spot bakery.\n- **Activities:** We have planned arts and crafts sessions, board games, and a karaoke session.\n\n### Supervision and Allergies\n- **Supervision:** We will have designated adults supervising the children during breaks and activities.\n- **Allergies:** Please let us know if there are any specific food allergies or dietary restrictions we should be aware of.\n\n### Final Confirmation\nCould you please confirm your attendance once more? We are excited to have you join us and look forward to a fun-filled weekend!\n\nThank you,\nCrystal\n\n---\n\nSent! Looking forward to their response.",
+      id: 194,
+      role: "user",
+    },
+    {
+      content:
+        "I need to finalize the movie list by May 5 for our family weekend, considering Mason's suggestion to add a game night on May 11 and Emily's agreement to organize family-friendly board games ->-> 4,19",
+      id: 208,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "movie-list-game-night-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 19,
+        subtopics: [
+          "Popular family-friendly genres",
+          "Award-winning films and hidden gems",
+          "Age ratings and content advisories",
+          "Streaming platform exclusives",
+        ],
+        theme:
+          "Balancing entertainment value, age appropriateness, and availability across platforms",
+        title:
+          "Finding the Best Streaming Movies for a Family Weekend",
+      },
+      narratives: "Movie list game night interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer: "There are 6 days between finalizing the movie list by May 5 and Mason's suggestion to add the game night on May 11.",
+            calculation_required: "May 11 - May 5 = 6 days",
+            conversation_references: ["Session 3: finalizing movie list", "Session 3: game night suggestion"],
+            difficulty: "easy",
+            question:
+              "How many days are there between when I need to finalize my movie list for the family weekend and when Mason suggested adding the game night?",
+            question_id: "movie-list-game-night-days",
+            question_type: "temporal_reasoning",
+            rubric: ["LLM response should state: 6 days", "LLM response should state: from May 5 till May 11"],
+            source_chat_ids: {"first_event":[208],"second_event":[208]},
+            temporal_type: "duration_calculation",
+            time_points: ["May 5: finalize movie list", "May 11: game night suggested"],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie weekends",
+        user_relationships: "Francis, Michelle, Lily, Crystal",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10403,6 +10486,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([296]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the movie list game night days designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-movie-list-game-night-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildMovieListGameNightDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([208]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

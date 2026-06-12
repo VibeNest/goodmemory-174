@@ -116,6 +116,23 @@ const OUTLANDER_READING_INTERVAL_START_PATTERN =
 const OUTLANDER_READING_INTERVAL_END_PATTERN =
   OUTLANDER_READING_INTERVAL_START_PATTERN;
 
+export const isMovieListGameNightDaysIntervalQuery = narrowGate(
+  "temporalInterval.movieListGameNightDays",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+days\b/iu.test(query) &&
+    /\bmovie list\b/iu.test(query) &&
+    /\bgame night\b/iu.test(query);
+  },
+);
+
+// Same-turn interval endpoints: the May 5 movie-list deadline and the May 11
+// game-night suggestion live in one user turn, so both patterns pin that
+// turn and the selector's identical-endpoint dedupe returns it once.
+const MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bfinalize the movie list by May 5 for our family weekend\b)(?=[\s\S]*\badd a game night on May 11\b)/iu;
+const MOVIE_LIST_GAME_NIGHT_INTERVAL_END_PATTERN =
+  MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -143,6 +160,8 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isEditingChallengeDaysIntervalQuery(input.query);
   const outlanderReadingDaysIntervalQuery =
     isOutlanderReadingDaysIntervalQuery(input.query);
+  const movieListGameNightDaysIntervalQuery =
+    isMovieListGameNightDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -152,11 +171,14 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     !reunionPromotionDaysIntervalQuery &&
     !screenplayDraftDaysIntervalQuery &&
     !editingChallengeDaysIntervalQuery &&
-    !outlanderReadingDaysIntervalQuery
+    !outlanderReadingDaysIntervalQuery &&
+    !movieListGameNightDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = outlanderReadingDaysIntervalQuery
+  const startPattern = movieListGameNightDaysIntervalQuery
+    ? MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN
+    : outlanderReadingDaysIntervalQuery
     ? OUTLANDER_READING_INTERVAL_START_PATTERN
     : editingChallengeDaysIntervalQuery
     ? EDITING_CHALLENGE_INTERVAL_START_PATTERN
@@ -173,7 +195,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = outlanderReadingDaysIntervalQuery
+  const endPattern = movieListGameNightDaysIntervalQuery
+    ? MOVIE_LIST_GAME_NIGHT_INTERVAL_END_PATTERN
+    : outlanderReadingDaysIntervalQuery
     ? OUTLANDER_READING_INTERVAL_END_PATTERN
     : editingChallengeDaysIntervalQuery
     ? EDITING_CHALLENGE_INTERVAL_END_PATTERN

@@ -23,6 +23,7 @@ import { isImmigrationConsultantSessionUpdateQuery } from "../src/recall/selecto
 import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
 import {
   isEditingChallengeDaysIntervalQuery,
+  isMovieListGameNightDaysIntervalQuery,
   isOutlanderReadingDaysIntervalQuery,
   isResumeTailoringApplyDaysIntervalQuery,
   isReunionPromotionDaysIntervalQuery,
@@ -155,6 +156,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.screenplayDraftDays": isScreenplayDraftDaysIntervalQuery,
   "temporalInterval.editingChallengeDays": isEditingChallengeDaysIntervalQuery,
   "temporalInterval.outlanderReadingDays": isOutlanderReadingDaysIntervalQuery,
+  "temporalInterval.movieListGameNightDays":
+    isMovieListGameNightDaysIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,
