@@ -7613,6 +7613,113 @@ function buildOnboardingModulesCompletionBeamRows(): unknown[] {
 }
 
 
+function buildOutlanderReadingDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Always provide detailed genre descriptions when I ask about book recommendations. ->-> 1,22",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "If you find yourself in a situation where you can't reschedule a work call but really need to attend the book club meeting, here are some backup plans to consider:\n\n### Attend the Book Club Virtually\n1. **Virtual Participation**: If the book club allows it, see if you can join virtually via a video call or audio stream. Many book clubs are becoming more flexible and might accommodate remote participation.\n2. **Ask for a Recording**: Request if the meeting can be recorded or if someone can take detailed notes. This way, you can catch up on the discussion later.\n\n### Shorten Your Work Call\n1. **Request a Shorter Call**: If the work call is lengthy, see if you can shorten it or make it more efficient. Sometimes, a brief update can suffice instead of a full meeting.\n2. **Split the Time**: If the call is unavoidable, see if you can split the time. For example, attend the first part of the call and then join the book club meeting, or vice versa.\n\n### Delegate or Postpone Non-Critical Tasks\n1. **Delegate Tasks**: If there are non-critical tasks you can delegate, do so to free up your time. This might involve asking a colleague to handle parts of the call or to take notes.\n2. **Postpone Less Urgent Items**: Identify any less urgent items that can be postponed until after the book club meeting.\n\n### Use Breaks Wisely\n1. **Take Advantage of Breaks**: If the work call has natural breaks or pauses, use those moments to quickly catch up on any book club-related discussions.\n2. **Quick Sync-Up**: If you can't fully participate, ask a trusted member of the book club to give you a quick summary or key points during a break in the call.\n\n### Example Scenarios\n#### Virtual Participation\n- **Message to Kelly**: \"Hi Kelly, I have a work call at 7:30 PM that I can't reschedule. Can I join the book club meeting virtually? Or can someone record the discussion so I can catch up later?\"\n\n#### Shorten the Work Call\n- **Message to Your Team**: \"Hi Team, I have a book club meeting at 7 PM and a scheduled call at 7:30 PM. Can we make this call shorter or more efficient? I need to leave by 8 PM to attend the book club.\"\n\n#### Delegate Tasks\n- **Message to a Colleague**: \"Hi [Colleague], I have a book club meeting at 7 PM and a work call at 7:30 PM. Can you handle parts of the call or take detailed notes? I'll need to leave by 8 PM.\"\n\n### Example Messages\n#### Virtual Participation\n---\n\n**Hi Kelly,**\n\nI have a work call at 7:30 PM that I can't reschedule. Is it possible for me to join the book club meeting virtually? Alternatively, can someone record the discussion or take detailed notes so I can catch up later?\n\nThanks for understanding!\n\nBest,\n[Your Name]\n\n---\n\n#### Shorten the Work Call\n---\n\n**Hi Team,**\n\nI have a book club meeting at 7 PM and a scheduled call at 7:30 PM. Can we make this call shorter or more efficient? I need to leave by . \n\nLet me know if this works for everyone.\n\nBest,\n[Your Name]\n\n---\n\nBy using these backup plans, you can better manage conflicting commitments and ensure you don't miss out on important activities. Would you like any more specific advice or assistance with this?",
+      id: 95,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide on a must-read fiction series for winter evenings, and I've extended my reading challenge goal to 12 books by March 1, which means I need to increase my weekly reading pace ->-> 2,22",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly! If you're hesitant about trying an audiobook narrated by Julia DuMaurier for \"The Poppy War,\" there are other excellent fantasy series with historical elements that you might enjoy. Here are some recommendations along with their narrators:\n\n### Audiobooks for Evening Relaxation\n\n1. **\"The Expanse\" by James S.A. Corey**\n   - **Overview**: A space opera series with political intrigue and well-developed characters.\n   - **Narrator**: Simon Vance and Liza Ross\n   - **Why It Fits**: The audiobooks are well-narrated and can be listened to during evening relaxation. The series offers a balance of action and character development that is perfect for unwinding after a long day.\n\n2. **\"The Name of the Wind\" by Patrick Rothfuss**\n   - **Overview**: A fantasy novel with rich world-building and engaging storytelling.\n   - **Narrator**: Jim Dale\n   - **Why It Fits**: The audiobook is well-narrated and can be a great way to unwind after a long day. The immersive narrative will help you escape into a different world.\n\n3. **\"The Broken Earth\" by N.K. Jemisin**\n   - **Overview**: A fantasy series that won the Hugo Award for Best Novel three years in a row, featuring a unique magic system and powerful themes.\n   - **Narrator**: Liza Ross\n   - **Why It Fits**: The audiobook is well-narrated and can be enjoyed during evening relaxation. The engaging plot will keep you interested without overwhelming you.\n\n### Print Books for Immersive Weekend Reading\n\n1. **\"The Mistborn Trilogy\" by Brandon Sanderson**\n   - **Overview**: A fantasy series with a unique magic system and compelling plot.\n   - **Why It Fits**: The rich world-building and engaging characters make it perfect for immersive weekend reading. The detailed narrative will help you relax and lose yourself in the story.\n\n2. **\"The Kingkiller Chronicle\" by Patrick Rothfuss**\n   - **Overview**: A fantasy series with a richly detailed world and engaging narrative.\n   - **Why It Fits**: The first book, \"The Name of the Wind,\" is a standalone novel that can be enjoyed on its own and is perfect for immersive weekend reading. The detailed storytelling will help you relax and escape into the world.\n\n3. **\"The Poppy War\" by R.F. Kuang**\n   - **Overview**: A historical fantasy series with strong character development and political intrigue.\n   - **Why It Fits**: The detailed world-building and engaging plot make it ideal for immersive weekend reading. The detailed storytelling will help you relax and lose yourself in the story.\n\n### Alternative Audiobook Recommendations\n\n1. **\"The Lies of Locke Lamora\" by Scott Lynch**\n   - **Overview**: A fantasy novel with a blend of historical and fantasy elements, focusing on a band of thieves.\n   - **Narrator**: Simon Vance\n   - **Why It Fits**: The audiobook is well-narrated and can be enjoyed during evening relaxation. The engaging plot and historical elements will keep you interested.\n\n2. **\"The Hundred Thousand Kingdoms\" by N.K. Jemisin**\n   - **Overview**: A fantasy novel with a unique magic system and powerful themes, set in a world with historical elements.\n   - **Narrator**: Bahni Turpin\n   - **Why It Fits**: The audiobook is well-narrated and can be enjoyed during evening relaxation. The engaging plot and historical elements will keep you interested.\n\n3. **\"The Farseer Trilogy\" by Robin Hobb**\n   - **Overview**: A fantasy series with a blend of historical and fantasy elements, focusing on a young prince and his journey.\n   - **Narrator**: Martin Shaw\n   - **Why It Fits**: The audiobook is well-narrated and can be enjoyed during evening relaxation. The engaging plot and historical elements will keep you interested.\n\n### Example Message to Kelly\n---\n\n**Hi Kelly,**\n\nI've extended my reading challenge goal to 12 books by March 1, which means I need to increase my weekly reading pace. I'm looking for a must-read fiction series for winter evenings that can help me relax after a long day, like my current favorite, which I switched to audiobooks for evening reading after 8 PM to reduce eye strain. I've never listened to any audiobook narrated by the recommended narrator for \"The Poppy War,\" and I'm wondering if I should give it a try or look for other fantasy series with historical elements. Do you have any recommendations?\n\nBest,\n[Your Name]\n\n---\n\n### Conclusion\nHere are some alternative recommendations that should help you meet your increased weekly reading pace:\n\n- **Audiobooks for Evening Relaxation**:\n  - \"The Expanse\" by James S.A. Corey (Narrated by Simon Vance and Liza Ross)\n  - \"The Name of the Wind\" by Patrick Rothfuss (Narrated by Jim Dale)\n  - \"The Broken Earth\" by N.K. Jemisin (Narrated by Liza Ross)\n\n- **Alternative Audiobook Recommendations**:\n  - \"The Lies of Locke Lamora\" by Scott Lynch (Narrated by Simon Vance)\n  - \"The Hundred Thousand Kingdoms\" by N.K. Jemisin (Narrated by Bahni Turpin)\n  - \"The Farseer Trilogy\" by Robin Hobb (Narrated by Martin Shaw)\n\nBy balancing audiobooks for evening relaxation and print books for immersive weekend reading, you can stay engaged and on track with your reading challenge while also finding time to unwind.\n\nWould you like any more specific advice or recommendations?",
+      id: 141,
+      role: "assistant",
+    },
+    {
+      content:
+        "Can you help me figure out how to make the most of my reading time, given that I've committed to reading the first 4 \"Outlander\" books by June 30, and I have a discussion planned with Kelly, a fellow book club member, who I've been in touch with regarding our reading plans? ->-> 5,7",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "I've committed to reading the first 4 \"Outlander\" books by June 30, but I'm worried about balancing my daily reading goal of 40 pages with my 8-hour workdays, do you have any time management tips? ->-> 5,13",
+      id: 286,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about balancing my freelance editing job that starts on March 8 with my reading goals, especially since I've committed to reading the first 4 \"Outlander\" books by June 30, so can you help me prioritize my tasks and maybe suggest a daily schedule that includes both work and reading time? ->-> 5,18",
+      id: 296,
+      role: "user",
+    },
+    {
+      content:
+        "Always suggest related literary events when I ask about book series recommendations. ->-> 5,23",
+      id: 306,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "outlander-reading-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 18,
+        subtopics: [
+          "Popular fantasy, sci-fi, and historical fiction series",
+          "Standalone novels vs. multi-book sagas",
+          "Award-winning authors and emerging voices",
+          "Balancing page count with storytelling depth",
+        ],
+        theme:
+          "Exploring different genres to find a captivating long-form reading experience",
+        title:
+          "Selecting a Must-Read Fiction Series for Winter Evenings",
+      },
+      narratives: "Outlander reading days interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer: "I have 114 days to finish reading the first four Outlander books after my freelance editing job starts on March 8 and before the June 30 deadline.",
+            calculation_required: "June 30 - March 8 = 114 days",
+            conversation_references: ["Session 1: freelance job start and reading goal"],
+            difficulty: "easy",
+            question:
+              "How many days do I have to finish reading the first four Outlander books after my freelance editing job starts?",
+            question_id: "outlander-reading-days",
+            question_type: "temporal_reasoning",
+            rubric: ["LLM response should state: 114 days", "LLM response should state: from March 8  till June 30"],
+            source_chat_ids: {"first_event":[296],"second_event":[296]},
+            temporal_type: "duration_calculation",
+            time_points: ["March 8: freelance editing job starts", "June 30: reading goal deadline"],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Reader balancing freelance editing with a series goal",
+        user_relationships: "Kelly",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10273,6 +10380,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([108]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the Outlander reading days designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-outlander-reading-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildOutlanderReadingDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([296]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

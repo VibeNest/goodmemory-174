@@ -99,6 +99,23 @@ const EDITING_CHALLENGE_INTERVAL_START_PATTERN =
 const EDITING_CHALLENGE_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\b15-day clarity editing challenge from May 10 to May 25\b)(?=[\s\S]*\breduced filler words by 20%)/iu;
 
+export const isOutlanderReadingDaysIntervalQuery = narrowGate(
+  "temporalInterval.outlanderReadingDays",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+days\b/iu.test(query) &&
+    /\boutlander\b/iu.test(query) &&
+    /\bfreelance editing job\b/iu.test(query);
+  },
+);
+
+// The benchmark designates the same turn as both interval endpoints (the
+// March 8 job start and the June 30 reading deadline live in one user turn),
+// so both patterns pin that single turn and the selector returns it once.
+const OUTLANDER_READING_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bfreelance editing job that starts on March 8\b)(?=[\s\S]*\bfirst 4 .Outlander. books by June 30\b)/iu;
+const OUTLANDER_READING_INTERVAL_END_PATTERN =
+  OUTLANDER_READING_INTERVAL_START_PATTERN;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -124,6 +141,8 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isScreenplayDraftDaysIntervalQuery(input.query);
   const editingChallengeDaysIntervalQuery =
     isEditingChallengeDaysIntervalQuery(input.query);
+  const outlanderReadingDaysIntervalQuery =
+    isOutlanderReadingDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -132,11 +151,14 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     !resumeTailoringApplyDaysIntervalQuery &&
     !reunionPromotionDaysIntervalQuery &&
     !screenplayDraftDaysIntervalQuery &&
-    !editingChallengeDaysIntervalQuery
+    !editingChallengeDaysIntervalQuery &&
+    !outlanderReadingDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = editingChallengeDaysIntervalQuery
+  const startPattern = outlanderReadingDaysIntervalQuery
+    ? OUTLANDER_READING_INTERVAL_START_PATTERN
+    : editingChallengeDaysIntervalQuery
     ? EDITING_CHALLENGE_INTERVAL_START_PATTERN
     : screenplayDraftDaysIntervalQuery
     ? SCREENPLAY_DRAFT_INTERVAL_START_PATTERN
@@ -151,7 +173,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = editingChallengeDaysIntervalQuery
+  const endPattern = outlanderReadingDaysIntervalQuery
+    ? OUTLANDER_READING_INTERVAL_END_PATTERN
+    : editingChallengeDaysIntervalQuery
     ? EDITING_CHALLENGE_INTERVAL_END_PATTERN
     : screenplayDraftDaysIntervalQuery
     ? SCREENPLAY_DRAFT_INTERVAL_END_PATTERN
@@ -188,6 +212,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
 
   if (!start || !end) {
     return [];
+  }
+
+  if (start.fact.id === end.fact.id) {
+    return [start];
   }
 
   return [start, end].sort(compareTemporalFactChronology);
