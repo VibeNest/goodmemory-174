@@ -23,24 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-ats-course-enrollment-current-20260612T144500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-executive-producer-interviews-current-20260612T150000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-triangle-problem-count-current-20260612T143000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ats-course-enrollment-current-20260612T144500Z`
 
 Summary:
 
-- evidence-chat recall: 0.7975631567180864
-- missed-recall cases: 105/355
-- wrong-recall/noise cases: 248/400
-- zero-recall cases: 28
-- global hit/missing/noise ids: 870/224/1315 -> 872/222/1313
-- recovered target: `6:contradiction_resolution:1`
-- target result: recall 0 -> 1 with the contradiction pair 22/48 returned chronologically and all four noisy chats (42/50/104/146, including the 90%-ATS-course confusables 50/104) removed
-- accepted tradeoff: `6:event_ordering:2` (recall unchanged at 0.2, itself a named future repair target) reshuffles its noise mix net +2 (adds 24/42/96/144/172, drops 84/112/146) via same-conversation access-count reinforcement after the contradiction case stopped reinforcing its old noise set; conversation-level and global noise still improve net
-- repair shape: `contradiction.atsCourseEnrollment` narrow gate + a first-statement/denial pattern pair inline in contradiction.ts following the sessionManagement and twoFactorAuth precedents
-- regression check: target plus one documented reinforcement reshuffle; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas
+- evidence-chat recall: 0.8003800581265371 (first run past 0.80)
+- missed-recall cases: 104/355
+- wrong-recall/noise cases: 247/400
+- zero-recall cases: 27
+- global hit/missing/noise ids: 872/222/1313 -> 874/220/1307
+- recovered target: `6:knowledge_update:1`
+- target result: recall 0 -> 1 with the interview-count update pair 62/92 returned chronologically and all six noisy chats (200/142/50/100/160/108) removed
+- repair shape: `updateSeries.executiveProducerInterviews` narrow gate + an original/updated pattern pair in a dedicated updateSeriesRules module chained in selectSourceOrderedUpdateEvidence; the update-evidence winner needed no stand-down
+- regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the ATS course-enrollment contradiction: the 40%-complete LinkedIn Learning ATS course against the later claim of never having enrolled in any ATS optimization course or training program. This is a retained selector repair, not a benchmark close.
+The repaired target covers the executive-producer interview-count update: the original worry about three interviews between April 25 and May 1, 2024, then the later leverage of five interviews secured. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
