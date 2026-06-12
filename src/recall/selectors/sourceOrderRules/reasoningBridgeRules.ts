@@ -17,6 +17,7 @@ import {
 } from "../selectionContext";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "../topic";
 import { sourceOrderSortKey } from "../temporal";
+import { selectSourceOrderedEntertainmentSpendingReasoningEvidence } from "./entertainmentSpendingReasoning";
 import { selectSourceOrderedReadingPlanBalanceReasoningEvidence } from "./readingPlanBalanceReasoning";
 import { selectSourceOrderedPeerFeedbackBalanceReasoningEvidence } from "./peerFeedbackBalanceReasoning";
 import { selectSourceOrderedResumeAtsSequencingReasoningEvidence } from "./resumeAtsSequencingReasoning";
@@ -192,6 +193,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedReadingPlanBalanceReasoningEvidence(input);
   if (readingPlanBalanceReasoning.length > 0) {
     return readingPlanBalanceReasoning;
+  }
+
+  const entertainmentSpendingReasoning =
+    selectSourceOrderedEntertainmentSpendingReasoningEvidence(input);
+  if (entertainmentSpendingReasoning.length > 0) {
+    return entertainmentSpendingReasoning;
   }
 
   const weatherAppLatencyComparison =

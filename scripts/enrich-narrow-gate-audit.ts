@@ -11,6 +11,7 @@ import * as reasoningRules from "../src/recall/selectors/sourceOrderRules/reason
 import { isResumeAtsSequencingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
+import { isEntertainmentSpendingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
@@ -106,6 +107,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,
+  "reasoning.entertainmentSpendingOptimization":
+    isEntertainmentSpendingReasoningQuery,
   "reasoning.seniorProducerPreparationPriority":
     reasoningRules.isSeniorProducerPreparationPriorityQuery,
   "reasoning.patentPriorArtFiling": reasoningRules.isPatentPriorArtFilingReasoningQuery,

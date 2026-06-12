@@ -61,6 +61,7 @@ import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrde
 import { isProbabilityConceptsEventOrderQuery } from "./selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
+import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
 import { isReadingPlanBalanceReasoningQuery } from "./selectors/sourceOrderRules/readingPlanBalanceReasoning";
 import {
   isPatentFilingDeadlineReasoningQuery,
@@ -203,7 +204,8 @@ export function buildSelectionRunContext(
     isResumeImprovementAreasAggregateQuery(query) ||
     isResumeAtsSequencingReasoningQuery(query) ||
     isPeerFeedbackBalanceReasoningQuery(query) ||
-    isReadingPlanBalanceReasoningQuery(query);
+    isReadingPlanBalanceReasoningQuery(query) ||
+    isEntertainmentSpendingReasoningQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);

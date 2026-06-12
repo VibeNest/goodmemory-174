@@ -5347,6 +5347,125 @@ function buildResumeImprovementAreasBeamRows(): unknown[] {
   ];
 }
 
+function buildEntertainmentSpendingOptimizationBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm considering adding HBO Max to my subscriptions, which already include Netflix for $15.99/month and Disney+ for $7.99/month, do you think it's worth the $14.99/month for the exclusives? ->-> 1,10",
+      id: 26,
+      role: "user",
+    },
+    {
+      content:
+        "Adding HBO Max to your subscription lineup can definitely be worth it, especially if you're looking for a broader range of content, including exclusive movies, TV shows, and original series. Here are some factors to consider:\n\n### Pros of Adding HBO Max:\n1. **Exclusive Content**: HBO Max offers a variety of exclusive content, including popular shows like \"Stranger Things,\" \"Friends,\" \"Game of Thrones,\" and original series like \"Peacemaker\" and \"The White Lotus.\"\n2. **Family-Friendly Options**: HBO Max has a good selection of family-friendly content, including movies and shows that can appeal to a wide range of ages.\n3. **Comprehensive Library**: The platform has a vast library of movies and TV shows from various studios, including Warner Bros., DC Comics, and more.\n4. **Flexibility**: Having access to a wider range of content can make your streaming experience more versatile and enjoyable.\n\n### Cons of Adding HBO Max:\n1. **Cost**: At $14.99/month, HBO Max adds to your monthly streaming expenses. Combined with Netflix ($15.99/month) and Disney+ ($7.99/month), your total would be $40.87/month.\n2. **Overlap**: Some content might overlap with what you already have access to on Netflix and Disney+, so you'll need to evaluate the exclusives carefully.\n\n### Cost-Benefit Analysis:\n- **Current Total**: $15.99 (Netflix) + $7.99 (Disney+) = $23.98/month\n- **With HBO Max**: $23.98 + $14.99 = $38.97/month\n\n### Recommendations:\n1. **Trial Period**: Check if HBO Max offers a trial period. This can give you a chance to explore the content and decide if it's worth the investment.\n2. **Evaluate Exclusives**: Look at the exclusive content on HBO Max and determine if there are shows or movies you really want to watch that aren't available elsewhere.\n3. **Bundle Deals**: Sometimes, combining services can offer discounts. Check if there are any bundle deals that might reduce the overall cost.\n\n### Final Thoughts:\nIf you frequently find yourself wanting more content beyond what Netflix and Disney+ offer, and if you enjoy the exclusives on HBO Max, then it might be worth the additional cost. However, if you're already satisfied with your current offerings, you might want to hold off and re-evaluate later.\n\nWould you like to explore more about the specific exclusives on HBO Max or any other streaming services?",
+      id: 27,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to plan a family movie night and I want to make sure the movies are suitable for everyone, so can you help me find some films that are rated PG-13 or lower, considering I have to avoid movies rated above PG-13 due to Michelle's age and content sensitivity for Francis? ->-> 1,11",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, I can help you find some family-friendly movies that are rated PG-13 or lower. Given that you need to accommodate both Francis and Michelle, it's important to choose movies that are suitable for younger children while still being engaging for older viewers. Here are some great options:\n\n### PG-Rated Movies:\n1. **\"The Incredibles\" (2004)** - A thrilling superhero adventure with humor and heart.\n2. **\"Finding Nemo\" (2003)** - A captivating underwater journey with memorable characters and beautiful animation.\n3. **\"The Lion King\" (1994)** - A classic Disney tale with memorable songs and a heartwarming story.\n4. **\"Coco\" (2017)** - A visually stunning Pixar film about family, tradition, and following your dreams.\n5. **\"Moana\" (2016)** - An empowering Disney film about a young girl on a heroic journey across the ocean.\n6. **\"Zootopia\" (2016)** - A clever and adventurous Pixar film that explores themes of prejudice and acceptance.\n7. **\"Inside Out\" (2015)** - A visually inventive Pixar film that delves into the emotions inside a young girl's mind.\n8. **\"Paddington\" (2014)** - A charming story about a bear from Peru who finds a new home in London.\n9. **\"Paddington 2\" (2017)** - A sequel that continues the adventures of Paddington Bear with more humor and heart.\n10. **\"Despicable Me\" (2010)** - A hilarious and heartwarming story about a supervillain and his minions.\n\n### G-Rated Movies:\n1. **\"The Jungle Book\" (2016)** - A modern adaptation of the classic story with stunning visuals and a heartwarming narrative.\n2. **\"Ratatouille\" (2007)** - A Pixar film about a rat who dreams of becoming a chef.\n3. **\"Bambi\" (1942)** - A classic Disney animated film about a young deer growing up in the forest.\n4. **\"Beauty and the Beast\" (2017)** - A live-action adaptation of the classic Disney animated film.\n5. **\"Frozen\" (2013)** - A Disney classic with memorable songs and a powerful story about sisterhood.\n6. **\"Lion King\" (2019)** - A live-action adaptation of the classic Disney animated film.\n7. **\"Trolls\" (2016)** - Known for its catchy music and colorful characters, this movie is fun and energetic.\n8. **\"The Secret of Kells\" (2009)** - A beautifully animated film with a rich medieval setting and a young boy's quest to protect an ancient book.\n\nThese movies should provide a mix of adventure, humor, and heartwarming stories that are suitable for both Francis and Michelle. They are rated PG or G, ensuring that the content is appropriate for younger children.\n\nWould you like more recommendations or specific genres to consider?",
+      id: 29,
+      role: "assistant",
+    },
+    {
+      content:
+        "I prefer selecting movies available on platforms I already subscribe to, to avoid extra rental fees and stay within my $100 entertainment budget, can you recommend some family-friendly movies that fit this criteria? ->-> 1,20",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely! Given your preference to stay within your existing subscriptions and your $100 entertainment budget, here are some family-friendly movies available on popular streaming platforms like Netflix, Disney+, and Amazon Prime Video. These should help you maximize your entertainment without additional rental fees.\n\n### Netflix\n1. **\"The Incredibles\" (2004)**\n   - **Why:** A thrilling superhero adventure with humor and heart.\n   \n2. **\"Finding Nemo\" (2003)**\n   - **Why:** A captivating underwater journey with memorable characters and beautiful animation.\n   \n3. **\"The Lion King\" (1994)**\n   - **Why:** A classic Disney tale with memorable songs and a heartwarming story.\n   \n4. **\"Coco\" (2017)**\n   - **Why:** A visually stunning Pixar film about family, tradition, and following your dreams.\n   \n5. **\"Moana\" (2016)**\n   - **Why:** An empowering Disney film about a young girl on a heroic journey across the ocean.\n\n### Disney+\n1. **\"Zootopia\" (2016)**\n   - **Why:** A clever and adventurous Pixar film that explores themes of prejudice and acceptance.\n   \n2. **\"Inside Out\" (2015)**\n   - **Why:** A visually inventive Pixar film that delves into the emotions inside a young girl's mind.\n   \n3. **\"Paddington\" (2014) and \"Paddington 2\" (2_17)**\n   - **Why:** Charming stories about a bear from Peru who finds a new home in London, filled with warmth and humor.\n   \n4. **\"Despicable Me\" (2010)**\n   - **Why:** A hilarious and heartwarming story about a supervillain and his minions.\n\n### Amazon Prime Video\n1. **\"The Secret Life of Pets\" (2016)**\n   - **Why:** A fun and heartwarming animated film about pets' secret lives when their owners are away.\n   \n2. **\"The Jungle Book\" (2016)**\n   - **Why:** A modern adaptation of the classic story with stunning visuals and a heartwarming narrative.\n   \n3. **\"Ratatouille\" (2007)**\n   - **Why:** A Pixar film about a rat who dreams of becoming a chef.\n   \n4. **\"The Grand Budapest Hotel\" (2014)**\n   - **Why:** A unique visual style and vibrant color palette that will be enhanced by 4K HDR.\n\n### Additional Recommendations\n1. **\"Encanto\" (2021)**\n   - **Why:** A magical and heartwarming Disney film about a young girl discovering her powers and the secrets of her family.\n   \n2. **\"The Croods: A New Age\" (2020)**\n   - **Why:** A prehistoric adventure with humor and heart, continuing the story of the Crood family.\n\n### Budget Consideration\n- **Existing Subscriptions:**\n  - Netflix: $15.99/month\n  - Disney+: $7.99/month\n  - Amazon Prime Video: Included with Amazon Prime membership ($13.99/month)\n\nGiven your $100 budget, you can comfortably afford these subscriptions for several months, allowing you to enjoy a wide range of family-friendly movies without additional rental fees.\n\n### Summary\nHere are some family-friendly movies available on your existing subscriptions:\n- **Netflix:** \"The Incredibles,\" \"Finding Nemo,\" \"The Lion King,\" \"Coco,\" \"Moana\"\n- **Disney+:** \"Zootopia,\" \"Inside Out,\" \"Paddington,\" \"Paddington 2,\" \"Despicable Me\"\n- **Amazon Prime Video:** \"The Secret Life of Pets,\" \"The Jungle Book,\" \"Ratatouille,\" \"The Grand Budapest Hotel\"\n\nEnjoy your movie nights with these great family-friendly options!",
+      id: 49,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always include platform availability details when I ask about movie options. ->-> 1,22",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a family movie weekend and I've increased my snack budget to $65, so I can order themed cupcakes from The Sweet Spot bakery on Market Street, can you help me find some movies that fit my new budget and are available on platforms that allow simultaneous streaming on multiple devices? ->-> 2,6",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm allergy information when I ask about snack options. ->-> 2,23",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "How can I save money on movie rentals like I did with \"Paddington 2\" where I saved $3.99 by renting instead of subscribing to Amazon Prime monthly plan? ->-> 3,14",
+      id: 142,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide alternative movie suggestions when I ask about family-friendly options. ->-> 3,22",
+      id: 158,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "entertainment-spending-optimization",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 19,
+        subtopics: [
+          "Popular family-friendly genres",
+          "Award-winning films and hidden gems",
+          "Age ratings and content advisories",
+          "Streaming platform exclusives",
+        ],
+        theme:
+          "Balancing entertainment value, age appropriateness, and availability across platforms",
+        title:
+          "Finding the Best Streaming Movies for a Family Weekend",
+      },
+      narratives: "Entertainment spending optimization reasoning",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "To optimize your monthly entertainment spending, maintain Netflix and Disney+ subscriptions for simultaneous streaming and family-friendly content, add HBO Max only if exclusive shows justify the extra cost, and use individual rentals like for \"Paddington 2\" to save money instead of subscribing to additional monthly plans. Allocate your snack budget within $65 for themed treats without increasing overall costs. This balances content variety, device access, and cost-efficiency.",
+            question:
+              "Considering my current streaming subscriptions, snack budget for a family movie weekend, and past rental savings, how can I optimize my total monthly entertainment spending while maximizing simultaneous streaming and exclusive content access?",
+            question_id: "entertainment-spending-optimization",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [26, 27, 66, 142],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie weekends",
+        user_relationships: "Francis, Michelle",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7478,6 +7597,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([28, 72, 122, 158]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps entertainment spending optimization reasoning anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-entertainment-spending-optimization",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEntertainmentSpendingOptimizationBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([26, 27, 66, 142]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
