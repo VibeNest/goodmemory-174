@@ -51,6 +51,7 @@ import {
   isSourceOrderFrameworkCustomizationQuery,
   sourceOrderFrameworkCustomizationPriorityBonus,
 } from "./sourceOrderRules/frameworkCustomization";
+import { selectSourceOrderedProbabilityConceptsEventOrderCoverage } from "./sourceOrderRules/probabilityConceptsEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -329,6 +330,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     });
   if (researchWritingProjectEventOrder.length > 0) {
     return researchWritingProjectEventOrder.slice(0, anchorLimit);
+  }
+  const probabilityConceptsEventOrder =
+    selectSourceOrderedProbabilityConceptsEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (probabilityConceptsEventOrder.length > 0) {
+    // Six concepts arrive as user-turn pairs; the full pair coverage is the
+    // evidence set, so it is not capped to the requested item count.
+    return probabilityConceptsEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,

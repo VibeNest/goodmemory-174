@@ -11,6 +11,7 @@ import * as reasoningRules from "../src/recall/selectors/sourceOrderRules/reason
 import { isResumeAtsSequencingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
+import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
 import { isSessionManagementContradictionQuery } from "../src/recall/selectors/contradiction";
@@ -110,6 +111,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "reasoning.probabilityCalculationConfirmation":
     reasoningRules.isProbabilityCalculationConfirmationReasoningQuery,
   "reasoning.householdBudget": isSourceOrderedHouseholdBudgetReasoningQuery,
+  "eventOrder.probabilityConcepts": isProbabilityConceptsEventOrderQuery,
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,

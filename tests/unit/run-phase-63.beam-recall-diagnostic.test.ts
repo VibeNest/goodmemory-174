@@ -5044,6 +5044,190 @@ function buildResearchWritingProjectsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildProbabilityConceptsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand probability as a ratio, and I want to start with simple events like coin tosses and dice rolls, so can you help me figure out the probability of getting heads when I flip a coin, like what's the ratio of heads to total outcomes, I'm thinking it's 1:2, but I'm not sure, and how does this relate to the concept of probability as a ratio, can you explain it to me in a way that makes sense for a beginner like me, I'm 44 and just starting to learn this stuff, so go easy on me ->-> 1,3",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand probability as a ratio of favorable outcomes to total outcomes, but I'm having trouble wrapping my head around it - can you help me with a simple example, like a coin toss, where the probability of getting heads is the number of favorable outcomes, which is 1, divided by the total number of outcomes, which is 2, so the probability is 1/2 or 0.5, and I want to make sure I understand this concept correctly because I'm 44 years old and I feel like I should know this already, and I'm a colour technologist from Port Michael, but I've never really studied probability before, so I'm starting from scratch ->-> 1,4",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the difference between independent and mutually exclusive events, can you help me with that, like what's an example of each, maybe something with coin tosses or dice rolls, I want to see the probability calculations for both cases, so I can clarify the concepts in my head ->-> 1,5",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide where to start with probability, and I've got two options - coin toss problems where the probability of getting heads is 1/2, or dice roll problems where the probability of rolling a 4 is 1/6, so should I start with coin toss problems or dice roll problems to get a better understanding of probability basics, like how to calculate the probability of an event as a ratio of favorable outcomes to total outcomes, and how to differentiate between independent and mutually exclusive events, which seems crucial for my practical and intellectual growth as a 44-year-old colour technologist from Port Michael ->-> 1,6",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I think I'll start with coin toss problems. They seem simpler and will help me get a good grasp of the basics. Can you give me a couple of coin toss exercises to start with?",
+      id: 18,
+      role: "user",
+    },
+    {
+      content:
+        "These exercises are really helpful! I think I understand the basics now. The probability of getting heads in a single coin toss is 1/2, and for two coin tosses, the probability of getting heads twice is 1/4. It makes sense that the probability of getting at least one heads in two tosses is 3/4. Thanks for walking me through these examples! Do you have any more exercises like these to practice with?",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand why P(A or B) = P(A) + P(B) only holds for mutually exclusive events, can you explain it to me with an example, like if I have two events A and B, and they are mutually exclusive, then the probability of A or B happening is just the sum of their individual probabilities, but if they are not mutually exclusive, then we need to subtract the probability of both A and B happening, so P(A or B) = P(A) + P(B) - P(A and B), I want to make sure I get this concept right, so I can apply it to my probability problems ->-> 1,8",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the concept of permutations and combinations, specifically with 3 objects, and I see that 3! equals 6, which represents the number of ways to arrange these objects, and 3C2 equals 3, which is the number of ways to choose 2 objects out of 3 without considering the order, so can you help me solve a problem where I have 3 different colored balls, and I want to find the number of ways to arrange them in a row, and also the number of ways to choose 2 balls out of the 3, considering that the order doesn't matter in the second case? ->-> 1,10",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand why tossing two coins is considered independent events, can you help me calculate P(both heads) using the formula 1/2 × 1/2 = 1/4, I want to make sure I get it right ->-> 1,11",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly, Craig! Let's break down why tossing two coins is considered independent events and how to calculate the probability of getting heads on both coins.\n\n### Independent Events\n\nTwo events are independent if the occurrence of one event does not affect the probability of the other event occurring. In the case of tossing two coins, the outcome of the first coin toss does not influence the outcome of the second coin toss.\n\n### Calculating P(Both Heads)\n\nTo calculate the probability of getting heads on both coin tosses, we use the fact that the events are independent. The probability of both independent events occurring is the product of their individual probabilities.\n\n#### Step-by-Step Calculation\n\n1. **Probability of getting heads on the first coin toss (Event A)**:\n   \\[\n   P(A) = \\frac{1}{2}\n   \\]\n\n2. **Probability of getting heads on the second coin toss (Event B)**:\n   \\[\n   P(B) = \\frac{1}{2}\n   \\]\n\n3. **Probability of both events occurring (both heads)**:\n   \\[\n   P(A \\text{ and } B) = P(A) \\times P(B) = \\frac{1}{2} \\times \\frac{1}{2} = \\frac{1}{4}\n   \\]\n\n### Summary\n\n- **Probability of getting heads on the first coin toss**: \\(\\frac{1}{2}\\)\n- **Probability of getting heads on the second coin toss**: \\(\\frac{1}{2}\\)\n- **Probability of getting heads on both coin tosses**: \\(\\frac{1}{2} \\times \\frac{1}{2} = \\frac{1}{4}\\)\n\nSo, the probability of getting heads on both coin tosses is \\(\\frac{1}{4}\\) or 0.25.\n\n### Verification\n\nTo further verify, let's list all possible outcomes when tossing two coins:\n- HH (Heads, Heads)\n- HT (Heads, Tails)\n- TH (Tails, Heads)\n- TT (Tails, Tails)\n\nThere are 4 possible outcomes, and only one of them is HH. Thus, the probability of getting both heads is:\n\\[\n\\frac{\\text{Number of favorable outcomes}}{\\text{Total number of outcomes}} = \\frac{1}{4}\n\\]\n\nThis confirms our earlier calculation.\n\nDo you have any more questions or need further clarification on this concept?",
+      id: 31,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm having trouble understanding the difference between mutually exclusive and independent events, especially in the context of rolling dice - can you help me identify where I went wrong when I confused these two concepts in a problem about rolling dice, maybe provide an example of each to clarify the difference, like what's the probability of rolling an even number on a 6-sided die and how does that relate to mutually exclusive events ->-> 1,13",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm really enjoying these lively discussions about probability, and I have to say, challenging conventional wisdom is so much fun, it helps me question probability misconceptions like gambler’s fallacy, so can you help me understand how to calculate the probability of independent events, like tossing two coins, where P(both heads) = 1/2 × 1/2 = 1/4, and how does this relate to my goal of solving 10 probability problems involving single events with at least 80% accuracy by February 1, which is just a few weeks away from January 10, 2024, and I've already spent 3 hours studying probability basics, including 2 hours on coin toss and dice roll problems, so I'm hoping to use this knowledge to improve my understanding of probability as a ratio, starting with simple events like coin tosses and dice rolls, and maybe even apply it to more complex problems like drawing an ace from a standard 52-card deck, where P = 4/52 = 1/13, and I'm also interested in learning about permutations and combinations, like permutations of 3 objects, where 3! = 6, and combinations of 3 choose 2, where 3C2 = 3, and how these concepts can help me analyze problems, like the probability of rolling an even number on a 6-sided die, or the probability of rolling a number greater than 4, where P(rolling a number greater than 4) = 2/6 = 1/3, so I'd love to get your help on this, thanks ->-> 1,20",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to calculate the probability of rolling a 3 or 4 on a fair six-sided die, and I think it should be 1/6 + 1/6 = 1/3, but I want to make sure I'm doing it right for mutually exclusive events, so can you check if my calculation P(rolling a 3 or 4) = 1/6 + 1/6 = 1/3 is correct? ->-> 1,21",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly, Craig! Let's verify your calculation for the probability of rolling a 3 or 4 on a fair six-sided die.\n\n### Problem: Probability of Rolling a 3 or 4\n\n1. **Identify the Total Number of Possible Outcomes**:\n   - A fair six-sided die has the numbers 1, 2, 3, 4, 5, and 6.\n   - Therefore, the total number of possible outcomes is 6.\n\n2. **Identify the Favorable Outcomes**:\n   - The favorable outcomes are rolling a 3 or rolling a 4.\n   - There are 2 favorable outcomes.\n\n3. **Check if the Events are Mutually Exclusive**:\n   - Rolling a 3 and rolling a 4 are mutually exclusive events because they cannot occur simultaneously.\n\n4. **Calculate the Probability**:\n   - The probability of rolling a 3 is \\( P(\\text{rolling a 3}) = \\frac{1}{6} \\).\n   - The probability of rolling a 4 is \\( P(\\text{rolling a 4}) = \\frac{1}{6} \\).\n\nSince the events are mutually exclusive, the probability of either event occurring is the sum of their individual probabilities:\n\n\\[\nP(\\text{rolling a 3 or 4}) = P(\\text{rolling a 3}) + P(\\text{rolling a 4}) = \\frac{1}{6} + \\frac{1}{6} = \\frac{2}{6} = \\frac{1}{3}\n\\]\n\n### Conclusion\n\nYour calculation is correct. The probability of rolling a 3 or 4 on a fair six-sided die is indeed:\n\n\\[\nP(\\text{rolling a 3 or 4}) = \\frac{1}{6} + \\frac{1}{6} = \\frac{1}{3}\n\\]\n\n### Summary\n\n- **Total number of possible outcomes**: 6\n- **Number of favorable outcomes**: 2 (rolling a 3 or 4)\n- **Probability**: \\( \\frac{1}{6} + \\frac{1}{6} = \\frac{2}{6} = \\frac{1}{3} \\)\n\nYou have correctly calculated the probability for mutually exclusive events. If you have any more questions or need further clarification, feel free to ask!",
+      id: 51,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand this conditional probability concept, specifically P(A|B), but I need some help with it, I've been introduced to it briefly and I want to dive deeper into how it works and what it means, can you explain it to me in a way that I can apply to problems like the ones I've been practicing with coin tosses and dice rolls? ->-> 1,24",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "Got it, but what about calculating \\( P(A|B) \\) for drawing a face card or a spade from a deck? ->-> 1,25",
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        "Great question, Craig! Let's calculate the conditional probability \\( P(A|B) \\) for drawing a face card or a spade from a standard 52-card deck. We'll define the events and then apply the formula for conditional probability.\n\n### Define the Events\n\n- **Event \\( A \\)**: Drawing a face card (Jack, Queen, King).\n- **Event \\( B \\)**: Drawing a spade.\n\n### Calculate \\( P(A|B) \\)\n\nThe formula for conditional probability is:\n\n\\[\nP(A|B) = \\frac{P(A \\cap B)}{P(B)}\n\\]\n\nWhere:\n- \\( P(A \\cap B) \\) is the probability of drawing a card that is both a face card and a spade.\n- \\( P(B) \\) is the probability of drawing a spade.\n\n### Step-by-Step Calculation\n\n1. **Determine \\( P(B) \\)**:\n   - There are 13 spades in a standard 52-card deck.\n   - So, \\( P(B) = \\frac{13}{52} = \\frac{1}{4} \\).\n\n2. **Determine \\( P(A \\cap B) \\)**:\n   - The face cards in spades are the Jack, Queen, and King of spades.\n   - So, there are 3 face cards that are also spades.\n   - Therefore, \\( P(A \\cap B) = \\frac{3}{52} \\).\n\n3. **Calculate \\( P(A|B) \\)**:\n   \\[\n   P(A|B) = \\frac{P(A \\cap B)}{P(B)} = \\frac{\\frac{3}{52}}{\\frac{1}{4}} = \\frac{3}{52} \\times \\frac{4}{1} = \\frac{3 \\times 4}{52} = \\frac{12}{52} = \\frac{3}{13}\n   \\]\n\n### Final Answer\n\nThe probability of drawing a face card given that the card drawn is a spade is:\n\n\\[\nP(A|B) = \\frac{3}{13}\n\\]\n\n### Summary\n\n- **Event \\( A \\)**: Drawing a face card.\n- **Event \\( B \\)**: Drawing a spade.\n- **\\( P(B) \\)**: Probability of drawing a spade is \\( \\frac{1}{4} \\).\n- **\\( P(A \\cap B) \\)**: Probability of drawing a face card that is also a spade is \\( \\frac{3}{52} \\).\n- **\\( P(A|B) \\)**: Probability of drawing a face card given that the card is a spade is \\( \\frac{3}{13} \\).\n\nThis calculation shows how to apply the concept of conditional probability to a specific scenario involving a deck of cards.\n\nIf you have any more questions or need further examples, feel free to ask!",
+      id: 59,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide step-by-step explanations with concrete examples when I ask about probability concepts. ->-> 1,27",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to calculate the probability of drawing 2 aces together from a deck of 52 cards, and I came across this formula: 4C2 / 52C2 = 6/1326 ≈ 0.00452, can you help me understand how this works and what it means for my chances of getting two aces in a row? ->-> 2,6",
+      id: 76,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to visualize dependent event probabilities using tree diagrams for clarity, but I'm having trouble understanding how to apply this to a problem like drawing two aces in a row from a 52-card deck without replacement, can you help me set up the tree diagram and calculate the probabilities at each step? ->-> 2,15",
+      id: 102,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand how to calculate the probability of dependent events, and I came across the concept of conditional probability, which is given by P(A|B) = P(A ∩ B) / P(B), and I want to apply this to a problem where I draw two cards from a 52-card deck without replacement, and I want to find the probability that the second card is an ace given that the first card was an ace, so can you help me solve this using the formula P(A|B) = P(A ∩ B) / P(B), where A is the event that the second card is an ace and B is the event that the first card is an ace, and the probability of drawing an ace from a 52-card deck is 4/52, and after drawing the first ace, there are 51 cards left and 3 aces left, so the probability of drawing a second ace is 3/51, and I'm not sure how to apply the conditional probability formula to this problem, and I also want to know how to calculate the probability of drawing 2 aces in a row from a 52-card deck without replacement, which is given by the formula P(A ∩ B) = P(A) × P(B|A), where P(A) is the probability of drawing the first ace, which is 4/52, and P(B|A) is the probability of drawing the second ace given that the first ace was drawn, which is 3/51, so can you help me with this, and also explain why the formula P(A and B) = P(A) × P(B) only works for independent events, and how to use combinations to calculate probabilities, like 4C2 / 52C2, and how to compare direct counting and conditional probability approaches for dependent events problems, and I've been practicing dependent event problems for 4 hours, including 3 card draw and 5 dice roll scenarios, and I've completed 8 conditional probability problems and improved my accuracy from 60% to 85% over 2 weeks, and I've spent a total of 4 hours studying probability basics, and I've retained 88% accuracy on a quiz with 12 problems on dependent events and conditional probability, so can you help me with these problems and concepts, and also explain how to use tree diagrams to visualize dependent event probabilities, and how to verify if my calculation for P(drawing a heart or a queen) is correct, and I'm also confused about how to calculate the probability of rolling a 6 on the first die and an even number on the second die, and I want to know how to analyze problems like the probability of drawing an ace from a standard 52-card deck, and I need help with understanding why P(A ∩ B) = 0 for mutually exclusive events, and I want to learn how to explain probability concepts, like why P(A or B) = P(A) + P(B) only holds for mutually exclusive events, and I've been tracking my progress and I've been studying for 4 hours, and I've been using step-by-step explanations with concrete examples to understand probability fundamentals, and I prefer to start with coin toss problems, and I want to solve 10 probability problems involving single events with at least 80% accuracy, and I've been extending my study sessions to 4 hours, and I've been dedicating an extra hour to practicing dice roll problems, so can you help me with all these questions and concepts, and also provide step-by-step explanations with concrete examples, and verify my solutions, and explain the concepts in a way that I can understand, and provide alternative methods for solving problems, and help me with my progress tracking, and provide feedback on my study plan, and help me with my goal of understanding probability basics, and I'm 44 years old, and I'm a color technologist, and I'm from Port Michael, and I'm eager to learn probability basics for practical and intellectual growth, and I've never completed any coin toss problems before, and I've been introduced to P(A|B) but I need to understand it better, and I've been using combinations to calculate probabilities, and I've been analyzing problems like the probability of rolling an even number on a 6-sided die, and I've been verifying my solutions, and I've been tracking my time spent studying, and I've been using tree diagrams to visualize dependent event probabilities, and I've been comparing direct counting and conditional probability approaches, and I've been practicing dependent event problems, and I've been retaining my knowledge, and I've been improving my accuracy, and I've been extending my study sessions, and I've been dedicating extra time to practicing, so can you help me with all these questions and concepts ->-> 2,17",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "Always include visual aids like tree diagrams when I ask about dependent event probability problems. ->-> 2,28",
+      id: 132,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "probability-concepts-event-order",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Math",
+        id: 8,
+        subtopics: [
+          "Probability as a ratio",
+          "Independent and dependent events",
+          "Mutually exclusive events",
+          "Basic counting principles",
+        ],
+        theme:
+          "Calculating simple probabilities and exploring common probability puzzles",
+        title: "Understanding the Basics of Probability",
+      },
+      narratives: "Probability foundational concepts event order",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You mentioned foundational probability concepts in this order: 1) Understanding probability as a ratio using simple examples like coin tosses and dice rolls, 2) Clarifying the difference between independent and mutually exclusive events with examples, 3) Deciding whether to start learning with coin toss or dice roll problems, 4) Exploring probability calculations for combined events such as tossing two coins, 5) Delving into the addition rule for mutually exclusive events and its exceptions, 6) Discussing conditional probability and how to apply it to practical problems.",
+            question:
+              "Can you list the order in which I brought up different foundational concepts related to probability throughout our conversations, in order? Mention ONLY and ONLY six items.",
+            question_id: "probability-concepts-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [6, 10, 14, 34, 16, 18, 30, 20, 24, 50, 56, 58],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Colour technologist learning probability basics",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7127,6 +7311,31 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     );
 
     expect(testCase?.retrievedChatIds).toEqual([116, 158]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps probability foundational concepts event-order source pairs through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-probability-concepts-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProbabilityConceptsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      6, 10, 14, 16, 18, 20, 24, 30, 34, 50, 56, 58,
+    ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
