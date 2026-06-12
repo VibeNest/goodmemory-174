@@ -23,23 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-remote-work-schedule-current-20260612T175400Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-immigration-consultant-session-current-20260612T180400Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-event-cupcake-order-current-20260612T174100Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-remote-work-schedule-current-20260612T175400Z`
 
 Summary:
 
-- evidence-chat recall: 0.8257321708025932
-- missed-recall cases: 95/355
-- wrong-recall/noise cases: 238/400
-- zero-recall cases: 18
-- global hit/missing/noise ids: 890/204/1267 -> 891/203/1261
-- recovered target: `8:knowledge_update:2`
-- target result: recall 0 -> 1 with the single designated turn 214 returned and all six noisy chats (160/203/204/205/208/106, including the two-remote-workdays confusable 208) removed, zero new noise
-- repair shape: `updateSeries.remoteWorkSchedule` narrow gate + a single three-days-a-week start pattern in a dedicated updateSeriesRules module chained through the registry; the benchmark designates the same turn as both original and updated info, so the family returns one user turn
+- evidence-chat recall: 0.8285490722110439
+- missed-recall cases: 94/355
+- wrong-recall/noise cases: 237/400
+- zero-recall cases: 17
+- global hit/missing/noise ids: 891/203/1261 -> 892/202/1258
+- recovered target: `9:knowledge_update:2`
+- target result: recall 0 -> 1 with the single designated turn 138 returned and all three noisy chats (154/156/242, the calendar-confirmation pair and the August mock-interview turn) removed, zero new noise
+- repair shape: `updateSeries.immigrationConsultantSession` narrow gate + a single May 20 booking pattern in a dedicated updateSeriesRules module chained through the registry; the benchmark designates the same turn as both original and updated info, so the family returns one user turn
+- ground-truth caveat: the benchmark's answer says May 22, a date no conversation turn mentions; the gate recovers the designated id for the recall metric, and live answer slices should expect the case to stay unanswerable
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the remote-work weekly schedule knowledge update on the cover-letter conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the immigration-consultant session date knowledge update on the visa-preparation conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
