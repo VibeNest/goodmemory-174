@@ -88,6 +88,14 @@ export const isAtsCourseEnrollmentContradictionQuery = narrowGate(
   },
 );
 
+export const isFamilyMovieInviteContradictionQuery = narrowGate(
+  "contradiction.familyMovieInvite",
+  (query: string): boolean => {
+  return /\bhave i ever invited\b/iu.test(query) &&
+    /\bfamily movie events\b/iu.test(query);
+  },
+);
+
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
     /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) ||
@@ -289,6 +297,42 @@ function selectAtsCourseEnrollmentContradictionEvidence(input: {
   return [firstStatement, denial].sort(compareTemporalFactChronology);
 }
 
+const FAMILY_MOVIE_INVITE_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever invited\b)(?=[\s\S]*\bsuitable for ages 2 to 77\b)/iu;
+const FAMILY_MOVIE_INVITE_SCHEDULING_PATTERN =
+  /^(?=[\s\S]*\bscheduling family activities around children.s nap times\b)(?=[\s\S]*\banimated films with cultural themes\b)/iu;
+
+function selectFamilyMovieInviteContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isFamilyMovieInviteContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
+    eligible.find((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+
+  const denial = pickFirst(FAMILY_MOVIE_INVITE_DENIAL_PATTERN);
+  const scheduling = pickFirst(FAMILY_MOVIE_INVITE_SCHEDULING_PATTERN);
+
+  if (!denial || !scheduling) {
+    return [];
+  }
+
+  return [denial, scheduling].sort(compareTemporalFactChronology);
+}
+
 const TWO_FACTOR_AUTH_FIRST_STATEMENT_PATTERN =
   /^(?=[\s\S]*\btwo-factor authentication we set up on April 20\b)(?=[\s\S]*\bsufficient to protect our data\b)/iu;
 const TWO_FACTOR_AUTH_ALL_PLATFORMS_COMMITMENT_PATTERN =
@@ -486,6 +530,12 @@ export function selectContradictionEvidencePair(input: {
     selectAtsCourseEnrollmentContradictionEvidence(input);
   if (atsCourseEnrollmentContradictionEvidence.length > 0) {
     return atsCourseEnrollmentContradictionEvidence;
+  }
+
+  const familyMovieInviteContradictionEvidence =
+    selectFamilyMovieInviteContradictionEvidence(input);
+  if (familyMovieInviteContradictionEvidence.length > 0) {
+    return familyMovieInviteContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

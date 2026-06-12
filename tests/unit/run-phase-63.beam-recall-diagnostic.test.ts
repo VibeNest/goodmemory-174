@@ -6936,6 +6936,100 @@ function buildWinterReadingChallengeBeamRows(): unknown[] {
   ];
 }
 
+function buildFamilyMovieInviteBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm excited but slightly anxious about coordinating schedules and keeping toddlers entertained during marathon breaks, how can I balance this for Mason and Michael who are joining us, with Mason already confirming via text, but I need to consider Michael's work deadline too ->-> 2,16",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I've invited Mason and Michael to join the April 7 afternoon session, but Michael declined due to a work deadline, so I need help finding alternative activities or movies that would be suitable for Mason and the rest of the family, considering the confirmed schedule ->-> 2,17",
+      id: 90,
+      role: "user",
+    },
+    {
+      content:
+        "I've never invited Mason or Michael to any family movie events, can you help me find some family-friendly movies suitable for ages 2 to 77 that are available on Netflix or Disney+? ->-> 2,24",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "Mason brought board games for post-movie entertainment and Michael sent a gift card as thanks for the invitation, how can I make sure my future movie nights are just as enjoyable for my close friends? ->-> 3,7",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer scheduling family activities around children’s nap times to maximize engagement and minimize crankiness, can you suggest some animated films with cultural themes that fit this schedule? ->-> 3,17",
+      id: 148,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely! Scheduling family activities around children's nap times is a great way to ensure everyone stays happy and engaged. Here are some animated films with cultural themes that are suitable for a family movie session and can fit into nap time schedules:\n\n### Animated Films with Cultural Themes\n\n1. **\"Song of the Sea\" (2014)**\n   - **Rating:** G\n   - **Duration:** 88 minutes\n   - **Why It Fits:** This Irish animated film tells the story of a young boy and his sister who embark on a journey to return her to the world of the selkies. It's rich in Irish folklore and has a beautiful, magical atmosphere.\n\n2. **\"The Secret of Kells\" (2009)**\n   - **Rating:** PG\n   - **Duration:** 78 minutes\n   - **Why It Fits:** This Irish animated film is based on Celtic mythology and tells the story of a young boy who helps his uncle complete an illuminated manuscript. It's visually stunning and culturally rich.\n\n3. **\"Ernest & Celestine\" (2012)**\n   - **Rating:** G\n   - **Duration:** 85 minutes\n   - **Why It Fits:** This French-Belgian animated film tells the story of an unlikely friendship between a mouse and a bear. It's set in a charming European town and has a delightful, whimsical feel.\n\n4. **\"The Tale of Princess Kaguya\" (2013)**\n   - **Rating:** PG\n   - **Duration:** 101 minutes\n   - **Why It Fits:** This Japanese animated film is based on a traditional folktale and tells the story of a girl found inside a glowing bamboo stalk. It's beautifully animated and rich in Japanese culture.\n\n5. **\"Over the Moon\" (2020)**\n   - **Rating:** G\n   - **Duration:** 95 minutes\n   - **Why It Fits:** This Chinese-American animated film tells the story of a girl who builds a rocket ship to the moon to prove the existence of a legendary moon goddess. It's visually stunning and has a heartwarming story.\n\n6. **\"The Breadwinner\" (2017)**\n   - **Rating:** PG-13\n   - **Duration:** 95 minutes\n   - **Why It Fits:** This Canadian-Irish animated film is based on the novel by Deborah Ellis and tells the story of a young girl in Taliban-controlled Afghanistan who disguises herself as a boy to support her family. It's powerful and moving.\n\n7. **\"The Red Turtle\" (2016)**\n   - **Rating:** PG\n   - **Duration:** 70 minutes\n   - **Why It Fits:** This French-Dutch animated film tells the story of a man stranded on a deserted island and his encounters with a mysterious red turtle. It's visually beautiful and has a profound message about life and nature.\n\n### Sample Schedule for Family Movie Sessions\n\n#### Morning Session\n- **10:00 AM - 11:30 AM:** Nap Time\n- **11:30 AM - 12:45 PM:** \"Song of the Sea\" (88 minutes)\n- **12:45 PM - 1:00 PM:** Snack Break\n\n#### Afternoon Session\n- **2:00 PM - 3:30 PM:** Nap Time\n- **3:30 PM - 4:45 PM:** \"The Secret of Kells\" (78 minutes)\n- **4:45 PM - 5:00 PM:** Snack Break\n\n#### Evening Session\n- **6:00 PM - 7:30 PM:** Nap Time\n- **7:30 PM - 8:45 PM:** \"Ernest & Celestine\" (85 minutes)\n- **8:45 PM - 9:00 PM:** Snack Break\n\n### Additional Tips\n\n- **Nut-Free Snacks:** Ensure all snacks are free of nuts and clearly labeled to avoid any cross-contamination.\n- **Engaging Activities:** Plan simple activities during snack breaks, such as crafting or playing games, to keep everyone engaged and entertained.\n- **Group Discussions:** After each movie, facilitate a group discussion to talk about the themes and characters, which can deepen the shared experience.\n\nBy scheduling family movie sessions around nap times and choosing culturally rich animated films, you can ensure a fun and engaging experience for everyone. Enjoy your family movie sessions!",
+      id: 149,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've never upgraded my internet speed or streaming quality, but I'm thinking of hosting a virtual watch party with Mason and Michael on May 12 at 7 PM using Teleparty app, so should I prioritize upgrading my internet plan from 100 Mbps to 200 Mbps for $20/month to improve streaming quality? ->-> 5,24",
+      id: 264,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "family-movie-invite",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 19,
+        subtopics: [
+          "Popular family-friendly genres",
+          "Award-winning films and hidden gems",
+          "Age ratings and content advisories",
+          "Streaming platform exclusives",
+        ],
+        theme:
+          "Balancing entertainment value, age appropriateness, and availability across platforms",
+        title:
+          "Finding the Best Streaming Movies for a Family Weekend",
+      },
+      narratives: "Family movie invite contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever invited Mason or Michael to join any family movie events?",
+            question_id: "family-movie-invite",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {"first_statement":[108],"second_statement":[148]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie weekends",
+        user_relationships: "Francis, Michelle",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9435,6 +9529,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([126, 136]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the family movie invite contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-family-movie-invite",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFamilyMovieInviteBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([108, 148]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

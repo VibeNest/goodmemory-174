@@ -30,6 +30,7 @@ import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/reca
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
 import {
   isAtsCourseEnrollmentContradictionQuery,
+  isFamilyMovieInviteContradictionQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
 } from "../src/recall/selectors/contradiction";
@@ -159,6 +160,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,
   "contradiction.atsCourseEnrollment": isAtsCourseEnrollmentContradictionQuery,
+  "contradiction.familyMovieInvite": isFamilyMovieInviteContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 
