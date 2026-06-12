@@ -23,20 +23,20 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-resume-ats-sequencing-current-20260612T110000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-peer-feedback-balance-current-20260612T120000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-marathon-titles-current-20260612T100000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-resume-ats-sequencing-current-20260612T110000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7617259110216855
-- missed-recall cases: 118/355
-- wrong-recall/noise cases: 261/400
-- zero-recall cases: 39
-- global hit/missing/noise ids: 808/286/1400 -> 814/280/1394
-- recovered target: `6:multi_session_reasoning:2`
-- target result: recall 0 -> 1 with chats 22/23/92/93/136/137 returned and noisy chats 94/46/36/37/124/125 removed
-- repair shape: `reasoning.resumeAtsSequencing` narrow gate + six chronological facets (user anchors + assistant guidance) chained into the reasoning bridge, with the instruction append-and-prune stand-down generalized to a single run-context flag shared by complete-evidence query families
+- evidence-chat recall: 0.7645428124301362
+- missed-recall cases: 117/355
+- wrong-recall/noise cases: 260/400
+- zero-recall cases: 38
+- global hit/missing/noise ids: 814/280/1394 -> 825/269/1389
+- recovered target: `10:multi_session_reasoning:2`
+- target result: recall 0 -> 1 with chats 12/14/15/70/71/72/73/178/179/180/181 returned and noisy chats 172/102/103/188/189 removed
+- repair shape: `reasoning.peerFeedbackBalance` narrow gate + eleven facets (user anchors and assistant guidance across the Joseph peer-review, Amy Zoom, and beta-reader critique sessions) chained into the reasoning bridge, reusing the shared instruction stand-down run-context flag
 - regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
 The repaired target covers the user's research and writing project sequence across Greg collaboration planning, NVivo tooling, Heather's feedback, essay and conference-paper deadline prioritization, and post-submission collaboration. This is a retained selector repair, not a benchmark close.

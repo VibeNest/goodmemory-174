@@ -58,6 +58,7 @@ import {
 } from "./selectors/sourceOrderEventPlans";
 import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrderRules/researchWritingProjectsEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
+import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,
@@ -195,7 +196,8 @@ export function buildSelectionRunContext(
   // "Always ..." instructions cannot override the winner.
   const instructionAugmentationStandDownQuery =
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
-    isResumeAtsSequencingReasoningQuery(query);
+    isResumeAtsSequencingReasoningQuery(query) ||
+    isPeerFeedbackBalanceReasoningQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);

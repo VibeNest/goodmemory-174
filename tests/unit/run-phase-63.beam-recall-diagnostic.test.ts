@@ -6286,6 +6286,158 @@ function buildResumeAtsSequencingBeamRows(): unknown[] {
   ];
 }
 
+function buildPeerFeedbackBalanceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm sorta excited that Joseph, a fellow producer, suggested peer review sessions starting Feb 20, and it's already improved my drafts by 15%, but I'm not sure what to expect next or how to keep that momentum going, can you offer some guidance??",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "It's great to hear that the peer review sessions with Joseph have already shown positive results, improving your drafts by 15%. To keep this momentum going and continue to see improvements, here are some strategies you can implement in your upcoming sessions.",
+      id: 13,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a solid plan! I think sticking to a regular schedule and setting clear objectives for each session will really help. I'm also excited about the idea of expanding the peer review group to get more diverse feedback. Let's start with the structure you suggested.",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "You're welcome! I'm glad you found the plan helpful. Starting with structured sessions and gradually expanding your peer review group is a great approach. Here's a summary of the steps you can take to get started with Structured Peer Review Sessions on a regular schedule.",
+      id: 15,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda worried about my writing progress, especially since Amy suggested a Zoom peer review on April 5, and I saw a 25% improvement in dialogue clarity - how can I keep this momentum going with my screenplay draft?",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "It's great to hear that you've seen significant improvements in your dialogue clarity through peer reviews! To keep this momentum going, here are some strategies you might consider: Regular Peer Reviews, continuing to schedule regular peer review sessions with your group.",
+      id: 71,
+      role: "assistant",
+    },
+    {
+      content:
+        "That sounds like a solid plan. I definitely want to keep up the peer reviews with Amy and others. Setting specific goals for each session makes sense too. I'll stick with Grammarly and Hemingway, and maybe give ProWritingAid a try again. Tracking my progress will help me stay motivated.",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "You're welcome! It's great to hear that you're feeling positive about the plan. Here are a few additional tips to ensure you stay on track and continue making progress: Consistent Feedback Loop, making sure to schedule regular peer review sessions with Amy and the wider group.",
+      id: 73,
+      role: "assistant",
+    },
+    {
+      content:
+        "Sounds good! I'll start looking for a freelance editor now. I'll check platforms like Upwork and Reedsy, and also ask Amy and Carla for recommendations. I'll make sure to review their profiles and portfolios and ask about their experience.",
+      id: 102,
+      role: "user",
+    },
+    {
+      content:
+        "You're very welcome! That sounds like a thorough and thoughtful approach. Here are a few additional tips to help you through the process of finding and working with a freelance editor for your screenplay.",
+      id: 103,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide percentage improvements when I ask about editing progress.",
+      id: 172,
+      role: "user",
+    },
+    {
+      content:
+        "I've got 5 detailed critiques from Joseph's beta readers by May 30, and I'm trying to decide how to use them to improve my writing, should I focus on the suggestions from the peer reviewers or try to find a balance between their feedback and my own vision",
+      id: 178,
+      role: "user",
+    },
+    {
+      content:
+        "Great that you have detailed critiques from Joseph's beta readers! Balancing external feedback with your own vision is crucial for refining your writing while staying true to your artistic intent. Here are some steps to help you effectively integrate the feedback.",
+      id: 179,
+      role: "assistant",
+    },
+    {
+      content:
+        "Thanks for the steps! I think categorizing the feedback first will really help me see the bigger picture. I'll definitely focus on the major issues that multiple readers pointed out, like the tone inconsistencies. And yeah, keeping my original vision in mind is important.",
+      id: 180,
+      role: "user",
+    },
+    {
+      content:
+        "Glad to hear that the plan sounds solid! Categorizing the feedback and focusing on the major issues identified by multiple readers is a great way to start. Here are a few additional tips to ensure you stay on track: Create a Feedback Summary as you categorize each critique.",
+      id: 181,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've added Saturday 10 AM sessions to my writing schedule starting May 18 to accommodate my editing workload, and I'm hoping this will help me stay on track, but I'd love some advice on how to make the most of these new sessions",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "Adding Saturday 10 AM sessions to your writing schedule is a great step towards managing your editing workload more effectively. Here are some strategies to help you make the most of these new sessions: Set Clear Objectives for each block.",
+      id: 189,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "peer-feedback-balance",
+      conversation_plan: "BATCH 10 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 10,
+        subtopics: [
+          "Peer review sessions",
+          "Editing tools",
+          "Beta reader feedback",
+        ],
+        theme: "Balancing external feedback with personal vision across sessions",
+        title: "Screenplay Feedback Integration Journey",
+      },
+      narratives: "Peer feedback balance reasoning across review sessions",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Prioritize the structured peer review momentum from Joseph and Amy, then integrate the categorized beta-reader critiques while keeping the original artistic vision as the deciding filter.",
+            question:
+              "Considering the improvements I reported from Joseph's peer reviews, Amy's Zoom sessions, and the detailed critiques from beta readers, how should I prioritize balancing external feedback with my own vision to maximize overall writing progress?",
+            question_id: "peer-feedback-balance",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [12, 14, 15, 70, 71, 72, 73, 178, 179, 180, 181],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Screenwriter and producer",
+        user_relationships: "Joseph, Amy, Carla",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 describe("phase-63 BEAM recall diagnostic runner", () => {
   it("parses recall diagnostic cli flags", () => {
     expect(
@@ -7307,6 +7459,41 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       152,
       168,
       216,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps peer feedback balance reasoning source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-peer-feedback-balance",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPeerFeedbackBalanceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      12,
+      14,
+      15,
+      70,
+      71,
+      72,
+      73,
+      178,
+      179,
+      180,
+      181,
     ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });

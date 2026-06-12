@@ -9,6 +9,7 @@ import * as aggregateNarrowGates from "../src/recall/selectors/aggregateNarrowGa
 import * as updateSeriesQueries from "../src/recall/selectors/updateSeriesQueries";
 import * as reasoningRules from "../src/recall/selectors/sourceOrderRules/reasoningRules";
 import { isResumeAtsSequencingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/resumeAtsSequencingReasoning";
+import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
 import { isSessionManagementContradictionQuery } from "../src/recall/selectors/contradiction";
@@ -99,6 +100,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     updateSeriesQueries.isSharedGroceryListMethodQuery,
   "updateSeries.recentFamilyTrip": updateSeriesQueries.isRecentFamilyTripQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
+  "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.seniorProducerPreparationPriority":
     reasoningRules.isSeniorProducerPreparationPriorityQuery,
   "reasoning.patentPriorArtFiling": reasoningRules.isPatentPriorArtFilingReasoningQuery,
