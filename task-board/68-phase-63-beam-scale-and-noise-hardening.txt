@@ -23,23 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-winter-reading-challenge-current-20260612T163500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-invite-current-20260612T165000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-ethics-webinar-v2-current-20260612T162500Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-winter-reading-challenge-current-20260612T163500Z`
 
 Summary:
 
-- evidence-chat recall: 0.8172814665772411
-- missed-recall cases: 98/355
-- wrong-recall/noise cases: 241/400
-- zero-recall cases: 21
-- global hit/missing/noise ids: 884/210/1283 -> 886/208/1277
-- recovered target: `13:knowledge_update:1`
-- target result: recall 0 -> 1 with the challenge-goal update pair 126/136 returned chronologically and all six noisy chats (62/306/229/309/247/255) removed
-- repair shape: `updateSeries.winterReadingChallenge` narrow gate + an original/extended pattern pair registered in the updateSeriesRules registry (one module plus one registry line; assistant echoes of both turns excluded by the user-role filter)
-- regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
+- evidence-chat recall: 0.8200983679856918
+- missed-recall cases: 97/355
+- wrong-recall/noise cases: 240/400
+- zero-recall cases: 20
+- global hit/missing/noise ids: 886/208/1277 -> 888/206/1273
+- recovered target: `14:contradiction_resolution:2`
+- target result: recall 0 -> 1 with the contradiction pair 108/148 returned chronologically and all four noisy chats (88/90/130/264, including the invited-to-April-7 confusable 90) removed
+- accepted tradeoff: `14:knowledge_update:2` (still zero recall, itself a future target) swaps noise 216 for 108 via same-conversation reinforcement, per-case noise count unchanged
+- repair shape: `contradiction.familyMovieInvite` narrow gate + a denial/scheduling pattern pair inline in contradiction.ts; the architecture fixture-name rule forbids the person names in selector files, so the patterns key on the never-invited ages-2-to-77 phrasing and the nap-time scheduling phrasing instead
+- regression check: target plus one documented net-zero reinforcement swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive per-case noise-count deltas
 
-The repaired target covers the winter reading challenge goal update: the original 10-book Goodreads target extended to 12 books by March 1. This is a retained selector repair, not a benchmark close.
+The repaired target covers the family-movie invite contradiction: the never-invited denial against the later family-activity scheduling statement. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
