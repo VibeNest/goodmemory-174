@@ -11,6 +11,7 @@ import {
   isAggregateNumericQuery,
   isAggregateOpenLoopQuery,
   isComparativeMetricQuery,
+  isFamilyMovieMarathonTitlesAggregateQuery,
   isHealthIssueOrderQuery,
   isMuseumVisitOrderQuery,
   isSocialMetricTotalQuery,
@@ -108,6 +109,7 @@ export interface SelectionRunContext {
   directFactualLookupQuery: boolean;
   exactSourceOrderedReasoningQuery: boolean;
   factConfirmationQuery: boolean;
+  familyMovieMarathonTitlesAggregateQuery: boolean;
   informationExtractionCandidates: RankedFactCandidate[];
   instructionEvidenceCandidates: RankedFactCandidate[];
   limit: number;
@@ -187,6 +189,8 @@ export function buildSelectionRunContext(
     language,
     queryLocale,
   );
+  const familyMovieMarathonTitlesAggregateQuery =
+    isFamilyMovieMarathonTitlesAggregateQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
@@ -296,6 +300,7 @@ export function buildSelectionRunContext(
     directFactualLookupQuery,
     exactSourceOrderedReasoningQuery,
     factConfirmationQuery,
+    familyMovieMarathonTitlesAggregateQuery,
     informationExtractionCandidates: [],
     instructionEvidenceCandidates: [],
     limit,
@@ -567,6 +572,7 @@ export function buildSelectionRunContext(
     directFactualLookupQuery,
     exactSourceOrderedReasoningQuery,
     factConfirmationQuery,
+    familyMovieMarathonTitlesAggregateQuery,
     informationExtractionCandidates,
     instructionEvidenceCandidates,
     limit,

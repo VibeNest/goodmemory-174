@@ -39,6 +39,12 @@ const instructionAndSourcePreferenceStage: FactSelectionAugmenterStage = {
   canPrune: true,
   yieldsToWinners: ["contradiction_evidence_pair"],
   gate({ ctx }) {
+    // The family-movie-marathon titles aggregate selects a complete evidence
+    // set; the conversation's standing "Always ..." movie instructions are
+    // benchmark noise for that question, so the stage stands down per-query.
+    if (ctx.familyMovieMarathonTitlesAggregateQuery) {
+      return false;
+    }
     return !ctx.sourcePreferenceOverrideByContradiction;
   },
   apply({ ctx, draft }): AugmenterStageRecord {

@@ -1,7 +1,7 @@
 import { rankFactCandidates } from "../../scoring";
 import {
-  AGGREGATE_FACT_COUNT_LIMIT,
   aggregateEvidencePriority,
+  aggregateFactCountRecallLimit,
   hasAggregateFactCountSignal,
 } from "../../selectors/aggregate";
 import { diversifyRankedFactCandidatesBySession } from "../../selectors/selectionContext";
@@ -53,7 +53,7 @@ export const aggregateEvidenceRoute: FactSelectionRoute = {
     return {
       entries: diversifyRankedFactCandidatesBySession(
         aggregateCandidates,
-        AGGREGATE_FACT_COUNT_LIMIT,
+        aggregateFactCountRecallLimit(runtime.query),
       ),
     };
   },

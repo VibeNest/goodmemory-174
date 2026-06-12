@@ -6007,6 +6007,163 @@ function buildAiHiringProcessSummaryBeamRows(): unknown[] {
   ];
 }
 
+function buildFamilyMovieMarathonTitlesBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm planning a movie marathon for April 6-7, 2024, and I want to make sure I have 5 family-friendly movies that are suitable for ages 2 to 77, can you help me find some that balance entertainment and age appropriateness?",
+      id: 18,
+      role: "user",
+    },
+    {
+      content:
+        'Planning a movie marathon that caters to a wide age range is a fantastic idea! Here are five family-friendly movies that should appeal to everyone from ages 2 to 77: "The Incredibles" (2004), "Finding Nemo" (2003), "The Lion King" (1994), "Coco" (2017), and "Paddington" (2014) with "Paddington 2" (2017). These are suitable for a movie marathon and provide a fun experience for everyone involved.',
+      id: 19,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm kinda new to making watchlists for family movie marathons, so I've never done this before",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "Always include platform availability details when I ask about movie options.",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        'I\'m kinda worried that my watchlist for the family movie marathon on April 6-7 might not be finalized yet, so can you help me figure out if the 8 movies I\'ve chosen, including "Soul," "Paddington 2," "The Mitchells vs. The Machines," and "Coco," are all available on the platforms I subscribe to, considering I\'ve coordinated with Thomas to start the marathon at 3 PM on April 6 and 1 PM on April 7 to accommodate Amy and Kyle\'s arrival?',
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        'Sure, I can help you check the availability of those movies on the streaming platforms you currently subscribe to, which are Netflix and Disney+. Here\'s a quick rundown based on the titles you mentioned:\n\n1. **"Soul"** - Available on Disney+.\n2. **"Paddington 2"** - Not available on Netflix or Disney+. This might require renting or subscribing to another service like Amazon Prime Video.\n3. **"The Mitchells vs. The Machines"** - Available on Netflix.\n4. **"Coco"** - Available on Disney+.\n\nTo round out your list, here are some additional family-friendly movies that are also available on Netflix.',
+      id: 57,
+      role: "assistant",
+    },
+    {
+      content:
+        'I think I\'ll go ahead and rent "Paddington 2" since it\'s a favorite of both Thomas and Michelle. The extra cost isn\'t too bad, and it\'ll be worth it for the kids. Thanks for checking the availability!',
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        'Great choice! Here\'s a summary of the movies you\'ve selected, along with their availability: "Soul" - Available on Disney+, "Paddington 2" - Rentable on Amazon Prime Video ($3.99), "The Mitchells vs. The Machines" - Available on Netflix, "Coco" - Available on Disney+, "Moana" - Available on Disney+, "Zootopia" - Available on Disney+, "Tangled" - Available on Disney+, "The Secret Life of Pets" - Available on Netflix.',
+      id: 59,
+      role: "assistant",
+    },
+    {
+      content:
+        "What movies would be suitable for my family weekend, considering platforms that allow simultaneous streaming on multiple devices within my updated budget?",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I've invited Mason and Michael to join the April 7 afternoon session, but Michael declined due to a work deadline, so I need help finding alternative activities or movies that would be suitable for Mason and the rest of the family, considering the confirmed schedule",
+      id: 90,
+      role: "user",
+    },
+    {
+      content:
+        'What movies would you recommend for a family weekend like ours, considering Michelle\'s love for "Coco" and Francis enjoying "Paddington 2", to ensure everyone has a great time on April 8, 2024, at 10:00 AM?',
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        'Given your family\'s preferences, here are some movie recommendations: "Moana" (PG) - a great fit for Michelle, who loves musicals, and Francis will enjoy the adventure aspects. "Zootopia" (PG) - humor, adventure, and important life lessons for the whole family.',
+      id: 111,
+      role: "assistant",
+    },
+    {
+      content:
+        'Thanks for the recommendations! I think "Moana" and "Zootopia" sound perfect for Michelle and Francis. Could you help me plan the timing for these movies, maybe with a short break in between for snacks?',
+      id: 112,
+      role: "user",
+    },
+    {
+      content:
+        'Absolutely! Here\'s a suggested schedule for your family movie day on April 8, 2024, starting at 10:00 AM: "Moana" (PG) from 10:00 AM to 11:30 AM, a 15-minute break with popcorn with custom seasoning and perhaps some fruit platters or themed cupcakes from The Sweet Spot bakery, then "Zootopia" (PG) from 11:45 AM to 1:15 PM.',
+      id: 113,
+      role: "assistant",
+    },
+    {
+      content:
+        "That schedule sounds perfect! For snacks, I think we'll stick with popcorn and fruit platters. Maybe we can add some themed cookies too. Any ideas for a quick activity during the break? Something simple that the kids would enjoy?",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        'Great choice on the snacks! During the snack break the kids can enjoy Crafting Paper Flowers (Inspired by "Moana") with construction paper and markers, or Animal Masks (Inspired by "Zootopia") with paper plates.',
+      id: 115,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide alternative movie suggestions when I ask about family-friendly options.",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        'Can you suggest some family-friendly movies available on streaming platforms that we can watch during our outdoor movie night, given that we\'re planning themed snacks inspired by "Wish" and have allocated $30 for them?',
+      id: 206,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "family-movie-marathon-titles",
+      conversation_plan: "BATCH 14 PLAN",
+      conversation_seed: {
+        category: "Family Entertainment Planning",
+        id: 14,
+        subtopics: [
+          "Movie marathon planning",
+          "Streaming availability",
+          "Family schedules",
+        ],
+        theme: "Planning family movie marathons across sessions",
+        title: "Family Movie Marathon Planning",
+      },
+      narratives: "Family movie marathon title planning across sessions",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer: "13 unique movies",
+            question:
+              "How many unique movies have I planned to watch across all my family movie marathons, considering the titles I mentioned for April 6-7 and April 8?",
+            question_id: "family-movie-marathon-titles",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [18, 56, 57, 58, 59, 110, 111, 112, 113, 114, 115],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie weekends",
+        user_relationships: "Thomas, Michelle, Francis, Amy, Kyle, Mason, Michael",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 describe("phase-63 BEAM recall diagnostic runner", () => {
   it("parses recall diagnostic cli flags", () => {
     expect(
@@ -7028,6 +7185,41 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       152,
       168,
       216,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps family movie marathon planned-title turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-family-movie-marathon-titles",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFamilyMovieMarathonTitlesBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      18,
+      56,
+      57,
+      58,
+      59,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
     ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });

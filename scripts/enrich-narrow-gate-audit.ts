@@ -88,6 +88,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "aggregate.countableEventActivity":
     aggregateNarrowGates.isCountableEventActivityAggregateQuery,
   "aggregate.modelKitCount": aggregateNarrowGates.isModelKitCountQuery,
+  "aggregate.familyMovieMarathonTitles":
+    aggregateNarrowGates.isFamilyMovieMarathonTitlesAggregateQuery,
   "aggregate.ownershipCount": aggregateNarrowGates.isOwnershipCountAggregateQuery,
   "updateSeries.relationshipLatestLocation":
     updateSeriesQueries.isRelationshipLatestLocationQuery,

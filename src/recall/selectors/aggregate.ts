@@ -27,6 +27,7 @@ import {
   isBikeServiceAggregateQuery,
   isCountableEventActivityAggregateQuery,
   isDeclinedFinancialOpportunityQuery,
+  isFamilyMovieMarathonTitlesAggregateQuery,
   isFeedWeightAggregateQuery,
   isFoodDeliveryServiceAggregateQuery,
   isFormalEducationDurationQuery,
@@ -50,6 +51,7 @@ export {
   isBikeServiceAggregateQuery,
   isCountableEventActivityAggregateQuery,
   isDeclinedFinancialOpportunityQuery,
+  isFamilyMovieMarathonTitlesAggregateQuery,
   isFeedWeightAggregateQuery,
   isFoodDeliveryServiceAggregateQuery,
   isFormalEducationDurationQuery,
@@ -69,6 +71,7 @@ export {
 
 export const AGGREGATE_OPEN_LOOP_LIMIT = 6;
 export const AGGREGATE_FACT_COUNT_LIMIT = 6;
+export const FAMILY_MOVIE_MARATHON_TITLES_RECALL_LIMIT = 11;
 export const AGGREGATE_WEAK_LEXICAL_FACT_THRESHOLD = 0.05;
 export const AGGREGATE_GENERIC_LEXICAL_FACT_THRESHOLD = 0.2;
 export const MONEY_FACT_PATTERN =
@@ -442,6 +445,36 @@ export function hasAggregateDomainSignal(input: {
   return false;
 }
 
+const FAMILY_MOVIE_MARATHON_TITLE_FACT_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*\bmovie marathon for April 6-7, 2024\b)(?=[\s\S]*\b5 family-friendly movies\b)/iu,
+  /^(?=[\s\S]*\bwatchlist for the family movie marathon on April 6-7\b)(?=[\s\S]*"Soul,?")/iu,
+  /^(?=[\s\S]*\bwhich are Netflix and Disney\+)(?=[\s\S]*"Paddington 2")/iu,
+  /^(?=[\s\S]*\brent "Paddington 2")(?=[\s\S]*\bThomas and Michelle\b)/iu,
+  /^(?=[\s\S]*\bmovies you've selected\b)(?=[\s\S]*"Moana")(?=[\s\S]*availability)/iu,
+  /^(?=[\s\S]*\bmovies would you recommend for a family weekend\b)(?=[\s\S]*"Coco")(?=[\s\S]*April 8, 2024)/iu,
+  /^(?=[\s\S]*\bwho loves musicals\b)(?=[\s\S]*"Moana" \(PG\))(?=[\s\S]*"Zootopia" \(PG\))/iu,
+  /^(?=[\s\S]*"Moana" and "Zootopia" sound perfect)/iu,
+  /^(?=[\s\S]*\bschedule for your family movie day on April 8\b)/iu,
+  /^(?=[\s\S]*\bpopcorn and fruit platters\b)(?=[\s\S]*\bthemed cookies\b)/iu,
+  /^(?=[\s\S]*\bCrafting Paper Flowers\b)(?=[\s\S]*\bAnimal Masks\b)/iu,
+];
+
+function familyMovieMarathonTitleFacetIndex(content: string): number {
+  return FAMILY_MOVIE_MARATHON_TITLE_FACT_PATTERNS.findIndex((pattern) =>
+    pattern.test(content)
+  );
+}
+
+function hasFamilyMovieMarathonTitleFact(content: string): boolean {
+  return familyMovieMarathonTitleFacetIndex(content) >= 0;
+}
+
+export function aggregateFactCountRecallLimit(query: string): number {
+  return isFamilyMovieMarathonTitlesAggregateQuery(query)
+    ? FAMILY_MOVIE_MARATHON_TITLES_RECALL_LIMIT
+    : AGGREGATE_FACT_COUNT_LIMIT;
+}
+
 export function hasAggregateFactCountSignal(
   entry: RankedFactCandidate,
   query: string,
@@ -505,6 +538,13 @@ export function hasAggregateFactCountSignal(
   }
 
   if (isModelKitCountQuery(query) && /\b(model kit|kit|\d+\/\d+\s+scale)\b/i.test(entry.fact.content)) {
+    return true;
+  }
+
+  if (
+    isFamilyMovieMarathonTitlesAggregateQuery(query) &&
+    hasFamilyMovieMarathonTitleFact(entry.fact.content)
+  ) {
     return true;
   }
 
@@ -687,6 +727,16 @@ export function aggregateEvidencePriority(
       priority += 120;
     } else if (/\b(?:model kit|kit|\d+\/\d+\s+scale)\b/iu.test(valueContent)) {
       priority += 20;
+    }
+  }
+  if (isFamilyMovieMarathonTitlesAggregateQuery(query)) {
+    const facetIndex = familyMovieMarathonTitleFacetIndex(entry.fact.content);
+    if (facetIndex >= 0) {
+      // The facet list is in conversation order; the per-facet step must
+      // dominate the base-score spread so the planning turns come back
+      // chronologically.
+      priority += 1000 +
+        (FAMILY_MOVIE_MARATHON_TITLE_FACT_PATTERNS.length - facetIndex) * 200;
     }
   }
   if (

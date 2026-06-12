@@ -23,20 +23,20 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-research-writing-projects-event-order-v2-current-20260611T133000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-marathon-titles-current-20260612T100000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-writing-skills-confidence-summary-current-20260611T120000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-research-writing-projects-event-order-v2-current-20260611T133000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7560921082047841
-- missed-recall cases: 120/355
-- wrong-recall/noise cases: 263/400
-- zero-recall cases: 41
-- global hit/missing/noise ids: 792/302/1428 -> 797/297/1405
-- recovered target: `7:event_ordering:2`
-- target result: chats 16/54/122/168/216, noisy chats 4/6/50/52/56/70/86/96/98/102/116/120/124/154/156/158/198/200/242/244/252 removed
-- companion cleanup: `7:knowledge_update:2` keeps chats 116/158 and removes noisy chats 160/181
+- evidence-chat recall: 0.7589090096132348
+- missed-recall cases: 119/355
+- wrong-recall/noise cases: 262/400
+- zero-recall cases: 40
+- global hit/missing/noise ids: 797/297/1405 -> 808/286/1400
+- recovered target: `14:multi_session_reasoning:1`
+- target result: recall 0 -> 1 with chats 18/56/57/58/59/110/111/112/113/114/115 returned chronologically and noisy chats 158/52/50/90/206 removed
+- repair shape: `aggregate.familyMovieMarathonTitles` narrow gate + chronological facet patterns + family recall limit, with augmenter stage 1 (instruction append-and-prune) standing down per-query so the aggregate winner is not overridden
 - regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
 The repaired target covers the user's research and writing project sequence across Greg collaboration planning, NVivo tooling, Heather's feedback, essay and conference-paper deadline prioritization, and post-submission collaboration. This is a retained selector repair, not a benchmark close.

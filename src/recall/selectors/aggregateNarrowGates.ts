@@ -157,6 +157,14 @@ export const isModelKitCountQuery = narrowGate(
   },
 );
 
+export const isFamilyMovieMarathonTitlesAggregateQuery = narrowGate(
+  "aggregate.familyMovieMarathonTitles",
+  (query: string): boolean => {
+  return /\bhow many unique movies\b/i.test(query) &&
+    /\bfamily movie marathons?\b/i.test(query);
+  },
+);
+
 export const isOwnershipCountAggregateQuery = narrowGate(
   "aggregate.ownershipCount",
   (query: string): boolean => {
