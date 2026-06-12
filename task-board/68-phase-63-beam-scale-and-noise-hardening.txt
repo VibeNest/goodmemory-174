@@ -23,20 +23,21 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-peer-feedback-balance-current-20260612T120000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-reading-plan-balance-current-20260612T130000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-resume-ats-sequencing-current-20260612T110000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-peer-feedback-balance-current-20260612T120000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7645428124301362
-- missed-recall cases: 117/355
-- wrong-recall/noise cases: 260/400
+- evidence-chat recall: 0.7670467247932037
+- missed-recall cases: 116/355
+- wrong-recall/noise cases: 259/400
 - zero-recall cases: 38
-- global hit/missing/noise ids: 814/280/1394 -> 825/269/1389
-- recovered target: `10:multi_session_reasoning:2`
-- target result: recall 0 -> 1 with chats 12/14/15/70/71/72/73/178/179/180/181 returned and noisy chats 172/102/103/188/189 removed
-- repair shape: `reasoning.peerFeedbackBalance` narrow gate + eleven facets (user anchors and assistant guidance across the Joseph peer-review, Amy Zoom, and beta-reader critique sessions) chained into the reasoning bridge, reusing the shared instruction stand-down run-context flag
+- global hit/missing/noise ids: 825/269/1389 -> 833/261/1382
+- recovered target: `13:multi_session_reasoning:2`
+- target result: recall 0.1111 -> 1 with chats 44/116/117/118/119/158/159/160/161 returned and noisy chats 100/101/136/137/143/218/219 removed
+- accepted tradeoff: `13:temporal_reasoning:2` swaps noise 137 for 141 via same-conversation reinforcement, recall unchanged and per-case noise count net zero
+- repair shape: `reasoning.readingPlanBalance` narrow gate + nine facets (five user anchors, four assistant guidance) chained into the reasoning bridge, reusing the shared instruction stand-down run-context flag
 - regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
 The repaired target covers the user's research and writing project sequence across Greg collaboration planning, NVivo tooling, Heather's feedback, essay and conference-paper deadline prioritization, and post-submission collaboration. This is a retained selector repair, not a benchmark close.
