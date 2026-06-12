@@ -6735,6 +6735,101 @@ function buildEditingChallengeDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildAiEthicsWebinarBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got a webinar on AI ethics in hiring coming up on March 20, hosted by Montserrat Business Council, can you help me understand what to expect from it? ->-> 1,18",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about missing the webinar on AI ethics in hiring, so can you remind me what date it's been rescheduled to? ->-> 1,21",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! I'll provide a detailed timeline for the project schedule related to implementing AI in your hiring process. Here's a comprehensive timeline that covers each phase from assessment to full implementation:\n\n### Detailed Timeline for AI Implementation in Hiring\n\n#### Month 1: Assessment and Planning\n- **Week 1-2: Current Process Assessment**\n  - Benchmark current hiring times.\n  - Identify bottlenecks in the current process.\n  - Gather data on current hiring costs and timeframes.\n\n- **Week 3-4: Define Objectives and Select AI Tools**\n  - Define objectives (e.g., reduce hiring time by 30%, maintain fairness).\n  - Research and select AI tools (e.g., HireVue, Pymetrics, Unitive).\n  - Ensure selected tools meet legal and ethical standards.\n\n#### Month 2: Preparation and Training\n- **Week 1-2: Vendor Selection and Contracting**\n  - Finalize selection of AI vendors.\n  - Sign contracts and set up accounts.\n  - Arrange for initial setup and configuration of the AI tools.\n\n- **Week 3-4: Training Sessions**\n  - Conduct training sessions for HR team and hiring managers.\n  - Include Francis and Wyatt in the training to leverage their insights.\n  - Ensure everyone understands the tool's capabilities and limitations.\n\n#### Month 3: Pilot Program\n- **Week 1-2: Pilot Program Setup**\n  - Scope the pilot program for the next 3 hires.\n  - Configure the AI tools for the pilot.\n  - Set up metrics for tracking time savings, diversity, and candidate satisfaction.\n\n- **Week 3-4: Execute Pilot Program**\n  - Begin the pilot program and monitor its progress.\n  - Collect data and feedback from candidates and team members.\n  - Ensure human oversight remains a critical component.\n\n#### Month 4: Monitor and Evaluate\n- **Week 1-2: Data Collection and Analysis**\n  - Collect and analyze data from the pilot program.\n  - Review feedback from candidates and team members.\n  - Identify any issues or areas for improvement.\n\n- **Week 3-4: Adjustments and Final Preparations**\n  - Make necessary adjustments to the AI tool configuration or process.\n  - Prepare for full implementation based on pilot results.\n  - Ensure all team members are ready for the full rollout.\n\n#### Month 5: Full Implementation\n- **Week 1-2: Final Training and Rollout**\n  - Conduct final training sessions for all team members.\n  - Roll out the AI tools across the organization.\n  - Ensure ongoing support and resources are available.\n\n- **Week 3-4: Initial Monitoring**\n  - Monitor the hiring process closely during the first few weeks of full implementation.\n  - Collect initial feedback and data to assess effectiveness.\n  - Address any immediate issues or concerns.\n\n#### Month 6: Final Review and Adjustments\n- **Week 1-2: Comprehensive Review**\n  - Conduct a comprehensive review of the AI tool's performance.\n  - Analyze data on time savings, diversity metrics, and candidate satisfaction.\n  - Gather feedback from all stakeholders.\n\n- **Week 3-4: Long-Term Adjustments**\n  - Make any necessary long-term adjustments to the AI tool or process.\n  - Document lessons learned and best practices.\n  - Plan for future enhancements and refinements.\n\n### Conclusion\n\nBy following this detailed timeline, you can effectively implement AI in your hiring process while ensuring fairness, efficiency, and continuous improvement. Each phase is designed to build upon the previous one, providing a structured approach to achieving your goals.\n\nLet me know if you need any further details or adjustments to this timeline!",
+      id: 89,
+      role: "assistant",
+    },
+    {
+      content:
+        "Yes, starting to prepare for Michael's presentation now can help you get the most out of it and ensure that you can effectively apply the insights to your hiring process. Here are some steps you can take to prepare:\n\n### 1. Review Current AI Usage\n**Understand Current Practices:**\n- **Current Tools:** Review the AI tools currently in use for hiring.\n- **Benefits and Challenges:** Identify the benefits and any challenges or concerns related to fairness and bias.\n\n### 2. Gather Questions and Concerns\n**Prepare for Discussion:**\n- **Questions:** Compile a list of questions you have about AI fairness, bias mitigation, and ethical considerations.\n- **Concerns:** Note any specific concerns or issues you want Michael to address.\n\n### 3. Research Relevant Topics\n**Stay Informed:**\n- **Recent Developments:** Stay updated on recent developments in AI ethics and fairness.\n- **Industry Best Practices:** Look into industry best practices for using AI in hiring.\n\n### 4. Engage with Michael\n**Collaborative Preparation:**\n- **Pre-Meeting:** Schedule a pre-meeting with Michael to discuss his findings and any preliminary insights.\n- **Feedback:** Provide feedback on your current practices and areas where you need more information.\n\n### 5. Plan for Follow-Up Actions\n**Implement Insights:**\n- **Action Items:** Prepare to capture action items and next steps from the presentation.\n- **Implementation Plan:** Develop a plan to implement any new insights or recommendations from Michael's presentation.\n\n### Example Preparation Plan\n\nHere is an example of how you might structure your preparation for Michael's presentation:\n\n```plaintext\nSubject: Preparation Plan for Michael's AI Fairness Presentation\n\nDear Team,\n\nTo get the most out of Michael's presentation on AI fairness findings at the Montserrat Tech Summit on August 22, we need to start preparing now. Here is our plan:\n\n### 1. Review Current AI Usage\n- **Current Tools:** Review the AI tools currently in use for hiring.\n- **Benefits and Challenges:** Identify the benefits and any challenges or concerns related to fairness and bias.\n\n### 2. Gather Questions and Concerns\n- **Questions:** Compile a list of questions you have about AI fairness, bias mitigation, and ethical considerations.\n- **Concerns:** Note any specific concerns or issues you want Michael to address.\n\n### 3. Research Relevant Topics\n- **Recent Developments:** Stay updated on recent developments in AI ethics and fairness.\n- **Industry Best Practices:** Look into industry best practices for using AI in hiring.\n\n### 4. Engage with Michael\n- **Pre-Meeting:** Schedule a pre-meeting with Michael to discuss his findings and any preliminary insights.\n- **Feedback:** Provide feedback on your current practices and areas where you need more information.\n\n### . Plan for Follow-Up Actions\n\n- **Action Items:** Prepare to capture action items and next steps from the presentation.\n- **Implementation Plan:** Develop a plan to implement any new insights or recommendations from Michael's presentation.\n\nLet's schedule a meeting to discuss these steps in more detail and ensure we are on track to meet our goals.\n\nBest regards,\n\n[Darryl]\n[Your Position]\nMontserrat Media Hub\n```\n\nBy following these steps, you can ensure that you are well-prepared for Michael's presentation and can effectively apply the insights to improve your hiring process while maintaining fairness and ethical standards. If you have any specific concerns or need further guidance, feel free to reach out!",
+      id: 229,
+      role: "assistant",
+    },
+    {
+      content:
+        "Using AI to automate hiring in your company is a significant decision that requires careful consideration to ensure it is done ethically. Given Michael's recent training session on AI ethics, which improved HR staff knowledge scores by 22%, you have a solid foundation to build upon. Here are some steps you can take to ensure ethical implementation:\n\n### 1. **Establish Clear Ethical Guidelines**\n- **Develop a Code of Ethics**: Create a code of ethics specifically for the use of AI in hiring. This should include principles such as fairness, transparency, and accountability.\n- **Review and Update Policies**: Ensure that your existing HR policies are updated to reflect the ethical use of AI. This includes data privacy, bias mitigation, and candidate communication.\n\n### 2. **Regular Training and Education**\n- **Ongoing Training**: Continue to provide regular training sessions for HR staff on AI ethics. This can include updates on the latest research, best practices, and emerging technologies.\n- **Cross-Departmental Training**: Extend training to other departments that may be involved in the hiring process, such as IT and legal, to ensure a holistic understanding.\n\n### 3. **Bias Mitigation Strategies**\n- **Regular Audits**: Implement regular audits of the AI system to detect and mitigate biases. Use the knowledge gained from Michael's training to ensure these audits are thorough and effective.\n- **Diverse Data Sets**: Ensure that the AI system is trained on diverse data sets to avoid reinforcing existing biases. This includes data from various demographic backgrounds.\n\n### 4. **Transparency and Communication**\n- **Candidate Communication**: Clearly communicate to candidates how AI is being used in the hiring process. Provide detailed information on the AI tools, data retention policies, and how decisions are made.\n- **Transparency Reports**: Generate transparency reports that detail how the AI system operates, including the criteria used for screening and the decision-making process.\n\n### . **Human Oversight**\n- **Hybrid Approach**: Implement a hybrid approach where AI is used for initial screening, but human reviewers make the final decisions. This ensures that there is still a personal touch and human judgment in the process.\n- **Final Interviews**: Keep human-led final interviews to ensure that candidates have the opportunity to connect with the team and demonstrate their fit culturally and personally.\n\n### 5. **Data Privacy and Security**\n- **Strong Security Measures**: Implement strong security measures to protect candidate data. This includes encryption, access controls, and regular security updates.\n- **Data Retention Policies**: Clearly define and enforce data retention policies. For example, you might decide to retain data for a maximum of 6 months after the hiring process concludes.\n\n### 6. **Feedback Mechanisms**\n- **Candidate Feedback**: Establish mechanisms for candidates to provide feedback on their experience with the AI hiring process. Use this feedback to make continuous improvements.\n- **Internal Feedback**: Encourage internal feedback from HR staff and other stakeholders to ensure that the AI system is functioning ethically and effectively.\n\n### 7. **Legal Compliance**\n- **Regulatory Compliance**: Ensure that the use of AI in hiring complies with all relevant laws and regulations, such as Montserrat's Data Protection Act and GDPR-like standards.\n- **Legal Consultation**: Consult with legal experts to ensure that your practices are legally sound and to address any potential legal challenges.\n\n### Example Implementation\n\n1. **Code of Ethics**:\n   - **Principles**: Fairness, transparency, accountability, and privacy.\n   - **Policies**: Updated HR policies reflecting ethical use of AI.\n\n2. **Ongoing Training**:\n   - **Sessions**: Monthly training sessions for HR staff.\n   - **Materials**: Detailed training materials and case studies.\n\n3. **Bias Mitigation**:\n   - **Audits**: Quarterly audits of the AI system.\n   - **Data Sets**: Diverse data sets for training the AI.\n\n4. **Transparency and Communication**:\n   - **Candidate Information**: Detailed information sheets and FAQs.\n   - **Transparency Reports**: Regular reports detailing AI operations.\n\n5. **Human Oversight**:\n   - **Hybrid Approach**: AI for initial screening, human for final decisions.\n   - **Final Interviews**: Human-led final interviews.\n\n6. **Data Privacy and Security**:\n   - **Security Measures**: Encryption, access controls, regular updates.\n   - **Data Retention**: Maximum 6 months after hiring process.\n\n7. **Feedback Mechanisms**:\n   - **Candidate Feedback**: Post-hiring surveys and feedback forms.\n   - **Internal Feedback**: Regular internal feedback sessions.\n\n8. **Legal Compliance**:\n   - **Regulatory Compliance**: Ensure compliance with Montserrat's Data Protection Act.\n   - **Legal Consultation**: Regular consultation with legal experts.\n\nBy following these steps, you can ensure that the use of AI in hiring is done ethically, transparently, and in compliance with legal and regulatory requirements. This approach will help build trust and maintain fairness in the hiring process.",
+      id: 297,
+      role: "assistant",
+    },
+    {
+      content:
+        "Pausing the use of AI for final candidate interviews after Jeffrey's resignation feedback is a prudent step to ensure that the hiring process remains fair and transparent. Here are some considerations and steps to help you manage this decision effectively, especially given Natalie's increased interest in recruitment technology.\n\n### 1. **Impact on Hiring Process**\n- **Efficiency**: Pausing AI for final interviews may slow down the hiring process initially, but it can help build trust and ensure fairness.\n- **Candidate Experience**: Maintaining human-led final interviews can enhance the candidate experience by providing a more personal touch and reducing concerns about bias.\n\n### 2. **Communication**\n- **Transparency**: Clearly communicate the decision to pause AI for final interviews to all stakeholders, including candidates, team members, and Natalie.\n- **Reasons**: Explain the rationale behind the decision, emphasizing the importance of fairness and trust.\n\n### 3. **Human Oversight**\n- **Hybrid Approach**: Continue using AI for initial screening but revert to human-led final interviews.\n- **Training and Support**: Ensure that the HR team is well-prepared to conduct final interviews effectively.\n\n### 4. **Natalie's Interest**\n- **Engagement**: Leverage Natalie's interest in recruitment technology to gather feedback and ideas on how to improve the AI system.\n- **Involvement**: Involve Natalie in discussions about the AI system and its implementation to provide fresh perspectives and enthusiasm.\n\n### 5. **Feedback Mechanisms**\n- **Candidate Feedback**: Continue to gather feedback from candidates about their experience with the hiring process.\n- **Team Feedback**: Regularly solicit feedback from the HR team to identify areas for improvement.\n\n### 6. **Future Planning**\n- **Review and Adjust**: Regularly review the effectiveness of the hybrid approach and make adjustments as needed.\n- **Continuous Improvement**: Use the insights gained from feedback to continuously improve the AI system and the overall hiring process.\n\n### Example Implementation\n\n#### Communication Plan\n- **Email to Stakeholders**\n  ```plaintext\n  Subject: Update on AI Usage in Final Interviews\n\n  Dear Team,\n\n  Following Jeffrey's resignation feedback, we have decided to pause the use of AI for final candidate interviews. This decision aims to ensure fairness and build trust in our hiring process.\n\n  Moving forward, we will continue to use AI for initial screening but revert to human-led final interviews. This approach will help maintain a personal touch and address any concerns about bias.\n\n  We value your feedback and encourage you to share any thoughts or suggestions on how we can improve our hiring process.\n\n  Best regards,\n  [Your Name]\n  [Your Position]\n  ```\n\n#### Hybrid Approach\n- **Initial Screening**: Continue using AI for initial screening.\n- **Final Interviews**: Revert to human-led final interviews.\n  ```plaintext\n  - HR team conducts final interviews.\n  - Ensure thorough preparation and training for interviewers.\n  ```\n\n#### Leveraging Natalie's Interest\n- **Engagement**: Involve Natalie in discussions about the AI system.\n  ```plaintext\n  - Schedule regular meetings with Natalie to gather feedback and ideas.\n  - Provide her with resources and training to deepen her understanding of recruitment technology.\n  ```\n\n#### Feedback Mechanisms\n- **Candidate Feedback**\n  ```plaintext\n  - Send post-interview surveys to gather candidate feedback.\n  - Use feedback to identify areas for improvement.\n  ```\n- **Team Feedback**\n  ```plaintext\n  - Regularly solicit feedback from the HR team.\n  - Use feedback to make adjustments to the hiring process.\n  ```\n\n#### Future Planning\n- **Review and Adjust**\n  ```plaintext\n  - Schedule regular reviews of the hybrid approach.\n  - Make adjustments based on feedback and performance metrics.\n  ```\n- **Continuous Improvement**\n  ```plaintext\n  - Use insights from feedback to continuously improve the AI system.\n  - Stay informed about the latest advancements in recruitment technology.\n  ```\n\nBy following these steps, you can ensure that the decision to pause AI for final interviews is communicated effectively and that the hiring process remains fair and transparent. Additionally, involving Natalie in the process can bring new perspectives and enthusiasm to the recruitment technology efforts.",
+      id: 311,
+      role: "assistant",
+    },
+    {
+      content:
+        "My partner Jessica and I just celebrated our 4th anniversary, and I'm thinking about how my decisions on using AI for hiring might impact our future, especially with her growing freelance design projects ->-> 5,15",
+      id: 362,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "ai-ethics-webinar",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 16,
+        subtopics: [
+          "Understanding AI hiring algorithms",
+          "Risks of algorithmic bias and discrimination",
+          "Legal compliance in different regions",
+          "Transparency and explainability requirements",
+        ],
+        theme:
+          "Balancing efficiency with fairness, privacy, and bias concerns in recruitment",
+        title:
+          "Deciding Whether to Use AI to Automate Hiring in My Company",
+      },
+      narratives: "AI ethics webinar date knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "The webinar is scheduled for March 27 to accommodate additional guest speakers.",
+            question:
+              "When is the webinar on AI ethics in hiring scheduled to take place?",
+            question_id: "ai-ethics-webinar",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[70],"updated_info":[82]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Founder adopting AI hiring responsibly",
+        user_relationships: "Jessica, Michael, Jeffrey",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9188,6 +9283,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([88, 218]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the AI ethics webinar update pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-ai-ethics-webinar",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAiEthicsWebinarBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([70, 82]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
