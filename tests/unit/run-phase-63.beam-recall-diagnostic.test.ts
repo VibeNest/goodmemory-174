@@ -7512,6 +7512,107 @@ function buildFestivalRelationshipDurationBeamRows(): unknown[] {
 }
 
 
+function buildOnboardingModulesCompletionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I need to finalize my career decision by April 1, 2024, to meet the startup's onboarding deadline, what are some factors I should consider to make an informed choice? ->-> 1,10",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that declining the $5,000 freelance project on April 1 might have been a mistake, can you help me figure out if focusing on the new job's onboarding tasks was the right call? ->-> 2,8",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to achieve a 95% quiz score by April 25 for my onboarding modules, but I'm kinda worried that setting such a high goal might be unrealistic, can you help me break it down into smaller tasks to make it more manageable? ->-> 2,16",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely! Setting a high goal like achieving a 95% quiz score by April 25 is ambitious, but breaking it down into smaller, manageable tasks can make it more achievable. Here's a step-by-step plan to help you reach your goal:\n\n### Step-by-Step Plan\n\n1. **Assess Current Knowledge**:\n   - **Initial Quiz**: Take an initial quiz to gauge your current knowledge level and identify areas that need improvement.\n   - **Example**: If you take an initial quiz and score 70%, you know you need to improve by 25 percentage points.\n\n2. **Break Down the Material**:\n   - **Module Segmentation**: Divide the onboarding material into smaller segments or modules.\n   - **Example**: If there are 10 modules, focus on mastering one module per day.\n\n3. **Create a Study Schedule**:\n   - **Daily Study Time**: Allocate specific times each day for studying.\n   - **Example**: Study for 1 hour each day from April 1 to April 25.\n\n4. **Set Intermediate Goals**:\n   - **Weekly Milestones**: Set weekly goals to track your progress.\n   - **Example**: Aim to complete and review 2-3 modules per week.\n\n5. **Practice Quizzes**:\n   - **Regular Quizzes**: Take practice quizzes regularly to assess your understanding and retention.\n   - **Example**: Take a practice quiz at the end of each module to ensure you have mastered the content.\n\n6. **Review and Revise**:\n   - **Daily Review**: Spend 15-30 minutes each day reviewing the material you studied.\n   - **Weekly Review**: Dedicate one day each week to a comprehensive review of all the modules covered that week.\n\n7. **Seek Help When Needed**:\n   - **Ask for Assistance**: If you encounter difficult topics, don't hesitate to ask for help from colleagues or mentors.\n   - **Example**: Schedule a 30-minute session with a mentor to clarify any confusing concepts.\n\n8. **Stay Motivated**:\n   - **Track Progress**: Keep a log of your progress and celebrate small victories along the way.\n   - **Motivation Techniques**: Use motivational techniques such as rewards for meeting milestones or visual reminders of your goal.\n\n### Detailed Weekly Plan\n\n#### Week 1 (April 1 - April 7)\n- **Day 1 (April 1)**: Initial assessment quiz.\n- **Days 2-7**: Study and review Modules 1-3.\n  - **Daily**: Study 1 module and take a practice quiz.\n  - **Weekly Review**: Spend 1 hour reviewing Modules 1-3.\n\n#### Week 2 (April 8 - April 14)\n- **Days 8-14**: Study and review Modules 4-6.\n  - **Daily**: Study 1 module and take a practice quiz.\n  - **Weekly Review**: Spend 1 hour reviewing Modules 4-6.\n\n#### Week 3 (April 15 - April 21)\n- **Days 15-21**: Study and review Modules 7-9.\n  - **Daily**: Study 1 module and take a practice quiz.\n  - **Weekly Review**: Spend 1 hour reviewing Modules 7-9.\n\n#### Week 4 (April 22 - April 25)\n- **Days 22-24**: Study and review Module 10.\n  - **Daily**: Study 1 module and take a practice quiz.\n  - **Comprehensive Review**: Spend 2 hours reviewing all 10 modules.\n- **Day 25 (April 25)**: Final review and take the final quiz.\n\n### Example Daily Schedule\n\n- **7:00 AM**: Wake up and start your day with a short meditation or stretching routine.\n- **7:15 AM**: Exercise for 30 minutes.\n- **7:45 AM**: Shower and get dressed.\n- **8:15 AM**: Prepare and eat a nutritious breakfast.\n- **8:45 AM**: Review your to-do list and check emails.\n- **9:00 AM**: Start work.\n- **12:00 PM**: Take a lunch break and relax for 30 minutes.\n- **1:30 PM**: Study for 1 hour (focus on one module).\n- **2:30 PM**: Take a practice quiz for the module.\n- **3:00 PM**: Continue work.\n- **5:00 PM**: End workday.\n- **5:30 PM**: Engage in a relaxing activity (e.g., reading, watching a movie, or spending time with family).\n- **7:30 PM**: Prepare and eat dinner.\n- **8:30 PM**: Spend 15-30 minutes reviewing the day's study material.\n- **9:00 PM**: Go to bed.\n\n### Conclusion\n\nBy breaking down your goal into smaller, manageable tasks and creating a structured study schedule, you can increase your chances of achieving a 95% quiz score by April 25. Regular practice quizzes, daily reviews, and seeking help when needed will all contribute to your success. Stay motivated and track your progress to stay on track.\n\nIf you have any specific concerns or need further guidance, feel free to share them, and we can explore additional strategies to help you reach your goal.",
+      id: 109,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always confirm dates when I ask about scheduled events. ->-> 3,22",
+      id: 264,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! I'll make sure to confirm dates whenever you ask about scheduled events. Let's proceed with that in mind.\n\n### Confirming Dates for Scheduled Events\n\nTo ensure clarity and accuracy, I'll always verify the dates of any scheduled events you mention. Here are a few examples of how we can handle this:\n\n1. **Upcoming Meetings**:\n   - **Example**: \"I have a meeting with Matthew on April 6.\"\n   - **Response**: \"Confirming the date, you have a meeting with Matthew on April 6. Is there anything specific you need to prepare for this meeting?\"\n\n2. **Work-Related Deadlines**:\n   - **Example**: \"I need to complete all onboarding modules by April 25.\"\n   - **Response**: \"Confirming the deadline, you need to complete all onboarding modules by April 25. Have you set a schedule to ensure you meet this deadline?\"\n\n3. **Personal Events**:\n   - **Example**: \"Stephen and I are celebrating our anniversary on April 4.\"\n   - **Response**: \"Confirming the date, you and Stephen are celebrating your anniversary on April 4. Is everything planned for the celebration?\"\n\n4. **Professional Travel**:\n   - **Example**: \"I have a work trip scheduled for June.\"\n   - **Response**: \"Confirming the month, you have a work trip scheduled for June. Do you have specific dates within June that you need to check?\"\n\n### Example Scenario\n\nLet's say you mention an upcoming event:\n\n**You**: \"I have a team-building event at The Harbor Lounge on April 10.\"\n\n**Me**: \"Confirming the date, you have a team-building event at The Harbor Lounge on April 10. Is there anything specific you need to prepare for this event?\"\n\nWould you like to confirm any specific dates or events now?",
+      id: 265,
+      role: "assistant",
+    },
+    {
+      content:
+        "Sure, let's confirm a few dates:\n\n**Team-Building Event**: Yep, it's on April 10 at The Harbor Lounge. I need to make sure I'm prepared for it.\n\n**Onboarding Modules Deadline**: Correct, I need to finish all the onboarding modules by April 25. I've set a schedule to make sure I meet this deadline.\n\n**Anniversary Celebration**: Right, Stephen and I are celebrating our anniversary on April 4. Everything is pretty much planned out.\n\n**Work Trip**: Scheduled for June, but I haven't got specific dates yet. I'll need to check with the team to confirm those.\n\nIs there anything else you want to confirm?",
+      id: 268,
+      role: "user",
+    },
+    {
+      content:
+        "Great! Let's confirm each of the dates and events you mentioned:\n\n### Team-Building Event\n**Event**: Team-building event at The Harbor Lounge.\n**Date**: April 10.\n**Preparation**: You need to make sure you are prepared for it.\n\n**Confirmation**: Confirmed, you have a team-building event at The Harbor Lounge on April 10. It's good to know you are preparing for it.\n\n### Onboarding Modules Deadline\n**Event**: Completing all onboarding modules.\n**Date**: April 25.\n**Preparation**: You have set a schedule to meet this deadline.\n\n**Confirmation**: Confirmed, you need to complete all onboarding modules by April 25. It's great that you have a schedule in place to ensure you meet this deadline.\n\n### Anniversary Celebration\n**Event**: Celebrating your anniversary with Stephen.\n**Date**: April 4.\n**Preparation**: Everything is pretty much planned out.\n\n**Confirmation**: Confirmed, you and Stephen are celebrating your anniversary on April 4. It's good to hear that everything is planned out.\n\n### Work Trip\n**Event**: Work trip.\n**Month**: June.\n**Details**: Specific dates are not confirmed yet.\n\n**Confirmation**: Confirmed, you have a work trip scheduled for June. You will need to check with the team to confirm the specific dates.\n\nIs there anything else you want to confirm or discuss regarding these events or any other scheduled activities?",
+      id: 269,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "onboarding-modules-completion",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 17,
+        subtopics: [
+          "Philosophical definitions of free will",
+          "Determinism and scientific perspectives",
+          "Compatibilism vs. incompatibilism",
+          "Impact on personal responsibility",
+        ],
+        theme:
+          "Weighing philosophical, scientific, and practical consequences of accepting or rejecting free will",
+        title:
+          "Considering Whether to Believe in and Live by the Idea of Free Will",
+      },
+      narratives: "Onboarding modules completion knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "By April 22",
+            question:
+              "By what date am I aiming to complete all my onboarding modules?",
+            question_id: "onboarding-modules-completion",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[108],"updated_info":[]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: New hire pacing onboarding module quizzes",
+        user_relationships: "Matthew",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10149,6 +10250,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([1]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the onboarding modules completion designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-onboarding-modules-completion",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildOnboardingModulesCompletionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([108]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
