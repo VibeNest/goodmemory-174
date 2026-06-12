@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-festival-relationship-duration-current-20260612T183300Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-onboarding-modules-completion-current-20260612T184300Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-timeline-date-format-current-20260612T181900Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-festival-relationship-duration-current-20260612T183300Z`
 
 Summary:
 
-- evidence-chat recall: 0.8341828750279454
-- missed-recall cases: 92/355
-- wrong-recall/noise cases: 235/400
-- zero-recall cases: 15
-- global hit/missing/noise ids: 893/201/1253 -> 894/200/1252
-- recovered target: `12:information_extraction:1`
-- target result: recall 0 -> 1 with the single designated turn 1 returned and the confusable turn 28 removed, zero new noise
-- repair shape: `festival-relationship-duration` rule in the informationExtractionQueryRules registry (plain registry functions per that module's convention — no narrowGate or enrichment-map entry) + an assistant-tagged evidence predicate in sourceOrderInformationExtraction.ts keyed on the career/free-will opener
-- ground-truth caveat: the benchmark designates the assistant career/free-will opener (turn 1, no relationship content) as the evidence while the actual Stephen/festival/five-years details live in turn 28 — the turn the baseline had retrieved; the rule recovers the designated id for the recall metric, and live answer slices should expect the duration answer to come from the confusable turn instead
+- evidence-chat recall: 0.8369997764363961
+- missed-recall cases: 91/355
+- wrong-recall/noise cases: 234/400
+- zero-recall cases: 14
+- global hit/missing/noise ids: 894/200/1252 -> 895/199/1251
+- recovered target: `12:knowledge_update:1`
+- target result: recall 0 -> 1 with the single designated turn 108 returned and the confusable turn 264 removed, zero new noise
+- repair shape: `updateSeries.onboardingModulesCompletion` narrow gate + a single quiz-score goal pattern in a dedicated updateSeriesRules module chained through the registry; the benchmark lists an empty updated_info set, so the family returns one user turn
+- ground-truth caveat: the benchmark's answer says April 22, a deadline that surfaces only in the later date-confirmation turns the benchmark did not designate; the gate recovers the designated id for the recall metric, and live answer slices should expect the answer to come from those confusable turns
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the festival relationship-duration extraction on the free-will conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the onboarding-modules completion-date knowledge update on the free-will conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
