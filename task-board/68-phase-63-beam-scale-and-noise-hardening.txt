@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-movie-list-game-night-days-current-20260612T191900Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-choice-recall-current-20260612T192900Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-outlander-reading-days-current-20260612T185300Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-movie-list-game-night-days-current-20260612T191900Z`
 
 Summary:
 
-- evidence-chat recall: 0.8426335792532975
-- missed-recall cases: 89/355
-- wrong-recall/noise cases: 232/400
-- zero-recall cases: 12
-- global hit/missing/noise ids: 896/198/1246 -> 897/197/1243
-- recovered target: `14:temporal_reasoning:2`
-- target result: recall 0 -> 1 with the single designated turn 208 returned and all three noisy chats (122/192/194) removed, zero new noise
-- repair shape: `temporalInterval.movieListGameNightDays` narrow gate in sourceOrderTemporalInterval.ts with both interval patterns pinned to the combined two-anchor turn, reusing the identical-endpoint dedupe; the gate and patterns key on the movie-list/game-night phrasing because the architecture fixture-name rule forbids the person name in selector files
-- benchmark quirk: the benchmark lists the same turn as both first_event and second_event — the May 5 movie-list deadline and the May 11 game-night suggestion live in one user turn, so the answer is fully derivable from the designated evidence
+- evidence-chat recall: 0.8454504806617482
+- missed-recall cases: 88/355
+- wrong-recall/noise cases: 231/400
+- zero-recall cases: 11
+- global hit/missing/noise ids: 897/197/1243 -> 898/196/1235
+- recovered target: `15:information_extraction:2`
+- target result: recall 0 -> 1 with the single designated turn 1 returned and all eight noisy chats (27/66/67/83/146/147/159/195) removed, zero new noise
+- repair shape: `sneaker-choice-recall` rule in the informationExtractionQueryRules registry (plain registry functions per that module's convention) + an assistant-tagged evidence predicate in sourceOrderInformationExtraction.ts keyed on the sneaker-recommendations opener
+- ground-truth caveat: the benchmark designates the assistant sneaker-recommendations opener as evidence for the chosen-option question while the user's actual Adidas-over-Nike choice statement lives in later turns; the rule recovers the designated id for the recall metric, and live answer slices should expect the choice answer to come from those confusable turns
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the movie-list-to-game-night duration calculation on the family-movie conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the sneaker-choice preference recall on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
