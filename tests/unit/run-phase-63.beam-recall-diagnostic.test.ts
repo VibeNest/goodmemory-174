@@ -7238,6 +7238,101 @@ function buildRemoteWorkScheduleBeamRows(): unknown[] {
 }
 
 
+function buildImmigrationConsultantSessionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've booked a session with an immigration consultant on May 20 to improve my visa interview skills, but I'm kinda worried about the cost of living in Toronto, which I've researched to be around $1,200 per month excluding rent, and I'm not sure how that will affect my application ->-> 3,17",
+      id: 138,
+      role: "user",
+    },
+    {
+      content:
+        "Booking a session with an immigration consultant to improve your visa interview skills is a smart move, and it's understandable to be concerned about the cost of living in Toronto. Here are some steps and considerations to help you manage these concerns and ensure they don't negatively impact your application:\n\n### Steps to Manage Concerns\n\n1. **Consultation Session**:\n   - Use your session with the immigration consultant to get detailed advice on how to present your financial situation effectively.\n   - Ask about common pitfalls and how to address them in your visa interview.\n\n2. **Financial Planning**:\n   - Create a detailed budget for your time in Toronto, including all expenses.\n   - Break down your monthly expenses into categories such as food, transportation, entertainment, and other necessities.\n\n3. **Financial Documentation**:\n   - Gather all necessary financial documents to demonstrate your ability to support yourself.\n   - Include bank statements, scholarship letters, financial aid awards, and any other evidence of financial support.\n\n4. **Scholarships and Grants**:\n   - Research and apply for scholarships and grants that can help offset the cost of living.\n   - Look for institutional scholarships, external grants, and any other financial aid opportunities.\n\n5. **Part-Time Work**:\n   - Explore part-time work opportunities in Toronto.\n   - Check if your study permit allows for on-campus or off-campus employment and how much you can earn.\n\n6. **Living Arrangements**:\n   - Research affordable housing options in Toronto.\n   - Consider shared accommodations, homestays, or off-campus housing to reduce rent costs.\n\n### Sample Budget and Financial Documentation\n\nHere is a sample budget and list of financial documentation to help you prepare:\n\n---\n\n### Sample Monthly Budget for Toronto\n\n1. **Rent**: $1,200 (assuming a moderate apartment)\n2. **Food**: $300\n3. **Transportation**: $150 (public transit)\n4. **Entertainment**: $100\n5. **Miscellaneous**: $150 (utilities, personal items, etc.)\n6. **Total**: $1,900\n\n### Financial Documentation\n\n1. **Bank Statements**: Show a stable financial history.\n2. **Scholarship Letters**: Provide evidence of financial support.\n3. **Financial Aid Awards**: Include any institutional or external aid.\n4. **Employment Contracts**: If applicable, show any part-time work arrangements.\n5. **Parental Support Letter**: If parents or sponsors are contributing, include a letter detailing their financial support.\n\n---\n\n### Preparing for the Visa Interview\n\n1. **Practice Your Responses**:\n   - Prepare answers to common visa interview questions related to your financial situation.\n   - Practice explaining how you will manage your expenses and support yourself.\n\n2. **Be Transparent and Honest**:\n   - Be transparent about your financial situation and how you plan to manage it.\n   - Avoid exaggerating or misrepresenting your financial status.\n\n3. **Show Preparedness**:\n   - Demonstrate that you have done thorough research and have a clear plan for managing your expenses.\n   - Bring your budget and financial documentation to the interview to support your claims.\n\n### Example Questions and Answers\n\n**Question**: How will you manage your living expenses in Toronto?\n\n**Answer**: \"I have created a detailed budget that accounts for all my monthly expenses, including rent, food, transportation, and miscellaneous costs. I have also secured a scholarship that will cover a significant portion of my tuition fees. Additionally, I plan to work part-time on campus to supplement my income. I have gathered all necessary financial documentation to demonstrate my ability to support myself during my studies.\"\n\nBy following these steps and being well-prepared, you can effectively address your concerns about the cost of living in Toronto and present a strong case in your visa interview. Good luck with your consultation and visa application!",
+      id: 139,
+      role: "assistant",
+    },
+    {
+      content:
+        "Understood. I will provide exact times when discussing appointments or meetings. Let's address your previous concerns and ensure all details are clear.\n\n### Review of Previous Appointments and Meetings\n\n1. **Immigration Consultant Session**:\n   - **Date**: May 20\n   - **Time**: Not specified previously. Please provide the exact time if you have it.\n\n2. **Zoom Meeting with Professor Danielle**:\n   - **Date**: March 22\n   - **Time**: 3:00 PM\n\n3. **Mock Interview with Professor Danielle**:\n   - **Date**: April 18\n   - **Time**: 10:00 AM\n\n4. **Meeting with Kimberly**:\n   - **Date**: April 3\n   - **Time**: Not specified previously. Please provide the exact time if you have it.\n\n5. **Meeting with Bryan**:\n   - **Date**: April 1\n   - **Time**: Not specified previously. Please provide the exact time if you have it.\n\n### Current and Upcoming Appointments\n\n1. **Immigration Consultant Session**:\n   - **Date**: May 20\n   - **Time**: [Please specify the exact time]\n\n2. **Scholarship Application Submission**:\n   - **Date**: May 14\n   - **Time**: 11:45 PM\n\n### Example of Providing Exact Times\n\nIf you have the exact time for the immigration consultant session on May 20, please provide it. For example:\n\n- **Immigration Consultant Session**:\n  - **Date**: May 20\n  - **Time**: 2:00 PM\n\nIf you need to schedule a new appointment or meeting, please provide the exact date and time, and I will ensure it is recorded accurately.\n\n### Next Steps\n\n1. **Confirm Exact Times**:\n   - Ensure all appointments and meetings have exact times specified.\n   - If you have any upcoming meetings or appointments, please provide the exact times.\n\n2. **Update Your Calendar**:\n   - Make sure your calendar is up-to-date with all confirmed times.\n   - Set reminders for each appointment to avoid any last-minute confusion.\n\nIf you have any specific times or dates you need to add or confirm, please let me know.",
+      id: 153,
+      role: "assistant",
+    },
+    {
+      content:
+        "The immigration consultant session is on May 20 at 2:00 PM. Can you add that to my calendar and confirm the details?",
+      id: 154,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, I can help you add the immigration consultant session to your calendar and confirm the details. Here are the confirmed details:\n\n### Immigration Consultant Session\n\n- **Date**: May 20, 2024\n- **Time**: 2:00 PM\n\n### Updated Calendar\n\nHere is a summary of your confirmed appointments and meetings:\n\n1. **Immigration Consultant Session**\n   - **Date**: May 20, 2024\n   - **Time**: 2:00 PM\n\n2. **Zoom Meeting with Professor Danielle**\n   - **Date**: March 22, 2024\n   - **Time**: 3:00 PM\n\n3. **Mock Interview with Professor Danielle**\n   - **Date**: April 18, 2024\n   - **Time**: 10:00 AM\n\n4. **Meeting with Kimberly**\n   - **Date**: April 3, 2024\n   - **Time**: [Not specified previously. Please provide the exact time if you have it.]\n\n5. **Meeting with Bryan**\n   - **Date**: April 1, 2024\n   - **Time**: [Not specified previously. Please provide the exact time if you have it.]\n\n### Adding to Your Calendar\n\nTo ensure you have this information in your calendar, you can add the following entry:\n\n- **Event**: Immigration Consultant Session\n- **Date**: May 20, 2024\n- **Start Time**: 2:00 PM\n- **End Time**: [Depends on the duration of the session. If you have a specific end time, please provide it. Otherwise, you can estimate based on the typical duration of such sessions.]\n\n### Example Entry\n\n- **Event**: Immigration Consultant Session\n- **Date**: May 20, 2024\n- **Start Time**: 2:00 PM\n- **End Time**: 3:00 PM (assuming a 1-hour session)\n\n### Confirmation\n\nHere is the confirmed entry for your calendar:\n\n- **Event**: Immigration Consultant Session\n- **Date**: May 20, 2024\n- **Start Time**: 2:00 PM\n- **End Time**: 3:00 PM\n\n### Next Steps\n\n1. **Add to Calendar**:\n   - Add the above entry to your calendar.\n   - Set a reminder for the session to ensure you are prepared and on time.\n\n2. **Prepare for the Session**:\n   - Review any materials or questions you want to discuss with the immigration consultant.\n   - Ensure you have all necessary documents and information ready.\n\nIf you have any additional details or need further assistance, please let me know.",
+      id: 155,
+      role: "assistant",
+    },
+    {
+      content:
+        "Thanks for adding the immigration consultant session to my calendar. Just to confirm, it's on May 20 at 2:00 PM and I'll assume it's a 1-hour session unless told otherwise. Got it in my calendar now.",
+      id: 156,
+      role: "user",
+    },
+    {
+      content:
+        "I have a mock interview with an immigration consultant scheduled for August 10 at 4 PM via Zoom, and I'm wondering if I should prepare any specific questions to ask them about the visa process ->-> 5,13",
+      id: 242,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "immigration-consultant-session",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 14,
+        subtopics: [
+          "Hook writing techniques",
+          "Weaving academic and personal stories",
+          "Addressing gaps and weaknesses",
+          "Cultural context adaptation",
+        ],
+        theme:
+          "Balancing personal narrative with professional credibility for academic, visa, and grant applications",
+        title:
+          "Designing a Multi-Purpose Personal Statement for Global Opportunities",
+      },
+      narratives: "Immigration consultant session knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "The session with the immigration consultant is scheduled for May 22.",
+            question:
+              "When is my session with the immigration consultant scheduled?",
+            question_id: "immigration-consultant-session",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[138],"updated_info":[138]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Visa applicant planning a move to Toronto",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9806,6 +9901,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([214]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the immigration consultant session designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-immigration-consultant-session",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildImmigrationConsultantSessionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([138]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
