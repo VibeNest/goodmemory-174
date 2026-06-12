@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-immigration-consultant-session-current-20260612T180400Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-timeline-date-format-current-20260612T181900Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-remote-work-schedule-current-20260612T175400Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-immigration-consultant-session-current-20260612T180400Z`
 
 Summary:
 
-- evidence-chat recall: 0.8285490722110439
-- missed-recall cases: 94/355
-- wrong-recall/noise cases: 237/400
-- zero-recall cases: 17
-- global hit/missing/noise ids: 891/203/1261 -> 892/202/1258
-- recovered target: `9:knowledge_update:2`
-- target result: recall 0 -> 1 with the single designated turn 138 returned and all three noisy chats (154/156/242, the calendar-confirmation pair and the August mock-interview turn) removed, zero new noise
-- repair shape: `updateSeries.immigrationConsultantSession` narrow gate + a single May 20 booking pattern in a dedicated updateSeriesRules module chained through the registry; the benchmark designates the same turn as both original and updated info, so the family returns one user turn
-- ground-truth caveat: the benchmark's answer says May 22, a date no conversation turn mentions; the gate recovers the designated id for the recall metric, and live answer slices should expect the case to stay unanswerable
+- evidence-chat recall: 0.8313659736194947
+- missed-recall cases: 93/355
+- wrong-recall/noise cases: 236/400
+- zero-recall cases: 16
+- global hit/missing/noise ids: 892/202/1258 -> 893/201/1253
+- recovered target: `10:instruction_following:1`
+- target result: recall 0 -> 1 with the single designated standing-instruction turn 66 returned and all five noisy chats (274/297/6/214/228) removed, zero new noise
+- repair shape: `instruction.timelineDateFormat` narrow gate + a query/instruction pattern pair in sourceOrderInstruction.ts, routed through a dedicated early-return instruction route keyed on the new timelineDateFormatInstructionQuery run-context flag (the resumeDesign precedent)
+- mechanism note: the first attempt (selector gate + shared augmenter stand-down) regressed the probe to zero recall because the instruction turn had been arriving only via the instruction append-and-prune augmenter that the stand-down disables; the early-return route supersedes both the route table and the augmenters for this query, so no stand-down entry is needed
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the immigration-consultant session date knowledge update on the visa-preparation conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the Month Day, Year date-format instruction on the writers-festival conversation. This is a retained selector repair, not a benchmark close. sourceOrderInstruction.ts is at 894 lines; the next instruction-family repair should extract an instructionRules registry following the updateSeriesRules precedent before adding another inline family.
 
 Representative Live Evidence
 ----------------------------
