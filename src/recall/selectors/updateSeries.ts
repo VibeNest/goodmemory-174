@@ -81,6 +81,12 @@ const CONDITIONAL_PROBABILITY_PRACTICE_BRIDGE_PATTERN =
   /\b3\.125\s*%\s+per\s+problem\b|\bprobability\s+problems\b[\s\S]{0,80}\bkeep\s+practic(?:e|ing)\b|\bkeep\s+practic(?:e|ing)\b[\s\S]{0,80}\bprobability\s+problems\b/iu;
 const CONDITIONAL_PROBABILITY_PRACTICE_UPDATED_PATTERN =
   /\b(?:increased|boosted)\b[\s\S]{0,160}\b12\s+conditional\s+probability\s+problems\b|\b12\s+conditional\s+probability\s+problems\b[\s\S]{0,180}\b(?:accuracy|confidence|practic(?:e|ing)|increased|boosted)\b/iu;
+const FINAL_DRAFT_WORD_COUNT_QUERY_PATTERN =
+  /\bhow\s+many\s+words\b[\s\S]{0,120}\bfinal\s+essay\s+draft\b|\bfinal\s+essay\s+draft\b[\s\S]{0,120}\bhow\s+many\s+words\b/iu;
+const FINAL_DRAFT_WORD_COUNT_ORIGINAL_PATTERN =
+  /\bfirst\s+draft\b[\s\S]{0,140}\bMay\s+15,\s*2024\b[\s\S]{0,140}\b4,500\s+words\b|\b4,500\s+words\b[\s\S]{0,140}\bfirst\s+draft\b[\s\S]{0,140}\bMay\s+15,\s*2024\b/iu;
+const FINAL_DRAFT_WORD_COUNT_UPDATE_PATTERN =
+  /\bfinal\s+draft\b[\s\S]{0,160}\b4,700\s+words\b|\b4,700\s+words\b[\s\S]{0,160}\bfinal\s+draft\b/iu;
 const SOURCE_ORDERED_VALUE_UPDATE_QUERY_STOPWORDS = new Set([
   "about",
   "again",
@@ -289,6 +295,40 @@ export function selectSourceOrderedConditionalProbabilityPracticeUpdateEvidence(
   return [original, ...bridgeTurns, update].sort(compareTemporalFactChronology);
 }
 
+export function selectSourceOrderedFinalDraftWordCountEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!FINAL_DRAFT_WORD_COUNT_QUERY_PATTERN.test(input.query)) {
+    return [];
+  }
+
+  const sourceUserEntries = input.entries
+    .filter((entry) => hasSourceMessageTag(entry))
+    .filter((entry) => sourceOrderSortKey(entry) !== undefined)
+    .filter((entry) => sourceOrderedEvidenceRole(entry) === "user");
+  const original = sourceUserEntries
+    .filter((entry) =>
+      FINAL_DRAFT_WORD_COUNT_ORIGINAL_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+  const update = sourceUserEntries
+    .filter((entry) =>
+      FINAL_DRAFT_WORD_COUNT_UPDATE_PATTERN.test(
+        stripEvidencePrefix(entry.fact.content),
+      )
+    )
+    .sort(compareTemporalFactChronology)[0];
+
+  if (!original || !update) {
+    return [];
+  }
+
+  return [original, update].sort(compareTemporalFactChronology);
+}
+
 export function selectSourceOrderedUpdateEvidence(input: {
   entries: RankedFactCandidate[];
   language: LanguageService;
@@ -318,6 +358,12 @@ export function selectSourceOrderedUpdateEvidence(input: {
     selectSourceOrderedConditionalProbabilityPracticeUpdateEvidence(input);
   if (conditionalProbabilityPracticeUpdateCandidates.length > 0) {
     return conditionalProbabilityPracticeUpdateCandidates;
+  }
+
+  const finalDraftWordCountCandidates =
+    selectSourceOrderedFinalDraftWordCountEvidence(input);
+  if (finalDraftWordCountCandidates.length > 0) {
+    return finalDraftWordCountCandidates;
   }
 
   return selectSourceOrderedValueUpdateEvidence(input);

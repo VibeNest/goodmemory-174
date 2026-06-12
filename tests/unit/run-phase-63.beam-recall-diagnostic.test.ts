@@ -4313,6 +4313,248 @@ function buildTimeStressCreativeCollaborationBeamRows(): unknown[] {
   ];
 }
 
+function buildPilotEpisodeTimelineSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm worried about meeting my deadline for the pilot episode by June 30, 2024, with a budget cap of $120,000.",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "Managing a tight deadline and budget cap for a pilot episode requires a structured plan for the June 30, 2024 deadline and $120,000 budget, covering pre-production, production, post-production, milestones, and budget allocations.",
+      id: 33,
+      role: "assistant",
+    },
+    {
+      content:
+        "Focusing on script finalization is a smart move, especially given your tight deadline. Complete the script draft by the end of April, revise it, gather feedback, and postpone location scouting to early May so the pilot timeline stays realistic.",
+      id: 39,
+      role: "assistant",
+    },
+    {
+      content:
+        "Shifting your focus from scriptwriting to casting based on Heather's recommendation is strategic if early auditions help you lock in key talent.",
+      id: 101,
+      role: "assistant",
+    },
+    {
+      content:
+        "Declining the $15,000 documentary project can be the right call if it preserves the timeline integrity of your pilot episode.",
+      id: 115,
+      role: "assistant",
+    },
+    {
+      content:
+        "Pushing back the pilot delivery date to July 15 can be stressful, but with careful planning and effective time management, you can still meet the new deadline by reassessing the timeline, setting new milestones, compressing remaining work, and communicating changes.",
+      id: 127,
+      role: "assistant",
+    },
+    {
+      content:
+        "Given that your pilot episode is 75% complete by July 5, with 12 of 16 scenes filmed and 60% of post-production started, create a daily plan to film the remaining scenes and complete post-production by the July 15 deadline.",
+      id: 157,
+      role: "assistant",
+    },
+    {
+      content:
+        "Rejecting the $25,000 commercial shoot on August 30 is stressful, but it can protect the pilot schedule when multiple priorities and deadlines compete.",
+      id: 201,
+      role: "assistant",
+    },
+    {
+      content:
+        "Managing your time effectively to meet the September 1 deadline for your pilot editing and ensuring you have enough time for color grading is crucial. Prioritize editing tasks, reserve color grading time, and keep the post-production timeline visible.",
+      id: 205,
+      role: "assistant",
+    },
+    {
+      content:
+        "Setting realistic deadlines with built-in buffers is a good way to avoid last-minute rushes and reduce stress.",
+      id: 223,
+      role: "assistant",
+    },
+    {
+      content:
+        "Given that your post-production is 95% completed by November 15 and the final sound mix is scheduled for November 22, prioritize remaining tasks so all post-production elements, including sound mixing, are wrapped up on time.",
+      id: 251,
+      role: "assistant",
+    },
+    {
+      content:
+        "Balancing your work commitments with family time is crucial during a critical period like pilot launch week.",
+      id: 255,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "pilot-episode-timeline-summary",
+      conversation_plan: "BATCH 17 PLAN",
+      conversation_seed: {
+        category: "Creative work",
+        id: 17,
+        subtopics: ["Pilot episode", "Timeline", "Post-production"],
+        theme: "Managing a pilot episode production timeline",
+        title: "Pilot Episode Timeline",
+      },
+      narratives: "Pilot episode timeline and task progression",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The pilot episode timeline began with a June 30, 2024 deadline and $120,000 budget, shifted to script finalization before location scouting, moved the delivery date to July 15 after casting delays, used a July 5 production and post-production status plan, then prioritized editing, color grading, and final sound mix deadlines.",
+            question:
+              "Can you give me a summary of how my pilot episode project timeline and tasks have developed and changed throughout our conversations?",
+            question_id: "pilot-episode-timeline-summary",
+            question_type: "summarization",
+            source_chat_ids: [33, 39, 127, 157, 205, 251],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal",
+        user_relationships: "Heather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildWritingSkillsConfidenceSummaryBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda nervous about improving my writing skills, I'm 45 and feel like I should be better at it by now, can you help me get started on this self-editing journey?",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Start your self-editing journey by reading widely, writing regularly, learning grammar basics, using self-editing techniques like reading aloud, seeking feedback, revising, and using tools such as Grammarly or Hemingway Editor.",
+      id: 1,
+      role: "assistant",
+    },
+    {
+      content:
+        "For grammar and sentence clarity, focus on subject-verb agreement, tense consistency, active voice, eliminating redundancies, varying sentence structure, using Grammarly, practicing regularly, and reading strong writing closely.",
+      id: 3,
+      role: "assistant",
+    },
+    {
+      content:
+        "Since you connected with Michael and share script editing tips weekly, make the sessions structured, set specific goals, exchange writing assignments, give detailed critiques, read and discuss published works, track progress, and set personal goals.",
+      id: 7,
+      role: "assistant",
+    },
+    {
+      content:
+        "To improve dialogue with Michael, use focused feedback sessions, study published scripts, run dialogue drills and writing exercises, transcribe real conversations, develop character voices, and discuss subtext and nuance.",
+      id: 9,
+      role: "assistant",
+    },
+    {
+      content:
+        "Free tools like Grammarly, Hemingway Editor, Ginger, writing communities, daily writing practice, and peer review can still help you improve after rejecting the $300/month ProWritingAid subscription.",
+      id: 45,
+      role: "assistant",
+    },
+    {
+      content:
+        "Practicing the skills from the Advanced Editing Techniques webinar can help you apply them to your writing by reviewing the webinar, choosing a screenplay section, and applying specific techniques.",
+      id: 121,
+      role: "assistant",
+    },
+    {
+      content:
+        "It's normal to feel anxious about co-hosting your first writing workshop. Prepare thoroughly, build confidence, engage participants with icebreakers and activities, manage nerves, follow up for feedback, and lean on peers like Carla and Amy.",
+      id: 183,
+      role: "assistant",
+    },
+    {
+      content:
+        "Applying self-editing skills to screenplay writing means understanding screenplay structure, outlining scenes, completing a first draft, using writing tools, self-editing for clarity, and seeking beta-reader feedback.",
+      id: 227,
+      role: "assistant",
+    },
+    {
+      content:
+        "How can I build on the confidence boost from the workshop, which is now at 9/10, to improve my writing skills and make the most of the momentum from the positive feedback?",
+      id: 240,
+      role: "user",
+    },
+    {
+      content:
+        "Build on the workshop confidence boost by setting specific goals, continuing learning through courses and reading, practicing regularly, seeking constructive feedback, tracking progress, expanding your network, and maintaining a positive mindset.",
+      id: 241,
+      role: "assistant",
+    },
+    {
+      content:
+        "Prioritizing clarity over word count after cutting 1,200 words can improve readability, but balance clarity, depth, audience expectations, feedback, and your writing style.",
+      id: 265,
+      role: "assistant",
+    },
+    {
+      content:
+        "I had a balanced production shoot on October 3, lost 6 hours, and gained 8 hours over the weekend for writing. How can I optimize this schedule?",
+      id: 318,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "writing-skills-confidence-summary",
+      conversation_plan: "BATCH 10 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 10,
+        subtopics: ["Self-editing", "Feedback", "Confidence"],
+        theme: "Developing writing skills and confidence over time",
+        title: "Writing Skills Confidence Journey",
+      },
+      narratives: "Writing skills and confidence learning journey",
+      probing_questions: {
+        summarization: [
+          {
+            ideal_summary:
+              "The writing journey began with foundational self-editing habits, moved into grammar and sentence clarity with tools, expanded through Michael's weekly script editing sessions and dialogue exercises, then grew through workshop preparation and a later confidence boost supported by goals, learning, feedback, tracking, networking, and a positive mindset.",
+            question:
+              "Can you summarize how my writing skills and confidence have developed through my learning and interactions over time?",
+            question_id: "writing-skills-confidence-summary",
+            question_type: "summarization",
+            source_chat_ids: [1, 3, 7, 9, 183, 241],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Crystal",
+        user_relationships: "Michael, Carla, Amy",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildFamilyMovieBasicProjectSummaryBeamRows(): unknown[] {
   const turns = [
     {
@@ -4633,6 +4875,169 @@ function buildWeatherAutocompleteEventOrderBeamRows(): unknown[] {
       user_profile: {
         user_info: "USER PROFILE: Weather app developer",
         user_relationships: "OpenWeather",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+function buildResearchWritingProjectsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm gonna be working on a project on March 3, 2024, and I'm based in East Janethaven, Montserrat, so can you help me understand how my location and the time anchor might influence my approach to mastering the art of persuasive academic essay writing?",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my commanding presence might come off as too aggressive in my academic essays, how can I balance being sharp and efficient with being persuasive?",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "I've recently met Greg, 23, at the University of Montserrat seminar on Feb 20, 2024, and we're planning to do some joint research on media influence - what are some tips for a successful collaboration with someone that much younger than me?",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "Always format dates as Month Day, Year when I ask about timeline details.",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I've never used any citation management software, like Zotero, so how do I get started with managing my citations for these articles",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on how to effectively use NVivo for my qualitative data analysis, especially since Greg suggested it and I just installed it on April 3, which has already improved my coding speed by 30%",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the tips! I've been organizing my film scripts into nodes based on themes like gender roles and power dynamics. Coding is going pretty smoothly, but I'm still figuring out how to best use queries and visualizations.",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda frustrated with synthesizing conflicting data from those 3 articles on April 3, and I took a 2-hour break to reset, so can you help me figure out how to better manage my time when dealing with tough research like that",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda struggling to understand how to apply rhetorical devices and bias from those 5 key articles I finished noting by April 4, can you help me break it down further?",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I've been studying the Toulmin model since April 2, and I applied claim, data, warrant, backing, and rebuttal in my outline, but I'm wondering if I should review it again to make sure I'm using it correctly",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "I'm finalizing my first draft of the essay by May 15, 2024, and I have 4,500 words to submit, can you help me manage my time effectively to meet this deadline?",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on how to incorporate Heather's suggestion to add more statistical evidence into my essay, especially since she gave me this feedback after we exchanged drafts on May 7 via Google Docs",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand how I can improve my essay writing, especially since my final draft reached 4,700 words by May 13, which is more than I initially targeted, and I've never missed any scheduled writing sessions or production meetings",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        "Always use Scrivener's split-screen mode for editing when I ask about draft revisions.",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about meeting the June 5 deadline for submitting my essay to Montserrat Journal of Media Studies, as Robert recommended, and I also have to work on the conference paper with Greg by June 3, so can you help me prioritize these tasks and create a schedule",
+      id: 168,
+      role: "user",
+    },
+    {
+      content:
+        "Declining the freelance project was the right call so you could focus on the journal submission and stay motivated.",
+      id: 181,
+      role: "assistant",
+    },
+    {
+      content:
+        "What's the best way to ensure Greg and I can effectively collaborate on our conference paper draft, considering we've already submitted it to the Montserrat Media Symposium on July 12?",
+      id: 216,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "research-writing-projects-event-order",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 12,
+        subtopics: [
+          "Thesis formulation",
+          "Evidence synthesis",
+          "Citation management tools",
+          "Editing for clarity and precision",
+        ],
+        theme:
+          "From research planning to compelling argumentation in essays across disciplines",
+        title: "Mastering the Art of Persuasive Academic Essay Writing",
+      },
+      narratives: "Research and writing projects event order",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You mentioned these aspects in this order: planning a collaboration with Greg after a seminar, using NVivo for qualitative data analysis after Greg suggested it, incorporating Heather's feedback about statistical evidence, prioritizing essay and conference-paper deadlines, and ensuring effective collaboration with Greg after submitting the conference paper.",
+            question:
+              "Can you list in order how I brought up different aspects of my research and writing projects throughout our conversations? Mention ONLY and ONLY five items.",
+            question_id: "research-writing-projects-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [16, 54, 122, 168, 216],
+          },
+        ],
+        knowledge_update: [
+          {
+            answer: "4,700 words",
+            question: "How many words does my final essay draft contain?",
+            question_id: "research-writing-projects-final-draft-word-count",
+            question_type: "knowledge_update",
+            source_chat_ids: [116, 158],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Television/film producer learning academic writing",
+        user_relationships: "Greg, Heather, Robert",
       },
       user_questions: [],
     },
@@ -5960,6 +6365,66 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.retrievedChatIds).toEqual([22, 45, 113, 257]);
   });
 
+  it("keeps pilot episode timeline summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-pilot-episode-timeline-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-11T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPilotEpisodeTimelineSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      33,
+      39,
+      127,
+      157,
+      205,
+      251,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps writing skills and confidence summary milestones through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-writing-skills-confidence-summary",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-11T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWritingSkillsConfidenceSummaryBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      1,
+      3,
+      7,
+      9,
+      183,
+      241,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
   it("keeps basic family-movie project summary milestones through the BEAM diagnostic path", async () => {
     const report = await runPhase63BeamRecallDiagnostic(
       {
@@ -6036,6 +6501,55 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([20, 22, 24, 74, 160]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps research and writing project event-order source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-research-writing-projects-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildResearchWritingProjectsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([16, 54, 122, 168, 216]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps final draft word-count evidence after the research writing event-order turn", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-research-writing-projects-word-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildResearchWritingProjectsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases.find(
+      (item) =>
+        item.questionId === "research-writing-projects-final-draft-word-count",
+    );
+
+    expect(testCase?.retrievedChatIds).toEqual([116, 158]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

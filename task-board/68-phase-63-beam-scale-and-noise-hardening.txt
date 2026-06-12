@@ -23,22 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-personal-finance-planning-summary-v2-current-20260611T093000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-research-writing-projects-event-order-v2-current-20260611T133000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-estate-planning-process-summary-current-20260611T000000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-writing-skills-confidence-summary-current-20260611T120000Z`
 
 Summary:
 
-- evidence-chat recall: 0.7504583053878827
-- missed-recall cases: 123/355
-- wrong-recall/noise cases: 267/400
-- zero-recall cases: 42
-- global hit/missing/noise ids: 782/312/1460 -> 786/308/1447
-- recovered target: `16:summarization:2`
-- target result: chats 31/83/87/193/231, noisy chats 20/21/28/29/36/37/172/173/230/270/271/288/289 removed
+- evidence-chat recall: 0.7560921082047841
+- missed-recall cases: 120/355
+- wrong-recall/noise cases: 263/400
+- zero-recall cases: 41
+- global hit/missing/noise ids: 792/302/1428 -> 797/297/1405
+- recovered target: `7:event_ordering:2`
+- target result: chats 16/54/122/168/216, noisy chats 4/6/50/52/56/70/86/96/98/102/116/120/124/154/156/158/198/200/242/244/252 removed
+- companion cleanup: `7:knowledge_update:2` keeps chats 116/158 and removes noisy chats 160/181
 - regression check: no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the user's personal finance planning and budgeting progression across rent reduction, Excel investment tracking, Yahoo Finance API refreshes, dining-out budget control, and the December 1 holiday grocery-budget adjustment. This is a retained selector repair, not a benchmark close.
+The repaired target covers the user's research and writing project sequence across Greg collaboration planning, NVivo tooling, Heather's feedback, essay and conference-paper deadline prioritization, and post-submission collaboration. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------

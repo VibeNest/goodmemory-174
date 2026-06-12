@@ -51,6 +51,7 @@ import {
   isSourceOrderFrameworkCustomizationQuery,
   sourceOrderFrameworkCustomizationPriorityBonus,
 } from "./sourceOrderRules/frameworkCustomization";
+import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
 export const SOURCE_ORDER_BROAD_ASPECT_DEFAULT_LIMIT = 10;
@@ -321,6 +322,14 @@ export function selectSourceOrderedEventOrderEvidence(input: {
   const sourceUserEntries = input.entries
     .filter(isImportedSourceOrderedSummaryCandidate)
     .filter(hasUserAnswerTag);
+  const researchWritingProjectEventOrder =
+    selectSourceOrderedResearchWritingProjectsEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (researchWritingProjectEventOrder.length > 0) {
+    return researchWritingProjectEventOrder.slice(0, anchorLimit);
+  }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
   )

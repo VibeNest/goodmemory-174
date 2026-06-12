@@ -55,6 +55,7 @@ import {
   isAssistantInclusiveSourceOrderedEventOrderPlanQuery,
   isCompleteSourceOrderedEventOrderPlanQuery,
 } from "./selectors/sourceOrderEventPlans";
+import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrderRules/researchWritingProjectsEventOrder";
 import {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,
@@ -469,10 +470,14 @@ export function buildSelectionRunContext(
   const completeSourceOrderedEventOrderPlanActive =
     isCompleteSourceOrderedEventOrderPlanQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const researchWritingProjectsEventOrderPlanActive =
+    isResearchWritingProjectsEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
-      completeSourceOrderedEventOrderPlanActive
+      completeSourceOrderedEventOrderPlanActive ||
+      researchWritingProjectsEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

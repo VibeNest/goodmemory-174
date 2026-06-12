@@ -9,6 +9,7 @@ import { selectSourceOrderedResearchWritingCollaborationSummaryCoverage } from "
 import { selectSourceOrderedMovieEventSummaryCoverage } from "./sourceOrderRules/movieEvents";
 import { selectSourceOrderedPersonalFinancePlanningSummaryCoverage } from "./sourceOrderRules/personalFinancePlanningSummary";
 import { selectSourceOrderedPersonalStatementMentorSummaryCoverage } from "./sourceOrderRules/personalStatementMentorSummary";
+import { selectSourceOrderedPilotEpisodeTimelineSummaryCoverage } from "./sourceOrderRules/pilotEpisodeTimelineSummary";
 import { selectSourceOrderedProfessionalDevelopmentProjectSummaryCoverage } from "./sourceOrderRules/professionalDevelopmentProjectSummary";
 import { selectSourceOrderedProbabilityConceptSummaryCoverage } from "./sourceOrderRules/probabilityConceptSummary";
 import { selectSourceOrderedProfessionalPreparationSummaryCoverage } from "./sourceOrderRules/professionalPreparationSummary";
@@ -19,6 +20,7 @@ import { selectSourceOrderedSneakerSummaryCoverage } from "./sourceOrderRules/fo
 import { selectSourceOrderedStudyAbroadSummaryCoverage } from "./sourceOrderRules/studyAbroadSummary";
 import { selectSourceOrderedTimeStressCollaborationSummaryCoverage } from "./sourceOrderRules/timeStressCollaborationSummary";
 import { selectSourceOrderedTriangleGeometrySummaryCoverage } from "./sourceOrderRules/triangleGeometrySummary";
+import { selectSourceOrderedWritingSkillsConfidenceSummaryCoverage } from "./sourceOrderRules/writingSkillsConfidenceSummary";
 
 interface SourceOrderedSpecializedSummaryInput {
   allSourceCandidates?: RankedFactCandidate[];
@@ -53,6 +55,22 @@ const SPECIALIZED_SUMMARY_RULES: readonly SpecializedSummaryRule[] = [
   {
     id: "time-stress-collaboration",
     select: selectSourceOrderedTimeStressCollaborationSummaryCoverage,
+  },
+  {
+    id: "pilot-episode-timeline",
+    select: (input) =>
+      selectSourceOrderedPilotEpisodeTimelineSummaryCoverage({
+        query: input.query,
+        sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+      }),
+  },
+  {
+    id: "writing-skills-confidence",
+    select: (input) =>
+      selectSourceOrderedWritingSkillsConfidenceSummaryCoverage({
+        query: input.query,
+        sourceCandidates: input.allSourceCandidates ?? input.sourceCandidates,
+      }),
   },
   {
     id: "professional-preparation",
