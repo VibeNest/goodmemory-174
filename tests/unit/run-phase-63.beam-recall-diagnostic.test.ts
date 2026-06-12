@@ -6646,6 +6646,95 @@ function buildScreenplayDraftDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildEditingChallengeDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda nervous about improving my writing skills, I'm 45 and feel like I should be better at it by now, can you help me get started on this self-editing journey?? ->-> 1,2",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly! Let's weigh the pros and cons of investing in an AI editing tool like ProWritingAid, especially given your current budget and timeline.\n\n### Pros of Investing in ProWritingAid:\n1. **Advanced Editing Features**: ProWritingAid offers more advanced features compared to free tools like Grammarly. It can help you catch subtle errors and provide detailed feedback on style, tone, and readability.\n   \n2. **Enhanced Clarity and Conciseness**: Given your focus on improving dialogue clarity and concision, ProWritingAid can offer specific suggestions to refine your writing, potentially speeding up your progress.\n\n3. **Time Efficiency**: With a deadline approaching, having a tool that can quickly analyze your text and suggest improvements can save you time and effort, allowing you to focus on other aspects of your screenplay.\n\n4. **Professional Quality**: Using a premium tool can help you achieve a higher level of professionalism in your writing, which is crucial for a final draft.\n\n### Cons of Investing in ProWritingAid:\n1. **Budget Constraints**: You previously rejected a $300/month subscription due to budget constraints. The cost of ProWritingAid might still be a concern, especially if you have limited funds left.\n\n2. **Limited Time**: With the deadline on April 15, 2024, you only have a few days left. The learning curve for a new tool might be steep, and you might not fully utilize its features within such a short timeframe.\n\n3. **Current Tools Are Effective**: You are already using Grammarly and Hemingway Editor effectively. If these tools are meeting your needs, adding another subscription might not provide significant additional benefits.\n\n### Recommendations:\n1. **Trial Period**: Consider taking advantage of any trial period offered by ProWritingAid. This can give you a chance to evaluate whether the tool provides enough value to justify the investment.\n\n2. **Evaluate Needs**: Assess whether the advanced features of ProWritingAid are essential for your remaining writing tasks. If you feel confident with your current tools, you might not need the extra expense.\n\n3. **Focus on Remaining Tasks**: Given the tight deadline, focus on completing your draft using the tools you are comfortable with. Ensure you are making the most of your current resources.\n\n4. **Peer Reviews**: Leverage peer reviews with Amy and others to get feedback on areas where you might need additional help. This can be a cost-effective way to improve your writing.\n\nGiven your current situation, it might be more practical to stick with your existing tools and focus on completing your draft. However, if you have the budget and believe the advanced features will significantly benefit your writing, a trial period could be worth considering.\n\nWhat do you think about these recommendations? Would you like to explore the trial period further or stick with your current tools?",
+      id: 75,
+      role: "assistant",
+    },
+    {
+      content:
+        "I felt a confidence boost when I completed my first draft on April 1, increasing my confidence score from 4 to 7 out of 10, but I'm not sure what to do next to keep this momentum going, got any advice? ->-> 2,5",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I've entered a 30-day editing challenge starting April 2, and I'm sorta struggling to stay on track, can you offer some advice on how to effectively manage my time and reach my editing goals? ->-> 2,6",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide percentage improvements when I ask about editing progress. ->-> 2,23",
+      id: 172,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about my writing progress, especially after completing that 15-day clarity editing challenge from May 10 to May 25, where I reduced filler words by 20% - can you help me understand how this improvement will impact my overall writing quality? ->-> 3,20",
+      id: 218,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "editing-challenge-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 15,
+        subtopics: [
+          "Grammar and syntax auditing",
+          "Clarity vs. concision trade-offs",
+          "Tone calibration",
+          "Editing checklists",
+        ],
+        theme:
+          "Techniques, tools, and mental models for refining writing quality over time",
+        title:
+          "Developing a Self-Editing System for Lifelong Writing Improvement",
+      },
+      narratives: "Editing challenge to clarity challenge interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "The 30-day editing challenge started on April 2, and the 15-day clarity editing challenge ran from May 10 to May 25, so 38 days passed between the start of the first challenge and the start of the second.",
+            question:
+              "How many days passed between when I started my 30-day editing challenge and when I completed the 15-day clarity editing challenge?",
+            question_id: "editing-challenge-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[88],"second_event":[218]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Writer running editing challenges",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9076,6 +9165,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([20, 54]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the editing challenge interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-editing-challenge-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEditingChallengeDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([88, 218]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
