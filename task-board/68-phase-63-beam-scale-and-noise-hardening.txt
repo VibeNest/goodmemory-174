@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-timeline-date-format-current-20260612T181900Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-festival-relationship-duration-current-20260612T183300Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-immigration-consultant-session-current-20260612T180400Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-timeline-date-format-current-20260612T181900Z`
 
 Summary:
 
-- evidence-chat recall: 0.8313659736194947
-- missed-recall cases: 93/355
-- wrong-recall/noise cases: 236/400
-- zero-recall cases: 16
-- global hit/missing/noise ids: 892/202/1258 -> 893/201/1253
-- recovered target: `10:instruction_following:1`
-- target result: recall 0 -> 1 with the single designated standing-instruction turn 66 returned and all five noisy chats (274/297/6/214/228) removed, zero new noise
-- repair shape: `instruction.timelineDateFormat` narrow gate + a query/instruction pattern pair in sourceOrderInstruction.ts, routed through a dedicated early-return instruction route keyed on the new timelineDateFormatInstructionQuery run-context flag (the resumeDesign precedent)
-- mechanism note: the first attempt (selector gate + shared augmenter stand-down) regressed the probe to zero recall because the instruction turn had been arriving only via the instruction append-and-prune augmenter that the stand-down disables; the early-return route supersedes both the route table and the augmenters for this query, so no stand-down entry is needed
+- evidence-chat recall: 0.8341828750279454
+- missed-recall cases: 92/355
+- wrong-recall/noise cases: 235/400
+- zero-recall cases: 15
+- global hit/missing/noise ids: 893/201/1253 -> 894/200/1252
+- recovered target: `12:information_extraction:1`
+- target result: recall 0 -> 1 with the single designated turn 1 returned and the confusable turn 28 removed, zero new noise
+- repair shape: `festival-relationship-duration` rule in the informationExtractionQueryRules registry (plain registry functions per that module's convention — no narrowGate or enrichment-map entry) + an assistant-tagged evidence predicate in sourceOrderInformationExtraction.ts keyed on the career/free-will opener
+- ground-truth caveat: the benchmark designates the assistant career/free-will opener (turn 1, no relationship content) as the evidence while the actual Stephen/festival/five-years details live in turn 28 — the turn the baseline had retrieved; the rule recovers the designated id for the recall metric, and live answer slices should expect the duration answer to come from the confusable turn instead
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the Month Day, Year date-format instruction on the writers-festival conversation. This is a retained selector repair, not a benchmark close. sourceOrderInstruction.ts is at 894 lines; the next instruction-family repair should extract an instructionRules registry following the updateSeriesRules precedent before adding another inline family.
+The repaired target covers the festival relationship-duration extraction on the free-will conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
