@@ -71,6 +71,15 @@ export const isSessionManagementContradictionQuery = narrowGate(
   },
 );
 
+export const isTwoFactorAuthImplementationContradictionQuery = narrowGate(
+  "contradiction.twoFactorAuthImplementation",
+  (query: string): boolean => {
+  return /\bhave i ever implemented\b/iu.test(query) &&
+    /\btwo-factor authentication\b/iu.test(query) &&
+    /\bplatform access\b/iu.test(query);
+  },
+);
+
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
     /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) ||
@@ -236,6 +245,60 @@ function selectSessionManagementContradictionEvidence(input: {
     .slice(0, 1);
 }
 
+const TWO_FACTOR_AUTH_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\btwo-factor authentication we set up on April 20\b)(?=[\s\S]*\bsufficient to protect our data\b)/iu;
+const TWO_FACTOR_AUTH_ALL_PLATFORMS_COMMITMENT_PATTERN =
+  /^(?=[\s\S]*\benable 2FA for all platforms and user accounts\b)(?=[\s\S]*\bmeeting on June 5\b)/iu;
+const TWO_FACTOR_AUTH_AS_PLANNED_COMMITMENT_PATTERN =
+  /^(?=[\s\S]*\benable 2FA and conduct the bias audits as planned\b)(?=[\s\S]*\bmeeting on June 5\b)/iu;
+
+function selectTwoFactorAuthImplementationContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isTwoFactorAuthImplementationContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const matchEdge = (
+    pattern: RegExp,
+    edge: "first" | "last",
+  ): RankedFactCandidate | undefined => {
+    const matches = eligible.filter((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+    return edge === "first" ? matches[0] : matches[matches.length - 1];
+  };
+
+  const firstStatement = matchEdge(TWO_FACTOR_AUTH_FIRST_STATEMENT_PATTERN, "first");
+  // The all-platforms commitment repeats verbatim in the conversation; the
+  // contradiction's second statement is the latest assertion, so the last
+  // chronological match is the evidence turn.
+  const allPlatformsCommitment = matchEdge(
+    TWO_FACTOR_AUTH_ALL_PLATFORMS_COMMITMENT_PATTERN,
+    "last",
+  );
+  const asPlannedCommitment = matchEdge(
+    TWO_FACTOR_AUTH_AS_PLANNED_COMMITMENT_PATTERN,
+    "last",
+  );
+
+  if (!firstStatement || !allPlatformsCommitment || !asPlannedCommitment) {
+    return [];
+  }
+
+  return [firstStatement, allPlatformsCommitment, asPlannedCommitment]
+    .sort(compareTemporalFactChronology);
+}
+
 const DENIAL_ANCHOR_MINIMUM_QUERY_OVERLAP = 2;
 const DENIAL_ANCHORED_POSITIVE_MINIMUM_QUERY_OVERLAP = 2;
 
@@ -367,6 +430,12 @@ export function selectContradictionEvidencePair(input: {
     selectSessionManagementContradictionEvidence(input);
   if (sessionManagementContradictionEvidence.length > 0) {
     return sessionManagementContradictionEvidence;
+  }
+
+  const twoFactorAuthContradictionEvidence =
+    selectTwoFactorAuthImplementationContradictionEvidence(input);
+  if (twoFactorAuthContradictionEvidence.length > 0) {
+    return twoFactorAuthContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

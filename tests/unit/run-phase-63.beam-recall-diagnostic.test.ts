@@ -5698,6 +5698,100 @@ function buildWritingGroupDeadlineBeamRows(): unknown[] {
   ];
 }
 
+function buildTwoFactorAuthImplementationBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda concerned about the security of our AI platform, so I was wondering if two-factor authentication, which we implemented on April 20, is enough to prevent data breaches, especially since we enrolled our HR team in that May 15 online course on ethical AI hiring practices by AI Now Institute ->-> 2,16",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "I've been thinking about the potential risks, and I'm not sure if our security measures, like the two-factor authentication we set up on April 20, are sufficient to protect our data, can you help me assess that ->-> 2,17",
+      id: 142,
+      role: "user",
+    },
+    {
+      content:
+        "What's the best way to ensure the AI screening tool's 90% accuracy doesn't introduce bias into my hiring process, especially considering I've never implemented two-factor authentication for any platform access? ->-> 2,22",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's proceed with sending the meeting invite and setting up the initial security training. I'll make sure to enable 2FA for all platforms and user accounts and conduct those initial bias audits. Looking forward to the meeting on June 5!",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's proceed with sending the meeting invite and setting up the initial security training. I'll make sure to enable 2FA for all platforms and user accounts and conduct those initial bias audits. Looking forward to the meeting on June 5!",
+      id: 180,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's send the meeting invite and set up the training. I'll make sure to enable 2FA and conduct the bias audits as planned. Looking forward to the meeting on June 5!",
+      id: 182,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering using AI to automate hiring in my company, but I want to make sure I'm taking the right security measures, like the added biometric login for the AI platform that was implemented on October 2, to enhance access security ->-> 4,16",
+      id: 306,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "two-factor-auth-implementation",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Philosophical or Ethical Discussion",
+        id: 16,
+        subtopics: [
+          "Understanding AI hiring algorithms",
+          "Risks of algorithmic bias and discrimination",
+          "Legal compliance in different regions",
+          "Transparency and explainability requirements",
+        ],
+        theme:
+          "Balancing efficiency with fairness, privacy, and bias concerns in recruitment",
+        title:
+          "Deciding Whether to Use AI to Automate Hiring in My Company",
+      },
+      narratives: "Two-factor authentication implementation contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever implemented two-factor authentication for platform access?",
+            question_id: "two-factor-auth-implementation",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {"first_statement":[142],"second_statement":[180,182]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Founder securing an AI hiring platform",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7898,6 +7992,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([86, 168, 170]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the two-factor authentication contradiction triple through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-two-factor-auth-implementation",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTwoFactorAuthImplementationBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([142, 180, 182]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

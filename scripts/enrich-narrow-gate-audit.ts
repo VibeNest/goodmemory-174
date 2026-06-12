@@ -16,7 +16,10 @@ import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updat
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import { isResumeDesignInstructionQuery } from "../src/recall/selectors/sourceOrderInstruction";
-import { isSessionManagementContradictionQuery } from "../src/recall/selectors/contradiction";
+import {
+  isSessionManagementContradictionQuery,
+  isTwoFactorAuthImplementationContradictionQuery,
+} from "../src/recall/selectors/contradiction";
 import { isCouponRedemptionLocationQuery } from "../src/recall/selectors/conversationEvidence";
 import { isSourceOrderedHouseholdBudgetReasoningQuery } from "../src/recall/selectors/sourceOrderFinancialPlanning";
 
@@ -125,6 +128,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
+  "contradiction.twoFactorAuthImplementation":
+    isTwoFactorAuthImplementationContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 
