@@ -18,6 +18,7 @@ import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selector
 import {
   isResumeTailoringApplyDaysIntervalQuery,
   isReunionPromotionDaysIntervalQuery,
+  isScreenplayDraftDaysIntervalQuery,
   isTransactionDeploymentWeeksIntervalQuery,
   isTriangleProblemCountIntervalQuery,
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
@@ -131,6 +132,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.resumeTailoringApplyDays":
     isResumeTailoringApplyDaysIntervalQuery,
   "temporalInterval.reunionPromotionDays": isReunionPromotionDaysIntervalQuery,
+  "temporalInterval.screenplayDraftDays": isScreenplayDraftDaysIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,

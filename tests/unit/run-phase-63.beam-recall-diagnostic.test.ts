@@ -6557,6 +6557,95 @@ function buildReunionPromotionDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildScreenplayDraftDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've set a goal to complete a 5,000-word screenplay draft by April 15, 2024, to boost my confidence, and I'm feeling the pressure, can you help me stay motivated and focused on this project ->-> 1,6",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "Setting a goal to complete a 5,000-word screenplay draft by April 15, 2024, is a great way to boost your confidence and improve your writing skills. Here are some strategies to help you stay motivated and focused on this project:\n\n### Break Down the Goal\n\n1. **Daily Word Count Targets**:\n   - Calculate the number of words you need to write each day to meet your deadline. For example, if you have 30 days from today until April 15, you would need to write approximately 167 words per day (5,000 words / 30 days).\n   - To build momentum, consider aiming for a slightly higher daily target, such as 200-250 words per day.\n\n2. **Weekly Milestones**:\n   - Set weekly milestones to keep track of your progress. For instance, aim to complete 1,000 words by the end of the first week, 2,000 words by the end of the second week, and so on.\n\n### Create a Writing Schedule\n\n1. **Fixed Writing Times**:\n   - Dedicate specific times each day for writing. For example, you might choose to write from 7:00 AM to 8:00 AM or after dinner from 7:00 PM to 8:00 PM.\n   - Treat these writing times as non-negotiable appointments with yourself.\n\n2. **Flexible Writing Sessions**:\n   - Allow for flexibility in case of unexpected events. If you miss a writing session, make up for it by extending the next session or adding an extra session later in the week.\n\n### Stay Organized\n\n1. **Outline and Structure**:\n   - Create a detailed outline of your screenplay before you start writing. Break down the story into acts, scenes, and key plot points.\n   - Use this outline as a roadmap to guide your writing process.\n\n2. **Scene Breakdown**:\n   - Break down your screenplay into individual scenes and estimate the word count for each scene. This will help you manage your writing more effectively.\n\n### Stay Motivated\n\n1. **Visualize Success**:\n   - Visualize completing your screenplay and the sense of accomplishment you will feel. Imagine the positive feedback you might receive and how it will boost your confidence.\n\n2. **Reward Yourself**:\n   - Set up small rewards for reaching milestones. For example, treat yourself to a favorite meal or activity after completing 1,000 words.\n\n3. **Accountability Partner**:\n   - Share your goal with a friend, colleague, or mentor who can provide encouragement and hold you accountable. Regular check-ins can help keep you on track.\n\n### Manage Stress and Pressure\n\n1. **Mindfulness and Relaxation**:\n   - Incorporate mindfulness practices such as meditation, deep breathing, or yoga into your daily routine to manage stress.\n   - Take short breaks during writing sessions to stretch or walk around to refresh your mind.\n\n2. **Positive Self-Talk**:\n   - Use positive affirmations to boost your confidence and counteract negative self-talk. Remind yourself of your capabilities and past successes.\n\n### Use Tools and Resources\n\n1. **Writing Software**:\n   - Utilize writing software like Final Draft, Celtx, or Scrivener to organize your screenplay and track your progress.\n   - Consider using Grammarly or other writing tools to help with grammar and style.\n\n2. **Peer Support**:\n   - Continue your peer review sessions with Joseph and potentially expand the group. Regular feedback can provide motivation and direction.\n\n### Example Weekly Plan\n\n1. **Week 1 (March 3 - March 9)**:\n   - **Goal**: Complete 1,000 words.\n   - **Daily Target**: 143 words/day.\n   - **Tasks**: Write daily, review and revise previous days' work.\n\n2. **Week 2 (March 10 - March 16)**:\n   - **Goal**: Complete 2,000 words.\n   - **Daily Target**: 286 words/day.\n   - **Tasks**: Write daily, review and revise previous days' work, check in with accountability partner.\n\n3. **Week 3 (March 17 - March 23)**:\n   - **Goal**: Complete 3,000 words.\n   - **Daily Target**: 429 words/day.\n   - **Tasks**: Write daily, review and revise previous days' work, participate in peer review session.\n\n4. **Week 4 (March 24 - March 30)**:\n   - **Goal**: Complete 4,000 words.\n   - **Daily Target**: 571 words/day.\n   - **Tasks**: Write daily, review and revise previous days' work, participate in peer review session.\n\n5. **Week  5 (March 31 - April 15)**:\n   - **Goal**: Complete 5,000 words.\n   - **Daily Target**: 714 words/day.\n   - **Tasks**: Write daily, review and revise previous days' work, finalize screenplay.\n\nBy breaking down your goal into manageable daily and weekly targets, staying organized, and using motivational techniques, you can stay focused and confident as you work towards completing your screenplay. Good luck, and let me know if you need further assistance!",
+      id: 21,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've logged 3,600 words by March 3, which is 72% of my weekly target, and I'm tracking it via Scrivener's dashboard, but I'm not sure if I'm on the right pace to meet my goals, can you help me figure that out? ->-> 1,18",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to stay on track with my writing goals, and with the time anchor being October 5, 2024, I want to make sure I'm meeting my deadlines, so can you remind me of the importance of staying focused, given that Carla and I hosted the September 10 webinar, and I have a deadline to complete my final draft by October 1, 2024, with weekly 1,800-word targets ->-> 5,1",
+      id: 296,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that I met my final draft deadline on October 1, but now I have to start submitting query letters to literary agents, and I've scheduled them to start on October 10, targeting 5 agents, so I'm hoping I did enough to make my 35,000 words shine ->-> 5,6",
+      id: 302,
+      role: "user",
+    },
+    {
+      content:
+        "I'm feeling pretty confident after completing my final draft with 35,000 words, which is 40% more than my initial goal, and now I'm moving on to the next step with deadline management, having scheduled query letter submissions starting October 10 to 5 literary agents ->-> 5,7",
+      id: 304,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "screenplay-draft-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 15,
+        subtopics: [
+          "Grammar and syntax auditing",
+          "Clarity vs. concision trade-offs",
+          "Tone calibration",
+          "Editing checklists",
+        ],
+        theme:
+          "Techniques, tools, and mental models for refining writing quality over time",
+        title:
+          "Developing a Self-Editing System for Lifelong Writing Improvement",
+      },
+      narratives: "Screenplay draft logging to deadline interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 43 days between when I logged 3,600 words on March 3 and my deadline to complete the screenplay draft on April 15.",
+            question:
+              "How many days are there between when I logged 3,600 words and my deadline to complete the full screenplay draft?",
+            question_id: "screenplay-draft-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[54],"second_event":[20]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Screenwriter tracking weekly word targets",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8964,6 +9053,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([120, 186]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the screenplay draft interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-screenplay-draft-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildScreenplayDraftDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([20, 54]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -71,6 +71,20 @@ const REUNION_PROMOTION_INTERVAL_START_PATTERN =
 const REUNION_PROMOTION_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bcelebrating my promotion with my close friend Linda\b)(?=[\s\S]*\bThe Blue Lagoon on September 12\b)/iu;
 
+export const isScreenplayDraftDaysIntervalQuery = narrowGate(
+  "temporalInterval.screenplayDraftDays",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+days\b/iu.test(query) &&
+    /\blogged 3,600 words\b/iu.test(query) &&
+    /\bscreenplay draft\b/iu.test(query);
+  },
+);
+
+const SCREENPLAY_DRAFT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\blogged 3,600 words by March 3\b)(?=[\s\S]*\bScrivener.s dashboard\b)/iu;
+const SCREENPLAY_DRAFT_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bcomplete a 5,000-word screenplay draft by April 15, 2024\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -92,17 +106,22 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isResumeTailoringApplyDaysIntervalQuery(input.query);
   const reunionPromotionDaysIntervalQuery =
     isReunionPromotionDaysIntervalQuery(input.query);
+  const screenplayDraftDaysIntervalQuery =
+    isScreenplayDraftDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
     !transactionDeploymentWeeksIntervalQuery &&
     !triangleProblemCountIntervalQuery &&
     !resumeTailoringApplyDaysIntervalQuery &&
-    !reunionPromotionDaysIntervalQuery
+    !reunionPromotionDaysIntervalQuery &&
+    !screenplayDraftDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = reunionPromotionDaysIntervalQuery
+  const startPattern = screenplayDraftDaysIntervalQuery
+    ? SCREENPLAY_DRAFT_INTERVAL_START_PATTERN
+    : reunionPromotionDaysIntervalQuery
     ? REUNION_PROMOTION_INTERVAL_START_PATTERN
     : resumeTailoringApplyDaysIntervalQuery
     ? RESUME_TAILORING_APPLY_INTERVAL_START_PATTERN
@@ -113,7 +132,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = reunionPromotionDaysIntervalQuery
+  const endPattern = screenplayDraftDaysIntervalQuery
+    ? SCREENPLAY_DRAFT_INTERVAL_END_PATTERN
+    : reunionPromotionDaysIntervalQuery
     ? REUNION_PROMOTION_INTERVAL_END_PATTERN
     : resumeTailoringApplyDaysIntervalQuery
     ? RESUME_TAILORING_APPLY_INTERVAL_END_PATTERN
