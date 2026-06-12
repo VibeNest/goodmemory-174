@@ -1,3 +1,4 @@
+export { isReadingPlanBalanceReasoningQuery } from "./sourceOrderRules/readingPlanBalanceReasoning";
 export { isPeerFeedbackBalanceReasoningQuery } from "./sourceOrderRules/peerFeedbackBalanceReasoning";
 export { isResumeAtsSequencingReasoningQuery } from "./sourceOrderRules/resumeAtsSequencingReasoning";
 export {

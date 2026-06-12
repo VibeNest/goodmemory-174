@@ -17,6 +17,7 @@ import {
 } from "../selectionContext";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "../topic";
 import { sourceOrderSortKey } from "../temporal";
+import { selectSourceOrderedReadingPlanBalanceReasoningEvidence } from "./readingPlanBalanceReasoning";
 import { selectSourceOrderedPeerFeedbackBalanceReasoningEvidence } from "./peerFeedbackBalanceReasoning";
 import { selectSourceOrderedResumeAtsSequencingReasoningEvidence } from "./resumeAtsSequencingReasoning";
 import {
@@ -185,6 +186,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedPeerFeedbackBalanceReasoningEvidence(input);
   if (peerFeedbackBalanceReasoning.length > 0) {
     return peerFeedbackBalanceReasoning;
+  }
+
+  const readingPlanBalanceReasoning =
+    selectSourceOrderedReadingPlanBalanceReasoningEvidence(input);
+  if (readingPlanBalanceReasoning.length > 0) {
+    return readingPlanBalanceReasoning;
   }
 
   const weatherAppLatencyComparison =

@@ -6438,6 +6438,152 @@ function buildPeerFeedbackBalanceBeamRows(): unknown[] {
   ];
 }
 
+function buildReadingPlanBalanceBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda hesitant to commit to long sagas, you know, over 5 books, 'cause I've got time constraints from my producer job, so can you help me find a series that's not too long?",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I reserved 3 historical fiction e-books at Montserrat Public Library for pickup on December 15, but I'm not sure if I should prioritize those or look for something new, can you help me decide what to read next?",
+      id: 100,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, I can help you decide what to read next. Here are some factors to consider when deciding whether to prioritize the historical fiction e-books you reserved or look for something new this season.",
+      id: 101,
+      role: "assistant",
+    },
+    {
+      content:
+        'I chose "The Poppy War" trilogy over "The Broken Earth" series because of community ratings and length, but now I\'m wondering if I made the right choice, can you help me decide if I should stick with it?',
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        'Certainly! Deciding between "The Poppy War" trilogy and "The Broken Earth" series can be a tough choice, but let\'s break down the pros and cons of each to help you make an informed decision about your reading plan.',
+      id: 117,
+      role: "assistant",
+    },
+    {
+      content:
+        'I think I\'ll stick with "The Poppy War" trilogy for now. I\'m already enjoying it and it fits well with my reading goals. Plus, the community feedback has been really positive. But if I feel like I\'m missing out, I might revisit the other series later.',
+      id: 118,
+      role: "user",
+    },
+    {
+      content:
+        'That sounds like a great plan! Sticking with "The Poppy War" trilogy for now is a wise choice, especially since you\'re already enjoying it and it aligns well with your reading goals. Here are a few additional thoughts to keep your momentum going.',
+      id: 119,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide on a must-read fiction series for winter evenings, and I've extended my reading challenge goal to 12 books by March 1, which means I need to increase my weekly reading pace",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "Extending your reading challenge goal to 12 books by March 1 is a great ambition! To help you achieve this, let's select a must-read fiction series that will keep you engaged and motivated through the winter.",
+      id: 137,
+      role: "assistant",
+    },
+    {
+      content:
+        "Absolutely! Given your preference for immersive fiction that blends fantasy and historical elements, and considering you're looking for something to enjoy during the winter evenings leading up to the new year, here are some recommendations.",
+      id: 143,
+      role: "assistant",
+    },
+    {
+      content:
+        'I\'m kinda excited to start "The Expanse" series, but I\'m also a bit concerned about committing to 9 books, so can you help me figure out if it\'s worth it after finishing "The Poppy War"?',
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        'Absolutely! "The Expanse" series is a fantastic choice, and while it is a substantial commitment with nine books (and counting), it offers a rich and rewarding reading experience. Here are some factors to weigh.',
+      id: 159,
+      role: "assistant",
+    },
+    {
+      content:
+        'Thanks for the detailed breakdown! I think I\'m ready to dive into "The Expanse." I\'ll mix reading the print edition during my mornings and listening to the audiobooks during my commutes with Douglas.',
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "That sounds like a fantastic plan! Mixing print reading in the mornings with audiobooks during your commutes is a great way to keep the story fresh and engaging. Here are a few tips to help you get the most out of both formats.",
+      id: 161,
+      role: "assistant",
+    },
+    {
+      content:
+        'I\'ve just finished "The Expanse" first three books and I\'m on schedule, but now I need help figuring out how to balance my reading goals with my desire to try different genres, like the standalone historical novels.',
+      id: 218,
+      role: "user",
+    },
+    {
+      content:
+        "Balancing your reading goals with your desire to explore different genres is a great way to keep your reading experience varied and enjoyable. Here are some strategies to help you achieve both this quarter.",
+      id: 219,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: null,
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "reading-plan-balance",
+      conversation_plan: "BATCH 13 PLAN",
+      conversation_seed: {
+        category: "Reading & Entertainment",
+        id: 13,
+        subtopics: [
+          "Series selection",
+          "Reading formats",
+          "Time budgeting",
+        ],
+        theme: "Balancing series length against time constraints",
+        title: "Reading Plan Balance Journey",
+      },
+      narratives: "Reading plan balance reasoning across series choices",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "The plan starts from the under-five-books constraint, commits to The Poppy War trilogy on ratings and length, then takes on The Expanse with a mixed print-morning and audiobook-commute format to fit the time budget.",
+            question:
+              "Considering my choices and preferences across all sessions, how does my reading plan balance shorter series and longer commitments while fitting my time constraints and enjoyment goals?",
+            question_id: "reading-plan-balance",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [44, 116, 117, 118, 119, 158, 159, 160, 161],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer and avid reader",
+        user_relationships: "Douglas",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 describe("phase-63 BEAM recall diagnostic runner", () => {
   it("parses recall diagnostic cli flags", () => {
     expect(
@@ -7459,6 +7605,39 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       152,
       168,
       216,
+    ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps reading plan balance reasoning source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-reading-plan-balance",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildReadingPlanBalanceBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      44,
+      116,
+      117,
+      118,
+      119,
+      158,
+      159,
+      160,
+      161,
     ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });

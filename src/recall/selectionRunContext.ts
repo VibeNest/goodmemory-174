@@ -59,6 +59,7 @@ import {
 import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrderRules/researchWritingProjectsEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
+import { isReadingPlanBalanceReasoningQuery } from "./selectors/sourceOrderRules/readingPlanBalanceReasoning";
 import {
   isPatentFilingDeadlineReasoningQuery,
   isPatentPriorArtFilingReasoningQuery,
@@ -197,7 +198,8 @@ export function buildSelectionRunContext(
   const instructionAugmentationStandDownQuery =
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isResumeAtsSequencingReasoningQuery(query) ||
-    isPeerFeedbackBalanceReasoningQuery(query);
+    isPeerFeedbackBalanceReasoningQuery(query) ||
+    isReadingPlanBalanceReasoningQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
