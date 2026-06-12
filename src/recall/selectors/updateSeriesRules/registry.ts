@@ -3,6 +3,7 @@ import { selectSourceOrderedAiEthicsWebinarEvidence } from "./aiEthicsWebinar";
 import { selectSourceOrderedEventCupcakeOrderEvidence } from "./eventCupcakeOrder";
 import { selectSourceOrderedExecutiveProducerInterviewsEvidence } from "./executiveProducerInterviews";
 import { selectSourceOrderedFinalDecisionMeetingEvidence } from "./finalDecisionMeeting";
+import { selectSourceOrderedRemoteWorkScheduleEvidence } from "./remoteWorkSchedule";
 import { selectSourceOrderedWinterReadingChallengeEvidence } from "./winterReadingChallenge";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./writingGroupDeadline";
 
@@ -27,6 +28,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedAiEthicsWebinarEvidence,
   selectSourceOrderedWinterReadingChallengeEvidence,
   selectSourceOrderedEventCupcakeOrderEvidence,
+  selectSourceOrderedRemoteWorkScheduleEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(

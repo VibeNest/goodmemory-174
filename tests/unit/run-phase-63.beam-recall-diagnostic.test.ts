@@ -7131,6 +7131,113 @@ function buildEventCupcakeOrderBeamRows(): unknown[] {
 }
 
 
+function buildRemoteWorkScheduleBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm getting ready for my interview with Island Media Group on May 12, and I'm worried that my cover letter, which I submitted on April 23, might not have stronger impact statements as Greg suggested during our mock interview on April 25, so I'm scheduled for a follow-up with him on May 8 to work on that ->-> 3,2",
+      id: 106,
+      role: "user",
+    },
+    {
+      content:
+        "Always include specific dates when I ask about scheduled events. ->-> 3,23",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I'm excited about the job offer from Island Media Group on May 20 for the senior producer role, but I want to make sure I negotiate the best deal possible, so can you help me understand how Greg's suggestion of a $5,000 signing bonus and flexible remote work days starting June 15 will impact my overall compensation package? ->-> 4,2",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "Of course! I'd be happy to review your 90-day plan and provide feedback on your objectives and success metrics. Please share the details of your plan, including the specific objectives and the metrics you are using to measure success. Once I have this information, I can offer constructive feedback to ensure your plan is clear and actionable.\n\nHere's a general structure you can follow to share your plan:\n\n### 90-Day Plan Overview\n\n1. **Objective 1:**\n   - **Description:** What is the objective?\n   - **Success Metrics:** How will you measure success?\n   - **Actions:** What specific actions will you take to achieve this objective?\n\n2. **Objective 2:**\n   - **Description:** What is the objective?\n   - **Success Metrics:** How will you measure success?\n   - **Actions:** What specific actions will you take to achieve this objective?\n\n3. **Objective 3:**\n   - **Description:** What is the objective?\n   - **Success Metrics:** How will you measure success?\n   - **Actions:** What specific actions will you take to achieve this objective?\n\n### Example\n\n#### Objective 1: Streamline Production Processes\n- **Description:** Reduce production cycle time by 20%.\n- **Success Metrics:** \n  - Decrease average production cycle time from 10 days to 8 days.\n  - Increase on-time delivery rate from 85% to 95%.\n- **Actions:**\n  - Conduct a workflow analysis to identify bottlenecks.\n  - Implement process improvements based on analysis.\n  - Train team members on new processes.\n\n#### Objective 2: Improve Team Collaboration\n- **Description:** Enhance team collaboration and communication.\n- **Success Metrics:**\n  - Increase team meeting attendance from 70% to 90%.\n  - Reduce project delays due to miscommunication by 50%.\n- **Actions:**\n  - Introduce regular team huddles and check-ins.\n  - Implement a centralized communication tool (e.g., Slack).\n  - Facilitate team-building activities.\n\n#### Objective 3: Increase Team Productivity\n- **Description:** Increase team productivity by 15%.\n- **Success Metrics:**\n  - Increase the number of completed projects by 15%.\n  - Reduce average project completion time by 15%.\n- **Actions:**\n  - Conduct a productivity audit to identify areas for improvement.\n  - Implement productivity tools and techniques.\n  - Provide training and resources to support productivity gains.\n\nPlease share your specific objectives and success metrics, and I will provide detailed feedback to ensure your plan is clear and actionable.",
+      id: 203,
+      role: "assistant",
+    },
+    {
+      content:
+        "Sure, here are the details of my 90-day plan:\n\n### 90-Day Plan Overview\n\n#### Objective 1: Streamline Production Processes\n- **Description:** Reduce production cycle time by 20%.\n- **Success Metrics:**\n  - Decrease average production cycle time from 10 days to 8 days.\n  - Increase on-time delivery rate from 85% to 95%.\n- **Actions:**\n  - Conduct a workflow analysis to identify bottlenecks.\n  - Implement process improvements based on analysis.\n  - Train team members on new processes.\n\n#### Objective 2: Improve Team Collaboration\n- **Description:** Enhance team collaboration and communication.\n- **Success Metrics:**\n  - Increase team meeting attendance from 70% to 90%.\n  - Reduce project delays due to miscommunication by 50%.\n- **Actions:**\n  - Introduce regular team huddles and check-ins.\n  - Implement a centralized communication tool (e.g., Slack).\n  - Facilitate team-building activities.\n\n#### Objective 3: Increase Team Productivity\n- **Description:** Increase team productivity by 15%.\n- **Success Metrics:**\n  - Increase the number of completed projects by 15%.\n  - Reduce average project completion time by 15%.\n- **Actions:**\n  - Conduct a productivity audit to identify areas for improvement.\n  - Implement productivity tools and techniques.\n  - Provide training and resources to support productivity gains.\n\nCan you review these and let me know if they are clear and actionable?",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "Your 90-day plan is well-structured and includes clear objectives, success metrics, and actionable steps. Here is a review of each objective to ensure clarity and actionability:\n\n### 90-Day Plan Overview\n\n#### Objective 1: Streamline Production Processes\n- **Description:** Reduce production cycle time by 20%.\n- **Success Metrics:**\n  - Decrease average production cycle time from 10 days to 8 days.\n  - Increase on-time delivery rate from 85% to 95%.\n- **Actions:**\n  - Conduct a workflow analysis to identify bottlenecks.\n  - Implement process improvements based on analysis.\n  - Train team members on new processes.\n\n**Feedback:**\n- **Clarity:** The description and success metrics are clear and specific.\n- **Actionability:** The actions are well-defined and actionable.\n- **Suggestion:** Consider adding a timeline for each action to ensure timely implementation.\n\n#### Objective 2: Improve Team Collaboration\n- **Description:** Enhance team collaboration and communication.\n- **Success Metrics:**\n  - Increase team meeting attendance from 70% to 90%.\n  - Reduce project delays due to miscommunication by 50%.\n- **Actions:**\n  - Introduce regular team huddles and check-ins.\n  - Implement a centralized communication tool (e.g., Slack).\n  - Facilitate team-building activities.\n\n**Feedback:**\n- **Clarity:** The description and success metrics are clear and specific.\n- **Actionability:** The actions are well-defined and actionable.\n- **Suggestion:** Specify the frequency of team huddles and check-ins (e.g., daily, weekly) and the types of team-building activities planned.\n\n#### Objective 3: Increase Team Productivity\n- **Description:** Increase team productivity by 15%.\n- **Success Metrics:**\n  - Increase the number of completed projects by 15%.\n  - Reduce average project completion time by 15%.\n- **Actions:**\n  - Conduct a productivity audit to identify areas for improvement.\n  - Implement productivity tools and techniques.\n  - Provide training and resources to support productivity gains.\n\n**Feedback:**\n- **Clarity:** The description and success metrics are clear and specific.\n- **Actionability:** The actions are well-defined and actionable.\n- **Suggestion:** Consider specifying the types of productivity tools and techniques you plan to implement (e.g., project management software, time-tracking tools) and the nature of the training and resources provided.\n\n### Revised 90-Day Plan Overview\n\n#### Objective 1: Streamline Production Processes\n- **Description:** Reduce production cycle time by 20%.\n- **Success Metrics:**\n  - Decrease average production cycle time from 10 days to 8 days.\n  - Increase on-time delivery rate from 85% to 95%.\n- **Actions:**\n  - Week 1-2: Conduct a workflow analysis to identify bottlenecks.\n  - Week 3-4: Implement process improvements based on analysis.\n  - Week 5-6: Train team members on new processes.\n\n#### Objective 2: Improve Team Collaboration\n- **Description:** Enhance team collaboration and communication.\n- **Success Metrics:**\n  - Increase team meeting attendance from 70% to 90%.\n  - Reduce project delays due to miscommunication by 50%.\n- **Actions:**\n  - Week 1-2: Introduce daily team huddles and weekly check-ins.\n  - Week 3-4: Implement a centralized communication tool (e.g., Slack).\n  - Week 5-6: Facilitate team-building activities (e.g., off-site retreats, team lunches).\n\n#### Objective 3: Increase Team Productivity\n- **Description:** Increase team productivity by 15%.\n- **Success Metrics:**\n  - Increase the number of completed projects by 15%.\n  - Reduce average project completion time by 15%.\n- **Actions:**\n  - Week 1-2: Conduct a productivity audit to identify areas for improvement.\n  - Week 3-4: Implement productivity tools and techniques (e.g., Asana for project management, Toggl for time tracking).\n  - Week 5-6: Provide training and resources to support productivity gains (e.g., workshops on time management, access to productivity apps).\n\n### Summary\nYour plan is clear and actionable, but adding specific timelines and details to the actions will enhance its effectiveness. This will help ensure that each step is executed in a timely and organized manner, leading to better outcomes.\n\nFeel free to adjust the timelines and details as needed to fit your specific context and team dynamics. Good luck with your 90-day plan!",
+      id: 205,
+      role: "assistant",
+    },
+    {
+      content:
+        "I negotiated 2 remote workdays per week, which has improved my work-life balance by 20%, and I'd like to know how I can further leverage this flexibility to increase productivity and job satisfaction? ->-> 4,19",
+      id: 208,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda excited about the new job offer from Island Media, but I'm also worried about the commute, you know, 12 miles to Coral Bay office on remote days, is that gonna be a problem or can I make it work? ->-> 4,21",
+      id: 210,
+      role: "user",
+    },
+    {
+      content:
+        "I'm starting remote work three days a week beginning June 15, how can I ensure a smooth transition and maintain productivity in this new setup? ->-> 4,22",
+      id: 214,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "remote-work-schedule",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 13,
+        subtopics: [
+          "Identifying employer pain points",
+          "Storytelling frameworks",
+          "Tone and voice adaptation",
+          "Highlighting cultural fit",
+        ],
+        theme:
+          "Personalizing, storytelling, and aligning with employer values",
+        title:
+          "Crafting a Standout Cover Letter for Competitive Job Markets",
+      },
+      narratives: "Remote work schedule knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "Three days a week",
+            question:
+              "How many days a week am I scheduled to work remotely?",
+            question_id: "remote-work-schedule",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[214],"updated_info":[214]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Senior producer negotiating a new role",
+        user_relationships: "Greg",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9676,6 +9783,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([132, 156]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the remote work schedule designated evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-remote-work-schedule",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildRemoteWorkScheduleBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([214]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
