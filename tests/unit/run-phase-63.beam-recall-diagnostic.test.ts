@@ -6830,6 +6830,112 @@ function buildAiEthicsWebinarBeamRows(): unknown[] {
   ];
 }
 
+function buildWinterReadingChallengeBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Always provide detailed genre descriptions when I ask about book recommendations. ->-> 1,22",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I've joined a 2024 winter reading challenge on Goodreads aiming for 10 books by March 1, and I want to make sure I pick series that will keep me engaged, can you help me decide if \"The Poppy War\" trilogy is a good fit for my goal ->-> 2,17",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, \"The Poppy War\" trilogy can be a great fit for your 2024 winter reading challenge on Goodreads. Here are some reasons why it's a good choice and some tips to help you stay engaged and on track:\n\n### Reasons Why \"The Poppy War\" Trilogy is a Good Fit\n1. **Engaging Narrative**: The series is known for its compelling plot, rich world-building, and strong protagonist, Rin. The blend of historical and fantasy elements makes it a captivating read.\n2. **Highly Rated**: The trilogy has received high praise and positive reviews, ensuring a rewarding reading experience.\n3. **Suitable Length**: The trilogy is substantial but not overly long, making it a perfect fit for a winter reading challenge. You can enjoy it over several evenings without feeling overwhelmed.\n4. **Gift-Worthy**: Since you purchased the boxed set for gifting, it's a great way to enjoy the books yourself and then pass them on to someone else who might appreciate them.\n\n### Tips for Staying Engaged and On Track\n1. **Set a Reading Schedule**: Dedicate specific times each evening for reading. For example, you could aim to read for 1-2 hours each night.\n2. **Track Your Progress**: Use a reading tracker or simply keep a log of the pages you read each day to stay motivated and on track.\n3.. **Engage with the Community**: Join discussions in the Montserrat Readers Facebook group or other online communities to share your thoughts and get insights from other readers.\n4. **Take Notes**: If you find it helpful, take notes on key points or memorable quotes. This can be useful for discussions or personal reflection.\n\n### Additional Series Suggestions\nIf you want to diversify your reading list, here are some other series that can keep you engaged:\n\n1. **\"The Expanse\" by James S.A. Corey**: A space opera series with political intrigue and well-developed characters.\n2. **\"The Name of the Wind\" by Patrick Rothfuss**: A fantasy novel with rich world-building and engaging storytelling.\n3. **\"The Pillars of the Earth\" by Ken Follett**: A historical fiction novel with a focus on architecture and social dynamics in medieval England.\n4. **\"The Broken Earth\" by N.K. Jemisin**: A fantasy series that won the Hugo Award for Best Novel three years in a row, featuring a unique magic system and powerful themes.\n\n### Example Message to Kelly\n---\n\n**Hi Kelly,**\n\nI've joined a 2024 winter reading challenge on Goodreads aiming for 10 books by March 1. I want to make sure I pick series that will keep me engaged. I've already bought \"The Poppy War\" trilogy. Is this a good fit for my goal?\n\nBest,\n[Your Name]\n\n---\n\n### Conclusion\n\"The Poppy War\" trilogy is a great fit for your winter reading challenge. It offers a rich, engaging narrative that is perfect for cozy winter evenings. By setting a reading schedule and tracking your progress, you can make the most of your reading time and enjoy a rewarding experience. Additionally, consider adding other engaging series to your list to diversify your reading and keep you motivated.\n\nWould you like any more specific advice or recommendations?",
+      id: 127,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to decide on a must-read fiction series for winter evenings, and I've extended my reading challenge goal to 12 books by March 1, which means I need to increase my weekly reading pace ->-> 2,22",
+      id: 136,
+      role: "user",
+    },
+    {
+      content:
+        "Declining the TV pilot project to focus on your reading goals is a great decision, especially with the extra 15 hours you now have each week. To make the most of this time, you should look for a series that is both engaging and rich in storytelling and character development. Here are some recommendations that can fill your newfound time with captivating narratives:\n\n### Engaging Series with Rich Storytelling and Characters\n\n1. **\"A Song of Ice and Fire\" by George R.R. Martin**\n   - **Overview**: This series, also known as \"A Song of Ice and Fire,\" is the basis for the HBO series \"Game of Thrones.\" It features a complex web of political intrigue, family rivalries, and magical elements set in a richly detailed world.\n   - **Length**: The series currently consists of 5 books, with the latest being \"A Dance with Dragons.\" There are plans for more books in the series.\n   - **Why It Fits**: The intricate plotting and deep character development will keep you engaged for many hours. The series is known for its unexpected twists and turns, making it a perfect fit for your extra time.\n\n2. **\"The Wheel of Time\" by Robert Jordan**\n   - **Overview**: This epic fantasy series follows a group of young people who are drawn into a world of magic and prophecy. The series is known for its extensive world-building and complex characters.\n   - **Length**: The series originally consisted of 14 books, with the final book being published posthumously by Brandon Sanderson. There are plans for additional books.\n   - **Why It Fits**: The series is vast and detailed, providing ample material to fill your 15 hours each week. The rich storytelling and diverse cast of characters will keep you immersed in the narrative.\n\n3. **\"The Malazan Book of the Fallen\" by Steven Erikson**\n   - **Overview**: This series is a sprawling epic fantasy that follows the rise and fall of empires, the machinations of gods, and the struggles of mortals caught in the middle. The series is known for its complex plot and intricate world-building.\n   - **Length**: The series consists of 10 books, with the latest being \"Dust of Dreams.\"\n   - **Why It Fits**: The series is dense and detailed, offering a wealth of material to explore. The deep character development and intricate plotting will keep you engaged for many hours.\n\n4. **\"The Chronicles of Narnia\" by C.S. Lewis**\n   - **Overview**: This series is a classic of children's literature, but it has a broad appeal and can be enjoyed by readers of all ages. The series follows the adventures of four siblings who discover a magical world called Narnia.\n   - **Length**: The series consists of 7 books, with the latest being \"The Last Battle.\"\n   - **Why It Fits**: The series is shorter in terms of individual book length but offers a rich and imaginative world to explore. The moral and philosophical themes will provide a thoughtful and engaging reading experience.\n\n5.  **\"The Dresden Files\" by Jim Butcher**\n   - **Overview**: This urban fantasy series follows Harry Dresden, a professional wizard and private investigator in modern-day Chicago. The series blends elements of mystery, action, and supernatural thriller.\n   - **Length**: The series consists of 15 books, with the latest being \"Side Jobs.\"\n   - **Why It Fits**: The series is fast-paced and engaging, with a strong central character and a rich supporting cast. The blend of mystery and supernatural elements will keep you entertained for many hours.\n\n### Next Steps\n\n1. **Choose a Series**: Based on your interests and the recommendations above, select a series that you think will be the most engaging and fulfilling for your extra time.\n   \n2. **Check Availability**: Verify the availability of the series in your preferred format (print, e-book, or audiobook). Ensure that you can access all the books in the series.\n\n3. **Plan Your Reading Schedule**: With 15 extra hours each week, you can read a significant portion of a long series. Plan how much you can read each day or week to make steady progress.\n\n4. **Prepare for Discussion**: If you plan to discuss the series with your book club or friends, prepare some discussion questions in advance. This will help facilitate a lively and insightful conversation.\n\nBy choosing a series that is both engaging and rich in storytelling, you can make the most of your extra time and enjoy a fulfilling reading experience. Enjoy your winter evenings with these captivating series!",
+      id: 229,
+      role: "assistant",
+    },
+    {
+      content:
+        "Certainly! Balancing standalone novels with series can be a great way to maintain variety and avoid reading fatigue. Here are some recommendations that can help you achieve a good mix of both types of books:\n\n### Standalone Novels\n\n1. **\"The Night Circus\" by Erin Morgenstern**\n   - **Overview**: A magical and enchanting story set in a mysterious circus that appears and disappears without warning. It follows the lives of two young magicians bound by a mysterious competition.\n   - **Length**: Approximately 400 pages.\n   - **Why It Fits**: The rich atmosphere and intricate plot make it a perfect standalone novel for a cozy winter evening.\n\n2. **\"The Girl with the Dragon Tattoo\" by Stieg Larsson**\n   - **Overview**: A thrilling and complex story about a journalist and a hacker investigating the disappearance of a wealthy businessman's niece.\n   - **Length**: Approximately 500 pages.\n   - **Why It Fits**: The intense plot and compelling characters make it a satisfying standalone read.\n\n3. **\"The Martian\" by Andy Weir**\n   - **Overview**: A science fiction novel about an astronaut stranded alone on Mars, who must use his ingenuity and resourcefulness to survive until he can be rescued.\n   - **Length**: Approximately 380 pages.\n   4. **\"The Silent Patient\" by Alex Michaelides**\n      - **Overview**: A psychological thriller about a famous painter who suddenly stops speaking after murdering her husband. A therapist tries to uncover the truth behind her silence.\n      - **Length**: Approximately 320 pages.\n      - **Why It Fits**: The suspenseful plot and the psychological depth make it a compelling standalone novel.\n\n### Shorter Series\n\n1. **\"The Mortal Instruments\" by Cassandra Clare**\n   - **Overview**: A series following Clary Fray, a young woman who discovers she is a Shadowhunter, a warrior trained to protect the world from demons. The series is known for its fast-paced action and rich world-building.\n   - **Length**: The main series consists of 6 books, with additional novellas and short stories.\n   - **Why It Fits**: The shorter length of the series makes it a manageable commitment, and the engaging plot keeps you hooked.\n\n2. **\"The Infernal Devices\" by Cassandra Clare**\n   - **Overview**: A prequel series to \"The Mortal Instruments\" following the story of Will Herondale and Jem Carstairs in Victorian London. It is filled with romance, adventure, and supernatural elements.\n   - **Length**: The series consists of 3 books.\n   - **Why It Fits**: The shorter length and rich historical setting make it a perfect series to balance with standalone novels.\n\n3. **\"The Queen's Thief\" by Megan Whalen Turner**\n   - **Overview**: A series following the adventures of Eugenides, a young orphan who becomes a thief and a diplomat in a world of political intrigue and danger.\n   - **Length**: The main series consists of 4 books, with additional novellas.\n   - **Why It Fits**: The series is shorter and offers a blend of fantasy and historical elements, making it a great balance for your reading.\n\n### Longer Series\n\n1. **\"The Stormlight Archive\" by Brandon Sanderson**\n   - **Overview**: A high-fantasy series set in a world of magic and political intrigue. The series is known for its complex world-building and deep character development.\n   - **Length**: Currently 5 books, with more planned.\n   - **Why It Fits**: The rich storytelling and detailed world make it a rewarding long-term read.\n\n2. **\"The Expanse\" by James S.A. Corey**\n   - **Overview**: A space opera series that follows the adventures of a diverse cast of characters in a future where humanity has colonized the solar system.\n   - **Length**: Currently 9 books, with more planned.\n   - **Why It Fits**: Fast-paced and engaging, with a mix of political intrigue and action.\n\n### Balanced Reading Plan\n\n1. **Alternate Between Types**: Mix standalone novels with series to keep your reading experience varied. For example, you could read a standalone novel one week and a book from a series the next week.\n\n2. **Short Reading Blocks**: Use your 1-hour reading blocks at 8 PM on weekdays to read a chapter or a section of a book. This can help you maintain steady progress without feeling overwhelmed.\n\n3. **Weekend Reading**: Use weekends to catch up on longer series or to read a standalone novel in one sitting.\n\n### Example Reading Schedule\n\n- **Week 1**: Read \"The Night Circus\" (standalone)\n- **Week 2**: Start \"The Mortal Instruments\" series (books 1-2)\n- **Week 3**: Read \"The Martian\" (standalone)\n- **Week 4**: Continue \"The Mortal Instruments\" series (books 3-4)\n\nBy alternating between standalone novels and series, you can maintain a balanced and enjoyable reading experience during your winter evenings. Enjoy your reading!",
+      id: 247,
+      role: "assistant",
+    },
+    {
+      content:
+        "Extending your reading blocks to 90 minutes on weekdays is a great way to accelerate your progress and finish a series like \"The Expanse\" more quickly. Here are some recommendations for fiction series that you can tackle with your new reading schedule:\n\n### Fiction Series Recommendations\n\n1. **\"The Expanse\" by James S.A. Corey**\n   - **Overview**: A space opera series that follows the adventures of a diverse cast of characters in a future where humanity has colonized the solar system.\n   - **Length**: Currently 9 books, with more planned.\n   - **Why It Fits**: Fast-paced and engaging, with a mix of political intrigue and action. The 90-minute blocks will allow you to make significant progress each day.\n\n2. **\"The Stormlight Archive\" by Brandon Sanderson**\n   - **Overview**: A high-fantasy series set in a world of magic and political intrigue. The series is known for its complex world-building and deep character development.\n   - **Length**: Currently 5 books, with more planned.\n   - **Why It Fits**: Rich storytelling and detailed world make it a rewarding long-term read. The 90-minute blocks will help you stay immersed and make steady progress.\n\n3. **\"The Dark Tower\" by Stephen King**\n   - **Overview**: A series that blends elements of Western, fantasy, and science fiction. It follows the journey of Roland Deschain, the last gunslinger, as he pursues the Dark Tower.\n   - **Length**: 8 books.\n   - **Why It Fits**: The series is known for its unique blend of genres and deep character development. The 90-minute blocks will allow you to delve into the rich narrative.\n\n4. **\"The Mistborn Trilogy\" by Brandon Sanderson**\n   - **Overview**: A fantasy series set in a world of magic and political intrigue. It follows the story of Vin, a young woman who discovers she has the power to manipulate metal.\n   - **Length**: 3 books.\n   - **Why It Fits**: Fast-paced and engaging, with a strong focus on character development and world-building. The 90-minute blocks will help you finish the trilogy quickly.\n\n5. **\"The Kingkiller Chronicle\" by Patrick Rothfuss**\n   - **Overview**: A fantasy series that follows the story of Kvothe, a legendary musician and magician. The series is known for its rich storytelling and deep character development.\n   - **Length**: 3 books (with additional novellas).\n   - **Why It Fits**: The series offers a rich and immersive reading experience. The 90-minute blocks will allow you to make steady progress and finish the series relatively quickly.\n\n### Next Steps\n\n1. **Choose a Series**: Based on your interests and the recommendations above, select a series that you think will be the most engaging and fulfilling for your extended reading blocks.\n\n2. **Check Availability**: Verify the availability of the series in your preferred format (print, e-book, or audiobook). Ensure that you can access all the books in the series.\n\n3. **Plan Your Reading Schedule**: With 90-minute reading blocks on weekdays, you can make significant progress each day. Here's an example plan:\n\n   - **Week 1**: Read 3 hours (3 x 90 minutes) per week.\n   - **Week 2**: Continue reading 3 hours per week.\n   - **Week 3**: Finish the remaining books or sections.\n\n4. **Stay Motivated**: Keep your motivation high by setting small goals and rewarding yourself for reaching milestones. You can also discuss your progress with friends or in a book club to stay engaged.\n\nBy choosing a series that fits your new reading schedule and staying consistent with your 90-minute blocks, you can enjoy a satisfying and immersive reading experience during your winter evenings. Enjoy your reading!",
+      id: 255,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always suggest related literary events when I ask about book series recommendations. ->-> 5,23",
+      id: 306,
+      role: "user",
+    },
+    {
+      content:
+        "Starting to post book reviews on platforms like Goodreads can be a rewarding experience. Not only does it help you track your reading progress, but it also allows you to share your thoughts and discoveries with others. Here are some reasons why you should consider posting reviews and some tips on how to get started:\n\n### Benefits of Posting Book Reviews\n\n1. **Track Your Progress**: Keeping a record of the books you read and your thoughts about them can help you remember what you've read and how you felt about each book.\n2. **Discover New Books**: Reading reviews from others can expose you to new books and authors you might not have discovered otherwise.\n3. **Engage with the Community**: Participating in discussions and connecting with other readers can enrich your reading experience and provide new perspectives.\n4. **Improve Your Writing Skills**: Regularly writing reviews can help you develop your writing skills and become more articulate in expressing your thoughts and opinions.\n\n### Tips for Getting Started\n\n1. **Create an Account**: Sign up for Goodreads or another platform where you can post reviews.\n2. **Add Books to Your Shelf**: Start by adding the books you have read or are currently reading to your \"Shelf\" on Goodreads.\n3. **Write Your First Review**: Begin with a book you have recently finished and write a brief review. Here are some elements to include:\n   - **Summary**: A brief overview of the book without giving away major spoilers.\n   - **Your Thoughts**: Share your impressions, what you liked or didn't like, and any standout moments.\n   - **Rating**: Give the book a rating out of 5 stars.\n   - **Recommendations**: Mention who might enjoy the book and why.\n\n4. **Be Honest and Constructive**: Be honest about your feelings towards the book, but also be constructive. Even if you didn't enjoy a book, explain why and what could have improved it.\n5. **Engage with Others**: Read and respond to reviews from other users. Engaging in discussions can help you discover new books and authors.\n6. **Consistency**: Try to post reviews regularly to keep track of your reading and to stay active in the community.\n\n### Example Review\n\nHere's an example of how you might write a review for \"The Nightingale\" by Kristin Hannah:\n\n---\n\n**Title**: The Nightingale by Kristin Hannah\n\n**Rating**: 5 stars\n\n**Summary**: \"The Nightingale\" is a powerful and emotional novel set during World War II, focusing on the lives of two sisters in occupied France. The story explores themes of courage, sacrifice, and resilience.\n\n**Your Thoughts**: I was deeply moved by the strength and determination of the characters, especially Vianne and Isabelle. The historical context is richly detailed, and the emotional depth of the story kept me engaged from start to finish. The narrative is beautifully crafted, and the characters are incredibly well-developed.\n\n**Recommendations**: I highly recommend this book to anyone who enjoys historical fiction and stories that explore the human spirit during times of adversity. It's a must-read for fans of \"The Pillars of the Earth\" and \"Outlander.\"\n\n---\n\n### Conclusion\n\nStarting to post book reviews on platforms like Goodreads can be a fulfilling way to track your reading progress, share your thoughts, and discover new books and authors. It also allows you to engage with a vibrant community of readers who share your passion for books. Give it a try and see how it enhances your reading experience!",
+      id: 309,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "winter-reading-challenge",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 18,
+        subtopics: [
+          "Popular fantasy, sci-fi, and historical fiction series",
+          "Standalone novels vs. multi-book sagas",
+          "Award-winning authors and emerging voices",
+          "Balancing page count with storytelling depth",
+        ],
+        theme:
+          "Exploring different genres to find a captivating long-form reading experience",
+        title:
+          "Selecting a Must-Read Fiction Series for Winter Evenings",
+      },
+      narratives: "Winter reading challenge goal knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "12 books by March 1",
+            question:
+              "How many books am I aiming to read in my winter reading challenge?",
+            question_id: "winter-reading-challenge",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[126],"updated_info":[136]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Reader running a Goodreads winter challenge",
+        user_relationships: "Wyatt",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -9306,6 +9412,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([70, 82]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the winter reading challenge update pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-winter-reading-challenge",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWinterReadingChallengeBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([126, 136]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
