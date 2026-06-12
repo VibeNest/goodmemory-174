@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-reunion-promotion-days-current-20260612T153000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-screenplay-draft-days-current-20260612T154500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-resume-tailoring-apply-days-current-20260612T151500Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-reunion-promotion-days-current-20260612T153000Z`
 
 Summary:
 
-- evidence-chat recall: 0.8060138609434385
-- missed-recall cases: 102/355
-- wrong-recall/noise cases: 245/400
-- zero-recall cases: 25
-- global hit/missing/noise ids: 876/218/1301 -> 878/216/1295
-- recovered target: `6:temporal_reasoning:2`
-- target result: recall 0 -> 1 with the interval pair 120/186 returned chronologically and all six noisy chats (188/200/14/66/128/142) removed
-- repair shape: `temporalInterval.reunionPromotionDays` narrow gate (the temporal-interval module's sixth family) + start/end double-lookahead patterns through the existing interval selector
+- evidence-chat recall: 0.8088307623518892
+- missed-recall cases: 101/355
+- wrong-recall/noise cases: 244/400
+- zero-recall cases: 24
+- global hit/missing/noise ids: 878/216/1295 -> 880/214/1292
+- recovered target: `10:temporal_reasoning:1`
+- target result: recall 0 -> 1 with the interval pair 20/54 returned chronologically and all three noisy chats (296/302/304) removed
+- repair shape: `temporalInterval.screenplayDraftDays` narrow gate (the temporal-interval module's seventh family) + start/end double-lookahead patterns through the existing interval selector; the assistant echo of the goal turn is excluded by the selector's user filter
 - regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the reunion-to-promotion interval: the family reunion postponed on July 10 to finish the $15,000 budget proposal against the September 12 promotion celebration with Linda at The Blue Lagoon. This is a retained selector repair, not a benchmark close.
+The repaired target covers the screenplay-draft interval: the 3,600 words logged by March 3 against the April 15, 2024 deadline for the 5,000-word draft. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
