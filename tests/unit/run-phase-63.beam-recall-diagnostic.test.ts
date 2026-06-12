@@ -6456,6 +6456,107 @@ function buildResumeTailoringApplyDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildReunionPromotionDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that my resume won't be ready by April 10, 2024, to tailor it for film, television, and digital media industries, can you help me get started on that? ->-> 1,8",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my portfolio website redesign on Squarespace, which I finished on May 1, 2024, might not be enough to get me the $95,000+ roles in digital media I'm aiming for, especially since I declined that $75,000 job offer from a local station ->-> 2,9",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I had to postpone a family reunion on July 10 to finish a $15,000 budget proposal due July 12, was choosing work over family the right decision for my career transition? ->-> 3,10",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I've just started biweekly mentorship sessions with Karen, focusing on leadership and resume refinement, and I'm excited to learn from her, but I'm not sure what to expect from these sessions that began on July 8, 2024 ->-> 3,13",
+      id: 128,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my budget proposal after it was successfully submitted on July 11, 2024, but I've never accepted any executive producer roles or started new employment in digital media, can you help me with that? ->-> 3,21",
+      id: 142,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking forward to celebrating my promotion with my close friend Linda at The Blue Lagoon on September 12, and I was wondering if you could give me some tips on how to politely decline if she asks me to pick up the check, considering I'm 65 and she's also around my age? ->-> 4,17",
+      id: 186,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my resume to include my latest certification and promotion by September 7, 2024, but I'm not sure how to highlight my infectious enthusiasm that helped secure 3 new client projects during the September 9 summit networking event ->-> 4,19",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "I have an interview on November 25, and I want to make sure my resume passes any applicant tracking system, especially since I've updated it to comply with the latest ATS parser versions, and I'm also looking forward to my November 18 time anchor, so can you help me review my resume and provide tips on how to prepare for the interview, given that I've already completed my certification in Advanced Digital Media Production and launched my new portfolio website featuring 20 projects with detailed metrics and client testimonials, and I've been promoted to Senior Executive Producer with a 12% salary increase to $110,000, and I've updated my resume format to improve ranking by 18% in StreamWave's ATS parser version 3.2, and I've attended the Caribbean Media Innovation Summit, and I've secured a $12,000 raise, and I've included salary negotiation outcomes in my resume as suggested by Joshua, and I've emphasized leadership in remote work settings as suggested by Nicole ->-> 5,2",
+      id: 200,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "reunion-promotion-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 11,
+        subtopics: [
+          "ATS keyword optimization",
+          "Action verb libraries",
+          "Formatting for machine readability",
+          "Industry-specific resume tailoring",
+        ],
+        theme:
+          "Structuring, optimizing, and tailoring resumes for multiple industries and career stages",
+        title:
+          "Building a Portfolio-Ready Resume that Passes Any Applicant Tracking System",
+      },
+      narratives: "Family reunion to promotion celebration interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There were 64 days between postponing the family reunion on July 10 and celebrating the promotion with Linda on September 12.",
+            question:
+              "How many days were there between when I postponed my family reunion and when I planned to celebrate my promotion with Linda?",
+            question_id: "reunion-promotion-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[120],"second_event":[186]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer balancing work and family",
+        user_relationships: "Linda, Karen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8840,6 +8941,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([14, 16]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the reunion-to-promotion interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-reunion-promotion-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildReunionPromotionDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([120, 186]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
