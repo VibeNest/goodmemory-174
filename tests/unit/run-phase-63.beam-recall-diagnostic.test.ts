@@ -5466,6 +5466,132 @@ function buildEntertainmentSpendingOptimizationBeamRows(): unknown[] {
   ];
 }
 
+function buildPersonalStatementApplicationTypesBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to set a goal for myself to complete this multi-purpose personal statement, but I'm not sure how to make it work for academic, visa, and grant applications, can you give me some advice on how to make it happen, considering I aim to finish it by April 20, 2024 ->-> 1,6",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, creating a multi-purpose personal statement that works for academic, visa, and grant applications can be streamlined with a strategic approach. Here are some steps and tips to help you achieve your goal of completing the statement by April 20, 2024:\n\n### Step-by-Step Plan\n\n1. **Define the Purpose and Audience**\n   - **Academic Applications**: Focus on educational background, relevant coursework, research experience, and future academic goals.\n   - **Visa Applications**: Emphasize your qualifications, intentions, and plans for returning to your home country after your stay.\n   - **Grant Applications**: Highlight your project ideas, financial needs, and how the grant will support your goals.\n\n2. **Identify Common Elements**\n   - **Background and Experience**: Your role as a TV/film producer, key achievements, and storytelling techniques.\n   - **Personal Growth**: Reflections on your journey, adaptability, and resilience.\n   - **Support System**: Acknowledgment of Tanya's support and its impact on your career.\n\n3. **Customize Sections**\n   - **Introduction**: Start with a brief introduction that sets the tone for the statement.\n   - **Professional Experience**: Detail your achievements and the impact of your work.\n   - **Storytelling Techniques**: Discuss insights from Bryan and how they have influenced your approach.\n   - **Self-Reflection and Growth**: Reflect on your journey and personal growth.\n   - **Support System**: Mention Tanya's support and its significance.\n   - **Future Goals**: Tailor this section to the specific application (academic, visa, or grant).\n\n4. **Draft and Revise**\n   - **Initial Draft**: Write the first draft incorporating all the elements.\n   - **Review and Revise**: Edit for clarity, coherence, and relevance. Ensure it aligns with the specific requirements of each type of application.\n   - **Feedback**: Share the draft with Tanya and other trusted individuals for feedback.\n\n5. **Finalize and Submit**\n   - **Polish**: Make final adjustments based on feedback.\n   - **Submit**: Ensure you meet the deadlines for each application.\n\n### Timeline\n\n- **March 15, 2024**: Begin drafting the initial version.\n- **March 25, 2024**: Complete the first draft and start reviewing.\n- **April 5, 2024**: Incorporate feedback and make necessary revisions.\n- **April 15, 2024**: Finalize the statement and prepare for submission.\n- **April 20, 2024**: Submit the completed personal statement.\n\n### Example Structure\n\n---\n\n**Introduction**\n\"As a dedicated TV/film producer with over [X] years of experience, I have consistently delivered high-quality content that resonates with audiences and garners critical acclaim. Currently earning an annual salary of $38,000, I have managed multiple award-winning projects, showcasing my strong project management skills and ability to lead diverse teams effectively.\"\n\n**Professional Experience**\n\"One pivotal moment in my career was attending the Montserrat Film Festival on January 12, 2023, where I had the privilege of hearing Bryan's insights on storytelling techniques. He emphasized the importance of narrative structure and character development, which has profoundly influenced my approach to filmmaking. By focusing on creating compelling narratives and well-rounded characters, I have been able to produce stories that not only entertain but also provoke thought and emotion. For example, in my latest project, 'The Journey,' I applied Bryan's technique of using non-linear storytelling to enhance the emotional depth of the narrative, resulting in a critically acclaimed film.\"\n\n**Self-Reflection and Growth**\n\"Reflecting on my journey, I recognize the importance of adaptability, resilience, and continuous learning in thriving within the dynamic landscape of the entertainment industry. These qualities have not only helped me navigate the challenges of producing but have also contributed to my personal growth.\"\n\n**Support System**\n\"Throughout this journey, I have been fortunate to have the unwavering support of Tanya, my partner of two years. Her encouragement and belief in my abilities have been instrumental in helping me pursue my career goals with confidence and determination.\"\n\n**Future Goals**\n\"Looking forward, I am eager to take on more challenging projects and contribute to the growth of emerging talent. With a solid foundation of experience and a commitment to excellence, I am excited to bring my unique perspective and skills to new challenges and opportunities.\"\n\n---\n\n### Customization Tips\n\n- **For Academic Applications**: Add details about your educational background, relevant coursework, and future academic goals.\n- **For Visa Applications**: Emphasize your qualifications, intentions, and plans for returning to your home country.\n- **For Grant Applications**: Highlight your project ideas, financial needs, and how the grant will support your goals.\n\nBy following this structured approach and timeline, you should be able to complete your multi-purpose personal statement by April 20, 2024. Good luck!",
+      id: 11,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always format dates in the month-day-year style when I ask about deadlines. ->-> 1,22",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that I won't be able to finish my personal statement on time, I mean I've already finished 90% of the draft by April 4 and celebrated with dinner at The Blue Lagoon restaurant, but what if I mess up the last 10%? ->-> 2,12",
+      id: 78,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to reduce my word count from 1,200 to 900 words by April 20 for the grant application, can you help me prioritize what to cut without losing the essence of my story? ->-> 2,14",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that rescheduling the professional editing session to April 18 at East Janethaven Writers’ Studio might affect my ability to finish my personal statement on time, can you help me prioritize my tasks ->-> 2,22",
+      id: 98,
+      role: "user",
+    },
+    {
+      content:
+        "I've decided to apply for a Canadian study visa instead of Jamaican due to better funding options, but I'm not sure how to explain this transition strategy in my personal statement, can you guide me on what to focus on for the June 1 application? ->-> 3,5",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        "I just accepted the part-time role starting June 1 to gain experience while studying, but now I'm wondering how this will impact my decision to apply for a Canadian study visa instead of Jamaican, can you help me weigh the pros and cons? ->-> 3,14",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide exact times when I ask about appointments or meetings. ->-> 3,22",
+      id: 152,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning to join the Toronto Caribbean Cultural Association in September to ease my transition, and I've also been working on improving my academic writing skills, having completed 10 modules of a course by June 14, which helped me improve clarity and conciseness by 30% ->-> 4,10",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "I recently joined the Toronto Caribbean Cultural Association on July 29 and attended my first meeting at 7 PM at Queen St. West, how can I effectively mention this community engagement in my personal statement to show my cultural adaptation and global perspectives? ->-> 5,10",
+      id: 234,
+      role: "user",
+    },
+    {
+      content:
+        "I'm thrilled that my personal statement helped secure 2nd place in Montserrat Media Awards, but how can I leverage this achievement to demonstrate my academic and professional growth in future applications? ->-> 5,22",
+      id: 262,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-statement-application-types",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 14,
+        subtopics: [
+          "Hook writing techniques",
+          "Weaving academic and personal stories",
+          "Addressing gaps and weaknesses",
+          "Cultural context adaptation",
+        ],
+        theme:
+          "Balancing personal narrative with professional credibility for academic, visa, and grant applications",
+        title:
+          "Designing a Multi-Purpose Personal Statement for Global Opportunities",
+      },
+      narratives: "Personal statement application types aggregation",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "You are planning to use your personal statement for three application types: academic, visa, and grant. You mentioned accepting a part-time role starting June 1, which might affect your decision between applying for a Canadian or Jamaican study visa.",
+            question:
+              "How many different application types am I planning to use my personal statement for, and which roles or plans did I mention that might affect my visa application choice?",
+            question_id: "personal-statement-application-types",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [10, 82, 130],
+          },
+        ],
+      },
+      user_profile: {
+        user_info:
+          "USER PROFILE: Writer preparing a multi-purpose personal statement",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7620,6 +7746,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([26, 27, 66, 142]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps personal statement application-type anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-statement-application-types",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPersonalStatementApplicationTypesBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([10, 82, 130]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

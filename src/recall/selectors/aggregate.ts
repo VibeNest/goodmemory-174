@@ -40,16 +40,17 @@ import {
   isOwnershipCountAggregateQuery,
   isPersonalElectronicsCostQuery,
   isPlantAcquisitionAggregateQuery,
+  isPersonalStatementApplicationTypesAggregateQuery,
   isPropertyViewingAggregateQuery,
   isResumeImprovementAreasAggregateQuery,
   isSiblingCountAggregateQuery,
   isWeatherFeatureConcernCountQuery,
 } from "./aggregateNarrowGates";
 import {
-  RESUME_IMPROVEMENT_AREAS_RECALL_LIMIT,
-  isResumeImprovementAreasAggregateSignal,
-  resumeImprovementAreasAggregatePriorityBonus,
-} from "./aggregateRules/resumeImprovementAreas";
+  aggregateRuleFamilyPriorityBonus,
+  aggregateRuleFamilyRecallLimit,
+  hasAggregateRuleFamilySignal,
+} from "./aggregateRules/registry";
 
 export {
   isAccommodationCostQuery,
@@ -70,6 +71,7 @@ export {
   isOwnershipCountAggregateQuery,
   isPersonalElectronicsCostQuery,
   isPlantAcquisitionAggregateQuery,
+  isPersonalStatementApplicationTypesAggregateQuery,
   isPropertyViewingAggregateQuery,
   isResumeImprovementAreasAggregateQuery,
   isSiblingCountAggregateQuery,
@@ -480,10 +482,7 @@ export function aggregateFactCountRecallLimit(query: string): number {
   if (isFamilyMovieMarathonTitlesAggregateQuery(query)) {
     return FAMILY_MOVIE_MARATHON_TITLES_RECALL_LIMIT;
   }
-  if (isResumeImprovementAreasAggregateQuery(query)) {
-    return RESUME_IMPROVEMENT_AREAS_RECALL_LIMIT;
-  }
-  return AGGREGATE_FACT_COUNT_LIMIT;
+  return aggregateRuleFamilyRecallLimit(query) ?? AGGREGATE_FACT_COUNT_LIMIT;
 }
 
 export function hasAggregateFactCountSignal(
@@ -559,7 +558,7 @@ export function hasAggregateFactCountSignal(
     return true;
   }
 
-  if (isResumeImprovementAreasAggregateSignal(entry, query)) {
+  if (hasAggregateRuleFamilySignal(entry, query)) {
     return true;
   }
 
@@ -754,7 +753,7 @@ export function aggregateEvidencePriority(
         (FAMILY_MOVIE_MARATHON_TITLE_FACT_PATTERNS.length - facetIndex) * 200;
     }
   }
-  priority += resumeImprovementAreasAggregatePriorityBonus(entry, query);
+  priority += aggregateRuleFamilyPriorityBonus(entry, query);
   if (
     isAggregateMoneyQuery(query) &&
     MONEY_FACT_PATTERN.test(valueContent)

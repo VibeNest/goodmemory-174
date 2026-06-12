@@ -14,6 +14,7 @@ import {
   isFamilyMovieMarathonTitlesAggregateQuery,
   isHealthIssueOrderQuery,
   isMuseumVisitOrderQuery,
+  isPersonalStatementApplicationTypesAggregateQuery,
   isResumeImprovementAreasAggregateQuery,
   isSocialMetricTotalQuery,
   isWeatherFeatureConcernCountQuery,
@@ -201,6 +202,7 @@ export function buildSelectionRunContext(
   // companions cannot override or dilute the winner.
   const instructionAugmentationStandDownQuery =
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
+    isPersonalStatementApplicationTypesAggregateQuery(query) ||
     isResumeImprovementAreasAggregateQuery(query) ||
     isResumeAtsSequencingReasoningQuery(query) ||
     isPeerFeedbackBalanceReasoningQuery(query) ||

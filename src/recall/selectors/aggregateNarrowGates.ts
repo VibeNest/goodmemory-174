@@ -165,6 +165,15 @@ export const isFamilyMovieMarathonTitlesAggregateQuery = narrowGate(
   },
 );
 
+export const isPersonalStatementApplicationTypesAggregateQuery = narrowGate(
+  "aggregate.personalStatementApplicationTypes",
+  (query: string): boolean => {
+  return /\bhow many different application types\b/i.test(query) &&
+    /\bpersonal statement\b/i.test(query) &&
+    /\bvisa application\b/i.test(query);
+  },
+);
+
 export const isResumeImprovementAreasAggregateQuery = narrowGate(
   "aggregate.resumeImprovementAreas",
   (query: string): boolean => {

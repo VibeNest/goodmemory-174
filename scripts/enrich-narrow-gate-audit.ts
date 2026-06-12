@@ -98,6 +98,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "aggregate.ownershipCount": aggregateNarrowGates.isOwnershipCountAggregateQuery,
   "aggregate.resumeImprovementAreas":
     aggregateNarrowGates.isResumeImprovementAreasAggregateQuery,
+  "aggregate.personalStatementApplicationTypes":
+    aggregateNarrowGates.isPersonalStatementApplicationTypesAggregateQuery,
   "updateSeries.relationshipLatestLocation":
     updateSeriesQueries.isRelationshipLatestLocationQuery,
   "updateSeries.mortgagePreapproval": updateSeriesQueries.isMortgagePreapprovalQuery,
