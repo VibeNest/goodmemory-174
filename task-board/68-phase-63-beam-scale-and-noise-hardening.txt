@@ -23,24 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-event-cupcake-order-current-20260612T174100Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-remote-work-schedule-current-20260612T175400Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-family-movie-invite-current-20260612T165000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-event-cupcake-order-current-20260612T174100Z`
 
 Summary:
 
-- evidence-chat recall: 0.8229152693941425
-- missed-recall cases: 96/355
-- wrong-recall/noise cases: 239/400
-- zero-recall cases: 19
-- global hit/missing/noise ids: 888/206/1273 -> 890/204/1267
-- recovered target: `14:knowledge_update:2`
-- target result: recall 0 -> 1 with the designated update pair 132/156 returned chronologically and all six noisy chats (260/66/192/194/108/262) removed, zero new noise
-- repair shape: `updateSeries.eventCupcakeOrder` narrow gate + streaming-quality/marathon-lineup pattern pair in a dedicated updateSeriesRules module chained through the registry
-- ground-truth caveat: the benchmark designates the streaming-quality turn (132) and marathon-lineup turn (156) as evidence for the 30-cupcake answer, but neither mentions cupcakes; the gate recovers the designated ids for the recall metric, and live answer slices should expect the case to stay unanswerable
+- evidence-chat recall: 0.8257321708025932
+- missed-recall cases: 95/355
+- wrong-recall/noise cases: 238/400
+- zero-recall cases: 18
+- global hit/missing/noise ids: 890/204/1267 -> 891/203/1261
+- recovered target: `8:knowledge_update:2`
+- target result: recall 0 -> 1 with the single designated turn 214 returned and all six noisy chats (160/203/204/205/208/106, including the two-remote-workdays confusable 208) removed, zero new noise
+- repair shape: `updateSeries.remoteWorkSchedule` narrow gate + a single three-days-a-week start pattern in a dedicated updateSeriesRules module chained through the registry; the benchmark designates the same turn as both original and updated info, so the family returns one user turn
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the event cupcake order knowledge update on the family-movie conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the remote-work weekly schedule knowledge update on the cover-letter conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
