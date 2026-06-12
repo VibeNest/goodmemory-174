@@ -41,9 +41,15 @@ import {
   isPersonalElectronicsCostQuery,
   isPlantAcquisitionAggregateQuery,
   isPropertyViewingAggregateQuery,
+  isResumeImprovementAreasAggregateQuery,
   isSiblingCountAggregateQuery,
   isWeatherFeatureConcernCountQuery,
 } from "./aggregateNarrowGates";
+import {
+  RESUME_IMPROVEMENT_AREAS_RECALL_LIMIT,
+  isResumeImprovementAreasAggregateSignal,
+  resumeImprovementAreasAggregatePriorityBonus,
+} from "./aggregateRules/resumeImprovementAreas";
 
 export {
   isAccommodationCostQuery,
@@ -65,6 +71,7 @@ export {
   isPersonalElectronicsCostQuery,
   isPlantAcquisitionAggregateQuery,
   isPropertyViewingAggregateQuery,
+  isResumeImprovementAreasAggregateQuery,
   isSiblingCountAggregateQuery,
   isWeatherFeatureConcernCountQuery,
 };
@@ -470,9 +477,13 @@ function hasFamilyMovieMarathonTitleFact(content: string): boolean {
 }
 
 export function aggregateFactCountRecallLimit(query: string): number {
-  return isFamilyMovieMarathonTitlesAggregateQuery(query)
-    ? FAMILY_MOVIE_MARATHON_TITLES_RECALL_LIMIT
-    : AGGREGATE_FACT_COUNT_LIMIT;
+  if (isFamilyMovieMarathonTitlesAggregateQuery(query)) {
+    return FAMILY_MOVIE_MARATHON_TITLES_RECALL_LIMIT;
+  }
+  if (isResumeImprovementAreasAggregateQuery(query)) {
+    return RESUME_IMPROVEMENT_AREAS_RECALL_LIMIT;
+  }
+  return AGGREGATE_FACT_COUNT_LIMIT;
 }
 
 export function hasAggregateFactCountSignal(
@@ -545,6 +556,10 @@ export function hasAggregateFactCountSignal(
     isFamilyMovieMarathonTitlesAggregateQuery(query) &&
     hasFamilyMovieMarathonTitleFact(entry.fact.content)
   ) {
+    return true;
+  }
+
+  if (isResumeImprovementAreasAggregateSignal(entry, query)) {
     return true;
   }
 
@@ -739,6 +754,7 @@ export function aggregateEvidencePriority(
         (FAMILY_MOVIE_MARATHON_TITLE_FACT_PATTERNS.length - facetIndex) * 200;
     }
   }
+  priority += resumeImprovementAreasAggregatePriorityBonus(entry, query);
   if (
     isAggregateMoneyQuery(query) &&
     MONEY_FACT_PATTERN.test(valueContent)

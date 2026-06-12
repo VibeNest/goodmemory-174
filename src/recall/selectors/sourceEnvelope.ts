@@ -10,6 +10,15 @@ export function isSourceEnvelopeContent(content: string): boolean {
   return SOURCE_ENVELOPE_PATTERN.test(content);
 }
 
+/**
+ * Raw source-envelope turns keep their trailing "->-> session,turn" marker;
+ * extractor-derived duplicates lose it. Selectors that must distinguish the
+ * raw turn from its stripped copy key off this marker.
+ */
+export function hasSourceOrderMarkerContent(content: string): boolean {
+  return /->->/u.test(content);
+}
+
 export function hasSourceEnvelopeRoleContent(content: string): boolean {
   return SOURCE_ENVELOPE_ROLE_PATTERN.test(content);
 }

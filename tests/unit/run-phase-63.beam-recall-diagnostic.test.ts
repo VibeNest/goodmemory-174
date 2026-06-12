@@ -5228,6 +5228,125 @@ function buildProbabilityConceptsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildResumeImprovementAreasBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm thinking of asking for a $10,000 salary increase based on my new resume and portfolio, but I'm not sure if that's too much, can you give me some advice on how to negotiate that? ->-> 1,14",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "Always use structured bullet points with quantified achievements when I ask about resume formatting preferences. ->-> 1,22",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I chose to highlight 5 award-winning projects in my portfolio after Alexis advised focusing on storytelling impact, but I'm wondering if that was the right decision, can you offer some guidance? ->-> 2,12",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "Focusing on 5 award-winning projects in your portfolio is a strong decision, especially given Alexis's advice to emphasize storytelling impact. Highlighting your most impactful and recognized work can significantly enhance your portfolio's effectiveness. Here are some guidelines to ensure you are making the most of this approach:\n\n### 1. Select Projects with Maximum Impact\nChoose projects that not only won awards but also had a significant impact in terms of audience engagement, critical acclaim, or innovative storytelling techniques. This will help demonstrate your ability to create meaningful and memorable content.\n\n### 2. Provide Context and Details\nFor each project, provide detailed context and information that showcases your role and contributions. This includes:\n\n- **Project Overview**: Briefly describe the project, its purpose, and the target audience.\n- **Your Role**: Clearly state your specific responsibilities and how you contributed to the project's success.\n- **Outcomes**: Highlight the outcomes, such as audience engagement metrics, critical reviews, or any other notable achievements.\n\n### 3. Use Visuals Effectively\nIncorporate high-quality visuals, such as screenshots, video clips, and behind-the-scenes footage, to illustrate your projects. Visuals can help tell the story of your work more vividly and engagingly.\n\n### 4. Include Testimonials and Awards\nIf available, include testimonials from clients, collaborators, or industry experts. Additionally, list any awards or recognitions the projects received, as this adds credibility and highlights your achievements.\n\n### 5. Tell a Story\nAs Alexis advised, focus on the storytelling impact. Explain how each project told a compelling story and resonated with the audience. Use narratives to connect the dots between your creative vision, execution, and the final result.\n\n### 6. Tailor to the Audience\nConsider the perspective of the person viewing your portfolio. Tailor the presentation to align with the interests and needs of the target audience, whether it's a potential employer or a client.\n\n### Example Portfolio Entry\n\n#### Project: \"The Journey\"\n- **Overview**: A documentary series that explores the lives of individuals navigating significant life changes.\n- **Role**: Producer and Editor\n- **Responsibilities**: Conceptualized the series, managed the production team, and edited the final episodes.\n- **Outcomes**: Won the Best Documentary Series Award at the International Film Festival. Achieved a 95% viewer retention rate and received critical acclaim for its emotional depth and storytelling.\n- **Testimonial**: \"Crystal's ability to capture raw emotion and weave it into a compelling narrative is unparalleled. 'The Journey' is a testament to her talent and vision.\" - John Doe, Director of Content, XYZ Media.\n- **Visuals**: Include a trailer, behind-the-scenes photos, and screenshots of key scenes.\n\n### 7. Review and Refine\nOnce you have selected and presented your projects, review them critically. Ask yourself:\n- Does each project clearly demonstrate my skills and contributions?\n- Are the visual elements and narratives engaging and impactful?\n- Does the overall presentation align with my career goals and the needs of my target audience?\n\n### 8. Seek Feedback\nBefore finalizing your portfolio, seek feedback from trusted colleagues, mentors, or industry professionals. Their insights can help you refine your presentation and ensure it effectively communicates your strengths and achievements.\n\n### Conclusion\nHighlighting 5 award-winning projects in your portfolio is a solid strategy, especially when you focus on storytelling impact. By providing detailed context, using compelling visuals, and emphasizing the outcomes and testimonials, you can create a portfolio that truly stands out. Keep refining and seeking feedback to ensure your portfolio is as effective as possible. Good luck!",
+      id: 73,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always highlight quantified achievements when I ask about resume content improvements. ->-> 2,22",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I've got my first performance review scheduled for October 15, 2024, and I'm aiming for a 10% salary increase, do you have any tips on how to negotiate that? ->-> 3,6",
+      id: 112,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda confused about how to make my resume pass any applicant tracking system, so can you help me understand why Karen recommended focusing on international resume standards, like for the UK and US markets? ->-> 3,11",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly! Focusing on international resume standards, particularly for markets like the UK and US, is a strategic approach to ensure your resume is versatile and can pass through various applicant tracking systems (ATS). Here are some key reasons why Karen recommended this approach:\n\n### 1. **Versatility and Adaptability**\n- **Global Appeal:** By adhering to international resume standards, your resume becomes more adaptable to different job markets and industries.\n- **Broader Opportunities:** This approach opens up more job opportunities globally, as you can apply to roles in multiple countries without needing to rewrite your resume extensively.\n\n### 2. **ATS Compatibility**\n- **Standardized Format:** International resume standards often follow a standardized format that is more likely to be recognized by ATS.\n- **Common Keywords:** These standards typically include commonly used keywords and phrases that are recognized across different regions, increasing the likelihood of your resume passing through ATS.\n\n### 3. **Cultural Competence**\n- **Understanding Differences:** Different countries have different expectations for resumes. For example, the UK prefers a CV (Curriculum Vitae) that is more detailed and comprehensive, while the US typically uses a shorter resume.\n- **Tailored Content:** Understanding these differences allows you to tailor your resume appropriately for each market, which can be crucial for standing out to hiring managers.\n\n### 4. **Professional Development**\n- **Enhanced Skills:** Learning about international resume standards can enhance your understanding of global business practices and professional norms.\n- **Competitive Edge:** Demonstrating your ability to adapt to different standards can be seen as a valuable skill by potential employers, especially in multinational companies.\n\n### 5. **Consistency and Clarity**\n- **Clear Structure:** Following international standards ensures a clear and consistent structure, which is easier for ATS to parse.\n- **Readable Format:** A well-structured resume is more likely to be readable by both humans and machines, increasing your chances of advancing in the hiring process.\n\n### Practical Steps to Implement International Resume Standards\n\n#### 1. **Research Regional Differences**\n- **UK Standards:** Typically, a CV should be more detailed and can be longer than a US resume. Include a personal statement, education details, work experience, and skills.\n- **US Standards:** A resume is usually shorter and focuses on relevant experience, skills, and achievements. Use a reverse chronological order and include a summary or objective statement.\n\n#### 2. **Use Universal Keywords**\n- **Industry-Specific Terms:** Include keywords that are relevant to your industry and are commonly used in job postings.\n- **Action Verbs:** Use strong action verbs to describe your achievements and responsibilities.\n\n#### 3. **Format and Layout**\n- **Simple and Clean:** Use a simple and clean layout with standard fonts (Arial, Calibri, Times New Roman).\n- **Avoid Special Characters:** Stick to basic punctuation and avoid special characters, graphics, or tables.\n\n#### 4. **Tailor Your Content**\n- **Customize for Each Market:** Tailor your resume for each market by emphasizing the aspects that are most relevant to the job and the country's hiring preferences.\n- **Highlight Transferable Skills:** Emphasize transferable skills that are valuable in multiple markets, such as remote team leadership, project management, and strategic planning.\n\n### Example Structure for Both Markets\n\n#### **UK CV Example:**\n```markdown\n**Full Name**\nAddress\nPhone Number\nEmail Address\n\n**Personal Statement**\nDynamic Executive Producer with over 30 years of experience in television and film production, specializing in digital storytelling and remote team leadership. Proven track record of increasing viewership by 40% and managing cross-functional teams across multiple projects. Skilled in strategic planning, budget oversight, and fostering a collaborative work environment.\n\n**Education**\n- Bachelor of Arts in Film Production, [University Name], [Graduation Year]\n\n**Work Experience**\n- **Television/Film Producer**, [Company Name], [Dates]\n  - Led a remote team of 15 producers and coordinators, achieving a 95% on-time delivery rate.\n  - Implemented strategic planning initiatives that increased viewership by  40%.\n  - Oversaw budget management, ensuring cost-effective production while maintaining high-quality output.\n  - Facilitated cross-cultural communication and collaboration among international teams.\n\n**Skills**\n- Remote Team Leadership\n- Project Management\n- Strategic Planning\n- Budget Oversight\n- Digital Content Creation\n- Cross-Cultural Communication\n- Software Proficiency: Adobe Creative Suite, Final Cut Pro, Avid Media Composer\n\n**Certifications/Awards**\n- Certified in Digital Media Production and Storytelling Techniques\n- Award for Best Short Film, [Film Festival Name], [Year]\n```\n\n#### **US Resume Example:**\n```markdown\n**Full Name**\nAddress\nPhone Number\nEmail Address\n\n**Summary**\nDynamic Executive Producer with over 30 years of experience in television and film production, specializing in digital storytelling and remote team leadership. Proven track record of increasing viewership by 40% and managing cross-functional teams across multiple projects. Skilled in strategic planning, budget oversight, and fostering a collaborative work environment.\n\n**Professional Experience**\n- **Television/Film Producer**, [Company Name], [Dates]\n  - Led a remote team of 15 producers and coordinators, achieving a 95% on-time delivery rate.\n  - Implemented strategic planning initiatives that increased viewership by 40%.\n  - Oversaw budget management, ensuring cost-effective production while maintaining high-quality output.\n  - Facilitated cross-cultural communication and collaboration among international teams.\n\n**Education**\n- Bachelor of Arts in Film Production, [University Name], [Graduation Year]\n\n**Skills**\n- Remote Team Leadership\n- Project Management\n- Strategic Planning\n- Budget Oversight\n- Digital Content Creation\n- Cross-Cultural Communication\n- Software Proficiency: Adobe Creative Suite, Final Cut Pro, Avid Media Composer\n\n**Certifications/Awards**\n- Certified in Digital Media Production and Storytelling Techniques\n- Award for Best Short Film, [Film Festival Name], [Year]\n```\n\nBy following these guidelines and tailoring your resume to international standards, you can ensure that it is more likely to pass through ATS and appeal to a wider range of potential employers. This approach will help you stay competitive in both the UK and US markets.",
+      id: 123,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always use quantified bullet points when I ask about resume content style. ->-> 3,22",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my resume to highlight my leadership skills in remote work settings, as suggested by Nicole, a veteran producer I met at an industry panel on September 3, and I want to know how to effectively convey this experience ->-> 4,5",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        "I'm updating my portfolio and I noticed the number of mentees I've worked with has increased to 7, how can I effectively highlight this expansion of my mentoring activities in my resume? ->-> 4,21",
+      id: 192,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "resume-improvement-areas",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 11,
+        subtopics: [
+          "ATS keyword optimization",
+          "Action verb libraries",
+          "Formatting for machine readability",
+          "Industry-specific resume tailoring",
+        ],
+        theme:
+          "Structuring, optimizing, and tailoring resumes for multiple industries and career stages",
+        title:
+          "Building a Portfolio-Ready Resume that Passes Any Applicant Tracking System",
+      },
+      narratives: "Resume improvement areas aggregation",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Four areas: salary negotiation, portfolio project selection, resume international standards, and remote leadership skills.",
+            question:
+              "How many different areas have I focused on updating or improving based on my messages about my resume, portfolio, and salary negotiation?",
+            question_id: "resume-improvement-areas",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [28, 72, 122, 158],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer improving resume and portfolio",
+        user_relationships: "Alexis, Karen, Nicole",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -7336,6 +7455,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.retrievedChatIds).toEqual([
       6, 10, 14, 16, 18, 20, 24, 30, 34, 50, 56, 58,
     ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps resume improvement area anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-resume-improvement-areas",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildResumeImprovementAreasBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([28, 72, 122, 158]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

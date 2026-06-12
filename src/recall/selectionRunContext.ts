@@ -14,6 +14,7 @@ import {
   isFamilyMovieMarathonTitlesAggregateQuery,
   isHealthIssueOrderQuery,
   isMuseumVisitOrderQuery,
+  isResumeImprovementAreasAggregateQuery,
   isSocialMetricTotalQuery,
   isWeatherFeatureConcernCountQuery,
 } from "./selectors/aggregate";
@@ -194,10 +195,12 @@ export function buildSelectionRunContext(
     queryLocale,
   );
   // Query families whose winning route returns a complete evidence set; the
-  // instruction append-and-prune augmenter stands down for them so standing
-  // "Always ..." instructions cannot override the winner.
+  // instruction append-and-prune and direct-factual-companion augmenters
+  // stand down for them so standing "Always ..." instructions and lookup
+  // companions cannot override or dilute the winner.
   const instructionAugmentationStandDownQuery =
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
+    isResumeImprovementAreasAggregateQuery(query) ||
     isResumeAtsSequencingReasoningQuery(query) ||
     isPeerFeedbackBalanceReasoningQuery(query) ||
     isReadingPlanBalanceReasoningQuery(query);

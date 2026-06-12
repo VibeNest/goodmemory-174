@@ -165,6 +165,17 @@ export const isFamilyMovieMarathonTitlesAggregateQuery = narrowGate(
   },
 );
 
+export const isResumeImprovementAreasAggregateQuery = narrowGate(
+  "aggregate.resumeImprovementAreas",
+  (query: string): boolean => {
+  return /\bhow many different areas\b/i.test(query) &&
+    /\bupdating or improving\b/i.test(query) &&
+    /\bresume\b/i.test(query) &&
+    /\bportfolio\b/i.test(query) &&
+    /\bsalary negotiation\b/i.test(query);
+  },
+);
+
 export const isOwnershipCountAggregateQuery = narrowGate(
   "aggregate.ownershipCount",
   (query: string): boolean => {

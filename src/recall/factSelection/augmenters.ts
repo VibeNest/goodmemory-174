@@ -130,6 +130,10 @@ const directFactualCompanionsStage: FactSelectionAugmenterStage = {
     return (
       !ctx.exactSourceOrderedReasoningQuery &&
       !ctx.sourcePreferenceExclusiveQuery &&
+      // Complete-evidence query families must not be diluted with lookup
+      // companions; their winners select fewer slots than the direct
+      // factual limit, so this stage would otherwise append noise.
+      !ctx.instructionAugmentationStandDownQuery &&
       ctx.directFactualLookupQuery &&
       !ctx.weatherFeatureConcernCountQuery &&
       ctx.informationExtractionCandidates.length === 0 &&
