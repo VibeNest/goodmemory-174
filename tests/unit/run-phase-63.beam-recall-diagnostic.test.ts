@@ -6355,6 +6355,107 @@ function buildExecutiveProducerInterviewsBeamRows(): unknown[] {
   ];
 }
 
+function buildResumeTailoringApplyDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that my resume won't be ready by April 10, 2024, to tailor it for film, television, and digital media industries, can you help me get started on that? ->-> 1,8",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I want to improve my resume to boost confidence applying for executive producer roles by June 1, 2024, but I'm not sure where to begin, can you give me some tips? ->-> 1,7",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer using structured bullet points with quantified achievements over narrative paragraphs for clarity and ATS readability, can you help me create a sample resume section that showcases my skills in a way that's clear and concise, like using numbers and percentages to demonstrate my accomplishments? ->-> 1,18",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, using structured bullet points with quantified achievements can make your resume more clear, concise, and ATS-friendly. Here's a sample resume section that showcases your skills and accomplishments using numbers and percentages:\n\n### Sample Resume Section: Work Experience\n\n#### Television/Film Producer\n**[Company Name]**, [Location]\n[Month Year] - Present\n\n- **Directed and coordinated the production of 15 successful television series and films**, achieving an average viewer satisfaction rate of 90%.\n- **Managed budgets totaling over $5 million**, ensuring projects were delivered within financial constraints and on time.\n- **Led cross-functional teams of up to 20 people**, resulting in a 25% increase in project completion rates.\n- **Facilitated workshops and training sessions for 50+ local talents**, empowering them to contribute effectively to production.\n- **Networked with industry professionals to secure 10 key partnerships and collaborations**, enhancing the company's market reach.\n- **Promoted films through targeted marketing campaigns, increasing box office revenue by 30%**.\n\n#### Script Developer\n**[Company Name]**, [Location]\n[Month Year] - [Month Year]\n\n- **Created and developed 10 compelling scripts in collaboration with writers and directors**, leading to a 40% increase in script acceptance rates.\n- **Conducted market research to identify trends and opportunities**, resulting in a 20% increase in script relevance and audience engagement.\n- **Ensured scripts were production-ready by coordinating with production teams**, achieving a 95% on-time delivery rate.\n\n#### Marketing and Distribution\n**Film Promoter**\n**[Company Name]**, [Location]\n[Month Year] - [Month Year]\n\n- **Promoted film releases through strategic marketing campaigns, increasing audience engagement by 25%**.\n- **Negotiated distribution deals with 8 major platforms**, expanding market reach and increasing distribution revenue by 35%.\n- **Analyzed market data to inform promotional strategies, resulting in a 20% increase in campaign effectiveness**.\n\n### Skills Section\n\n- **Project Management**\n- **Budget Management**\n- **Team Leadership**\n- **Networking**\n- **Problem-Solving**\n- **Communication**\n- **Script Development**\n- **Casting**\n- **Post-Production**\n- **Marketing and Distribution**\n- **Cultural Competence**\n- **Community Collaboration**\n- **Diversity and Inclusion**\n- **Cross-Cultural Communication**\n\n### Portfolio\n\n- **www.crystalwilsonportfolio.com**\n\n### Example Structure:\n\n#### Work Experience\n\n**Television/Film Producer**\n**[Company Name]**, [Location]\n[Month Year] - Present\n\n- Directed and coordinated the production of 15 successful television series and films, achieving an average viewer satisfaction rate of 90%.\n- Managed budgets totaling over $5 million, ensuring projects were delivered within financial constraints and on time.\n- Led cross-functional teams of up to 20 people, resulting in a 25% increase in project completion rates.\n- Facilitated workshops and training sessions for 50+ local talents, empowering them to contribute effectively to production.\n- Networked with industry professionals to secure 10 key partnerships and collaborations, enhancing the company's market reach.\n- Promoted films through targeted marketing campaigns, increasing box office revenue by 30%.\n\n**Script Developer**\n**[Company Name]**, [Location]\n[Month Year] - [Month Year]\n\n- Created and developed 10 compelling scripts in collaboration with writers and directors, leading to a 40% increase in script acceptance rates.\n- Conducted market research to identify trends and opportunities, resulting in a 20% increase in script relevance and audience engagement.\n- Ensured scripts were production-ready by coordinating with production teams, achieving a 95% on-time delivery rate.\n\n**Film Promoter**\n**[Company Name]**, [Location]\n[Month Year] - [Month Year]\n\n- Promoted film releases through strategic marketing campaigns, increasing audience engagement by 25%.\n- Negotiated distribution deals with 8 major platforms, expanding market reach and increasing distribution revenue by 35%.\n- Analyzed market data to inform promotional strategies, resulting in a 20% increase in campaign effectiveness.\n\n### Skills Section\n\n- Project Management\n- Budget Management\n- Team Leadership\n- Networking\n- Problem-Solving\n- Communication\n- Script Development\n- Casting\n- Post-Production\n- Marketing and Distribution\n- Cultural Competence\n- Community Collaboration\n- Diversity and Inclusion\n- Cross-Cultural Communication\n\n### Portfolio\n\n- www.crystalwilsonportfolio.com\n\nBy using structured bullet points with quantified achievements, you can make your resume more clear, concise, and ATS-friendly. This format also helps potential employers quickly grasp your accomplishments and skills.",
+      id: 37,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always use structured bullet points with quantified achievements when I ask about resume formatting preferences. ->-> 1,22",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer using bullet points with quantified results over paragraphs, but how can I make sure that improves ATS parsing and recruiter readability, like you would with a normal resume? ->-> 3,12",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Using bullet points with quantified results is an excellent approach for both ATS parsing and recruiter readability. This format is clear, concise, and easy to scan, which can significantly improve your chances of advancing in the hiring process. Here are some tips to ensure your resume is optimized for both ATS and human readers:\n\n### 1. **Use Bullet Points Effectively**\n- **Clarity and Conciseness:** Each bullet point should be clear and to the point. Avoid long, run-on sentences.\n- **Action Verbs:** Start each bullet point with a strong action verb to describe your responsibilities and achievements.\n- **Quantified Results:** Include specific numbers and metrics to quantify your achievements. This makes your resume more impactful and easier to parse.\n\n### 2. **Structure and Formatting**\n- **Standard Sections:** Organize your resume into standard sections such as Contact Information, Summary, Professional Experience, Education, Skills, and Certifications.\n- **Consistent Formatting:** Use a consistent font, size, and style throughout the resume. Stick to common fonts like Arial, Calibri, or Times New Roman.\n- **Headers and Subheaders:** Use bold or italicized text for headers and subheaders to make the structure clear and easy to follow.\n\n### 3. **Keywords and Phrases**\n- **Industry-Specific Keywords:** Include relevant keywords and phrases that are common in your industry. This helps ATS identify your resume as a match for the job description.\n- **Contextual Keywords:** Use keywords naturally within the context of your bullet points rather than listing them separately.\n\n### 4. **ATS-Friendly Tips**\n- **Plain Text Format:** Save your resume in a plain text (.txt) or PDF format to ensure it is easily readable by ATS.\n- **Avoid Special Characters:** Use standard punctuation and avoid special characters, graphics, or tables that can confuse ATS.\n- **Header and Footer:** Place all contact information directly in the body of the document to avoid issues with ATS parsing headers and footers.\n\n### 5. **Recruiter Readability**\n- **Scannable Content:** Ensure your resume is easy to scan. Recruiters often spend only a few seconds reviewing each resume, so make it easy for them to find key information.\n- **Highlight Achievements:** Use bullet points to highlight your achievements and quantify them with specific results. This makes your resume more compelling and memorable.\n\n### Example Resume Structure\n\n**Contact Information**\n- Full Name\n- Address\n- Phone Number\n- Email Address\n\n**Summary**\nDynamic Executive Producer with over 30 years of experience in television and film production, specializing in digital storytelling and remote team leadership. Proven track record of increasing viewership by 40% and managing cross-functional teams across multiple projects. Skilled in strategic planning, budget oversight, and fostering a collaborative work environment.\n\n**Professional Experience**\n- **Television/Film Producer**, [Company Name], [Dates]\n  - Led a remote team of 15 producers and coordinators, achieving a 95% on-time delivery rate.\n  - Implemented strategic planning initiatives that increased viewership by  40%.\n  - Oversaw budget management, ensuring cost-effective production while maintaining high-quality output.\n  - Facilitated cross-cultural communication and collaboration among international teams.\n\n- **Digital Content Manager**, [Company Name], [Dates]\n  - Managed digital content creation and distribution across multiple platforms, including YouTube, Netflix, and Hulu.\n  - Increased social media engagement by 30% through targeted marketing campaigns.\n  - Coordinated with cross-functional teams to ensure timely and high-quality content delivery.\n\n**Education**\n- **Bachelor of Arts in Film Production**, [University Name], [Graduation Year]\n\n**Skills**\n- Remote Team Leadership\n- Project Management\n- Strategic Planning\n- Budget Oversight\n- Digital Content Creation\n- Cross-Cultural Communication\n- Software Proficiency: Adobe Creative Suite, Final Cut Pro, Avid Media Composer\n\n**Certifications/Awards**\n- Certified in Digital Media Production and Storytelling Techniques\n- Award for Best Short Film, [Film Festival Name], [Year]\n\n### Additional Tips\n\n- **Test Your Resume:** Use tools like Jobscan or Resume Worded to test how well your resume matches the job description and ensure it is ATS-friendly.\n- **Proofread:** Double-check for spelling and grammar errors. A clean, error-free resume reflects professionalism and attention to detail.\n- **Feedback:** Get feedback from mentors, colleagues, or friends to ensure your resume is clear and compelling.\n\nBy following these guidelines, you can create a resume that is both ATS-friendly and highly readable for recruiters. This approach will help you stand out and increase your chances of landing an interview.",
+      id: 125,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always tailor resumes to specific country ATS standards when I ask about international job applications. ->-> 5,24",
+      id: 252,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "resume-tailoring-apply-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Writing Assistant & Learning",
+        id: 11,
+        subtopics: [
+          "ATS keyword optimization",
+          "Action verb libraries",
+          "Formatting for machine readability",
+          "Industry-specific resume tailoring",
+        ],
+        theme:
+          "Structuring, optimizing, and tailoring resumes for multiple industries and career stages",
+        title:
+          "Building a Portfolio-Ready Resume that Passes Any Applicant Tracking System",
+      },
+      narratives: "Resume tailoring to apply-date interval",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 52 days between the April 10, 2024 deadline to tailor your resume for film, television, and digital media and the June 1, 2024 target date to be ready to apply confidently for executive producer roles.",
+            question:
+              "How many days do I have between the deadline to tailor my resume for film, television, and digital media and the date I want to be ready to apply confidently for executive producer roles?",
+            question_id: "resume-tailoring-apply-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: {"first_event":[14],"second_event":[16]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer tailoring a resume for media roles",
+        user_relationships: "Karen",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -8716,6 +8817,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([62, 92]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the resume tailoring apply-days interval pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-resume-tailoring-apply-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildResumeTailoringApplyDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([14, 16]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

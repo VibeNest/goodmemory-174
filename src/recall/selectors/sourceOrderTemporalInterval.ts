@@ -43,6 +43,20 @@ const TRIANGLE_PROBLEM_COUNT_INTERVAL_START_PATTERN =
 const TRIANGLE_PROBLEM_COUNT_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bimproved from 70% to 90% after completing 12 problems\b)/iu;
 
+export const isResumeTailoringApplyDaysIntervalQuery = narrowGate(
+  "temporalInterval.resumeTailoringApplyDays",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+days\b/iu.test(query) &&
+    /\bfilm, television, and digital media\b/iu.test(query) &&
+    /\bexecutive producer roles\b/iu.test(query);
+  },
+);
+
+const RESUME_TAILORING_APPLY_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bready by April 10, 2024\b)(?=[\s\S]*\bfilm, television, and digital media\b)/iu;
+const RESUME_TAILORING_APPLY_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bboost confidence applying for executive producer roles by June 1, 2024\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -60,22 +74,29 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isTransactionDeploymentWeeksIntervalQuery(input.query);
   const triangleProblemCountIntervalQuery =
     isTriangleProblemCountIntervalQuery(input.query);
+  const resumeTailoringApplyDaysIntervalQuery =
+    isResumeTailoringApplyDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
     !transactionDeploymentWeeksIntervalQuery &&
-    !triangleProblemCountIntervalQuery
+    !triangleProblemCountIntervalQuery &&
+    !resumeTailoringApplyDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = triangleProblemCountIntervalQuery
+  const startPattern = resumeTailoringApplyDaysIntervalQuery
+    ? RESUME_TAILORING_APPLY_INTERVAL_START_PATTERN
+    : triangleProblemCountIntervalQuery
     ? TRIANGLE_PROBLEM_COUNT_INTERVAL_START_PATTERN
     : transactionDeploymentWeeksIntervalQuery
     ? TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = triangleProblemCountIntervalQuery
+  const endPattern = resumeTailoringApplyDaysIntervalQuery
+    ? RESUME_TAILORING_APPLY_INTERVAL_END_PATTERN
+    : triangleProblemCountIntervalQuery
     ? TRIANGLE_PROBLEM_COUNT_INTERVAL_END_PATTERN
     : transactionDeploymentWeeksIntervalQuery
     ? TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN

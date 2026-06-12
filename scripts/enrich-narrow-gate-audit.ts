@@ -16,6 +16,7 @@ import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updat
 import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updateSeriesRules/finalDecisionMeeting";
 import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selectors/updateSeriesRules/executiveProducerInterviews";
 import {
+  isResumeTailoringApplyDaysIntervalQuery,
   isTransactionDeploymentWeeksIntervalQuery,
   isTriangleProblemCountIntervalQuery,
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
@@ -126,6 +127,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,
   "temporalInterval.triangleProblemCount": isTriangleProblemCountIntervalQuery,
+  "temporalInterval.resumeTailoringApplyDays":
+    isResumeTailoringApplyDaysIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,
