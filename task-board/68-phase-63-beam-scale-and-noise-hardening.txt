@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-transaction-deployment-weeks-current-20260612T141500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-triangle-problem-count-current-20260612T143000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-book-series-genres-current-20260612T140000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-transaction-deployment-weeks-current-20260612T141500Z`
 
 Summary:
 
-- evidence-chat recall: 0.7919293539011849
-- missed-recall cases: 107/355
-- wrong-recall/noise cases: 250/400
-- zero-recall cases: 30
-- global hit/missing/noise ids: 866/228/1324 -> 868/226/1319
-- recovered target: `1:temporal_reasoning:1`
-- target result: recall 0 -> 1 with the interval pair 0/2 returned chronologically and all five noisy chats (184/3/9/35/28) removed
-- repair shape: `temporalInterval.transactionDeploymentWeeks` narrow gate (the temporal-interval module's third family and its first auditable gate) + start/end double-lookahead patterns selecting the milestone-breakdown turn and the March 15 time-anchor turn through the existing interval selector
+- evidence-chat recall: 0.7947462553096357
+- missed-recall cases: 106/355
+- wrong-recall/noise cases: 249/400
+- zero-recall cases: 29
+- global hit/missing/noise ids: 868/226/1319 -> 870/224/1315
+- recovered target: `4:temporal_reasoning:2`
+- target result: recall 0 -> 1 with the problem-count interval pair 30/82 returned chronologically and all four noisy chats (190/31/130/134) removed
+- repair shape: `temporalInterval.triangleProblemCount` narrow gate (the temporal-interval module's fourth family) + start/end double-lookahead patterns selecting the 8/10 classification-score turn and the 70%-to-90% area-improvement turn through the existing interval selector
 - regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the transaction-management-to-deployment interval: the milestone breakdown placing transaction management completion at January 15, 2024, against the March 15, 2024 final deployment time anchor. This is a retained selector repair, not a benchmark close.
+The repaired target covers the triangle problem-count interval: 10 classification problems scored 8/10 against 12 area-calculation problems at 70%-to-90% accuracy. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
