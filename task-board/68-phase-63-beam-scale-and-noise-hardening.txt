@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-resume-tailoring-apply-days-current-20260612T151500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-reunion-promotion-days-current-20260612T153000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-executive-producer-interviews-current-20260612T150000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-resume-tailoring-apply-days-current-20260612T151500Z`
 
 Summary:
 
-- evidence-chat recall: 0.8031969595349878
-- missed-recall cases: 103/355
-- wrong-recall/noise cases: 246/400
-- zero-recall cases: 26
-- global hit/missing/noise ids: 874/220/1307 -> 876/218/1301
-- recovered target: `6:temporal_reasoning:1`
-- target result: recall 0 -> 1 with the interval pair 14/16 returned chronologically and all six noisy chats (252/46/36/37/124/125, mostly standing instructions and bullet-point preference turns) removed
-- repair shape: `temporalInterval.resumeTailoringApplyDays` narrow gate (the temporal-interval module's fifth family) + start/end double-lookahead patterns through the existing interval selector
+- evidence-chat recall: 0.8060138609434385
+- missed-recall cases: 102/355
+- wrong-recall/noise cases: 245/400
+- zero-recall cases: 25
+- global hit/missing/noise ids: 876/218/1301 -> 878/216/1295
+- recovered target: `6:temporal_reasoning:2`
+- target result: recall 0 -> 1 with the interval pair 120/186 returned chronologically and all six noisy chats (188/200/14/66/128/142) removed
+- repair shape: `temporalInterval.reunionPromotionDays` narrow gate (the temporal-interval module's sixth family) + start/end double-lookahead patterns through the existing interval selector
 - regression check: exactly one case delta (the target); no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no positive noise deltas
 
-The repaired target covers the resume-tailoring-to-apply interval: the April 10, 2024 deadline to tailor the resume for film, television, and digital media against the June 1, 2024 target to apply confidently for executive producer roles. This is a retained selector repair, not a benchmark close.
+The repaired target covers the reunion-to-promotion interval: the family reunion postponed on July 10 to finish the $15,000 budget proposal against the September 12 promotion celebration with Linda at The Blue Lagoon. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
