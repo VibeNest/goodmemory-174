@@ -46,6 +46,7 @@ import {
 } from "../src/recall/selectors/sourceOrderInstruction";
 import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors/instructionRules/legalTermsExplanation";
 import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instructionRules/patentTimelines";
+import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/instructionRules/nonProvisionalFilingDate";
 import {
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -198,6 +199,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "instruction.legalTermsExplanation":
     isLegalTermsExplanationInstructionQuery,
   "instruction.patentTimelines": isPatentTimelinesInstructionQuery,
+  "instruction.nonProvisionalFilingDate":
+    isNonProvisionalFilingInstructionQuery,
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,

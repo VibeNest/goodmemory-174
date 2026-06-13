@@ -1,6 +1,13 @@
 import type { RankedFactCandidate } from "../../scoring";
-import { stripEvidencePrefix } from "../selectionContext";
-import { compareTemporalFactChronology } from "../temporal";
+import {
+  hasSourceMessageTag,
+  hasUserAnswerTag,
+  stripEvidencePrefix,
+} from "../selectionContext";
+import {
+  compareTemporalFactChronology,
+  sourceOrderSortKey,
+} from "../temporal";
 import {
   RESUME_DESIGN_INSTRUCTION_PATTERN,
   isResumeDesignInstructionQuery,
@@ -17,11 +24,28 @@ import {
   PATENT_TIMELINES_INSTRUCTION_PATTERN,
   isPatentTimelinesInstructionQuery,
 } from "./patentTimelines";
+import {
+  NON_PROVISIONAL_FILING_COMPANION_PATTERN,
+  NON_PROVISIONAL_FILING_INSTRUCTION_PATTERN,
+  isNonProvisionalFilingInstructionQuery,
+} from "./nonProvisionalFilingDate";
 
 interface InstructionQueryRule {
   isQuery: (query: string) => boolean;
   pattern: RegExp;
+  // Optional pattern for an additional ordinary user turn (not a standing
+  // instruction) that the benchmark designates alongside the instruction turn,
+  // e.g. a confirmation turn restating an exact date.
+  companionPattern?: RegExp;
   limit: number;
+}
+
+function isUserSourceTurn(entry: RankedFactCandidate): boolean {
+  return (
+    hasSourceMessageTag(entry) &&
+    hasUserAnswerTag(entry) &&
+    sourceOrderSortKey(entry) !== undefined
+  );
 }
 
 /**
@@ -53,6 +77,12 @@ const INSTRUCTION_QUERY_RULES: readonly InstructionQueryRule[] = [
     pattern: PATENT_TIMELINES_INSTRUCTION_PATTERN,
     limit: 1,
   },
+  {
+    isQuery: isNonProvisionalFilingInstructionQuery,
+    pattern: NON_PROVISIONAL_FILING_INSTRUCTION_PATTERN,
+    companionPattern: NON_PROVISIONAL_FILING_COMPANION_PATTERN,
+    limit: 2,
+  },
 ];
 
 export function isInstructionRuleFamilyQuery(query: string): boolean {
@@ -69,11 +99,29 @@ export function selectInstructionRuleFamilyEvidence(input: {
       continue;
     }
 
-    const evidence = input.entries
+    const instructionMatches = input.entries
       .filter(input.isUserInstruction)
       .filter((entry) =>
         rule.pattern.test(stripEvidencePrefix(entry.fact.content))
-      )
+      );
+    const companionPattern = rule.companionPattern;
+    const companionMatches = companionPattern
+      ? input.entries
+          .filter(isUserSourceTurn)
+          .filter((entry) =>
+            companionPattern.test(stripEvidencePrefix(entry.fact.content))
+          )
+      : [];
+
+    const seen = new Set<string>();
+    const evidence = [...instructionMatches, ...companionMatches]
+      .filter((entry) => {
+        if (seen.has(entry.fact.id)) {
+          return false;
+        }
+        seen.add(entry.fact.id);
+        return true;
+      })
       .sort(compareTemporalFactChronology)
       .slice(0, rule.limit);
     return { matched: true, evidence };

@@ -8760,6 +8760,89 @@ function buildPatentTimelinesInstructionBeamRows(): unknown[] {
   ];
 }
 
+function buildNonProvisionalFilingInstructionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've been thinking about my decision to file a provisional patent by May 15, 2024, to secure a priority date before the product launch, and I'm hoping that with the USPTO, my receipt number 12345678 will help me keep track of the progress, can you help me understand what's next in this process? ->-> 3,1",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm exact dates when I ask about deadlines or meetings. ->-> 3,22",
+      id: 180,
+      role: "user",
+    },
+    {
+      content:
+        "Got it! Thanks for laying out the timeline and key dates. Just to confirm:\n\n- **Non-Provisional Patent Filing Deadline**: November 10, 2024.\n- **Budget Allocation Period**: July 1 - August 31, 2024.\n- **Enhancements Timeline**:\n  - **July 15 - July 31, 2024**: AI tagging accuracy and performance optimization.\n  - **August 1 - August 15, 2024**: Bug fixes and testing.\n  - **August 16 - August 31, 2024**: Data encryption and secure authentication.\n  - **September 1 - September 15, 2024**: Cross-platform compatibility and integration.\n  - **September 16 - September 30, 2024**: Documentation and customer support.\n  - **October 1 - October 15, 2024**: Final testing and validation.\n  - **October 16 - October 31, 2024**: Market launch preparation.\n\nThis looks good. I'll make sure to stick to these dates to keep everything on track.",
+      id: 182,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide clear summaries when I ask about patent drafting progress. ->-> 4,23",
+      id: 302,
+      role: "user",
+    },
+    {
+      content:
+        "I've already registered the trademark for VidTag Pro on November 18, 2024, but I'm not sure how this will impact my negotiations with potential partners, can you help me understand the implications of this registration on my partnership with Caribbean Tech Distributors ->-> 5,7",
+      id: 322,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "non-provisional-filing-instruction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 25,
+        subtopics: [
+          "Patent filing deadlines",
+          "Exact date confirmation",
+          "Budget allocation",
+          "Enhancements timeline",
+        ],
+        theme:
+          "Tracking exact patent deadlines and key dates",
+        title:
+          "Confirming Patent Filing Dates",
+      },
+      narratives: "Non-provisional patent filing date standing instruction",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer:
+              "Response should state the exact non-provisional patent filing date of November 10, 2024.",
+            question:
+              "When is the non-provisional patent filing scheduled?",
+            question_id: "non-provisional-filing-instruction",
+            question_type: "instruction_following",
+            source_chat_ids: [180, 182],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor tracking exact patent deadlines",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11719,6 +11802,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([66]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the non-provisional filing date standing instruction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-non-provisional-filing-instruction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildNonProvisionalFilingInstructionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([180, 182]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
