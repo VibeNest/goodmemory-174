@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-combinatorics-probability-event-order-current-20260613T053232Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-safety-event-order-current-20260613T054324Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-patent-funding-event-order-current-20260613T052049Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-combinatorics-probability-event-order-current-20260613T053232Z`
 
 Summary:
 
-- evidence-chat recall: 0.8852626872345183
-- missed-recall cases: 73/355
-- wrong-recall/noise cases: 216/400
+- evidence-chat recall: 0.8869528280795886
+- missed-recall cases: 72/355
+- wrong-recall/noise cases: 215/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 931/163/1105 -> 933/161/1080 (net 25-id noise drop)
-- recovered target: `5:event_ordering:2`
-- target result: recall 0.5 -> 1 — recovers the one missing designated turn (76; turn 28 was already a hit) and sheds all 24 noisy chats
-- bonus positive delta: `5:multi_session_reasoning:1` gains recall (+0.33) because surfacing turn 76 also satisfies one of its designated evidence turns
-- repair shape: `combinatoricsProbabilityEventOrder` coverage selector (two facets — permutations/combinations turn 28, probability-of-two-aces turn 76) chained in sourceOrderTemporal.ts; a combinatoricsProbabilityEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The gate is distinguished from the existing six-item probabilityConcepts coverage by the "combinatorial calculations" / "five items" phrasing (the benchmark designates only two evidence turns despite asking for five)
-- regression check: two positive case deltas, no regressions; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 25
+- global hit/missing/noise ids: 933/161/1080 -> 936/158/1054 (net 26-id noise drop)
+- recovered target: `15:event_ordering:2`
+- target result: recall 0.4 -> 1 — recovers the three missing designated turns (54/184/262; 94/138 were already hits) and sheds all 26 noisy chats
+- accepted ripple: `15:instruction_following:1` stays at its prior recall with a net-zero same-conversation noise swap (adds 84, drops one); global noise still falls by 26
+- repair shape: `sneakerSafetyEventOrder` coverage selector (five facets — grip soles 54, Continental traction 94, Brooks-Ghost shin-splints 138, reflective panels 184, orthotic insoles 262) chained in sourceOrderTemporal.ts; a sneakerSafetyEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. Regex note: the reflective-panels facet drops the trailing word boundary after "40%" (a \b after % never matches)
+- regression check: target case delta plus one recall-neutral same-conversation noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 26
 
-The repaired target covers the combinatorics/probability event-order coverage on the math conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the sneaker safety/comfort event-order coverage on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
