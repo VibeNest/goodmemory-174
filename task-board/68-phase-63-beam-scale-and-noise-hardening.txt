@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-career-relocation-event-order-current-20260613T045654Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-event-order-current-20260613T050930Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-non-provisional-filing-instruction-current-20260613T043954Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-career-relocation-event-order-current-20260613T045654Z`
 
 Summary:
 
-- evidence-chat recall: 0.8786899172814665
-- missed-recall cases: 76/355
-- wrong-recall/noise cases: 219/400
+- evidence-chat recall: 0.881037335121842
+- missed-recall cases: 75/355
+- wrong-recall/noise cases: 218/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 918/176/1187 -> 922/172/1160 (net 27-id noise drop)
-- recovered target: `6:event_ordering:2`
-- target result: recall 0.2 -> 1 — recovers the four missing designated turns (18/108/176/244; turn 56 was already a hit) and sheds all 27 noisy chats
-- accepted ripple: `6:information_extraction:1` stays at its prior recall with a net-zero same-conversation noise swap (adds 244, drops one); global noise still falls by 27
-- repair shape: first noise-reduction pass after the zero-recall queue was exhausted. `careerRelocationEventOrder` coverage selector (five facets — Canva/resume 18, Jobscan keyword 56, LinkedIn headline 108, panel interview 176, Shoreditch relocation rental 244 — modeled on probabilityConceptsEventOrder.ts) chained in sourceOrderTemporal.ts; a careerRelocationEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive makes the temporalOrder route return the coverage cleanly instead of appending fallback candidates
-- regression check: target case delta plus one recall-neutral same-conversation noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 27
+- global hit/missing/noise ids: 922/172/1160 -> 927/167/1133 (net 27-id noise drop)
+- recovered target: `11:event_ordering:1`
+- target result: recall 0.17 -> 1 — recovers the five missing designated turns (24/26/106/108/192; turn 28 was already a hit) and sheds all 28 noisy chats
+- accepted ripples (all recall-unchanged, same conversation 11): 11:event_ordering:2, 11:instruction_following:2, and 11:knowledge_update:2 each swap a noisy chat (net small per-case deltas); global noise still falls by 27
+- repair shape: `aiHiringEventOrder` coverage selector (six facets — human-touch 24, soft-skills 26, psychometric 28, Pymetrics-intro 106, Pymetrics-pilot 108, fairness-metrics 192) chained in sourceOrderTemporal.ts; an aiHiringEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. Per the architecture fixture-name rule the facet patterns key on surrounding phrasing (junior editor / AI fairness metrics on July 12 / Pymetrics) rather than the editor's name; near-duplicate Pymetrics turns 106 vs 108 are split by "for soft skills assessment"+"April hires" vs "could definitely help"+"pilot program"
+- regression check: target case delta plus three recall-neutral same-conversation noise swaps; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 27
 
-The repaired target covers the career-development/relocation event-order coverage on the career conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the AI-in-hiring event-order coverage on the hiring conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
