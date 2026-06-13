@@ -23,24 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-event-order-current-20260613T050930Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-patent-funding-event-order-current-20260613T052049Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-career-relocation-event-order-current-20260613T045654Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-event-order-current-20260613T050930Z`
 
 Summary:
 
-- evidence-chat recall: 0.881037335121842
-- missed-recall cases: 75/355
-- wrong-recall/noise cases: 218/400
+- evidence-chat recall: 0.8829152693941426
+- missed-recall cases: 74/355
+- wrong-recall/noise cases: 217/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 922/172/1160 -> 927/167/1133 (net 27-id noise drop)
-- recovered target: `11:event_ordering:1`
-- target result: recall 0.17 -> 1 — recovers the five missing designated turns (24/26/106/108/192; turn 28 was already a hit) and sheds all 28 noisy chats
-- accepted ripples (all recall-unchanged, same conversation 11): 11:event_ordering:2, 11:instruction_following:2, and 11:knowledge_update:2 each swap a noisy chat (net small per-case deltas); global noise still falls by 27
-- repair shape: `aiHiringEventOrder` coverage selector (six facets — human-touch 24, soft-skills 26, psychometric 28, Pymetrics-intro 106, Pymetrics-pilot 108, fairness-metrics 192) chained in sourceOrderTemporal.ts; an aiHiringEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. Per the architecture fixture-name rule the facet patterns key on surrounding phrasing (junior editor / AI fairness metrics on July 12 / Pymetrics) rather than the editor's name; near-duplicate Pymetrics turns 106 vs 108 are split by "for soft skills assessment"+"April hires" vs "could definitely help"+"pilot program"
-- regression check: target case delta plus three recall-neutral same-conversation noise swaps; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 27
+- global hit/missing/noise ids: 927/167/1133 -> 931/163/1105 (net 28-id noise drop)
+- recovered target: `20:event_ordering:1`
+- target result: recall 0.33 -> 1 — recovers the four missing designated turns (30/200/204/206; 164/202 were already hits) and sheds all 28 noisy chats
+- repair shape: `patentFundingEventOrder` coverage selector (six facets — provisional filing 30, non-provisional filing 164, PCT application 200, PCT funding 202, funding option 204, crowdfunding 206) chained in sourceOrderTemporal.ts; a patentFundingEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The near-duplicate PCT turn 370 is excluded by the "I've decided to file a PCT application" phrasing; the non-provisional turn 164 is distinguished from the pass-43 confirmation turn 182 by "deadline to meet for my non-provisional patent filing ... set for November 10, 2024"
+- regression check: exactly one case delta, no ripples; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 28
 
-The repaired target covers the AI-in-hiring event-order coverage on the hiring conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the patent-filing/funding event-order coverage on the patent conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
