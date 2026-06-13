@@ -9071,6 +9071,120 @@ function buildAiHiringEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildPatentFundingEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I aim to file a provisional patent by June 1, 2024, but I'm not sure what steps to take next, can you guide me through the process and help me achieve my goal? ->-> 1,8",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my prior art search, which I plan to complete by April 10, 2024, using the USPTO database and Google Patents, might not be thorough enough, can you help me make sure I'm covering all bases? ->-> 1,9",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the technical specs of my device, like the AI model version 2.3, 16GB RAM, and 256GB SSD storage, will they be enough to make my patent application strong? ->-> 2,16",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "I've never attended any patent-related webinars or workshops, which is weird because I registered for a patent law webinar on April 5, 2024, can you guide me on what to expect and how it can help my invention? ->-> 2,24",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a deadline to meet for my non-provisional patent filing, which is set for November 10, 2024, and I'm hoping to get some guidance on how to move forward with the process ->-> 3,18",
+      id: 164,
+      role: "user",
+    },
+    {
+      content:
+        "I've decided to file a PCT application on October 20, 2024, covering the US, Canada, and EU markets, can you help me understand what that entails and if I'm making the right decision with this strategy? ->-> 4,5",
+      id: 200,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, filing the PCT application sounds like a good move. It gives us the flexibility to decide later which countries to enter. I just need to figure out how to cover the extra costs. Any ideas on how to get some additional funding?",
+      id: 202,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, which funding option do you think would be quickest to secure the extra funds we need?",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, which crowdfunding platform do you think would be best for my invention?",
+      id: 206,
+      role: "user",
+    },
+    {
+      content:
+        "Given that I've never registered any trademarks or intellectual property rights for my invention, how should I proceed with protecting my invention while also preparing for the prototype testing scheduled to complete 15 cycles by September 30, 2024, aiming for 98% accuracy, and considering my decision to file a PCT application on October 20, 2024, covering US, Canada, and EU markets? ->-> 5,24",
+      id: 370,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-funding-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 25,
+        subtopics: [
+          "Provisional and non-provisional filing",
+          "PCT applications",
+          "Funding options",
+          "Crowdfunding",
+        ],
+        theme:
+          "Planning patent filings and securing funding",
+        title:
+          "Patent Filing and Funding Plans",
+      },
+      narratives: "Patent filing and funding event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: planning the provisional patent filing, the non-provisional filing deadline, deciding on the PCT application, seeking funding for the PCT costs, choosing the quickest funding option, and selecting a crowdfunding platform.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my patent filing plans and related funding discussions across our conversations in order? Mention ONLY and ONLY six items.",
+            question_id: "patent-funding-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [30, 164, 200, 202, 204, 206],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor planning patent filings and funding",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12099,6 +12213,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([24, 26, 28, 106, 108, 192]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the patent funding event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-funding-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentFundingEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([30, 164, 200, 202, 204, 206]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

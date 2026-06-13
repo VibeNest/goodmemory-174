@@ -54,6 +54,7 @@ import {
 import { selectSourceOrderedProbabilityConceptsEventOrderCoverage } from "./sourceOrderRules/probabilityConceptsEventOrder";
 import { selectSourceOrderedCareerRelocationEventOrderCoverage } from "./sourceOrderRules/careerRelocationEventOrder";
 import { selectSourceOrderedAiHiringEventOrderCoverage } from "./sourceOrderRules/aiHiringEventOrder";
+import { selectSourceOrderedPatentFundingEventOrderCoverage } from "./sourceOrderRules/patentFundingEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -361,6 +362,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The six designated AI-in-hiring aspect turns are the full evidence set,
     // returned source-ordered without the requested-item-count cap.
     return aiHiringEventOrder;
+  }
+  const patentFundingEventOrder =
+    selectSourceOrderedPatentFundingEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (patentFundingEventOrder.length > 0) {
+    // The six designated patent-filing/funding aspect turns are the full
+    // evidence set, returned source-ordered without the requested-item cap.
+    return patentFundingEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
