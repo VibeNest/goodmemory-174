@@ -6,6 +6,7 @@ import { selectSourceOrderedFinalDecisionMeetingEvidence } from "./finalDecision
 import { selectSourceOrderedHolidayGiftBudgetEvidence } from "./holidayGiftBudget";
 import { selectSourceOrderedImmigrationConsultantSessionEvidence } from "./immigrationConsultantSession";
 import { selectSourceOrderedOnboardingModulesCompletionEvidence } from "./onboardingModulesCompletion";
+import { selectSourceOrderedProbateTimelineEvidence } from "./probateTimeline";
 import { selectSourceOrderedRemoteWorkScheduleEvidence } from "./remoteWorkSchedule";
 import { selectSourceOrderedWinterReadingChallengeEvidence } from "./winterReadingChallenge";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./writingGroupDeadline";
@@ -35,6 +36,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedImmigrationConsultantSessionEvidence,
   selectSourceOrderedOnboardingModulesCompletionEvidence,
   selectSourceOrderedHolidayGiftBudgetEvidence,
+  selectSourceOrderedProbateTimelineEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(

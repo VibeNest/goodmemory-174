@@ -8356,6 +8356,85 @@ function buildPriorArtProvisionalPatentDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildProbateTimelineUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about the probate process taking 6-9 months in Montserrat, so I wanna prepare my documents accordingly, you know, to make it smoother, especially since I chose to update my will digitally using WillMaker Pro for flexibility and ease of future edits ->-> 2,16",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a question about the probate timeline that Stephanie explained, which typically takes 6-9 months in Montserrat, and I'm planning to prepare my documents accordingly, can you help me understand how this process works and what I need to do to prepare ->-> 2,17",
+      id: 112,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the probate process, so can you tell me more about how it was shortened to 5-7 months and what that means for my estate planning, considering I've never used any digital software like WillMaker Pro to draft my will? ->-> 2,22, 24",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "Certainly! Understanding the probate process and how it can be streamlined can help you better prepare your estate plan. Let's break down the key aspects of the probate process and how you can optimize it, even if you haven't used digital software like WillMaker Pro.\n\n### Probate Process Overview\n\n1. **Filing the Will:**\n   - **Submission to Probate Court:** After your death, your executor must submit your will to the probate court.\n   - **Verification:** The court verifies the authenticity of the will and ensures it meets all legal requirements.\n\n2. **Appointment of Executor:**\n   - **Court Approval:** The court formally appoints the executor named in your will.\n   - **Oath and Bond:** The executor may need to take an oath and post a bond, depending on local requirements.\n\n3. **Inventory and Appraisal:**\n   - **Asset Inventory:** The executor compiles a detailed inventory of all your assets.\n   - **Appraisal:** The executor may need to obtain appraisals for certain assets, such as real estate or valuable personal property.\n\n4. **Payment of Debts and Taxes:**\n   - **Notification of Creditors:** The executor notifies creditors and pays any outstanding debts.\n   - **Tax Filing:** The executor files any necessary tax returns and pays any taxes owed.\n\n5. **Distribution of Assets:**\n   - **Court Approval:** The executor obtains court approval before distributing assets to beneficiaries.\n   - **Distribution:** Once approved, the executor distributes the assets according to the terms of your will.\n\n6. **Closing the Estate:**\n   - **Final Accounting:** The executor provides a final accounting to the court, detailing all transactions and distributions.\n   - **Court Approval:** The court reviews the final accounting and, if satisfied, closes the estate.\n\n### Shortening the Probate Process\n\nTraditionally, the probate process in Montserrat can take 6-9 months. However, with careful planning and organization, it can be shortened to 5-7 months. Here are some strategies to help streamline the process:\n\n1. **Detailed and Comprehensive Will:**\n   - **Clear Instructions:** Ensure your will is clear and comprehensive, leaving no room for ambiguity.\n   - **Legal Compliance:** Make sure your will complies with all local laws and regulations.\n\n2. **Organized Asset Inventory:**\n   - **Detailed List:** Maintain a detailed list of all your assets, including real estate, bank accounts, investments, vehicles, and digital assets.\n   - **Access Information:** Provide clear instructions on how to access and manage each asset.\n\n3. **Executor Preparedness:**\n   - **Capable Executor:** Choose an executor who is capable and willing to handle the responsibilities.\n   - **Detailed Instructions:** Provide your executor with detailed instructions on how to manage your estate, including contact information for financial institutions, legal advisors, and other relevant parties.\n\n4. **Digital Tools:**\n   - **Software Benefits:** While you haven't used digital software like WillMaker Pro, consider using it to maintain a digital record of your will and asset inventory.\n   - **Ease of Access:** Digital tools can make it easier to update and access your documents, ensuring they are always current and readily available.\n\n5. **Regular Updates:**\n   - **Periodic Reviews:** Regularly review and update your will and estate plan to reflect any changes in your circumstances.\n   - **Flexibility:** Use tools like WillMaker Pro to make updates as needed, ensuring your documents remain current and legally sound.\n\n### Steps to Streamline the Probate Process\n\n1. **Prepare a Detailed Will:**\n   - **Comprehensive Content:** Ensure your will covers all aspects of your estate, including digital assets.\n   - **Legal Advice:** Consult with your attorney, Stephanie, to ensure your will is legally sound and compliant with Montserrat law.\n\n2. **Maintain an Organized Asset Inventory:**\n   - **Detailed List:** Keep a detailed list of all your assets, including their values and any associated debts.\n   - **Access Instructions:** Provide clear instructions on how to access and manage each asset.\n\n3. **Choose a Capable Executor:**\n   - **Willing and Able:** Select an executor who is willing and capable of handling the responsibilities.\n   - **Detailed Instructions:** Provide your executor with detailed instructions on how to manage your estate, including contact information and access details.\n\n4. **Consider Digital Tools:**\n   - **Software Benefits:** Even if you haven't used digital software before, consider using tools like WillMaker Pro to maintain a digital record of your will and asset inventory.\n   - **Ease of Access:** Digital tools can make it easier to update and access your documents, ensuring they are always current and readily available.\n\n5. **Regular Reviews and Updates:**\n   - **Periodic Reviews:** Regularly review and update your will and estate plan to reflect any changes in your circumstances.\n   - **Flexibility:** Use tools like WillMaker Pro to make updates as needed, ensuring your documents remain current and legally sound.\n\n### Example of a Streamlined Probate Process\n\nHere is an example of how you might streamline the probate process:\n\n1. **Prepare a Detailed Will:**\n   - **Comprehensive Content:** Ensure your will covers all aspects of your estate, including digital assets.\n   - **Legal Advice:** Consult with Stephanie to ensure your will is legally sound and compliant with Montserrat law.\n\n2. **Maintain an Organized Asset Inventory:**\n   - **Detailed List:** Keep a detailed list of all your assets, including their values and any associated debts.\n   - **Access Instructions:** Provide clear instructions on how to access and manage each asset.\n\n3. **Choose a Capable Executor:**\n   - **Willing and Able:** Select an executor who is willing and capable of handling the responsibilities.\n   - **Detailed Instructions:** Provide your executor with detailed instructions on how to manage your estate, including contact information and access details.\n\n4. **Consider Digital Tools:**\n   - **Software Benefits:** Even if you haven't used digital software before, consider using tools like WillMaker Pro to maintain a digital record of your will and asset inventory.\n  . **Ease of Access:** Digital tools can make it easier to update and access your documents, ensuring they are always current and readily available.\n\n5. **Regular Reviews and Updates:**\n   - **Periodic Reviews:** Regularly review and update your will and estate plan to reflect any changes in your circumstances.\n   - **Flexibility:** Use tools like WillMaker Pro to make updates as needed, ensuring your documents remain current and legally sound.\n\n### Conclusion\n\nBy preparing a detailed will, maintaining an organized asset inventory, choosing a capable executor, considering digital tools, and regularly reviewing and updating your estate plan, you can streamline the probate process and reduce potential delays. This will help ensure that your estate is managed efficiently and in accordance with your wishes.\n\nIf you have any specific concerns or need further guidance, feel free to reach out!",
+      id: 123,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "probate-timeline-update",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Estate Planning",
+        id: 24,
+        subtopics: [
+          "Probate process and timelines",
+          "Will preparation",
+          "Estate documentation",
+          "Digital will software",
+        ],
+        theme:
+          "Preparing an estate plan and understanding probate",
+        title:
+          "Navigating Probate and Estate Planning",
+      },
+      narratives: "Probate timeline knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "5-7 months",
+            difficulty: "medium",
+            question:
+              "How long does the probate process usually take in Montserrat?",
+            question_id: "probate-timeline-update",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[112],"updated_info":[122]},
+            update_type: "value_change",
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Individual preparing an estate plan",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11200,6 +11279,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([32, 70]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps probate timeline update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-probate-timeline-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProbateTimelineUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([112, 122]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
