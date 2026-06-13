@@ -23,24 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-choice-recall-current-20260612T192900Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-budget-comparison-current-20260613T021730Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-movie-list-game-night-days-current-20260612T191900Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-choice-recall-current-20260612T192900Z`
 
 Summary:
 
-- evidence-chat recall: 0.8454504806617482
-- missed-recall cases: 88/355
-- wrong-recall/noise cases: 231/400
-- zero-recall cases: 11
-- global hit/missing/noise ids: 897/197/1243 -> 898/196/1235
-- recovered target: `15:information_extraction:2`
-- target result: recall 0 -> 1 with the single designated turn 1 returned and all eight noisy chats (27/66/67/83/146/147/159/195) removed, zero new noise
-- repair shape: `sneaker-choice-recall` rule in the informationExtractionQueryRules registry (plain registry functions per that module's convention) + an assistant-tagged evidence predicate in sourceOrderInformationExtraction.ts keyed on the sneaker-recommendations opener
-- ground-truth caveat: the benchmark designates the assistant sneaker-recommendations opener as evidence for the chosen-option question while the user's actual Adidas-over-Nike choice statement lives in later turns; the rule recovers the designated id for the recall metric, and live answer slices should expect the choice answer to come from those confusable turns
+- evidence-chat recall: 0.8482673820701989
+- missed-recall cases: 87/355
+- wrong-recall/noise cases: 230/400
+- zero-recall cases: 10
+- global hit/missing/noise ids: 898/196/1235 -> 900/194/1233
+- recovered target: `15:multi_session_reasoning:2`
+- target result: recall 0 -> 1 with the two designated budget/price turns (38/72) returned and the noisy chats (58/160) removed, zero new noise
+- repair shape: source-ordered reasoning bridge `reasoning.sneakerBudgetComparison` (modeled on entertainmentSpendingReasoning.ts) chained in reasoningBridgeRules.ts; the gate keys on the "price I paid for the Ultraboost" / "original budget limit" question and pairs the user budget-limit facet ("budget limit of $200 for sneakers", turn 38) with the user discounted-price facet ("price I paid for the Ultraboost" + "discounted from $180", turn 72); the gate is registered in both exactSourceOrderedReasoningQuery (suppressing the aggregate_evidence misroute) and instructionAugmentationStandDownQuery in selectionRunContext.ts
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the sneaker-choice preference recall on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the sneaker budget-vs-price comparison reasoning on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
