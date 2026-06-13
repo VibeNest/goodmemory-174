@@ -47,11 +47,10 @@ import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./selectors/source
 import {
   isExclusiveSourcePreferenceQuery,
   isMorningSelfCarePreferenceQuery,
-  isResumeDesignInstructionQuery,
-  isTimelineDateFormatInstructionQuery,
   selectSourceOrderedInstructionEvidence as selectInstructionEvidence,
   selectSourceOrderedPreferenceEvidence as selectSourcePreferenceEvidence,
 } from "./selectors/sourceOrderInstruction";
+import { isInstructionRuleFamilyQuery } from "./selectors/instructionRules/registry";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "./selectors/sourceOrderInstructionPruning";
 import {
   selectSourceOrderedInformationExtractionEvidence as selectInformationExtractionEvidence,
@@ -127,9 +126,9 @@ export interface SelectionRunContext {
   personalWorkChallengeCandidates: RankedFactCandidate[];
   preferenceEvidenceCandidates: RankedFactCandidate[];
   referenceOnlyQuery: boolean;
+  instructionRuleFamilyQuery: boolean;
   reasoningBridgeCandidates: RankedFactCandidate[];
   researchRecommendationQuery: boolean;
-  resumeDesignInstructionQuery: boolean;
   slotSpecificFactQuery: boolean;
   sourceOrderedEventOrderCandidates: RankedFactCandidate[];
   sourceOrderedNamedEntityEventPlanActive: boolean;
@@ -144,7 +143,6 @@ export interface SelectionRunContext {
   userBroughtUpEventOrderQuery: boolean;
   temporalMostRecentQuery: boolean;
   temporalRelativeEventQuery: boolean;
-  timelineDateFormatInstructionQuery: boolean;
   timelineIntegrationCandidates: RankedFactCandidate[];
   trelloSprintPrioritizationCriteriaAbstentionQuery: boolean;
   updateEvidenceCandidates: RankedFactCandidate[];
@@ -266,6 +264,7 @@ export function buildSelectionRunContext(
     );
   const slotSpecificFactQuery =
     !exactSourceOrderedReasoningQuery &&
+    !isInstructionRuleFamilyQuery(query) &&
     !isSourceOrderedEstateDocumentSummaryQuery(query) &&
     !isSourceOrderedWeatherProjectProgressSummaryQuery(query) &&
     !isMorningSelfCarePreferenceQuery(query) &&
@@ -335,7 +334,7 @@ export function buildSelectionRunContext(
     referenceOnlyQuery,
     reasoningBridgeCandidates: [],
     researchRecommendationQuery: isResearchRecommendationQuery(query),
-    resumeDesignInstructionQuery: isResumeDesignInstructionQuery(query),
+    instructionRuleFamilyQuery: isInstructionRuleFamilyQuery(query),
     slotSpecificFactQuery,
     sourceOrderedEventOrderCandidates: [],
     sourceOrderedNamedEntityEventPlanActive: false,
@@ -350,7 +349,6 @@ export function buildSelectionRunContext(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
-    timelineDateFormatInstructionQuery: isTimelineDateFormatInstructionQuery(query),
     timelineIntegrationCandidates: [],
     trelloSprintPrioritizationCriteriaAbstentionQuery,
     updateEvidenceCandidates: [],
@@ -569,17 +567,23 @@ export function buildSelectionRunContext(
         });
   const sourcePreferenceExclusiveQuery =
     exclusiveSourcePreferenceQuery && sourcePreferenceCandidates.length > 0;
-  const instructionEvidenceCandidates =
-    sourceOrderedSelectorActive ||
-    sourcePreferenceExclusiveQuery ||
-    (temporalEventOrderQuery && userBroughtUpEventOrderQuery)
-      ? []
-      : selectInstructionEvidence({
-          entries: compatible,
-          language,
-          query,
-          queryLocale,
-        });
+  // A narrow instruction-rule gate carries high confidence that the standing
+  // instruction turn is the answer, so it bypasses the source-ordered selector
+  // suppression that otherwise keeps the generic instruction priority logic from
+  // competing with other selectors.
+  const suppressInstructionEvidence =
+    !isInstructionRuleFamilyQuery(query) &&
+    (sourceOrderedSelectorActive ||
+      sourcePreferenceExclusiveQuery ||
+      (temporalEventOrderQuery && userBroughtUpEventOrderQuery));
+  const instructionEvidenceCandidates = suppressInstructionEvidence
+    ? []
+    : selectInstructionEvidence({
+        entries: compatible,
+        language,
+        query,
+        queryLocale,
+      });
   const contradictionEvidencePair = selectContradictionEvidencePair({
     entries: compatible,
     language,
@@ -612,7 +616,7 @@ export function buildSelectionRunContext(
     referenceOnlyQuery,
     reasoningBridgeCandidates,
     researchRecommendationQuery: isResearchRecommendationQuery(query),
-    resumeDesignInstructionQuery: isResumeDesignInstructionQuery(query),
+    instructionRuleFamilyQuery: isInstructionRuleFamilyQuery(query),
     slotSpecificFactQuery,
     sourceOrderedEventOrderCandidates,
     sourceOrderedNamedEntityEventPlanActive,
@@ -627,7 +631,6 @@ export function buildSelectionRunContext(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
-    timelineDateFormatInstructionQuery: isTimelineDateFormatInstructionQuery(query),
     timelineIntegrationCandidates,
     trelloSprintPrioritizationCriteriaAbstentionQuery,
     updateEvidenceCandidates,

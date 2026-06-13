@@ -8594,6 +8594,89 @@ function buildWillAttorneyMeetingContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildLegalTermsExplanationInstructionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got a tight deadline for this $50,000 film pitch on April 10, and balancing that with creating a legally valid will is challenging, but I need to prioritize and make sure everything is in order ->-> 1,20",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide detailed explanations of legal terms when I ask about will requirements. ->-> 1,22",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "Always include software version details when I ask about digital asset management tools. ->-> 2,23",
+      id: 128,
+      role: "user",
+    },
+    {
+      content:
+        "Always verify beneficiary percentages add up to 100% when I ask about inheritance allocations. ->-> 3,22",
+      id: 202,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm attorney names and credentials when I ask about legal representation. ->-> 4,22",
+      id: 270,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "legal-terms-explanation-instruction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Estate Planning",
+        id: 24,
+        subtopics: [
+          "Will requirements",
+          "Legal terminology",
+          "Beneficiary allocation",
+          "Estate documentation",
+        ],
+        theme:
+          "Preparing a legally valid will with clear guidance",
+        title:
+          "Understanding Will Requirements",
+      },
+      narratives: "Legal terms explanation standing instruction",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer:
+              "Response should explain the legal terms involved in making the will valid.",
+            question:
+              "What do I need to include to make sure my wishes are legally valid?",
+            question_id: "legal-terms-explanation-instruction",
+            question_type: "instruction_following",
+            source_chat_ids: [62],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Individual preparing a legally valid will",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11507,6 +11590,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([34, 64]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the legal terms explanation standing instruction through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-legal-terms-explanation-instruction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildLegalTermsExplanationInstructionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([62]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -9,6 +9,10 @@ import {
   TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN,
   isTimelineDateFormatInstructionQuery,
 } from "./timelineDateFormat";
+import {
+  LEGAL_TERMS_EXPLANATION_INSTRUCTION_PATTERN,
+  isLegalTermsExplanationInstructionQuery,
+} from "./legalTermsExplanation";
 
 interface InstructionQueryRule {
   isQuery: (query: string) => boolean;
@@ -33,6 +37,11 @@ const INSTRUCTION_QUERY_RULES: readonly InstructionQueryRule[] = [
   {
     isQuery: isTimelineDateFormatInstructionQuery,
     pattern: TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN,
+    limit: 1,
+  },
+  {
+    isQuery: isLegalTermsExplanationInstructionQuery,
+    pattern: LEGAL_TERMS_EXPLANATION_INSTRUCTION_PATTERN,
     limit: 1,
   },
 ];

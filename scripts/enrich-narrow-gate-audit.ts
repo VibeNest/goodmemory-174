@@ -44,6 +44,7 @@ import {
   isResumeDesignInstructionQuery,
   isTimelineDateFormatInstructionQuery,
 } from "../src/recall/selectors/sourceOrderInstruction";
+import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors/instructionRules/legalTermsExplanation";
 import {
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -193,6 +194,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,
   "instruction.timelineDateFormat": isTimelineDateFormatInstructionQuery,
+  "instruction.legalTermsExplanation":
+    isLegalTermsExplanationInstructionQuery,
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,

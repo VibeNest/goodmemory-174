@@ -95,9 +95,9 @@ export function selectFacts(
     aggregateOpenLoopQuery,
     broadAspectEventOrderCandidates,
     instructionEvidenceCandidates,
+    instructionRuleFamilyQuery,
     limit,
     referenceOnlyQuery,
-    resumeDesignInstructionQuery,
     slotSpecificFactQuery,
     sourceOrderedEventOrderCandidates,
     sourceOrderedNamedEntityEventPlanActive,
@@ -107,7 +107,6 @@ export function selectFacts(
     userBroughtUpEventOrderQuery,
     temporalMostRecentQuery,
     temporalRelativeEventQuery,
-    timelineDateFormatInstructionQuery,
     trelloSprintPrioritizationCriteriaAbstentionQuery,
   } = ctx;
   const runtime: FactSelectionRuntime = {
@@ -223,7 +222,7 @@ export function selectFacts(
   }
 
   if (
-    (resumeDesignInstructionQuery || timelineDateFormatInstructionQuery) &&
+    instructionRuleFamilyQuery &&
     instructionEvidenceCandidates.length > 0
   ) {
     for (const entry of instructionEvidenceCandidates) {
