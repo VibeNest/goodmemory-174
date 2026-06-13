@@ -45,6 +45,7 @@ import {
   isTimelineDateFormatInstructionQuery,
 } from "../src/recall/selectors/sourceOrderInstruction";
 import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors/instructionRules/legalTermsExplanation";
+import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instructionRules/patentTimelines";
 import {
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -196,6 +197,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "instruction.timelineDateFormat": isTimelineDateFormatInstructionQuery,
   "instruction.legalTermsExplanation":
     isLegalTermsExplanationInstructionQuery,
+  "instruction.patentTimelines": isPatentTimelinesInstructionQuery,
   "contradiction.sessionManagement": isSessionManagementContradictionQuery,
   "contradiction.twoFactorAuthImplementation":
     isTwoFactorAuthImplementationContradictionQuery,

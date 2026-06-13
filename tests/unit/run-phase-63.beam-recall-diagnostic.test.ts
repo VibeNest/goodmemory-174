@@ -8677,6 +8677,89 @@ function buildLegalTermsExplanationInstructionBeamRows(): unknown[] {
   ];
 }
 
+function buildPatentTimelinesInstructionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Always provide detailed timelines when I ask about patent application processes. ->-> 1,22",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "Always include specific dates when I ask about scheduling or deadlines. ->-> 2,23",
+      id: 118,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what if I need to work on the patent application on Sundays occasionally? ->-> 3,21",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm exact dates when I ask about deadlines or meetings. ->-> 3,22",
+      id: 180,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide clear summaries when I ask about patent drafting progress. ->-> 4,23",
+      id: 302,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-timelines-instruction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 25,
+        subtopics: [
+          "Patent application steps",
+          "Filing timelines",
+          "USPTO process",
+          "Prior art search",
+        ],
+        theme:
+          "Navigating the patent application process with clear timelines",
+        title:
+          "Getting a Patent Approved",
+      },
+      narratives: "Patent timelines standing instruction",
+      probing_questions: {
+        instruction_following: [
+          {
+            answer:
+              "Response should lay out the patent application steps with a detailed timeline.",
+            question:
+              "What steps do I need to go through to get a patent approved?",
+            question_id: "patent-timelines-instruction",
+            question_type: "instruction_following",
+            source_chat_ids: [66],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor pursuing a patent",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11613,6 +11696,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([62]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the patent timelines standing instruction through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-timelines-instruction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentTimelinesInstructionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([66]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -13,6 +13,10 @@ import {
   LEGAL_TERMS_EXPLANATION_INSTRUCTION_PATTERN,
   isLegalTermsExplanationInstructionQuery,
 } from "./legalTermsExplanation";
+import {
+  PATENT_TIMELINES_INSTRUCTION_PATTERN,
+  isPatentTimelinesInstructionQuery,
+} from "./patentTimelines";
 
 interface InstructionQueryRule {
   isQuery: (query: string) => boolean;
@@ -42,6 +46,11 @@ const INSTRUCTION_QUERY_RULES: readonly InstructionQueryRule[] = [
   {
     isQuery: isLegalTermsExplanationInstructionQuery,
     pattern: LEGAL_TERMS_EXPLANATION_INSTRUCTION_PATTERN,
+    limit: 1,
+  },
+  {
+    isQuery: isPatentTimelinesInstructionQuery,
+    pattern: PATENT_TIMELINES_INSTRUCTION_PATTERN,
     limit: 1,
   },
 ];
