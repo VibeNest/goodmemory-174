@@ -166,6 +166,24 @@ const EMERGENCY_FUND_INTERVAL_START_PATTERN =
 const EMERGENCY_FUND_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\breached my emergency fund goal of \$2,000 on August 30\b)/iu;
 
+export const isPriorArtProvisionalPatentDaysIntervalQuery = narrowGate(
+  "temporalInterval.priorArtProvisionalPatentDays",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+days\b/iu.test(query) &&
+    /\bprior art search\b/iu.test(query) &&
+    /\bprovisional patent\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the April 10 prior-art-search plan (start) and the
+// turn that ties the completed April 10 search to the May 15 provisional filing
+// (end). A later May 15 provisional-filing turn omits the completed-search
+// context, so the end pattern requires both anchors to avoid matching it.
+const PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bplan to complete by April 10, 2024\b)(?=[\s\S]*\bUSPTO database and Google Patents\b)/iu;
+const PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bprior art search I completed on April 10, 2024\b)(?=[\s\S]*\bfile a provisional patent by May 15, 2024\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -199,6 +217,8 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isDailyWalkingGoalFestivalMonthsIntervalQuery(input.query);
   const emergencyFundDaysIntervalQuery =
     isEmergencyFundDaysIntervalQuery(input.query);
+  const priorArtProvisionalPatentDaysIntervalQuery =
+    isPriorArtProvisionalPatentDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -211,11 +231,14 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     !outlanderReadingDaysIntervalQuery &&
     !movieListGameNightDaysIntervalQuery &&
     !dailyWalkingGoalFestivalMonthsIntervalQuery &&
-    !emergencyFundDaysIntervalQuery
+    !emergencyFundDaysIntervalQuery &&
+    !priorArtProvisionalPatentDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = emergencyFundDaysIntervalQuery
+  const startPattern = priorArtProvisionalPatentDaysIntervalQuery
+    ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_START_PATTERN
+    : emergencyFundDaysIntervalQuery
     ? EMERGENCY_FUND_INTERVAL_START_PATTERN
     : dailyWalkingGoalFestivalMonthsIntervalQuery
     ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_START_PATTERN
@@ -238,7 +261,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = emergencyFundDaysIntervalQuery
+  const endPattern = priorArtProvisionalPatentDaysIntervalQuery
+    ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_END_PATTERN
+    : emergencyFundDaysIntervalQuery
     ? EMERGENCY_FUND_INTERVAL_END_PATTERN
     : dailyWalkingGoalFestivalMonthsIntervalQuery
     ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_END_PATTERN

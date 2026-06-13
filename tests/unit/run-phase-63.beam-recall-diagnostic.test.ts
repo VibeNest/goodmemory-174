@@ -8267,6 +8267,95 @@ function buildEmergencyFundDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildPriorArtProvisionalPatentDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that my prior art search, which I plan to complete by April 10, 2024, using the USPTO database and Google Patents, might not be thorough enough, can you help me make sure I'm covering all bases? ->-> 1,9",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the prior art search I completed on April 10, 2024, which found 3 similar patents but none with AI tagging features, so can you help me understand how this affects my decision to file a provisional patent by May 15, 2024? ->-> 2,2",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I've been thinking about my decision to file a provisional patent by May 15, 2024, to secure a priority date before the product launch, and I'm hoping that with the USPTO, my receipt number 12345678 will help me keep track of the progress, can you help me understand what's next in this process? ->-> 3,1",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, those tips make sense. I'll stick to creating a detailed logbook and using a structured format. I'll include all the necessary descriptions and visual aids, and keep updating it regularly. Storing the data securely and backing it up is a good idea too. I'll review and summarize the findings periodically and document any changes to the prototype. Thanks, Jake!",
+      id: 300,
+      role: "user",
+    },
+    {
+      content:
+        "Always provide clear summaries when I ask about patent drafting progress. ->-> 4,23",
+      id: 302,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "prior-art-provisional-patent-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 25,
+        subtopics: [
+          "Prior art search strategy",
+          "Provisional patent filing",
+          "Patent timelines",
+          "USPTO process",
+        ],
+        theme:
+          "Navigating the patent application process",
+        title:
+          "Filing a Provisional Patent",
+      },
+      narratives: "Prior art to provisional patent days interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There were 35 days between planning to complete the prior art search by April 10, 2024, and aiming to file the provisional patent by May 15, 2024.",
+            calculation_required: "May 15, 2024 - April 10, 2024 = 35 days",
+            conversation_references: ["Session 1: prior art search plan", "Session 2: provisional filing target"],
+            difficulty: "medium",
+            question:
+              "How many days were there between when I planned to complete my prior art search and when I aimed to file my provisional patent?",
+            question_id: "prior-art-provisional-patent-days",
+            question_type: "temporal_reasoning",
+            rubric: ["LLM response should state: 35 days", "LLM response should state: from April 10 to May 15"],
+            source_chat_ids: {"first_event":[32],"second_event":[70]},
+            temporal_type: "duration_calculation",
+            time_points: ["April 10, 2024: prior art search", "May 15, 2024: provisional patent filing"],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor preparing a patent application",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11088,6 +11177,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([76, 146]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps prior art to provisional patent days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-prior-art-provisional-patent-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPriorArtProvisionalPatentDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([32, 70]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
