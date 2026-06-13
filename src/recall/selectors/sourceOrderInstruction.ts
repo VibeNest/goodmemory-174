@@ -1,10 +1,10 @@
-import { narrowGate } from "../narrowGates";
 import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
 import {
   dedupeSourceOrderedEvidenceByOrder,
   selectSourceOrderedEvidencePlan,
 } from "./sourceOrderPlan";
+import { selectInstructionRuleFamilyEvidence } from "./instructionRules/registry";
 import {
   countInstructionAliasOverlap,
   hasApplicableSourceInstructionTopic,
@@ -140,6 +140,8 @@ export {
   sourceInstructionConditionText,
   sourceInstructionTopicTokens,
 } from "./sourceOrderRules/instructionTopics";
+export { isResumeDesignInstructionQuery } from "./instructionRules/resumeDesign";
+export { isTimelineDateFormatInstructionQuery } from "./instructionRules/timelineDateFormat";
 
 export const SOURCE_ORDER_INSTRUCTION_RECALL_LIMIT = 2;
 export const SOURCE_ORDER_INSTRUCTION_PRIORITY_THRESHOLD = 160;
@@ -148,31 +150,8 @@ export const SOURCE_ORDER_PREFERENCE_RECALL_LIMIT = 4;
 export const SOURCE_ORDER_PREFERENCE_PRIORITY_THRESHOLD = 130;
 export const SOURCE_ORDER_PREFERENCE_COMPANION_DISTANCE = 1;
 
-const RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN =
-  /^(?=[\s\S]*\bresume\b)(?=[\s\S]*\bdesi(?:gn|ng)\b)/iu;
-const RESUME_DESIGN_INSTRUCTION_PATTERN =
-  /^(?=[\s\S]*\bminimalist\s+resume\s+style\b)(?=[\s\S]*\bclear\s+headings\b)(?=[\s\S]*\bresume\s+design\s+preferences\b)/iu;
 const SOURCE_INSTRUCTION_CONTINUATION_PATTERN =
   /\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b[\s\S]{0,180}\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b|\b(?:code\s+snippets?|syntax\s+highlighting|format(?:ted|ting)?)\b[\s\S]{0,180}\b(?:got\s+it|understood|noted|sure|i['’]ll|i\s+will|make\s+sure)\b/iu;
-
-export const isResumeDesignInstructionQuery = narrowGate(
-  "instruction.resumeDesign",
-  (query: string): boolean => {
-  return RESUME_DESIGN_INSTRUCTION_QUERY_PATTERN.test(query);
-  },
-);
-
-const TIMELINE_DATE_FORMAT_INSTRUCTION_QUERY_PATTERN =
-  /^(?=[\s\S]*\bwhen was the\b)(?=[\s\S]*\bwriters['’]?\s+festival\b)/iu;
-const TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN =
-  /\balways format dates as .month day, year. when i ask about timeline details\b/iu;
-
-export const isTimelineDateFormatInstructionQuery = narrowGate(
-  "instruction.timelineDateFormat",
-  (query: string): boolean => {
-  return TIMELINE_DATE_FORMAT_INSTRUCTION_QUERY_PATTERN.test(query);
-  },
-);
 
 export function isSourceOrderedUserInstruction(entry: RankedFactCandidate): boolean {
   const content = stripEvidencePrefix(entry.fact.content);
@@ -295,26 +274,13 @@ export function selectSourceOrderedInstructionEvidence(input: {
   query: string;
   queryLocale: string;
 }): RankedFactCandidate[] {
-  if (isResumeDesignInstructionQuery(input.query)) {
-    return input.entries
-      .filter(isSourceOrderedUserInstruction)
-      .filter((entry) =>
-        RESUME_DESIGN_INSTRUCTION_PATTERN.test(stripEvidencePrefix(entry.fact.content))
-      )
-      .sort(compareTemporalFactChronology)
-      .slice(0, 1);
-  }
-
-  if (isTimelineDateFormatInstructionQuery(input.query)) {
-    return input.entries
-      .filter(isSourceOrderedUserInstruction)
-      .filter((entry) =>
-        TIMELINE_DATE_FORMAT_INSTRUCTION_PATTERN.test(
-          stripEvidencePrefix(entry.fact.content),
-        )
-      )
-      .sort(compareTemporalFactChronology)
-      .slice(0, 1);
+  const ruleFamilyEvidence = selectInstructionRuleFamilyEvidence({
+    entries: input.entries,
+    query: input.query,
+    isUserInstruction: isSourceOrderedUserInstruction,
+  });
+  if (ruleFamilyEvidence.matched) {
+    return ruleFamilyEvidence.evidence;
   }
 
   const queryTopics = sourceInstructionTopicTokens({
