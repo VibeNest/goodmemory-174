@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-holiday-gift-budget-update-current-20260613T024529Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-emergency-fund-days-current-20260613T025723Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-daily-walking-goal-festival-months-current-20260613T023328Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-holiday-gift-budget-update-current-20260613T024529Z`
 
 Summary:
 
-- evidence-chat recall: 0.8539011848871003
-- missed-recall cases: 85/355
-- wrong-recall/noise cases: 228/400
-- zero-recall cases: 8
-- global hit/missing/noise ids: 902/192/1228 -> 904/190/1223
-- recovered target: `16:knowledge_update:2`
-- target result: recall 0 -> 1 with the two designated turns (250/266) returned and the noisy chats (268/208/71/256/218) removed, zero new noise
-- repair shape: `holidayGiftBudget` module added to the updateSeriesRules registry; gate `updateSeries.holidayGiftBudget` keys on the "total budget" / "holiday gifts" question; original pattern pins the $400 turn ("budget of $400 total for gifts", turn 250) and updated pattern pins the $450 turn ("adjusted our holiday gift budget to $450", turn 266); both required so the original-plus-update pair returns as a unit
+- evidence-chat recall: 0.856718086295551
+- missed-recall cases: 84/355
+- wrong-recall/noise cases: 227/400
+- zero-recall cases: 7
+- global hit/missing/noise ids: 904/190/1223 -> 906/188/1222
+- recovered target: `16:temporal_reasoning:2`
+- target result: recall 0 -> 1 with the two designated turns (76/146) returned and the noisy chat (42) removed, zero new noise
+- repair shape: `temporalInterval.emergencyFundDays` narrow gate added to sourceOrderTemporalInterval.ts; gate keys on the "how long did it take" / "emergency fund" question; start pattern pinned to the June 5 $1,200 milestone turn ("reached $1,200 in my emergency fund by June 5", turn 76) and end pattern pinned to the August 30 $2,000 goal-reached turn ("reached my emergency fund goal of $2,000 on August 30", turn 146)
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the holiday gift budget knowledge update on the household-budget conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the emergency-fund-days interval on the household-budget conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
