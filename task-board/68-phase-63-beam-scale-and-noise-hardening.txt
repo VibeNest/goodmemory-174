@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-budget-comparison-current-20260613T021730Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-daily-walking-goal-festival-months-current-20260613T023328Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-choice-recall-current-20260612T192900Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-budget-comparison-current-20260613T021730Z`
 
 Summary:
 
-- evidence-chat recall: 0.8482673820701989
-- missed-recall cases: 87/355
-- wrong-recall/noise cases: 230/400
-- zero-recall cases: 10
-- global hit/missing/noise ids: 898/196/1235 -> 900/194/1233
-- recovered target: `15:multi_session_reasoning:2`
-- target result: recall 0 -> 1 with the two designated budget/price turns (38/72) returned and the noisy chats (58/160) removed, zero new noise
-- repair shape: source-ordered reasoning bridge `reasoning.sneakerBudgetComparison` (modeled on entertainmentSpendingReasoning.ts) chained in reasoningBridgeRules.ts; the gate keys on the "price I paid for the Ultraboost" / "original budget limit" question and pairs the user budget-limit facet ("budget limit of $200 for sneakers", turn 38) with the user discounted-price facet ("price I paid for the Ultraboost" + "discounted from $180", turn 72); the gate is registered in both exactSourceOrderedReasoningQuery (suppressing the aggregate_evidence misroute) and instructionAugmentationStandDownQuery in selectionRunContext.ts
+- evidence-chat recall: 0.8510842834786496
+- missed-recall cases: 86/355
+- wrong-recall/noise cases: 229/400
+- zero-recall cases: 9
+- global hit/missing/noise ids: 900/194/1233 -> 902/192/1228
+- recovered target: `15:temporal_reasoning:2`
+- target result: recall 0 -> 1 with the two designated turns (36/270) returned and the noisy chats (58/160/214/32/8) removed, zero new noise
+- repair shape: `temporalInterval.dailyWalkingGoalFestivalMonths` narrow gate added to sourceOrderTemporalInterval.ts; gate keys on the "how many months" / "daily walking goal" / "festival" question; start pattern pinned to the April 15 daily-walking-goal turn ("daily walking goal of 10,000 steps by April 15, 2024", turn 36) and end pattern pinned to the August 22 festival turn ("festival coming up on August 22" + "sneaker outfit", turn 270); the assistant echo of the start phrase (turn 37) is excluded by the selector's existing hasUserAnswerTag filter
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the sneaker budget-vs-price comparison reasoning on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the daily-walking-goal-to-festival months interval on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
