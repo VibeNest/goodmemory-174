@@ -23,25 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-legal-terms-explanation-instruction-current-20260613T041812Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-patent-timelines-instruction-current-20260613T042720Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-instruction-rules-extraction-current-20260613T040036Z` (recall-neutral extraction; identical to the will-attorney-meeting-contradiction run)
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-legal-terms-explanation-instruction-current-20260613T041812Z`
 
 Summary:
 
-- evidence-chat recall: 0.8708025933378045
-- missed-recall cases: 79/355
-- wrong-recall/noise cases: 222/400
-- zero-recall cases: 2
-- global hit/missing/noise ids: 914/180/1204 -> 915/179/1198
-- recovered target: `19:instruction_following:1`
-- target result: recall 0 -> 1 with the single designated standing-instruction turn (62) returned and all six noisy chats (54/232/206/20/88/60) removed, zero new noise
-- accepted ripple: `19:multi_session_reasoning:1` stays at its prior recall with a net-zero same-conversation noise swap (drops 88, adds 17); global noise still falls by 6
-- infrastructure (landed first, recall-neutral): sourceOrderInstruction.ts (895/900 lines) extracted into an instructionRules/ registry (one module per family + selectInstructionRuleFamilyEvidence dispatcher returning {matched, evidence}); selection.ts now uses a single instructionRuleFamilyQuery flag; a matching narrow instruction gate suppresses slotSpecificFactQuery and the source-ordered-selector instruction suppression so the standing-instruction turn wins the early-return
-- repair shape: `instruction.legalTermsExplanation` family added to instructionRules/registry.ts; gate keys on the "my wishes are legally valid" question and the pattern pins the "always provide detailed explanations of legal terms when I ask about will requirements" standing-instruction turn (62)
-- regression check: target case delta plus one recall-neutral same-conversation noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 6
+- evidence-chat recall: 0.8736194947462552
+- missed-recall cases: 78/355
+- wrong-recall/noise cases: 221/400
+- zero-recall cases: 1
+- global hit/missing/noise ids: 915/179/1198 -> 916/178/1192
+- recovered target: `20:instruction_following:1`
+- target result: recall 0 -> 1 with the single designated standing-instruction turn (66) returned and all six noisy chats (174/228/362/46/186/202) removed, zero new noise
+- repair shape: `instruction.patentTimelines` family added to instructionRules/registry.ts (one module + one registry entry + one enrichment entry, no selection.ts/selectionRunContext.ts changes — the generic instruction routing from the prior pass covers it); gate keys on the "get a patent approved" question and the pattern pins the "always provide detailed timelines when I ask about patent application processes" standing-instruction turn (66)
+- regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the legal-terms standing instruction on the estate-planning conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the patent-timelines standing instruction on the patent-application conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
