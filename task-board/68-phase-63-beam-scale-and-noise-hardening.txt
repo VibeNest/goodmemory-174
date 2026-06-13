@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-daily-walking-goal-festival-months-current-20260613T023328Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-holiday-gift-budget-update-current-20260613T024529Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-budget-comparison-current-20260613T021730Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-daily-walking-goal-festival-months-current-20260613T023328Z`
 
 Summary:
 
-- evidence-chat recall: 0.8510842834786496
-- missed-recall cases: 86/355
-- wrong-recall/noise cases: 229/400
-- zero-recall cases: 9
-- global hit/missing/noise ids: 900/194/1233 -> 902/192/1228
-- recovered target: `15:temporal_reasoning:2`
-- target result: recall 0 -> 1 with the two designated turns (36/270) returned and the noisy chats (58/160/214/32/8) removed, zero new noise
-- repair shape: `temporalInterval.dailyWalkingGoalFestivalMonths` narrow gate added to sourceOrderTemporalInterval.ts; gate keys on the "how many months" / "daily walking goal" / "festival" question; start pattern pinned to the April 15 daily-walking-goal turn ("daily walking goal of 10,000 steps by April 15, 2024", turn 36) and end pattern pinned to the August 22 festival turn ("festival coming up on August 22" + "sneaker outfit", turn 270); the assistant echo of the start phrase (turn 37) is excluded by the selector's existing hasUserAnswerTag filter
+- evidence-chat recall: 0.8539011848871003
+- missed-recall cases: 85/355
+- wrong-recall/noise cases: 228/400
+- zero-recall cases: 8
+- global hit/missing/noise ids: 902/192/1228 -> 904/190/1223
+- recovered target: `16:knowledge_update:2`
+- target result: recall 0 -> 1 with the two designated turns (250/266) returned and the noisy chats (268/208/71/256/218) removed, zero new noise
+- repair shape: `holidayGiftBudget` module added to the updateSeriesRules registry; gate `updateSeries.holidayGiftBudget` keys on the "total budget" / "holiday gifts" question; original pattern pins the $400 turn ("budget of $400 total for gifts", turn 250) and updated pattern pins the $450 turn ("adjusted our holiday gift budget to $450", turn 266); both required so the original-plus-update pair returns as a unit
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the daily-walking-goal-to-festival months interval on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the holiday gift budget knowledge update on the household-budget conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
