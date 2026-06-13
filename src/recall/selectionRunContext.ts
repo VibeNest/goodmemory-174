@@ -64,6 +64,7 @@ import { isProbabilityConceptsEventOrderQuery } from "./selectors/sourceOrderRul
 import { isCareerRelocationEventOrderQuery } from "./selectors/sourceOrderRules/careerRelocationEventOrder";
 import { isAiHiringEventOrderQuery } from "./selectors/sourceOrderRules/aiHiringEventOrder";
 import { isPatentFundingEventOrderQuery } from "./selectors/sourceOrderRules/patentFundingEventOrder";
+import { isCombinatoricsProbabilityEventOrderQuery } from "./selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -518,6 +519,9 @@ export function buildSelectionRunContext(
   const patentFundingEventOrderPlanActive =
     isPatentFundingEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const combinatoricsProbabilityEventOrderPlanActive =
+    isCombinatoricsProbabilityEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -526,7 +530,8 @@ export function buildSelectionRunContext(
       probabilityConceptsEventOrderPlanActive ||
       careerRelocationEventOrderPlanActive ||
       aiHiringEventOrderPlanActive ||
-      patentFundingEventOrderPlanActive
+      patentFundingEventOrderPlanActive ||
+      combinatoricsProbabilityEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

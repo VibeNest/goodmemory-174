@@ -9185,6 +9185,96 @@ function buildPatentFundingEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildCombinatoricsProbabilityEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand the difference between independent and mutually exclusive events, can you help me with that, like what's an example of each, maybe something with coin tosses or dice rolls, I want to see the probability calculations for both cases, so I can clarify the concepts in my head ->-> 1,5",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide where to start with probability, and I've got two options - coin toss problems where the probability of getting heads is 1/2, or dice roll problems where the probability of rolling a 4 is 1/6, so should I start with coin toss problems or dice roll problems to get a better understanding of probability basics, like how to calculate the probability of an event as a ratio of favorable outcomes to total outcomes, and how to differentiate between independent and mutually exclusive events, which seems crucial for my practical and intellectual growth as a 44-year-old colour technologist from Port Michael ->-> 1,6",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand the concept of permutations and combinations, specifically with 3 objects, and I see that 3! equals 6, which represents the number of ways to arrange these objects, and 3C2 equals 3, which is the number of ways to choose 2 objects out of 3 without considering the order, so can you help me solve a problem where I have 3 different colored balls, and I want to find the number of ways to arrange them in a row, and also the number of ways to choose 2 balls out of the 3, considering that the order doesn't matter in the second case? ->-> 1,10",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand if the events \"rolling a 2\" and \"rolling a 5\" on a die are mutually exclusive, which means P(A ∩ B) = 0, and I want to confirm this concept ->-> 1,17",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand probability as a ratio, and I prefer step-by-step explanations with concrete examples like coin tosses and dice rolls to grasp probability fundamentals, so can you help me calculate the probability of rolling an even number on a 6-sided die, considering that there are 3 even numbers out of 6 possible outcomes, considering my goal is to solve 10 probability problems involving single events with at least 80% accuracy by February 1, and I've already completed 5 coin toss problems with 80% mastery of simple probability ratios? ->-> 1,25",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to calculate the probability of drawing 2 aces together from a deck of 52 cards, and I came across this formula: 4C2 / 52C2 = 6/1326 ≈ 0.00452, can you help me understand how this works and what it means for my chances of getting two aces in a row? ->-> 2,6",
+      id: 76,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "combinatorics-probability-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Mathematics",
+        id: 18,
+        subtopics: [
+          "Permutations and combinations",
+          "Probability basics",
+          "Counting principles",
+          "Card probability",
+        ],
+        theme:
+          "Working through combinatorics and probability problems",
+        title:
+          "Combinatorics and Probability Concepts",
+      },
+      narratives: "Combinatorics and probability event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: working through permutations and combinations with three objects, then calculating the probability of drawing two aces from a deck.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you list the order in which I brought up different aspects of combinatorial calculations and probability concepts throughout our conversations in order? Mention ONLY and ONLY five items.",
+            question_id: "combinatorics-probability-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [28, 76],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student studying combinatorics and probability",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12236,6 +12326,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([30, 164, 200, 202, 204, 206]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the combinatorics probability event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-combinatorics-probability-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCombinatoricsProbabilityEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([28, 76]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

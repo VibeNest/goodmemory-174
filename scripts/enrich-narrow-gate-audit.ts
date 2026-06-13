@@ -42,6 +42,7 @@ import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/so
 import { isCareerRelocationEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/careerRelocationEventOrder";
 import { isAiHiringEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/aiHiringEventOrder";
 import { isPatentFundingEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/patentFundingEventOrder";
+import { isCombinatoricsProbabilityEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import {
   isResumeDesignInstructionQuery,
@@ -198,6 +199,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "eventOrder.careerRelocation": isCareerRelocationEventOrderQuery,
   "eventOrder.aiHiring": isAiHiringEventOrderQuery,
   "eventOrder.patentFunding": isPatentFundingEventOrderQuery,
+  "eventOrder.combinatoricsProbability":
+    isCombinatoricsProbabilityEventOrderQuery,
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,
