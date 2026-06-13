@@ -23,6 +23,7 @@ import { isRemoteWorkScheduleUpdateQuery } from "../src/recall/selectors/updateS
 import { isImmigrationConsultantSessionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/immigrationConsultantSession";
 import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
 import {
+  isDailyWalkingGoalFestivalMonthsIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
   isMovieListGameNightDaysIntervalQuery,
   isOutlanderReadingDaysIntervalQuery,
@@ -159,6 +160,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.outlanderReadingDays": isOutlanderReadingDaysIntervalQuery,
   "temporalInterval.movieListGameNightDays":
     isMovieListGameNightDaysIntervalQuery,
+  "temporalInterval.dailyWalkingGoalFestivalMonths":
+    isDailyWalkingGoalFestivalMonthsIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,

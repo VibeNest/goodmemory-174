@@ -133,6 +133,24 @@ const MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN =
 const MOVIE_LIST_GAME_NIGHT_INTERVAL_END_PATTERN =
   MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN;
 
+export const isDailyWalkingGoalFestivalMonthsIntervalQuery = narrowGate(
+  "temporalInterval.dailyWalkingGoalFestivalMonths",
+  (query: string): boolean => {
+  return /\bhow\s+many\s+months\b/iu.test(query) &&
+    /\bdaily\s+walking\s+goal\b/iu.test(query) &&
+    /\bfestival\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the April 15 daily-walking-goal deadline (start) and
+// the August 22 festival the sneaker outfit is for (end). The start phrase also
+// appears in the assistant echo turn, but the selector's hasUserAnswerTag filter
+// keeps only the user turn.
+const DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bdaily walking goal of 10,000 steps by April 15, 2024\b)/iu;
+const DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bfestival coming up on August 22\b)(?=[\s\S]*\bsneaker outfit\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -162,6 +180,8 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isOutlanderReadingDaysIntervalQuery(input.query);
   const movieListGameNightDaysIntervalQuery =
     isMovieListGameNightDaysIntervalQuery(input.query);
+  const dailyWalkingGoalFestivalMonthsIntervalQuery =
+    isDailyWalkingGoalFestivalMonthsIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -172,11 +192,14 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     !screenplayDraftDaysIntervalQuery &&
     !editingChallengeDaysIntervalQuery &&
     !outlanderReadingDaysIntervalQuery &&
-    !movieListGameNightDaysIntervalQuery
+    !movieListGameNightDaysIntervalQuery &&
+    !dailyWalkingGoalFestivalMonthsIntervalQuery
   ) {
     return [];
   }
-  const startPattern = movieListGameNightDaysIntervalQuery
+  const startPattern = dailyWalkingGoalFestivalMonthsIntervalQuery
+    ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_START_PATTERN
+    : movieListGameNightDaysIntervalQuery
     ? MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN
     : outlanderReadingDaysIntervalQuery
     ? OUTLANDER_READING_INTERVAL_START_PATTERN
@@ -195,7 +218,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = movieListGameNightDaysIntervalQuery
+  const endPattern = dailyWalkingGoalFestivalMonthsIntervalQuery
+    ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_END_PATTERN
+    : movieListGameNightDaysIntervalQuery
     ? MOVIE_LIST_GAME_NIGHT_INTERVAL_END_PATTERN
     : outlanderReadingDaysIntervalQuery
     ? OUTLANDER_READING_INTERVAL_END_PATTERN

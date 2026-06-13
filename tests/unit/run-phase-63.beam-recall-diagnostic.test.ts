@@ -7992,6 +7992,101 @@ function buildSneakerBudgetComparisonReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildDailyWalkingGoalFestivalMonthsBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm deciding between Adidas Ultraboost for $180 and Nike React Infinity Run for $160, which one should I choose for daily wear? ->-> 1,9",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to reach my daily walking goal of 10,000 steps by April 15, 2024, and I need comfy shoes, can you help me find the best sneakers for this challenge within my budget of $200? ->-> 1,11",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "Absolutely, Darryl! Reaching your daily walking goal of 10,000 steps by April 15, 2024, requires comfortable and supportive sneakers. Given your budget of $200, there are several excellent options that can help you achieve your goal. Here are some top choices:\n\n### 1. **Adidas Ultraboost**\n- **Price**: $180\n- **Features**:\n  - **Cushioning**: Exceptional cushioning and energy return thanks to the Boost midsole.\n  - **Upper**: Primeknit upper provides a snug, sock-like fit and excellent breathability.\n  - **Support**: Offers good support and a secure fit.\n  - **Traction**: Continental Rubber outsole provides excellent traction.\n\n### 2. **Nike React Infinity Run**\n- **Price**: $160\n- **Features**:\n  - **Cushioning**: Soft and responsive React foam provides a comfortable ride.\n  - **Upper**: Engineered mesh upper offers a secure and breathable fit.\n  - **Support**: Designed for long-distance comfort with a supportive fit.\n  - **Traction**: Waffle-patterned outsole offers good traction and durability.\n\n### 3. **New Balance Fresh Foam 1080v11**\n- **Price**: $140\n- **Features**:\n  - **Cushioning**: Fresh Foam midsole provides excellent cushioning and a smooth ride.\n  - **Upper**: Engineered mesh upper ensures breathability and a secure fit.\n  - **Support**: Offers good support and a comfortable fit.\n  - **Traction**: Durable rubber outsole provides reliable traction.\n\n### 4. **Brooks Ghost 14**\n- **Price**: $120\n- **Features**:\n  - **Cushioning**: DNA LOFT cushioning provides a plush and responsive feel.\n  - **Upper**: Engineered mesh upper offers a secure fit and breathability.\n  - **Support**: Segmented crash pad in the outsole provides excellent traction and durability.\n  - **Traction**: Reliable outsole for good grip.\n\n### 5. **Saucony Ride ISO 4**\n- **Price**: $120\n- **Features**:\n  - **Cushioning**: PWRRUN cushioning provides a soft and responsive ride.\n  - **Upper**: Seamless upper reduces irritation and provides a secure fit.\n  - **Support**: Offers good support and a comfortable fit.\n  - **Traction**: Everun topsole provides continuous cushioning and durability.\n\n### Recommendations\nGiven your goal of walking 10,000 steps daily and your budget of $200, here are some recommendations:\n\n1. **Adidas Ultraboost**: If you're willing to spend closer to $180, the Ultraboost offers exceptional cushioning and energy return, which can make your daily walks more enjoyable.\n2. **Nike React Infinity Run**: At $160, this model provides excellent comfort and support, making it a great choice for long-distance walking.\n3. **New Balance Fresh Foam 1080v11**: At $140, this is a more budget-friendly option that still offers excellent cushioning and support.\n4. **Brooks Ghost 14** or **Saucony Ride ISO 4**: Both are excellent choices at $120, offering good cushioning, support, and durability.\n\n### Tips for Your Shopping Trip\n1. **Visit Foot Locker**: Plan to visit Foot Locker on Main Street, East Janethaven, next Saturday at 3 PM. Make sure to check if they have the models you're interested in.\n2. **Try-On Session**: Spend time walking around in each pair to assess comfort, fit, and support.\n3. **Compare Models**: Try on both the Adidas Ultraboost and Nike React Infinity Run to directly compare their comfort and fit.\n4. **Ask for Assistance**: Utilize the staff's expertise to get recommendations and ensure you find the best fit.\n\n### Final Thoughts\nBy choosing a pair of sneakers that provide excellent cushioning, support, and comfort, you'll be well-equipped to reach your daily walking goal. Make sure to take your time and find the pair that feels the best for you.\n\nGood luck with your shopping trip and achieving your walking goal! If you have any more questions or need further assistance, feel free to reach out.",
+      id: 37,
+      role: "assistant",
+    },
+    {
+      content:
+        "Always provide detailed comparisons when I ask about sneaker features. ->-> 1,22",
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        "Always highlight health benefits when I ask about sneaker features. ->-> 3,23",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a festival coming up on August 22 and I want to make sure my sneaker outfit is both comfortable and stylish, do you have any recommendations for sneakers that would be perfect for the occasion? ->-> 5,23",
+      id: 270,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "daily-walking-goal-festival-months",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 20,
+        subtopics: [
+          "Popular sneaker brands and their specialties",
+          "Materials for breathability and support",
+          "Trends in sneaker design",
+          "Fit and sizing guides",
+        ],
+        theme:
+          "Finding footwear that combines fashion, comfort, and durability",
+        title:
+          "Choosing Comfortable and Stylish Sneakers for Daily Wear",
+      },
+      narratives: "Daily walking goal to festival months interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are about 4 months between April 15, 2024, when I planned to reach my daily walking goal, and August 22, 2024, the date of the festival I’m preparing my sneaker outfit for.",
+            calculation_required: "August 22, 2024 - April 15, 2024 = about 4 months",
+            conversation_references: ["Session 1: daily walking goal deadline", "Session 5: festival sneaker outfit"],
+            difficulty: "medium",
+            question:
+              "How many months are there between when I planned to reach my daily walking goal and the festival I’m preparing my sneaker outfit for?",
+            question_id: "daily-walking-goal-festival-months",
+            question_type: "temporal_reasoning",
+            rubric: ["LLM response should state: about 4 months", "LLM response should state: from April 15 to August 22"],
+            source_chat_ids: {"first_event":[36],"second_event":[270]},
+            temporal_type: "duration_calculation",
+            time_points: ["April 15, 2024: daily walking goal", "August 22, 2024: festival"],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Shopper comparing daily-wear sneakers",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10744,6 +10839,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([38, 72]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps daily walking goal to festival months interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-daily-walking-goal-festival-months",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildDailyWalkingGoalFestivalMonthsBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([36, 270]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
