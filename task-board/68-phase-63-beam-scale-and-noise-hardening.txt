@@ -23,23 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-work-boundary-order-reasoning-current-20260613T033306Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-will-attorney-meeting-contradiction-current-20260613T034702Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-probate-timeline-update-current-20260613T032048Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-work-boundary-order-reasoning-current-20260613T033306Z`
 
 Summary:
 
-- evidence-chat recall: 0.8651687905209031
-- missed-recall cases: 81/355
-- wrong-recall/noise cases: 224/400
-- zero-recall cases: 4
-- global hit/missing/noise ids: 910/184/1216 -> 912/182/1208
-- recovered target: `18:multi_session_reasoning:1`
-- target result: recall 0 -> 1 with the two designated turns (48/216) returned and all eight noisy chats (51/52/53/91/125/278/279/301) removed, zero new noise
-- repair shape: source-ordered reasoning bridge `reasoning.workBoundaryOrder` (modeled on sneakerBudgetComparisonReasoning.ts) chained in reasoningBridgeRules.ts; gate keys on the "email boundaries after 7 PM" / "work-free Sundays" which-came-first question and pairs the user email-boundary facet ("limiting work emails after 7 PM, starting March 5", turn 48) with the user work-free-Sundays facet ("work-free Sundays starting May 5", turn 216), returning both source-ordered; the gate is registered in instructionAugmentationStandDownQuery in selectionRunContext.ts (the reasoning bridge won the route directly, so no exactSourceOrderedReasoningQuery entry was needed)
-- regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
+- evidence-chat recall: 0.8679856919293538
+- missed-recall cases: 80/355
+- wrong-recall/noise cases: 223/400
+- zero-recall cases: 3
+- global hit/missing/noise ids: 912/182/1208 -> 914/180/1204
+- recovered target: `19:contradiction_resolution:1`
+- target result: recall 0 -> 1 with the two designated turns (34/64) returned and all four noisy chats (84/204/228/234) removed, zero new noise
+- accepted ripple: `19:temporal_reasoning:2` stays at recall 1 with a net-zero same-conversation noise swap (drops 221, adds 64); global noise still falls by 4
+- repair shape: `contradiction.willAttorneyMeeting` first-statement/denial pair added to contradiction.ts (modeled on the ATS-course-enrollment selector); gate keys on the "have I met attorney" / "discuss my will" question; first-statement pattern pins the planned March 22 attorney meeting turn ("meeting with attorney" + "on March 22 to finalize my will", turn 34) and denial pattern pins the "never met attorney" / "plan my will" turn (64); all patterns avoid the attorney's name so the selector file stays free of the disallowed fixture name
+- regression check: target case delta plus one recall-neutral same-conversation noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 4
 
-The repaired target covers the work-boundary which-came-first reasoning on the work-life-balance conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the will-attorney-meeting contradiction on the estate-planning conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
