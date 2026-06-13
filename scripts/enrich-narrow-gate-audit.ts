@@ -13,6 +13,7 @@ import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sou
 import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
 import { isSneakerBudgetComparisonReasoningQuery } from "../src/recall/selectors/sourceOrderRules/sneakerBudgetComparisonReasoning";
+import { isWorkBoundaryOrderReasoningQuery } from "../src/recall/selectors/sourceOrderRules/workBoundaryOrderReasoning";
 import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/writingGroupDeadline";
 import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updateSeriesRules/finalDecisionMeeting";
 import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selectors/updateSeriesRules/executiveProducerInterviews";
@@ -178,6 +179,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isEntertainmentSpendingReasoningQuery,
   "reasoning.sneakerBudgetComparison":
     isSneakerBudgetComparisonReasoningQuery,
+  "reasoning.workBoundaryOrder": isWorkBoundaryOrderReasoningQuery,
   "reasoning.seniorProducerPreparationPriority":
     reasoningRules.isSeniorProducerPreparationPriorityQuery,
   "reasoning.patentPriorArtFiling": reasoningRules.isPatentPriorArtFilingReasoningQuery,

@@ -8435,6 +8435,89 @@ function buildProbateTimelineUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildWorkBoundaryOrderReasoningBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to set boundaries by limiting work emails after 7 PM, starting March 5, to reduce stress, but I'm kinda worried it might affect my work, can you help me figure out how to make this work? ->-> 1,9",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "Glad to hear that the steps are helpful! Handling pushback from colleagues is a common concern when setting new boundaries, but with clear communication and consistency, you can manage it effectively. Here are some tips to help you address potential pushback:\n\n### Handling Pushback from Colleagues\n\n1. **Communicate the Benefits**\n   - **Explain the Purpose**: Clearly explain why you are setting this boundary. Emphasize that it is intended to improve work-life balance and reduce stress, which ultimately benefits everyone by ensuring you are more focused and productive during work hours.\n   - **Share Positive Outcomes**: If possible, share positive outcomes from others who have implemented similar boundaries.\n\n2. **Be Firm but Respectful**\n   - **Reiterate the Boundary**: When someone sends an email or reaches out after 7 PM, gently remind them of your boundary. Be firm but respectful in your response.\n   - **Example Response**: \"Thank you for reaching out. I am not checking emails after 7 PM to maintain a healthy work-life balance. I will respond to your email first thing tomorrow morning. If this is an urgent matter, please use the alternative contact method provided.\"\n\n3. **Provide Alternative Solutions**\n   - **Urgent Contact Method**: Ensure that your team knows how to reach you in case of emergencies. Provide a clear and reliable alternative contact method.\n   - **Delegate Responsibilities**: If appropriate, delegate responsibilities to other team members who can handle urgent matters outside of your working hours.\n\n4. **Set Clear Expectations**\n   - **Define Urgent Matters**: Clearly define what constitutes an urgent matter that requires immediate attention. This helps prevent unnecessary interruptions.\n   - **Establish Protocols**: Establish protocols for handling urgent matters, including who to contact and how to escalate issues.\n\n5. **Regular Check-ins**\n   - **Feedback Sessions**: Schedule regular check-ins with your team to gather feedback and address any concerns. This shows that you are open to dialogue and willing to make adjustments if needed.\n   - **Adjust as Needed**: Be open to making small adjustments if certain aspects of the boundary are causing issues. Flexibility can help maintain good relationships.\n\n6. **Lead by Example**\n   - **Model Behavior**: If you are in a leadership position, model the behavior you expect from your team. This can encourage others to adopt similar boundaries.\n   - **Support Team Members**: Encourage and support your team members in setting their own boundaries. This can create a culture of respect for work-life balance.\n\n### Example Responses to Pushback\n\n**Scenario 1: Colleague Sends an Email After 7 PM**\n\n**Colleague**: \"Hey, I just realized I forgot to send you this report. Can you take a look now?\"\n\n**You**: \"Thank you for sending the report. I am not checking emails after 7 PM to maintain a healthy work-life balance. I will review it first thing tomorrow morning. If this is an urgent matter, please use the alternative contact method provided.\"\n\n**Scenario 2: Colleague Reaches Out via Phone**\n\n**Colleague**: \"This is urgent. Can you check this right away?\"\n\n**You**: \"I appreciate your urgency. Please use the alternative contact method provided for urgent matters. I will be available again tomorrow morning at 9 AM.\"\n\n### Additional Tips\n\n- **Document the Policy**: Consider documenting the new boundary policy in a shared document or company handbook to ensure everyone is aware of the guidelines.\n- **Training and Support**: If applicable, provide training or support to help your team adjust to the new boundaries. This can include workshops on time management and work-life balance.\n\nBy following these steps, you can effectively handle pushback and maintain your new boundary. Remember, consistency and clear communication are key to establishing and maintaining healthy work-life boundaries. How do you feel about these strategies, and is there anything else you think you might need more support with?",
+      id: 51,
+      role: "assistant",
+    },
+    {
+      content:
+        "Thanks! These tips are really helpful. I'll make sure to communicate clearly with my team and be consistent with my new boundary. I'm a bit nervous, but I think being upfront about the benefits and providing alternative solutions will help. I'll also keep an eye on how things go and be ready to adjust if needed.",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I've set clear work-free Sundays starting May 5 after David expressed concern, but I'm not sure if that's enough to improve my relationship boundaries, and I'd love some advice on how to maintain them ->-> 3,11",
+      id: 216,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to set a firm boundary by not checking work emails after 7 PM, starting July 1, and I've already communicated this to all team members, so how can I ensure everyone respects this new policy ->-> 4,12",
+      id: 278,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "work-boundary-order-reasoning",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Work-Life Balance",
+        id: 23,
+        subtopics: [
+          "Setting work boundaries",
+          "Reducing stress",
+          "Maintaining relationships",
+          "Email and weekend habits",
+        ],
+        theme:
+          "Establishing and sustaining healthy work-life boundaries",
+        title:
+          "Building Better Work-Life Boundaries",
+      },
+      narratives: "Work boundary order reasoning",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "You decided to start setting email boundaries after 7 PM first, before establishing work-free Sundays.",
+            question:
+              "Between setting email boundaries after 7 PM and establishing work-free Sundays, which boundary did I decide to start first?",
+            question_id: "work-boundary-order-reasoning",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [48, 216],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Professional setting work-life boundaries",
+        user_relationships: "David",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11302,6 +11385,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([112, 122]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps work boundary order reasoning anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-work-boundary-order-reasoning",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWorkBoundaryOrderReasoningBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([48, 216]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

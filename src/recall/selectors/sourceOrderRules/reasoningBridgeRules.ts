@@ -22,6 +22,7 @@ import { selectSourceOrderedReadingPlanBalanceReasoningEvidence } from "./readin
 import { selectSourceOrderedPeerFeedbackBalanceReasoningEvidence } from "./peerFeedbackBalanceReasoning";
 import { selectSourceOrderedResumeAtsSequencingReasoningEvidence } from "./resumeAtsSequencingReasoning";
 import { selectSourceOrderedSneakerBudgetComparisonReasoningEvidence } from "./sneakerBudgetComparisonReasoning";
+import { selectSourceOrderedWorkBoundaryOrderReasoningEvidence } from "./workBoundaryOrderReasoning";
 import {
   selectSourceOrderedPatentFilingDeadlineReasoningEvidence,
   selectSourceOrderedPatentPriorArtFilingReasoningEvidence,
@@ -206,6 +207,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedSneakerBudgetComparisonReasoningEvidence(input);
   if (sneakerBudgetComparisonReasoning.length > 0) {
     return sneakerBudgetComparisonReasoning;
+  }
+
+  const workBoundaryOrderReasoning =
+    selectSourceOrderedWorkBoundaryOrderReasoningEvidence(input);
+  if (workBoundaryOrderReasoning.length > 0) {
+    return workBoundaryOrderReasoning;
   }
 
   const weatherAppLatencyComparison =
