@@ -9275,6 +9275,108 @@ function buildCombinatoricsProbabilityEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildSneakerSafetyEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got a budget limit of $200 for sneakers and I'm deciding between Adidas Ultraboost and Nike React Infinity Run, which one would you recommend for daily wear considering my budget cap? ->-> 1,12",
+      id: 38,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering sneakers with good breathability, like the Ultraboost that uses Primeknit, but I also need medium arch support due to my mild flat feet - can you help me find a balance between these features? ->-> 1,13",
+      id: 40,
+      role: "user",
+    },
+    {
+      content:
+        "I'm concerned about injury risk on uneven terrain at filming sites, so I need good grip soles, can you help me find sneakers that fit that requirement, maybe something with a medium arch support ->-> 1,20",
+      id: 54,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my new Ultraboost sneakers might not be the right fit, so I'm glad Finish Line has a 30-day return policy, right? ->-> 2,6",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "The Continental rubber outsole on my new Ultraboost sneakers offers 30% better traction on wet surfaces, which is a big safety feature for me, do you think this is a good enough reason to choose them over other sneakers? ->-> 2,14",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I've been having issues with shin splints, and I'm considering switching to Brooks Ghost for running after May 5, like I did to avoid injury risk, was that a good decision? ->-> 3,13",
+      id: 138,
+      role: "user",
+    },
+    {
+      content:
+        "I just got a New Balance 990v5 with reflective panels that improve night visibility by 40%, is this a good feature for daily wear considering safety? ->-> 4,11",
+      id: 184,
+      role: "user",
+    },
+    {
+      content:
+        "I've decided to wear my Nike Dunk Low with orthotic insoles to the festival to prevent arch strain, and I'm kinda excited to see how they'll perform, can you help me understand how the orthotic insoles will work with the Zoom Air unit to provide better responsiveness? ->-> 5,22",
+      id: 262,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "sneaker-safety-event-order",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Asking Recommendation",
+        id: 20,
+        subtopics: [
+          "Grip and traction",
+          "Injury prevention",
+          "Visibility and safety",
+          "Orthotic support",
+        ],
+        theme:
+          "Choosing sneakers with safety and comfort features",
+        title:
+          "Sneaker Safety and Comfort Features",
+      },
+      narratives: "Sneaker safety and comfort feature event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: grip soles for uneven terrain, Continental rubber traction, switching to Brooks Ghost for shin splints, reflective panels for night visibility, and orthotic insoles for arch strain.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different safety and comfort features of my sneakers during our chats, in order? Mention ONLY and ONLY five items.",
+            question_id: "sneaker-safety-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [54, 94, 138, 184, 262],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Shopper choosing sneakers for safety and comfort",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12349,6 +12451,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([28, 76]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the sneaker safety event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-sneaker-safety-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildSneakerSafetyEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([54, 94, 138, 184, 262]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

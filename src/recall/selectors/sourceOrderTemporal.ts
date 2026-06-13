@@ -56,6 +56,7 @@ import { selectSourceOrderedCareerRelocationEventOrderCoverage } from "./sourceO
 import { selectSourceOrderedAiHiringEventOrderCoverage } from "./sourceOrderRules/aiHiringEventOrder";
 import { selectSourceOrderedPatentFundingEventOrderCoverage } from "./sourceOrderRules/patentFundingEventOrder";
 import { selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage } from "./sourceOrderRules/combinatoricsProbabilityEventOrder";
+import { selectSourceOrderedSneakerSafetyEventOrderCoverage } from "./sourceOrderRules/sneakerSafetyEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -383,6 +384,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The two designated combinatorics/probability aspect turns are the full
     // evidence set the benchmark lists, returned source-ordered uncapped.
     return combinatoricsProbabilityEventOrder;
+  }
+  const sneakerSafetyEventOrder =
+    selectSourceOrderedSneakerSafetyEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (sneakerSafetyEventOrder.length > 0) {
+    // The five designated sneaker safety/comfort aspect turns are the full
+    // evidence set, returned source-ordered without the requested-item cap.
+    return sneakerSafetyEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
