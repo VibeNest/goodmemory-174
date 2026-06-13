@@ -52,6 +52,7 @@ import {
   sourceOrderFrameworkCustomizationPriorityBonus,
 } from "./sourceOrderRules/frameworkCustomization";
 import { selectSourceOrderedProbabilityConceptsEventOrderCoverage } from "./sourceOrderRules/probabilityConceptsEventOrder";
+import { selectSourceOrderedCareerRelocationEventOrderCoverage } from "./sourceOrderRules/careerRelocationEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -340,6 +341,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // Six concepts arrive as user-turn pairs; the full pair coverage is the
     // evidence set, so it is not capped to the requested item count.
     return probabilityConceptsEventOrder;
+  }
+  const careerRelocationEventOrder =
+    selectSourceOrderedCareerRelocationEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (careerRelocationEventOrder.length > 0) {
+    // The five designated career/relocation aspect turns are the full evidence
+    // set, returned source-ordered without the requested-item-count cap.
+    return careerRelocationEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,

@@ -39,6 +39,7 @@ import {
   isTriangleProblemCountIntervalQuery,
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
+import { isCareerRelocationEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/careerRelocationEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import {
   isResumeDesignInstructionQuery,
@@ -192,6 +193,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     reasoningRules.isProbabilityCalculationConfirmationReasoningQuery,
   "reasoning.householdBudget": isSourceOrderedHouseholdBudgetReasoningQuery,
   "eventOrder.probabilityConcepts": isProbabilityConceptsEventOrderQuery,
+  "eventOrder.careerRelocation": isCareerRelocationEventOrderQuery,
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,

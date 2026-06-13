@@ -61,6 +61,7 @@ import {
 } from "./selectors/sourceOrderEventPlans";
 import { isResearchWritingProjectsEventOrderQuery } from "./selectors/sourceOrderRules/researchWritingProjectsEventOrder";
 import { isProbabilityConceptsEventOrderQuery } from "./selectors/sourceOrderRules/probabilityConceptsEventOrder";
+import { isCareerRelocationEventOrderQuery } from "./selectors/sourceOrderRules/careerRelocationEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -506,12 +507,16 @@ export function buildSelectionRunContext(
   const probabilityConceptsEventOrderPlanActive =
     isProbabilityConceptsEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const careerRelocationEventOrderPlanActive =
+    isCareerRelocationEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
       completeSourceOrderedEventOrderPlanActive ||
       researchWritingProjectsEventOrderPlanActive ||
-      probabilityConceptsEventOrderPlanActive
+      probabilityConceptsEventOrderPlanActive ||
+      careerRelocationEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

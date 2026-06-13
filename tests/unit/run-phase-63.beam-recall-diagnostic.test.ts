@@ -8843,6 +8843,108 @@ function buildNonProvisionalFilingInstructionBeamRows(): unknown[] {
   ];
 }
 
+function buildCareerRelocationEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that my $12.99/month Canva Pro subscription might not be enough to make my resume ATS compatible by March 30, 2024, can you help me with that? ->-> 1,9",
+      id: 18,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on this LinkedIn Learning course, I've only completed 40% of it by March 15, 2024, and I'm not sure if I'll be able to optimize my resume for ATS by the time I'm done ->-> 1,11",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "Ok cool, do I need to use specific software to test my resume with ATS simulators?",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I started using Jobscan to compare my resume against 5 job descriptions and I improved my keyword match by 25%, but I'm not sure what to do next to get my resume to pass any Applicant Tracking System ->-> 2,4",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I updated my LinkedIn headline to “Executive Producer | Digital Storytelling | Caribbean Media Innovator” on July 5, 2024, will this help me stand out to potential employers and get more profile views ->-> 3,3",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my panel interview for the consulting role on September 20, 2024, in Toronto via Zoom at 3 PM AST, and I was wondering if you could help me prepare ->-> 4,13",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to manage my relocation logistics and career decisions effectively, but I'm not sure how my calm and logical approach will help with the short-term rental options in London's Shoreditch area, which are averaging £1,800/month for the initial 3 months ->-> 5,19",
+      id: 242,
+      role: "user",
+    },
+    {
+      content:
+        "How can I use my calm and logical approach to research and decide on the best short-term rental option in London's Shoreditch area, considering the average cost of £1,800/month for the initial 3 months, to ensure a smooth relocation ->-> 5,20",
+      id: 244,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "career-relocation-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career Development",
+        id: 22,
+        subtopics: [
+          "Resume and ATS optimization",
+          "Professional branding",
+          "Interview preparation",
+          "Relocation planning",
+        ],
+        theme:
+          "Advancing a career and planning an international relocation",
+        title:
+          "Career Development and Relocation Planning",
+      },
+      narratives: "Career development and relocation event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: making the resume ATS compatible with Canva Pro, improving keyword match with Jobscan, updating the LinkedIn headline, preparing for the panel interview, and researching the Shoreditch short-term rental for relocation.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my career development and relocation plans in our conversations, in order? Mention ONLY and ONLY five items.",
+            question_id: "career-relocation-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [18, 56, 108, 176, 244],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Professional planning career growth and relocation",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11825,6 +11927,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([180, 182]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the career relocation event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-career-relocation-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCareerRelocationEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([18, 56, 108, 176, 244]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
