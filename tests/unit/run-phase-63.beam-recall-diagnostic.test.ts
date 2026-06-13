@@ -8945,6 +8945,132 @@ function buildCareerRelocationEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildAiHiringEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've been working with Michael, 28, a junior editor, at Montserrat Media Hub since we met on January 10, 2023, and I'm not sure if AI can replace the human touch he brings to our weekly collaborations on editing timelines ->-> 1,5",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what specific steps can I take to ensure the AI doesn't overlook candidates with strong soft skills?",
+      id: 26,
+      role: "user",
+    },
+    {
+      content:
+        "Ensuring that the AI doesn't overlook candidates with strong soft skills is crucial, especially in roles where interpersonal skills and cultural fit are important. Here are some specific steps you can take to balance the use of AI with the need to assess soft skills:\n\n### Steps to Ensure Soft Skills Are Not Overlooked\n\n1. **Define Comprehensive Evaluation Criteria**:\n   - **Technical Skills**: Use AI to screen for technical skills and basic qualifications.\n   - **Soft Skills**: Define specific soft skills you want to assess, such as communication, teamwork, problem-solving, and adaptability.\n\n2. **Use Multi-Stage Evaluation**:\n   - **Initial Screening**: Use AI for the initial screening of resumes and basic qualifications.\n   - **Structured Interviews**: Implement structured interviews conducted by human evaluators to assess soft skills.\n   - **Behavioral Questions**: Use behavioral interview questions that require candidates to describe past experiences and actions, which can reveal their soft skills.\n\n3. **Assessment Tools**:\n   - **Psychometric Tests**: Incorporate psychometric tests that evaluate personality traits and soft skills. These can be integrated into the AI system or conducted separately.\n   - **Scenario-Based Assessments**: Use scenario-based assessments where candidates are asked to solve hypothetical problems or interact with simulated situations.\n\n4. **Human-led Follow-Up**:\n   - **Final Interviews**: Ensure that human evaluators conduct final interviews to assess cultural fit and interpersonal skills.\n   - **Panel Interviews**: Use panel interviews involving multiple team members to get a broader perspective on the candidate's soft skills.\n\n5. **Feedback Mechanisms**:\n   - **Candidate Feedback**: Collect feedback from candidates about their experience with the AI screening process to identify any issues or biases.\n   - **Team Feedback**: Gather feedback from your team on the candidates who pass the initial AI screening to ensure they meet the soft skill criteria.\n\n6. **Regular Audits**:\n   - **Bias Audits**: Regularly audit the AI system to ensure it is not inadvertently overlooking candidates with strong soft skills.\n   - **Performance Reviews**: Conduct regular reviews of the performance of newly hired candidates to assess whether the AI and human evaluation processes are effective.\n\n### Implementation in the Pilot Program\n\n1. **Define Objectives**:\n   - **Time Reduction**: Aim to reduce the time spent on resume screening by at least 50%.\n   - **Diversity**: Monitor the diversity of the candidate pool.\n   - **Quality of Talent**: Assess the quality and fit of the candidates selected.\n   - **Soft Skills**: Ensure that candidates with strong soft skills are not overlooked.\n\n2. **Select Positions for the Pilot**:\n   - Choose a couple of positions that are representative of your typical hiring needs, such as junior editors or assistant producers.\n\n3. **Choose an AI Tool**:\n   - Select an AI hiring tool that aligns with your objectives. Some recommended tools include Unitive, Applied, or HireVue.\n   - Ensure the tool offers a trial period or pilot program.\n\n4. **Configure the AI Tool**:\n   - Work closely with the tool provider to configure the system according to your needs.\n   - Set up anonymization settings to remove personal identifiers from resumes.\n   - Define evaluation criteria that include both technical skills and soft skills.\n\n5. **Train Your Team**:\n   - Conduct training sessions for your HR team and hiring managers on how to use the AI tool effectively.\n   - Ensure everyone understands the importance of maintaining fairness and transparency.\n   - Train on how to conduct structured interviews and assess soft skills.\n\n6. **Launch the Pilot**:\n   - Start the pilot for the selected positions.\n   - Monitor the process closely to ensure it is operating as intended.\n   - Keep detailed records of the time spent on each stage of the hiring process before and after implementing the AI tool.\n\n7. **Collect Data and Feedback**:\n   - Track the time saved during the resume screening process.\n   - Gather data on the diversity of the candidate pool, such as gender, ethnicity, and age.\n   - Collect feedback from your team and candidates about their experiences with the AI tool.\n\n8. **Evaluate Results**:\n   - After the pilot period, review the data and feedback collected.\n   - Analyze whether the time reduction and diversity objectives were met.\n   - Assess the quality of candidates selected and their soft skills.\n   - Observe how new hires integrate into the team and contribute to project success.\n\n9. **Make Adjustments**:\n   - Based on the evaluation, make any necessary adjustments to the AI tool configuration or process.\n   - Address any concerns or issues identified during the pilot.\n\n10. **Document Findings**:\n    - Prepare a comprehensive report summarizing the findings of the pilot.\n    - Include data on time savings, diversity metrics, and quality of candidates.\n    - Highlight any lessons learned and recommendations for future use.\n\n### Example Workflow\n\n1. **Initial Screening**:\n   - AI screens resumes and shortlists candidates based on technical skills and basic qualifications.\n   - Human evaluators review the shortlisted candidates and conduct initial interviews.\n\n2. **Structured Interviews**:\n   - Human-led structured interviews to assess soft skills using behavioral questions.\n   - Panel interviews involving multiple team members to get a broader perspective.\n\n3. **Final Decisions**:\n   - Human evaluators make final hiring decisions based on a combination of AI screening results and human assessments of soft skills.\n\nBy following these steps, you can ensure that the AI system complements your efforts to assess and value soft skills, while also streamlining the hiring process. This balanced approach will help you maintain the human touch and collaborative dynamics that are essential to your team's success.\n\nWould you like to discuss any specific aspect of these steps in more detail?",
+      id: 27,
+      role: "assistant",
+    },
+    {
+      content:
+        "hmm, what specific psychometric tests do you recommend integrating into the AI system?",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking to save some costs, and I heard AI hiring tools can cost between $5,000 and $12,000 annually, which is way less than our current manual hiring costs of $15,000 per hire, so is it a good idea to switch to AI hiring tools to reduce our expenses? ->-> 1,12",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering using AI to automate hiring in my company, and I've already completed 2 AI-assisted candidate screenings using HireVue between April 10-25, which reduced screening time by 45%, so what are the next steps to ensure this process complies with Montserrat's 2022 privacy law, especially since I've ensured candidate data is encrypted with AES-256 during AI processing? ->-> 2,2",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "Michael suggested integrating Pymetrics for soft skills assessment, which improved candidate fit by 20% in April hires, and I'm kinda curious to know if this could be the key to making our hiring process more efficient ->-> 2,7",
+      id: 106,
+      role: "user",
+    },
+    {
+      content:
+        "Integrating Pymetrics for soft skills assessment is an intriguing idea, especially given the 20% improvement in candidate fit that you observed in April hires. Let's delve into how this could enhance the efficiency and effectiveness of your hiring process.\n\n### Benefits of Integrating Pymetrics\n\n1. **Improved Candidate Fit**:\n   - **Soft Skills Assessment**: Pymetrics evaluates candidates based on cognitive and emotional traits, which are crucial for job fit but often difficult to assess through traditional methods.\n   - **Better Team Integration**: Candidates who score higher on soft skills assessments are more likely to integrate well into the team, leading to better collaboration and productivity.\n\n2. **Efficiency Gains**:\n   - **Reduced Interview Rounds**: With more accurate assessments upfront, you can reduce the number of interview rounds needed, saving time and resources.\n   - **Faster Hiring Cycles**: By quickly identifying top candidates, you can shorten the overall hiring timeline, which is particularly beneficial in competitive talent markets.\n\n3. **Data-Driven Decisions**:\n   - **Objective Evaluation**: Pymetrics provides objective data on candidate fit, reducing the risk of subjective biases that can affect hiring decisions.\n   - **Performance Predictions**: Historical data from Pymetrics can help predict future performance, allowing you to make more informed hiring choices.\n\n### Potential Challenges\n\n1. **Bias and Fairness**:\n   - **Algorithmic Bias**: Ensure that the Pymetrics algorithms are regularly audited to prevent any unintended biases based on demographic factors.\n   - **Transparency**: Maintain transparency with candidates about how their data is used and the basis for hiring decisions.\n\n2. **Candidate Experience**:\n   - **User-Friendliness**: Ensure that the assessment process is user-friendly and does not deter candidates due to complexity or length.\n   - **Feedback Mechanism**: Provide candidates with feedback on their assessments to enhance their experience and build trust.\n\n3. **Integration and Training**:\n   - **System Integration**: Smooth integration with existing HR systems and workflows is crucial to avoid disruptions.\n   - **Training**: Proper training for HR and hiring managers on how to interpret and use the data effectively.\n\n### Steps to Implement Pymetrics\n\n1. **Pilot Program**:\n   - **Select a Subset**: Start with a pilot program for a subset of positions to evaluate the effectiveness and gather data.\n   - **Monitor Outcomes**: Track key metrics such as time-to-hire, candidate quality, and team integration to assess the impact.\n\n2. **Audit and Adjust**:\n   - **Regular Audits**: Conduct regular audits of the Pymetrics algorithms to ensure fairness and accuracy.\n   - **Feedback Loop**: Establish a feedback loop with candidates and hiring managers to continuously improve the process.\n\n3. **Expand Gradually**:\n   - **Scale Up**: Based on the success of the pilot, gradually expand the use of Pymetrics to more positions and departments.\n   - **Refine Processes**: Continuously refine the hiring processes based on feedback and data insights.\n\n### Conclusion\n\nIntegrating Pymetrics for soft skills assessment can indeed be a key factor in making your hiring process more efficient and effective. The 20% improvement in candidate fit is a strong indicator that this tool can add significant value. By carefully planning the implementation, monitoring outcomes, and addressing potential challenges, you can leverage Pymetrics to enhance the overall quality of your hiring process.\n\nWould you like to explore any specific aspects of implementing Pymetrics further, such as detailed pilot plans or strategies for addressing potential biases?",
+      id: 107,
+      role: "assistant",
+    },
+    {
+      content:
+        "Yeah, I think integrating Pymetrics could definitely help us. The 20% improvement in candidate fit is pretty compelling. Let's start with a pilot program for a few positions and see how it goes. We should also make sure to keep an eye on any potential biases and maintain transparency with the candidates.",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I've been working with Jessica, who helped draft candidate communication templates on April 27, and I'm wondering if she can also help me improve the tone of these emails to make them more personal? ->-> 2,15",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "What's the best way to ensure the AI screening tool's 90% accuracy doesn't introduce bias into my hiring process, especially considering I've never implemented two-factor authentication for any platform access? ->-> 2,22",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering using AI to automate hiring, but I want to make sure it's fair, especially since Michael revealed he's developing AI fairness metrics on July 12 during lunch at The Green Turtle ->-> 3,4",
+      id: 192,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "ai-hiring-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Human Resources",
+        id: 23,
+        subtopics: [
+          "AI in recruitment",
+          "Soft skills assessment",
+          "Psychometric testing",
+          "AI fairness",
+        ],
+        theme:
+          "Integrating AI into the hiring process responsibly",
+        title:
+          "Using AI in Hiring",
+      },
+      narratives: "AI in hiring process event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: questioning whether AI can replace the human touch, ensuring AI does not overlook soft skills, choosing psychometric tests, introducing Pymetrics for soft skills, piloting Pymetrics, and adding AI fairness metrics.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of using AI in our hiring process across our conversations, in order? Mention ONLY and ONLY six items.",
+            question_id: "ai-hiring-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [24, 26, 28, 106, 108, 192],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Hiring manager exploring AI tools",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11950,6 +12076,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([18, 56, 108, 176, 244]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the AI hiring event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-ai-hiring-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAiHiringEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([24, 26, 28, 106, 108, 192]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

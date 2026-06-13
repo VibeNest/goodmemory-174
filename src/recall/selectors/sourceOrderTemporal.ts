@@ -53,6 +53,7 @@ import {
 } from "./sourceOrderRules/frameworkCustomization";
 import { selectSourceOrderedProbabilityConceptsEventOrderCoverage } from "./sourceOrderRules/probabilityConceptsEventOrder";
 import { selectSourceOrderedCareerRelocationEventOrderCoverage } from "./sourceOrderRules/careerRelocationEventOrder";
+import { selectSourceOrderedAiHiringEventOrderCoverage } from "./sourceOrderRules/aiHiringEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -351,6 +352,15 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The five designated career/relocation aspect turns are the full evidence
     // set, returned source-ordered without the requested-item-count cap.
     return careerRelocationEventOrder;
+  }
+  const aiHiringEventOrder = selectSourceOrderedAiHiringEventOrderCoverage({
+    query: input.query,
+    sourceCandidates: sourceUserEntries,
+  });
+  if (aiHiringEventOrder.length > 0) {
+    // The six designated AI-in-hiring aspect turns are the full evidence set,
+    // returned source-ordered without the requested-item-count cap.
+    return aiHiringEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
