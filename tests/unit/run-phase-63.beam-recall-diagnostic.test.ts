@@ -8178,6 +8178,95 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildEmergencyFundDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stressed about saving $2,000 for my emergency fund by June 30, 2024, and I've only got $500 saved so far, can you help me make a plan to reach my goal? ->-> 1,11",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my emergency fund, it currently covers 1 month's expenses, but I want it to cover 3 months by year-end, what's a good strategy to achieve that? ->-> 1,15",
+      id: 42,
+      role: "user",
+    },
+    {
+      content:
+        "I've finally reached $1,200 in my emergency fund by June 5, which is 60% of my $2,000 goal, and I'm feeling pretty good about it, but can you give me some advice on how to stay motivated to reach the full amount? ->-> 2,7",
+      id: 76,
+      role: "user",
+    },
+    {
+      content:
+        "I've got an emergency fund goal of $2,000 by June 30, 2024, and I just found out it now covers 65% of that, so how can I make sure I reach my target on time? ->-> 2,22",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        "I just reached my emergency fund goal of $2,000 on August 30, which is 3 months early, what's the best way to keep saving and maybe even increase my goal now? ->-> 3,9",
+      id: 146,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "emergency-fund-days",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Personal Finance",
+        id: 21,
+        subtopics: [
+          "Emergency fund milestones",
+          "Savings motivation",
+          "Budget allocation",
+          "Spending caps",
+        ],
+        theme:
+          "Building and tracking an emergency fund",
+        title:
+          "Reaching Emergency Fund Savings Goals",
+      },
+      narratives: "Emergency fund days interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "It took about 86 days to reach the full $2,000 emergency fund goal after having $1,200 saved by June 5, since the goal was reached on August 30.",
+            calculation_required: "August 30 - June 5 = about 86 days",
+            conversation_references: ["Session 2: $1,200 milestone", "Session 3: $2,000 goal reached"],
+            difficulty: "medium",
+            question:
+              "How long did it take me to reach my full emergency fund goal after I had saved $1,200 by early June?",
+            question_id: "emergency-fund-days",
+            question_type: "temporal_reasoning",
+            rubric: ["LLM response should state: about 86 days", "LLM response should state: from June 5 to August 30"],
+            source_chat_ids: {"first_event":[76],"second_event":[146]},
+            temporal_type: "duration_calculation",
+            time_points: ["June 5: $1,200 saved", "August 30: $2,000 goal reached"],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Saver building an emergency fund",
+        user_relationships: "Alexis",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10976,6 +11065,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([250, 266]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps emergency fund days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-emergency-fund-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEmergencyFundDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([76, 146]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -151,6 +151,21 @@ const DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_START_PATTERN =
 const DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bfestival coming up on August 22\b)(?=[\s\S]*\bsneaker outfit\b)/iu;
 
+export const isEmergencyFundDaysIntervalQuery = narrowGate(
+  "temporalInterval.emergencyFundDays",
+  (query: string): boolean => {
+  return /\bhow\s+long\s+did\s+it\s+take\b/iu.test(query) &&
+    /\bemergency\s+fund\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the June 5 $1,200 milestone (start) and the
+// August 30 $2,000 goal-reached turn (end).
+const EMERGENCY_FUND_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\breached \$1,200 in my emergency fund by June 5\b)/iu;
+const EMERGENCY_FUND_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\breached my emergency fund goal of \$2,000 on August 30\b)/iu;
+
 const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
   /^(?=[\s\S]*\bDevelop transaction management features\b)(?=[\s\S]*\bFinal adjustments, testing, and deployment\b)/iu;
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
@@ -182,6 +197,8 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isMovieListGameNightDaysIntervalQuery(input.query);
   const dailyWalkingGoalFestivalMonthsIntervalQuery =
     isDailyWalkingGoalFestivalMonthsIntervalQuery(input.query);
+  const emergencyFundDaysIntervalQuery =
+    isEmergencyFundDaysIntervalQuery(input.query);
   if (
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -193,11 +210,14 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     !editingChallengeDaysIntervalQuery &&
     !outlanderReadingDaysIntervalQuery &&
     !movieListGameNightDaysIntervalQuery &&
-    !dailyWalkingGoalFestivalMonthsIntervalQuery
+    !dailyWalkingGoalFestivalMonthsIntervalQuery &&
+    !emergencyFundDaysIntervalQuery
   ) {
     return [];
   }
-  const startPattern = dailyWalkingGoalFestivalMonthsIntervalQuery
+  const startPattern = emergencyFundDaysIntervalQuery
+    ? EMERGENCY_FUND_INTERVAL_START_PATTERN
+    : dailyWalkingGoalFestivalMonthsIntervalQuery
     ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_START_PATTERN
     : movieListGameNightDaysIntervalQuery
     ? MOVIE_LIST_GAME_NIGHT_INTERVAL_START_PATTERN
@@ -218,7 +238,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = dailyWalkingGoalFestivalMonthsIntervalQuery
+  const endPattern = emergencyFundDaysIntervalQuery
+    ? EMERGENCY_FUND_INTERVAL_END_PATTERN
+    : dailyWalkingGoalFestivalMonthsIntervalQuery
     ? DAILY_WALKING_GOAL_FESTIVAL_INTERVAL_END_PATTERN
     : movieListGameNightDaysIntervalQuery
     ? MOVIE_LIST_GAME_NIGHT_INTERVAL_END_PATTERN

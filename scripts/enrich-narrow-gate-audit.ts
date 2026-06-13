@@ -25,6 +25,7 @@ import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selector
 import { isHolidayGiftBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/holidayGiftBudget";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
+  isEmergencyFundDaysIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
   isMovieListGameNightDaysIntervalQuery,
   isOutlanderReadingDaysIntervalQuery,
@@ -164,6 +165,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isMovieListGameNightDaysIntervalQuery,
   "temporalInterval.dailyWalkingGoalFestivalMonths":
     isDailyWalkingGoalFestivalMonthsIntervalQuery,
+  "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
   "reasoning.peerFeedbackBalance": isPeerFeedbackBalanceReasoningQuery,
   "reasoning.readingPlanBalance": isReadingPlanBalanceReasoningQuery,
