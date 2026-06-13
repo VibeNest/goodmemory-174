@@ -21,6 +21,7 @@ import { selectSourceOrderedEntertainmentSpendingReasoningEvidence } from "./ent
 import { selectSourceOrderedReadingPlanBalanceReasoningEvidence } from "./readingPlanBalanceReasoning";
 import { selectSourceOrderedPeerFeedbackBalanceReasoningEvidence } from "./peerFeedbackBalanceReasoning";
 import { selectSourceOrderedResumeAtsSequencingReasoningEvidence } from "./resumeAtsSequencingReasoning";
+import { selectSourceOrderedSneakerBudgetComparisonReasoningEvidence } from "./sneakerBudgetComparisonReasoning";
 import {
   selectSourceOrderedPatentFilingDeadlineReasoningEvidence,
   selectSourceOrderedPatentPriorArtFilingReasoningEvidence,
@@ -199,6 +200,12 @@ export function selectSourceOrderedReasoningBridgeEvidence(input: {
     selectSourceOrderedEntertainmentSpendingReasoningEvidence(input);
   if (entertainmentSpendingReasoning.length > 0) {
     return entertainmentSpendingReasoning;
+  }
+
+  const sneakerBudgetComparisonReasoning =
+    selectSourceOrderedSneakerBudgetComparisonReasoningEvidence(input);
+  if (sneakerBudgetComparisonReasoning.length > 0) {
+    return sneakerBudgetComparisonReasoning;
   }
 
   const weatherAppLatencyComparison =

@@ -65,6 +65,7 @@ import { isProbabilityConceptsEventOrderQuery } from "./selectors/sourceOrderRul
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
+import { isSneakerBudgetComparisonReasoningQuery } from "./selectors/sourceOrderRules/sneakerBudgetComparisonReasoning";
 import { isReadingPlanBalanceReasoningQuery } from "./selectors/sourceOrderRules/readingPlanBalanceReasoning";
 import {
   isPatentFilingDeadlineReasoningQuery,
@@ -211,7 +212,8 @@ export function buildSelectionRunContext(
     isResumeAtsSequencingReasoningQuery(query) ||
     isPeerFeedbackBalanceReasoningQuery(query) ||
     isReadingPlanBalanceReasoningQuery(query) ||
-    isEntertainmentSpendingReasoningQuery(query);
+    isEntertainmentSpendingReasoningQuery(query) ||
+    isSneakerBudgetComparisonReasoningQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
@@ -222,7 +224,8 @@ export function buildSelectionRunContext(
   const exactSourceOrderedReasoningQuery =
     isProbabilityCalculationConfirmationReasoningQuery(query) ||
     isPatentFilingDeadlineReasoningQuery(query) ||
-    isSourceOrderedSecurityFeatureCountReasoningQuery(query);
+    isSourceOrderedSecurityFeatureCountReasoningQuery(query) ||
+    isSneakerBudgetComparisonReasoningQuery(query);
   const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery && (
     aggregateCountQuery ||
     aggregateMoneyQuery ||
