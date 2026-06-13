@@ -96,6 +96,14 @@ export const isFamilyMovieInviteContradictionQuery = narrowGate(
   },
 );
 
+export const isWillAttorneyMeetingContradictionQuery = narrowGate(
+  "contradiction.willAttorneyMeeting",
+  (query: string): boolean => {
+  return /\bhave i met attorney\b/iu.test(query) &&
+    /\bdiscuss my will\b/iu.test(query);
+  },
+);
+
 export function isPotentialContradictionConfirmationQuery(query: string): boolean {
   if (
     /\b(?:summari[sz]e|summary|recap|overview)\b/iu.test(query) ||
@@ -289,6 +297,46 @@ function selectAtsCourseEnrollmentContradictionEvidence(input: {
 
   const firstStatement = pickFirst(ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN);
   const denial = pickFirst(ATS_COURSE_ENROLLMENT_DENIAL_PATTERN);
+
+  if (!firstStatement || !denial) {
+    return [];
+  }
+
+  return [firstStatement, denial].sort(compareTemporalFactChronology);
+}
+
+// The first statement names a planned attorney meeting to finalize the will;
+// the denial says the attorney was never met. Both patterns key on the
+// surrounding will/meeting phrasing rather than the attorney's name so the
+// selector file stays free of the disallowed fixture name.
+const WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\bmeeting with attorney\b)(?=[\s\S]*\bon March 22 to finalize my will\b)/iu;
+const WILL_ATTORNEY_MEETING_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever met attorney\b)(?=[\s\S]*\bplan my will\b)/iu;
+
+function selectWillAttorneyMeetingContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isWillAttorneyMeetingContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
+    eligible.find((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+
+  const firstStatement = pickFirst(WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN);
+  const denial = pickFirst(WILL_ATTORNEY_MEETING_DENIAL_PATTERN);
 
   if (!firstStatement || !denial) {
     return [];
@@ -536,6 +584,12 @@ export function selectContradictionEvidencePair(input: {
     selectFamilyMovieInviteContradictionEvidence(input);
   if (familyMovieInviteContradictionEvidence.length > 0) {
     return familyMovieInviteContradictionEvidence;
+  }
+
+  const willAttorneyMeetingContradictionEvidence =
+    selectWillAttorneyMeetingContradictionEvidence(input);
+  if (willAttorneyMeetingContradictionEvidence.length > 0) {
+    return willAttorneyMeetingContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

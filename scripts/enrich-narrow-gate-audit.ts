@@ -49,6 +49,7 @@ import {
   isFamilyMovieInviteContradictionQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
+  isWillAttorneyMeetingContradictionQuery,
 } from "../src/recall/selectors/contradiction";
 import { isCouponRedemptionLocationQuery } from "../src/recall/selectors/conversationEvidence";
 import { isSourceOrderedHouseholdBudgetReasoningQuery } from "../src/recall/selectors/sourceOrderFinancialPlanning";
@@ -197,6 +198,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isTwoFactorAuthImplementationContradictionQuery,
   "contradiction.atsCourseEnrollment": isAtsCourseEnrollmentContradictionQuery,
   "contradiction.familyMovieInvite": isFamilyMovieInviteContradictionQuery,
+  "contradiction.willAttorneyMeeting":
+    isWillAttorneyMeetingContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 

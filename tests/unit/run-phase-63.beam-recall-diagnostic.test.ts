@@ -8518,6 +8518,82 @@ function buildWorkBoundaryOrderReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildWillAttorneyMeetingContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got a meeting with attorney Stephanie on March 22 to finalize my will, and I know Montserrat law requires two witnesses for it to be valid, so I'm hoping she can guide me through the process ->-> 1,12",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I've never met attorney Stephanie, which is kinda weird since I'm trying to plan my will, but anyway, can you help me find a good attorney for estate planning ->-> 1,23",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the two-witness rule for my will, so I was wondering if attorney Stephanie's review on May 1 confirms that I've met all the requirements for a valid will in Montserrat ->-> 2,6",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "I've never used WillMaker Pro or any digital software to draft my will, which seems weird since I've been working on my estate plan, so can you guide me on how to get started with creating a digital will, given that I've already consulted with attorney Stephanie and accounted for Montserrat's two-witness rule? ->-> 3,23",
+      id: 204,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "will-attorney-meeting-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Estate Planning",
+        id: 24,
+        subtopics: [
+          "Will finalization",
+          "Attorney consultations",
+          "Witness requirements",
+          "Estate documentation",
+        ],
+        theme:
+          "Preparing an estate plan and consulting an attorney",
+        title:
+          "Finalizing a Will with Legal Guidance",
+      },
+      narratives: "Will attorney meeting contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I met attorney Stephanie to discuss my will?",
+            question_id: "will-attorney-meeting-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {"first_statement":[34],"second_statement":[64]},
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Individual finalizing a will",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -11408,6 +11484,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([48, 216]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the will attorney meeting contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-will-attorney-meeting-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWillAttorneyMeetingContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([34, 64]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
