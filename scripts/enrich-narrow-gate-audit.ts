@@ -22,6 +22,7 @@ import { isEventCupcakeOrderUpdateQuery } from "../src/recall/selectors/updateSe
 import { isRemoteWorkScheduleUpdateQuery } from "../src/recall/selectors/updateSeriesRules/remoteWorkSchedule";
 import { isImmigrationConsultantSessionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/immigrationConsultantSession";
 import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
+import { isHolidayGiftBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/holidayGiftBudget";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
@@ -149,6 +150,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isImmigrationConsultantSessionUpdateQuery,
   "updateSeries.onboardingModulesCompletion":
     isOnboardingModulesCompletionUpdateQuery,
+  "updateSeries.holidayGiftBudget": isHolidayGiftBudgetUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,
   "temporalInterval.triangleProblemCount": isTriangleProblemCountIntervalQuery,

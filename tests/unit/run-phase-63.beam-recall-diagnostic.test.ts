@@ -8087,6 +8087,97 @@ function buildDailyWalkingGoalFestivalMonthsBeamRows(): unknown[] {
   ];
 }
 
+function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Tracking daily expenses can indeed become frustrating over time, especially when unexpected expenses like increased medical costs for Ashlee come into play. Here are some strategies to make the process less frustrating and more manageable:\n\n1. **Simplify Your Tracking Method**:\n   - **Use a Budgeting App**: Consider using a budgeting app like Mint, which automates much of the tracking process. This can save you time and reduce the manual effort required.\n   - **Batch Entry**: Instead of entering expenses daily, try batching entries once a week. This can make the task feel less repetitive and time-consuming.\n\n2. **Categorize Expenses Efficiently**:\n   - **Predefined Categories**: Set up predefined categories in your tracking tool to quickly assign expenses. For example, create a specific category for Ashlee's medical expenses.\n   - **Automated Categorization**: If you use a budgeting app, it often automatically categorizes expenses based on merchant names, making it easier to track.\n\n3. **Adjust Your Budget Regularly**:\n   - **Review and Adjust**: Regularly review your budget and adjust it to reflect new expenses, such as the increased medical costs for Ashlee. This ensures that your budget remains realistic and achievable.\n   - **Emergency Fund**: Consider increasing your emergency fund to cover unexpected expenses like medical costs. Aim to build it up to three months' worth of expenses by the end of the year.\n\n4. **Set Realistic Goals**:\n   - **Short-Term Milestones**: Break down your financial goals into smaller, achievable milestones. For example, focus on reducing dining out expenses to $200 per month or saving $500 towards your emergency fund each month.\n   - **Celebrate Successes**: Acknowledge and celebrate small successes along the way to keep yourself motivated.\n\n5. **Seek Support**:\n   - **Discuss with Spouse**: Talk to Alexis about your frustrations and involve her in the budgeting process. Sharing the responsibility can make it less overwhelming.\n   - **Financial Advisor**: Consider consulting a financial advisor for personalized advice and strategies to manage your finances effectively, especially given the increased medical expenses.\n\n6. **Use Technology to Your Advantage**:\n   - **Automatic Transfers**: Set up automatic transfers to your savings accounts to ensure consistent savings without having to manually transfer funds.\n   - **Mobile Apps**: Utilize mobile apps for banking and budgeting to streamline your financial management.\n\n7. **Stay Organized**:\n   - **Receipts and Statements**: Keep receipts and bank statements organized digitally or physically. This makes it easier to review and categorize expenses accurately.\n   - **Regular Reviews**: Schedule regular reviews of your financial situation to ensure everything is on track and make adjustments as needed.\n\nBy implementing these strategies, you can make the process of tracking daily expenses more manageable and less frustrating. Remember, the goal is to maintain a clear understanding of your finances while supporting your long-term goals and unexpected expenses like Ashlee's medical costs.",
+      id: 71,
+      role: "assistant",
+    },
+    {
+      content:
+        "I've agreed with Alexis on a $500 monthly joint budget for groceries starting Sept 1, which is up from $400, and I'm thinking about how this change will affect our expenses, especially with the contract I'm considering ->-> 3,3",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "Always highlight changes in budget allocations when I ask about financial goals. ->-> 3,23",
+      id: 208,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to stick to my strict spending caps during holidays to avoid overspending and stress, but with Alexis's family expecting a $150 holiday gift exchange, I'm worried I might go over my budget of $400 total for gifts ->-> 4,16",
+      id: 250,
+      role: "user",
+    },
+    {
+      content:
+        "I've adjusted our holiday gift budget to $450, can you help me plan how to allocate this amount among our family members? ->-> 4,22",
+      id: 266,
+      role: "user",
+    },
+    {
+      content:
+        "Always confirm budget caps when I ask about holiday spending. ->-> 4,23",
+      id: 268,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "holiday-gift-budget-update",
+      conversation_plan: "BATCH 4 PLAN",
+      conversation_seed: {
+        category: "Personal Finance",
+        id: 21,
+        subtopics: [
+          "Budgeting and spending caps",
+          "Holiday gift planning",
+          "Family expense coordination",
+          "Savings goals",
+        ],
+        theme:
+          "Managing household budgets and seasonal spending",
+        title:
+          "Coordinating Family Budgets and Holiday Spending",
+      },
+      narratives: "Holiday gift budget knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "$450",
+            difficulty: "medium",
+            question:
+              "What is my total budget for holiday gifts this year?",
+            question_id: "holiday-gift-budget-update",
+            question_type: "knowledge_update",
+            source_chat_ids: {"original_info":[250],"updated_info":[266]},
+            update_type: "value_change",
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Household budgeter coordinating family spending",
+        user_relationships: "Alexis",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -10862,6 +10953,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 270]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps holiday gift budget update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-holiday-gift-budget-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildHolidayGiftBudgetUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([250, 266]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
