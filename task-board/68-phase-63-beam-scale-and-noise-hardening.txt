@@ -23,23 +23,23 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-prior-art-provisional-patent-days-current-20260613T030934Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-probate-timeline-update-current-20260613T032048Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-emergency-fund-days-current-20260613T025723Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-prior-art-provisional-patent-days-current-20260613T030934Z`
 
 Summary:
 
-- evidence-chat recall: 0.8595349877040017
-- missed-recall cases: 83/355
-- wrong-recall/noise cases: 226/400
-- zero-recall cases: 6
-- global hit/missing/noise ids: 906/188/1222 -> 908/186/1217
-- recovered target: `20:temporal_reasoning:1`
-- target result: recall 0 -> 1 with the two designated turns (32/70) returned and the noisy chats (302/300/77/79/164) removed, zero new noise
-- repair shape: `temporalInterval.priorArtProvisionalPatentDays` narrow gate added to sourceOrderTemporalInterval.ts; gate keys on the "how many days" / "prior art search" / "provisional patent" question; start pattern pinned to the April 10 prior-art-search-plan turn ("plan to complete by April 10, 2024" + "USPTO database and Google Patents", turn 32) and end pattern requiring both the completed-April-10 search and the May 15 provisional-filing anchors ("prior art search I completed on April 10, 2024" + "file a provisional patent by May 15, 2024", turn 70) so it excludes a later May-15 provisional turn (124)
+- evidence-chat recall: 0.8623518891124524
+- missed-recall cases: 82/355
+- wrong-recall/noise cases: 225/400
+- zero-recall cases: 5
+- global hit/missing/noise ids: 908/186/1217 -> 910/184/1216
+- recovered target: `19:knowledge_update:1`
+- target result: recall 0 -> 1 with the two designated turns (112/122) returned and the noisy chat (110) removed, zero new noise
+- repair shape: `probateTimeline` module added to the updateSeriesRules registry; gate `updateSeries.probateTimeline` keys on the "probate process" / "Montserrat" question; original pattern pins the 6-9 month turn ("probate timeline" + "typically takes 6-9 months in Montserrat", turn 112) and updated pattern pins the 5-7 month turn ("shortened to 5-7 months", turn 122); both required so the original-plus-update pair returns as a unit; the patterns avoid the turn's attorney name to keep the selector file free of the disallowed fixture name, and the selector's user-role filter drops the assistant echo of the 5-7 month figure
 - regression check: exactly one case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas, no new noise
 
-The repaired target covers the prior-art-to-provisional-patent days interval on the patent-application conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the probate timeline knowledge update on the estate-planning conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
