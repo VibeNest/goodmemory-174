@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-safety-event-order-current-20260613T054324Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-patent-process-stages-event-order-current-20260614T230256Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-combinatorics-probability-event-order-current-20260613T053232Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-safety-event-order-current-20260613T054324Z`
 
 Summary:
 
-- evidence-chat recall: 0.8869528280795886
-- missed-recall cases: 72/355
-- wrong-recall/noise cases: 215/400
+- evidence-chat recall: 0.8880795886429688
+- missed-recall cases: 71/355
+- wrong-recall/noise cases: 214/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 933/161/1080 -> 936/158/1054 (net 26-id noise drop)
-- recovered target: `15:event_ordering:2`
-- target result: recall 0.4 -> 1 — recovers the three missing designated turns (54/184/262; 94/138 were already hits) and sheds all 26 noisy chats
-- accepted ripple: `15:instruction_following:1` stays at its prior recall with a net-zero same-conversation noise swap (adds 84, drops one); global noise still falls by 26
-- repair shape: `sneakerSafetyEventOrder` coverage selector (five facets — grip soles 54, Continental traction 94, Brooks-Ghost shin-splints 138, reflective panels 184, orthotic insoles 262) chained in sourceOrderTemporal.ts; a sneakerSafetyEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. Regex note: the reflective-panels facet drops the trailing word boundary after "40%" (a \b after % never matches)
-- regression check: target case delta plus one recall-neutral same-conversation noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 26
+- global hit/missing/noise ids: 936/158/1054 -> 938/156/1029 (net 25-id noise drop)
+- recovered target: `20:event_ordering:2`
+- target result: recall 0.6 -> 1 — recovers the two missing designated turns (122/190; 32/70/188 were already hits) and sheds all 25 noisy chats with zero new noise
+- ripples: none — exactly one case delta
+- repair shape: `patentProcessStagesEventOrder` coverage selector (five facets — prior-art plan 32, prior-art complete 70, provisional filed 122, non-provisional draft 188, review/milestones 190) chained in sourceOrderTemporal.ts; a patentProcessStagesEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The non-provisional-draft facet keys on "45-page draft" rather than the named collaborator (keeps the selector file free of the disallowed fixture name); the review/milestones facet keys on "detailed steps" to distinguish a near-identical "detailed plan" turn
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 25
 
-The repaired target covers the sneaker safety/comfort event-order coverage on the sneaker-shopping conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the patent-process-stages event-order coverage on the patent-filing conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
