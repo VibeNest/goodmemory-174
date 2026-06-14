@@ -66,6 +66,7 @@ import { isAiHiringEventOrderQuery } from "./selectors/sourceOrderRules/aiHiring
 import { isPatentFundingEventOrderQuery } from "./selectors/sourceOrderRules/patentFundingEventOrder";
 import { isCombinatoricsProbabilityEventOrderQuery } from "./selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { isSneakerSafetyEventOrderQuery } from "./selectors/sourceOrderRules/sneakerSafetyEventOrder";
+import { isPatentProcessStagesEventOrderQuery } from "./selectors/sourceOrderRules/patentProcessStagesEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -526,6 +527,9 @@ export function buildSelectionRunContext(
   const sneakerSafetyEventOrderPlanActive =
     isSneakerSafetyEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const patentProcessStagesEventOrderPlanActive =
+    isPatentProcessStagesEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -536,7 +540,8 @@ export function buildSelectionRunContext(
       aiHiringEventOrderPlanActive ||
       patentFundingEventOrderPlanActive ||
       combinatoricsProbabilityEventOrderPlanActive ||
-      sneakerSafetyEventOrderPlanActive
+      sneakerSafetyEventOrderPlanActive ||
+      patentProcessStagesEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

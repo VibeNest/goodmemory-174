@@ -9377,6 +9377,108 @@ function buildSneakerSafetyEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildPatentProcessStagesEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that my prior art search, which I plan to complete by April 10, 2024, using the USPTO database and Google Patents, might not be thorough enough, can you help me make sure I'm covering all bases? ->-> 1,9",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "I'm aiming to secure patent approval within 18 months after filing the non-provisional application, but I'm not sure if that's a realistic target, can you give me some guidance on what to expect from the patent application process? ->-> 1,10",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the prior art search I completed on April 10, 2024, which found 3 similar patents but none with AI tagging features, so can you help me understand how this affects my decision to file a provisional patent by May 15, 2024? ->-> 2,2",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I've completed 5 cycles of prototype testing by April 30, 2024, with 92% accuracy in AI tagging, can you help me understand how this progress affects my decision to file a provisional patent first? ->-> 2,7",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the provisional patent I filed on May 15, 2024, with the receipt number 12345678, and I was wondering if I should be doing anything now that it's July 10, 2024, to make sure everything is on track for the non-provisional patent ->-> 3,2",
+      id: 122,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working with Ashlee to draft a non-provisional patent application that we started on September 1, 2024, and I met her at her office on September 10 to review the 45-page draft including 12 drawings, so what's the best way to ensure we meet the November deadline? ->-> 4,2",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed steps! I think setting clear milestones and prioritizing tasks will really help. The main thing I'm worried about is making sure everything is clear and consistent during the review and revision phase. Could you give me some tips on how to approach that effectively?",
+      id: 190,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed plan! I think setting clear milestones and prioritizing tasks will really help. The main thing I'm worried about is making sure everything is clear and consistent during the review and revision phase. Could you give me some tips on how to approach that effectively?",
+      id: 194,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-process-stages-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 25,
+        subtopics: [
+          "Prior art search",
+          "Provisional filing",
+          "Non-provisional drafting",
+          "Review milestones",
+        ],
+        theme:
+          "Walking through the stages of the patent process",
+        title:
+          "Patent Process Stages",
+      },
+      narratives: "Patent process stages event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "The sequence was: planning the prior art search, completing it, filing the provisional patent, drafting the non-provisional application, and setting review milestones.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up the different stages of my patent process throughout our conversations, in order? Mention ONLY and ONLY five items.",
+            question_id: "patent-process-stages-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [32, 70, 122, 188, 190],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor working through the patent process",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12474,6 +12576,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([54, 94, 138, 184, 262]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the patent process stages event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-process-stages-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentProcessStagesEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([32, 70, 122, 188, 190]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

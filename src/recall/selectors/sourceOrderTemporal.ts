@@ -57,6 +57,7 @@ import { selectSourceOrderedAiHiringEventOrderCoverage } from "./sourceOrderRule
 import { selectSourceOrderedPatentFundingEventOrderCoverage } from "./sourceOrderRules/patentFundingEventOrder";
 import { selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage } from "./sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { selectSourceOrderedSneakerSafetyEventOrderCoverage } from "./sourceOrderRules/sneakerSafetyEventOrder";
+import { selectSourceOrderedPatentProcessStagesEventOrderCoverage } from "./sourceOrderRules/patentProcessStagesEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -394,6 +395,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The five designated sneaker safety/comfort aspect turns are the full
     // evidence set, returned source-ordered without the requested-item cap.
     return sneakerSafetyEventOrder;
+  }
+  const patentProcessStagesEventOrder =
+    selectSourceOrderedPatentProcessStagesEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (patentProcessStagesEventOrder.length > 0) {
+    // The five designated patent-process-stage turns are the full evidence
+    // set, returned source-ordered without the requested-item cap.
+    return patentProcessStagesEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
