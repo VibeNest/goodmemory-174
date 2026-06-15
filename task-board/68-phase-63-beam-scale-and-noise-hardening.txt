@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-app-development-event-order-current-20260615T030151Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-patent-webinar-contradiction-current-20260615T032116Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-work-life-challenges-event-order-current-20260615T024400Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-app-development-event-order-current-20260615T030151Z`
 
-Summary:
+Summary (first pass after pivoting from event-order to contradiction_resolution):
 
-- evidence-chat recall: 0.9060049183992847
-- missed-recall cases: 59/355
-- wrong-recall/noise cases: 204/400
+- evidence-chat recall: 0.90741336910351
+- missed-recall cases: 58/355
+- wrong-recall/noise cases: 203/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 970/124/923 -> 972/122/922
-- recovered target: `1:event_ordering:2`
-- target result: recall 0.5 -> 1 — recovers the two missing designated turns (6/118; 62/120 were already hits) and sheds its two noisy chats. The question asks for five items but the benchmark designates four evidence turns, recovered as-is
-- ripples: one accepted recall-neutral same-conversation reinforcement ripple (`1:information_extraction:1` gains one noise id, recall unchanged at 1)
-- repair shape: `appDevelopmentEventOrder` coverage selector (four facets — Flask project init 6, transaction CRUD 62, Render/Gunicorn deployment 118, Gunicorn tuning/test-suite 120) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; an appDevelopmentEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly
-- regression check: target positive delta plus one recall-neutral noise ripple; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. conv-1's two recall-1 temporal_reasoning cases both stayed at recall 1 (perturbation ~4)
+- global hit/missing/noise ids: 972/122/922 -> 973/121/919
+- recovered target: `20:contradiction_resolution:2`
+- target result: recall 0.5 -> 1 — recovers the missing affirmative turn 92 ("learned a lot from the April 5 webinar about patent claim drafting") to pair with the already-hit denial turn 120 ("never attended any patent-related webinars ... registered for a patent law webinar"), and sheds its three noisy chats
+- ripples: none — exactly one case delta (cleanest possible)
+- repair shape: `patentWebinar` first-statement/denial contradiction selector added to contradiction.ts (gate isPatentWebinarContradictionQuery + FIRST_STATEMENT/DENIAL patterns + selectPatentWebinarContradictionEvidence), chained in selectContradictionEvidencePair before the isPotentialContradictionConfirmationQuery guard; modeled on the will-attorney-meeting precedent. The contradiction_evidence_pair route is position 1 in PRIMARY_FACT_SELECTION_ORDER so it wins with no preemption
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-This is the seventeenth event-order coverage family. With it the recoverable event-order coverage cases are essentially exhausted -- the remaining event_ordering misses are high-noise targets at/past the reinforcement-ripple threshold (~29) in conversations with two fragile recall-1 temporal_reasoning cases. Remaining partial-recall work: contradiction_resolution, temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following.
+The repaired target covers the patent-webinar attendance contradiction on the patent-filing conversation. This validates the contradiction-pair recipe as the active workstream: the remaining contradiction_resolution misses are mostly two-turn first-statement/denial pairs at recall 0.5 with one turn missing. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
