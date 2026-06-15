@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-casting-pilot-episode-interval-current-20260615T113326Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-permutations-quiz-score-interval-current-20260615T115407Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-meeting-testing-period-interval-current-20260615T071743Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-casting-pilot-episode-interval-current-20260615T113326Z`
 
-Summary (seventh temporal_reasoning interval recovery):
+Summary (eighth temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.931357031075341
-- missed-recall cases: 41/355
-- wrong-recall/noise cases: 186/400
+- evidence-chat recall: 0.9327654817795663
+- missed-recall cases: 40/355
+- wrong-recall/noise cases: 185/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 989/105/872 -> 990/104/868
-- recovered target: `17:temporal_reasoning:2`
-- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 108 ("finishing casting by April 20") to pair with the already-hit end-anchor turn 156 ("75% complete by July 5"), answer 46 days, and sheds its four noisy chats (160/110/116/144)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-17 carries 17:tr:1 at recall 1 (retrieved [66,130]), and it held (seventh confirmation the interval recipe is ripple-free)
-- repair shape: new `castingPilotEpisodeDays` interval case in sourceOrderTemporalInterval.ts (gate isCastingPilotEpisodeDaysIntervalQuery / `temporalInterval.castingPilotEpisodeDays` = "finished casting" && "pilot episode", 1/400; START "finishing casting by April 20"; END "75% complete by July 5"; plus the four ternary-chain edits the recipe uses)
+- global hit/missing/noise ids: 990/104/868 -> 991/103/863
+- recovered target: `5:temporal_reasoning:2`
+- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 138 ("permutations, combinations, and probability puzzles ... current focus on April 5, 2024") to pair with the already-hit end-anchor turn 186 ("quiz score from 75% to 92% after practicing 15 problems"), answer 10 days, and sheds its five noisy chats (48/196/68/44/60)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-5 carries 5:tr:1 at recall 1 (retrieved [84]), and it held even though the shed-noise turn 48 itself names "permutations and combinations" (eighth confirmation the interval recipe is ripple-free)
+- repair shape: new `permutationsQuizScoreDays` interval case in sourceOrderTemporalInterval.ts (gate isPermutationsQuizScoreDaysIntervalQuery / `temporalInterval.permutationsQuizScoreDays` = "permutations and combinations" && "quiz score", 1/400; START "permutations, combinations, and probability puzzles" (turn 138, excludes turn 48 which says "permutations and combinations, like permutations of 3 objects"); END "quiz score from 75% to 92%" (assistant echo dropped by user-answer filter); plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the casting-to-pilot-episode interval. Seven temporal_reasoning cases now recovered, five remain. Remaining partial-recall families: temporal_reasoning (5), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the permutations-to-quiz-score interval. Eight temporal_reasoning cases now recovered, four remain. Remaining partial-recall families: temporal_reasoning (4), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
