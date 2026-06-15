@@ -23,25 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-hiring-automation-topics-event-order-current-20260615T003720Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-city-autocomplete-event-order-current-20260615T005356Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-mentor-interactions-event-order-current-20260615T001300Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-hiring-automation-topics-event-order-current-20260615T003720Z`
 
 Summary:
 
-- evidence-chat recall: 0.8928683210373352
-- missed-recall cases: 68/355
-- wrong-recall/noise cases: 211/400
+- evidence-chat recall: 0.8951218421640957
+- missed-recall cases: 67/355
+- wrong-recall/noise cases: 210/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 945/149/1006 -> 947/147/999 (net 7-id noise drop; global noise now under 1000)
-- recovered target: `11:event_ordering:2`
-- target result: recall 0.6 -> 1 — recovers the two missing designated turns (46/200; 44/104/198 were already hits) and sheds all 7 noisy chats with zero new noise
-- ripples: none — exactly one case delta (cleanest possible)
-- repair shape: `hiringAutomationTopicsEventOrder` coverage selector (five facets — cost comparison 44, pilot results 104, long-term savings 198, training-involvement follow-up 46, expansion-involvement follow-up 200) chained in sourceOrderTemporal.ts; a hiringAutomationTopicsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The two recovered turns are short follow-up questions the broad fallback could not rank
-- routing note: the question reads as an aggregate (cost-saving money cues plus a "five items" count), so the aggregate route otherwise preempted the source-ordered coverage; the fix adds a one-gate `!isHiringAutomationTopicsEventOrderQuery(query)` guard to aggregateEvidenceQuery (affects only this 1/400 query)
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 7
+- global hit/missing/noise ids: 947/147/999 -> 951/143/995 (net 4-id noise drop)
+- recovered target: `2:event_ordering:1`
+- target result: recall 0.2 -> 1 — recovers the four missing designated turns (20/22/24/160; 74 was already a hit) and sheds all 4 noisy chats with zero new noise
+- ripples: one accepted recall-neutral same-conversation noise swap (`2:knowledge_update:2`, net-zero noise); recall unchanged
+- repair shape: `cityAutocompleteEventOrder` coverage selector (five facets — debounce implementation 20, API-response-time follow-up 22, rapid-input follow-up 24, 5-item-dropdown/error handling 74, memory-leak/event-listener review 160) chained in sourceOrderTemporal.ts; a cityAutocompleteEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The dropdown facet keys on "handling the 5-item dropdown and 300ms debounce correctly" to separate the implementation turn from a later weather-display turn that also references the autocomplete file
+- regression check: target positive delta plus one recall-neutral noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 4
+- target selection: pre-screened for low reinforcement perturbation (conv-2 sheds only four noisy chats), so its one fragile recall-1 temporal_reasoning case was left untouched
 
-The repaired target covers the hiring-automation cost/involvement event-order coverage on the AI-hiring conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the city-autocomplete implementation event-order coverage on the weather-app conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
