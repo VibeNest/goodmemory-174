@@ -59,6 +59,7 @@ import { selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage } from ".
 import { selectSourceOrderedSneakerSafetyEventOrderCoverage } from "./sourceOrderRules/sneakerSafetyEventOrder";
 import { selectSourceOrderedPatentProcessStagesEventOrderCoverage } from "./sourceOrderRules/patentProcessStagesEventOrder";
 import { selectSourceOrderedAcademicMentorshipEventOrderCoverage } from "./sourceOrderRules/academicMentorshipEventOrder";
+import { selectSourceOrderedMentorInteractionsEventOrderCoverage } from "./sourceOrderRules/mentorInteractionsEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -416,6 +417,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The five designated academic-work/mentorship turns are the full evidence
     // set, returned source-ordered without the requested-item cap.
     return academicMentorshipEventOrder;
+  }
+  const mentorInteractionsEventOrder =
+    selectSourceOrderedMentorInteractionsEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (mentorInteractionsEventOrder.length > 0) {
+    // The six designated mentor-interaction turns are the full evidence set,
+    // returned source-ordered without the requested-item cap.
+    return mentorInteractionsEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,

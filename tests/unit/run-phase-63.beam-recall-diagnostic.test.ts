@@ -9593,6 +9593,114 @@ function buildAcademicMentorshipEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildMentorInteractionsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm thinking of attending the March 15 workshop on workflow optimization at East Janethaven Media Center, which Patrick, my 79-year-old senior producer mentor, suggested, but I'm not sure if it's worth taking time off from my current projects ->-> 1,6",
+      id: 30,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a meeting with my mentor Patrick coming up and I want to discuss how to apply the progressive muscle relaxation technique he recommended on April 3 to help me cope with still feeling drained after reducing my work hours to 45 by April 1 ->-> 2,3",
+      id: 138,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, let's go with those steps. I'll focus on refining my resume and cover letter first, then get feedback from Patrick and Greg. I'll also start preparing for interviews and networking more. Sounds good?",
+      id: 186,
+      role: "user",
+    },
+    {
+      content:
+        "I had a meeting with Patrick on May 15 at Café Montserrat on Main Street where he shared some interview tips, and now I'm wondering if I should also ask him about his experience with stress management in the industry ->-> 3,3",
+      id: 196,
+      role: "user",
+    },
+    {
+      content:
+        "That plan sounds good to me! I'll reach out to Patrick and set up another meeting to talk about stress management. I think his insights could be really helpful as I prepare for the interview.",
+      id: 198,
+      role: "user",
+    },
+    {
+      content:
+        "I just got a call from Patrick congratulating me on my new role and advising on leadership strategies, but I'm not sure how to implement them, can you guide me on how to apply his advice effectively? ->-> 4,3",
+      id: 254,
+      role: "user",
+    },
+    {
+      content:
+        "These steps sound great! I think starting with one-on-one meetings and organizing a team-building event will really help build trust. And the \"flexible Fridays\" idea is perfect for encouraging innovation. I'm excited to implement these and see how the team responds. Let's do it!",
+      id: 258,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking forward to my monthly mentorship call with Patrick on July 15, can you help me prepare some questions to ask him about leadership advice? ->-> 4,16",
+      id: 286,
+      role: "user",
+    },
+    {
+      content:
+        "I'm three months into my senior producer role and I'm trying to focus on long-term burnout prevention and sustaining motivation, can you help me come up with strategies to achieve this, especially since I had a progress review with Patrick on September 10 ->-> 5,2",
+      id: 304,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "mentor-interactions-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 29,
+        subtopics: [
+          "Workshop suggestion",
+          "Relaxation technique",
+          "Interview tips",
+          "Leadership advice",
+        ],
+        theme:
+          "Interactions with a senior producer mentor across conversations",
+        title:
+          "Mentor Interactions",
+      },
+      narratives: "Mentor interactions event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised your mentor interactions in this order: considering the suggested workshop, the recommended relaxation technique, the meeting with interview tips, following up on stress management, receiving leadership advice on your new role, and implementing that advice with the team.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my interactions with Patrick throughout our conversations, in order? Mention ONLY and ONLY six items.",
+            question_id: "mentor-interactions-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [30, 138, 196, 198, 254, 258],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Producer mentored by a senior colleague",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12736,6 +12844,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([14, 64, 124, 170, 214]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the mentor interactions event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-mentor-interactions-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildMentorInteractionsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([30, 138, 196, 198, 254, 258]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
