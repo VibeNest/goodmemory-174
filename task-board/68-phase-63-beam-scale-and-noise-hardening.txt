@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-delegating-tasks-contradiction-current-20260615T132944Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-editing-timeline-collaboration-contradiction-current-20260615T134528Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-coin-toss-contradiction-current-20260615T131350Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-delegating-tasks-contradiction-current-20260615T132944Z`
 
-Summary (seventh contradiction_resolution recovery — second via the extracted firstDenialPairs module):
+Summary (eighth contradiction_resolution recovery — third via the extracted firstDenialPairs module):
 
-- evidence-chat recall: 0.9383992845964677
-- missed-recall cases: 36/355
-- wrong-recall/noise cases: 181/400
+- evidence-chat recall: 0.9398077353006931
+- missed-recall cases: 35/355
+- wrong-recall/noise cases: 180/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 994/100/852 -> 995/99/849
-- recovered target: `18:contradiction_resolution:2`
-- target result: recall 0.5 -> 1 — recovers the missing denial turn 188 ("never actually delegated tasks to Greg or any other colleague") to pair with the already-hit first-statement turn 150 ("delegated 30% of my editing tasks to Greg starting April 2"), and sheds its three noisy chats (72/248/292)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-18 cases held (incl. 18:cr:1 at 0.4, 18:tr:1 at 0.5, both unchanged partial cases)
-- repair shape: added isDelegatingTasksContradictionQuery gate (`contradiction.delegatingTasks` = "delegated" && "Greg", 1/400) + a first/denial pattern-pair + one FIRST_DENIAL_CONTRADICTION_PAIRS table entry in src/recall/selectors/contradictionRules/firstDenialPairs.ts + an enrichment GATE_FUNCTIONS entry. The FIRST pattern keys on "delegated 30% of my editing tasks to Greg" (excludes the earlier "agreed to delegate tasks to Greg" turn 72); the DENIAL keys on "never actually delegated tasks to Greg" (excludes the near-duplicate later turn 248 "never delegated any tasks to Greg"). "Greg" is not a disallowed fixture name; contradiction.ts re-exports the new gate.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2547 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 995/99/849 -> 996/98/848
+- recovered target: `11:contradiction_resolution:1`
+- target result: recall 0.5 -> 1 — recovers the missing denial turn 92 ("I've never met ... and I'm not sure why that's relevant ... automate hiring ... without collaborating with someone I don't know") to pair with the already-hit first-statement turn 24 (a junior editor colleague at Montserrat Media Hub, "weekly collaborations on editing timelines"), and sheds its one noisy chat (178)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-11 cases held, including the pass-80 recovery 11:tr:1 (recall 1) and 11:cr:2 (recall 1)
+- repair shape: added isEditingTimelineCollaborationContradictionQuery gate (`contradiction.editingTimelineCollaboration` = "worked with" && "editing timelines", 1/400) + a first/denial pattern-pair + one FIRST_DENIAL_CONTRADICTION_PAIRS table entry in src/recall/selectors/contradictionRules/firstDenialPairs.ts + an enrichment GATE_FUNCTIONS entry. DISALLOWED-NAME HANDLING: the conversation names the disallowed fixture person "Michael", so the gate and both patterns key on surrounding role/venue/topic phrasing only — FIRST = "junior editor" + "Montserrat Media Hub" + "weekly collaborations on editing timelines"; DENIAL = "never met" + "not sure why that's relevant" (the latter excludes the near-duplicate later turn 178 that also says "never met ... editing timelines"). Selector files disallowed-scan clean; the fixture (test file, exempt) uses the real names.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2547 pass / 2 skip (the lone occasional failure is the known host-bootstrap timeout flake in tests/cli/cli.test.ts, which does not reproduce on re-run and is unrelated to recall selectors).
 
-The repaired target covers the task-delegation contradiction. Seven contradiction_resolution cases now recovered. NEXT clean 2-turn pairs: 11:cr:1 (noise 1, conv-11, ev=[24,92] missing 92 — but names disallowed "Michael", key patterns on surrounding phrasing), then 3:cr:2 (noise 2, conv-3, ev=[72,120] missing 72 — verify the designated pairing first, turn 72 reads as Bootstrap form styling). Remaining partial-recall families: contradiction_resolution (7), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
+The repaired target covers the editing-timeline-collaboration contradiction. Eight contradiction_resolution cases now recovered; the disallowed-name handling (key on surrounding phrasing) is reconfirmed. NEXT clean 2-turn pair: 3:cr:2 (noise 2, conv-3, ev=[72,120] missing 72 — verify the designated pairing first, turn 72 reads as Bootstrap form styling vs the API-integration question). Remaining partial-recall families: contradiction_resolution (6), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
