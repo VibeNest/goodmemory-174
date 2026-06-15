@@ -16,6 +16,7 @@ import {
 import { selectTabulatedFirstDenialContradictionPair } from "./contradictionRules/firstDenialPairs";
 import { selectTabulatedMultiFacetContradictionGroup } from "./contradictionRules/multiFacetGroups";
 export {
+  isAiScreeningAccuracyUpdateGroupQuery,
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
   isGrammarAnxietyContradictionQuery,

@@ -11074,6 +11074,104 @@ function buildZoomCallScheduleUpdateGroupBeamRows(): unknown[] {
   ];
 }
 
+function buildAiScreeningAccuracyUpdateGroupBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've been told our AI screening accuracy is now rated 87% by HR, which is a big improvement from the 75% manual match rate we had last year, but I'm not sure if this is enough to justify continuing with the AI pilot - can you help me weigh the pros and cons? ->-> 2,13",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, the 87% accuracy rate is a big improvement. I think we should continue the pilot but definitely need to keep a close eye on bias and transparency. Let's make sure we have regular audits and clear communication with candidates.",
+      id: 128,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, that plan sounds good. Let's focus on those regular audits and make sure we keep everything transparent. I'll start informing candidates about the AI use right away.",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "What's the best way to ensure the AI screening tool's 90% accuracy doesn't introduce bias into my hiring process, especially considering I've never implemented two-factor authentication for any platform access? ->-> 2,22",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good! Let's go ahead with the plan to mitigate bias and enhance security. I'll make sure to enable 2FA for all platforms and user accounts, and conduct those initial bias audits. Let's schedule a meeting to review the implementation of 2FA and discuss the results of the bias audits.",
+      id: 172,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's proceed with sending the meeting invite and setting up the initial security training. I'll make sure to enable 2FA for all platforms and user accounts and conduct those initial bias audits. Looking forward to the meeting on June 5!",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, let's proceed with sending the meeting invite and setting up the initial security training. I'll make sure to enable 2FA for all platforms and user accounts and conduct those initial bias audits. Looking forward to the meeting on June 5!",
+      id: 180,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "ai-screening-accuracy-update-group",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 11,
+        subtopics: [
+          "AI screening accuracy",
+          "Hiring pilot",
+          "Bias audits",
+          "Security training",
+        ],
+        theme:
+          "Tracking AI screening accuracy and the hiring pilot across conversations",
+        title:
+          "AI Screening Accuracy Tracking",
+      },
+      narratives: "AI screening accuracy knowledge update with answer acknowledgement turns",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "The AI screening tool's accuracy is now rated 90%, up from the earlier 87%.",
+            question:
+              "What accuracy rate does the AI screening tool achieve in its evaluations?",
+            question_id: "ai-screening-accuracy-update-group",
+            question_type: "knowledge_update",
+            source_chat_ids: {
+              original_info: [126, 128, 130],
+              updated_info: [170, 172, 174],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: HR lead piloting an AI screening tool",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17129,6 +17227,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([92, 94, 96]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the AI screening accuracy knowledge-update group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-ai-screening-accuracy-update-group",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAiScreeningAccuracyUpdateGroupBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([126, 128, 130, 170, 172, 174]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

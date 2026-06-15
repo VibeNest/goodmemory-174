@@ -190,6 +190,27 @@ const ZOOM_CALL_SCHEDULE_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*schedule for April 22)(?=[\s\S]*Team meeting)/iu,
 ];
 
+// A six-turn knowledge_update group: the original 87% AI-screening accuracy and
+// two answer_ai_question follow-ups discussing it, then the updated 90% accuracy
+// and two more answer_ai_question follow-ups. Several turns are markerless. The
+// last follow-up appears as a near-duplicate later turn; pickFirst returns the
+// earliest match, so the designated turn is the one returned.
+export const isAiScreeningAccuracyUpdateGroupQuery = narrowGate(
+  "knowledgeUpdate.aiScreeningAccuracyGroup",
+  (query: string): boolean =>
+    /accuracy rate/iu.test(query) &&
+    /AI screening tool/iu.test(query),
+);
+
+const AI_SCREENING_ACCURACY_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*AI screening accuracy is now rated 87% by HR)/iu,
+  /^(?=[\s\S]*87% accuracy rate is a big improvement)(?=[\s\S]*continue the pilot)/iu,
+  /^(?=[\s\S]*regular audits)(?=[\s\S]*informing candidates)/iu,
+  /^(?=[\s\S]*90% accuracy)(?=[\s\S]*AI screening tool)/iu,
+  /^(?=[\s\S]*go ahead with the plan to mitigate bias and enhance security)/iu,
+  /^(?=[\s\S]*sending the meeting invite)(?=[\s\S]*initial security training)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -221,6 +242,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isZoomCallScheduleUpdateGroupQuery,
     facets: ZOOM_CALL_SCHEDULE_UPDATE_GROUP_FACET_PATTERNS,
+  },
+  {
+    isQuery: isAiScreeningAccuracyUpdateGroupQuery,
+    facets: AI_SCREENING_ACCURACY_UPDATE_GROUP_FACET_PATTERNS,
   },
 ];
 
