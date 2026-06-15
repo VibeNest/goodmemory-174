@@ -29,6 +29,7 @@ export {
   isBootstrapComponentsContradictionQuery,
   isCoinTossProblemsContradictionQuery,
   isDelegatingTasksContradictionQuery,
+  isEditingTimelineCollaborationContradictionQuery,
 } from "./contradictionRules/firstDenialPairs";
 
 export const CONTRADICTION_POSITIVE_RECALL_LIMIT = 3;

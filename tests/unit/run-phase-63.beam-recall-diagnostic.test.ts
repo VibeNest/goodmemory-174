@@ -10181,6 +10181,82 @@ function buildDelegatingTasksContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildEditingTimelineCollaborationContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about using AI for hiring, especially since my friend Carla, 58, suggested it over lunch at The Blue Lagoon on March 1, and I value her opinion ->-> 1,2",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "I've been working with Michael, 28, a junior editor, at Montserrat Media Hub since we met on January 10, 2023, and I'm not sure if AI can replace the human touch he brings to our weekly collaborations on editing timelines ->-> 1,5",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I've never met Michael, and I'm not sure why that's relevant, but can you help me figure out how to decide whether to use AI to automate hiring in my company without collaborating with someone I don't know? ->-> 1,23",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "How can I balance the need for efficiency with the potential risks of algorithmic bias, given that I have a practical, no-nonsense attitude and prefer clear, structured decisions in my work, and I've also never met Michael or collaborated with him on editing timelines? ->-> 2,24",
+      id: 178,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "editing-timeline-collaboration-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 11,
+        subtopics: [
+          "Editing collaborations",
+          "AI in hiring",
+          "Team workflow",
+          "Decision making",
+        ],
+        theme:
+          "Weighing AI adoption against human editing collaborations across conversations",
+        title:
+          "AI And Editing Collaboration",
+      },
+      narratives: "Editing timeline collaboration contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I worked with Michael on editing timelines before?",
+            question_id: "editing-timeline-collaboration-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [24], second_statement: [92] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: editor weighing AI adoption against collaborations",
+        user_relationships: "Works with a junior editor colleague",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -15983,6 +16059,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([150, 188]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the editing timeline collaboration contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-editing-timeline-collaboration-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEditingTimelineCollaborationContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([24, 92]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -193,6 +193,24 @@ const DELEGATING_TASKS_FIRST_STATEMENT_PATTERN =
 const DELEGATING_TASKS_DENIAL_PATTERN =
   /^(?=[\s\S]*never actually delegated tasks to Greg)/iu;
 
+export const isEditingTimelineCollaborationContradictionQuery = narrowGate(
+  "contradiction.editingTimelineCollaboration",
+  (query: string): boolean =>
+    /\bworked with\b/iu.test(query) &&
+    /\bediting timelines\b/iu.test(query),
+);
+
+// The first statement describes weekly editing-timeline collaborations with a
+// junior editor colleague at Montserrat Media Hub; the denial says the two never
+// met. Both patterns key on the surrounding role/venue/topic phrasing rather
+// than the colleague's name so the selector file stays free of the disallowed
+// fixture name. The denial keys on "not sure why that's relevant" to exclude the
+// later turn that repeats "never met ... on editing timelines".
+const EDITING_TIMELINE_COLLABORATION_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*junior editor)(?=[\s\S]*Montserrat Media Hub)(?=[\s\S]*weekly collaborations on editing timelines)/iu;
+const EDITING_TIMELINE_COLLABORATION_DENIAL_PATTERN =
+  /^(?=[\s\S]*never met)(?=[\s\S]*not sure why that's relevant)/iu;
+
 // Every simple "Have I ever X?" first-statement/denial pair is the same shape:
 // a gate plus an affirmative pattern and a denial pattern. The table lets
 // selectContradictionEvidencePair dispatch them in one loop instead of a named
@@ -247,6 +265,11 @@ const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
     isQuery: isDelegatingTasksContradictionQuery,
     firstStatement: DELEGATING_TASKS_FIRST_STATEMENT_PATTERN,
     denial: DELEGATING_TASKS_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isEditingTimelineCollaborationContradictionQuery,
+    firstStatement: EDITING_TIMELINE_COLLABORATION_FIRST_STATEMENT_PATTERN,
+    denial: EDITING_TIMELINE_COLLABORATION_DENIAL_PATTERN,
   },
 ];
 
