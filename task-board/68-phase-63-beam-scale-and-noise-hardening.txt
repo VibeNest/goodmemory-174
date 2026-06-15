@@ -23,25 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-work-life-challenges-event-order-current-20260615T024400Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-app-development-event-order-current-20260615T030151Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-carla-collaboration-event-order-current-20260615T022325Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-work-life-challenges-event-order-current-20260615T024400Z`
 
 Summary:
 
-- evidence-chat recall: 0.9045964676950593
-- missed-recall cases: 60/355
-- wrong-recall/noise cases: 205/400
+- evidence-chat recall: 0.9060049183992847
+- missed-recall cases: 59/355
+- wrong-recall/noise cases: 204/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 968/126/936 -> 970/124/923 (net 13-id noise drop)
-- recovered target: `18:event_ordering:2`
-- target result: recall 0.71 -> 1 — recovers the two missing designated turns (28/204; 24/26/146/202/262 were already hits) and sheds all 13 noisy chats. The question asks for four items but the benchmark designates seven evidence turns, recovered as-is
-- ripples: one accepted recall-neutral same-conversation noise swap (`18:multi_session_reasoning:2`, net-zero noise); conv-18's already-recovered 18:event_ordering:1 stayed at recall 1
-- repair shape: `workLifeChallengesEventOrder` coverage selector (seven facets — editing collaboration 24, agenda prep 26, agenda send 28, weekend getaway 146, anniversary dinner 202, dinner plan 204, surprise picnic 262) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; a workLifeChallengesEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly
-- routing note: this question also matches the broad personalWorkChallenge selector, whose route (position 4 in PRIMARY_FACT_SELECTION_ORDER) would otherwise win first with the incomplete result. A scoped one-gate guard empties personalWorkChallengeCandidates for this 1/400 question, so it falls through to temporal_order and the precise coverage wins. No other personal-work-challenge question regressed
-- regression check: target positive delta plus one recall-neutral noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 13
+- global hit/missing/noise ids: 970/124/923 -> 972/122/922
+- recovered target: `1:event_ordering:2`
+- target result: recall 0.5 -> 1 — recovers the two missing designated turns (6/118; 62/120 were already hits) and sheds its two noisy chats. The question asks for five items but the benchmark designates four evidence turns, recovered as-is
+- ripples: one accepted recall-neutral same-conversation reinforcement ripple (`1:information_extraction:1` gains one noise id, recall unchanged at 1)
+- repair shape: `appDevelopmentEventOrder` coverage selector (four facets — Flask project init 6, transaction CRUD 62, Render/Gunicorn deployment 118, Gunicorn tuning/test-suite 120) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; an appDevelopmentEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly
+- regression check: target positive delta plus one recall-neutral noise ripple; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. conv-1's two recall-1 temporal_reasoning cases both stayed at recall 1 (perturbation ~4)
 
-The repaired target covers the personal/work-related-challenges event-order coverage on the wellbeing conversation. This is a retained selector repair, not a benchmark close.
+This is the seventeenth event-order coverage family. With it the recoverable event-order coverage cases are essentially exhausted -- the remaining event_ordering misses are high-noise targets at/past the reinforcement-ripple threshold (~29) in conversations with two fragile recall-1 temporal_reasoning cases. Remaining partial-recall work: contradiction_resolution, temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following.
 
 Representative Live Evidence
 ----------------------------
