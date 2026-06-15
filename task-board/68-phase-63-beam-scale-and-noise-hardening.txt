@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-permutations-quiz-score-interval-current-20260615T115407Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-webinar-interval-current-20260615T120630Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-casting-pilot-episode-interval-current-20260615T113326Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-permutations-quiz-score-interval-current-20260615T115407Z`
 
-Summary (eighth temporal_reasoning interval recovery):
+Summary (ninth temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9327654817795663
-- missed-recall cases: 40/355
-- wrong-recall/noise cases: 185/400
+- evidence-chat recall: 0.9341739324837917
+- missed-recall cases: 39/355
+- wrong-recall/noise cases: 184/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 990/104/868 -> 991/103/863
-- recovered target: `5:temporal_reasoning:2`
-- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 138 ("permutations, combinations, and probability puzzles ... current focus on April 5, 2024") to pair with the already-hit end-anchor turn 186 ("quiz score from 75% to 92% after practicing 15 problems"), answer 10 days, and sheds its five noisy chats (48/196/68/44/60)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-5 carries 5:tr:1 at recall 1 (retrieved [84]), and it held even though the shed-noise turn 48 itself names "permutations and combinations" (eighth confirmation the interval recipe is ripple-free)
-- repair shape: new `permutationsQuizScoreDays` interval case in sourceOrderTemporalInterval.ts (gate isPermutationsQuizScoreDaysIntervalQuery / `temporalInterval.permutationsQuizScoreDays` = "permutations and combinations" && "quiz score", 1/400; START "permutations, combinations, and probability puzzles" (turn 138, excludes turn 48 which says "permutations and combinations, like permutations of 3 objects"); END "quiz score from 75% to 92%" (assistant echo dropped by user-answer filter); plus the four ternary-chain edits the recipe uses)
+- global hit/missing/noise ids: 991/103/863 -> 992/102/858
+- recovered target: `11:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 70 ("webinar on AI ethics in hiring coming up on March 20") to pair with the already-hit start-anchor turn 20 ("Carla, 58, suggested it over lunch at The Blue Lagoon on March 1"), answer 19 days, and sheds its five noisy chats (274/218/294/134/226)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-11 carries 11:tr:2 at recall 1 (retrieved [134,218,274,294,110,56], hitting its evidence 56/110), and it held even though four of this target's shed-noise turns (274/218/294/134) are in 11:tr:2's retrieved set (ninth confirmation the interval recipe is ripple-free)
+- repair shape: new `aiHiringWebinarDays` interval case in sourceOrderTemporalInterval.ts (gate isAiHiringWebinarDaysIntervalQuery / `temporalInterval.aiHiringWebinarDays` = "Carla" && "webinar", 1/400; START "Carla, 58, suggested it over lunch" (turn 20, excludes turn 274 which also names Carla and the Montserrat Business Council); END "webinar on AI ethics in hiring coming up on March 20" (turn 70); plus the four ternary-chain edits the recipe uses). "Carla" is not a disallowed fixture name.
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the permutations-to-quiz-score interval. Eight temporal_reasoning cases now recovered, four remain. Remaining partial-recall families: temporal_reasoning (4), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the AI-hiring-suggestion-to-webinar interval. Nine temporal_reasoning cases now recovered, three remain. Of those three, only 9:tr:1 routes through the broad interval gate; 13:tr:1 ("how many days did it take ... after") and 18:tr:1 ("how many days after I started ...") lack the passed/between/ago connector and need broad-gate widening (deferred). Remaining partial-recall families: temporal_reasoning (3), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
