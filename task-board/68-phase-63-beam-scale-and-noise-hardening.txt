@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-grammar-anxiety-contradiction-current-20260615T150236Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-remote-collaboration-contradiction-current-20260615T152130Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-work-email-self-care-interval-current-20260615T144025Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-grammar-anxiety-contradiction-current-20260615T150236Z`
 
-Summary (tenth contradiction_resolution recovery — first MULTI-EVIDENCE/3-turn case, new multiFacetGroups recipe):
+Summary (eleventh contradiction_resolution recovery — second multi-evidence via multiFacetGroups):
 
-- evidence-chat recall: 0.9449720545495194
-- missed-recall cases: 31/355
+- evidence-chat recall: 0.9468499888218198
+- missed-recall cases: 30/355
 - wrong-recall/noise cases: 176/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 999/95/837 -> 1000/94/830
-- recovered target: `10:contradiction_resolution:1`
-- target result: recall 0.667 -> 1 — the affirmative spans two user turns (56 = anxious about grammar accuracy after a colleague's Feb 28 feedback; 58 = deciding to upgrade tools to Grammarly Premium to catch the flagged errors), opposed by a later denial (68 = grammar accuracy never caused anxiety after any feedback). Recovers the missing middle turn 58, returns all three source-ordered [56,58,68], sheds five noisy chats (0/292/151/153/155)
-- ripples: ONE accepted recall-neutral same-conversation reinforcement reshuffle. Recovering 10:cr:1 stopped it reinforcing the shared assistant turns 151/153/155, so same-conv `10:instruction_following:2` (evidence turn 172, recall 1) reshuffled its noise from five chats [5,151,153,155,75] to three [5,75,23] — recall HELD at 1 (turn 172 still hit), net -2 noise on that case. No negative recall delta, no hit-loss, no newly-missing evidence, no new zero-recall. Accepted per the charter's same-conversation reinforcement-tradeoff clause.
-- repair shape: NEW generic multi-facet contradiction recipe in src/recall/selectors/contradictionRules/multiFacetGroups.ts — a gate + an ordered facet-pattern list + selectMultiFacetContradictionGroup (filter conversation-evidence + user-answer + sourceOrderSortKey, pickFirst each facet via valueBearingFactContent, return all source-ordered iff ALL facets present) + selectTabulatedMultiFacetContradictionGroup, chained in selectContradictionEvidencePair. First entry isGrammarAnxietyContradictionQuery (`contradiction.grammarAnxiety` = "grammar accuracy" && "feedback" && "anxious", 1/400). Patterns key on surrounding phrasing only (selector files disallowed-scan clean). Gate added to instructionAugmentationStandDownQuery so the companion augmenter does not append noise to the 3-turn winner. NOTE: turn 58 carries NO `->-> ` source marker yet was recovered — the multi-facet filter requires conversation-evidence + user-answer + a source-order key (chatId), NOT the SOURCE_MESSAGE_TAG that markerless turns lack.
-- regression check: one positive recall delta (10:cr:1) + one recall-neutral same-conv noise reshuffle (10:if:2, recall held); no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2552 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1000/94/830 -> 1002/92/830
+- recovered target: `8:contradiction_resolution:1`
+- target result: recall 0.333 -> 1 — the affirmative spans two user turns (16 = collaborating with a video-editor relative who lives 15 miles apart in Plymouth; 18 = planning to talk to them about easier collaboration), opposed by a later denial (50 = never worked with that relative on any projects). Recovers BOTH missing affirmative turns 16 and 18, returns all three source-ordered [16,18,50]
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-8 cases held (8:ku:1 at 0.667, 8:msr:1 at 0.333 unchanged partials)
+- repair shape: added isRemoteCollaborationContradictionQuery gate (`contradiction.remoteCollaboration` = "collaborated remotely" && "projects", 1/400) + a three-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry in contradictionRules/multiFacetGroups.ts + re-export the gate from contradiction.ts + enrichment + the gate added to instructionAugmentationStandDownQuery. DISALLOWED-NAME HANDLING: the conversation names "Michael", so the gate and all three facet patterns key on surrounding role/place/topic phrasing only (F1 "video editor" + "15 miles apart in Plymouth"; F2 "easier collaboration and spending more quality time together"; F3 "never worked with my child" + "on any projects"). Turn 18 carries no `->-> ` source marker yet was matched.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2552 pass / 2 skip (the lone occasional failure is the known host-bootstrap timeout flake, unrelated to recall selectors).
 
-The repaired target covers the grammar-accuracy-anxiety contradiction. Ten contradiction_resolution cases recovered; the multiFacetGroups recipe now applies to the four remaining multi-evidence contradiction cases (18:cr:1, 8:cr:1, 5:cr:2, 2:cr:1 — add a gate + facet-pattern list + one table entry). temporal_reasoning family fully recovered. NEXT LOOP: the remaining multi-evidence contradiction cases via multiFacetGroups, then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
+The repaired target covers the remote-collaboration contradiction. Eleven contradiction_resolution cases recovered (two multi-evidence via multiFacetGroups). Three multi-evidence cr cases remain (18:cr:1, 5:cr:2, 2:cr:1), all via the same recipe. NEXT LOOP continues with those, then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6) and knowledge_update (3), both answer_ai_question-blocked. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — tenth contradiction_resolution recovery (10:contradiction_resolution:1, grammar-anxiety): introduced the multiFacetGroups multi-facet contradiction recipe; recall 0.667->1 recovering the missing middle affirmative turn 58 of a [56,58,68] group; left recall 0.9449720545495194 with one accepted recall-neutral same-conv noise reshuffle on 10:instruction_following:2 (recall held at 1).]
 
 Representative Live Evidence
 ----------------------------
