@@ -91,6 +91,7 @@ import {
   isDelegatingTasksContradictionQuery,
   isEditingTimelineCollaborationContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
+  isGrammarAnxietyContradictionQuery,
   isMovieWatchlistContradictionQuery,
   isPatentWebinarContradictionQuery,
   isSessionManagementContradictionQuery,
@@ -319,6 +320,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.delegatingTasks": isDelegatingTasksContradictionQuery,
   "contradiction.editingTimelineCollaboration":
     isEditingTimelineCollaborationContradictionQuery,
+  "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 

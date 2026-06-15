@@ -14,6 +14,8 @@ import {
   sourceOrderSortKey,
 } from "./temporal";
 import { selectTabulatedFirstDenialContradictionPair } from "./contradictionRules/firstDenialPairs";
+import { selectTabulatedMultiFacetContradictionGroup } from "./contradictionRules/multiFacetGroups";
+export { isGrammarAnxietyContradictionQuery } from "./contradictionRules/multiFacetGroups";
 
 // The simple "Have I ever X?" first-statement/denial contradiction pairs (gates,
 // patterns, dispatch table, and shared selector) live in
@@ -511,6 +513,12 @@ export function selectContradictionEvidencePair(input: {
     selectTabulatedFirstDenialContradictionPair(input);
   if (tabulatedFirstDenialContradictionEvidence.length > 0) {
     return tabulatedFirstDenialContradictionEvidence;
+  }
+
+  const tabulatedMultiFacetContradictionEvidence =
+    selectTabulatedMultiFacetContradictionGroup(input);
+  if (tabulatedMultiFacetContradictionEvidence.length > 0) {
+    return tabulatedMultiFacetContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

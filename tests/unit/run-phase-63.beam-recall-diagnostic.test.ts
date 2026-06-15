@@ -10489,6 +10489,82 @@ function buildContactFormApiIntegrationContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildGrammarAnxietyContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm feeling kinda anxious about my grammar accuracy after Joseph's feedback on Feb 28, and I'm wondering if I should prioritize upgrading my tools to deal with this self-doubt ->-> 1,19",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I think I'll start by upgrading my tools a bit. Maybe try Grammarly Premium to see if it helps catch more of the errors Joseph pointed out. But I also want to make sure I'm practicing regularly and not just relying on the tools. What do you think about that plan?",
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        "I've never felt anxious about grammar accuracy after any feedback, but I'm kinda wondering if that's normal, can you help me understand why I don't feel that way? ->-> 1,23",
+      id: 68,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the upcoming peer review on September 25, and I was wondering if you could help me prepare, considering Joseph and I already finalized the peer review on September 25, resolving 4 plot inconsistencies ->-> 5,2",
+      id: 292,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "grammar-anxiety-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Writing",
+        id: 10,
+        subtopics: [
+          "Grammar accuracy",
+          "Writing feedback",
+          "Writing tools",
+          "Self-doubt",
+        ],
+        theme:
+          "Managing grammar feedback and writing-tool choices across conversations",
+        title:
+          "Grammar Feedback And Tools",
+      },
+      narratives: "Grammar accuracy anxiety contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Do I usually feel anxious about my grammar accuracy after receiving feedback?",
+            question_id: "grammar-anxiety-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [56, 58], second_statement: [68] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: writer working on grammar accuracy",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16383,6 +16459,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([72, 120]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the grammar anxiety multi-facet contradiction group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-grammar-anxiety-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildGrammarAnxietyContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([56, 58, 68]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -33,6 +33,7 @@ import {
   sleepBeforeAppointmentEvidencePriority,
 } from "./selectors/conversationEvidence";
 import {
+  isGrammarAnxietyContradictionQuery,
   isSessionManagementContradictionQuery,
   selectContradictionEvidencePair,
 } from "./selectors/contradiction";
@@ -221,6 +222,7 @@ export function buildSelectionRunContext(
   // stand down for them so standing "Always ..." instructions and lookup
   // companions cannot override or dilute the winner.
   const instructionAugmentationStandDownQuery =
+    isGrammarAnxietyContradictionQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||
