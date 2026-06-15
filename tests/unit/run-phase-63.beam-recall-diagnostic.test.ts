@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildFirstDraftEssayGradeDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that I won't be able to improve my essay grades from B- to A by June 15, 2024, so can you help me create a plan to focus on persuasive academic writing? ->-> 1,9",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my essay outline only got an 82% rating from my reviewer on April 2, and I'm aiming for 90% on the first draft due May 15, so what can I do to improve it? ->-> 2,6",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I'm finalizing my first draft of the essay by May 15, 2024, and I have 4,500 words to submit, can you help me manage my time effectively to meet this deadline? ->-> 3,2",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to manage my time effectively, and I've submitted my essay 5 days before the deadline, which is a big relief, but I'm also thinking about how I can apply the new techniques I learned from the online webinar on persuasive writing ->-> 3,9",
+      id: 192,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "first-draft-essay-grade-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Academic",
+        id: 7,
+        subtopics: [
+          "Essay first draft",
+          "Grade improvement goal",
+          "Persuasive writing",
+          "Time management",
+        ],
+        theme:
+          "Tracking an essay first draft and grade goal across conversations",
+        title:
+          "Essay Draft and Grade Goal",
+      },
+      narratives: "First draft to essay grade goal interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 31 days between finishing the first draft on May 15, 2024, and the goal to improve essay grades by June 15, 2024.",
+            difficulty: "medium",
+            question:
+              "How many days do I have between finishing my first draft and my goal to improve my essay grades?",
+            question_id: "first-draft-essay-grade-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [116], second_event: [24] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student tracking an essay draft and grade goal",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildEmergencyFundDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14545,6 +14623,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps first draft to essay grade days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-first-draft-essay-grade-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFirstDraftEssayGradeDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([24, 116]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

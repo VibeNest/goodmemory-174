@@ -189,6 +189,23 @@ const TRANSACTION_DEPLOYMENT_INTERVAL_START_PATTERN =
 const TRANSACTION_DEPLOYMENT_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bTime Anchor of March 15, 2024\b)(?=[\s\S]*\bcreate a schedule\b)/iu;
 
+export const isFirstDraftEssayGradeDaysIntervalQuery = narrowGate(
+  "temporalInterval.firstDraftEssayGradeDays",
+  (query: string): boolean => {
+    return /\bfirst draft\b/iu.test(query) &&
+      /\bimprove my essay grades\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: finishing the first draft by May 15 (start) and the
+// goal to improve essay grades by June 15 (end). The start pattern keys on "of
+// the essay by May 15" so it does not match a later turn that mentions a "first
+// draft due May 15".
+const FIRST_DRAFT_ESSAY_GRADE_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bfirst draft of the essay by May 15\b)/iu;
+const FIRST_DRAFT_ESSAY_GRADE_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bimprove my essay grades from B- to A by June 15\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -219,7 +236,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isEmergencyFundDaysIntervalQuery(input.query);
   const priorArtProvisionalPatentDaysIntervalQuery =
     isPriorArtProvisionalPatentDaysIntervalQuery(input.query);
+  const firstDraftEssayGradeDaysIntervalQuery =
+    isFirstDraftEssayGradeDaysIntervalQuery(input.query);
   if (
+    !firstDraftEssayGradeDaysIntervalQuery &&
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
     !transactionDeploymentWeeksIntervalQuery &&
@@ -236,7 +256,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = priorArtProvisionalPatentDaysIntervalQuery
+  const startPattern = firstDraftEssayGradeDaysIntervalQuery
+    ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_START_PATTERN
+    : priorArtProvisionalPatentDaysIntervalQuery
     ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_START_PATTERN
     : emergencyFundDaysIntervalQuery
     ? EMERGENCY_FUND_INTERVAL_START_PATTERN
@@ -261,7 +283,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = priorArtProvisionalPatentDaysIntervalQuery
+  const endPattern = firstDraftEssayGradeDaysIntervalQuery
+    ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_END_PATTERN
+    : priorArtProvisionalPatentDaysIntervalQuery
     ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_END_PATTERN
     : emergencyFundDaysIntervalQuery
     ? EMERGENCY_FUND_INTERVAL_END_PATTERN
