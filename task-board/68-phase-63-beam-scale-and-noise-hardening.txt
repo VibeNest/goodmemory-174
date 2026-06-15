@@ -23,25 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-area-calculation-accuracy-update-current-20260615T051745Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-estate-tax-rate-update-current-20260615T052857Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-prototype-budget-update-current-20260615T050733Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-area-calculation-accuracy-update-current-20260615T051745Z`
 
-Summary (fifth knowledge_update pass):
+Summary (sixth knowledge_update pass):
 
-- evidence-chat recall: 0.9172725240330875
-- missed-recall cases: 51/355
-- wrong-recall/noise cases: 196/400
+- evidence-chat recall: 0.9186809747373128
+- missed-recall cases: 50/355
+- wrong-recall/noise cases: 195/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 979/115/901 -> 980/114/898
-- recovered target: `4:knowledge_update:1`
-- target result: recall 0.5 -> 1 — recovers the missing updated turn 130 ("already completed 15 problems with 95% accuracy") to pair with the already-hit original turn 82 ("accuracy in area calculation problems improved from 70% to 90% after completing 12 problems"), and sheds its three noisy chats (190/114/134)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-4 (like conv-20 in the prior pass) carries BOTH temporal_reasoning cases at recall 1, yet neither rippled — reconfirming the update_evidence route's tight pair return is ripple-free in double-recall-1-temporal conversations
-- near-duplicate handled: the designated original turn 82 shares "70% to 90%" / "12 ... problems" with noise turn 134; the ORIGINAL pattern keys on "accuracy in area calculation problems improved from 70% to 90%" (turn 82) so it does not match turn 134's "improved my quiz score from 70% to 90%"
-- repair shape: `areaCalculationAccuracy` update-series module (gate isAreaCalculationAccuracyUpdateQuery / `updateSeries.areaCalculationAccuracy` requiring "accuracy percentage" && "area calculation problems" + ORIGINAL/UPDATED patterns + selectSourceOrderedAreaCalculationAccuracyEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
+- global hit/missing/noise ids: 980/114/898 -> 981/113/894
+- recovered target: `19:knowledge_update:2`
+- target result: recall 0.5 -> 1 — recovers the missing original turn 36 ("estate tax, which is 15% on assets above $200,000") to pair with the already-hit updated turn 56 ("the 12% rate on assets above $200,000"), and sheds its four noisy chats (241/204/41/130, two of which are assistant turns the user-only selector cleanly replaces)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. SIGNIFICANT: conv-19 is the proven-poisoned conversation (the reverted pass 50 knocked 19:temporal_reasoning:1 from recall 1 to 0 via a 30-chat event_ordering reshuffle), yet this low-perturbation ku pair (shedding 4 noise) left BOTH conv-19 temporal_reasoning cases at recall 1 with zero ripple. The conv-19 poison is perturbation-magnitude-dependent (a high-noise reshuffle), NOT a conversation-wide hazard
+- repair shape: `estateTaxRate` update-series module (gate isEstateTaxRateUpdateQuery / `updateSeries.estateTaxRate` requiring "estate tax rate" && "200,000" + ORIGINAL/UPDATED patterns + selectSourceOrderedEstateTaxRateEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the area-calculation accuracy knowledge update (90% -> 95%). Five knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). The remaining clean 2-turn pair is 19:ku:2 (in the proven-poisoned conv-19, deferred); 8/11/16:ku hinge on answer_ai_question turns with no `->->` source marker, which fall outside the source-ordered update-series recipe. Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
+The repaired target covers the estate-tax-rate knowledge update (15% -> 12%). Six knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). The clean source-ordered update-series workstream is now EXHAUSTED — the remaining knowledge_update misses 8/11/16:ku hinge on answer_ai_question turns with no `->->` source marker, which fall outside the recipe. NEXT pivot: the contradiction.ts table extraction (884/900) to reopen the contradiction-pair recipe, or temporal_reasoning / multi_session_reasoning / instruction_following. Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
