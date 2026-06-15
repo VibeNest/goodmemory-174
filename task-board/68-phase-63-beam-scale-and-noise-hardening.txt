@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-grocery-budget-update-group-current-20260615T164144Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-zoom-call-schedule-update-group-current-20260615T172117Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-conditional-probability-practice-contradiction-current-20260615T162219Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-grocery-budget-update-group-current-20260615T164144Z`
 
-Summary (first answer_ai_question knowledge_update recovery — BREAKTHROUGH unblocking the answer_ai_question families):
+Summary (second answer_ai_question knowledge_update recovery via multiFacetGroups):
 
-- evidence-chat recall: 0.9531410686340265
-- missed-recall cases: 26/355
-- wrong-recall/noise cases: 173/400
+- evidence-chat recall: 0.9540800357701766
+- missed-recall cases: 25/355
+- wrong-recall/noise cases: 172/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1011/83/826 -> 1012/82/825
-- recovered target: `16:knowledge_update:1`
-- target result: recall 0.667 -> 1 — the original ($500, turn 126) and updated ($550, turn 204) grocery-budget turns were already hit; this recovers the missing follow-up turn 206, an answer_ai_question-style acknowledgement ("listing out my dietary changes ... a detailed grocery list") that carries NO `->-> ` source marker. Returns [126,204,206], sheds one noisy chat (216)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-16 cases held (all at recall 1)
-- repair shape: added isGroceryBudgetUpdateGroupQuery gate (`knowledgeUpdate.groceryBudgetGroup` = "monthly grocery budget" && "agreed", 1/400) + a three-facet pattern list + one entry to the (generically-named) MULTI_FACET_CONTRADICTION_GROUPS table in contradictionRules/multiFacetGroups.ts + re-export from contradiction.ts + enrichment + the gate added to instructionAugmentationStandDownQuery. The multi-facet matcher is not contradiction-specific — it returns any designated conversation-evidence user turns source-ordered — and crucially its filter is conversation-evidence + user-answer + sourceOrderSortKey (chatId), NOT hasSourceMessageTag, so it matches answer_ai_question turns that lack the `->-> ` marker.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2557 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1012/82/825 -> 1013/81/824
+- recovered target: `8:knowledge_update:1`
+- target result: recall 0.667 -> 1 — the original Zoom-call slot (April 21 3 PM, turn 92) and reschedule (April 22 11 AM, turn 94) were already hit; this recovers the missing answer_ai_question schedule-confirmation turn 96 (a markerless schedule dump). Returns [92,94,96]
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-8 cases held (8:msr:1 at 0.333 unchanged)
+- repair shape: added isZoomCallScheduleUpdateGroupQuery gate (`knowledgeUpdate.zoomCallScheduleGroup` = "when is my Zoom call" && "scheduled", 1/400 — narrowed so it does NOT match the same conversation's 8:msr:2/8:tr:1 which also mention the Zoom call) + a three-facet list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. DISALLOWED-NAME HANDLING: turn 96's schedule lists Meetings with disallowed names (Laura, Michael), so the schedule facet keys on "schedule for April 22" + "Team meeting" only — selector files disallowed-scan clean (fixture exempt).
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2558 pass / 2 skip / 0 fail.
 
-KEY FINDING: the markerless answer_ai_question turn 206 was candidate-pool-reachable and recoverable. The instruction_following (6) and remaining knowledge_update (8:ku:1, 11:ku:2) cases were previously thought blocked precisely because their evidence turns lack the source marker (no SOURCE_MESSAGE_TAG); the multi-facet matcher overcomes that, so they are now addressable. NEXT LOOP: recover the remaining answer_ai_question ku/if cases via the multi-facet matcher (a content/value-facet group per case), then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+PROCESS NOTE: a prior attempt this loop to recover instruction_following 1:if:1 via multiFacetGroups was REVERTED — the login-feature gate collided with the existing instructionRules continuation mechanism and broke 3 existing unit tests (the per-400 diagnostic missed it; the full suite caught it). instruction_following needs the instructionRules companionPattern (pass-43) recipe, NOT multiFacetGroups. The remaining answer_ai_question knowledge_update case 11:ku:2 (6-turn) is still addressable via multiFacetGroups. NEXT LOOP: 11:ku:2, then instruction_following via instructionRules companionPattern, then multi_session_reasoning (11, candidate-pool gap), then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — first answer_ai_question knowledge_update recovery (16:knowledge_update:1, grocery-budget): the multiFacetGroups breakthrough proving markerless answer_ai_question turns are recoverable; recall 0.667->1 recovering markerless turn 206; left recall 0.9531410686340265.]
 
 [Prior pass — fourteenth contradiction_resolution recovery (5:contradiction_resolution:2, conditional-probability-practice): fifth multi-evidence via multiFacetGroups, exhausting the clean multi-evidence contradiction set; recall 0.2->1 recovering [84,86,88,136] of a [84,86,88,134,136] group; left recall 0.9522021014978763.]
 
