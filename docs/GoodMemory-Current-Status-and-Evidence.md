@@ -41,7 +41,7 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Phase 63 BEAM is active and remains partial.
 - Accepted LongMemEval close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z` with 454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong answers 46, and `executionFailures: 0`.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current` and gate `run-20260518003000`.
-- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-webinar-interval-current-20260615T120630Z`, evidence-chat recall 0.9341739324837917, missed 39/355, wrong-recall/noise 184/400, zero-recall 0, and hit/missing/noise ids 991/103/863 -> 992/102/858 (11:temporal_reasoning:1 recovered from recall 0.5 to 1 via a START/END interval anchor pair — recovered end-anchor turn 70, shed five noisy chats; ninth temporal_reasoning recovery, conv-11's recall-1 sibling 11:tr:2 held).
+- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-personal-statement-scholarship-interval-current-20260615T121837Z`, evidence-chat recall 0.935582383188017, missed 38/355, wrong-recall/noise 183/400, zero-recall 0, and hit/missing/noise ids 992/102/858 -> 993/101/854 (9:temporal_reasoning:1 recovered from recall 0.5 to 1 via a START/END interval anchor pair — recovered start-anchor turn 10, shed four noisy chats; tenth temporal_reasoning recovery, conv-9's recall-1 sibling 9:tr:2 held despite conv-9's known poison history — the clean source-marked tr-interval workstream is now exhausted).
 
 ## Phase 40 Release Evidence
 

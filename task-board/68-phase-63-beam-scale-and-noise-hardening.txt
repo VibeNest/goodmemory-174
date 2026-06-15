@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-webinar-interval-current-20260615T120630Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-personal-statement-scholarship-interval-current-20260615T121837Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-permutations-quiz-score-interval-current-20260615T115407Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-hiring-webinar-interval-current-20260615T120630Z`
 
-Summary (ninth temporal_reasoning interval recovery):
+Summary (tenth temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9341739324837917
-- missed-recall cases: 39/355
-- wrong-recall/noise cases: 184/400
+- evidence-chat recall: 0.935582383188017
+- missed-recall cases: 38/355
+- wrong-recall/noise cases: 183/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 991/103/863 -> 992/102/858
-- recovered target: `11:temporal_reasoning:1`
-- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 70 ("webinar on AI ethics in hiring coming up on March 20") to pair with the already-hit start-anchor turn 20 ("Carla, 58, suggested it over lunch at The Blue Lagoon on March 1"), answer 19 days, and sheds its five noisy chats (274/218/294/134/226)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-11 carries 11:tr:2 at recall 1 (retrieved [134,218,274,294,110,56], hitting its evidence 56/110), and it held even though four of this target's shed-noise turns (274/218/294/134) are in 11:tr:2's retrieved set (ninth confirmation the interval recipe is ripple-free)
-- repair shape: new `aiHiringWebinarDays` interval case in sourceOrderTemporalInterval.ts (gate isAiHiringWebinarDaysIntervalQuery / `temporalInterval.aiHiringWebinarDays` = "Carla" && "webinar", 1/400; START "Carla, 58, suggested it over lunch" (turn 20, excludes turn 274 which also names Carla and the Montserrat Business Council); END "webinar on AI ethics in hiring coming up on March 20" (turn 70); plus the four ternary-chain edits the recipe uses). "Carla" is not a disallowed fixture name.
+- global hit/missing/noise ids: 992/102/858 -> 993/101/854
+- recovered target: `9:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 10 ("complete this multi-purpose personal statement ... for academic, visa, and grant applications ... finish it by April 20, 2024") to pair with the already-hit end-anchor turn 12 ("scholarship deadline on May 15, 2024, and the visa application due June 1, 2024"), answer 25 days, and sheds its four noisy chats (48/49/109/185)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-9 has a KNOWN POISON HISTORY (a prior high-perturbation 9:event_ordering:1 recovery, since reverted, regressed 9:temporal_reasoning:2), yet this low-perturbation interval recovery left ALL 20 conv-9 cases unchanged and 9:tr:2 held at recall 1 (ev [44,80] both hit) — confirms the conv-9 poison is perturbation-magnitude-dependent, not conversation-wide (tenth confirmation the interval recipe is ripple-free)
+- repair shape: new `personalStatementScholarshipDays` interval case in sourceOrderTemporalInterval.ts (gate isPersonalStatementScholarshipDaysIntervalQuery / `temporalInterval.personalStatementScholarshipDays` = "personal statement" && "scholarship deadline", 1/400; START "academic, visa, and grant applications" (turn 10, excludes the other April-20 personal-statement turns 8/56/78/82); END "scholarship deadline on May 15, 2024, and the visa application due June 1" (turn 12); plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the AI-hiring-suggestion-to-webinar interval. Nine temporal_reasoning cases now recovered, three remain. Of those three, only 9:tr:1 routes through the broad interval gate; 13:tr:1 ("how many days did it take ... after") and 18:tr:1 ("how many days after I started ...") lack the passed/between/ago connector and need broad-gate widening (deferred). Remaining partial-recall families: temporal_reasoning (3), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the personal-statement-to-scholarship-deadline interval. Ten temporal_reasoning cases now recovered; the clean source-marked tr-interval workstream is EXHAUSTED. Two tr cases remain — 13:tr:1 ("how many days did it take ... after") and 18:tr:1 ("how many days after I started ...") — both lack the passed/between/ago connector, so they do not route through the broad interval gate and need broad-gate widening (deferred, higher risk). NEXT LOOP PIVOTS to multi_session_reasoning (11, reasoning-bridge recipe) or the contradiction per-case-module extraction to reopen contradiction (9 left). Remaining partial-recall families: temporal_reasoning (2), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
