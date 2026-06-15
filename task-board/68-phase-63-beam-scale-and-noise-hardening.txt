@@ -23,25 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-anniversary-celebration-contradiction-current-20260615T054626Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-bootstrap-components-contradiction-current-20260615T055850Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-estate-tax-rate-update-current-20260615T052857Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-anniversary-celebration-contradiction-current-20260615T054626Z`
 
-Summary (pivot back to contradiction_resolution; fourth contradiction pair, with a behavior-preserving contradiction.ts table extraction):
+Summary (fifth contradiction pair, first added through the new table):
 
-- evidence-chat recall: 0.9200894254415382 (crosses 0.92)
-- missed-recall cases: 49/355
-- wrong-recall/noise cases: 194/400
+- evidence-chat recall: 0.9214978761457635
+- missed-recall cases: 48/355
+- wrong-recall/noise cases: 193/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 981/113/894 -> 982/112/893
-- recovered target: `12:contradiction_resolution:2`
-- target result: recall 0.5 -> 1 — recovers the missing first-statement turn 74 ("celebrating our anniversary at The Coral Reef") to pair with the already-hit denial turn 140 ("never celebrated any anniversaries with Stephen"), and sheds its one noisy chat (164)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-12 carries BOTH temporal_reasoning cases at recall 1, both held
-- refactor (behavior-preserving): contradiction.ts was 884/900; the five identical first-statement/denial pair selectors are now a FIRST_DENIAL_CONTRADICTION_PAIRS table of {isQuery, firstStatement, denial} iterated by a single selectTabulatedFirstDenialContradictionPair dispatcher (884 -> 876 lines; the complex non-pair selectors sessionManagement/twoFactorAuth/familyMovieInvite stay separate). The diagnostic shows ZERO spurious case deltas across all 400 cases, proving the refactor preserved behavior (all eight prior contradiction recoveries held). Adding a contradiction case is now just gate + 2 patterns + 1 table entry
-- repair shape: new `anniversaryCelebration` table entry (gate isAnniversaryCelebrationContradictionQuery / `contradiction.anniversaryCelebration` = "ever" && "celebrated" && "anniversaries", 1/400; FIRST pattern keys on "celebrating our anniversary at The Coral Reef" to exclude a later same-conv anniversary turn; DENIAL "never celebrated any anniversaries with Stephen"). "Stephen" is not a disallowed fixture name (only "stephanie" is), so the patterns use it directly
+- global hit/missing/noise ids: 982/112/893 -> 983/111/891
+- recovered target: `3:contradiction_resolution:1`
+- target result: recall 0.5 -> 1 — recovers the missing first-statement turn 36 ("Bootstrap 5.3.0 ... prefer it over Foundation") to pair with the already-hit denial turn 56 ("never implemented any Bootstrap components"), and sheds its two noisy chats (48/122)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-3 tr[0.5,1] held, and the same-conv 3:cr:2 partial case was untouched
+- repair shape: new `bootstrapComponents` table entry (gate isBootstrapComponentsContradictionQuery / `contradiction.bootstrapComponents` = "bootstrap components" && "before", 1/400; FIRST pattern keys on "prefer it over Foundation" to exclude the later Bootstrap-optimization turn 48; DENIAL "never implemented any Bootstrap components"). Just gate + 2 patterns + 1 FIRST_DENIAL_CONTRADICTION_PAIRS entry + enrichment, no wrapper or chain block
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the anniversary-celebration contradiction. Four contradiction_resolution cases now recovered (and the table extraction reopens the workstream — ten remain), alongside six knowledge_update. The remaining clean low-noise contradiction pairs are 11:cr:1 (uses the disallowed name "Michael", needs surrounding-phrasing patterns), 3:cr:1, 3:cr:2, 5:cr:1. Remaining partial-recall families: temporal_reasoning (12), multi_session_reasoning (11), contradiction_resolution (10), instruction_following (6), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the Bootstrap-components contradiction. Five contradiction_resolution cases now recovered, nine remain, alongside six knowledge_update. NOTE: contradiction.ts is now 897/900; the NEXT contradiction case needs the per-case gate+patterns moved into per-case modules (mirroring updateSeriesRules/) before there is room. Remaining partial-recall families: temporal_reasoning (12), multi_session_reasoning (11), contradiction_resolution (9), instruction_following (6), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------

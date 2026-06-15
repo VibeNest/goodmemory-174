@@ -41,7 +41,7 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Phase 63 BEAM is active and remains partial.
 - Accepted LongMemEval close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z` with 454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong answers 46, and `executionFailures: 0`.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current` and gate `run-20260518003000`.
-- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-anniversary-celebration-contradiction-current-20260615T054626Z`, evidence-chat recall 0.9200894254415382, missed 49/355, wrong-recall/noise 194/400, zero-recall 0, and hit/missing/noise ids 981/113/894 -> 982/112/893 (12:contradiction_resolution:2 recovered from recall 0.5 to 1 via a first-statement/denial pair — recovered first-statement turn 74, shed one noisy chat; the pass first extracts a behavior-preserving FIRST_DENIAL_CONTRADICTION_PAIRS table in contradiction.ts with zero spurious deltas; exactly one case delta, no ripples).
+- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-bootstrap-components-contradiction-current-20260615T055850Z`, evidence-chat recall 0.9214978761457635, missed 48/355, wrong-recall/noise 193/400, zero-recall 0, and hit/missing/noise ids 982/112/893 -> 983/111/891 (3:contradiction_resolution:1 recovered from recall 0.5 to 1 via a first-statement/denial pair — recovered first-statement turn 36, shed two noisy chats; added as a table entry to the FIRST_DENIAL_CONTRADICTION_PAIRS table; exactly one case delta, no ripples).
 
 ## Phase 40 Release Evidence
 
