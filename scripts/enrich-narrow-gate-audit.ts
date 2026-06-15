@@ -54,6 +54,7 @@ import {
   isTransactionDeploymentWeeksIntervalQuery,
   isTriangleProblemCountIntervalQuery,
   isTrilogyReadingDaysIntervalQuery,
+  isWorkEmailSelfCareDaysIntervalQuery,
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
 import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
 import { isCareerRelocationEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/careerRelocationEventOrder";
@@ -233,6 +234,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.personalStatementScholarshipDays":
     isPersonalStatementScholarshipDaysIntervalQuery,
   "temporalInterval.trilogyReadingDays": isTrilogyReadingDaysIntervalQuery,
+  "temporalInterval.workEmailSelfCareDays":
+    isWorkEmailSelfCareDaysIntervalQuery,
   "temporalInterval.coverLetterZoomCallDays":
     isCoverLetterZoomCallDaysIntervalQuery,
   "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,

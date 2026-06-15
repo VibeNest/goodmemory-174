@@ -9065,6 +9065,84 @@ function buildTrilogyReadingDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildWorkEmailSelfCareDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to set boundaries by limiting work emails after 7 PM, starting March 5, to reduce stress, but I'm kinda worried it might affect my work, can you help me figure out how to make this work? ->-> 1,9",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that blocking 2 hours every Tuesday and Thursday morning for self-care starting March 7 at 8 AM might not be enough to reduce my stress, what do you think? ->-> 1,11",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I started journaling about work stress for 5 minutes every night since March 1 using my Moleskine notebook, but I'm not sure what I'm doing right or wrong, can you help me figure out if this self-care habit is actually working for me? ->-> 1,18",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer morning self-care routines, like the ones I've been doing, to boost my daytime energy, but I'm not sure how to make the most of them, can you help me optimize my morning routine? ->-> 2,13",
+      id: 164,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "work-email-self-care-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Wellness",
+        id: 18,
+        subtopics: [
+          "Work boundaries",
+          "Self-care",
+          "Stress reduction",
+          "Routine planning",
+        ],
+        theme:
+          "Building work boundaries and self-care routines across conversations",
+        title:
+          "Work-Life Boundary Building",
+      },
+      narratives: "Work-email boundary to self-care block interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "I started limiting work emails after 7 PM on March 5, and then began blocking time for self-care on Tuesday and Thursday mornings starting March 7, so 2 days elapsed between these events.",
+            difficulty: "medium",
+            question:
+              "How many days after I started limiting work emails after 7 PM did I begin blocking time for self-care on Tuesday and Thursday mornings?",
+            question_id: "work-email-self-care-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [48], second_event: [60] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: professional building work-life boundaries",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15822,6 +15900,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([120, 154]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps work email to self-care days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-work-email-self-care-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWorkEmailSelfCareDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([48, 60]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

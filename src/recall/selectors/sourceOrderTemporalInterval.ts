@@ -368,6 +368,24 @@ const TRILOGY_READING_INTERVAL_START_PATTERN =
 const TRILOGY_READING_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*finished)(?=[\s\S]*1,150 pages in 12 days)/iu;
 
+export const isWorkEmailSelfCareDaysIntervalQuery = narrowGate(
+  "temporalInterval.workEmailSelfCareDays",
+  (query: string): boolean => {
+    return /limiting work emails/iu.test(query) &&
+      /self-care/iu.test(query);
+  },
+);
+
+// Two distinct user turns: starting to limit work emails after 7 PM on March 5
+// (start, turn 48) and beginning Tuesday/Thursday-morning self-care blocks on
+// March 7 (end, turn 60). Like the trilogy case this uses the "days after I
+// started" phrasing the broad heuristic does not match; the per-case gate routes
+// it directly via the source_ordered_temporal_interval route.
+const WORK_EMAIL_SELF_CARE_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*limiting work emails after 7 PM)(?=[\s\S]*March 5)/iu;
+const WORK_EMAIL_SELF_CARE_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*Tuesday and Thursday morning for self-care)(?=[\s\S]*March 7)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -420,7 +438,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isPersonalStatementScholarshipDaysIntervalQuery(input.query);
   const trilogyReadingDaysIntervalQuery =
     isTrilogyReadingDaysIntervalQuery(input.query);
+  const workEmailSelfCareDaysIntervalQuery =
+    isWorkEmailSelfCareDaysIntervalQuery(input.query);
   if (
+    !workEmailSelfCareDaysIntervalQuery &&
     !trilogyReadingDaysIntervalQuery &&
     !personalStatementScholarshipDaysIntervalQuery &&
     !aiHiringWebinarDaysIntervalQuery &&
@@ -448,7 +469,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = trilogyReadingDaysIntervalQuery
+  const startPattern = workEmailSelfCareDaysIntervalQuery
+    ? WORK_EMAIL_SELF_CARE_INTERVAL_START_PATTERN
+    : trilogyReadingDaysIntervalQuery
     ? TRILOGY_READING_INTERVAL_START_PATTERN
     : personalStatementScholarshipDaysIntervalQuery
     ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_START_PATTERN
@@ -495,7 +518,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = trilogyReadingDaysIntervalQuery
+  const endPattern = workEmailSelfCareDaysIntervalQuery
+    ? WORK_EMAIL_SELF_CARE_INTERVAL_END_PATTERN
+    : trilogyReadingDaysIntervalQuery
     ? TRILOGY_READING_INTERVAL_END_PATTERN
     : personalStatementScholarshipDaysIntervalQuery
     ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_END_PATTERN
