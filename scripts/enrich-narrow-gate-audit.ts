@@ -84,6 +84,7 @@ import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instr
 import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/instructionRules/nonProvisionalFilingDate";
 import {
   isAnniversaryCelebrationContradictionQuery,
+  isApiKeyObtainedContradictionQuery,
   isAtsCourseEnrollmentContradictionQuery,
   isBootstrapComponentsContradictionQuery,
   isCoinTossProblemsContradictionQuery,
@@ -322,6 +323,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.delegatingTasks": isDelegatingTasksContradictionQuery,
   "contradiction.editingTimelineCollaboration":
     isEditingTimelineCollaborationContradictionQuery,
+  "contradiction.apiKeyObtained": isApiKeyObtainedContradictionQuery,
   "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
   "contradiction.remoteCollaboration":
     isRemoteCollaborationContradictionQuery,

@@ -10738,6 +10738,91 @@ function buildWorkshopAttendanceContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildApiKeyObtainedContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to handle the API rate limit for my weather app, can I use a simple counter to track the number of calls made per minute and per day? I've got a basic APICallTracker class, but how can I improve it to handle the 60 calls/minute and 1000 calls/day rate limits for my OpenWeather API key obtained on March 10, 2024? ->-> 1,10",
+      id: 32,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what happens if the user makes rapid consecutive calls?",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what if the user keeps retrying after hitting the rate limit? How do we handle that?",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I've never actually obtained an API key for this project, so I'm not sure how to proceed with implementing the weather app. I know I need to use the OpenWeather API v2.5, but I'm not sure what steps to take next. Can you walk me through the process of obtaining an API key and setting up my project? ->-> 1,26",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on a project where I had to decide against implementing OAuth authentication due to project scope and timeline constraints, so I'm focusing on public API usage. I need help understanding how to securely use public APIs without OAuth, like OpenWeatherMap. How can I securely store and use my API key in a client-side application without exposing it? ->-> 3,11",
+      id: 156,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "api-key-obtained-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 2,
+        subtopics: [
+          "Weather app",
+          "API rate limiting",
+          "API key setup",
+          "OpenWeather API",
+        ],
+        theme:
+          "Building a weather app and its API usage across conversations",
+        title:
+          "Weather App API Development",
+      },
+      narratives: "API key obtained contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I obtained an API key for this project?",
+            question_id: "api-key-obtained-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {
+              first_statement: [32, 34, 36],
+              second_statement: [70],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: developer building a weather app",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16701,6 +16786,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([102, 104, 106, 126, 128]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the API key obtained multi-facet contradiction group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-api-key-obtained-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildApiKeyObtainedContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([32, 34, 36, 70]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

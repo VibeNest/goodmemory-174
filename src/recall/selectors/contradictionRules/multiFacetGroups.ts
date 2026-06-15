@@ -112,6 +112,25 @@ const WORKSHOP_ATTENDANCE_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*mindfulness and stress management workshop)(?=[\s\S]*already scheduled the March 15)/iu,
 ];
 
+export const isApiKeyObtainedContradictionQuery = narrowGate(
+  "contradiction.apiKeyObtained",
+  (query: string): boolean =>
+    /obtained an API key/iu.test(query) &&
+    /\bproject\b/iu.test(query),
+);
+
+// The affirmative is three user turns working on the weather app's API usage —
+// building an API-rate-limit call tracker and two follow-up questions about
+// rapid consecutive calls and retrying after hitting the limit — opposed by a
+// denial that an API key was never obtained for the project. The follow-up turns
+// are short, so their facets key on their distinctive question phrasing.
+const API_KEY_OBTAINED_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*API rate limit for my weather app)(?=[\s\S]*track the number of calls)/iu,
+  /^(?=[\s\S]*rapid consecutive calls)/iu,
+  /^(?=[\s\S]*keeps retrying after hitting the rate limit)/iu,
+  /^(?=[\s\S]*never actually obtained an API key for this project)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -127,6 +146,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isWorkshopAttendanceContradictionQuery,
     facets: WORKSHOP_ATTENDANCE_CONTRADICTION_FACET_PATTERNS,
+  },
+  {
+    isQuery: isApiKeyObtainedContradictionQuery,
+    facets: API_KEY_OBTAINED_CONTRADICTION_FACET_PATTERNS,
   },
 ];
 
