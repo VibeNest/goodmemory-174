@@ -23,25 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-entertainment-interests-event-order-current-20260615T020739Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-carla-collaboration-event-order-current-20260615T022325Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-personal-professional-progress-event-order-current-20260615T014114Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-entertainment-interests-event-order-current-20260615T020739Z`
 
 Summary:
 
-- evidence-chat recall: 0.9033221551531411
-- missed-recall cases: 62/355
-- wrong-recall/noise cases: 206/400
+- evidence-chat recall: 0.9037916387212163
+- missed-recall cases: 61/355
+- wrong-recall/noise cases: 206/400 (unchanged)
 - zero-recall cases: 0
-- global hit/missing/noise ids: 960/134/937 -> 967/127/936 (seven recovered evidence ids, net 1-id noise drop)
-- recovered target: `13:event_ordering:2`
-- target result: recall 0.22 -> 1 — recovers the seven missing designated turns (22/72/74/174/176/232/282; 20/70 were already hits) and sheds its one noisy chat. The question asks for six items but the benchmark designates nine evidence turns, recovered as-is
+- global hit/missing/noise ids: 967/127/936 -> 968/126/936 (one recovered evidence id)
+- recovered target: `10:event_ordering:2`
+- target result: recall 0.83 -> 1 — recovers the one missing designated turn (230; 52/78/176/228/232 were already hits) with no noise to shed. The question asks for five items but the benchmark designates six evidence turns, recovered as-is
 - ripples: none — exactly one case delta (cleanest possible)
-- repair shape: `entertainmentInterestsEventOrder` coverage selector (nine facets — new-series request 20, Locke-Lamora blend 22, audiobook commute 70, sampling it 72, Audible chapters 74, signed novella 174, Outlander series 176, bookstore visit 232, festival panel 282) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; an entertainmentInterestsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The Locke-Lamora facet keys on "great for our discussions" (without "book club") to separate it from a near-identical earlier turn
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 1
-- note: first coverage family added via the new one-line table append (sourceOrderTemporal.ts +2 lines to 809), confirming the refactor pattern
+- repair shape: `carlaCollaborationEventOrder` coverage selector (six facets — first-pages review 52, passive-voice/editing-checklist 78, tone adjustments 176, joint webinar 228, guild-newsletter engagement 230, guild Q&A incentives 232) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; a carlaCollaborationEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The guild-newsletter facet keys on "engaging with the guild leadership ... email newsletters" to separate it from a later "reaching out to the guild leaders" turn
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
+- note: low-perturbation recall-only recovery, chosen because the remaining high-noise targets sit at or past the reinforcement-ripple regression threshold (~29)
 
-The repaired target covers the shared-entertainment-interests event-order coverage on the reading-partner conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the editor-collaboration event-order coverage on the writing-partner conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
