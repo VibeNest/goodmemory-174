@@ -29,6 +29,7 @@ import { isProbabilityStudyHoursUpdateQuery } from "../src/recall/selectors/upda
 import { isSnackBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/snackBudget";
 import { isPrototypeBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/prototypeBudget";
 import { isAreaCalculationAccuracyUpdateQuery } from "../src/recall/selectors/updateSeriesRules/areaCalculationAccuracy";
+import { isEstateTaxRateUpdateQuery } from "../src/recall/selectors/updateSeriesRules/estateTaxRate";
 import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
@@ -191,6 +192,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "updateSeries.prototypeBudget": isPrototypeBudgetUpdateQuery,
   "updateSeries.areaCalculationAccuracy":
     isAreaCalculationAccuracyUpdateQuery,
+  "updateSeries.estateTaxRate": isEstateTaxRateUpdateQuery,
   "updateSeries.probateTimeline": isProbateTimelineUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,

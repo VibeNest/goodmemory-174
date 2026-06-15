@@ -8419,6 +8419,89 @@ function buildAreaCalculationAccuracyUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildEstateTaxRateUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to minimize my estate tax, which is 15% on assets above $200,000, so can you help me figure out some legal ways to reduce that amount? ->-> 1,13",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the estate tax, so can you tell me more about how the 12% rate on assets above $200,000 will affect my planning ->-> 1,21",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I've never used WillMaker Pro or any digital software to draft my will, which seems weird since I've been working on my estate plan, so can you guide me on how to get started with creating a digital will? ->-> 3,23",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a meeting with my family on March 25 to discuss my will, and I'm thinking about who to name as the executor, so can you help me figure out how to approach this conversation and make a decision? ->-> 2,24",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "Great! Now that you've accepted the $900 fee, you can move forward with creating a legally valid will and estate plan. Here is a step-by-step guide to help you through the process.",
+      id: 241,
+      role: "assistant",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "estate-tax-rate-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Finance",
+        id: 19,
+        subtopics: [
+          "Estate tax",
+          "Estate planning",
+          "Will preparation",
+          "Tax rate revision",
+        ],
+        theme:
+          "Tracking the estimated estate tax rate across conversations",
+        title:
+          "Estate Tax Rate",
+      },
+      narratives: "Estate tax rate knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "12%",
+            difficulty: "easy",
+            question:
+              "What is the estimated estate tax rate applied to assets above $200,000?",
+            question_id: "estate-tax-rate-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [36], updated_info: [56] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Individual planning their estate",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildZoteroSourcesUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -14287,6 +14370,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([82, 130]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps estate tax rate update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-estate-tax-rate-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEstateTaxRateUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([36, 56]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
