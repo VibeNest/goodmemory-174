@@ -23,24 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-movie-watchlist-contradiction-current-20260615T034006Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-writing-sessions-contradiction-current-20260615T040011Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-patent-webinar-contradiction-current-20260615T032116Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-movie-watchlist-contradiction-current-20260615T034006Z`
 
-Summary (second contradiction_resolution pass):
+Summary (third contradiction_resolution pass, bundled with a contradiction-pair refactor):
 
-- evidence-chat recall: 0.9088218198077354
-- missed-recall cases: 57/355
-- wrong-recall/noise cases: 202/400
+- evidence-chat recall: 0.9102302705119607 (now above 0.91)
+- missed-recall cases: 56/355
+- wrong-recall/noise cases: 201/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 973/121/919 -> 974/120/916
-- recovered target: `14:contradiction_resolution:1`
-- target result: recall 0.5 -> 1 — recovers the missing affirmative turn 72 ("add Klaus to our watchlist for the movie marathon") to pair with the already-hit denial turn 50 ("new to making watchlists for family movie marathons ... never done this before"), and sheds its three noisy chats
-- ripples: one accepted recall-neutral same-conversation reinforcement ripple (`14:event_ordering:1`, net-zero noise reshuffle, recall unchanged at 0.17)
-- repair shape: `movieWatchlist` first-statement/denial contradiction selector added to contradiction.ts (gate isMovieWatchlistContradictionQuery + FIRST_STATEMENT/DENIAL patterns + selectMovieWatchlistContradictionEvidence), chained in selectContradictionEvidencePair; second use of the contradiction-pair recipe
-- regression check: target positive delta plus one recall-neutral noise reshuffle; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
+- global hit/missing/noise ids: 974/120/916 -> 975/119/913
+- recovered target: `7:contradiction_resolution:2`
+- target result: recall 0.5 -> 1 — recovers the missing affirmative turn 80 ("rescheduled writing session on April 7 after missing the April 5 one") to pair with the already-hit denial turn 114 ("never missed any scheduled writing sessions or meetings ... maintain this consistency"), and sheds its three noisy chats
+- ripples: none — exactly one case delta (cleanest possible), confirming the refactor changed no other case
+- repair shape: `writingSessions` first-statement/denial contradiction selector added to contradiction.ts (gate isWritingSessionsContradictionQuery + FIRST_STATEMENT/DENIAL patterns), chained in selectContradictionEvidencePair
+- refactor: the four identical first-statement/denial selectors (ats, willAttorney, patentWebinar, movieWatchlist) now delegate to a shared selectFirstDenialContradictionPair(input, isQuery, first, denial) helper; behaviour-preserving (contradiction.ts 887 -> 849, then 884 with the new writingSessions case)
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the family-movie-watchlist contradiction. Eleven contradiction_resolution partial-recall cases remain (mostly two-turn pairs at recall 0.5). NOTE: contradiction.ts is now 887 lines -- before adding the next contradiction selector, extract the per-case pair selectors into a registry/table to stay under the 900-line bounded-selector cap (mirroring the event-order coverage table refactor). This is a retained selector repair, not a benchmark close.
+The repaired target covers the essay-writing-sessions contradiction. Ten contradiction_resolution partial-recall cases remain. NOTE: contradiction.ts is 884 lines -- the next per-case selector still needs a fuller table extraction (collapse the named delegating functions and their if/return chain into one iterated table) to stay under 900. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
