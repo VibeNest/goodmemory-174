@@ -33,6 +33,7 @@ import {
   sleepBeforeAppointmentEvidencePriority,
 } from "./selectors/conversationEvidence";
 import {
+  isAccuracyImprovementComparisonQuery,
   isAiScreeningAccuracyUpdateGroupQuery,
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
@@ -237,6 +238,7 @@ export function buildSelectionRunContext(
     isGroceryBudgetUpdateGroupQuery(query) ||
     isZoomCallScheduleUpdateGroupQuery(query) ||
     isAiScreeningAccuracyUpdateGroupQuery(query) ||
+    isAccuracyImprovementComparisonQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

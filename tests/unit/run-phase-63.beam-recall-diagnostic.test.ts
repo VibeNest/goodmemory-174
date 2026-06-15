@@ -11172,6 +11172,88 @@ function buildAiScreeningAccuracyUpdateGroupBeamRows(): unknown[] {
   ];
 }
 
+function buildAccuracyImprovementComparisonBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Certainly, Christina! Let's build on your existing knowledge of classifying triangles by sides and angles and apply it to more complex problems, such as using the Law of Cosines to find unknown angles in a triangle with sides 7 cm, 9 cm, and 12 cm. Here is a structured review of triangle classification before we work the example.",
+      id: 31,
+      role: "assistant",
+    },
+    {
+      content:
+        "I'm trying to understand how my accuracy in area calculation problems improved from 70% to 90% after completing 12 problems, can you help me identify what I did differently or what concepts I grasped better during this time to achieve such a significant improvement in my accuracy? ->-> 2,7",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand how my quiz score improved from 78% to 88% on special lines and area formulas, specifically focusing on the concepts of medians, altitudes, and bisectors in triangles, and I was wondering if someone could help me identify what I did differently to achieve this improvement, maybe by walking me through some example problems involving triangle area formulas and special lines like medians and altitudes, so I can better grasp what I've learned ->-> 2,19",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "I've been studying triangle geometry and I want to know how to apply the concept of medians and altitudes to calculate the area of a triangle, considering I've never completed any problems involving medians or altitudes before, and I prefer comparing multiple solution methods to deepen my understanding.",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble understanding the difference between congruence and similarity in triangles, can you explain it to me using precise mathematical language, like how congruence means having the same size and shape, while similarity means having the same shape but not necessarily the same size?",
+      id: 190,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "accuracy-improvement-comparison",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 4,
+        subtopics: [
+          "Area calculation accuracy",
+          "Special lines quiz score",
+          "Triangle geometry",
+        ],
+        theme:
+          "Tracking geometry accuracy improvements across two study sessions",
+        title: "Geometry Accuracy Improvement Tracking",
+      },
+      narratives:
+        "Comparing accuracy improvements between area calculation problems and special lines quiz scores",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Accuracy on area calculation problems rose from 70% to 90% (a 20-point gain), while the special-lines quiz score rose from 78% to 88% (a 10-point gain).",
+            question:
+              "How much did my accuracy improve between the two times I mentioned my scores on area calculation problems and special lines in triangles?",
+            question_id: "accuracy-improvement-comparison",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [82, 110],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Geometry student tracking study accuracy",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17250,6 +17332,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([126, 128, 130, 170, 172, 174]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the geometry accuracy-improvement comparison source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-accuracy-improvement-comparison",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAccuracyImprovementComparisonBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([82, 110]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

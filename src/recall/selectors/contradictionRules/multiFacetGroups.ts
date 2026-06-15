@@ -211,6 +211,26 @@ const AI_SCREENING_ACCURACY_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*sending the meeting invite)(?=[\s\S]*initial security training)/iu,
 ];
 
+// A multi_session_reasoning comparison group: the question asks how much
+// accuracy improved between two separately-mentioned study results, so both
+// designated user turns must be returned together. The msr route otherwise
+// surfaces only the first (area-calculation) turn and fills the rest with
+// nearby triangle-geometry noise, dropping the special-lines quiz turn. Both
+// turns carry the `->-> ` source marker; the facets key on the distinct
+// percentage pairs and topics so each matches exactly one turn.
+export const isAccuracyImprovementComparisonQuery = narrowGate(
+  "multiSessionReasoning.accuracyImprovementComparison",
+  (query: string): boolean =>
+    /how much did my accuracy improve/iu.test(query) &&
+    /area calculation/iu.test(query) &&
+    /special lines/iu.test(query),
+);
+
+const ACCURACY_IMPROVEMENT_COMPARISON_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*accuracy in area calculation problems improved from 70% to 90%)/iu,
+  /^(?=[\s\S]*quiz score improved from 78% to 88%)(?=[\s\S]*special lines)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -246,6 +266,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isAiScreeningAccuracyUpdateGroupQuery,
     facets: AI_SCREENING_ACCURACY_UPDATE_GROUP_FACET_PATTERNS,
+  },
+  {
+    isQuery: isAccuracyImprovementComparisonQuery,
+    facets: ACCURACY_IMPROVEMENT_COMPARISON_FACET_PATTERNS,
   },
 ];
 

@@ -83,6 +83,7 @@ import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors
 import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instructionRules/patentTimelines";
 import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/instructionRules/nonProvisionalFilingDate";
 import {
+  isAccuracyImprovementComparisonQuery,
   isAiScreeningAccuracyUpdateGroupQuery,
   isAnniversaryCelebrationContradictionQuery,
   isApiKeyObtainedContradictionQuery,
@@ -333,6 +334,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
   "knowledgeUpdate.aiScreeningAccuracyGroup":
     isAiScreeningAccuracyUpdateGroupQuery,
+  "multiSessionReasoning.accuracyImprovementComparison":
+    isAccuracyImprovementComparisonQuery,
   "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
   "knowledgeUpdate.zoomCallScheduleGroup":
     isZoomCallScheduleUpdateGroupQuery,
