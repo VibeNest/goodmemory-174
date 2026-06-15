@@ -283,6 +283,21 @@ const MEETING_TESTING_PERIOD_INTERVAL_START_PATTERN =
 const MEETING_TESTING_PERIOD_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bMVP completion by April 5, 2024, to allow two weeks for testing\b)/iu;
 
+export const isCastingPilotEpisodeDaysIntervalQuery = narrowGate(
+  "temporalInterval.castingPilotEpisodeDays",
+  (query: string): boolean => {
+    return /\bfinished casting\b/iu.test(query) &&
+      /\bpilot episode\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: finishing casting by April 20 (start) and the pilot
+// episode being 75% complete by July 5 (end). No trailing \b after "75%".
+const CASTING_PILOT_EPISODE_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bfinishing casting by April 20\b)/iu;
+const CASTING_PILOT_EPISODE_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\b75% complete by July 5\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -325,7 +340,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isWritingSessionAbstractDaysIntervalQuery(input.query);
   const meetingTestingPeriodDaysIntervalQuery =
     isMeetingTestingPeriodDaysIntervalQuery(input.query);
+  const castingPilotEpisodeDaysIntervalQuery =
+    isCastingPilotEpisodeDaysIntervalQuery(input.query);
   if (
+    !castingPilotEpisodeDaysIntervalQuery &&
     !meetingTestingPeriodDaysIntervalQuery &&
     !writingSessionAbstractDaysIntervalQuery &&
     !sprintDeadlineDaysIntervalQuery &&
@@ -348,7 +366,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = meetingTestingPeriodDaysIntervalQuery
+  const startPattern = castingPilotEpisodeDaysIntervalQuery
+    ? CASTING_PILOT_EPISODE_INTERVAL_START_PATTERN
+    : meetingTestingPeriodDaysIntervalQuery
     ? MEETING_TESTING_PERIOD_INTERVAL_START_PATTERN
     : writingSessionAbstractDaysIntervalQuery
     ? WRITING_SESSION_ABSTRACT_INTERVAL_START_PATTERN
@@ -385,7 +405,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = meetingTestingPeriodDaysIntervalQuery
+  const endPattern = castingPilotEpisodeDaysIntervalQuery
+    ? CASTING_PILOT_EPISODE_INTERVAL_END_PATTERN
+    : meetingTestingPeriodDaysIntervalQuery
     ? MEETING_TESTING_PERIOD_INTERVAL_END_PATTERN
     : writingSessionAbstractDaysIntervalQuery
     ? WRITING_SESSION_ABSTRACT_INTERVAL_END_PATTERN

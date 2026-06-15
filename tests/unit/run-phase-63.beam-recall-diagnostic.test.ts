@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildCastingPilotEpisodeDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I just celebrated finishing casting by April 20 with a dinner at The Coral Reef, which cost $120 for four guests, and I'm wondering if I should set aside a similar budget for other milestones? ->-> 2,7",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I've started taking 3 weekly Pilates classes at a wellness center since April 22, and I'm feeling more energetic, how can I balance this new fitness routine with my existing schedule? ->-> 2,14",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my pilot episode, it's 75% complete by July 5, with 12 of 16 scenes filmed and 60% of post-production started, can you help me manage my time to meet the deadline? ->-> 3,7",
+      id: 156,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my collaboration on a storyboard at a cafe on June 25, where we finished the visuals in just 2 hours, but I'm worried it might not be enough, can you advise? ->-> 3,11",
+      id: 160,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "casting-pilot-episode-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Entertainment",
+        id: 17,
+        subtopics: [
+          "Casting",
+          "Pilot episode",
+          "Production milestones",
+          "Schedule management",
+        ],
+        theme:
+          "Tracking a TV pilot's casting and production milestones across conversations",
+        title:
+          "Pilot Episode Production",
+      },
+      narratives: "Casting completion to pilot episode milestone interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "46 days passed between finishing casting on April 20 and the pilot episode being 75% complete by July 5.",
+            difficulty: "medium",
+            question:
+              "How many days passed between when I finished casting and when my pilot episode was 75% complete?",
+            question_id: "casting-pilot-episode-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [108], second_event: [156] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: TV producer tracking pilot production milestones",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15013,6 +15091,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps casting to pilot episode days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-casting-pilot-episode-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCastingPilotEpisodeDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([108, 156]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
