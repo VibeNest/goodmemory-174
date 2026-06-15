@@ -10105,6 +10105,82 @@ function buildCoinTossProblemsContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildDelegatingTasksContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I agreed to delegate tasks to Greg instead of attending the March 12 late-night editing session that David asked me to skip, was that the right decision in setting boundaries? ->-> 1,14",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "I delegated 30% of my editing tasks to Greg starting April 2, which freed up 8 hours weekly, but I'm not sure if that's enough to make a significant difference in my workload and stress levels ->-> 2,7",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "I've never actually delegated tasks to Greg or any other colleague, which is weird because I know I should, so can you help me figure out how to start doing that effectively ->-> 2,24",
+      id: 188,
+      role: "user",
+    },
+    {
+      content:
+        "I feel weird that I have never delegated any tasks to Greg or any other colleague, but I'm trying to rebuild my motivation after reducing my work hours to 45 weekly, can you help me explore new strategies? ->-> 3,24",
+      id: 248,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "delegating-tasks-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 18,
+        subtopics: [
+          "Task delegation",
+          "Workload management",
+          "Work boundaries",
+          "Editing work",
+        ],
+        theme:
+          "Managing editing workload and delegation across conversations",
+        title:
+          "Editing Workload Management",
+      },
+      narratives: "Task delegation to Greg contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever delegated any of my tasks to Greg or other colleagues?",
+            question_id: "delegating-tasks-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [188], second_statement: [150] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: editor managing workload and delegation",
+        user_relationships: "Greg is a colleague",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -15884,6 +15960,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 66]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the delegating tasks contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-delegating-tasks-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildDelegatingTasksContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([150, 188]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

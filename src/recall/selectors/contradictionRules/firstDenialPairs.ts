@@ -175,6 +175,24 @@ const COIN_TOSS_PROBLEMS_FIRST_STATEMENT_PATTERN =
 const COIN_TOSS_PROBLEMS_DENIAL_PATTERN =
   /^(?=[\s\S]*never completed any coin toss problems)/iu;
 
+export const isDelegatingTasksContradictionQuery = narrowGate(
+  "contradiction.delegatingTasks",
+  (query: string): boolean =>
+    /\bdelegated\b/iu.test(query) &&
+    /\bGreg\b/u.test(query),
+);
+
+// The first statement delegates 30% of editing tasks to Greg from April 2; the
+// denial says tasks were never delegated to Greg or any colleague. The first
+// pattern keys on "delegated 30% of my editing tasks to Greg" so it excludes the
+// earlier "agreed to delegate tasks to Greg" turn, and the denial keys on "never
+// actually delegated tasks to Greg" so it excludes the later "never delegated
+// any tasks to Greg" turn.
+const DELEGATING_TASKS_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*delegated 30% of my editing tasks to Greg)/iu;
+const DELEGATING_TASKS_DENIAL_PATTERN =
+  /^(?=[\s\S]*never actually delegated tasks to Greg)/iu;
+
 // Every simple "Have I ever X?" first-statement/denial pair is the same shape:
 // a gate plus an affirmative pattern and a denial pattern. The table lets
 // selectContradictionEvidencePair dispatch them in one loop instead of a named
@@ -224,6 +242,11 @@ const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
     isQuery: isCoinTossProblemsContradictionQuery,
     firstStatement: COIN_TOSS_PROBLEMS_FIRST_STATEMENT_PATTERN,
     denial: COIN_TOSS_PROBLEMS_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isDelegatingTasksContradictionQuery,
+    firstStatement: DELEGATING_TASKS_FIRST_STATEMENT_PATTERN,
+    denial: DELEGATING_TASKS_DENIAL_PATTERN,
   },
 ];
 

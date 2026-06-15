@@ -28,6 +28,7 @@ export {
   isAnniversaryCelebrationContradictionQuery,
   isBootstrapComponentsContradictionQuery,
   isCoinTossProblemsContradictionQuery,
+  isDelegatingTasksContradictionQuery,
 } from "./contradictionRules/firstDenialPairs";
 
 export const CONTRADICTION_POSITIVE_RECALL_LIMIT = 3;
