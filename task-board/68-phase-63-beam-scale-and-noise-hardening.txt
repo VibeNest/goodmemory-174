@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-film-office-movies-interval-current-20260615T063006Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-zoom-call-interval-current-20260615T064209Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-first-draft-essay-grade-interval-current-20260615T061734Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-film-office-movies-interval-current-20260615T063006Z`
 
-Summary (second temporal_reasoning interval recovery):
+Summary (third temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9243147775542142
-- missed-recall cases: 46/355
-- wrong-recall/noise cases: 191/400
+- evidence-chat recall: 0.9257232282584396
+- missed-recall cases: 45/355
+- wrong-recall/noise cases: 190/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 984/110/888 -> 985/109/887
-- recovered target: `14:temporal_reasoning:1`
-- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 154 ("2-hour nap delay on April 6") to pair with the already-hit start-anchor turn 46 ("meeting at Montserrat Film Office on March 20"), answer 11 days, and sheds its one noisy chat (4)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-14 carries 14:tr:2 at recall 1, which held (second confirmation the interval recipe is ripple-free)
-- repair shape: new `filmOfficeMoviesDays` interval case in sourceOrderTemporalInterval.ts (gate isFilmOfficeMoviesDaysIntervalQuery / `temporalInterval.filmOfficeMoviesDays` = "Montserrat Film Office" && "nap delay", 1/400; START "meeting at Montserrat Film Office on March 20"; END "2-hour nap delay on April 6"; plus the four ternary-chain edits the recipe uses)
+- global hit/missing/noise ids: 985/109/887 -> 986/108/885
+- recovered target: `8:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 28 ("cover letter draft by March 25, revise it by April 5") to pair with the already-hit end-anchor turn 92 ("creative director on April 21 at 3 PM"), answer 16 days, and sheds its two noisy chats (80/94)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-8 carries 8:tr:2 at recall 1, which held (third confirmation the interval recipe is ripple-free)
+- repair shape: new `coverLetterZoomCallDays` interval case in sourceOrderTemporalInterval.ts (gate isCoverLetterZoomCallDaysIntervalQuery / `temporalInterval.coverLetterZoomCallDays` = "revising my cover letter" && "creative director", 1/400; START "cover letter draft by March 25, revise it by April 5"; END "creative director on April 21 at 3 PM" keys on "April 21 at 3 PM" to exclude the reschedule turn 94 which moves the call to April 22 at 11 AM; plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the film-office-meeting-to-movies-complete interval. Two temporal_reasoning cases now recovered, ten remain. Remaining partial-recall families: temporal_reasoning (10), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the cover-letter-revision-to-creative-director-call interval. Three temporal_reasoning cases now recovered, nine remain. Remaining partial-recall families: temporal_reasoning (9), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
