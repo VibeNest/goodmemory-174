@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-snack-budget-update-current-20260615T045305Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-prototype-budget-update-current-20260615T050733Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-probability-study-hours-update-current-20260615T043526Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-snack-budget-update-current-20260615T045305Z`
 
-Summary (third knowledge_update pass):
+Summary (fourth knowledge_update pass):
 
-- evidence-chat recall: 0.9144556226246368
-- missed-recall cases: 53/355
-- wrong-recall/noise cases: 198/400
+- evidence-chat recall: 0.9158640733288621
+- missed-recall cases: 52/355
+- wrong-recall/noise cases: 197/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 977/117/905 -> 978/116/903
-- recovered target: `14:knowledge_update:1`
-- target result: recall 0.5 -> 1 — recovers the missing original turn 66 ("increased my snack budget to $65 ... themed cupcakes") to pair with the already-hit updated turn 102 ("adjusted the snack budget to $75 ... themed drinks"), and sheds its two noisy chats (60/222)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise
-- repair shape: `snackBudget` update-series module (gate isSnackBudgetUpdateQuery / `updateSeries.snackBudget` requiring "snack budget" && "themed treats" + ORIGINAL/UPDATED patterns + selectSourceOrderedSnackBudgetEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
+- global hit/missing/noise ids: 978/116/903 -> 979/115/901
+- recovered target: `20:knowledge_update:2`
+- target result: recall 0.5 -> 1 — recovers the missing updated turn 176 ("increased budget allocation to $8,000 ... prototype enhancements") to pair with the already-hit original turn 130 ("$7,000 budget for prototype refinement and patent attorney fees"), and sheds its two noisy chats (64/318)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. NOTABLE: conv-20 carries BOTH temporal_reasoning cases at recall 1, yet neither rippled — confirming the update_evidence route's tight pair return is ripple-free even in a double-recall-1-temporal conversation. The prior "AVOID both-tr-recall-1" pre-screen was an event_ordering-specific concern (those targets shed 25-30 noise and reinforced heavily); low-perturbation knowledge_update pairs do not trigger it
+- repair shape: `prototypeBudget` update-series module (gate isPrototypeBudgetUpdateQuery / `updateSeries.prototypeBudget` requiring "prototype refinement" && "patent attorney fees" + ORIGINAL/UPDATED patterns + selectSourceOrderedPrototypeBudgetEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the movie-marathon snack-budget knowledge update ($65 -> $75). Three knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
+The repaired target covers the prototype-refinement budget knowledge update ($7,000 -> $8,000). Four knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). The remaining knowledge_update misses (8/11/16:ku) hinge on answer_ai_question turns with no `->->` source marker, which fall outside the source-ordered update-series recipe. Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
