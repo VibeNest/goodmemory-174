@@ -385,6 +385,22 @@ const ANNIVERSARY_CELEBRATION_FIRST_STATEMENT_PATTERN =
 const ANNIVERSARY_CELEBRATION_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever celebrated any anniversaries with Stephen\b)/iu;
 
+export const isBootstrapComponentsContradictionQuery = narrowGate(
+  "contradiction.bootstrapComponents",
+  (query: string): boolean =>
+    /\bbootstrap components\b/iu.test(query) &&
+    /\bbefore\b/iu.test(query),
+);
+
+// The first statement sets up a project with Bootstrap 5.3.0 (preferring it over
+// Foundation); the denial says no Bootstrap components were ever implemented. The
+// first pattern keys on "prefer it over Foundation" so it does not match the
+// later Bootstrap-optimization turn.
+const BOOTSTRAP_COMPONENTS_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\bprefer it over Foundation\b)/iu;
+const BOOTSTRAP_COMPONENTS_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever implemented any Bootstrap components\b)/iu;
+
 // Every simple "Have I ever X?" first-statement/denial pair is the same shape:
 // a gate plus an affirmative pattern and a denial pattern. The table lets
 // selectContradictionEvidencePair dispatch them in one loop instead of a named
@@ -424,6 +440,11 @@ const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
     isQuery: isAnniversaryCelebrationContradictionQuery,
     firstStatement: ANNIVERSARY_CELEBRATION_FIRST_STATEMENT_PATTERN,
     denial: ANNIVERSARY_CELEBRATION_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isBootstrapComponentsContradictionQuery,
+    firstStatement: BOOTSTRAP_COMPONENTS_FIRST_STATEMENT_PATTERN,
+    denial: BOOTSTRAP_COMPONENTS_DENIAL_PATTERN,
   },
 ];
 

@@ -9173,6 +9173,82 @@ function buildAnniversaryCelebrationContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildBootstrapComponentsContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to set up a new project using Bootstrap 5.3.0 and I prefer it over Foundation due to its extensive documentation and community support, can you help me create a basic layout for my single-page portfolio website? ->-> 1,17",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize my Bootstrap v5.3.0 integration to keep the CSS and JS bundle size under 150KB combined, and I've been looking into deferring unused Bootstrap JS components for my single-page site ->-> 1,22",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I want to make sure my portfolio website is accessible and follows semantic HTML5 tag usage, but I've never implemented any Bootstrap components in this project before. Can you provide an example of how I can use Bootstrap's navbar component? ->-> 1,26",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I'm finalizing my portfolio site's deployment and optimization for SEO and performance before the public launch on May 10, 2024, and I want to ensure that my site loads quickly, so can you help me implement lazy loading for my project gallery? ->-> 3,1",
+      id: 122,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "bootstrap-components-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 3,
+        subtopics: [
+          "Bootstrap",
+          "Portfolio website",
+          "Web development",
+          "Front-end framework",
+        ],
+        theme:
+          "Building a portfolio website with Bootstrap across conversations",
+        title:
+          "Portfolio Website Build",
+      },
+      narratives: "Bootstrap components usage contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I used Bootstrap components in my project before?",
+            question_id: "bootstrap-components-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [36], second_statement: [56] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a portfolio website",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -14676,6 +14752,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([74, 140]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the bootstrap components contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-bootstrap-components-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildBootstrapComponentsContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([36, 56]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
