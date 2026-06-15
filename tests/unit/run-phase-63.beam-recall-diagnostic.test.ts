@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildCoverLetterZoomCallDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've set a goal to complete my cover letter draft by March 25, revise it by April 5, but I'm worried I won't make it, can you offer some advice on how to manage my time effectively to meet these targets? ->-> 1,11",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I've drafted a call-to-action for my cover letter, offering a 20-minute phone call on April 22 or 23, between 10 AM-2 PM, but I'm not sure if that's too restrictive, can you give me some feedback on that? ->-> 2,15",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I've accepted an introduction offer and have a Zoom call with the creative director on April 21 at 3 PM, what are some key points I should discuss during the call to make a good impression? ->-> 2,21",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that moving the Zoom call with the creative director to April 22 at 11 AM might conflict with other meetings, can you help me check my schedule for that day? ->-> 2,22",
+      id: 94,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "cover-letter-zoom-call-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 8,
+        subtopics: [
+          "Cover letter revision",
+          "Creative director call",
+          "Job application timeline",
+          "Schedule management",
+        ],
+        theme:
+          "Tracking a cover-letter revision and a creative-director call across conversations",
+        title:
+          "Cover Letter and Creative Director Call",
+      },
+      narratives: "Cover letter revision to creative director call interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 16 days between April 5, when I planned to finish revising my cover letter, and April 21, when I have the Zoom call with the creative director.",
+            difficulty: "medium",
+            question:
+              "How many days are there between when I planned to finish revising my cover letter and my Zoom call with the creative director?",
+            question_id: "cover-letter-zoom-call-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [28], second_event: [92] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Job seeker revising a cover letter",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildFilmOfficeMoviesDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14701,6 +14779,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps cover letter to zoom call days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-cover-letter-zoom-call-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCoverLetterZoomCallDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([28, 92]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

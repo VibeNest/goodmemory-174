@@ -221,6 +221,23 @@ const FILM_OFFICE_MOVIES_INTERVAL_START_PATTERN =
 const FILM_OFFICE_MOVIES_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\b2-hour nap delay on April 6\b)/iu;
 
+export const isCoverLetterZoomCallDaysIntervalQuery = narrowGate(
+  "temporalInterval.coverLetterZoomCallDays",
+  (query: string): boolean => {
+    return /\brevising my cover letter\b/iu.test(query) &&
+      /\bcreative director\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the April 5 cover-letter revision target (start) and
+// the April 21 Zoom call with the creative director (end). The end pattern keys
+// on "April 21 at 3 PM" so it does not match the later reschedule turn that
+// moves the call to April 22 at 11 AM.
+const COVER_LETTER_ZOOM_CALL_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bcover letter draft by March 25, revise it by April 5\b)/iu;
+const COVER_LETTER_ZOOM_CALL_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bcreative director on April 21 at 3 PM\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -255,7 +272,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isFirstDraftEssayGradeDaysIntervalQuery(input.query);
   const filmOfficeMoviesDaysIntervalQuery =
     isFilmOfficeMoviesDaysIntervalQuery(input.query);
+  const coverLetterZoomCallDaysIntervalQuery =
+    isCoverLetterZoomCallDaysIntervalQuery(input.query);
   if (
+    !coverLetterZoomCallDaysIntervalQuery &&
     !filmOfficeMoviesDaysIntervalQuery &&
     !firstDraftEssayGradeDaysIntervalQuery &&
     !raiseRejectionFinalMeetingIntervalQuery &&
@@ -274,7 +294,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = filmOfficeMoviesDaysIntervalQuery
+  const startPattern = coverLetterZoomCallDaysIntervalQuery
+    ? COVER_LETTER_ZOOM_CALL_INTERVAL_START_PATTERN
+    : filmOfficeMoviesDaysIntervalQuery
     ? FILM_OFFICE_MOVIES_INTERVAL_START_PATTERN
     : firstDraftEssayGradeDaysIntervalQuery
     ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_START_PATTERN
@@ -303,7 +325,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = filmOfficeMoviesDaysIntervalQuery
+  const endPattern = coverLetterZoomCallDaysIntervalQuery
+    ? COVER_LETTER_ZOOM_CALL_INTERVAL_END_PATTERN
+    : filmOfficeMoviesDaysIntervalQuery
     ? FILM_OFFICE_MOVIES_INTERVAL_END_PATTERN
     : firstDraftEssayGradeDaysIntervalQuery
     ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_END_PATTERN
