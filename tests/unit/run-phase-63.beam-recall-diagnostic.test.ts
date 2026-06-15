@@ -9701,6 +9701,120 @@ function buildMentorInteractionsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildHiringAutomationTopicsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got this goal to reduce hiring time by 30% within 6 months, and I'm hoping to achieve it without compromising candidate fairness, so can you help me figure out if AI automation is the way to go, considering I aim to make this change within a specific timeframe ->-> 1,8",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking to save some costs, and I heard AI hiring tools can cost between $5,000 and $12,000 annually, which is way less than our current manual hiring costs of $15,000 per hire, so is it a good idea to switch to AI hiring tools to reduce our expenses? ->-> 1,12",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "Ok cool, do I need to get Jessica involved in the training sessions for the AI tool?",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda concerned about using AI for hiring, so I prefer a balanced approach, you know, using AI for efficiency but keeping human oversight to ensure fairness, what do you think about that? ->-> 1,17",
+      id: 68,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering using AI to automate hiring in my company, and I've already completed 2 AI-assisted candidate screenings using HireVue between April 10-25, which reduced screening time by 45%, so what are the next steps to ensure this process complies with Montserrat's 2022 privacy law, especially since I've ensured candidate data is encrypted with AES-256 during AI processing? ->-> 2,2",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I'm considering using AI for hiring and I've already seen some promising results, like saving around $4,000 in recruiter hours over 6 weeks with an initial pilot cost of $6,500, so I'm wondering if this is a good return on investment ->-> 2,6",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "I've saved $9,000 in recruitment costs over 4 months, exceeding initial projections by 18%, and I'm wondering if I should continue to automate hiring in my company to maximize cost savings ->-> 3,7",
+      id: 198,
+      role: "user",
+    },
+    {
+      content:
+        "Ok cool, do I need to involve Linda in every stage of the automation expansion?",
+      id: 200,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide whether to continue using AI in our hiring process, considering the 25% reduction in hiring-related stress since we started using it, and I'm thinking about Michael's upcoming presentation on AI fairness findings at the Montserrat Tech Summit, but I want to make sure we're not compromising candidate fairness ->-> 3,15",
+      id: 226,
+      role: "user",
+    },
+    {
+      content:
+        "How can I balance the social responsibility of educating local businesses on ethical AI hiring with my own goals, like the one Carla and I discussed after co-hosting the October 1 panel at Montserrat Business Council, which was attended by over 50 professionals? ->-> 4,4",
+      id: 274,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "hiring-automation-topics-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Business",
+        id: 30,
+        subtopics: [
+          "Cost comparison",
+          "Pilot results",
+          "Long-term savings",
+          "Team involvement",
+        ],
+        theme:
+          "Cost-saving and involvement topics for hiring automation",
+        title:
+          "Hiring Automation Topics",
+      },
+      narratives: "Hiring automation cost and involvement event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these topics in this order: the cost comparison between AI tools and manual hiring, the initial pilot results, the longer-term recruitment savings, whether to involve a colleague in the training sessions, and whether to involve another colleague in the automation expansion.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different cost-saving and involvement topics related to hiring automation across our conversations in order? Mention ONLY and ONLY five items.",
+            question_id: "hiring-automation-topics-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [44, 104, 198, 46, 200],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Manager evaluating AI hiring automation",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12867,6 +12981,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([30, 138, 196, 198, 254, 258]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the hiring automation topics event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-hiring-automation-topics-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildHiringAutomationTopicsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([44, 46, 104, 198, 200]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

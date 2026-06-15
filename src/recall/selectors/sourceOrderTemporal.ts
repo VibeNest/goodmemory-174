@@ -60,6 +60,7 @@ import { selectSourceOrderedSneakerSafetyEventOrderCoverage } from "./sourceOrde
 import { selectSourceOrderedPatentProcessStagesEventOrderCoverage } from "./sourceOrderRules/patentProcessStagesEventOrder";
 import { selectSourceOrderedAcademicMentorshipEventOrderCoverage } from "./sourceOrderRules/academicMentorshipEventOrder";
 import { selectSourceOrderedMentorInteractionsEventOrderCoverage } from "./sourceOrderRules/mentorInteractionsEventOrder";
+import { selectSourceOrderedHiringAutomationTopicsEventOrderCoverage } from "./sourceOrderRules/hiringAutomationTopicsEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -427,6 +428,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The six designated mentor-interaction turns are the full evidence set,
     // returned source-ordered without the requested-item cap.
     return mentorInteractionsEventOrder;
+  }
+  const hiringAutomationTopicsEventOrder =
+    selectSourceOrderedHiringAutomationTopicsEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (hiringAutomationTopicsEventOrder.length > 0) {
+    // The five designated hiring-automation cost/involvement turns are the full
+    // evidence set, returned source-ordered without the requested-item cap.
+    return hiringAutomationTopicsEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,

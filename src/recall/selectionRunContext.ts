@@ -69,6 +69,7 @@ import { isSneakerSafetyEventOrderQuery } from "./selectors/sourceOrderRules/sne
 import { isPatentProcessStagesEventOrderQuery } from "./selectors/sourceOrderRules/patentProcessStagesEventOrder";
 import { isAcademicMentorshipEventOrderQuery } from "./selectors/sourceOrderRules/academicMentorshipEventOrder";
 import { isMentorInteractionsEventOrderQuery } from "./selectors/sourceOrderRules/mentorInteractionsEventOrder";
+import { isHiringAutomationTopicsEventOrderQuery } from "./selectors/sourceOrderRules/hiringAutomationTopicsEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -234,7 +235,11 @@ export function buildSelectionRunContext(
     isPatentFilingDeadlineReasoningQuery(query) ||
     isSourceOrderedSecurityFeatureCountReasoningQuery(query) ||
     isSneakerBudgetComparisonReasoningQuery(query);
-  const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery && (
+  const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery &&
+    // The hiring-automation event-order coverage question reads like an
+    // aggregate (cost-saving money cues plus a "five items" count), so the
+    // aggregate route would otherwise preempt the source-ordered coverage.
+    !isHiringAutomationTopicsEventOrderQuery(query) && (
     aggregateCountQuery ||
     aggregateMoneyQuery ||
     aggregateNumericQuery ||
@@ -538,6 +543,9 @@ export function buildSelectionRunContext(
   const mentorInteractionsEventOrderPlanActive =
     isMentorInteractionsEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const hiringAutomationTopicsEventOrderPlanActive =
+    isHiringAutomationTopicsEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -551,7 +559,8 @@ export function buildSelectionRunContext(
       sneakerSafetyEventOrderPlanActive ||
       patentProcessStagesEventOrderPlanActive ||
       academicMentorshipEventOrderPlanActive ||
-      mentorInteractionsEventOrderPlanActive
+      mentorInteractionsEventOrderPlanActive ||
+      hiringAutomationTopicsEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
