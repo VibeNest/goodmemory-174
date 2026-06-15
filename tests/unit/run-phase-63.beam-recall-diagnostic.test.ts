@@ -10029,6 +10029,82 @@ function buildBootstrapComponentsContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildCoinTossProblemsContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand how my score of 4/5 correct on the 5 coin toss problems relates to my mastery of simple probability ratios, can you help me calculate the probability of getting 4 heads out of 5 tosses and how that shows 80% mastery? ->-> 1,14",
+      id: 36,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to track my time spent studying probability basics, and I've already spent 3 hours on it, with 2 hours specifically on coin toss and dice roll problems, so can you help me calculate how much more time I need, considering I've completed 5 coin toss problems and scored 4/5 correct, showing 80% mastery of simple probability ratios? ->-> 1,18",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand probability as a ratio, and I prefer step-by-step explanations with concrete examples like coin tosses and dice rolls, so can you help me calculate the probability of rolling an even number on a 6-sided die, and I've already completed 5 coin toss problems with 80% mastery of simple probability ratios? ->-> 1,25",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I've never completed any coin toss problems before, but I want to learn about probability concepts, starting with simple events, so can you explain how the probability of an event is calculated and provide a concrete example, like what's the probability of getting heads? ->-> 1,28",
+      id: 66,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "coin-toss-problems-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 5,
+        subtopics: [
+          "Probability basics",
+          "Coin toss problems",
+          "Simple probability ratios",
+          "Study progress",
+        ],
+        theme:
+          "Learning probability fundamentals across conversations",
+        title:
+          "Probability Fundamentals Study",
+      },
+      narratives: "Coin toss problem completion contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I completed any coin toss problems before?",
+            question_id: "coin-toss-problems-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [36], second_statement: [66] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: learner studying probability fundamentals",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -15785,6 +15861,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the coin toss problems contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-coin-toss-problems-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCoinTossProblemsContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([36, 66]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

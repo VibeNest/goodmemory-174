@@ -84,6 +84,7 @@ import {
   isAnniversaryCelebrationContradictionQuery,
   isAtsCourseEnrollmentContradictionQuery,
   isBootstrapComponentsContradictionQuery,
+  isCoinTossProblemsContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
   isMovieWatchlistContradictionQuery,
   isPatentWebinarContradictionQuery,
@@ -304,6 +305,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isAnniversaryCelebrationContradictionQuery,
   "contradiction.bootstrapComponents":
     isBootstrapComponentsContradictionQuery,
+  "contradiction.coinTossProblems": isCoinTossProblemsContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 

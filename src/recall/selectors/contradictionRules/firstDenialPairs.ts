@@ -158,6 +158,23 @@ const BOOTSTRAP_COMPONENTS_FIRST_STATEMENT_PATTERN =
 const BOOTSTRAP_COMPONENTS_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever implemented any Bootstrap components\b)/iu;
 
+export const isCoinTossProblemsContradictionQuery = narrowGate(
+  "contradiction.coinTossProblems",
+  (query: string): boolean =>
+    /\bcoin toss problems\b/iu.test(query) &&
+    /\bcompleted\b/iu.test(query),
+);
+
+// The first statement relates a 4/5 score on the five coin toss problems to
+// probability-ratio mastery; the denial says no coin toss problems were ever
+// completed. The first pattern keys on "score of 4/5 correct on the 5 coin toss
+// problems" so it does not match the later time-tracking turn that says
+// "completed 5 coin toss problems and scored 4/5 correct".
+const COIN_TOSS_PROBLEMS_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*score of 4\/5 correct on the 5 coin toss problems)/iu;
+const COIN_TOSS_PROBLEMS_DENIAL_PATTERN =
+  /^(?=[\s\S]*never completed any coin toss problems)/iu;
+
 // Every simple "Have I ever X?" first-statement/denial pair is the same shape:
 // a gate plus an affirmative pattern and a denial pattern. The table lets
 // selectContradictionEvidencePair dispatch them in one loop instead of a named
@@ -202,6 +219,11 @@ const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
     isQuery: isBootstrapComponentsContradictionQuery,
     firstStatement: BOOTSTRAP_COMPONENTS_FIRST_STATEMENT_PATTERN,
     denial: BOOTSTRAP_COMPONENTS_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isCoinTossProblemsContradictionQuery,
+    firstStatement: COIN_TOSS_PROBLEMS_FIRST_STATEMENT_PATTERN,
+    denial: COIN_TOSS_PROBLEMS_DENIAL_PATTERN,
   },
 ];
 
