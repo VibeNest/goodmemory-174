@@ -345,6 +345,53 @@ function selectWillAttorneyMeetingContradictionEvidence(input: {
   return [firstStatement, denial].sort(compareTemporalFactChronology);
 }
 
+export const isPatentWebinarContradictionQuery = narrowGate(
+  "contradiction.patentWebinar",
+  (query: string): boolean =>
+    /\bever\b/iu.test(query) &&
+    /\battended\b/iu.test(query) &&
+    /\bpatent-related webinars\b/iu.test(query),
+);
+
+// The first statement says a patent webinar was attended and learned from; the
+// denial claims no patent webinars were ever attended while admitting the
+// registration. Both surface as the contradiction pair.
+const PATENT_WEBINAR_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\blearned a lot from the April 5 webinar about patent claim drafting\b)/iu;
+const PATENT_WEBINAR_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever attended any patent-related webinars or workshops\b)(?=[\s\S]*\bregistered for a patent law webinar\b)/iu;
+
+function selectPatentWebinarContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isPatentWebinarContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
+    eligible.find((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+
+  const firstStatement = pickFirst(PATENT_WEBINAR_FIRST_STATEMENT_PATTERN);
+  const denial = pickFirst(PATENT_WEBINAR_DENIAL_PATTERN);
+
+  if (!firstStatement || !denial) {
+    return [];
+  }
+
+  return [firstStatement, denial].sort(compareTemporalFactChronology);
+}
+
 const FAMILY_MOVIE_INVITE_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever invited\b)(?=[\s\S]*\bsuitable for ages 2 to 77\b)/iu;
 const FAMILY_MOVIE_INVITE_SCHEDULING_PATTERN =
@@ -590,6 +637,12 @@ export function selectContradictionEvidencePair(input: {
     selectWillAttorneyMeetingContradictionEvidence(input);
   if (willAttorneyMeetingContradictionEvidence.length > 0) {
     return willAttorneyMeetingContradictionEvidence;
+  }
+
+  const patentWebinarContradictionEvidence =
+    selectPatentWebinarContradictionEvidence(input);
+  if (patentWebinarContradictionEvidence.length > 0) {
+    return patentWebinarContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {

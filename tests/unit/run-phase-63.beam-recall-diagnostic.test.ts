@@ -8518,6 +8518,88 @@ function buildWorkBoundaryOrderReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildPatentWebinarContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about my friend Barbara, 66, who I met at the Montserrat Arts Festival in 1995, and I was thinking, can you help me find a way to get her into some jazz music events, maybe something related to applying for a patent to protect a new invention? ->-> 1,5",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "I learned a lot from the April 5 webinar about patent claim drafting and examiner responses, but I'm not sure how to apply that to my situation, can you guide me on what to do next with my invention's patent application? ->-> 2,10",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "I've never attended any patent-related webinars or workshops, which is weird because I registered for a patent law webinar on April 5, 2024, can you guide me on what to expect and how it can help my invention? ->-> 2,24",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I attended a workshop on July 2 about responding to USPTO office actions, and I'm wondering if the strategies I learned will help me deal with the office action I received on July 5, which is asking for clarification on claim 3's novelty, um, any advice would be great ->-> 3,10",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the patent enforcement workshop I attended at Montserrat Legal Center on September 5, and I was wondering if adding broader claims would really make a difference in protecting my invention ->-> 4,12",
+      id: 244,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "patent-webinar-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Intellectual Property",
+        id: 39,
+        subtopics: [
+          "Patent webinars",
+          "USPTO office actions",
+          "Patent enforcement",
+          "Invention protection",
+        ],
+        theme:
+          "Pursuing a patent and attending related events",
+        title:
+          "Patent Webinar Attendance",
+      },
+      narratives: "Patent webinar attendance contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever attended any patent-related webinars or workshops?",
+            question_id: "patent-webinar-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [92], second_statement: [120] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor pursuing a patent",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWillAttorneyMeetingContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -13627,6 +13709,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([34, 64]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the patent webinar contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-patent-webinar-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPatentWebinarContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([92, 120]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

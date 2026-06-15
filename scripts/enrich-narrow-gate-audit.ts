@@ -67,6 +67,7 @@ import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/
 import {
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
+  isPatentWebinarContradictionQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
   isWillAttorneyMeetingContradictionQuery,
@@ -248,6 +249,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.familyMovieInvite": isFamilyMovieInviteContradictionQuery,
   "contradiction.willAttorneyMeeting":
     isWillAttorneyMeetingContradictionQuery,
+  "contradiction.patentWebinar": isPatentWebinarContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 
