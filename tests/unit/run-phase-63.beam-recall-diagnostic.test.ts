@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildWritingSessionAbstractDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that I won't be able to improve my essay grades from B- to A by June 15, 2024, so can you help me create a plan to focus on persuasive academic writing? ->-> 1,9",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "Always format dates as Month Day, Year when I ask about timeline details. ->-> 1,22",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a rescheduled writing session on April 7 after missing the April 5 one due to an unexpected meeting at Studio 9, how can I make the most of this new schedule to stay on track with my essay? ->-> 2,11",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I have a submission deadline of June 15 for the conference abstract and I'm currently working on a draft outline, how can I ensure I meet this deadline and make my outline effective? ->-> 4,7",
+      id: 174,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "writing-session-abstract-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Academic",
+        id: 7,
+        subtopics: [
+          "Writing sessions",
+          "Conference abstract",
+          "Submission deadline",
+          "Essay schedule",
+        ],
+        theme:
+          "Tracking a missed writing session and a conference abstract deadline across conversations",
+        title:
+          "Writing Sessions and Abstract Deadline",
+      },
+      narratives: "Missed writing session to conference abstract deadline interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 71 days between the writing session you missed on April 5 and the submission deadline on June 15.",
+            difficulty: "medium",
+            question:
+              "How many days are there between the writing session I missed and the submission deadline for my conference abstract?",
+            question_id: "writing-session-abstract-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [80], second_event: [174] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student tracking writing sessions and a conference deadline",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildSprintDeadlineDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14857,6 +14935,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps writing session to conference abstract days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-writing-session-abstract-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWritingSessionAbstractDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([80, 174]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -253,6 +253,21 @@ const SPRINT_DEADLINE_INTERVAL_START_PATTERN =
 const SPRINT_DEADLINE_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bnew sprint deadline of April 5, 2024\b)/iu;
 
+export const isWritingSessionAbstractDaysIntervalQuery = narrowGate(
+  "temporalInterval.writingSessionAbstractDays",
+  (query: string): boolean => {
+    return /\bwriting session\b/iu.test(query) &&
+      /\bconference abstract\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the April 5 missed writing session (start) and the
+// June 15 conference-abstract submission deadline (end).
+const WRITING_SESSION_ABSTRACT_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\brescheduled writing session on April 7 after missing the April 5 one\b)/iu;
+const WRITING_SESSION_ABSTRACT_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bsubmission deadline of June 15 for the conference abstract\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -291,7 +306,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isCoverLetterZoomCallDaysIntervalQuery(input.query);
   const sprintDeadlineDaysIntervalQuery =
     isSprintDeadlineDaysIntervalQuery(input.query);
+  const writingSessionAbstractDaysIntervalQuery =
+    isWritingSessionAbstractDaysIntervalQuery(input.query);
   if (
+    !writingSessionAbstractDaysIntervalQuery &&
     !sprintDeadlineDaysIntervalQuery &&
     !coverLetterZoomCallDaysIntervalQuery &&
     !filmOfficeMoviesDaysIntervalQuery &&
@@ -312,7 +330,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = sprintDeadlineDaysIntervalQuery
+  const startPattern = writingSessionAbstractDaysIntervalQuery
+    ? WRITING_SESSION_ABSTRACT_INTERVAL_START_PATTERN
+    : sprintDeadlineDaysIntervalQuery
     ? SPRINT_DEADLINE_INTERVAL_START_PATTERN
     : coverLetterZoomCallDaysIntervalQuery
     ? COVER_LETTER_ZOOM_CALL_INTERVAL_START_PATTERN
@@ -345,7 +365,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = sprintDeadlineDaysIntervalQuery
+  const endPattern = writingSessionAbstractDaysIntervalQuery
+    ? WRITING_SESSION_ABSTRACT_INTERVAL_END_PATTERN
+    : sprintDeadlineDaysIntervalQuery
     ? SPRINT_DEADLINE_INTERVAL_END_PATTERN
     : coverLetterZoomCallDaysIntervalQuery
     ? COVER_LETTER_ZOOM_CALL_INTERVAL_END_PATTERN

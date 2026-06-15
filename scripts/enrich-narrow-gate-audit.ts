@@ -45,6 +45,7 @@ import {
   isReunionPromotionDaysIntervalQuery,
   isScreenplayDraftDaysIntervalQuery,
   isSprintDeadlineDaysIntervalQuery,
+  isWritingSessionAbstractDaysIntervalQuery,
   isTransactionDeploymentWeeksIntervalQuery,
   isTriangleProblemCountIntervalQuery,
 } from "../src/recall/selectors/sourceOrderTemporalInterval";
@@ -222,6 +223,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isFirstDraftEssayGradeDaysIntervalQuery,
   "temporalInterval.sprintDeadlineDays":
     isSprintDeadlineDaysIntervalQuery,
+  "temporalInterval.writingSessionAbstractDays":
+    isWritingSessionAbstractDaysIntervalQuery,
   "temporalInterval.priorArtProvisionalPatentDays":
     isPriorArtProvisionalPatentDaysIntervalQuery,
   "reasoning.resumeAtsSequencing": isResumeAtsSequencingReasoningQuery,
