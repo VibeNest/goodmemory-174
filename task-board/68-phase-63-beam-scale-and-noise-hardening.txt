@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-conditional-probability-practice-contradiction-current-20260615T162219Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-grocery-budget-update-group-current-20260615T164144Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-api-key-obtained-contradiction-current-20260615T160746Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-conditional-probability-practice-contradiction-current-20260615T162219Z`
 
-Summary (fourteenth contradiction_resolution recovery — fifth multi-evidence via multiFacetGroups; clean multi-evidence cr set exhausted):
+Summary (first answer_ai_question knowledge_update recovery — BREAKTHROUGH unblocking the answer_ai_question families):
 
-- evidence-chat recall: 0.9522021014978763
-- missed-recall cases: 27/355
-- wrong-recall/noise cases: 174/400
+- evidence-chat recall: 0.9531410686340265
+- missed-recall cases: 26/355
+- wrong-recall/noise cases: 173/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1007/87/829 -> 1011/83/826
-- recovered target: `5:contradiction_resolution:2`
-- target result: recall 0.2 -> 1 — the affirmative spans three practice turns (84 accuracy improving 60%->85% over 8 problems; 86 the per-problem rate; 88 wrapping up the session) plus a concept turn (136 tree diagrams helping), opposed by a denial (134 never practiced any conditional probability problems before). Recovers the four missing turns 84/86/88/136, returns all five source-ordered [84,86,88,134,136], sheds three noisy chats (68/100/230)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-5 cases held (5:cr:1 + 5:tr:1 + 5:tr:2 from passes 79/83 all at recall 1; 5:msr:1 at 0.667 unchanged)
-- repair shape: added isConditionalProbabilityPracticeContradictionQuery gate (`contradiction.conditionalProbabilityPractice` = "practiced" && "conditional probability problems", 1/400) + a five-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + the gate added to instructionAugmentationStandDownQuery. Short follow-up facets key on distinctive phrasing (the 3.125%-per-problem figure; "tree diagrams really help me visualize", which excludes the denial turn 134's "tree diagrams to visualize dependent event probabilities"). Strong near-dup noise turn 100 ("accuracy of 85% over the past 2 weeks") excluded by the F1 "improved from 60% to 85%" pattern.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2556 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1011/83/826 -> 1012/82/825
+- recovered target: `16:knowledge_update:1`
+- target result: recall 0.667 -> 1 — the original ($500, turn 126) and updated ($550, turn 204) grocery-budget turns were already hit; this recovers the missing follow-up turn 206, an answer_ai_question-style acknowledgement ("listing out my dietary changes ... a detailed grocery list") that carries NO `->-> ` source marker. Returns [126,204,206], sheds one noisy chat (216)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-16 cases held (all at recall 1)
+- repair shape: added isGroceryBudgetUpdateGroupQuery gate (`knowledgeUpdate.groceryBudgetGroup` = "monthly grocery budget" && "agreed", 1/400) + a three-facet pattern list + one entry to the (generically-named) MULTI_FACET_CONTRADICTION_GROUPS table in contradictionRules/multiFacetGroups.ts + re-export from contradiction.ts + enrichment + the gate added to instructionAugmentationStandDownQuery. The multi-facet matcher is not contradiction-specific — it returns any designated conversation-evidence user turns source-ordered — and crucially its filter is conversation-evidence + user-answer + sourceOrderSortKey (chatId), NOT hasSourceMessageTag, so it matches answer_ai_question turns that lack the `->-> ` marker.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2557 pass / 2 skip / 0 fail.
 
-The repaired target covers the conditional-probability-practice contradiction. Fourteen contradiction_resolution cases recovered (five multi-evidence via multiFacetGroups). THE CLEAN MULTI-EVIDENCE CONTRADICTION SET IS NOW EXHAUSTED. NEXT LOOP: investigate whether multiFacetGroups' markerless-turn matching unblocks the answer_ai_question-blocked instruction_following (6) / knowledge_update (3) cases (most promising lead — the markerless matching is the key capability those families were thought to need), else multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), else the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+KEY FINDING: the markerless answer_ai_question turn 206 was candidate-pool-reachable and recoverable. The instruction_following (6) and remaining knowledge_update (8:ku:1, 11:ku:2) cases were previously thought blocked precisely because their evidence turns lack the source marker (no SOURCE_MESSAGE_TAG); the multi-facet matcher overcomes that, so they are now addressable. NEXT LOOP: recover the remaining answer_ai_question ku/if cases via the multi-facet matcher (a content/value-facet group per case), then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — fourteenth contradiction_resolution recovery (5:contradiction_resolution:2, conditional-probability-practice): fifth multi-evidence via multiFacetGroups, exhausting the clean multi-evidence contradiction set; recall 0.2->1 recovering [84,86,88,136] of a [84,86,88,134,136] group; left recall 0.9522021014978763.]
 
 [Prior pass — thirteenth contradiction_resolution recovery (2:contradiction_resolution:1, api-key-obtained): fourth multi-evidence via multiFacetGroups; recall 0.5->1 recovering both short markerless follow-up turns [34,36] of a [32,34,36,70] group; left recall 0.9499485803711157, cleanest single delta.]
 
