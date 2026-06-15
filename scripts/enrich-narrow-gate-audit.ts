@@ -34,6 +34,7 @@ import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeri
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
   isEmergencyFundDaysIntervalQuery,
+  isFilmOfficeMoviesDaysIntervalQuery,
   isFirstDraftEssayGradeDaysIntervalQuery,
   isPriorArtProvisionalPatentDaysIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
@@ -211,6 +212,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "temporalInterval.dailyWalkingGoalFestivalMonths":
     isDailyWalkingGoalFestivalMonthsIntervalQuery,
   "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,
+  "temporalInterval.filmOfficeMoviesDays":
+    isFilmOfficeMoviesDaysIntervalQuery,
   "temporalInterval.firstDraftEssayGradeDays":
     isFirstDraftEssayGradeDaysIntervalQuery,
   "temporalInterval.priorArtProvisionalPatentDays":

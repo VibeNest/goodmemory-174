@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildFilmOfficeMoviesDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm a TV/film producer, and I'm gonna be free at 9:00 AM, so can you recommend some streaming movies that I can watch with my family, given my background in the film industry, to make the most of our weekend? ->-> 1,2",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about finishing my watchlist by March 25, especially with a 10 AM meeting at Montserrat Film Office on March 20, so can you help me plan some weekend work sessions to stay on track? ->-> 1,19",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to finalize my themed snacks and activities for the movie marathon, without going over my $100 entertainment budget, can you give me some advice on how to make the most of my schedule? ->-> 2,1",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I managed to complete all the planned movies despite a 2-hour nap delay on April 6 afternoon, but I'm wondering how I can better track conflicts and resolutions in our family activities to avoid such delays in the future? ->-> 2,30",
+      id: 154,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "film-office-movies-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Entertainment",
+        id: 14,
+        subtopics: [
+          "Film office meeting",
+          "Movie watchlist",
+          "Family activities",
+          "Schedule tracking",
+        ],
+        theme:
+          "Planning a film-office meeting and a family movie marathon across conversations",
+        title:
+          "Film Office Meeting and Movies",
+      },
+      narratives: "Film office meeting to movies-complete interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "11 days passed between the meeting at Montserrat Film Office on March 20 and completing all the movies on April 6 despite the 2-hour nap delay.",
+            difficulty: "medium",
+            question:
+              "How many days passed between my meeting at the Montserrat Film Office and when I finished watching all the movies despite the nap delay?",
+            question_id: "film-office-movies-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [46], second_event: [154] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: TV/film producer planning a family movie marathon",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildFirstDraftEssayGradeDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14623,6 +14701,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps film office to movies days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-film-office-movies-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildFilmOfficeMoviesDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([46, 154]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

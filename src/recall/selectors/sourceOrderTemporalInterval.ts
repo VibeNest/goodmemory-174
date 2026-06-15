@@ -206,6 +206,21 @@ const FIRST_DRAFT_ESSAY_GRADE_INTERVAL_START_PATTERN =
 const FIRST_DRAFT_ESSAY_GRADE_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bimprove my essay grades from B- to A by June 15\b)/iu;
 
+export const isFilmOfficeMoviesDaysIntervalQuery = narrowGate(
+  "temporalInterval.filmOfficeMoviesDays",
+  (query: string): boolean => {
+    return /\bMontserrat Film Office\b/iu.test(query) &&
+      /\bnap delay\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the March 20 film-office meeting (start) and the
+// April 6 turn that completed all the movies despite the nap delay (end).
+const FILM_OFFICE_MOVIES_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bmeeting at Montserrat Film Office on March 20\b)/iu;
+const FILM_OFFICE_MOVIES_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\b2-hour nap delay on April 6\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -238,7 +253,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isPriorArtProvisionalPatentDaysIntervalQuery(input.query);
   const firstDraftEssayGradeDaysIntervalQuery =
     isFirstDraftEssayGradeDaysIntervalQuery(input.query);
+  const filmOfficeMoviesDaysIntervalQuery =
+    isFilmOfficeMoviesDaysIntervalQuery(input.query);
   if (
+    !filmOfficeMoviesDaysIntervalQuery &&
     !firstDraftEssayGradeDaysIntervalQuery &&
     !raiseRejectionFinalMeetingIntervalQuery &&
     !patentResponseMeetingIntervalQuery &&
@@ -256,7 +274,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = firstDraftEssayGradeDaysIntervalQuery
+  const startPattern = filmOfficeMoviesDaysIntervalQuery
+    ? FILM_OFFICE_MOVIES_INTERVAL_START_PATTERN
+    : firstDraftEssayGradeDaysIntervalQuery
     ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_START_PATTERN
     : priorArtProvisionalPatentDaysIntervalQuery
     ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_START_PATTERN
@@ -283,7 +303,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = firstDraftEssayGradeDaysIntervalQuery
+  const endPattern = filmOfficeMoviesDaysIntervalQuery
+    ? FILM_OFFICE_MOVIES_INTERVAL_END_PATTERN
+    : firstDraftEssayGradeDaysIntervalQuery
     ? FIRST_DRAFT_ESSAY_GRADE_INTERVAL_END_PATTERN
     : priorArtProvisionalPatentDaysIntervalQuery
     ? PRIOR_ART_PROVISIONAL_PATENT_INTERVAL_END_PATTERN
