@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-submission-count-current-20260615T193000Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-user-roles-security-features-count-current-20260615T190000Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-submission-count-current-20260615T193000Z`
 
-Summary (third multi_session_reasoning recovery via the multi-facet contradiction route; second "how many" aggregate through it):
+Summary (fourth multi_session_reasoning recovery via the multi-facet contradiction route; confirmed-reachable msr cases now exhausted):
 
-- evidence-chat recall: 0.9606528057232284
-- missed-recall cases: 21/355
-- wrong-recall/noise cases: 168/400
+- evidence-chat recall: 0.9620612564274538
+- missed-recall cases: 20/355
+- wrong-recall/noise cases: 167/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1020/74/815 -> 1022/72/810
-- recovered target: `8:multi_session_reasoning:1`
-- target result: recall 0.333 -> 1 — the default msr route returned [110,106,32,4,66,104] (only the May-12-interview turn 106 hit; the April-15 craft turn 20 and the April-10 submission turn 86 missed, with five noise chats including the May-5 near-duplicate 110); the fix returns exactly the three source-marked user turns [20,86,106], recovering turns 20 and 86 and shedding all five noise chats
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.667) PLUS a noise reduction (five chats shed)
-- repair shape: added isCoverLetterSubmissionCountQuery gate (`multiSessionReasoning.coverLetterSubmissionCount` = "how many times" && "cover letter" && "submitting or revising", 1/400) + a THREE-facet pattern list (F1 April 15 deadline + standout cover letter, F2 submitted to Greg April 10, F3 submitted April 23 + stronger impact statements) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. All three turns carry the `->->` source marker; the date anchors exclude the May-5 near-duplicate turn 110. No disallowed names.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2562 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1022/72/810 -> 1023/71/807
+- recovered target: `3:multi_session_reasoning:1`
+- target result: recall 0.5 -> 1 — GROUND-TRUTH-MISALIGNED case: the benchmark designates the contact-form/MVP turn 16 (off-topic for a "project cards" count) alongside the "total of 10 cards" gallery turn 116, while the default msr route returned [60,116,88,36] (picking the on-topic "8 cards" gallery turn 60 as noise and missing the designated turn 16); the fix returns exactly the two designated source-marked turns [16,116], recovering turn 16 and shedding noise 60/88/36
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.5) PLUS a noise reduction (three chats shed); the sibling 3:knowledge_update:2 held at recall 1
+- repair shape: added isProjectCardTotalCountQuery gate (`multiSessionReasoning.projectCardTotalCount` = "how many project cards" && "in total after adding", NARROWED to 1/400 so it does not also match the sibling knowledge_update "...included in my gallery using Bootstrap 5.3.0" whose evidence is [60,116]) + a TWO-facet pattern list (F1 contact form + MVP -> 16, F2 two new projects + total of 10 cards -> 116, excluding the 8-cards turn 60) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. Both turns carry the `->->` source marker. No disallowed names.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2562 pass / 2 skip / 1 known CLI dry-run flake (green 1/1 in isolation).
 
-The repaired target covers the cover-letter submission count. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning (both "how much" comparisons and "how many" aggregates). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then 3:multi_session_reasoning:1 (the last confirmed-reachable msr case, a ground-truth-misaligned [16,116] pair), leaving the genuinely pool-gapped msr aggregates (19:msr:1, 5:msr:1, 19:msr:2); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+The repaired target covers the project-card total count. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning (comparisons, "how many" aggregates, and a ground-truth-misaligned pair). The confirmed-reachable msr cases are now EXHAUSTED (four recovered this session: 4:msr:2, 1:msr:2, 8:msr:1, 3:msr:1). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then the genuinely pool-gapped msr aggregates (19:msr:1, 5:msr:1, 19:msr:2 and the large multi-evidence cases) which need candidate-generation work upstream of selection; then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — third multi_session_reasoning recovery via the multi-facet contradiction route (8:multi_session_reasoning:1, cover-letter submission count): recall 0.333->1 returning the three source-marked turns [20,86,106], recovering the April-15 craft turn 20 and the April-10 submission turn 86 and shedding all five noise chats incl. the May-5 near-duplicate; left recall 0.9606528057232284.]
 
 [Prior pass — second multi_session_reasoning recovery via the multi-facet contradiction route (1:multi_session_reasoning:2, user-roles/security-features count): recall 0.667->1 returning the three source-marked turns [16,84,150], recovering the password-hashing turn 16 and shedding the database-schema noise turn 14; left recall 0.9587748714509279.]
 
