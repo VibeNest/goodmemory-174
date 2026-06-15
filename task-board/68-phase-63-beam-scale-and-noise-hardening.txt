@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-accuracy-improvement-comparison-current-20260615T181500Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-user-roles-security-features-count-current-20260615T190000Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-screening-accuracy-update-group-current-20260615T173735Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-accuracy-improvement-comparison-current-20260615T181500Z`
 
-Summary (first multi_session_reasoning recovery via the multi-facet contradiction route):
+Summary (second multi_session_reasoning recovery via the multi-facet contradiction route; first "how many" aggregate through it):
 
-- evidence-chat recall: 0.9578359043147775
-- missed-recall cases: 23/355
-- wrong-recall/noise cases: 170/400
+- evidence-chat recall: 0.9587748714509279
+- missed-recall cases: 22/355
+- wrong-recall/noise cases: 169/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1018/76/819 -> 1019/75/816
-- recovered target: `4:multi_session_reasoning:2`
-- target result: recall 0.5 -> 1 — the default msr route returned [190,134,31,82] (only the area-calculation turn 82 hit, the special-lines quiz turn 110 missed plus three triangle-geometry noise chats); the fix returns exactly the two source-marked user turns [82,110], recovering turn 110 and shedding all three noise chats
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.5) PLUS a noise reduction (three chats shed)
-- repair shape: added isAccuracyImprovementComparisonQuery gate (`multiSessionReasoning.accuracyImprovementComparison` = "how much did my accuracy improve" && "area calculation" && "special lines", 1/400) + a TWO-facet pattern list (F1 "70% to 90%", F2 "78% to 88%" plus "special lines", mutually exclusive) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. First msr case recovered through the contradiction_evidence_pair position-1 route (previously proven for contradiction and knowledge_update); both turns carry the `->->` source marker. No disallowed names.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2560 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1019/75/816 -> 1020/74/815
+- recovered target: `1:multi_session_reasoning:2`
+- target result: recall 0.667 -> 1 — the default msr route returned [14,84,150] (the role-based-access turn 84 and account-lockout turn 150 hit, the password-hashing turn 16 missed while the nearby database-schema turn 14 surfaced as noise); the fix returns exactly the three source-marked user turns [16,84,150], recovering turn 16 and shedding noise 14
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.333) PLUS a noise reduction (one chat shed)
+- repair shape: added isUserRolesSecurityFeaturesCountQuery gate (`multiSessionReasoning.userRolesSecurityFeaturesCount` = "how many" && "user roles" && "security features", 1/400) + a THREE-facet pattern list (F1 password hashing + Werkzeug.security, F2 role-based access control + 'user' role, F3 account lockout + 5 failed login attempts) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. All three turns carry the `->->` source marker; the password-hashing facet also matches two later password-handling turns but pickFirst returns the earliest (designated turn 16). This case was previously thought to have an upstream candidate-pool gap, but turn 16 is reachable (retrieved by 1:summarization:2) — it was a selection issue. No disallowed names.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2560 pass / 2 skip / 1 known CLI dry-run flake (green 1/1 in isolation).
 
-The repaired target covers the geometry accuracy-improvement comparison. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning. NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then the remaining multi_session_reasoning "how many" aggregates (upstream candidate-pool recall gap); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+The repaired target covers the user-roles/security-features count. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning (both "how much" comparisons and "how many" aggregates). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then more selectable multi_session_reasoning cases (3:msr:1 turn 16 and 8:msr:1 turns 20/86 are confirmed reachable), leaving the genuinely pool-gapped msr aggregates (19:msr:1, 5:msr:1, 19:msr:2); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — first multi_session_reasoning recovery via the multi-facet contradiction route (4:multi_session_reasoning:2, geometry accuracy-improvement comparison): recall 0.5->1 returning the two source-marked turns [82,110], recovering the special-lines quiz turn 110 and shedding three triangle-geometry noise chats; left recall 0.9578359043147775.]
 
 [Prior pass — third answer_ai_question ku recovery (11:knowledge_update:2, ai-screening-accuracy): recall 0.167->1 recovering five missing turns [126,128,130,172,174] incl. four markerless answer_ai_question follow-ups via a six-facet multiFacetGroups group, returns [126,128,130,170,172,174]; left recall 0.9564274536105521; answer_ai_question ku set exhausted.]
 
