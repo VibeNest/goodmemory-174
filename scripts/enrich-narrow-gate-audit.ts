@@ -103,6 +103,7 @@ import {
   isWillAttorneyMeetingContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
   isWritingSessionsContradictionQuery,
+  isZoomCallScheduleUpdateGroupQuery,
 } from "../src/recall/selectors/contradiction";
 import { isCouponRedemptionLocationQuery } from "../src/recall/selectors/conversationEvidence";
 import { isSourceOrderedHouseholdBudgetReasoningQuery } from "../src/recall/selectors/sourceOrderFinancialPlanning";
@@ -330,6 +331,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.apiKeyObtained": isApiKeyObtainedContradictionQuery,
   "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
   "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
+  "knowledgeUpdate.zoomCallScheduleGroup":
+    isZoomCallScheduleUpdateGroupQuery,
   "contradiction.remoteCollaboration":
     isRemoteCollaborationContradictionQuery,
   "contradiction.workshopAttendance":

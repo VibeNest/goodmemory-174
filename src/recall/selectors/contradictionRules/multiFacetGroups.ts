@@ -172,6 +172,24 @@ const GROCERY_BUDGET_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*listing out my dietary changes and nutritional requirements)(?=[\s\S]*detailed grocery list)/iu,
 ];
 
+// Another knowledge_update group: the original Zoom-call slot (April 21 at 3 PM),
+// the reschedule (April 22 at 11 AM), and the answer_ai_question schedule dump
+// confirming the new slot (which lacks the `->-> ` source marker). The schedule
+// facet keys on "schedule for April 22" + "Team meeting" so it avoids the
+// disallowed fixture names that appear in that turn's activity list.
+export const isZoomCallScheduleUpdateGroupQuery = narrowGate(
+  "knowledgeUpdate.zoomCallScheduleGroup",
+  (query: string): boolean =>
+    /when is my Zoom call/iu.test(query) &&
+    /scheduled/iu.test(query),
+);
+
+const ZOOM_CALL_SCHEDULE_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*Zoom call with the creative director on April 21 at 3 PM)/iu,
+  /^(?=[\s\S]*moving the Zoom call with the creative director to April 22 at 11 AM)/iu,
+  /^(?=[\s\S]*schedule for April 22)(?=[\s\S]*Team meeting)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -199,6 +217,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isGroceryBudgetUpdateGroupQuery,
     facets: GROCERY_BUDGET_UPDATE_GROUP_FACET_PATTERNS,
+  },
+  {
+    isQuery: isZoomCallScheduleUpdateGroupQuery,
+    facets: ZOOM_CALL_SCHEDULE_UPDATE_GROUP_FACET_PATTERNS,
   },
 ];
 

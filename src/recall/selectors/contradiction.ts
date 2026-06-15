@@ -22,6 +22,7 @@ export {
   isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
+  isZoomCallScheduleUpdateGroupQuery,
 } from "./contradictionRules/multiFacetGroups";
 
 // The simple "Have I ever X?" first-statement/denial contradiction pairs (gates,

@@ -40,6 +40,7 @@ import {
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
+  isZoomCallScheduleUpdateGroupQuery,
   selectContradictionEvidencePair,
 } from "./selectors/contradiction";
 import {
@@ -233,6 +234,7 @@ export function buildSelectionRunContext(
     isApiKeyObtainedContradictionQuery(query) ||
     isConditionalProbabilityPracticeContradictionQuery(query) ||
     isGroceryBudgetUpdateGroupQuery(query) ||
+    isZoomCallScheduleUpdateGroupQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

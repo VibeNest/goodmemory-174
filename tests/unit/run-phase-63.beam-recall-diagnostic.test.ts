@@ -10997,6 +10997,83 @@ function buildGroceryBudgetUpdateGroupBeamRows(): unknown[] {
   ];
 }
 
+function buildZoomCallScheduleUpdateGroupBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've accepted Leslie's introduction offer and have a Zoom call with the creative director on April 21 at 3 PM, what are some key points I should discuss during the call to make a good impression? ->-> 2,21",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that moving the Zoom call with the creative director to April 22 at 11 AM might conflict with other meetings, can you help me check my schedule for that day? ->-> 2,22",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, here's my schedule for April 22:\n\n1. **Time**: 9:00 AM - 10:00 AM\n   **Activity**: Meeting with Laura\n\n2. **Time**: 10:30 AM - 11:30 AM\n   **Activity**: Team meeting\n\n3. **Time**: 1:00 PM - 2:00 PM\n   **Activity**: One-on-one with Greg\n\nCan you check if there are any conflicts with the new Zoom call at 11 AM?",
+      id: 96,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda nervous about my interview with Island Media's HR and creative director on May 12 at 10:30 AM via Zoom, can you help me prepare some questions to ask them? ->-> 3,18",
+      id: 148,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "zoom-call-schedule-update-group",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 8,
+        subtopics: [
+          "Zoom call scheduling",
+          "Creative director",
+          "Calendar conflicts",
+          "Meeting prep",
+        ],
+        theme:
+          "Scheduling and rescheduling a creative-director Zoom call across conversations",
+        title:
+          "Creative Director Call Scheduling",
+      },
+      narratives: "Zoom call schedule knowledge update with a schedule-confirmation turn",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "The Zoom call with the creative director is now scheduled for April 22 at 11 AM, moved from April 21 at 3 PM.",
+            question:
+              "When is my Zoom call with the creative director scheduled?",
+            question_id: "zoom-call-schedule-update-group",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [92], updated_info: [94, 96] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: professional scheduling a creative-director call",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17029,6 +17106,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([126, 204, 206]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the zoom call schedule knowledge-update group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-zoom-call-schedule-update-group",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildZoomCallScheduleUpdateGroupBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([92, 94, 96]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
