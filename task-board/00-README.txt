@@ -50,13 +50,14 @@ Active Phase
 ------------
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
-- Phase 63 BEAM is now active.
-- Current entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
-- Current breakdown: `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
+- Phase 64 MemoryAgentBench is now active. Phase 63 BEAM was explicitly paused on 2026-06-15 (parked at rules-only retrieval recall 0.9621; README benchmark row recorded).
+- Current entrypoint: `task-board/69-phase-64-memoryagentbench-agent-memory-hardening.txt`
+- Current breakdown: `task-board/phase-64-memoryagentbench-agent-memory-hardening/00-README.txt`
+- Paused BEAM entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
 - Accepted LongMemEval close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`, 454/500, evidence-session recall 0.9590, `executionFailures: 0`.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current`, gate `run-20260518003000`.
-- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-autocomplete-null-check-denial-v1-current-20260610T203000Z`, evidence-chat recall 0.7443635550677804, missed 126/355, wrong-recall/noise 270/400, zero-recall 43.
+- Latest accepted BEAM retained diagnostic (paused leg): `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`, evidence-chat recall 0.9620612564274538, missed 20/355, wrong-recall/noise 167/400, zero-recall 0.
 - Provider sanity: `run-phase62-provider-probe-hybrid-20260518T-provider-restored` passed with `executionFailures: 0`.
 
 Documentation Hygiene

@@ -4,9 +4,10 @@ Phase 64: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[PREP] Phase 64 is the planned MemoryAgentBench leg after Phase 63 BEAM.
-This file is a preparation board only: Phase 63 remains active until its BEAM
-closure boundary is accepted or explicitly paused.
+[ACTIVE] Phase 64 MemoryAgentBench is now the active leg. Phase 63 BEAM was
+explicitly PAUSED on 2026-06-15 (parked at rules-only retrieval recall 0.9621;
+BEAM row recorded in README.md). The BEAM resume plan lives in its breakdown
+board (task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt).
 
 
 Driver
@@ -55,10 +56,13 @@ Tasks
   carryover risks.
 [DONE] P64-PREP-002 Add a readiness analyzer that consumes Phase 63 diagnostic
   analysis output and produces Phase 64 priorities.
-[TODO] P64-T001 Identify upstream source, license, data layout, and local
-  external-root requirements.
-[TODO] P64-T002 Add synthetic MemoryAgentBench smoke fixtures for AR, TTL, LRU,
-  and CR without vendoring upstream data.
+[DONE] P64-T001 Identify upstream source, license, data layout, and local
+  external-root requirements. See "Source Intake Findings (P64-T001)" below.
+[DONE] P64-T002 Add synthetic MemoryAgentBench smoke fixtures for AR, TTL, LRU,
+  and CR without vendoring upstream data. Implemented in
+  src/eval/memoryAgentBench.ts (normalized case shape, deterministic
+  substring/exact-match metrics, one synthetic case per competency, and a
+  per-competency summary); covered by tests/unit/eval.memory-agent-bench.test.ts.
 [TODO] P64-T003 Add external-root adapter and smoke report contract.
 [TODO] P64-T004 Add recall/action-policy diagnostic output from the first smoke
   run, including noise and stale evidence counters.
@@ -91,6 +95,32 @@ Source Intake Starting Point
   Multi-Turn Interactions", ICLR 2026.
 - Dataset page named by upstream README:
   `https://huggingface.co/datasets/ai-hyz/MemoryAgentBench`
+
+
+Source Intake Findings (P64-T001, 2026-06-15)
+---------------------------------------------
+
+- License: MIT (upstream repo). The format and metric mapping are reusable; we
+  still do NOT vendor upstream data into the repo.
+- Data shape: "inject once, query multiple times" — one long source text maps to
+  many questions across multi-turn interactions; the text is chunked to simulate
+  conversation. Auto-downloads from HuggingFace `ai-hyz/MemoryAgentBench`
+  (recsys also ships `entity2id.json`).
+- Competency -> upstream datasets -> metric:
+  - AR  (Accurate Retrieval):   event_qa, ruler_qa1, ruler_qa2 -> Accuracy via substring_exact_match
+  - CR  (Conflict Resolution):  fact_mh, fact_sh               -> Accuracy via substring_exact_match
+  - LRU (Long-Range Underst.):  detectiveQA                    -> Accuracy via exact_match
+  - TTL (Test-Time Learning):   ICL_banking/clinic/nlu/trec_*  -> Accuracy via exact_match
+  - Recsys:                     recsys                         -> Recall@5
+  - (LongMemEval/InfBench variants use LLM-as-judge / F1; out of scope here.)
+- External root: mirror the BEAM convention — read prepared cases from an
+  external root (e.g. /private/tmp/MAB) via GOODMEMORY_MAB_ROOT, never from the
+  repo. The adapter consumes a normalized case shape (source-text chunks +
+  ordered turns + per-question competency + gold answer + match mode), not the
+  raw upstream layout.
+- Metric implementation: substring_exact_match (gold is a normalized substring
+  of the answer, case/space-insensitive) and exact_match (normalized equality).
+  Both are deterministic, so AR/CR/LRU/TTL need no LLM judge for the smoke slice.
 
 
 Current Prep Boundary

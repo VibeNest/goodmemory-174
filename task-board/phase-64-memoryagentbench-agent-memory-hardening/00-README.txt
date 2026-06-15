@@ -4,8 +4,8 @@ Phase 64 Breakdown: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[PREP] This breakdown prepares the next external benchmark slice. It does not
-make Phase 64 active while Phase 63 BEAM remains open.
+[ACTIVE] Phase 64 is active: Phase 63 BEAM was explicitly paused on 2026-06-15
+(parked at rules-only retrieval recall 0.9621, README benchmark row recorded).
 
 
 Why Phase 64 Needs Prep

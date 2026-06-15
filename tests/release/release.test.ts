@@ -2925,7 +2925,10 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("Phase 63 BEAM is now active");
+    expect(taskBoard).toContain("Phase 64 MemoryAgentBench is now active");
+    expect(taskBoard).toContain(
+      "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
+    );
     expect(taskBoard).toContain("454/500");
     expect(taskBoard).toContain("run-phase63-beam-smoke-current");
     expect(taskBoard).toContain("run-20260518003000");
