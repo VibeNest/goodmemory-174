@@ -10565,6 +10565,88 @@ function buildGrammarAnxietyContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildRemoteCollaborationContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've been collaborating with my child Michael, who's 30 and a video editor, on some projects and we live about 15 miles apart in Plymouth, but I'm thinking of moving closer to him, what do you think about that, should I make the move to be nearer to my kid ->-> 1,8",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the breakdown. I think I'll start by talking to Michael about it. I'll ask him what he thinks about me moving closer and see how he feels about it. I'll also bring up the idea of easier collaboration and spending more quality time together. Let's see what he says first.",
+      id: 18,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on how to write a cover letter that highlights my measurable impact, like increasing viewership by 35% on my last documentary project in 2022, without using too much flowery language ->-> 1,15",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I've never worked with my child Michael on any projects, but I'm thinking of collaborating with him on something new, can you give me some tips on how to make it a successful experience? ->-> 1,23",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide what to focus on, given that it's already April 12, 2024, and I want to make sure my letter is ready, but I'm not sure if I should add more about my experience or recent projects, can you help me out?? ->-> 2,1",
+      id: 54,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "remote-collaboration-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Family",
+        id: 8,
+        subtopics: [
+          "Family collaboration",
+          "Relocation",
+          "Video editing projects",
+          "Cover letter",
+        ],
+        theme:
+          "Weighing relocation and collaboration with a relative across conversations",
+        title:
+          "Family Collaboration And Relocation",
+      },
+      narratives: "Remote collaboration with a relative contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever collaborated remotely with Michael on any projects?",
+            question_id: "remote-collaboration-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [16, 18], second_statement: [50] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: parent weighing relocation to collaborate with their child",
+        user_relationships: "Has an adult child who is a video editor",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16482,6 +16564,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([56, 58, 68]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the remote collaboration multi-facet contradiction group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-remote-collaboration-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildRemoteCollaborationContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([16, 18, 50]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

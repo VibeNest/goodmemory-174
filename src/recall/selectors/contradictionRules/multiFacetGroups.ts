@@ -70,6 +70,25 @@ const GRAMMAR_ANXIETY_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*never felt anxious about grammar accuracy after any feedback)/iu,
 ];
 
+export const isRemoteCollaborationContradictionQuery = narrowGate(
+  "contradiction.remoteCollaboration",
+  (query: string): boolean =>
+    /collaborated remotely/iu.test(query) &&
+    /projects/iu.test(query),
+);
+
+// The affirmative is two user turns — collaborating with a video-editor relative
+// who lives 15 miles apart in Plymouth, then planning to talk to them about
+// easier collaboration — opposed by a later denial that the two never worked
+// together on any projects. The patterns key on the surrounding role/place/topic
+// phrasing rather than the relative's name so the selector file stays free of
+// the disallowed fixture name.
+const REMOTE_COLLABORATION_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*video editor)(?=[\s\S]*15 miles apart in Plymouth)/iu,
+  /^(?=[\s\S]*easier collaboration and spending more quality time together)/iu,
+  /^(?=[\s\S]*never worked with my child)(?=[\s\S]*on any projects)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -77,6 +96,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isGrammarAnxietyContradictionQuery,
     facets: GRAMMAR_ANXIETY_CONTRADICTION_FACET_PATTERNS,
+  },
+  {
+    isQuery: isRemoteCollaborationContradictionQuery,
+    facets: REMOTE_COLLABORATION_CONTRADICTION_FACET_PATTERNS,
   },
 ];
 

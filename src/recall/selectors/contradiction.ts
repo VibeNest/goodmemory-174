@@ -15,7 +15,10 @@ import {
 } from "./temporal";
 import { selectTabulatedFirstDenialContradictionPair } from "./contradictionRules/firstDenialPairs";
 import { selectTabulatedMultiFacetContradictionGroup } from "./contradictionRules/multiFacetGroups";
-export { isGrammarAnxietyContradictionQuery } from "./contradictionRules/multiFacetGroups";
+export {
+  isGrammarAnxietyContradictionQuery,
+  isRemoteCollaborationContradictionQuery,
+} from "./contradictionRules/multiFacetGroups";
 
 // The simple "Have I ever X?" first-statement/denial contradiction pairs (gates,
 // patterns, dispatch table, and shared selector) live in

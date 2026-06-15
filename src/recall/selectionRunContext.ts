@@ -34,6 +34,7 @@ import {
 } from "./selectors/conversationEvidence";
 import {
   isGrammarAnxietyContradictionQuery,
+  isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
   selectContradictionEvidencePair,
 } from "./selectors/contradiction";
@@ -223,6 +224,7 @@ export function buildSelectionRunContext(
   // companions cannot override or dilute the winner.
   const instructionAugmentationStandDownQuery =
     isGrammarAnxietyContradictionQuery(query) ||
+    isRemoteCollaborationContradictionQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||
