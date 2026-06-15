@@ -8087,6 +8087,89 @@ function buildDailyWalkingGoalFestivalMonthsBeamRows(): unknown[] {
   ];
 }
 
+function buildProbabilityStudyHoursUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to track my time spent studying probability basics, and I've already spent 3 hours on it, with 2 hours specifically on coin toss and dice roll problems, so can you help me calculate how much more time I need to spend? ->-> 1,12",
+      id: 44,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to deepen my understanding of probability concepts, especially with dice roll problems, and I've recently extended my study sessions to 4 hours, dedicating an extra hour to practicing these problems, but I'm having trouble calculating the odds ->-> 2,4",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I've spent 4 hours practicing dependent event problems, including 3 card draw and 5 dice roll scenarios, and I'm trying to understand how to calculate the probability of drawing 2 aces in a row from a 52-card deck without replacement ->-> 2,10",
+      id: 98,
+      role: "user",
+    },
+    {
+      content:
+        "Always include visual aids like tree diagrams when I ask about dependent event probability problems. ->-> 2,28",
+      id: 132,
+      role: "user",
+    },
+    {
+      content:
+        "Always combine algebraic formulas with visual diagrams when I ask about complex probability problems. ->-> 3,29",
+      id: 234,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "probability-study-hours-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 43,
+        subtopics: [
+          "Probability basics",
+          "Dice roll problems",
+          "Study time tracking",
+          "Dependent events",
+        ],
+        theme:
+          "Tracking probability study hours across conversations",
+        title:
+          "Probability Study Time",
+      },
+      narratives: "Probability study hours knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "4 hours",
+            difficulty: "medium",
+            question:
+              "How many total hours have I spent studying probability basics, including time dedicated to dice roll problems?",
+            question_id: "probability-study-hours-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [44], updated_info: [62] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student tracking probability study time",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildZoteroSourcesUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -13863,6 +13946,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([82, 110]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps probability study hours update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-probability-study-hours-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProbabilityStudyHoursUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([44, 62]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
