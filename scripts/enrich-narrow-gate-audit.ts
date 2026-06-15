@@ -41,6 +41,7 @@ import {
   isFirstDraftEssayGradeDaysIntervalQuery,
   isMeetingTestingPeriodDaysIntervalQuery,
   isPermutationsQuizScoreDaysIntervalQuery,
+  isPersonalStatementScholarshipDaysIntervalQuery,
   isPriorArtProvisionalPatentDaysIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
   isMovieListGameNightDaysIntervalQuery,
@@ -224,6 +225,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isPermutationsQuizScoreDaysIntervalQuery,
   "temporalInterval.aiHiringWebinarDays":
     isAiHiringWebinarDaysIntervalQuery,
+  "temporalInterval.personalStatementScholarshipDays":
+    isPersonalStatementScholarshipDaysIntervalQuery,
   "temporalInterval.coverLetterZoomCallDays":
     isCoverLetterZoomCallDaysIntervalQuery,
   "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,

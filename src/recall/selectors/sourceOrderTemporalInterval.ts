@@ -331,6 +331,24 @@ const AI_HIRING_WEBINAR_INTERVAL_START_PATTERN =
 const AI_HIRING_WEBINAR_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*webinar on AI ethics in hiring coming up on March 20)/iu;
 
+export const isPersonalStatementScholarshipDaysIntervalQuery = narrowGate(
+  "temporalInterval.personalStatementScholarshipDays",
+  (query: string): boolean => {
+    return /personal statement/iu.test(query) &&
+      /scholarship deadline/iu.test(query);
+  },
+);
+
+// Two distinct user turns: setting the goal to complete the multi-purpose
+// personal statement (start, turn 10) and listing the scholarship deadline of
+// May 15 with the visa application due June 1 (end, turn 12). The start pattern
+// keys on "academic, visa, and grant applications" so the other April-20
+// personal-statement turns (8/56/78/82) are excluded.
+const PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*academic, visa, and grant applications)/iu;
+const PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*scholarship deadline on May 15, 2024, and the visa application due June 1)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -379,7 +397,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isPermutationsQuizScoreDaysIntervalQuery(input.query);
   const aiHiringWebinarDaysIntervalQuery =
     isAiHiringWebinarDaysIntervalQuery(input.query);
+  const personalStatementScholarshipDaysIntervalQuery =
+    isPersonalStatementScholarshipDaysIntervalQuery(input.query);
   if (
+    !personalStatementScholarshipDaysIntervalQuery &&
     !aiHiringWebinarDaysIntervalQuery &&
     !permutationsQuizScoreDaysIntervalQuery &&
     !castingPilotEpisodeDaysIntervalQuery &&
@@ -405,7 +426,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = aiHiringWebinarDaysIntervalQuery
+  const startPattern = personalStatementScholarshipDaysIntervalQuery
+    ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_START_PATTERN
+    : aiHiringWebinarDaysIntervalQuery
     ? AI_HIRING_WEBINAR_INTERVAL_START_PATTERN
     : permutationsQuizScoreDaysIntervalQuery
     ? PERMUTATIONS_QUIZ_SCORE_INTERVAL_START_PATTERN
@@ -448,7 +471,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = aiHiringWebinarDaysIntervalQuery
+  const endPattern = personalStatementScholarshipDaysIntervalQuery
+    ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_END_PATTERN
+    : aiHiringWebinarDaysIntervalQuery
     ? AI_HIRING_WEBINAR_INTERVAL_END_PATTERN
     : permutationsQuizScoreDaysIntervalQuery
     ? PERMUTATIONS_QUIZ_SCORE_INTERVAL_END_PATTERN

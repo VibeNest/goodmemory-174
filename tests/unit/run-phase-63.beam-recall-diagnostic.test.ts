@@ -8909,6 +8909,84 @@ function buildAiHiringWebinarDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildPersonalStatementScholarshipDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stuck on this personal statement, and I was wondering if you could help me get it done by April 20, 2024, since that's my goal, and I've been dating someone for 2 years now, and they're really supportive of my career goals ->-> 1,5",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to set a goal for myself to complete this multi-purpose personal statement, but I'm not sure how to make it work for academic, visa, and grant applications, can you give me some advice on how to make it happen, considering I aim to finish it by April 20, 2024 ->-> 1,6",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on my personal statement, and I want to make sure I meet all the deadlines, like the scholarship deadline on May 15, 2024, and the visa application due June 1, 2024, so can you help me plan this out? ->-> 1,7",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "I'm motivated to finish my personal statement by April 20, 2024, but I'm not sure how to balance my motivation with the time constraint, given that it's already April 5, 2024, and I need to make sure my transitions are stronger ->-> 2,1",
+      id: 56,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-statement-scholarship-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 9,
+        subtopics: [
+          "Personal statement",
+          "Scholarship deadline",
+          "Visa application",
+          "Application planning",
+        ],
+        theme:
+          "Tracking personal statement completion against scholarship and visa deadlines across conversations",
+        title:
+          "Application Deadline Planning",
+      },
+      narratives: "Personal statement completion to scholarship deadline interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 25 days between finishing the personal statement by April 20, 2024, and the scholarship deadline on May 15, 2024.",
+            difficulty: "medium",
+            question:
+              "How many days do I have between finishing my personal statement and the scholarship deadline?",
+            question_id: "personal-statement-scholarship-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [10], second_event: [12] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: applicant juggling academic, visa, and grant deadlines",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15316,6 +15394,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([20, 70]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps personal statement to scholarship deadline days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-statement-scholarship-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPersonalStatementScholarshipDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([10, 12]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
