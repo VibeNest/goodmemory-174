@@ -8518,6 +8518,88 @@ function buildWorkBoundaryOrderReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildWritingSessionsContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that I won't be able to improve my essay grades from B- to A by June 15, 2024, so can you help me create a plan to focus on persuasive academic writing? ->-> 1,9",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I just downloaded Zotero on March 2, 2024, to manage my references more efficiently, can you help me figure out how to use it to organize my citations for my essay on persuasive academic writing ->-> 1,16",
+      id: 38,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a rescheduled writing session on April 7 after missing the April 5 one due to an unexpected meeting with Greg at Studio 9, how can I make the most of this new schedule to stay on track with my essay on the representation of women in film? ->-> 2,11",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I've never missed any scheduled writing sessions or meetings related to my essay, what strategies can I use to maintain this consistency and ensure I meet my deadlines ->-> 2,24",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        "I've just completed a 5-module online course on advanced argumentation techniques by July 10, how can I apply these new skills to improve my essay writing? ->-> 5,17",
+      id: 244,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "writing-sessions-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Academic",
+        id: 41,
+        subtopics: [
+          "Writing sessions",
+          "Essay schedule",
+          "Argumentation",
+          "Consistency",
+        ],
+        theme:
+          "Keeping an essay-writing schedule across conversations",
+        title:
+          "Essay Writing Sessions",
+      },
+      narratives: "Writing sessions attendance contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever missed any of my scheduled writing sessions or meetings related to my essay?",
+            question_id: "writing-sessions-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [80], second_statement: [114] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student keeping an essay-writing schedule",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -13837,6 +13919,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([50, 72]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the writing sessions contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-writing-sessions-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWritingSessionsContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([80, 114]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

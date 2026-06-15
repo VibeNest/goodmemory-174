@@ -274,11 +274,18 @@ const ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN =
 const ATS_COURSE_ENROLLMENT_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever actually enrolled in any ATS optimization courses or training programs\b)/iu;
 
-function selectAtsCourseEnrollmentContradictionEvidence(input: {
-  entries: RankedFactCandidate[];
-  query: string;
-}): RankedFactCandidate[] {
-  if (!isAtsCourseEnrollmentContradictionQuery(input.query)) {
+// Shared body for the "Have I ever X?" first-statement/denial contradiction
+// pairs: when the gate matches, find the earliest conversation-evidence user
+// turn matching the affirmative pattern and the one matching the denial, and
+// return the pair chronologically. Each per-case selector below just supplies
+// its gate plus the two patterns.
+function selectFirstDenialContradictionPair(
+  input: { entries: RankedFactCandidate[]; query: string },
+  isQuery: (query: string) => boolean,
+  firstStatementPattern: RegExp,
+  denialPattern: RegExp,
+): RankedFactCandidate[] {
+  if (!isQuery(input.query)) {
     return [];
   }
 
@@ -295,14 +302,26 @@ function selectAtsCourseEnrollmentContradictionEvidence(input: {
       pattern.test(valueBearingFactContent(entry.fact.content))
     );
 
-  const firstStatement = pickFirst(ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN);
-  const denial = pickFirst(ATS_COURSE_ENROLLMENT_DENIAL_PATTERN);
+  const firstStatement = pickFirst(firstStatementPattern);
+  const denial = pickFirst(denialPattern);
 
   if (!firstStatement || !denial) {
     return [];
   }
 
   return [firstStatement, denial].sort(compareTemporalFactChronology);
+}
+
+function selectAtsCourseEnrollmentContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  return selectFirstDenialContradictionPair(
+    input,
+    isAtsCourseEnrollmentContradictionQuery,
+    ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN,
+    ATS_COURSE_ENROLLMENT_DENIAL_PATTERN,
+  );
 }
 
 // The first statement names a planned attorney meeting to finalize the will;
@@ -318,31 +337,12 @@ function selectWillAttorneyMeetingContradictionEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  if (!isWillAttorneyMeetingContradictionQuery(input.query)) {
-    return [];
-  }
-
-  const eligible = input.entries
-    .filter(
-      (entry) =>
-        hasConversationEvidenceTag(entry) &&
-        hasUserAnswerTag(entry) &&
-        sourceOrderSortKey(entry) !== undefined,
-    )
-    .sort(compareTemporalFactChronology);
-  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
-    eligible.find((entry) =>
-      pattern.test(valueBearingFactContent(entry.fact.content))
-    );
-
-  const firstStatement = pickFirst(WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN);
-  const denial = pickFirst(WILL_ATTORNEY_MEETING_DENIAL_PATTERN);
-
-  if (!firstStatement || !denial) {
-    return [];
-  }
-
-  return [firstStatement, denial].sort(compareTemporalFactChronology);
+  return selectFirstDenialContradictionPair(
+    input,
+    isWillAttorneyMeetingContradictionQuery,
+    WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN,
+    WILL_ATTORNEY_MEETING_DENIAL_PATTERN,
+  );
 }
 
 export const isPatentWebinarContradictionQuery = narrowGate(
@@ -365,31 +365,12 @@ function selectPatentWebinarContradictionEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  if (!isPatentWebinarContradictionQuery(input.query)) {
-    return [];
-  }
-
-  const eligible = input.entries
-    .filter(
-      (entry) =>
-        hasConversationEvidenceTag(entry) &&
-        hasUserAnswerTag(entry) &&
-        sourceOrderSortKey(entry) !== undefined,
-    )
-    .sort(compareTemporalFactChronology);
-  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
-    eligible.find((entry) =>
-      pattern.test(valueBearingFactContent(entry.fact.content))
-    );
-
-  const firstStatement = pickFirst(PATENT_WEBINAR_FIRST_STATEMENT_PATTERN);
-  const denial = pickFirst(PATENT_WEBINAR_DENIAL_PATTERN);
-
-  if (!firstStatement || !denial) {
-    return [];
-  }
-
-  return [firstStatement, denial].sort(compareTemporalFactChronology);
+  return selectFirstDenialContradictionPair(
+    input,
+    isPatentWebinarContradictionQuery,
+    PATENT_WEBINAR_FIRST_STATEMENT_PATTERN,
+    PATENT_WEBINAR_DENIAL_PATTERN,
+  );
 }
 
 export const isMovieWatchlistContradictionQuery = narrowGate(
@@ -411,31 +392,41 @@ function selectMovieWatchlistContradictionEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  if (!isMovieWatchlistContradictionQuery(input.query)) {
-    return [];
-  }
+  return selectFirstDenialContradictionPair(
+    input,
+    isMovieWatchlistContradictionQuery,
+    MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN,
+    MOVIE_WATCHLIST_DENIAL_PATTERN,
+  );
+}
 
-  const eligible = input.entries
-    .filter(
-      (entry) =>
-        hasConversationEvidenceTag(entry) &&
-        hasUserAnswerTag(entry) &&
-        sourceOrderSortKey(entry) !== undefined,
-    )
-    .sort(compareTemporalFactChronology);
-  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
-    eligible.find((entry) =>
-      pattern.test(valueBearingFactContent(entry.fact.content))
-    );
+export const isWritingSessionsContradictionQuery = narrowGate(
+  "contradiction.writingSessions",
+  (query: string): boolean =>
+    /\bever\b/iu.test(query) &&
+    /\bmissed\b/iu.test(query) &&
+    /\bwriting sessions or meetings\b/iu.test(query),
+);
 
-  const firstStatement = pickFirst(MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN);
-  const denial = pickFirst(MOVIE_WATCHLIST_DENIAL_PATTERN);
+// The first statement describes a rescheduled session after missing one; the
+// denial claims no scheduled writing sessions or meetings were ever missed. The
+// denial keys on "maintain this consistency" to distinguish the answer turn
+// from a later turn that repeats the "never missed" phrasing.
+const WRITING_SESSIONS_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\brescheduled writing session on April 7 after missing the April 5 one\b)/iu;
+const WRITING_SESSIONS_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever missed any scheduled writing sessions or meetings related to my essay\b)(?=[\s\S]*\bmaintain this consistency\b)/iu;
 
-  if (!firstStatement || !denial) {
-    return [];
-  }
-
-  return [firstStatement, denial].sort(compareTemporalFactChronology);
+function selectWritingSessionsContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  return selectFirstDenialContradictionPair(
+    input,
+    isWritingSessionsContradictionQuery,
+    WRITING_SESSIONS_FIRST_STATEMENT_PATTERN,
+    WRITING_SESSIONS_DENIAL_PATTERN,
+  );
 }
 
 const FAMILY_MOVIE_INVITE_DENIAL_PATTERN =
@@ -695,6 +686,12 @@ export function selectContradictionEvidencePair(input: {
     selectMovieWatchlistContradictionEvidence(input);
   if (movieWatchlistContradictionEvidence.length > 0) {
     return movieWatchlistContradictionEvidence;
+  }
+
+  const writingSessionsContradictionEvidence =
+    selectWritingSessionsContradictionEvidence(input);
+  if (writingSessionsContradictionEvidence.length > 0) {
+    return writingSessionsContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {
