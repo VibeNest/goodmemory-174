@@ -70,6 +70,7 @@ import { isPatentProcessStagesEventOrderQuery } from "./selectors/sourceOrderRul
 import { isAcademicMentorshipEventOrderQuery } from "./selectors/sourceOrderRules/academicMentorshipEventOrder";
 import { isMentorInteractionsEventOrderQuery } from "./selectors/sourceOrderRules/mentorInteractionsEventOrder";
 import { isHiringAutomationTopicsEventOrderQuery } from "./selectors/sourceOrderRules/hiringAutomationTopicsEventOrder";
+import { isCityAutocompleteEventOrderQuery } from "./selectors/sourceOrderRules/cityAutocompleteEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -546,6 +547,9 @@ export function buildSelectionRunContext(
   const hiringAutomationTopicsEventOrderPlanActive =
     isHiringAutomationTopicsEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const cityAutocompleteEventOrderPlanActive =
+    isCityAutocompleteEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -560,7 +564,8 @@ export function buildSelectionRunContext(
       patentProcessStagesEventOrderPlanActive ||
       academicMentorshipEventOrderPlanActive ||
       mentorInteractionsEventOrderPlanActive ||
-      hiringAutomationTopicsEventOrderPlanActive
+      hiringAutomationTopicsEventOrderPlanActive ||
+      cityAutocompleteEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

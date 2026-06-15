@@ -9815,6 +9815,108 @@ function buildHiringAutomationTopicsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildCityAutocompleteEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to implement city autocomplete using OpenWeather's Geocoding API v1, and I want to add a debounce delay of 300ms to reduce API calls. Here's my current code:\n```javascript\nconst debounceDelay = 300;\n```\nCan you help me complete the implementation and suggest improvements? ->-> 1,6",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what about handling cases where the API response time exceeds 300ms? ->-> 1,7",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what if the user types quickly and the debounce delay isn't enough? ->-> 1,8",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the city autocomplete feature using OpenWeather Geocoding API v1, and I want to make sure I'm handling the 5-item dropdown and 300ms debounce correctly in my `autocomplete.js` file. Here's my current implementation:\n```javascript\nconst autocompleteInput = document.getElementById('autocomplete-input');\n```\nAlso, I'm planning to add error handling for HTTP 401 Unauthorized with a message \"Invalid API key\" in my `fetchWeatherData()` function. ->-> 2,3",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the autocomplete input lag in my weather app, which is currently over 500ms on slower devices. I've already implemented a debounce delay of 300ms and optimized DOM updates in `autocomplete.js`. However, I'm still experiencing performance issues. Can you help me improve the performance of my autocomplete feature? ->-> 2,11",
+      id: 92,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to achieve 100% test coverage on my core modules, including API fetch, autocomplete, and error handling, and I've currently reached 85% as of April 9, 2024. I want to make sure I'm covering all possible scenarios, especially for the autocomplete feature which has a 5-item dropdown and a 300ms debounce. Can you help me write some test cases to cover the remaining 15%? ->-> 3,7",
+      id: 148,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble with the autocomplete event listeners in my `autocomplete.js` file, specifically with addressing the memory leak that occurs when the component is torn down. I've tried properly removing the listeners, but I'm still experiencing issues. Can you help me review my code and suggest improvements?\n```javascript\n// autocomplete.js\nclass Autocomplete {}\n``` ->-> 3,13",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to add end-to-end tests with Cypress v12 for my weather app, specifically covering user flows like search, autocomplete, error display, and retry mechanism. I've already implemented the autocomplete feature using OpenWeather's Geocoding API v1 and error handling for HTTP 401 Unauthorized. My goal is to achieve 100% test coverage. ->-> 3,18",
+      id: 172,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "city-autocomplete-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Software",
+        id: 31,
+        subtopics: [
+          "Debounce",
+          "API response time",
+          "Dropdown and errors",
+          "Memory leaks",
+        ],
+        theme:
+          "Implementing a city autocomplete feature across conversations",
+        title:
+          "City Autocomplete",
+      },
+      narratives: "City autocomplete implementation event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these aspects in this order: implementing the debounce delay, handling API response times exceeding the debounce, rapid input bypassing the debounce, the 5-item dropdown with error handling, and reviewing event listener removal to prevent memory leaks.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you list the order in which I brought up different aspects of implementing the city autocomplete feature across our conversations, in order? Mention ONLY and ONLY five items.",
+            question_id: "city-autocomplete-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [20, 22, 24, 74, 160],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a weather app autocomplete",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13004,6 +13106,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([44, 46, 104, 198, 200]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the city autocomplete event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-city-autocomplete-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCityAutocompleteEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([20, 22, 24, 74, 160]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
