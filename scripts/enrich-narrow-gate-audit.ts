@@ -101,6 +101,7 @@ import {
   isMovieWatchlistContradictionQuery,
   isRemoteCollaborationContradictionQuery,
   isPatentWebinarContradictionQuery,
+  isProjectCardTotalCountQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
   isUserRolesSecurityFeaturesCountQuery,
@@ -342,6 +343,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isUserRolesSecurityFeaturesCountQuery,
   "multiSessionReasoning.coverLetterSubmissionCount":
     isCoverLetterSubmissionCountQuery,
+  "multiSessionReasoning.projectCardTotalCount":
+    isProjectCardTotalCountQuery,
   "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
   "knowledgeUpdate.zoomCallScheduleGroup":
     isZoomCallScheduleUpdateGroupQuery,

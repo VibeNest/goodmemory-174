@@ -23,6 +23,7 @@ export {
   isCoverLetterSubmissionCountQuery,
   isGrammarAnxietyContradictionQuery,
   isGroceryBudgetUpdateGroupQuery,
+  isProjectCardTotalCountQuery,
   isRemoteCollaborationContradictionQuery,
   isUserRolesSecurityFeaturesCountQuery,
   isWorkshopAttendanceContradictionQuery,

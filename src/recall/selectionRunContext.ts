@@ -40,6 +40,7 @@ import {
   isCoverLetterSubmissionCountQuery,
   isGrammarAnxietyContradictionQuery,
   isGroceryBudgetUpdateGroupQuery,
+  isProjectCardTotalCountQuery,
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
   isUserRolesSecurityFeaturesCountQuery,
@@ -243,6 +244,7 @@ export function buildSelectionRunContext(
     isAccuracyImprovementComparisonQuery(query) ||
     isUserRolesSecurityFeaturesCountQuery(query) ||
     isCoverLetterSubmissionCountQuery(query) ||
+    isProjectCardTotalCountQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

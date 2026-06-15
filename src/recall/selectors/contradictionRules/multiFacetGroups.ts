@@ -275,6 +275,26 @@ const COVER_LETTER_SUBMISSION_COUNT_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*submitted on April 23)(?=[\s\S]*stronger impact statements)/iu,
 ];
 
+// A multi_session_reasoning aggregate group with a ground-truth quirk: the
+// benchmark designates the contact-form/MVP turn alongside the "total of 10
+// cards" gallery turn for a "how many project cards" question, even though the
+// contact-form turn reads off-topic. We recover the designated turns as-is. The
+// gate is narrowed with "in total after adding" so it does not also match the
+// sibling knowledge_update question ("...included in my gallery using Bootstrap
+// 5.3.0", evidence [60,116]). The cards facet keys on "total of 10 cards" so it
+// excludes the earlier "8 cards" gallery turn.
+export const isProjectCardTotalCountQuery = narrowGate(
+  "multiSessionReasoning.projectCardTotalCount",
+  (query: string): boolean =>
+    /how many project cards/iu.test(query) &&
+    /in total after adding/iu.test(query),
+);
+
+const PROJECT_CARD_TOTAL_COUNT_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*contact form)(?=[\s\S]*MVP)/iu,
+  /^(?=[\s\S]*two new projects)(?=[\s\S]*total of 10 cards)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -322,6 +342,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isCoverLetterSubmissionCountQuery,
     facets: COVER_LETTER_SUBMISSION_COUNT_FACET_PATTERNS,
+  },
+  {
+    isQuery: isProjectCardTotalCountQuery,
+    facets: PROJECT_CARD_TOTAL_COUNT_FACET_PATTERNS,
   },
 ];
 

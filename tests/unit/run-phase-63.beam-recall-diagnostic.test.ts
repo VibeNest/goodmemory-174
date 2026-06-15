@@ -11412,6 +11412,82 @@ function buildCoverLetterSubmissionCountBeamRows(): unknown[] {
   ];
 }
 
+function buildProjectCardTotalCountBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to implement the contact form with validation as part of my MVP features, but I'm having trouble getting the form data to submit correctly. I've defined the form with HTML5 and added some basic CSS for styling, but I'm not sure how to handle the form submission and validation using JavaScript. Can you help me build this feature? ->-> 1,8",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the project gallery with 8 cards using Bootstrap 5.3.0 card-deck and modal popups for project details, but I'm having trouble getting the modals to display correctly. ->-> 2,3",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to improve the SEO of my website by adding meta descriptions, keywords, and Open Graph tags, can you help me understand how to properly implement these to increase my search engine visibility? ->-> 2,15",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my project gallery to include the new cards, but I'm having some issues with the layout. I've added two new projects, so now I have a total of 10 cards, and I want to make sure they're all displayed correctly. I'm using Bootstrap 5.3.0, and I've tried using the card-deck and modal popups for project details. ->-> 2,25",
+      id: 116,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "project-card-total-count",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 3,
+        subtopics: [
+          "Contact form MVP",
+          "Project gallery cards",
+          "Bootstrap layout",
+        ],
+        theme:
+          "Building a single-page portfolio with a contact form and project gallery",
+        title: "Portfolio Website Build",
+      },
+      narratives:
+        "Counting the project cards in the gallery after adding the new ones, alongside the MVP contact-form work",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "After adding the two new projects to your gallery you have a total of 10 project cards.",
+            question:
+              "How many project cards do I have in total after adding the new ones to my gallery?",
+            question_id: "project-card-total-count",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [16, 116],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a portfolio website",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17559,6 +17635,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([20, 86, 106]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the project-card total count source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-project-card-total-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProjectCardTotalCountBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([16, 116]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
