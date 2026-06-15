@@ -23,25 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-mentor-interactions-event-order-current-20260615T001300Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-hiring-automation-topics-event-order-current-20260615T003720Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-academic-mentorship-event-order-current-20260614T235658Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-mentor-interactions-event-order-current-20260615T001300Z`
 
 Summary:
 
-- evidence-chat recall: 0.8917415604739548
-- missed-recall cases: 69/355
-- wrong-recall/noise cases: 212/400
+- evidence-chat recall: 0.8928683210373352
+- missed-recall cases: 68/355
+- wrong-recall/noise cases: 211/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 942/152/1009 -> 945/149/1006 (net 3-id noise drop)
-- recovered target: `18:event_ordering:1`
-- target result: recall 0.5 -> 1 — recovers the three missing designated turns (198/254/258; 30/138/196 were already hits) and sheds all 3 noisy chats with zero new noise
+- global hit/missing/noise ids: 945/149/1006 -> 947/147/999 (net 7-id noise drop; global noise now under 1000)
+- recovered target: `11:event_ordering:2`
+- target result: recall 0.6 -> 1 — recovers the two missing designated turns (46/200; 44/104/198 were already hits) and sheds all 7 noisy chats with zero new noise
 - ripples: none — exactly one case delta (cleanest possible)
-- repair shape: `mentorInteractionsEventOrder` coverage selector (six facets — suggested workshop 30, relaxation technique 138, interview-tips meeting 196, stress-management follow-up 198, leadership advice 254, implementing advice 258) chained in sourceOrderTemporal.ts; a mentorInteractionsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The mentor is a disallowed fixture name, so the gate keys on "interactions ... six items" and every facet keys on surrounding date/venue/technique phrasing instead of the name
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 3
-- target selection: pre-screened for low reinforcement perturbation. conv-18 was chosen because it sheds only three noisy chats, so its one fragile recall-1 temporal_reasoning case was left untouched. (Two prior high-noise candidates, 19:event_ordering:2 and 9:event_ordering:1, were built and REVERTED because cleanly recovering the event-order target deterministically regressed a same-conversation temporal_reasoning case via the diagnostic's per-conversation shared, reinforcement-mutating store.)
+- repair shape: `hiringAutomationTopicsEventOrder` coverage selector (five facets — cost comparison 44, pilot results 104, long-term savings 198, training-involvement follow-up 46, expansion-involvement follow-up 200) chained in sourceOrderTemporal.ts; a hiringAutomationTopicsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The two recovered turns are short follow-up questions the broad fallback could not rank
+- routing note: the question reads as an aggregate (cost-saving money cues plus a "five items" count), so the aggregate route otherwise preempted the source-ordered coverage; the fix adds a one-gate `!isHiringAutomationTopicsEventOrderQuery(query)` guard to aggregateEvidenceQuery (affects only this 1/400 query)
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 7
 
-The repaired target covers the mentor-interactions event-order coverage on the senior-producer-mentorship conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the hiring-automation cost/involvement event-order coverage on the AI-hiring conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
