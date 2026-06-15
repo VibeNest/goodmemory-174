@@ -11254,6 +11254,82 @@ function buildAccuracyImprovementComparisonBeamRows(): unknown[] {
   ];
 }
 
+function buildUserRolesSecurityFeaturesCountBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to design a database schema for my personal budget tracker, and I want to make sure I've got the right tables and fields. I've decided on the following schema: users(id, username, password_hash), transactions(id, user_id, type, amount, date). Can you help me implement this in SQLite using Python, including error handling and validation? ->-> 1,7",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement basic password hashing for my personal budget tracker using Werkzeug.security, and I want to make sure I'm doing it correctly. I've defined my user model with a password_hash field, but I'm not sure how to generate the hash when a user creates an account. Should I be using a specific hashing algorithm, like SHA-256 or bcrypt? And how do I verify the password when the user logs in using check_password_hash? ->-> 1,8",
+      id: 16,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement role-based access control for my application, specifically for the 'user' role, and I want to make sure I'm doing it correctly. I've added a role-based access control stub for future multi-user support, but currently, all users have the 'user' role. Can you help me build a basic example of how I can restrict access to certain routes based on the user's role? I'm using Flask and Flask-Login. ->-> 2,13",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the account lockout feature after 5 failed login attempts using Redis 7.0 for rate limiting, can you help me with that? I want to make sure that the lockout is triggered only after 5 attempts and that it's properly stored in Redis. ->-> 3,14",
+      id: 150,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "user-roles-security-features-count",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 1,
+        subtopics: [
+          "Password hashing",
+          "Role-based access control",
+          "Account lockout",
+        ],
+        theme:
+          "Implementing authentication and security features across sessions",
+        title: "Budget Tracker Security Features",
+      },
+      narratives:
+        "Counting the distinct user roles and security features requested across the budget-tracker build",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "Across the sessions you set up password hashing, role-based access control for the 'user' role, and an account lockout feature, so three security features and one user role.",
+            question:
+              "How many different user roles and security features am I trying to implement across my sessions?",
+            question_id: "user-roles-security-features-count",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [16, 84, 150],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a personal budget tracker",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17355,6 +17431,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([82, 110]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the user-roles and security-features count source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-user-roles-security-features-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildUserRolesSecurityFeaturesCountBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([16, 84, 150]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

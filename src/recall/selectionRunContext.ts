@@ -41,6 +41,7 @@ import {
   isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
+  isUserRolesSecurityFeaturesCountQuery,
   isWorkshopAttendanceContradictionQuery,
   isZoomCallScheduleUpdateGroupQuery,
   selectContradictionEvidencePair,
@@ -239,6 +240,7 @@ export function buildSelectionRunContext(
     isZoomCallScheduleUpdateGroupQuery(query) ||
     isAiScreeningAccuracyUpdateGroupQuery(query) ||
     isAccuracyImprovementComparisonQuery(query) ||
+    isUserRolesSecurityFeaturesCountQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

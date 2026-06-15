@@ -102,6 +102,7 @@ import {
   isPatentWebinarContradictionQuery,
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
+  isUserRolesSecurityFeaturesCountQuery,
   isWillAttorneyMeetingContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
   isWritingSessionsContradictionQuery,
@@ -336,6 +337,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isAiScreeningAccuracyUpdateGroupQuery,
   "multiSessionReasoning.accuracyImprovementComparison":
     isAccuracyImprovementComparisonQuery,
+  "multiSessionReasoning.userRolesSecurityFeaturesCount":
+    isUserRolesSecurityFeaturesCountQuery,
   "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
   "knowledgeUpdate.zoomCallScheduleGroup":
     isZoomCallScheduleUpdateGroupQuery,

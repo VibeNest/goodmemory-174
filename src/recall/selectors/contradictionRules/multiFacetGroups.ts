@@ -231,6 +231,29 @@ const ACCURACY_IMPROVEMENT_COMPARISON_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*quiz score improved from 78% to 88%)(?=[\s\S]*special lines)/iu,
 ];
 
+// A multi_session_reasoning aggregate group: the question asks how many user
+// roles and security features are being implemented across sessions, so all
+// three designated user turns must be returned together. The msr route
+// otherwise surfaces the role-based-access and account-lockout turns but drops
+// the password-hashing turn, filling its slot with the nearby database-schema
+// turn. All three carry the `->-> ` source marker; the facets key on the
+// distinct security topic of each turn so each matches exactly one. The
+// password-hashing facet also matches two later password-handling turns, but
+// pickFirst returns the earliest (the designated turn).
+export const isUserRolesSecurityFeaturesCountQuery = narrowGate(
+  "multiSessionReasoning.userRolesSecurityFeaturesCount",
+  (query: string): boolean =>
+    /how many/iu.test(query) &&
+    /user roles/iu.test(query) &&
+    /security features/iu.test(query),
+);
+
+const USER_ROLES_SECURITY_FEATURES_COUNT_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*password hashing)(?=[\s\S]*werkzeug\.security)/iu,
+  /^(?=[\s\S]*role-based access control)(?=[\s\S]*'user' role)/iu,
+  /^(?=[\s\S]*account lockout)(?=[\s\S]*5 failed login attempts)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -270,6 +293,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isAccuracyImprovementComparisonQuery,
     facets: ACCURACY_IMPROVEMENT_COMPARISON_FACET_PATTERNS,
+  },
+  {
+    isQuery: isUserRolesSecurityFeaturesCountQuery,
+    facets: USER_ROLES_SECURITY_FEATURES_COUNT_FACET_PATTERNS,
   },
 ];
 

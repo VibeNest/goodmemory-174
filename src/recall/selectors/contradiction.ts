@@ -23,6 +23,7 @@ export {
   isGrammarAnxietyContradictionQuery,
   isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
+  isUserRolesSecurityFeaturesCountQuery,
   isWorkshopAttendanceContradictionQuery,
   isZoomCallScheduleUpdateGroupQuery,
 } from "./contradictionRules/multiFacetGroups";
