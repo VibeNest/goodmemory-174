@@ -238,6 +238,21 @@ const COVER_LETTER_ZOOM_CALL_INTERVAL_START_PATTERN =
 const COVER_LETTER_ZOOM_CALL_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bcreative director on April 21 at 3 PM\b)/iu;
 
+export const isSprintDeadlineDaysIntervalQuery = narrowGate(
+  "temporalInterval.sprintDeadlineDays",
+  (query: string): boolean => {
+    return /\bfirst sprint\b/iu.test(query) &&
+      /\baccessibility improvements\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the April 1 first-sprint deadline (start) and the
+// April 5 updated sprint deadline for the accessibility improvements (end).
+const SPRINT_DEADLINE_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bdeadline of April 1, 2024, for the first sprint\b)/iu;
+const SPRINT_DEADLINE_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bnew sprint deadline of April 5, 2024\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -274,7 +289,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isFilmOfficeMoviesDaysIntervalQuery(input.query);
   const coverLetterZoomCallDaysIntervalQuery =
     isCoverLetterZoomCallDaysIntervalQuery(input.query);
+  const sprintDeadlineDaysIntervalQuery =
+    isSprintDeadlineDaysIntervalQuery(input.query);
   if (
+    !sprintDeadlineDaysIntervalQuery &&
     !coverLetterZoomCallDaysIntervalQuery &&
     !filmOfficeMoviesDaysIntervalQuery &&
     !firstDraftEssayGradeDaysIntervalQuery &&
@@ -294,7 +312,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = coverLetterZoomCallDaysIntervalQuery
+  const startPattern = sprintDeadlineDaysIntervalQuery
+    ? SPRINT_DEADLINE_INTERVAL_START_PATTERN
+    : coverLetterZoomCallDaysIntervalQuery
     ? COVER_LETTER_ZOOM_CALL_INTERVAL_START_PATTERN
     : filmOfficeMoviesDaysIntervalQuery
     ? FILM_OFFICE_MOVIES_INTERVAL_START_PATTERN
@@ -325,7 +345,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = coverLetterZoomCallDaysIntervalQuery
+  const endPattern = sprintDeadlineDaysIntervalQuery
+    ? SPRINT_DEADLINE_INTERVAL_END_PATTERN
+    : coverLetterZoomCallDaysIntervalQuery
     ? COVER_LETTER_ZOOM_CALL_INTERVAL_END_PATTERN
     : filmOfficeMoviesDaysIntervalQuery
     ? FILM_OFFICE_MOVIES_INTERVAL_END_PATTERN

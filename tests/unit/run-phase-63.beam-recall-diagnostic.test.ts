@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildSprintDeadlineDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to plan out my project timeline and I have a deadline of April 1, 2024, for the first sprint, which covers the basic layout and navigation of my single-page portfolio website, can you help me estimate the work? ->-> 1,4",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a peer review for April 2, 2024, and I want to focus on semantic HTML and accessibility compliance, specifically WCAG 2.1 AA. Can you help me create a checklist for reviewing HTML code? ->-> 1,13",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to prioritize tasks for my sprint 1 using a Trello board with 15 tasks, and I want to make sure I'm focusing on the most important ones first, like responsive layout and SEO meta tags, can you help me? ->-> 1,15",
+      id: 38,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my project timeline to reflect the new sprint deadline of April 5, 2024, but I'm having trouble figuring out how to adjust my Trello board to accommodate the extra time for accessibility improvements, can you help? ->-> 1,21",
+      id: 52,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "sprint-deadline-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 3,
+        subtopics: [
+          "Sprint deadline",
+          "Accessibility improvements",
+          "Project timeline",
+          "Portfolio website",
+        ],
+        theme:
+          "Tracking a project sprint deadline and its update across conversations",
+        title:
+          "Portfolio Sprint Timeline",
+      },
+      narratives: "First sprint deadline to updated deadline interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 4 days between the original first sprint deadline on April 1, 2024, and the updated deadline for accessibility improvements on April 5, 2024.",
+            difficulty: "medium",
+            question:
+              "How many days are there between the deadline for my first sprint and the updated deadline for the accessibility improvements?",
+            question_id: "sprint-deadline-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [12], second_event: [52] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer planning a portfolio sprint timeline",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildCoverLetterZoomCallDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14779,6 +14857,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps sprint deadline days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-sprint-deadline-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildSprintDeadlineDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([12, 52]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
