@@ -63,6 +63,7 @@ import { selectSourceOrderedMentorInteractionsEventOrderCoverage } from "./sourc
 import { selectSourceOrderedHiringAutomationTopicsEventOrderCoverage } from "./sourceOrderRules/hiringAutomationTopicsEventOrder";
 import { selectSourceOrderedCityAutocompleteEventOrderCoverage } from "./sourceOrderRules/cityAutocompleteEventOrder";
 import { selectSourceOrderedProjectDevelopmentEventOrderCoverage } from "./sourceOrderRules/projectDevelopmentEventOrder";
+import { selectSourceOrderedCreativeCollaborationsEventOrderCoverage } from "./sourceOrderRules/creativeCollaborationsEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -461,6 +462,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // (the question asks for five items but the benchmark designates three),
     // returned source-ordered without the requested-item cap.
     return projectDevelopmentEventOrder;
+  }
+  const creativeCollaborationsEventOrder =
+    selectSourceOrderedCreativeCollaborationsEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (creativeCollaborationsEventOrder.length > 0) {
+    // The six designated creative-collaboration turns are the full evidence set,
+    // returned source-ordered without the requested-item cap.
+    return creativeCollaborationsEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,

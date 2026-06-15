@@ -10018,6 +10018,126 @@ function buildProjectDevelopmentEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildCreativeCollaborationsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about balancing my time between work and friends, like Carla, who I met at the Montserrat Film Festival in 2018, and she's always been a great graphic designer to bounce ideas off of ->-> 1,5",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "This plan looks great! I think focusing on the script finalization as outlined will help me stay on track. I'll make sure to hold those weekly check-ins and use Trello to keep everything organized. Thanks for putting this together!\n\nAlso, I'll start the location scouting right after the script is finalized in early May. Does that sound good?",
+      id: 40,
+      role: "user",
+    },
+    {
+      content:
+        "This all sounds great! I'll set up my Google Calendar and Reminders app as you suggested. I think the 24-hour alerts for production calls will be super helpful. I might look into IFTTT or Zapier later to automate some reminders, but for now, this setup feels pretty solid. Thanks again for all the help!",
+      id: 56,
+      role: "user",
+    },
+    {
+      content:
+        "I've completed 40% of my pilot script by March 10, which is ahead of my 50% target for mid-March, but I'm worried I might fall behind, can you help me create a schedule to stay on track and meet my June 30 deadline? ->-> 1,20",
+      id: 80,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about coordinating with Jeremy, who's 36 and a sound engineer, for our location scout at Rendezvous Bay on March 30, and finalizing permits by April 5, so can you help me prioritize my tasks for that week? ->-> 2,5",
+      id: 102,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about this weekend retreat at Emerald Bay Resort that Carla suggested for May 18-19, and I already booked a room for $220 per night, so should I prioritize relaxing with her or focus on my task completion rate which increased by 25% since I started using Todoist and syncing it with Google Calendar? ->-> 2,10",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "I've started taking 3 weekly Pilates classes at Montserrat Wellness Center since April 22, and I'm feeling more energetic, how can I balance this new fitness routine with my existing schedule to keep improving my energy levels? ->-> 2,12",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my collaboration with Alan, we worked on a storyboard at The Blue Lagoon café on June 25 and finished the visuals in just 2 hours, but I'm worried it might not be enough, can you help me figure out how to improve it? ->-> 3,9",
+      id: 160,
+      role: "user",
+    },
+    {
+      content:
+        "I just co-hosted a 90-minute virtual brainstorming session with Stephanie on September 3 for our upcoming projects, and I'm thinking about how to prioritize my tasks for the rest of the week ->-> 4,9",
+      id: 210,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a creative workshop planned with Carla at The Blue Lagoon on December 7, and we're inviting 10 local artists, but what's the best way to make sure everyone's on the same page and we make the most out of this event? ->-> 5,9",
+      id: 256,
+      role: "user",
+    },
+    {
+      content:
+        "hmm, what if some artists can't make it on December 7? Should we plan a backup date?",
+      id: 258,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "creative-collaborations-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Creative",
+        id: 33,
+        subtopics: [
+          "Film festival friend",
+          "Weekend retreat",
+          "Storyboard collaboration",
+          "Workshop with artists",
+        ],
+        theme:
+          "Creative collaborations and related plans across conversations",
+        title:
+          "Creative Collaborations",
+      },
+      narratives: "Creative collaborations event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these collaborations in this order: balancing time with the film-festival friend, the weekend retreat, the storyboard collaboration, the virtual brainstorming session, the creative workshop with local artists, and a backup date for that workshop.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you list the order in which I brought up different aspects of my creative collaborations and related plans throughout our conversations in order? Mention ONLY and ONLY six items.",
+            question_id: "creative-collaborations-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [22, 110, 160, 210, 256, 258],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Creative professional juggling collaborations",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13253,6 +13373,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([12, 82, 164]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the creative collaborations event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-creative-collaborations-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCreativeCollaborationsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([22, 110, 160, 210, 256, 258]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
