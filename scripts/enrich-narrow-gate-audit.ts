@@ -51,6 +51,7 @@ import { isHiringAutomationTopicsEventOrderQuery } from "../src/recall/selectors
 import { isCityAutocompleteEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/cityAutocompleteEventOrder";
 import { isProjectDevelopmentEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/projectDevelopmentEventOrder";
 import { isCreativeCollaborationsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/creativeCollaborationsEventOrder";
+import { isPersonalProfessionalProgressEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import {
   isResumeDesignInstructionQuery,
@@ -220,6 +221,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "eventOrder.projectDevelopment": isProjectDevelopmentEventOrderQuery,
   "eventOrder.creativeCollaborations":
     isCreativeCollaborationsEventOrderQuery,
+  "eventOrder.personalProfessionalProgress":
+    isPersonalProfessionalProgressEventOrderQuery,
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,

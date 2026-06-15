@@ -10138,6 +10138,114 @@ function buildCreativeCollaborationsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildPersonalProfessionalProgressEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about my portfolio, Greg told me to update it by April 1, what should I do to make it stand out? ->-> 1,5",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried I won't make the April 15 deadline for the senior producer role at Island Media Group, can you help me craft a standout cover letter?? ->-> 1,10",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck between attending Greg's April 2 coaching session or Leslie's April 3 networking event, can you help me decide which one to prioritize to meet my cover letter deadline of April 10? ->-> 1,12",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on my cover letter for Island Media Group, and I've completed the first draft, so I'm refining it to better reflect their values, you know, like Greg suggested with the cultural fit paragraph about their 2023 sustainability campaign launched in July ->-> 2,2",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I'm gonna submit my cover letter by April 14 as Ashlee recommended, but I'm not sure if avoiding jargon and keeping a warm but professional tone is enough to stand out in a competitive job market, can you help me with that? ->-> 2,5",
+      id: 58,
+      role: "user",
+    },
+    {
+      content:
+        "I've never submitted my cover letter to Greg for review, should I ask him to take a look before I finalize it for the senior producer role at Island Media Group? ->-> 2,24",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "I'm feeling really grateful that Ashlee cooked my favorite jerk chicken on May 1 to celebrate my progress, and I'm thinking of taking her advice on mindfulness exercises before the interview, do you think that's a good idea ->-> 3,5",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm celebrating with Ashlee at The Seaside Grill on May 22, and she's really supportive of my decision to accept the offer, how can I make sure I'm making the right choice for both of us? ->-> 4,5",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "I feel grateful that Ashlee joined me for the July 10 weekend retreat at Montserrat Botanical Gardens to celebrate my new role, and I'm thinking about how I can show my appreciation for her support in a meaningful way ->-> 5,5",
+      id: 228,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "personal-professional-progress-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 34,
+        subtopics: [
+          "Portfolio",
+          "Cover letter",
+          "Gratitude and mindfulness",
+          "Celebrating the offer",
+        ],
+        theme:
+          "Personal and professional progress across conversations",
+        title:
+          "Personal Professional Progress",
+      },
+      narratives: "Personal and professional progress event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these aspects in this order: updating your portfolio, submitting your cover letter with tone considerations, gratitude and mindfulness advice, celebrating the accepted offer, and reflecting on the retreat with appreciation.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my personal and professional progress throughout our conversations, in order? Mention ONLY and ONLY five items.",
+            question_id: "personal-professional-progress-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [8, 58, 116, 174, 228],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Professional tracking a job search and personal milestones",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13396,6 +13504,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([22, 110, 160, 210, 256, 258]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the personal professional progress event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-personal-professional-progress-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPersonalProfessionalProgressEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([8, 58, 116, 174, 228]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

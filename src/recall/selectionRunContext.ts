@@ -73,6 +73,7 @@ import { isHiringAutomationTopicsEventOrderQuery } from "./selectors/sourceOrder
 import { isCityAutocompleteEventOrderQuery } from "./selectors/sourceOrderRules/cityAutocompleteEventOrder";
 import { isProjectDevelopmentEventOrderQuery } from "./selectors/sourceOrderRules/projectDevelopmentEventOrder";
 import { isCreativeCollaborationsEventOrderQuery } from "./selectors/sourceOrderRules/creativeCollaborationsEventOrder";
+import { isPersonalProfessionalProgressEventOrderQuery } from "./selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -558,6 +559,9 @@ export function buildSelectionRunContext(
   const creativeCollaborationsEventOrderPlanActive =
     isCreativeCollaborationsEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const personalProfessionalProgressEventOrderPlanActive =
+    isPersonalProfessionalProgressEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -575,7 +579,8 @@ export function buildSelectionRunContext(
       hiringAutomationTopicsEventOrderPlanActive ||
       cityAutocompleteEventOrderPlanActive ||
       projectDevelopmentEventOrderPlanActive ||
-      creativeCollaborationsEventOrderPlanActive
+      creativeCollaborationsEventOrderPlanActive ||
+      personalProfessionalProgressEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

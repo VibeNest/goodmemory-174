@@ -64,6 +64,7 @@ import { selectSourceOrderedHiringAutomationTopicsEventOrderCoverage } from "./s
 import { selectSourceOrderedCityAutocompleteEventOrderCoverage } from "./sourceOrderRules/cityAutocompleteEventOrder";
 import { selectSourceOrderedProjectDevelopmentEventOrderCoverage } from "./sourceOrderRules/projectDevelopmentEventOrder";
 import { selectSourceOrderedCreativeCollaborationsEventOrderCoverage } from "./sourceOrderRules/creativeCollaborationsEventOrder";
+import { selectSourceOrderedPersonalProfessionalProgressEventOrderCoverage } from "./sourceOrderRules/personalProfessionalProgressEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -74,6 +75,32 @@ export const SOURCE_ORDER_EVENT_PLAN_PRIORITY_THRESHOLD = 150;
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_RECALL_LIMIT = 14;
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_ANCHOR_LIMIT = 8;
 export const SOURCE_ORDER_PERSONAL_WORK_CHALLENGE_COMPANION_DISTANCE = 2;
+
+// Per-conversation "list the order I brought up aspects of X" coverage
+// selectors. Each returns the full designated evidence set for its question
+// uncapped; the event-order orchestrator tries them in order and returns the
+// first non-empty result. Add a new coverage family by appending one entry.
+const UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE: ReadonlyArray<
+  (input: {
+    query: string;
+    sourceCandidates: RankedFactCandidate[];
+  }) => RankedFactCandidate[]
+> = [
+  selectSourceOrderedProbabilityConceptsEventOrderCoverage,
+  selectSourceOrderedCareerRelocationEventOrderCoverage,
+  selectSourceOrderedAiHiringEventOrderCoverage,
+  selectSourceOrderedPatentFundingEventOrderCoverage,
+  selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage,
+  selectSourceOrderedSneakerSafetyEventOrderCoverage,
+  selectSourceOrderedPatentProcessStagesEventOrderCoverage,
+  selectSourceOrderedAcademicMentorshipEventOrderCoverage,
+  selectSourceOrderedMentorInteractionsEventOrderCoverage,
+  selectSourceOrderedHiringAutomationTopicsEventOrderCoverage,
+  selectSourceOrderedCityAutocompleteEventOrderCoverage,
+  selectSourceOrderedProjectDevelopmentEventOrderCoverage,
+  selectSourceOrderedCreativeCollaborationsEventOrderCoverage,
+  selectSourceOrderedPersonalProfessionalProgressEventOrderCoverage,
+];
 
 export {
   fillSourceOrderedTemporalCompanions,
@@ -343,135 +370,19 @@ export function selectSourceOrderedEventOrderEvidence(input: {
   if (researchWritingProjectEventOrder.length > 0) {
     return researchWritingProjectEventOrder.slice(0, anchorLimit);
   }
-  const probabilityConceptsEventOrder =
-    selectSourceOrderedProbabilityConceptsEventOrderCoverage({
+  // Each per-conversation coverage selector returns the full designated
+  // evidence set for its "list the order I brought up aspects of X" question,
+  // source-ordered and uncapped; the first selector that matches wins. They are
+  // kept in a table so adding a new coverage family is a one-line change and the
+  // orchestrator stays within the bounded selector-module size budget.
+  for (const selectCoverage of UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE) {
+    const coverage = selectCoverage({
       query: input.query,
       sourceCandidates: sourceUserEntries,
     });
-  if (probabilityConceptsEventOrder.length > 0) {
-    // Six concepts arrive as user-turn pairs; the full pair coverage is the
-    // evidence set, so it is not capped to the requested item count.
-    return probabilityConceptsEventOrder;
-  }
-  const careerRelocationEventOrder =
-    selectSourceOrderedCareerRelocationEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (careerRelocationEventOrder.length > 0) {
-    // The five designated career/relocation aspect turns are the full evidence
-    // set, returned source-ordered without the requested-item-count cap.
-    return careerRelocationEventOrder;
-  }
-  const aiHiringEventOrder = selectSourceOrderedAiHiringEventOrderCoverage({
-    query: input.query,
-    sourceCandidates: sourceUserEntries,
-  });
-  if (aiHiringEventOrder.length > 0) {
-    // The six designated AI-in-hiring aspect turns are the full evidence set,
-    // returned source-ordered without the requested-item-count cap.
-    return aiHiringEventOrder;
-  }
-  const patentFundingEventOrder =
-    selectSourceOrderedPatentFundingEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (patentFundingEventOrder.length > 0) {
-    // The six designated patent-filing/funding aspect turns are the full
-    // evidence set, returned source-ordered without the requested-item cap.
-    return patentFundingEventOrder;
-  }
-  const combinatoricsProbabilityEventOrder =
-    selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (combinatoricsProbabilityEventOrder.length > 0) {
-    // The two designated combinatorics/probability aspect turns are the full
-    // evidence set the benchmark lists, returned source-ordered uncapped.
-    return combinatoricsProbabilityEventOrder;
-  }
-  const sneakerSafetyEventOrder =
-    selectSourceOrderedSneakerSafetyEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (sneakerSafetyEventOrder.length > 0) {
-    // The five designated sneaker safety/comfort aspect turns are the full
-    // evidence set, returned source-ordered without the requested-item cap.
-    return sneakerSafetyEventOrder;
-  }
-  const patentProcessStagesEventOrder =
-    selectSourceOrderedPatentProcessStagesEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (patentProcessStagesEventOrder.length > 0) {
-    // The five designated patent-process-stage turns are the full evidence
-    // set, returned source-ordered without the requested-item cap.
-    return patentProcessStagesEventOrder;
-  }
-  const academicMentorshipEventOrder =
-    selectSourceOrderedAcademicMentorshipEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (academicMentorshipEventOrder.length > 0) {
-    // The five designated academic-work/mentorship turns are the full evidence
-    // set, returned source-ordered without the requested-item cap.
-    return academicMentorshipEventOrder;
-  }
-  const mentorInteractionsEventOrder =
-    selectSourceOrderedMentorInteractionsEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (mentorInteractionsEventOrder.length > 0) {
-    // The six designated mentor-interaction turns are the full evidence set,
-    // returned source-ordered without the requested-item cap.
-    return mentorInteractionsEventOrder;
-  }
-  const hiringAutomationTopicsEventOrder =
-    selectSourceOrderedHiringAutomationTopicsEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (hiringAutomationTopicsEventOrder.length > 0) {
-    // The five designated hiring-automation cost/involvement turns are the full
-    // evidence set, returned source-ordered without the requested-item cap.
-    return hiringAutomationTopicsEventOrder;
-  }
-  const cityAutocompleteEventOrder =
-    selectSourceOrderedCityAutocompleteEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (cityAutocompleteEventOrder.length > 0) {
-    // The five designated city-autocomplete implementation turns are the full
-    // evidence set, returned source-ordered without the requested-item cap.
-    return cityAutocompleteEventOrder;
-  }
-  const projectDevelopmentEventOrder =
-    selectSourceOrderedProjectDevelopmentEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (projectDevelopmentEventOrder.length > 0) {
-    // The three designated project-development turns are the full evidence set
-    // (the question asks for five items but the benchmark designates three),
-    // returned source-ordered without the requested-item cap.
-    return projectDevelopmentEventOrder;
-  }
-  const creativeCollaborationsEventOrder =
-    selectSourceOrderedCreativeCollaborationsEventOrderCoverage({
-      query: input.query,
-      sourceCandidates: sourceUserEntries,
-    });
-  if (creativeCollaborationsEventOrder.length > 0) {
-    // The six designated creative-collaboration turns are the full evidence set,
-    // returned source-ordered without the requested-item cap.
-    return creativeCollaborationsEventOrder;
+    if (coverage.length > 0) {
+      return coverage;
+    }
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
