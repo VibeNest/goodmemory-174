@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-writing-session-abstract-interval-current-20260615T070507Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-meeting-testing-period-interval-current-20260615T071743Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sprint-deadline-interval-current-20260615T065337Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-writing-session-abstract-interval-current-20260615T070507Z`
 
-Summary (fifth temporal_reasoning interval recovery; completes conv-7):
+Summary (sixth temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9285401296668903
-- missed-recall cases: 43/355
-- wrong-recall/noise cases: 188/400
+- evidence-chat recall: 0.9299485803711156
+- missed-recall cases: 42/355
+- wrong-recall/noise cases: 187/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 987/107/881 -> 988/106/877
-- recovered target: `7:temporal_reasoning:2`
-- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 80 ("rescheduled writing session on April 7 after missing the April 5 one") to pair with the already-hit end-anchor turn 174 ("submission deadline of June 15 for the conference abstract"), answer 71 days, and sheds its four noisy chats (50/51/131/175, three of which are assistant turns)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. The sibling 7:tr:1 (recall 1 since pass 72) held, so conv-7 now has both temporal_reasoning cases at recall 1 (fifth confirmation the interval recipe is ripple-free)
-- repair shape: new `writingSessionAbstractDays` interval case in sourceOrderTemporalInterval.ts (gate isWritingSessionAbstractDaysIntervalQuery / `temporalInterval.writingSessionAbstractDays` = "writing session" && "conference abstract", 1/400; START "rescheduled writing session on April 7 after missing the April 5 one"; END "submission deadline of June 15 for the conference abstract"; plus the four ternary-chain edits the recipe uses)
+- global hit/missing/noise ids: 988/106/877 -> 989/105/872
+- recovered target: `2:temporal_reasoning:2`
+- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 50 ("MVP completion by April 5, 2024, to allow two weeks for testing") to pair with the already-hit start-anchor turn 0 ("schedule a meeting for March 15, 2024, at 09:00 CET"), answer 21 days, and sheds its five noisy chats (124/186/148/72/32)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-2 carries 2:tr:1 at recall 1, whose evidence turn 32 is in this target's shed noise set, and it held (sixth confirmation the interval recipe is ripple-free)
+- repair shape: new `meetingTestingPeriodDays` interval case in sourceOrderTemporalInterval.ts (gate isMeetingTestingPeriodDaysIntervalQuery / `temporalInterval.meetingTestingPeriodDays` = "scheduling the meeting" && "testing period", 1/400; START "schedule a meeting for March 15, 2024, at 09:00 CET"; END "MVP completion by April 5, 2024, to allow two weeks for testing"; plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the missed-writing-session-to-conference-abstract-deadline interval. Five temporal_reasoning cases now recovered, seven remain. Remaining partial-recall families: temporal_reasoning (7), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the meeting-scheduling-to-testing-period interval. Six temporal_reasoning cases now recovered, six remain. Remaining partial-recall families: temporal_reasoning (6), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
