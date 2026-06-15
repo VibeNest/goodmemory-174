@@ -8518,6 +8518,88 @@ function buildWorkBoundaryOrderReasoningBeamRows(): unknown[] {
   ];
 }
 
+function buildMovieWatchlistContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm known for juggling multiple projects with ease and having a sharp mind, so I'm gonna ask, what are some good movie recommendations that would be suitable for my family? ->-> 1,5",
+      id: 10,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda new to making watchlists for family movie marathons, so I've never done this before ->-> 1,23",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "My friend Christopher suggested \"Klaus\" for its animation style and Emily is bringing homemade popcorn seasoning mix on April 6, should I add \"Klaus\" to our watchlist for the movie marathon? ->-> 2,9",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "Given the increasing popularity of animated films with cultural themes, can you recommend some movies that reflect this trend for our next family movie night? ->-> 3,18",
+      id: 150,
+      role: "user",
+    },
+    {
+      content:
+        "Can you suggest some family-friendly movies available on streaming platforms that we can watch during our outdoor movie night, given that we're planning themed snacks inspired by \"Wish\"? ->-> 4,18",
+      id: 206,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "movie-watchlist-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Entertainment",
+        id: 40,
+        subtopics: [
+          "Movie watchlists",
+          "Family marathons",
+          "Animated films",
+          "Movie nights",
+        ],
+        theme:
+          "Planning family movie marathons and watchlists",
+        title:
+          "Family Movie Watchlist",
+      },
+      narratives: "Movie watchlist contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever made a watchlist for family movie marathons before?",
+            question_id: "movie-watchlist-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [50], second_statement: [72] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning family movie nights",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildPatentWebinarContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -13732,6 +13814,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([92, 120]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the movie watchlist contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-movie-watchlist-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildMovieWatchlistContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([50, 72]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

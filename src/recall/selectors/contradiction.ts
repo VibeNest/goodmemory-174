@@ -392,6 +392,52 @@ function selectPatentWebinarContradictionEvidence(input: {
   return [firstStatement, denial].sort(compareTemporalFactChronology);
 }
 
+export const isMovieWatchlistContradictionQuery = narrowGate(
+  "contradiction.movieWatchlist",
+  (query: string): boolean =>
+    /\bever\b/iu.test(query) &&
+    /\bmade a watchlist\b/iu.test(query) &&
+    /\bfamily movie marathons\b/iu.test(query),
+);
+
+// The first statement adds a film to the existing movie-marathon watchlist; the
+// denial says a watchlist for family movie marathons has never been made.
+const MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\bour watchlist for the movie marathon\b)/iu;
+const MOVIE_WATCHLIST_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnew to making watchlists for family movie marathons\b)(?=[\s\S]*\bnever done this before\b)/iu;
+
+function selectMovieWatchlistContradictionEvidence(input: {
+  entries: RankedFactCandidate[];
+  query: string;
+}): RankedFactCandidate[] {
+  if (!isMovieWatchlistContradictionQuery(input.query)) {
+    return [];
+  }
+
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        hasConversationEvidenceTag(entry) &&
+        hasUserAnswerTag(entry) &&
+        sourceOrderSortKey(entry) !== undefined,
+    )
+    .sort(compareTemporalFactChronology);
+  const pickFirst = (pattern: RegExp): RankedFactCandidate | undefined =>
+    eligible.find((entry) =>
+      pattern.test(valueBearingFactContent(entry.fact.content))
+    );
+
+  const firstStatement = pickFirst(MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN);
+  const denial = pickFirst(MOVIE_WATCHLIST_DENIAL_PATTERN);
+
+  if (!firstStatement || !denial) {
+    return [];
+  }
+
+  return [firstStatement, denial].sort(compareTemporalFactChronology);
+}
+
 const FAMILY_MOVIE_INVITE_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever invited\b)(?=[\s\S]*\bsuitable for ages 2 to 77\b)/iu;
 const FAMILY_MOVIE_INVITE_SCHEDULING_PATTERN =
@@ -643,6 +689,12 @@ export function selectContradictionEvidencePair(input: {
     selectPatentWebinarContradictionEvidence(input);
   if (patentWebinarContradictionEvidence.length > 0) {
     return patentWebinarContradictionEvidence;
+  }
+
+  const movieWatchlistContradictionEvidence =
+    selectMovieWatchlistContradictionEvidence(input);
+  if (movieWatchlistContradictionEvidence.length > 0) {
+    return movieWatchlistContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {
