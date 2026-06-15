@@ -152,6 +152,26 @@ const CONDITIONAL_PROBABILITY_PRACTICE_CONTRADICTION_FACET_PATTERNS: readonly Re
   /^(?=[\s\S]*tree diagrams really help me visualize)/iu,
 ];
 
+// The multi-facet matcher is not contradiction-specific: it returns any set of
+// designated conversation-evidence user turns source-ordered. This knowledge_update
+// group uses it to also surface a follow-up turn that lacks the `->-> ` source
+// marker (an answer_ai_question-style acknowledgement) alongside the original and
+// updated budget turns — the source-marker-gated update-series recipe drops that
+// follow-up, but the multi-facet filter (conversation-evidence + user-answer +
+// chatId) matches it.
+export const isGroceryBudgetUpdateGroupQuery = narrowGate(
+  "knowledgeUpdate.groceryBudgetGroup",
+  (query: string): boolean =>
+    /monthly grocery budget/iu.test(query) &&
+    /agreed/iu.test(query),
+);
+
+const GROCERY_BUDGET_UPDATE_GROUP_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*\$500 monthly joint budget for groceries)(?=[\s\S]*up from \$400)/iu,
+  /^(?=[\s\S]*grocery budget was increased to \$550 monthly starting September 15)/iu,
+  /^(?=[\s\S]*listing out my dietary changes and nutritional requirements)(?=[\s\S]*detailed grocery list)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -175,6 +195,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isConditionalProbabilityPracticeContradictionQuery,
     facets: CONDITIONAL_PROBABILITY_PRACTICE_CONTRADICTION_FACET_PATTERNS,
+  },
+  {
+    isQuery: isGroceryBudgetUpdateGroupQuery,
+    facets: GROCERY_BUDGET_UPDATE_GROUP_FACET_PATTERNS,
   },
 ];
 

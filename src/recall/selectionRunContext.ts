@@ -36,6 +36,7 @@ import {
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
   isGrammarAnxietyContradictionQuery,
+  isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
@@ -231,6 +232,7 @@ export function buildSelectionRunContext(
     isWorkshopAttendanceContradictionQuery(query) ||
     isApiKeyObtainedContradictionQuery(query) ||
     isConditionalProbabilityPracticeContradictionQuery(query) ||
+    isGroceryBudgetUpdateGroupQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

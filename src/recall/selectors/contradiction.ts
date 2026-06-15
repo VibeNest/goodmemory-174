@@ -19,6 +19,7 @@ export {
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
   isGrammarAnxietyContradictionQuery,
+  isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
   isWorkshopAttendanceContradictionQuery,
 } from "./contradictionRules/multiFacetGroups";

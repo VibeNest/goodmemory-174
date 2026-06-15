@@ -94,6 +94,7 @@ import {
   isEditingTimelineCollaborationContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
   isGrammarAnxietyContradictionQuery,
+  isGroceryBudgetUpdateGroupQuery,
   isMovieWatchlistContradictionQuery,
   isRemoteCollaborationContradictionQuery,
   isPatentWebinarContradictionQuery,
@@ -328,6 +329,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isEditingTimelineCollaborationContradictionQuery,
   "contradiction.apiKeyObtained": isApiKeyObtainedContradictionQuery,
   "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
+  "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
   "contradiction.remoteCollaboration":
     isRemoteCollaborationContradictionQuery,
   "contradiction.workshopAttendance":

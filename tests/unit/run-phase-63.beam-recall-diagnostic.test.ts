@@ -10914,6 +10914,89 @@ function buildConditionalProbabilityPracticeContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildGroceryBudgetUpdateGroupBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm worried about my financial situation, I'm 42 and earning $65,000 annually, can you help me make a plan to manage my money better and build some savings? ->-> 1,1",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "I've decided to create a monthly budget by April 1, and I'm gonna track all expenses over $20, but I'm not sure if that's the right threshold, what do you think? ->-> 1,8",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I've agreed with Alexis on a $500 monthly joint budget for groceries starting Sept 1, which is up from $400, and I'm thinking about how this change will affect our expenses, especially with the contract I'm considering ->-> 3,3",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to plan my expenses, and I saw that my grocery budget was increased to $550 monthly starting September 15, so how can I make the most of this change to accommodate my dietary changes? ->-> 3,22",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good! I'll start by listing out my dietary changes and nutritional requirements. Then I'll create a detailed grocery list based on those needs. I'll also compare prices at different stores and buy non-perishable items in bulk to save money. And I'll keep using YNAB to track my spending to make sure I stay within the $550 limit. Let's do it!",
+      id: 206,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "grocery-budget-update-group",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Personal Finance",
+        id: 16,
+        subtopics: [
+          "Grocery budget",
+          "Joint budgeting",
+          "Expense tracking",
+          "Dietary changes",
+        ],
+        theme:
+          "Managing a joint grocery budget across conversations",
+        title:
+          "Joint Grocery Budgeting",
+      },
+      narratives: "Grocery budget knowledge update with a follow-up acknowledgement turn",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer:
+              "The monthly grocery budget agreed on is $550, up from the earlier $500.",
+            question:
+              "What is the monthly grocery budget Alexis and I have agreed on?",
+            question_id: "grocery-budget-update-group",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [126], updated_info: [204, 206] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: person managing a joint grocery budget",
+        user_relationships: "Shares a grocery budget with Alexis",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16923,6 +17006,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([84, 86, 88, 134, 136]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the grocery budget knowledge-update group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-grocery-budget-update-group",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildGroceryBudgetUpdateGroupBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([126, 204, 206]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
