@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-zoom-call-schedule-update-group-current-20260615T172117Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-screening-accuracy-update-group-current-20260615T173735Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-grocery-budget-update-group-current-20260615T164144Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-zoom-call-schedule-update-group-current-20260615T172117Z`
 
-Summary (second answer_ai_question knowledge_update recovery via multiFacetGroups):
+Summary (third answer_ai_question knowledge_update recovery via multiFacetGroups — answer_ai_question ku set exhausted):
 
-- evidence-chat recall: 0.9540800357701766
-- missed-recall cases: 25/355
-- wrong-recall/noise cases: 172/400
+- evidence-chat recall: 0.9564274536105521
+- missed-recall cases: 24/355
+- wrong-recall/noise cases: 171/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1012/82/825 -> 1013/81/824
-- recovered target: `8:knowledge_update:1`
-- target result: recall 0.667 -> 1 — the original Zoom-call slot (April 21 3 PM, turn 92) and reschedule (April 22 11 AM, turn 94) were already hit; this recovers the missing answer_ai_question schedule-confirmation turn 96 (a markerless schedule dump). Returns [92,94,96]
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-8 cases held (8:msr:1 at 0.333 unchanged)
-- repair shape: added isZoomCallScheduleUpdateGroupQuery gate (`knowledgeUpdate.zoomCallScheduleGroup` = "when is my Zoom call" && "scheduled", 1/400 — narrowed so it does NOT match the same conversation's 8:msr:2/8:tr:1 which also mention the Zoom call) + a three-facet list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. DISALLOWED-NAME HANDLING: turn 96's schedule lists Meetings with disallowed names (Laura, Michael), so the schedule facet keys on "schedule for April 22" + "Team meeting" only — selector files disallowed-scan clean (fixture exempt).
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2558 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1013/81/824 -> 1018/76/819
+- recovered target: `11:knowledge_update:2`
+- target result: recall 0.167 -> 1 — only the 90%-accuracy turn 170 was hit; this recovers the five missing turns 126/128/130/172/174 (the 87% original plus four answer_ai_question follow-ups, four of them markerless), returning all six source-ordered [126,128,130,170,172,174] and shedding five noisy chats
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-11 cases held (11:tr:1 from pass 80, 11:cr:1 from pass 85 both recall 1; 11:msr:1/2 unchanged)
+- repair shape: added isAiScreeningAccuracyUpdateGroupQuery gate (`knowledgeUpdate.aiScreeningAccuracyGroup` = "accuracy rate" && "AI screening tool", 1/400) + a SIX-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. The last follow-up turn 174 has an identical duplicate later turn (180); pickFirst returns the earliest (174, the designated one). No disallowed names. Largest single-case jump so far (5 turns recovered).
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2559 pass / 2 skip / 0 fail.
 
-PROCESS NOTE: a prior attempt this loop to recover instruction_following 1:if:1 via multiFacetGroups was REVERTED — the login-feature gate collided with the existing instructionRules continuation mechanism and broke 3 existing unit tests (the per-400 diagnostic missed it; the full suite caught it). instruction_following needs the instructionRules companionPattern (pass-43) recipe, NOT multiFacetGroups. The remaining answer_ai_question knowledge_update case 11:ku:2 (6-turn) is still addressable via multiFacetGroups. NEXT LOOP: 11:ku:2, then instruction_following via instructionRules companionPattern, then multi_session_reasoning (11, candidate-pool gap), then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+The repaired target covers the AI-screening-accuracy knowledge update. The answer_ai_question knowledge_update cases are now ALL recovered (16:ku:1, 8:ku:1, 11:ku:2 via multiFacetGroups). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — second answer_ai_question ku recovery (8:knowledge_update:1, zoom-call-schedule): recall 0.667->1 recovering the markerless schedule turn 96 via multiFacetGroups, returns [92,94,96]; left recall 0.9540800357701766. Disallowed-name handling on turn 96 (schedule facet name-free).]
 
 [Prior pass — first answer_ai_question knowledge_update recovery (16:knowledge_update:1, grocery-budget): the multiFacetGroups breakthrough proving markerless answer_ai_question turns are recoverable; recall 0.667->1 recovering markerless turn 206; left recall 0.9531410686340265.]
 
