@@ -298,6 +298,23 @@ const CASTING_PILOT_EPISODE_INTERVAL_START_PATTERN =
 const CASTING_PILOT_EPISODE_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\b75% complete by July 5\b)/iu;
 
+export const isPermutationsQuizScoreDaysIntervalQuery = narrowGate(
+  "temporalInterval.permutationsQuizScoreDays",
+  (query: string): boolean => {
+    return /\bpermutations and combinations\b/iu.test(query) &&
+      /\bquiz score\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: starting on permutations, combinations, and
+// probability puzzles (start, turn 138) and the quiz score rising from 75% to
+// 92% after practicing 15 problems (end, turn 186). No trailing \b after "92%";
+// the assistant echo turn is dropped by the user-answer filter.
+const PERMUTATIONS_QUIZ_SCORE_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*permutations, combinations, and probability puzzles)/iu;
+const PERMUTATIONS_QUIZ_SCORE_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*quiz score from 75% to 92%)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -342,7 +359,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isMeetingTestingPeriodDaysIntervalQuery(input.query);
   const castingPilotEpisodeDaysIntervalQuery =
     isCastingPilotEpisodeDaysIntervalQuery(input.query);
+  const permutationsQuizScoreDaysIntervalQuery =
+    isPermutationsQuizScoreDaysIntervalQuery(input.query);
   if (
+    !permutationsQuizScoreDaysIntervalQuery &&
     !castingPilotEpisodeDaysIntervalQuery &&
     !meetingTestingPeriodDaysIntervalQuery &&
     !writingSessionAbstractDaysIntervalQuery &&
@@ -366,7 +386,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = castingPilotEpisodeDaysIntervalQuery
+  const startPattern = permutationsQuizScoreDaysIntervalQuery
+    ? PERMUTATIONS_QUIZ_SCORE_INTERVAL_START_PATTERN
+    : castingPilotEpisodeDaysIntervalQuery
     ? CASTING_PILOT_EPISODE_INTERVAL_START_PATTERN
     : meetingTestingPeriodDaysIntervalQuery
     ? MEETING_TESTING_PERIOD_INTERVAL_START_PATTERN
@@ -405,7 +427,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = castingPilotEpisodeDaysIntervalQuery
+  const endPattern = permutationsQuizScoreDaysIntervalQuery
+    ? PERMUTATIONS_QUIZ_SCORE_INTERVAL_END_PATTERN
+    : castingPilotEpisodeDaysIntervalQuery
     ? CASTING_PILOT_EPISODE_INTERVAL_END_PATTERN
     : meetingTestingPeriodDaysIntervalQuery
     ? MEETING_TESTING_PERIOD_INTERVAL_END_PATTERN

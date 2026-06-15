@@ -39,6 +39,7 @@ import {
   isFilmOfficeMoviesDaysIntervalQuery,
   isFirstDraftEssayGradeDaysIntervalQuery,
   isMeetingTestingPeriodDaysIntervalQuery,
+  isPermutationsQuizScoreDaysIntervalQuery,
   isPriorArtProvisionalPatentDaysIntervalQuery,
   isEditingChallengeDaysIntervalQuery,
   isMovieListGameNightDaysIntervalQuery,
@@ -218,6 +219,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isDailyWalkingGoalFestivalMonthsIntervalQuery,
   "temporalInterval.castingPilotEpisodeDays":
     isCastingPilotEpisodeDaysIntervalQuery,
+  "temporalInterval.permutationsQuizScoreDays":
+    isPermutationsQuizScoreDaysIntervalQuery,
   "temporalInterval.coverLetterZoomCallDays":
     isCoverLetterZoomCallDaysIntervalQuery,
   "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,

@@ -8753,6 +8753,84 @@ function buildCastingPilotEpisodeDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildPermutationsQuizScoreDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm now ready to tackle permutations, combinations, and probability puzzles involving multiple-step reasoning, and I was wondering if you could help me with a problem that combines these concepts, considering my current focus on April 5, 2024 ->-> 3,1",
+      id: 138,
+      role: "user",
+    },
+    {
+      content:
+        "I'm really enjoying these lively discussions about probability, and I have to say, challenging conventional wisdom is so much fun, it helps me question probability misconceptions like gambler's fallacy, so can you help me understand how to calculate the probability of independent events, like tossing two coins, and how does this relate to my goal of solving 10 probability problems, and I'm also interested in learning about permutations and combinations, like permutations of 3 objects, where 3! = 6, and combinations of 3 choose 2, where 3C2 = 3? ->-> 1,20",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand dependent events and conditional probability after mastering independent events and simple ratios, but I'm having trouble applying it to a real-life scenario - can you help me with a problem like \"what's the probability that it will rain on February 15, 2024, given that it rained the day before?\" and walk me through the steps? ->-> 2,2",
+      id: 68,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to understand how my progress in permutations and combinations is related to my increased quiz score from 75% to 92% after practicing 15 problems, can you help me break down the math behind this improvement and see if there's a direct correlation between the number of problems I practiced and my score increase? ->-> 3,14",
+      id: 186,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "permutations-quiz-score-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 5,
+        subtopics: [
+          "Permutations and combinations",
+          "Probability practice",
+          "Quiz score progress",
+          "Study planning",
+        ],
+        theme:
+          "Tracking probability study milestones and quiz score improvement across conversations",
+        title:
+          "Probability Study Progress",
+      },
+      narratives: "Permutations focus to quiz score improvement interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "10 days passed between April 5, 2024, when I started focusing on permutations and combinations, and the quiz score improvement after practicing 15 problems.",
+            difficulty: "medium",
+            question:
+              "How many days passed between when I focused on permutations and combinations starting on April 5, 2024, and when I improved my quiz score after practicing 15 problems?",
+            question_id: "permutations-quiz-score-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [138], second_event: [186] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: learner tracking probability study and quiz progress",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15114,6 +15192,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([108, 156]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps permutations to quiz score days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-permutations-quiz-score-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPermutationsQuizScoreDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([138, 186]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
