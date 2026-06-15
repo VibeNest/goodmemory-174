@@ -8170,6 +8170,89 @@ function buildProbabilityStudyHoursUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildSnackBudgetUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've got a time anchor of March 28, 2024, 8:30 PM, and I'm trying to make sure everything is perfect for our movie marathon, so can you give me some advice on how to make the most of my schedule, now that I've finalized my watchlist and just need to prepare some themed snacks and activities for the kids without going over my $100 entertainment budget? ->-> 2,1",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a family movie weekend and I've increased my snack budget to $65, so I can order themed cupcakes from The Sweet Spot bakery on Market Street, can you help me find some movies that fit my new budget and are available on platforms that allow simultaneous streaming on multiple devices? ->-> 2,6",
+      id: 66,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a movie marathon for my family and I've adjusted the snack budget to $75, can you suggest some themed drinks that fit within this budget? ->-> 2,22",
+      id: 102,
+      role: "user",
+    },
+    {
+      content:
+        "What movies would be perfect for an outdoor movie night on May 12 at 7 PM with a 65°F forecast, considering we have a budget of $30 for themed snacks like star-shaped cookies and blue punch? ->-> 4,17",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "I need advice on how to manage our movie marathon schedule for May 11-12, while keeping in mind our goal to include one documentary for educational content, and ensuring we have enough snacks with a budget of $85, including themed snacks inspired by the marathon? ->-> 5,3",
+      id: 222,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "snack-budget-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Entertainment",
+        id: 14,
+        subtopics: [
+          "Movie marathon",
+          "Snack budget",
+          "Themed treats",
+          "Family weekend",
+        ],
+        theme:
+          "Tracking the movie-marathon snack budget across conversations",
+        title:
+          "Movie Marathon Snack Budget",
+      },
+      narratives: "Snack budget knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "$75",
+            difficulty: "easy",
+            question:
+              "What is my snack budget for ordering themed treats for the movie marathon?",
+            question_id: "snack-budget-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [66], updated_info: [102] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Parent planning a family movie marathon",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildZoteroSourcesUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -13969,6 +14052,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([44, 62]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps snack budget update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-snack-budget-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildSnackBudgetUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([66, 102]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

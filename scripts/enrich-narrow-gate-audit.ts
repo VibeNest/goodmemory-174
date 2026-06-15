@@ -26,6 +26,7 @@ import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selector
 import { isHolidayGiftBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/holidayGiftBudget";
 import { isZoteroSourcesUpdateQuery } from "../src/recall/selectors/updateSeriesRules/zoteroSources";
 import { isProbabilityStudyHoursUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probabilityStudyHours";
+import { isSnackBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/snackBudget";
 import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
@@ -184,6 +185,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "updateSeries.zoteroSources": isZoteroSourcesUpdateQuery,
   "updateSeries.probabilityStudyHours":
     isProbabilityStudyHoursUpdateQuery,
+  "updateSeries.snackBudget": isSnackBudgetUpdateQuery,
   "updateSeries.probateTimeline": isProbateTimelineUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,

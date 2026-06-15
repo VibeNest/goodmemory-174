@@ -9,6 +9,7 @@ import { selectSourceOrderedOnboardingModulesCompletionEvidence } from "./onboar
 import { selectSourceOrderedProbabilityStudyHoursEvidence } from "./probabilityStudyHours";
 import { selectSourceOrderedProbateTimelineEvidence } from "./probateTimeline";
 import { selectSourceOrderedRemoteWorkScheduleEvidence } from "./remoteWorkSchedule";
+import { selectSourceOrderedSnackBudgetEvidence } from "./snackBudget";
 import { selectSourceOrderedWinterReadingChallengeEvidence } from "./winterReadingChallenge";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./writingGroupDeadline";
 import { selectSourceOrderedZoteroSourcesEvidence } from "./zoteroSources";
@@ -41,6 +42,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedProbateTimelineEvidence,
   selectSourceOrderedZoteroSourcesEvidence,
   selectSourceOrderedProbabilityStudyHoursEvidence,
+  selectSourceOrderedSnackBudgetEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(
