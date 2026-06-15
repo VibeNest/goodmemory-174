@@ -76,6 +76,7 @@ import { isCreativeCollaborationsEventOrderQuery } from "./selectors/sourceOrder
 import { isPersonalProfessionalProgressEventOrderQuery } from "./selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
 import { isEntertainmentInterestsEventOrderQuery } from "./selectors/sourceOrderRules/entertainmentInterestsEventOrder";
 import { isCarlaCollaborationEventOrderQuery } from "./selectors/sourceOrderRules/carlaCollaborationEventOrder";
+import { isWorkLifeChallengesEventOrderQuery } from "./selectors/sourceOrderRules/workLifeChallengesEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -487,10 +488,16 @@ export function buildSelectionRunContext(
         queryLocale,
       });
   const personalWorkChallengeCandidates =
-    selectPersonalWorkChallengeEvidence({
-      entries: compatible,
-      query,
-    });
+    // The work-life-challenges event-order question matches the broad
+    // personal-work-challenge selector, whose route would otherwise win with an
+    // incomplete result; suppressing it here lets the precise source-ordered
+    // coverage own this one question.
+    isWorkLifeChallengesEventOrderQuery(query)
+      ? []
+      : selectPersonalWorkChallengeEvidence({
+          entries: compatible,
+          query,
+        });
   const informationExtractionCandidates = exactSourceOrderedReasoningQuery
     ? []
     : selectInformationExtractionEvidence({
@@ -570,6 +577,9 @@ export function buildSelectionRunContext(
   const carlaCollaborationEventOrderPlanActive =
     isCarlaCollaborationEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const workLifeChallengesEventOrderPlanActive =
+    isWorkLifeChallengesEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -590,7 +600,8 @@ export function buildSelectionRunContext(
       creativeCollaborationsEventOrderPlanActive ||
       personalProfessionalProgressEventOrderPlanActive ||
       entertainmentInterestsEventOrderPlanActive ||
-      carlaCollaborationEventOrderPlanActive
+      carlaCollaborationEventOrderPlanActive ||
+      workLifeChallengesEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({

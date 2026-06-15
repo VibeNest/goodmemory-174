@@ -10492,6 +10492,126 @@ function buildCarlaCollaborationEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildWorkLifeChallengesEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stressed about collaborating with Greg, a 30-year-old assistant editor, on editing schedules at Montserrat Studios, and I was wondering if you could help me figure out how to make our weekly meetings more productive ->-> 1,5",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "These strategies sound really helpful! I'll start by sending an agenda before our next meeting and make sure I come prepared with all the necessary materials. I'll also encourage Greg to share his thoughts more openly. Hopefully, this will make our meetings more productive and less stressful.",
+      id: 26,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good! I'll send the agenda to Greg tomorrow and make sure I have all the necessary materials ready. I'll also actively encourage him to share his thoughts during the meeting. Hopefully, this will make our collaboration smoother and less stressful.",
+      id: 28,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to set boundaries by limiting work emails after 7 PM, starting March 5, to reduce stress, but I'm kinda worried it might affect my work, can you help me figure out how to make this work? ->-> 1,9",
+      id: 48,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about declining that $5,000 freelance project on Feb 25, was it the right call to avoid overloading my schedule? ->-> 1,15",
+      id: 78,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about my support group meetings at East Janethaven Library, what if I don't connect with anyone, I joined on April 5 and we meet every Friday at 6 PM ->-> 2,4",
+      id: 144,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a weekend getaway to Blue Bay Resort with David on April 20-21, should I tell him about my burnout and stress or just try to relax and enjoy our time together ->-> 2,5",
+      id: 146,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stressed about Erica confronting me on April 9, and we're supposed to meet on April 15 for dinner at The Green Mango, what should I talk to her about to clear the air? ->-> 2,12",
+      id: 162,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda nervous about my upcoming anniversary dinner with David at The Coral Reef, East Janethaven on May 18, I want to make it special since it's our 5th year together ->-> 3,5",
+      id: 202,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the tips! I'll make sure to reserve a nice table and plan the menu around David's favorites. I think I'll bring a small bouquet of flowers and maybe a handwritten note to add a personal touch. And definitely a toast to celebrate our five years together! Can't wait to make it a special night.",
+      id: 204,
+      role: "user",
+    },
+    {
+      content:
+        "My partner David planned this incredible surprise July 4 picnic at Montserrat Botanical Gardens to celebrate my promotion, and I'm kinda curious to know how I can return the favor and plan something just as special for him ->-> 4,5",
+      id: 262,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "work-life-challenges-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Wellbeing",
+        id: 37,
+        subtopics: [
+          "Editing collaboration",
+          "Weekend getaway",
+          "Anniversary dinner",
+          "Surprise celebration",
+        ],
+        theme:
+          "Personal and work-related challenges across conversations",
+        title:
+          "Work Life Challenges",
+      },
+      narratives: "Personal and work-related challenges event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these challenges in this order: collaborating on editing schedules, the weekend getaway and burnout, the anniversary dinner, and the surprise celebration.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different personal and work-related challenges during our chats, in order? Mention ONLY and ONLY four items.",
+            question_id: "work-life-challenges-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [24, 26, 28, 146, 202, 204, 262],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Professional balancing work and personal milestones",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13821,6 +13941,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([52, 78, 176, 228, 230, 232]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the work-life challenges event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-work-life-challenges-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWorkLifeChallengesEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([24, 26, 28, 146, 202, 204, 262]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
