@@ -8675,6 +8675,84 @@ function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to schedule a meeting for March 15, 2024, at 09:00 CET, and I want to make sure I don't overlap with any other important events, can you help me figure out how to coordinate this meeting? ->-> 1,1",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on a project with a deadline set for MVP completion by April 5, 2024, to allow two weeks for testing and deployment, and I want to make sure I can meet this deadline, so can you help me create a project plan? ->-> 1,21",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to achieve 100% test coverage on my core modules, including API fetch, autocomplete, and error handling, and I've currently reached 85% as of April 9, 2024, can you help me cover all the remaining cases? ->-> 2,24",
+      id: 148,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on a project that was marked feature-complete on April 9, 2024, and I'm ready to collect user feedback. The project has all MVP goals met, and I've achieved 85% test coverage on core modules, what next? ->-> 3,7",
+      id: 186,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "meeting-testing-period-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 2,
+        subtopics: [
+          "Meeting scheduling",
+          "MVP deadline",
+          "Testing period",
+          "Project planning",
+        ],
+        theme:
+          "Tracking a project meeting and its testing period across conversations",
+        title:
+          "Project Meeting and Testing Timeline",
+      },
+      narratives: "Meeting scheduling to testing period interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 21 days between scheduling the meeting on March 15 and the start of the two-week testing period beginning April 5.",
+            difficulty: "medium",
+            question:
+              "How many days do I have between scheduling the meeting and the start of the testing period for my project?",
+            question_id: "meeting-testing-period-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [0], second_event: [50] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer planning a project meeting and testing",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWritingSessionAbstractDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -14935,6 +15013,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([36, 56]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps meeting to testing period days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-meeting-testing-period-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildMeetingTestingPeriodDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([0, 50]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -268,6 +268,21 @@ const WRITING_SESSION_ABSTRACT_INTERVAL_START_PATTERN =
 const WRITING_SESSION_ABSTRACT_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*\bsubmission deadline of June 15 for the conference abstract\b)/iu;
 
+export const isMeetingTestingPeriodDaysIntervalQuery = narrowGate(
+  "temporalInterval.meetingTestingPeriodDays",
+  (query: string): boolean => {
+    return /\bscheduling the meeting\b/iu.test(query) &&
+      /\btesting period\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: the March 15 meeting scheduling (start) and the
+// April 5 MVP completion that begins the two-week testing period (end).
+const MEETING_TESTING_PERIOD_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*\bschedule a meeting for March 15, 2024, at 09:00 CET\b)/iu;
+const MEETING_TESTING_PERIOD_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*\bMVP completion by April 5, 2024, to allow two weeks for testing\b)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -308,7 +323,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isSprintDeadlineDaysIntervalQuery(input.query);
   const writingSessionAbstractDaysIntervalQuery =
     isWritingSessionAbstractDaysIntervalQuery(input.query);
+  const meetingTestingPeriodDaysIntervalQuery =
+    isMeetingTestingPeriodDaysIntervalQuery(input.query);
   if (
+    !meetingTestingPeriodDaysIntervalQuery &&
     !writingSessionAbstractDaysIntervalQuery &&
     !sprintDeadlineDaysIntervalQuery &&
     !coverLetterZoomCallDaysIntervalQuery &&
@@ -330,7 +348,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = writingSessionAbstractDaysIntervalQuery
+  const startPattern = meetingTestingPeriodDaysIntervalQuery
+    ? MEETING_TESTING_PERIOD_INTERVAL_START_PATTERN
+    : writingSessionAbstractDaysIntervalQuery
     ? WRITING_SESSION_ABSTRACT_INTERVAL_START_PATTERN
     : sprintDeadlineDaysIntervalQuery
     ? SPRINT_DEADLINE_INTERVAL_START_PATTERN
@@ -365,7 +385,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = writingSessionAbstractDaysIntervalQuery
+  const endPattern = meetingTestingPeriodDaysIntervalQuery
+    ? MEETING_TESTING_PERIOD_INTERVAL_END_PATTERN
+    : writingSessionAbstractDaysIntervalQuery
     ? WRITING_SESSION_ABSTRACT_INTERVAL_END_PATTERN
     : sprintDeadlineDaysIntervalQuery
     ? SPRINT_DEADLINE_INTERVAL_END_PATTERN
