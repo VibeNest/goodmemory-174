@@ -10246,6 +10246,138 @@ function buildPersonalProfessionalProgressEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildEntertainmentInterestsEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "Hmm, \"The Lies of Locke Lamora\" sounds really interesting! The blend of fantasy and historical fiction with a touch of political intrigue and personal vendettas could be great for our book club discussions. What do you think about the pacing and complexity of this series?",
+      id: 18,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda looking for a new fiction series to read with my partner, Douglas, and I was wondering if you could recommend something, we started sharing book recommendations last December 15, 2022 ->-> 1,5",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "Hmm, \"The Lies of Locke Lamora\" sounds really interesting! The blend of fantasy and historical fiction with a touch of political intrigue and personal vendettas could be great for our discussions. What do you think about the pacing and complexity?",
+      id: 22,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on what to listen to during my 45-minute commute with Douglas, he suggested \"The Expanse\" audiobook, but I'm not sure if it's the best fit for our shared reading time, can you help me decide? ->-> 2,2",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "Hmm, I think I'll give \"The Expanse\" a try since Douglas is excited about it. But maybe we can sample a bit first to see if it fits our commute? What do you think about that?",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "Sounds good! I'll check out the sample on Audible and see how it goes. Maybe we can start listening to a few chapters this week and then decide if we want to dive deeper into the series.",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda stuck on what to do next with my reading, I downloaded \"The Poppy War\" trilogy on Libby app on December 7, and it's a total of 1,150 pages, so I'm wondering if I should finish it before moving on to something else ->-> 2,14",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking for a new series to get into, something that'll deepen my bond with my partner like Douglas did with the signed \"The Expanse\" novella on January 17 ->-> 3,11",
+      id: 174,
+      role: "user",
+    },
+    {
+      content:
+        "I think \"The Outlander Series\" by Diana Gabaldon sounds perfect for deepening our bond. The historical romance and time travel elements will be engaging and provide lots to talk about. I'll go with the e-book format for convenience. Thanks for the recommendation!",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "I've been exploring sci-fi subgenres since January 14 to better appreciate \"The Expanse\" political themes, can you help me find another series with similar themes to study and enjoy? ->-> 3,12",
+      id: 178,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a literary event with my romantic partner Douglas at Montserrat Books on February 27, and I just downloaded \"The Witcher\" first novel on the Libby app on February 13, which has 450 pages, so I'm wondering if I can finish it before the event ->-> 4,10",
+      id: 230,
+      role: "user",
+    },
+    {
+      content:
+        "I've been reading a lot of fantasy lately, and my friend Megan recommended \"The Witcher\" series, but now I'm thinking of visiting Montserrat Books with Douglas, and I want to know if we can find some other good fantasy authors to meet there ->-> 4,11",
+      id: 232,
+      role: "user",
+    },
+    {
+      content:
+        "I attended a literary festival panel on historical fiction authors with my romantic partner Douglas on March 14, and I'm looking for a new historical fiction series to get into, can you recommend something that we could both enjoy ->-> 5,11",
+      id: 282,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "entertainment-interests-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Lifestyle",
+        id: 35,
+        subtopics: [
+          "New fiction series",
+          "Audiobook commute",
+          "Deepening the bond",
+          "Bookstore and festival",
+        ],
+        theme:
+          "Shared entertainment and reading interests across conversations",
+        title:
+          "Entertainment Interests",
+      },
+      narratives: "Shared entertainment interests event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these shared entertainment interests in this order: looking for a new fiction series, the Locke Lamora fantasy-historical blend, the audiobook for your commute, sampling it, the signed novella to deepen your bond, the Outlander series, visiting the bookstore for fantasy authors, and the historical-fiction festival panel.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different shared entertainment interests with Douglas throughout our conversations, in order? Mention ONLY and ONLY six items.",
+            question_id: "entertainment-interests-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [20, 22, 70, 72, 74, 174, 176, 232, 282],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Reader sharing entertainment interests with a partner",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13527,6 +13659,31 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([8, 58, 116, 174, 228]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the entertainment interests event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-entertainment-interests-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildEntertainmentInterestsEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([
+      20, 22, 70, 72, 74, 174, 176, 232, 282,
+    ]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
