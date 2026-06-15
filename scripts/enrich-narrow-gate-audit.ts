@@ -28,6 +28,7 @@ import { isZoteroSourcesUpdateQuery } from "../src/recall/selectors/updateSeries
 import { isProbabilityStudyHoursUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probabilityStudyHours";
 import { isSnackBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/snackBudget";
 import { isPrototypeBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/prototypeBudget";
+import { isAreaCalculationAccuracyUpdateQuery } from "../src/recall/selectors/updateSeriesRules/areaCalculationAccuracy";
 import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
@@ -188,6 +189,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isProbabilityStudyHoursUpdateQuery,
   "updateSeries.snackBudget": isSnackBudgetUpdateQuery,
   "updateSeries.prototypeBudget": isPrototypeBudgetUpdateQuery,
+  "updateSeries.areaCalculationAccuracy":
+    isAreaCalculationAccuracyUpdateQuery,
   "updateSeries.probateTimeline": isProbateTimelineUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,

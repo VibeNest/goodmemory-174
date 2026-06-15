@@ -8336,6 +8336,89 @@ function buildPrototypeBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildAreaCalculationAccuracyUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand how my accuracy in area calculation problems improved from 70% to 90% after completing 12 problems, can you help me identify what I did differently to achieve such a significant improvement in my accuracy? ->-> 2,7",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble with calculating the median length in a triangle, I recently solved 8 problems on medians and altitudes but got 1 error in median length calculation, can you help me understand where I went wrong? ->-> 2,21",
+      id: 114,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to calculate the area of a triangle using Heron's formula, but I want to compare it with the base-height formula to see which one is more efficient for the triangle with sides 7 cm, 24 cm, 25 cm, and I've already completed 15 problems with 95% accuracy, so I'm looking for a method that can help me improve my understanding of triangle area calculations ->-> 2,27",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "I've been studying triangle geometry and I want to know how to apply the concept of medians and altitudes to calculate the area of a triangle, considering I've never completed any problems involving medians or altitudes before, and I've improved my quiz score from 70% to 90% after completing 12 area calculation problems ->-> 2,28",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble understanding the difference between congruence and similarity in triangles, can you explain it using precise mathematical language, and how this applies to triangles with sides 6, 8, 10 cm and 9, 12, 15 cm, and how to prove triangle congruence using SSS, SAS, ASA criteria? ->-> 3,22",
+      id: 190,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "area-calculation-accuracy-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 4,
+        subtopics: [
+          "Area calculation problems",
+          "Accuracy tracking",
+          "Triangle geometry",
+          "Skill development",
+        ],
+        theme:
+          "Tracking area-calculation accuracy across conversations",
+        title:
+          "Area Calculation Accuracy",
+      },
+      narratives: "Area calculation accuracy knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "95%",
+            difficulty: "easy",
+            question:
+              "What is my accuracy percentage in solving area calculation problems after completing 15 problems?",
+            question_id: "area-calculation-accuracy-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [82], updated_info: [130] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student tracking geometry accuracy",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildZoteroSourcesUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -14181,6 +14264,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([130, 176]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps area calculation accuracy update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-area-calculation-accuracy-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAreaCalculationAccuracyUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([82, 130]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

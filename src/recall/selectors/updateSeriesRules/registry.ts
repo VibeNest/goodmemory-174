@@ -1,5 +1,6 @@
 import type { RankedFactCandidate } from "../../scoring";
 import { selectSourceOrderedAiEthicsWebinarEvidence } from "./aiEthicsWebinar";
+import { selectSourceOrderedAreaCalculationAccuracyEvidence } from "./areaCalculationAccuracy";
 import { selectSourceOrderedEventCupcakeOrderEvidence } from "./eventCupcakeOrder";
 import { selectSourceOrderedExecutiveProducerInterviewsEvidence } from "./executiveProducerInterviews";
 import { selectSourceOrderedFinalDecisionMeetingEvidence } from "./finalDecisionMeeting";
@@ -45,6 +46,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedProbabilityStudyHoursEvidence,
   selectSourceOrderedSnackBudgetEvidence,
   selectSourceOrderedPrototypeBudgetEvidence,
+  selectSourceOrderedAreaCalculationAccuracyEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(
