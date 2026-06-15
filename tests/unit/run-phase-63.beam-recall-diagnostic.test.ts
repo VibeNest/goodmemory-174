@@ -8831,6 +8831,84 @@ function buildPermutationsQuizScoreDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildAiHiringWebinarDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about using AI for hiring, especially since my friend Carla, 58, suggested it over lunch at The Blue Lagoon on March 1, and I value her opinion ->-> 1,6",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a webinar on AI ethics in hiring coming up on March 20, hosted by Montserrat Business Council, can you help me understand what to expect from it? ->-> 1,18",
+      id: 70,
+      role: "user",
+    },
+    {
+      content:
+        "How can I balance the social responsibility of educating local businesses on ethical AI hiring with my own goals, like the one Carla and I discussed after co-hosting the October 1 panel at Montserrat Business Council, which was attended by over 50 professionals? ->-> 4,4",
+      id: 274,
+      role: "user",
+    },
+    {
+      content:
+        "I've just started the online course on AI bias mitigation by Stanford University, which began on October 5, and I'm wondering how I can apply what I learn to ensure that my decision to limit AI data retention to 6 months, starting October 1, effectively prioritizes candidate privacy? ->-> 4,11",
+      id: 294,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "ai-hiring-webinar-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 11,
+        subtopics: [
+          "AI hiring ethics",
+          "Webinar planning",
+          "Mentor suggestions",
+          "Professional development",
+        ],
+        theme:
+          "Tracking AI-ethics-in-hiring learning milestones across conversations",
+        title:
+          "AI Hiring Ethics Journey",
+      },
+      narratives: "Lunch suggestion to AI ethics webinar interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "There are 19 days between Carla's suggestion over lunch on March 1 and the webinar on AI ethics in hiring on March 20.",
+            difficulty: "medium",
+            question:
+              "How many days are there between when my friend Carla suggested using AI for hiring over lunch and my upcoming webinar on AI ethics in hiring?",
+            question_id: "ai-hiring-webinar-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [20], second_event: [70] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: hiring manager exploring ethical AI adoption",
+        user_relationships: "Carla is a trusted friend and informal advisor",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15215,6 +15293,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([138, 186]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps AI hiring lunch suggestion to webinar days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-ai-hiring-webinar-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAiHiringWebinarDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([20, 70]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

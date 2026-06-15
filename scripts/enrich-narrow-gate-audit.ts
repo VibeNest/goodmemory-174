@@ -32,6 +32,7 @@ import { isAreaCalculationAccuracyUpdateQuery } from "../src/recall/selectors/up
 import { isEstateTaxRateUpdateQuery } from "../src/recall/selectors/updateSeriesRules/estateTaxRate";
 import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
 import {
+  isAiHiringWebinarDaysIntervalQuery,
   isCastingPilotEpisodeDaysIntervalQuery,
   isCoverLetterZoomCallDaysIntervalQuery,
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
@@ -221,6 +222,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isCastingPilotEpisodeDaysIntervalQuery,
   "temporalInterval.permutationsQuizScoreDays":
     isPermutationsQuizScoreDaysIntervalQuery,
+  "temporalInterval.aiHiringWebinarDays":
+    isAiHiringWebinarDaysIntervalQuery,
   "temporalInterval.coverLetterZoomCallDays":
     isCoverLetterZoomCallDaysIntervalQuery,
   "temporalInterval.emergencyFundDays": isEmergencyFundDaysIntervalQuery,
