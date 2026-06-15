@@ -10378,6 +10378,120 @@ function buildEntertainmentInterestsEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildCarlaCollaborationEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda nervous about improving my writing skills, I'm 45 and feel like I should be better at it by now, can you help me get started on this self-editing journey?? ->-> 1,2",
+      id: 0,
+      role: "user",
+    },
+    {
+      content:
+        "I prefer editing in short bursts, you know, 30 minutes at a time, rather than marathon sessions, can you help me figure out how to maintain this pace without burning out? ->-> 1,16",
+      id: 50,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that Carla, who's 81, might not get my first 10 pages reviewed by March 20, what if she needs more time, should I ask her for an update? ->-> 1,17",
+      id: 52,
+      role: "user",
+    },
+    {
+      content:
+        "I've drafted a 12-scene outline on Feb 25, and I'm allocating 2 scenes per week for detailed editing, but I'm not sure if this pace will help me achieve my writing goals, can you help me assess my planning and logistics ->-> 1,20",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, that plan sounds good to me. I'll stick with editing 2 scenes per week and set specific goals each week. I'll also keep a log of my progress and share my edits with Joseph for feedback. Let's go with this!",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that my passive voice reduction by 18% after Carla revealed her editing checklist on April 7 might not be enough, can you help me improve it further? ->-> 2,4",
+      id: 78,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the tone adjustments Carla and I prioritized for those 3 key scenes on May 28, can you help me figure out if we're on the right track with the beta feedback from Joseph's network ->-> 3,3",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the joint editing webinar with Carla on September 10, how can I make sure we get at least 50 attendees from Montserrat Writers’ Guild, and what's the best way to promote it to them? ->-> 4,2",
+      id: 228,
+      role: "user",
+    },
+    {
+      content:
+        "Let's focus on engaging with the guild leadership and utilizing their email newsletters first. I think that's a good starting point. What do you think about the incentives part? Any ideas for what we could offer?",
+      id: 230,
+      role: "user",
+    },
+    {
+      content:
+        "Let's go with those steps. I'll start reaching out to the guild leaders and see if they can help us promote the webinar. For incentives, I think the Q&A session with Carla and exclusive content like a guide to editing techniques would be great. What do you think about adding a giveaway of a free month of access to Grammarly or ProWritingAid?",
+      id: 232,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "carla-collaboration-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Writing",
+        id: 36,
+        subtopics: [
+          "Page review",
+          "Editing checklist",
+          "Tone and scenes",
+          "Joint webinar",
+        ],
+        theme:
+          "Collaborating with an editor across conversations",
+        title:
+          "Carla Collaboration",
+      },
+      narratives: "Editor collaboration event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these collaboration aspects in this order: the first-pages review deadline, the passive-voice reduction after the editing checklist, the tone adjustments for key scenes, the joint editing webinar, engaging the guild leadership, and the Q&A incentive plan.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my collaboration with Carla throughout our conversations in order? Mention ONLY and ONLY five items.",
+            question_id: "carla-collaboration-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [52, 78, 176, 228, 230, 232],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Writer collaborating with an editor",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13684,6 +13798,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     expect(testCase?.retrievedChatIds).toEqual([
       20, 22, 70, 72, 74, 174, 176, 232, 282,
     ]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the Carla collaboration event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-carla-collaboration-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCarlaCollaborationEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([52, 78, 176, 228, 230, 232]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

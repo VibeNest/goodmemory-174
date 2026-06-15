@@ -66,6 +66,7 @@ import { selectSourceOrderedProjectDevelopmentEventOrderCoverage } from "./sourc
 import { selectSourceOrderedCreativeCollaborationsEventOrderCoverage } from "./sourceOrderRules/creativeCollaborationsEventOrder";
 import { selectSourceOrderedPersonalProfessionalProgressEventOrderCoverage } from "./sourceOrderRules/personalProfessionalProgressEventOrder";
 import { selectSourceOrderedEntertainmentInterestsEventOrderCoverage } from "./sourceOrderRules/entertainmentInterestsEventOrder";
+import { selectSourceOrderedCarlaCollaborationEventOrderCoverage } from "./sourceOrderRules/carlaCollaborationEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -102,6 +103,7 @@ const UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE: ReadonlyArray<
   selectSourceOrderedCreativeCollaborationsEventOrderCoverage,
   selectSourceOrderedPersonalProfessionalProgressEventOrderCoverage,
   selectSourceOrderedEntertainmentInterestsEventOrderCoverage,
+  selectSourceOrderedCarlaCollaborationEventOrderCoverage,
 ];
 
 export {

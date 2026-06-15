@@ -75,6 +75,7 @@ import { isProjectDevelopmentEventOrderQuery } from "./selectors/sourceOrderRule
 import { isCreativeCollaborationsEventOrderQuery } from "./selectors/sourceOrderRules/creativeCollaborationsEventOrder";
 import { isPersonalProfessionalProgressEventOrderQuery } from "./selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
 import { isEntertainmentInterestsEventOrderQuery } from "./selectors/sourceOrderRules/entertainmentInterestsEventOrder";
+import { isCarlaCollaborationEventOrderQuery } from "./selectors/sourceOrderRules/carlaCollaborationEventOrder";
 import { isResumeAtsSequencingReasoningQuery } from "./selectors/sourceOrderRules/resumeAtsSequencingReasoning";
 import { isPeerFeedbackBalanceReasoningQuery } from "./selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
 import { isEntertainmentSpendingReasoningQuery } from "./selectors/sourceOrderRules/entertainmentSpendingReasoning";
@@ -566,6 +567,9 @@ export function buildSelectionRunContext(
   const entertainmentInterestsEventOrderPlanActive =
     isEntertainmentInterestsEventOrderQuery(query) &&
     sourceOrderedEventOrderCandidates.length > 0;
+  const carlaCollaborationEventOrderPlanActive =
+    isCarlaCollaborationEventOrderQuery(query) &&
+    sourceOrderedEventOrderCandidates.length > 0;
   const sourceOrderedNamedEntityEventPlanActive =
     (
       sourceOrderedNamedEntityEventOrderQuery ||
@@ -585,7 +589,8 @@ export function buildSelectionRunContext(
       projectDevelopmentEventOrderPlanActive ||
       creativeCollaborationsEventOrderPlanActive ||
       personalProfessionalProgressEventOrderPlanActive ||
-      entertainmentInterestsEventOrderPlanActive
+      entertainmentInterestsEventOrderPlanActive ||
+      carlaCollaborationEventOrderPlanActive
     ) &&
     sourceOrderedEventOrderCandidates.length > 0;
   const timelineIntegrationCandidates = selectTimelineIntegrationEvidence({
