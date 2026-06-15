@@ -17,6 +17,7 @@ import { selectTabulatedFirstDenialContradictionPair } from "./contradictionRule
 import { selectTabulatedMultiFacetContradictionGroup } from "./contradictionRules/multiFacetGroups";
 export {
   isApiKeyObtainedContradictionQuery,
+  isConditionalProbabilityPracticeContradictionQuery,
   isGrammarAnxietyContradictionQuery,
   isRemoteCollaborationContradictionQuery,
   isWorkshopAttendanceContradictionQuery,

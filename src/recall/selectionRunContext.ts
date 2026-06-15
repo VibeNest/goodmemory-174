@@ -34,6 +34,7 @@ import {
 } from "./selectors/conversationEvidence";
 import {
   isApiKeyObtainedContradictionQuery,
+  isConditionalProbabilityPracticeContradictionQuery,
   isGrammarAnxietyContradictionQuery,
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
@@ -229,6 +230,7 @@ export function buildSelectionRunContext(
     isRemoteCollaborationContradictionQuery(query) ||
     isWorkshopAttendanceContradictionQuery(query) ||
     isApiKeyObtainedContradictionQuery(query) ||
+    isConditionalProbabilityPracticeContradictionQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

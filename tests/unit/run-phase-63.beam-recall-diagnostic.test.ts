@@ -10823,6 +10823,97 @@ function buildApiKeyObtainedContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildConditionalProbabilityPracticeContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to understand how my accuracy in conditional probability problems improved from 60% to 85% over 2 weeks, after completing 8 problems - can you help me calculate the rate of improvement and how many more problems I need to solve to reach 100% accuracy? ->-> 2,9",
+      id: 84,
+      role: "user",
+    },
+    {
+      content:
+        "Yeah, that makes sense. So I've improved by about 3.125% per problem. To get to 100%, I'd need to solve around 5 more problems. Makes sense, thanks for breaking it down!",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "No, I think I'm good for now. Thanks for the help with my probability problems! I'll keep practicing and come back if I need more guidance.",
+      id: 88,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to verify if P(drawing a heart or a queen) is correct, and I want to make sure I'm doing this right because I've been studying conditional probability and dependent events, like card draws without replacement, and I've completed 8 conditional probability problems with an accuracy of 85% over the past 2 weeks ->-> 2,14",
+      id: 100,
+      role: "user",
+    },
+    {
+      content:
+        "I don't understand why I have never practiced any conditional probability problems before, it seems like I should have, given my interest in dependent events and conditional probability, but I'm not sure, can you explain the concept to me using something like the probability of the second card being an ace given the first was an ace - I've been using tree diagrams to visualize dependent event probabilities ->-> 2,29",
+      id: 134,
+      role: "user",
+    },
+    {
+      content:
+        "Sure, I get the concept of conditional probability now. The tree diagrams really help me visualize the sequence of events and the probabilities involved. The examples with the cards and dice were super helpful. Can you give me another example, maybe something related to everyday life?",
+      id: 136,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "conditional-probability-practice-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 5,
+        subtopics: [
+          "Conditional probability",
+          "Practice tracking",
+          "Dependent events",
+          "Study progress",
+        ],
+        theme:
+          "Practicing conditional probability problems across conversations",
+        title:
+          "Conditional Probability Practice",
+      },
+      narratives: "Conditional probability practice contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever practiced conditional probability problems before?",
+            question_id: "conditional-probability-practice-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {
+              first_statement: [84, 86, 88],
+              second_statement: [134, 136],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: learner practicing conditional probability",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16809,6 +16900,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([32, 34, 36, 70]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the conditional probability practice multi-facet contradiction group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-conditional-probability-practice-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildConditionalProbabilityPracticeContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([84, 86, 88, 134, 136]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

@@ -131,6 +131,27 @@ const API_KEY_OBTAINED_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*never actually obtained an API key for this project)/iu,
 ];
 
+export const isConditionalProbabilityPracticeContradictionQuery = narrowGate(
+  "contradiction.conditionalProbabilityPractice",
+  (query: string): boolean =>
+    /practiced/iu.test(query) &&
+    /conditional probability problems/iu.test(query),
+);
+
+// The affirmative is three user turns tracking conditional-probability practice
+// (accuracy improving from 60% to 85% over eight problems, the per-problem
+// improvement rate, and wrapping up the practice session) plus a later
+// concept-understanding turn, opposed by a denial that conditional probability
+// problems were never practiced. The short follow-up facets key on their
+// distinctive phrasing (the 3.125%-per-problem figure; the tree-diagram remark).
+const CONDITIONAL_PROBABILITY_PRACTICE_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*accuracy in conditional probability problems improved from 60% to 85%)/iu,
+  /^(?=[\s\S]*3\.125% per problem)/iu,
+  /^(?=[\s\S]*keep practicing and come back if I need more guidance)/iu,
+  /^(?=[\s\S]*never practiced any conditional probability problems before)/iu,
+  /^(?=[\s\S]*tree diagrams really help me visualize)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -150,6 +171,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isApiKeyObtainedContradictionQuery,
     facets: API_KEY_OBTAINED_CONTRADICTION_FACET_PATTERNS,
+  },
+  {
+    isQuery: isConditionalProbabilityPracticeContradictionQuery,
+    facets: CONDITIONAL_PROBABILITY_PRACTICE_CONTRADICTION_FACET_PATTERNS,
   },
 ];
 
