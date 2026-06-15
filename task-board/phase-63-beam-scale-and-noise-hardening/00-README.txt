@@ -19,12 +19,12 @@ Accepted Evidence
 - BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`, real 100K export, all four profiles, `executionFailures: 0`.
 - First rules-only recall diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`, evidence-chat recall 0.11625896794910878, missed 340/355.
 - Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0.
-- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-academic-mentorship-event-order-current-20260614T235658Z`, evidence-chat recall 0.8903331097697295, missed 70/355, wrong-recall/noise 213/400, zero-recall 0.
+- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-mentor-interactions-event-order-current-20260615T001300Z`, evidence-chat recall 0.8917415604739548, missed 69/355, wrong-recall/noise 212/400, zero-recall 0.
 
 Current Task Queue
 ------------------
 
-1. Keep the latest academic-mentorship event-order coverage repair (zero-recall is 0; reducing event_ordering noise one case at a time). Pre-screen targets: avoid conversations with a fragile recall-1 temporal_reasoning case, which the diagnostic's per-conversation shared reinforcement store can regress when the event-order target is recovered.
+1. Keep the latest mentor-interactions event-order coverage repair (zero-recall is 0; reducing event_ordering noise one case at a time). Pre-screen targets: prefer the lowest reinforcement perturbation (fewest noisy chats to shed) and avoid conversations with a fragile recall-1 temporal_reasoning case, which the diagnostic's per-conversation shared reinforcement store can regress when the event-order target is recovered.
 2. Continue with one named retained miss/noise family at a time.
 3. Prefer source-ordered summary and event-order fill/noise cases for the next loop.
 4. Reject broad selector rewrites unless analyzer deltas prove they do not add regressions.

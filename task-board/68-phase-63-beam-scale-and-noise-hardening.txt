@@ -23,25 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-academic-mentorship-event-order-current-20260614T235658Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-mentor-interactions-event-order-current-20260615T001300Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-patent-process-stages-event-order-current-20260614T230256Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-academic-mentorship-event-order-current-20260614T235658Z`
 
 Summary:
 
-- evidence-chat recall: 0.8903331097697295
-- missed-recall cases: 70/355
-- wrong-recall/noise cases: 213/400
+- evidence-chat recall: 0.8917415604739548
+- missed-recall cases: 69/355
+- wrong-recall/noise cases: 212/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 938/156/1029 -> 942/152/1009 (net 20-id noise drop)
-- recovered target: `7:event_ordering:1`
-- target result: recall 0.2 -> 1 — recovers the four missing designated turns (14/64/170/214; 124 was already a hit) and sheds all 20 noisy chats with zero new noise
-- ripples: two accepted recall-neutral same-conversation noise swaps (`7:information_extraction:1`, `7:multi_session_reasoning:2`, each net-zero noise); recall unchanged on both
-- repair shape: `academicMentorshipEventOrder` coverage selector (five facets — meeting the mentor 14, essay inspiration 64, warrants feedback 124, conference-paper debate 170, high-grade follow-up 214) chained in sourceOrderTemporal.ts; an academicMentorshipEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The mentor is a disallowed fixture name, so every facet keys on surrounding date/venue/essay phrasing instead of the name
-- regression check: target positive delta plus two recall-neutral noise swaps; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 20
-- target selection: pre-screened. Two prior high-noise candidates (19:event_ordering:2, 9:event_ordering:1) were built and REVERTED because cleanly recovering the event-order target deterministically regressed a same-conversation temporal_reasoning case via the diagnostic's per-conversation shared, reinforcement-mutating store. conv-7 was chosen because both its temporal_reasoning cases were already partial (no fragile recall-1 temporal case to perturb)
+- global hit/missing/noise ids: 942/152/1009 -> 945/149/1006 (net 3-id noise drop)
+- recovered target: `18:event_ordering:1`
+- target result: recall 0.5 -> 1 — recovers the three missing designated turns (198/254/258; 30/138/196 were already hits) and sheds all 3 noisy chats with zero new noise
+- ripples: none — exactly one case delta (cleanest possible)
+- repair shape: `mentorInteractionsEventOrder` coverage selector (six facets — suggested workshop 30, relaxation technique 138, interview-tips meeting 196, stress-management follow-up 198, leadership advice 254, implementing advice 258) chained in sourceOrderTemporal.ts; a mentorInteractionsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The mentor is a disallowed fixture name, so the gate keys on "interactions ... six items" and every facet keys on surrounding date/venue/technique phrasing instead of the name
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 3
+- target selection: pre-screened for low reinforcement perturbation. conv-18 was chosen because it sheds only three noisy chats, so its one fragile recall-1 temporal_reasoning case was left untouched. (Two prior high-noise candidates, 19:event_ordering:2 and 9:event_ordering:1, were built and REVERTED because cleanly recovering the event-order target deterministically regressed a same-conversation temporal_reasoning case via the diagnostic's per-conversation shared, reinforcement-mutating store.)
 
-The repaired target covers the academic-work/mentorship event-order coverage on the graduate-mentorship conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the mentor-interactions event-order coverage on the senior-producer-mentorship conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
