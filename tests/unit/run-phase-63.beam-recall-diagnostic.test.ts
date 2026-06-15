@@ -9097,6 +9097,82 @@ function buildWritingSessionsContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildAnniversaryCelebrationContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried that scheduling a work call on our anniversary, March 20, might hurt Stephen's feelings, what can I do to make it up to him? ->-> 1,19",
+      id: 60,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda confused about how believing in free will can affect my motivation, like the 2022 University of Cambridge study said, so can you help me understand how that works, especially since I just resolved my conflict with Stephen, my romantic partner, by celebrating our anniversary at The Coral Reef restaurant? ->-> 2,4",
+      id: 74,
+      role: "user",
+    },
+    {
+      content:
+        "I've never celebrated any anniversaries with Stephen, which is kinda strange since we've been together for 5 years, and I'm trying to figure out if this says something about our relationship or my own priorities, can you offer some insight? ->-> 2,24",
+      id: 140,
+      role: "user",
+    },
+    {
+      content:
+        "My romantic partner Stephen and I just celebrated 5 years together on May 20 with a dinner at The Sunset Grill, but I'm wondering how our relationship might change if I start questioning the concept of free will ->-> 3,4",
+      id: 164,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "anniversary-celebration-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Relationships",
+        id: 12,
+        subtopics: [
+          "Anniversary",
+          "Romantic partner",
+          "Free will",
+          "Relationship reflection",
+        ],
+        theme:
+          "Reflecting on anniversaries with a romantic partner across conversations",
+        title:
+          "Anniversary Celebrations",
+      },
+      narratives: "Anniversary celebration contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever celebrated anniversaries with Stephen?",
+            question_id: "anniversary-celebration-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [74], second_statement: [140] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Individual reflecting on a long-term relationship",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -14577,6 +14653,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([80, 114]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the anniversary celebration contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-anniversary-celebration-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAnniversaryCelebrationContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([74, 140]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

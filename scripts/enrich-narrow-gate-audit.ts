@@ -71,6 +71,7 @@ import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors
 import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instructionRules/patentTimelines";
 import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/instructionRules/nonProvisionalFilingDate";
 import {
+  isAnniversaryCelebrationContradictionQuery,
   isAtsCourseEnrollmentContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
   isMovieWatchlistContradictionQuery,
@@ -268,6 +269,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.patentWebinar": isPatentWebinarContradictionQuery,
   "contradiction.movieWatchlist": isMovieWatchlistContradictionQuery,
   "contradiction.writingSessions": isWritingSessionsContradictionQuery,
+  "contradiction.anniversaryCelebration":
+    isAnniversaryCelebrationContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 

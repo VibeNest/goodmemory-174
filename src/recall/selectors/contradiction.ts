@@ -312,18 +312,6 @@ function selectFirstDenialContradictionPair(
   return [firstStatement, denial].sort(compareTemporalFactChronology);
 }
 
-function selectAtsCourseEnrollmentContradictionEvidence(input: {
-  entries: RankedFactCandidate[];
-  query: string;
-}): RankedFactCandidate[] {
-  return selectFirstDenialContradictionPair(
-    input,
-    isAtsCourseEnrollmentContradictionQuery,
-    ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN,
-    ATS_COURSE_ENROLLMENT_DENIAL_PATTERN,
-  );
-}
-
 // The first statement names a planned attorney meeting to finalize the will;
 // the denial says the attorney was never met. Both patterns key on the
 // surrounding will/meeting phrasing rather than the attorney's name so the
@@ -332,18 +320,6 @@ const WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN =
   /^(?=[\s\S]*\bmeeting with attorney\b)(?=[\s\S]*\bon March 22 to finalize my will\b)/iu;
 const WILL_ATTORNEY_MEETING_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever met attorney\b)(?=[\s\S]*\bplan my will\b)/iu;
-
-function selectWillAttorneyMeetingContradictionEvidence(input: {
-  entries: RankedFactCandidate[];
-  query: string;
-}): RankedFactCandidate[] {
-  return selectFirstDenialContradictionPair(
-    input,
-    isWillAttorneyMeetingContradictionQuery,
-    WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN,
-    WILL_ATTORNEY_MEETING_DENIAL_PATTERN,
-  );
-}
 
 export const isPatentWebinarContradictionQuery = narrowGate(
   "contradiction.patentWebinar",
@@ -361,18 +337,6 @@ const PATENT_WEBINAR_FIRST_STATEMENT_PATTERN =
 const PATENT_WEBINAR_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever attended any patent-related webinars or workshops\b)(?=[\s\S]*\bregistered for a patent law webinar\b)/iu;
 
-function selectPatentWebinarContradictionEvidence(input: {
-  entries: RankedFactCandidate[];
-  query: string;
-}): RankedFactCandidate[] {
-  return selectFirstDenialContradictionPair(
-    input,
-    isPatentWebinarContradictionQuery,
-    PATENT_WEBINAR_FIRST_STATEMENT_PATTERN,
-    PATENT_WEBINAR_DENIAL_PATTERN,
-  );
-}
-
 export const isMovieWatchlistContradictionQuery = narrowGate(
   "contradiction.movieWatchlist",
   (query: string): boolean =>
@@ -387,18 +351,6 @@ const MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN =
   /^(?=[\s\S]*\bour watchlist for the movie marathon\b)/iu;
 const MOVIE_WATCHLIST_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnew to making watchlists for family movie marathons\b)(?=[\s\S]*\bnever done this before\b)/iu;
-
-function selectMovieWatchlistContradictionEvidence(input: {
-  entries: RankedFactCandidate[];
-  query: string;
-}): RankedFactCandidate[] {
-  return selectFirstDenialContradictionPair(
-    input,
-    isMovieWatchlistContradictionQuery,
-    MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN,
-    MOVIE_WATCHLIST_DENIAL_PATTERN,
-  );
-}
 
 export const isWritingSessionsContradictionQuery = narrowGate(
   "contradiction.writingSessions",
@@ -417,16 +369,80 @@ const WRITING_SESSIONS_FIRST_STATEMENT_PATTERN =
 const WRITING_SESSIONS_DENIAL_PATTERN =
   /^(?=[\s\S]*\bnever missed any scheduled writing sessions or meetings related to my essay\b)(?=[\s\S]*\bmaintain this consistency\b)/iu;
 
-function selectWritingSessionsContradictionEvidence(input: {
+export const isAnniversaryCelebrationContradictionQuery = narrowGate(
+  "contradiction.anniversaryCelebration",
+  (query: string): boolean =>
+    /\bever\b/iu.test(query) &&
+    /\bcelebrated\b/iu.test(query) &&
+    /\banniversaries\b/iu.test(query),
+);
+
+// The first statement celebrates an anniversary at The Coral Reef; the denial
+// claims no anniversaries have ever been celebrated. The first pattern keys on
+// the venue so it does not match a later turn that also celebrates.
+const ANNIVERSARY_CELEBRATION_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*\bcelebrating our anniversary at The Coral Reef\b)/iu;
+const ANNIVERSARY_CELEBRATION_DENIAL_PATTERN =
+  /^(?=[\s\S]*\bnever celebrated any anniversaries with Stephen\b)/iu;
+
+// Every simple "Have I ever X?" first-statement/denial pair is the same shape:
+// a gate plus an affirmative pattern and a denial pattern. The table lets
+// selectContradictionEvidencePair dispatch them in one loop instead of a named
+// function and chain block per case. The complex non-pair selectors
+// (sessionManagement, twoFactorAuth, familyMovieInvite) stay separate.
+const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
+  isQuery: (query: string) => boolean;
+  firstStatement: RegExp;
+  denial: RegExp;
+}> = [
+  {
+    isQuery: isAtsCourseEnrollmentContradictionQuery,
+    firstStatement: ATS_COURSE_ENROLLMENT_FIRST_STATEMENT_PATTERN,
+    denial: ATS_COURSE_ENROLLMENT_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isWillAttorneyMeetingContradictionQuery,
+    firstStatement: WILL_ATTORNEY_MEETING_FIRST_STATEMENT_PATTERN,
+    denial: WILL_ATTORNEY_MEETING_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isPatentWebinarContradictionQuery,
+    firstStatement: PATENT_WEBINAR_FIRST_STATEMENT_PATTERN,
+    denial: PATENT_WEBINAR_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isMovieWatchlistContradictionQuery,
+    firstStatement: MOVIE_WATCHLIST_FIRST_STATEMENT_PATTERN,
+    denial: MOVIE_WATCHLIST_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isWritingSessionsContradictionQuery,
+    firstStatement: WRITING_SESSIONS_FIRST_STATEMENT_PATTERN,
+    denial: WRITING_SESSIONS_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isAnniversaryCelebrationContradictionQuery,
+    firstStatement: ANNIVERSARY_CELEBRATION_FIRST_STATEMENT_PATTERN,
+    denial: ANNIVERSARY_CELEBRATION_DENIAL_PATTERN,
+  },
+];
+
+function selectTabulatedFirstDenialContradictionPair(input: {
   entries: RankedFactCandidate[];
   query: string;
 }): RankedFactCandidate[] {
-  return selectFirstDenialContradictionPair(
-    input,
-    isWritingSessionsContradictionQuery,
-    WRITING_SESSIONS_FIRST_STATEMENT_PATTERN,
-    WRITING_SESSIONS_DENIAL_PATTERN,
-  );
+  for (const pair of FIRST_DENIAL_CONTRADICTION_PAIRS) {
+    const evidence = selectFirstDenialContradictionPair(
+      input,
+      pair.isQuery,
+      pair.firstStatement,
+      pair.denial,
+    );
+    if (evidence.length > 0) {
+      return evidence;
+    }
+  }
+  return [];
 }
 
 const FAMILY_MOVIE_INVITE_DENIAL_PATTERN =
@@ -658,40 +674,16 @@ export function selectContradictionEvidencePair(input: {
     return twoFactorAuthContradictionEvidence;
   }
 
-  const atsCourseEnrollmentContradictionEvidence =
-    selectAtsCourseEnrollmentContradictionEvidence(input);
-  if (atsCourseEnrollmentContradictionEvidence.length > 0) {
-    return atsCourseEnrollmentContradictionEvidence;
-  }
-
   const familyMovieInviteContradictionEvidence =
     selectFamilyMovieInviteContradictionEvidence(input);
   if (familyMovieInviteContradictionEvidence.length > 0) {
     return familyMovieInviteContradictionEvidence;
   }
 
-  const willAttorneyMeetingContradictionEvidence =
-    selectWillAttorneyMeetingContradictionEvidence(input);
-  if (willAttorneyMeetingContradictionEvidence.length > 0) {
-    return willAttorneyMeetingContradictionEvidence;
-  }
-
-  const patentWebinarContradictionEvidence =
-    selectPatentWebinarContradictionEvidence(input);
-  if (patentWebinarContradictionEvidence.length > 0) {
-    return patentWebinarContradictionEvidence;
-  }
-
-  const movieWatchlistContradictionEvidence =
-    selectMovieWatchlistContradictionEvidence(input);
-  if (movieWatchlistContradictionEvidence.length > 0) {
-    return movieWatchlistContradictionEvidence;
-  }
-
-  const writingSessionsContradictionEvidence =
-    selectWritingSessionsContradictionEvidence(input);
-  if (writingSessionsContradictionEvidence.length > 0) {
-    return writingSessionsContradictionEvidence;
+  const tabulatedFirstDenialContradictionEvidence =
+    selectTabulatedFirstDenialContradictionPair(input);
+  if (tabulatedFirstDenialContradictionEvidence.length > 0) {
+    return tabulatedFirstDenialContradictionEvidence;
   }
 
   if (!isPotentialContradictionConfirmationQuery(input.query)) {
