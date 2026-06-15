@@ -23,25 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-writing-sessions-contradiction-current-20260615T040011Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-zotero-sources-update-current-20260615T041912Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-movie-watchlist-contradiction-current-20260615T034006Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-writing-sessions-contradiction-current-20260615T040011Z`
 
-Summary (third contradiction_resolution pass, bundled with a contradiction-pair refactor):
+Summary (pivot from contradiction_resolution to knowledge_update):
 
-- evidence-chat recall: 0.9102302705119607 (now above 0.91)
-- missed-recall cases: 56/355
-- wrong-recall/noise cases: 201/400
+- evidence-chat recall: 0.911638721216186
+- missed-recall cases: 55/355
+- wrong-recall/noise cases: 200/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 974/120/916 -> 975/119/913
-- recovered target: `7:contradiction_resolution:2`
-- target result: recall 0.5 -> 1 — recovers the missing affirmative turn 80 ("rescheduled writing session on April 7 after missing the April 5 one") to pair with the already-hit denial turn 114 ("never missed any scheduled writing sessions or meetings ... maintain this consistency"), and sheds its three noisy chats
-- ripples: none — exactly one case delta (cleanest possible), confirming the refactor changed no other case
-- repair shape: `writingSessions` first-statement/denial contradiction selector added to contradiction.ts (gate isWritingSessionsContradictionQuery + FIRST_STATEMENT/DENIAL patterns), chained in selectContradictionEvidencePair
-- refactor: the four identical first-statement/denial selectors (ats, willAttorney, patentWebinar, movieWatchlist) now delegate to a shared selectFirstDenialContradictionPair(input, isQuery, first, denial) helper; behaviour-preserving (contradiction.ts 887 -> 849, then 884 with the new writingSessions case)
+- global hit/missing/noise ids: 975/119/913 -> 976/118/909
+- recovered target: `7:knowledge_update:1`
+- target result: recall 0.5 -> 1 — recovers the missing original turn 82 ("my Zotero library has 45 sources") to pair with the already-hit updated turn 110 ("added 52 sources to my Zotero library"), and sheds its four noisy chats
+- ripples: none — exactly one case delta (cleanest possible)
+- repair shape: `zoteroSources` update-series module (gate isZoteroSourcesUpdateQuery + ORIGINAL/UPDATED patterns + selectSourceOrderedZoteroSourcesEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the essay-writing-sessions contradiction. Ten contradiction_resolution partial-recall cases remain. NOTE: contradiction.ts is 884 lines -- the next per-case selector still needs a fuller table extraction (collapse the named delegating functions and their if/return chain into one iterated table) to stay under 900. This is a retained selector repair, not a benchmark close.
+The repaired target covers the Zotero source-count knowledge update. This validates the knowledge_update workstream alongside contradiction_resolution (three recovered, ten remain). Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
