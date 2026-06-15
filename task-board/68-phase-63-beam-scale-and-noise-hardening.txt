@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-workshop-attendance-contradiction-current-20260615T154052Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-api-key-obtained-contradiction-current-20260615T160746Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-remote-collaboration-contradiction-current-20260615T152130Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-workshop-attendance-contradiction-current-20260615T154052Z`
 
-Summary (twelfth contradiction_resolution recovery — third multi-evidence via multiFacetGroups, first 5-turn group):
+Summary (thirteenth contradiction_resolution recovery — fourth multi-evidence via multiFacetGroups):
 
-- evidence-chat recall: 0.9485401296668904
-- missed-recall cases: 29/355
-- wrong-recall/noise cases: 176/400
+- evidence-chat recall: 0.9499485803711157
+- missed-recall cases: 28/355
+- wrong-recall/noise cases: 175/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1002/92/830 -> 1005/89/830
-- recovered target: `18:contradiction_resolution:1`
-- target result: recall 0.4 -> 1 — the affirmative spans four workshop-planning turns (102 considering the March 15 "Workflow Optimization" workshop for burnout; 104 reviewing the agenda/speaker credentials; 106 getting ready to make the most of it; 128 scheduling it alongside a mindfulness workshop) opposed by a denial (126 never attended any workshops or professional development events). Recovers the three missing turns 102/104/106, returns all five source-ordered [102,104,106,126,128]
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-18 cases held (18:cr:2 recall 1 from pass 84, 18:if:1 at 0.5 unchanged)
-- repair shape: added isWorkshopAttendanceContradictionQuery gate (`contradiction.workshopAttendance` = "attended" && "workshops" && "professional development", 1/400) + a five-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + the gate added to instructionAugmentationStandDownQuery. Facets key on surrounding phrasing; the burnout facet keys on the symptom list ("fatigue, irritability, and sleep issues") plus the workshop name so it excludes the earlier burnout-symptoms turn 108. Turns 104/106 are markerless yet matched.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2554 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1005/89/830 -> 1007/87/829
+- recovered target: `2:contradiction_resolution:1`
+- target result: recall 0.5 -> 1 — the affirmative spans three weather-app API turns (32 building an API-rate-limit call tracker; 34 and 36 short follow-up questions about rapid consecutive calls and retrying after the limit) opposed by a denial (70 never actually obtained an API key for the project). Recovers the two missing short follow-up turns 34/36, returns all four source-ordered [32,34,36,70], sheds one noisy chat (156)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-2 cases held (all at recall 1)
+- repair shape: added isApiKeyObtainedContradictionQuery gate (`contradiction.apiKeyObtained` = "obtained an API key" && "project", 1/400) + a four-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + the gate added to instructionAugmentationStandDownQuery. The short follow-up facets key on their distinctive question phrasing ("rapid consecutive calls"; "keeps retrying after hitting the rate limit"). Turns 34/36 are short and markerless yet matched — confirming the multi-facet filter handles brief follow-up turns.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2555 pass / 2 skip / 0 fail.
 
-The repaired target covers the workshop-attendance contradiction. Twelve contradiction_resolution cases recovered (three multi-evidence via multiFacetGroups). Two multi-evidence cr cases remain (5:cr:2, 2:cr:1), both via the same recipe. NEXT LOOP continues with those, then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6) and knowledge_update (3), both answer_ai_question-blocked. This is a retained selector repair, not a benchmark close.
+The repaired target covers the API-key-obtained contradiction. Thirteen contradiction_resolution cases recovered (four multi-evidence via multiFacetGroups). ONE multi-evidence cr case remains (5:cr:2, conv-5, ev=[84,86,88,134,136], recall 0.2, noise 3), via the same recipe. NEXT LOOP recovers it, then investigates whether multiFacetGroups' markerless matching unblocks instruction_following (6) / knowledge_update (3) answer_ai_question cases, else multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), else the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — twelfth contradiction_resolution recovery (18:contradiction_resolution:1, workshop-attendance): third multi-evidence via multiFacetGroups, first 5-turn group; recall 0.4->1 recovering the three missing turns [102,104,106] of a [102,104,106,126,128] group; left recall 0.9485401296668904, cleanest single delta, turns 104/106 markerless yet matched.]
 
 [Prior pass — eleventh contradiction_resolution recovery (8:contradiction_resolution:1, remote-collaboration): second multi-evidence via multiFacetGroups; recall 0.333->1 recovering both missing affirmative turns [16,18] of a [16,18,50] group; left recall 0.9468499888218198, cleanest single delta, disallowed-name handling (gate/facets name-free), turn 18 markerless yet matched.]
 
