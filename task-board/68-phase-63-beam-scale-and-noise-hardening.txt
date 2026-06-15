@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-zoom-call-interval-current-20260615T064209Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-sprint-deadline-interval-current-20260615T065337Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-film-office-movies-interval-current-20260615T063006Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-zoom-call-interval-current-20260615T064209Z`
 
-Summary (third temporal_reasoning interval recovery):
+Summary (fourth temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9257232282584396
-- missed-recall cases: 45/355
-- wrong-recall/noise cases: 190/400
+- evidence-chat recall: 0.9271316789626649
+- missed-recall cases: 44/355
+- wrong-recall/noise cases: 189/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 985/109/887 -> 986/108/885
-- recovered target: `8:temporal_reasoning:1`
-- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 28 ("cover letter draft by March 25, revise it by April 5") to pair with the already-hit end-anchor turn 92 ("creative director on April 21 at 3 PM"), answer 16 days, and sheds its two noisy chats (80/94)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-8 carries 8:tr:2 at recall 1, which held (third confirmation the interval recipe is ripple-free)
-- repair shape: new `coverLetterZoomCallDays` interval case in sourceOrderTemporalInterval.ts (gate isCoverLetterZoomCallDaysIntervalQuery / `temporalInterval.coverLetterZoomCallDays` = "revising my cover letter" && "creative director", 1/400; START "cover letter draft by March 25, revise it by April 5"; END "creative director on April 21 at 3 PM" keys on "April 21 at 3 PM" to exclude the reschedule turn 94 which moves the call to April 22 at 11 AM; plus the four ternary-chain edits the recipe uses)
+- global hit/missing/noise ids: 986/108/885 -> 987/107/881
+- recovered target: `3:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing start-anchor turn 12 ("deadline of April 1, 2024, for the first sprint") to pair with the already-hit end-anchor turn 52 ("new sprint deadline of April 5, 2024"), answer 4 days, and sheds its four noisy chats (34/40/48/38)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-3 carries 3:tr:2 at recall 1, whose evidence turn 34 is in this target's shed noise set, and it held (a shed-from-one-case turn stays available to its own case; fourth confirmation the interval recipe is ripple-free)
+- repair shape: new `sprintDeadlineDays` interval case in sourceOrderTemporalInterval.ts (gate isSprintDeadlineDaysIntervalQuery / `temporalInterval.sprintDeadlineDays` = "first sprint" && "accessibility improvements", 1/400; START "deadline of April 1, 2024, for the first sprint"; END "new sprint deadline of April 5, 2024"; plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the cover-letter-revision-to-creative-director-call interval. Three temporal_reasoning cases now recovered, nine remain. Remaining partial-recall families: temporal_reasoning (9), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the first-sprint-deadline-to-updated-deadline interval. Four temporal_reasoning cases now recovered, eight remain. Remaining partial-recall families: temporal_reasoning (8), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
