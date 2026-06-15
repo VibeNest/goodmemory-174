@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-probability-study-hours-update-current-20260615T043526Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-snack-budget-update-current-20260615T045305Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-zotero-sources-update-current-20260615T041912Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-probability-study-hours-update-current-20260615T043526Z`
 
-Summary (second knowledge_update pass):
+Summary (third knowledge_update pass):
 
-- evidence-chat recall: 0.9130471719204114
-- missed-recall cases: 54/355
-- wrong-recall/noise cases: 199/400
+- evidence-chat recall: 0.9144556226246368
+- missed-recall cases: 53/355
+- wrong-recall/noise cases: 198/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 976/118/909 -> 977/117/905
-- recovered target: `5:knowledge_update:1`
-- target result: recall 0.5 -> 1 — recovers the missing updated turn 62 ("extended my study sessions to 4 hours ... dedicating an extra hour") to pair with the already-hit original turn 44 ("already spent 3 hours on it ... coin toss and dice roll problems"), and sheds its four noisy chats (234/132/134/98)
+- global hit/missing/noise ids: 977/117/905 -> 978/116/903
+- recovered target: `14:knowledge_update:1`
+- target result: recall 0.5 -> 1 — recovers the missing original turn 66 ("increased my snack budget to $65 ... themed cupcakes") to pair with the already-hit updated turn 102 ("adjusted the snack budget to $75 ... themed drinks"), and sheds its two noisy chats (60/222)
 - ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise
-- repair shape: `probabilityStudyHours` update-series module (gate isProbabilityStudyHoursUpdateQuery / `updateSeries.probabilityStudyHours` + ORIGINAL/UPDATED patterns + selectSourceOrderedProbabilityStudyHoursEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
+- repair shape: `snackBudget` update-series module (gate isSnackBudgetUpdateQuery / `updateSeries.snackBudget` requiring "snack budget" && "themed treats" + ORIGINAL/UPDATED patterns + selectSourceOrderedSnackBudgetEvidence) plus one entry in the UPDATE_SERIES_RULE_SELECTORS table; modeled on holidayGiftBudget. The update-series registry is already a table, so no per-case chain block or refactor was needed
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the probability study-hours knowledge update (3 hours -> 4 hours). Two knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
+The repaired target covers the movie-marathon snack-budget knowledge update ($65 -> $75). Three knowledge_update cases now recovered, alongside contradiction_resolution (three recovered, ten remain). Remaining partial-recall families: temporal_reasoning, multi_session_reasoning, knowledge_update, instruction_following, contradiction_resolution. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
