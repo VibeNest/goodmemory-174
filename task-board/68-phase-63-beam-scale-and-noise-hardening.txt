@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-first-draft-essay-grade-interval-current-20260615T061734Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-film-office-movies-interval-current-20260615T063006Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-bootstrap-components-contradiction-current-20260615T055850Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-first-draft-essay-grade-interval-current-20260615T061734Z`
 
-Summary (first temporal_reasoning recovery; pivot to the highest-ripple-risk family):
+Summary (second temporal_reasoning interval recovery):
 
-- evidence-chat recall: 0.9229063268499889
-- missed-recall cases: 47/355
-- wrong-recall/noise cases: 192/400
+- evidence-chat recall: 0.9243147775542142
+- missed-recall cases: 46/355
+- wrong-recall/noise cases: 191/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 983/111/891 -> 984/110/888
-- recovered target: `7:temporal_reasoning:1`
-- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 24 ("improve my essay grades from B- to A by June 15") to pair with the already-hit start-anchor turn 116 ("first draft of the essay by May 15"), answer 31 days, and sheds its three noisy chats (160/66/192)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. SIGNIFICANT: temporal_reasoning is the family that defines the reinforcement-ripple mechanism (the reverted passes 50/50-retry were tr regressions), yet this low-perturbation interval recovery left every other temporal_reasoning case unchanged; conv-7 carries both tr cases at recall 0.5 and the sibling 7:tr:2 held. The interval recipe's tight two-anchor return is ripple-free
-- repair shape: new `firstDraftEssayGradeDays` interval case in sourceOrderTemporalInterval.ts (gate isFirstDraftEssayGradeDaysIntervalQuery / `temporalInterval.firstDraftEssayGradeDays` = "first draft" && "improve my essay grades", 1/400; START "first draft of the essay by May 15" keys on "of the essay by May 15" to exclude near-duplicate noise turn 66 "first draft due May 15"; END "improve my essay grades from B- to A by June 15"; plus the four ternary-chain edits the existing recipe uses). The broad isTemporalIntervalQuery gate routes the question; the per-case gate selects the START/END anchor pair
+- global hit/missing/noise ids: 984/110/888 -> 985/109/887
+- recovered target: `14:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 154 ("2-hour nap delay on April 6") to pair with the already-hit start-anchor turn 46 ("meeting at Montserrat Film Office on March 20"), answer 11 days, and sheds its one noisy chat (4)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-14 carries 14:tr:2 at recall 1, which held (second confirmation the interval recipe is ripple-free)
+- repair shape: new `filmOfficeMoviesDays` interval case in sourceOrderTemporalInterval.ts (gate isFilmOfficeMoviesDaysIntervalQuery / `temporalInterval.filmOfficeMoviesDays` = "Montserrat Film Office" && "nap delay", 1/400; START "meeting at Montserrat Film Office on March 20"; END "2-hour nap delay on April 6"; plus the four ternary-chain edits the recipe uses)
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the first-draft-to-essay-grade interval. Unlocks the 12-case temporal_reasoning workstream (now 11 remain). Remaining partial-recall families: temporal_reasoning (11), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the film-office-meeting-to-movies-complete interval. Two temporal_reasoning cases now recovered, ten remain. Remaining partial-recall families: temporal_reasoning (10), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
