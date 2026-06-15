@@ -23,24 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-ai-screening-accuracy-update-group-current-20260615T173735Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-accuracy-improvement-comparison-current-20260615T181500Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-zoom-call-schedule-update-group-current-20260615T172117Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-ai-screening-accuracy-update-group-current-20260615T173735Z`
 
-Summary (third answer_ai_question knowledge_update recovery via multiFacetGroups — answer_ai_question ku set exhausted):
+Summary (first multi_session_reasoning recovery via the multi-facet contradiction route):
 
-- evidence-chat recall: 0.9564274536105521
-- missed-recall cases: 24/355
-- wrong-recall/noise cases: 171/400
+- evidence-chat recall: 0.9578359043147775
+- missed-recall cases: 23/355
+- wrong-recall/noise cases: 170/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 1013/81/824 -> 1018/76/819
-- recovered target: `11:knowledge_update:2`
-- target result: recall 0.167 -> 1 — only the 90%-accuracy turn 170 was hit; this recovers the five missing turns 126/128/130/172/174 (the 87% original plus four answer_ai_question follow-ups, four of them markerless), returning all six source-ordered [126,128,130,170,172,174] and shedding five noisy chats
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-11 cases held (11:tr:1 from pass 80, 11:cr:1 from pass 85 both recall 1; 11:msr:1/2 unchanged)
-- repair shape: added isAiScreeningAccuracyUpdateGroupQuery gate (`knowledgeUpdate.aiScreeningAccuracyGroup` = "accuracy rate" && "AI screening tool", 1/400) + a SIX-facet pattern list + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. The last follow-up turn 174 has an identical duplicate later turn (180); pickFirst returns the earliest (174, the designated one). No disallowed names. Largest single-case jump so far (5 turns recovered).
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2559 pass / 2 skip / 0 fail.
+- global hit/missing/noise ids: 1018/76/819 -> 1019/75/816
+- recovered target: `4:multi_session_reasoning:2`
+- target result: recall 0.5 -> 1 — the default msr route returned [190,134,31,82] (only the area-calculation turn 82 hit, the special-lines quiz turn 110 missed plus three triangle-geometry noise chats); the fix returns exactly the two source-marked user turns [82,110], recovering turn 110 and shedding all three noise chats
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.5) PLUS a noise reduction (three chats shed)
+- repair shape: added isAccuracyImprovementComparisonQuery gate (`multiSessionReasoning.accuracyImprovementComparison` = "how much did my accuracy improve" && "area calculation" && "special lines", 1/400) + a TWO-facet pattern list (F1 "70% to 90%", F2 "78% to 88%" plus "special lines", mutually exclusive) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. First msr case recovered through the contradiction_evidence_pair position-1 route (previously proven for contradiction and knowledge_update); both turns carry the `->->` source marker. No disallowed names.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2560 pass / 2 skip / 0 fail.
 
-The repaired target covers the AI-screening-accuracy knowledge update. The answer_ai_question knowledge_update cases are now ALL recovered (16:ku:1, 8:ku:1, 11:ku:2 via multiFacetGroups). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+The repaired target covers the geometry accuracy-improvement comparison. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning. NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then the remaining multi_session_reasoning "how many" aggregates (upstream candidate-pool recall gap); then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+
+[Prior pass — third answer_ai_question ku recovery (11:knowledge_update:2, ai-screening-accuracy): recall 0.167->1 recovering five missing turns [126,128,130,172,174] incl. four markerless answer_ai_question follow-ups via a six-facet multiFacetGroups group, returns [126,128,130,170,172,174]; left recall 0.9564274536105521; answer_ai_question ku set exhausted.]
 
 [Prior pass — second answer_ai_question ku recovery (8:knowledge_update:1, zoom-call-schedule): recall 0.667->1 recovering the markerless schedule turn 96 via multiFacetGroups, returns [92,94,96]; left recall 0.9540800357701766. Disallowed-name handling on turn 96 (schedule facet name-free).]
 
