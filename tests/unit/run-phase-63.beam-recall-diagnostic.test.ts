@@ -9917,6 +9917,107 @@ function buildCityAutocompleteEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildProjectDevelopmentEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm building my first portfolio website using HTML5, CSS3, and Bootstrap v5.3.0, and I want to create a section that showcases my skills as a Colour Technologist. ->-> 1,2",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to plan out my project timeline and I have a deadline of April 1, 2024, for the first sprint, which covers the basic layout and navigation of my single-page portfolio website. The project is estimated to take 3 sprints of 2 weeks each. How can I ensure I meet this deadline and complete the project within the estimated 6 weeks? ->-> 1,6",
+      id: 12,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning a peer review for April 2, 2024, and I want to focus on semantic HTML and accessibility compliance, specifically WCAG 2.1 AA. Can you help me create a checklist for reviewing HTML code to ensure it meets these standards? ->-> 1,16",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm planning to manually test my portfolio website on Chrome 112 and Firefox 110, focusing on layout consistency, and I want to make sure I cover all the necessary scenarios. ->-> 1,21",
+      id: 46,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on Sprint 2 with a deadline of April 20, 2024, and I need to focus on SEO basics and contact form backend integration. I want to make sure my contact form is properly validated and integrated with the backend. Can you help me implement the contact form backend using Bootstrap 5.3.0 and ensure it meets SEO standards? ->-> 2,12",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to update my project gallery to include the new cards, but I'm having some issues with the layout. I've added two new projects, so now I have a total of 10 cards, and I want to make sure they're all displayed correctly. ->-> 2,25",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to optimize the performance of my portfolio site by implementing service worker caching with Workbox v6.5.4, and I've managed to reduce the repeat load time from 1.2s to 400ms, which is a significant improvement. ->-> 3,16",
+      id: 158,
+      role: "user",
+    },
+    {
+      content:
+        "I'm working on finalizing my portfolio site and I've just completed the final code review for my project, which was approved with minor comments on CSS naming conventions on May 3, 2024. I'm trying to ensure that all my CSS classes are properly named and follow best practices, especially that my custom CSS classes don't conflict with Bootstrap's classes. ->-> 3,18",
+      id: 164,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "project-development-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Software",
+        id: 32,
+        subtopics: [
+          "Sprint 1 layout",
+          "Sprint 2 SEO",
+          "Code review",
+        ],
+        theme:
+          "Building a portfolio website across project sprints",
+        title:
+          "Project Development",
+      },
+      narratives: "Portfolio project development event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these aspects in this order: planning the first sprint layout and navigation, the second sprint focusing on SEO and contact form backend, and finalizing with a code review on CSS naming conventions.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you list the order in which I brought up different aspects of my project development throughout our conversations in order? Mention ONLY and ONLY five items.",
+            question_id: "project-development-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [12, 82, 164],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a portfolio website",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13129,6 +13230,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([20, 22, 24, 74, 160]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the project development event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-project-development-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildProjectDevelopmentEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([12, 82, 164]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
