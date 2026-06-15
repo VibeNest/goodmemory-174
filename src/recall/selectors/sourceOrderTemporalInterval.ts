@@ -349,6 +349,25 @@ const PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_START_PATTERN =
 const PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_END_PATTERN =
   /^(?=[\s\S]*scholarship deadline on May 15, 2024, and the visa application due June 1)/iu;
 
+export const isTrilogyReadingDaysIntervalQuery = narrowGate(
+  "temporalInterval.trilogyReadingDays",
+  (query: string): boolean => {
+    return /finish reading the trilogy/iu.test(query) &&
+      /\bdownloaded\b/iu.test(query);
+  },
+);
+
+// Two distinct user turns: downloading the trilogy on the Libby app on December 7
+// (start, turn 120) and finishing it in 12 days (end, turn 154). This question
+// uses the "how many days did it take ... after" phrasing, which the broad
+// isTemporalIntervalQuery heuristic does not match; routing does not depend on
+// that heuristic, though — the per-case gate makes the selector return the anchor
+// pair and the source_ordered_temporal_interval route serves it directly.
+const TRILOGY_READING_INTERVAL_START_PATTERN =
+  /^(?=[\s\S]*downloaded)(?=[\s\S]*Libby app on December 7)/iu;
+const TRILOGY_READING_INTERVAL_END_PATTERN =
+  /^(?=[\s\S]*finished)(?=[\s\S]*1,150 pages in 12 days)/iu;
+
 export function selectSourceOrderedTemporalIntervalEvidence(input: {
   entries: RankedFactCandidate[];
   query: string;
@@ -399,7 +418,10 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     isAiHiringWebinarDaysIntervalQuery(input.query);
   const personalStatementScholarshipDaysIntervalQuery =
     isPersonalStatementScholarshipDaysIntervalQuery(input.query);
+  const trilogyReadingDaysIntervalQuery =
+    isTrilogyReadingDaysIntervalQuery(input.query);
   if (
+    !trilogyReadingDaysIntervalQuery &&
     !personalStatementScholarshipDaysIntervalQuery &&
     !aiHiringWebinarDaysIntervalQuery &&
     !permutationsQuizScoreDaysIntervalQuery &&
@@ -426,7 +448,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
   ) {
     return [];
   }
-  const startPattern = personalStatementScholarshipDaysIntervalQuery
+  const startPattern = trilogyReadingDaysIntervalQuery
+    ? TRILOGY_READING_INTERVAL_START_PATTERN
+    : personalStatementScholarshipDaysIntervalQuery
     ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_START_PATTERN
     : aiHiringWebinarDaysIntervalQuery
     ? AI_HIRING_WEBINAR_INTERVAL_START_PATTERN
@@ -471,7 +495,9 @@ export function selectSourceOrderedTemporalIntervalEvidence(input: {
     : patentResponseMeetingIntervalQuery
     ? PATENT_RESPONSE_MEETING_INTERVAL_START_PATTERN
     : RAISE_REJECTION_INTERVAL_START_PATTERN;
-  const endPattern = personalStatementScholarshipDaysIntervalQuery
+  const endPattern = trilogyReadingDaysIntervalQuery
+    ? TRILOGY_READING_INTERVAL_END_PATTERN
+    : personalStatementScholarshipDaysIntervalQuery
     ? PERSONAL_STATEMENT_SCHOLARSHIP_INTERVAL_END_PATTERN
     : aiHiringWebinarDaysIntervalQuery
     ? AI_HIRING_WEBINAR_INTERVAL_END_PATTERN

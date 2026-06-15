@@ -8987,6 +8987,84 @@ function buildPersonalStatementScholarshipDaysBeamRows(): unknown[] {
   ];
 }
 
+function buildTrilogyReadingDaysBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stuck on what to do next with my reading, I downloaded \"The Poppy War\" trilogy on Libby app on December 7, and it's a total of 1,150 pages, so I'm wondering if I should finish it before moving on to something else ->-> 2,14",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I'm looking for a great fiction series to read during winter evenings, and I just bought a $25 boxed set of \"The Poppy War\" trilogy from Montserrat Books on December 2 for gifting, so I'm wondering if this is a good choice for my reading challenge ->-> 2,16",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "I've joined a 2024 winter reading challenge on Goodreads aiming for 10 books by March 1, and I want to make sure I pick series that will keep me engaged, can you help me decide if \"The Poppy War\" trilogy is a good fit for my goal ->-> 2,17",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "I finished \"The Poppy War\" trilogy with 1,150 pages in 12 days, what's a good next series to read for my winter evenings? ->-> 3,4",
+      id: 154,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "trilogy-reading-days",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Hobbies",
+        id: 13,
+        subtopics: [
+          "Reading",
+          "Book series",
+          "Reading challenge",
+          "Winter reading",
+        ],
+        theme:
+          "Tracking trilogy reading progress across conversations",
+        title:
+          "Winter Reading Progress",
+      },
+      narratives: "Trilogy download to finish interval reasoning",
+      probing_questions: {
+        temporal_reasoning: [
+          {
+            answer:
+              "It took 12 days to finish reading the trilogy after downloading it on December 7.",
+            difficulty: "medium",
+            question:
+              "How many days did it take me to finish reading the trilogy after I downloaded it?",
+            question_id: "trilogy-reading-days",
+            question_type: "temporal_reasoning",
+            source_chat_ids: { first_event: [120], second_event: [154] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: reader tracking a winter reading challenge",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMeetingTestingPeriodDaysBeamRows(): unknown[] {
   const turns = [
     {
@@ -15721,6 +15799,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([10, 12]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps trilogy reading days interval anchors through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-trilogy-reading-days",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildTrilogyReadingDaysBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([120, 154]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
