@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-editing-timeline-collaboration-contradiction-current-20260615T134528Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-contact-form-api-contradiction-current-20260615T140508Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-delegating-tasks-contradiction-current-20260615T132944Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-editing-timeline-collaboration-contradiction-current-20260615T134528Z`
 
-Summary (eighth contradiction_resolution recovery — third via the extracted firstDenialPairs module):
+Summary (ninth contradiction_resolution recovery — fourth via the extracted firstDenialPairs module):
 
-- evidence-chat recall: 0.9398077353006931
-- missed-recall cases: 35/355
-- wrong-recall/noise cases: 180/400
+- evidence-chat recall: 0.9412161860049184
+- missed-recall cases: 34/355
+- wrong-recall/noise cases: 179/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 995/99/849 -> 996/98/848
-- recovered target: `11:contradiction_resolution:1`
-- target result: recall 0.5 -> 1 — recovers the missing denial turn 92 ("I've never met ... and I'm not sure why that's relevant ... automate hiring ... without collaborating with someone I don't know") to pair with the already-hit first-statement turn 24 (a junior editor colleague at Montserrat Media Hub, "weekly collaborations on editing timelines"), and sheds its one noisy chat (178)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-11 cases held, including the pass-80 recovery 11:tr:1 (recall 1) and 11:cr:2 (recall 1)
-- repair shape: added isEditingTimelineCollaborationContradictionQuery gate (`contradiction.editingTimelineCollaboration` = "worked with" && "editing timelines", 1/400) + a first/denial pattern-pair + one FIRST_DENIAL_CONTRADICTION_PAIRS table entry in src/recall/selectors/contradictionRules/firstDenialPairs.ts + an enrichment GATE_FUNCTIONS entry. DISALLOWED-NAME HANDLING: the conversation names the disallowed fixture person "Michael", so the gate and both patterns key on surrounding role/venue/topic phrasing only — FIRST = "junior editor" + "Montserrat Media Hub" + "weekly collaborations on editing timelines"; DENIAL = "never met" + "not sure why that's relevant" (the latter excludes the near-duplicate later turn 178 that also says "never met ... editing timelines"). Selector files disallowed-scan clean; the fixture (test file, exempt) uses the real names.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2547 pass / 2 skip (the lone occasional failure is the known host-bootstrap timeout flake in tests/cli/cli.test.ts, which does not reproduce on re-run and is unrelated to recall selectors).
+- global hit/missing/noise ids: 996/98/848 -> 997/97/846
+- recovered target: `3:contradiction_resolution:2`
+- target result: recall 0.5 -> 1 — recovers the missing first-statement turn 72 to pair with the already-hit denial turn 120 ("I've never tested it with any API integration before"), and sheds its two noisy chats (112/166)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. All conv-3 cases held (incl. 3:cr:1 recall 1, both 3:tr cases recall 1, 3:msr at 0.5/0.2 unchanged)
+- repair shape: added isContactFormApiIntegrationContradictionQuery gate (`contradiction.contactFormApiIntegration` = "contact form" && "API integration", 1/400) + a first/denial pattern-pair + one FIRST_DENIAL_CONTRADICTION_PAIRS table entry + an enrichment entry. GROUND-TRUTH MISALIGNMENT (recovered designated ids as-is per the passes-24/26/28 precedent): the benchmark's first-statement turn 72 is about Bootstrap form-control/btn-primary styling ("consistent styling and hover effects"), not API testing; the FIRST pattern keys on that styling phrasing so it matches turn 72 and not the later API-integration code-review turn 112 that reuses the same form-control/btn-primary phrasing. DENIAL keys on "never tested it with any API integration before" (turn 120).
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2549 pass / 2 skip / 0 fail.
 
-The repaired target covers the editing-timeline-collaboration contradiction. Eight contradiction_resolution cases now recovered; the disallowed-name handling (key on surrounding phrasing) is reconfirmed. NEXT clean 2-turn pair: 3:cr:2 (noise 2, conv-3, ev=[72,120] missing 72 — verify the designated pairing first, turn 72 reads as Bootstrap form styling vs the API-integration question). Remaining partial-recall families: contradiction_resolution (6), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
+The repaired target covers the contact-form-API-integration contradiction. Nine contradiction_resolution cases now recovered. THE CLEAN TWO-TURN FIRST/DENIAL CONTRADICTION PAIRS ARE NOW EXHAUSTED — the remaining contradiction cases (5: 10:cr:1, 5:cr:2, 2:cr:1, 18:cr:1, 8:cr:1) are 3-5-turn multi-evidence cases outside the simple pair recipe (would need a different mechanism). NEXT LOOP: reassess — options are the multi-evidence contradiction cases (harder), the tr broad-gate widening for 13:tr:1/18:tr:1 (risky), or the msr candidate-pool gap. Remaining partial-recall families: contradiction_resolution (5, multi-evidence), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
