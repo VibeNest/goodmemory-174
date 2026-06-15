@@ -10612,6 +10612,108 @@ function buildWorkLifeChallengesEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildAppDevelopmentEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to initialize a Flask 2.3.1 project on Python 3.11 with SQLite 3.39 as my database, and I want it to run on local dev at port 5000, can you help me with that? ->-> 1,3",
+      id: 6,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to plan out my project and I want to make sure I meet the April 15 deadline for the MVP scope, which includes income/expense tracking, user login, and basic analytics, can you help me create a schedule to ensure I complete all these features on time? ->-> 1,4",
+      id: 8,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to keep my app lightweight and easy to maintain, so I prefer simple, minimal dependencies, how can I ensure that my Flask app stays minimal while still implementing all the necessary features for my personal budget tracker, considering I'm using Flask 2.3.1 and targeting a local dev environment? ->-> 1,8",
+      id: 34,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to implement the transaction CRUD in my Flask app, specifically the POST /transactions route, and I want to make sure it returns a 201 status code when a new transaction is created successfully. I've got the transactions.py file set up with the RESTful routes. ->-> 2,2",
+      id: 62,
+      role: "user",
+    },
+    {
+      content:
+        "I'm getting this error: sqlite3.IntegrityError: UNIQUE constraint failed: transactions.id. I've tried to insert a new transaction, but it seems like the id is already in use. ->-> 2,3",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having some issues with my deployment on Render.com, specifically with the Gunicorn configuration. I've set up my app to use 3 workers and listen on port 10000, but I'm not sure if this is the optimal setup for my application. Can you help me review my Gunicorn config and suggest any improvements? ->-> 3,2",
+      id: 118,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed review! The updated Gunicorn config looks good. I'll definitely try the `gevent` worker class to see if it improves performance.\n\nFor the test suite, I appreciate the additional tests you suggested. I'll add those to cover more edge cases and security vulnerabilities.",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having trouble with my Flask app's deployment preparation, specifically with the environment variables for production. I've finalized the `DATABASE_URL` and `SECRET_KEY`, and I've set `FLASK_ENV=production`. However, I'm not sure how to properly configure these variables in my Render.com deployment. ->-> 3,8",
+      id: 134,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "app-development-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Software",
+        id: 38,
+        subtopics: [
+          "Project init",
+          "Transaction CRUD",
+          "Deployment",
+          "Gunicorn tuning",
+        ],
+        theme:
+          "Building and deploying a Flask budget-tracker app across conversations",
+        title:
+          "App Development",
+      },
+      narratives: "App development and deployment event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these aspects in this order: initializing the Flask project, implementing transaction creation, configuring deployment, and reviewing the Gunicorn config and test suite.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+            question_id: "app-development-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [6, 62, 118, 120],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Developer building a Flask budget tracker",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -13964,6 +14066,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([24, 26, 28, 146, 202, 204, 262]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the app development event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-app-development-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAppDevelopmentEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([6, 62, 118, 120]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
