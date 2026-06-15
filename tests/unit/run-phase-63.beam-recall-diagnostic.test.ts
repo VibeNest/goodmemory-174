@@ -10647,6 +10647,97 @@ function buildRemoteCollaborationContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildWorkshopAttendanceContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda stressed about these early signs of burnout I've been documenting since late February, like fatigue, irritability, and sleep issues, and I was wondering if attending the March 15 \"Workflow Optimization\" workshop at East Janethaven Media Center for $75 could help me prevent further burnout ->-> 1,19",
+      id: 102,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed steps! I'll definitely review the workshop agenda and speaker credentials. I think it's worth attending, but I'll need to delegate some tasks and inform my team. I'll also write down specific goals and questions to get the most out of it. Sounds like a good plan to prevent further burnout.",
+      id: 104,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks! This plan looks solid. I'll review the workshop details and delegate some tasks to my team. I think I'm ready to make the most out of this workshop. Looking forward to sharing the insights with everyone afterward.",
+      id: 106,
+      role: "user",
+    },
+    {
+      content:
+        "I've identified early signs of burnout, such as fatigue, irritability, and sleep issues, which I've been documenting since late February, and I'm looking for ways to manage them, so can you help me understand how these signs might be impacting my work and personal life ->-> 1,20",
+      id: 108,
+      role: "user",
+    },
+    {
+      content:
+        "I've never attended any workshops or professional development events, so I'm wondering if that's something I should look into to help with my burnout and stress ->-> 1,23",
+      id: 126,
+      role: "user",
+    },
+    {
+      content:
+        "Thanks for the detailed info! I think a mindfulness and stress management workshop would be really helpful. I've already scheduled the March 15 workflow optimization workshop, so maybe I can look for another one after that. Any recommendations on where to find more events like these?",
+      id: 128,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "workshop-attendance-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 18,
+        subtopics: [
+          "Burnout management",
+          "Professional workshops",
+          "Workflow optimization",
+          "Stress management",
+        ],
+        theme:
+          "Planning workshops to manage burnout across conversations",
+        title:
+          "Workshop Planning For Burnout",
+      },
+      narratives: "Workshop attendance contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I ever attended any workshops or professional development events?",
+            question_id: "workshop-attendance-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: {
+              first_statement: [126],
+              second_statement: [128, 102, 104, 106],
+            },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: producer planning workshops to manage burnout",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16587,6 +16678,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([16, 18, 50]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the workshop attendance multi-facet contradiction group through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-workshop-attendance-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildWorkshopAttendanceContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([102, 104, 106, 126, 128]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

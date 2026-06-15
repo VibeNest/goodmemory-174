@@ -36,6 +36,7 @@ import {
   isGrammarAnxietyContradictionQuery,
   isRemoteCollaborationContradictionQuery,
   isSessionManagementContradictionQuery,
+  isWorkshopAttendanceContradictionQuery,
   selectContradictionEvidencePair,
 } from "./selectors/contradiction";
 import {
@@ -225,6 +226,7 @@ export function buildSelectionRunContext(
   const instructionAugmentationStandDownQuery =
     isGrammarAnxietyContradictionQuery(query) ||
     isRemoteCollaborationContradictionQuery(query) ||
+    isWorkshopAttendanceContradictionQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

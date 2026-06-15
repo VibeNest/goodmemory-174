@@ -89,6 +89,29 @@ const REMOTE_COLLABORATION_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*never worked with my child)(?=[\s\S]*on any projects)/iu,
 ];
 
+export const isWorkshopAttendanceContradictionQuery = narrowGate(
+  "contradiction.workshopAttendance",
+  (query: string): boolean =>
+    /\battended\b/iu.test(query) &&
+    /workshops/iu.test(query) &&
+    /professional development/iu.test(query),
+);
+
+// The affirmative is four user turns planning and scheduling a March 15
+// "Workflow Optimization" workshop to manage burnout (considering it, reviewing
+// the agenda/speaker credentials, getting ready to make the most of it, and
+// scheduling it alongside a mindfulness workshop), opposed by a denial that no
+// workshops or professional development events were ever attended. The burnout
+// facet keys on the symptom list plus the workshop name so it does not match the
+// earlier burnout-symptoms turn that omits the workshop.
+const WORKSHOP_ATTENDANCE_CONTRADICTION_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*fatigue, irritability, and sleep issues)(?=[\s\S]*Workflow Optimization)/iu,
+  /^(?=[\s\S]*workshop agenda and speaker credentials)/iu,
+  /^(?=[\s\S]*make the most out of this workshop)(?=[\s\S]*sharing the insights)/iu,
+  /^(?=[\s\S]*never attended any workshops or professional development events)/iu,
+  /^(?=[\s\S]*mindfulness and stress management workshop)(?=[\s\S]*already scheduled the March 15)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -100,6 +123,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isRemoteCollaborationContradictionQuery,
     facets: REMOTE_COLLABORATION_CONTRADICTION_FACET_PATTERNS,
+  },
+  {
+    isQuery: isWorkshopAttendanceContradictionQuery,
+    facets: WORKSHOP_ATTENDANCE_CONTRADICTION_FACET_PATTERNS,
   },
 ];
 

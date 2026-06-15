@@ -18,6 +18,7 @@ import { selectTabulatedMultiFacetContradictionGroup } from "./contradictionRule
 export {
   isGrammarAnxietyContradictionQuery,
   isRemoteCollaborationContradictionQuery,
+  isWorkshopAttendanceContradictionQuery,
 } from "./contradictionRules/multiFacetGroups";
 
 // The simple "Have I ever X?" first-statement/denial contradiction pairs (gates,

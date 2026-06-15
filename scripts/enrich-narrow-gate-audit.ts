@@ -98,6 +98,7 @@ import {
   isSessionManagementContradictionQuery,
   isTwoFactorAuthImplementationContradictionQuery,
   isWillAttorneyMeetingContradictionQuery,
+  isWorkshopAttendanceContradictionQuery,
   isWritingSessionsContradictionQuery,
 } from "../src/recall/selectors/contradiction";
 import { isCouponRedemptionLocationQuery } from "../src/recall/selectors/conversationEvidence";
@@ -324,6 +325,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.grammarAnxiety": isGrammarAnxietyContradictionQuery,
   "contradiction.remoteCollaboration":
     isRemoteCollaborationContradictionQuery,
+  "contradiction.workshopAttendance":
+    isWorkshopAttendanceContradictionQuery,
   "conversation.couponRedemptionLocation": isCouponRedemptionLocationQuery,
 };
 
