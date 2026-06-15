@@ -23,25 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-carla-collaboration-event-order-current-20260615T022325Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-work-life-challenges-event-order-current-20260615T024400Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-entertainment-interests-event-order-current-20260615T020739Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-carla-collaboration-event-order-current-20260615T022325Z`
 
 Summary:
 
-- evidence-chat recall: 0.9037916387212163
-- missed-recall cases: 61/355
-- wrong-recall/noise cases: 206/400 (unchanged)
+- evidence-chat recall: 0.9045964676950593
+- missed-recall cases: 60/355
+- wrong-recall/noise cases: 205/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 967/127/936 -> 968/126/936 (one recovered evidence id)
-- recovered target: `10:event_ordering:2`
-- target result: recall 0.83 -> 1 — recovers the one missing designated turn (230; 52/78/176/228/232 were already hits) with no noise to shed. The question asks for five items but the benchmark designates six evidence turns, recovered as-is
-- ripples: none — exactly one case delta (cleanest possible)
-- repair shape: `carlaCollaborationEventOrder` coverage selector (six facets — first-pages review 52, passive-voice/editing-checklist 78, tone adjustments 176, joint webinar 228, guild-newsletter engagement 230, guild Q&A incentives 232) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; a carlaCollaborationEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The guild-newsletter facet keys on "engaging with the guild leadership ... email newsletters" to separate it from a later "reaching out to the guild leaders" turn
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
-- note: low-perturbation recall-only recovery, chosen because the remaining high-noise targets sit at or past the reinforcement-ripple regression threshold (~29)
+- global hit/missing/noise ids: 968/126/936 -> 970/124/923 (net 13-id noise drop)
+- recovered target: `18:event_ordering:2`
+- target result: recall 0.71 -> 1 — recovers the two missing designated turns (28/204; 24/26/146/202/262 were already hits) and sheds all 13 noisy chats. The question asks for four items but the benchmark designates seven evidence turns, recovered as-is
+- ripples: one accepted recall-neutral same-conversation noise swap (`18:multi_session_reasoning:2`, net-zero noise); conv-18's already-recovered 18:event_ordering:1 stayed at recall 1
+- repair shape: `workLifeChallengesEventOrder` coverage selector (seven facets — editing collaboration 24, agenda prep 26, agenda send 28, weekend getaway 146, anniversary dinner 202, dinner plan 204, surprise picnic 262) appended to the UNCAPPED_SOURCE_ORDERED_EVENT_ORDER_COVERAGE table; a workLifeChallengesEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly
+- routing note: this question also matches the broad personalWorkChallenge selector, whose route (position 4 in PRIMARY_FACT_SELECTION_ORDER) would otherwise win first with the incomplete result. A scoped one-gate guard empties personalWorkChallengeCandidates for this 1/400 question, so it falls through to temporal_order and the precise coverage wins. No other personal-work-challenge question regressed
+- regression check: target positive delta plus one recall-neutral noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 13
 
-The repaired target covers the editor-collaboration event-order coverage on the writing-partner conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the personal/work-related-challenges event-order coverage on the wellbeing conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
