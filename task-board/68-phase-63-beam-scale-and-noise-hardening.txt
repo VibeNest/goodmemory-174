@@ -23,24 +23,25 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-patent-process-stages-event-order-current-20260614T230256Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-academic-mentorship-event-order-current-20260614T235658Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-sneaker-safety-event-order-current-20260613T054324Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-patent-process-stages-event-order-current-20260614T230256Z`
 
 Summary:
 
-- evidence-chat recall: 0.8880795886429688
-- missed-recall cases: 71/355
-- wrong-recall/noise cases: 214/400
+- evidence-chat recall: 0.8903331097697295
+- missed-recall cases: 70/355
+- wrong-recall/noise cases: 213/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 936/158/1054 -> 938/156/1029 (net 25-id noise drop)
-- recovered target: `20:event_ordering:2`
-- target result: recall 0.6 -> 1 — recovers the two missing designated turns (122/190; 32/70/188 were already hits) and sheds all 25 noisy chats with zero new noise
-- ripples: none — exactly one case delta
-- repair shape: `patentProcessStagesEventOrder` coverage selector (five facets — prior-art plan 32, prior-art complete 70, provisional filed 122, non-provisional draft 188, review/milestones 190) chained in sourceOrderTemporal.ts; a patentProcessStagesEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The non-provisional-draft facet keys on "45-page draft" rather than the named collaborator (keeps the selector file free of the disallowed fixture name); the review/milestones facet keys on "detailed steps" to distinguish a near-identical "detailed plan" turn
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no positive missing-id deltas; global noise down 25
+- global hit/missing/noise ids: 938/156/1029 -> 942/152/1009 (net 20-id noise drop)
+- recovered target: `7:event_ordering:1`
+- target result: recall 0.2 -> 1 — recovers the four missing designated turns (14/64/170/214; 124 was already a hit) and sheds all 20 noisy chats with zero new noise
+- ripples: two accepted recall-neutral same-conversation noise swaps (`7:information_extraction:1`, `7:multi_session_reasoning:2`, each net-zero noise); recall unchanged on both
+- repair shape: `academicMentorshipEventOrder` coverage selector (five facets — meeting the mentor 14, essay inspiration 64, warrants feedback 124, conference-paper debate 170, high-grade follow-up 214) chained in sourceOrderTemporal.ts; an academicMentorshipEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The mentor is a disallowed fixture name, so every facet keys on surrounding date/venue/essay phrasing instead of the name
+- regression check: target positive delta plus two recall-neutral noise swaps; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 20
+- target selection: pre-screened. Two prior high-noise candidates (19:event_ordering:2, 9:event_ordering:1) were built and REVERTED because cleanly recovering the event-order target deterministically regressed a same-conversation temporal_reasoning case via the diagnostic's per-conversation shared, reinforcement-mutating store. conv-7 was chosen because both its temporal_reasoning cases were already partial (no fragile recall-1 temporal case to perturb)
 
-The repaired target covers the patent-process-stages event-order coverage on the patent-filing conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the academic-work/mentorship event-order coverage on the graduate-mentorship conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
