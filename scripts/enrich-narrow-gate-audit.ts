@@ -24,6 +24,7 @@ import { isRemoteWorkScheduleUpdateQuery } from "../src/recall/selectors/updateS
 import { isImmigrationConsultantSessionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/immigrationConsultantSession";
 import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
 import { isHolidayGiftBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/holidayGiftBudget";
+import { isZoteroSourcesUpdateQuery } from "../src/recall/selectors/updateSeriesRules/zoteroSources";
 import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
 import {
   isDailyWalkingGoalFestivalMonthsIntervalQuery,
@@ -179,6 +180,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "updateSeries.onboardingModulesCompletion":
     isOnboardingModulesCompletionUpdateQuery,
   "updateSeries.holidayGiftBudget": isHolidayGiftBudgetUpdateQuery,
+  "updateSeries.zoteroSources": isZoteroSourcesUpdateQuery,
   "updateSeries.probateTimeline": isProbateTimelineUpdateQuery,
   "temporalInterval.transactionDeploymentWeeks":
     isTransactionDeploymentWeeksIntervalQuery,

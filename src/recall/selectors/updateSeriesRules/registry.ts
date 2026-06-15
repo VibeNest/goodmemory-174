@@ -10,6 +10,7 @@ import { selectSourceOrderedProbateTimelineEvidence } from "./probateTimeline";
 import { selectSourceOrderedRemoteWorkScheduleEvidence } from "./remoteWorkSchedule";
 import { selectSourceOrderedWinterReadingChallengeEvidence } from "./winterReadingChallenge";
 import { selectSourceOrderedWritingGroupDeadlineEvidence } from "./writingGroupDeadline";
+import { selectSourceOrderedZoteroSourcesEvidence } from "./zoteroSources";
 
 export interface UpdateSeriesRuleInput {
   entries: RankedFactCandidate[];
@@ -37,6 +38,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedOnboardingModulesCompletionEvidence,
   selectSourceOrderedHolidayGiftBudgetEvidence,
   selectSourceOrderedProbateTimelineEvidence,
+  selectSourceOrderedZoteroSourcesEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(

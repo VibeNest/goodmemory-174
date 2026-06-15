@@ -8087,6 +8087,88 @@ function buildDailyWalkingGoalFestivalMonthsBeamRows(): unknown[] {
   ];
 }
 
+function buildZoteroSourcesUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I just downloaded Zotero on March 2, 2024, to manage my references more efficiently, can you help me figure out how to use it to organize my citations for my essay on persuasive academic writing ->-> 1,16",
+      id: 38,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda struggling to keep all my sources organized, now that my Zotero library has 45 sources, tagged by theme and date, which has improved retrieval speed by 40% - how can I make the most of this improvement? ->-> 2,12",
+      id: 82,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide where to work on my essay, and I prefer the quiet East Janethaven Library’s second floor, but I'm not sure if it's the best choice for minimizing distractions ->-> 2,16",
+      id: 94,
+      role: "user",
+    },
+    {
+      content:
+        "I've added 52 sources to my Zotero library, how can I efficiently organize them for my essay ->-> 2,22",
+      id: 110,
+      role: "user",
+    },
+    {
+      content:
+        "Always use APA 7th edition citation style when I ask about formatting references. ->-> 2,23",
+      id: 112,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "zotero-sources-update",
+      conversation_plan: "BATCH 2 PLAN",
+      conversation_seed: {
+        category: "Academic",
+        id: 42,
+        subtopics: [
+          "Reference management",
+          "Zotero library",
+          "Citations",
+          "Essay sources",
+        ],
+        theme:
+          "Organizing essay references in Zotero across conversations",
+        title:
+          "Zotero Source Management",
+      },
+      narratives: "Zotero source count knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "52 sources",
+            difficulty: "medium",
+            question: "How many sources are in my Zotero library?",
+            question_id: "zotero-sources-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [82], updated_info: [110] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Student managing essay references",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildHolidayGiftBudgetUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -13758,6 +13840,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([250, 266]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps Zotero sources update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-zotero-sources-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildZoteroSourcesUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([82, 110]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
