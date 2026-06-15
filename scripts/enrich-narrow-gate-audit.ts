@@ -45,6 +45,7 @@ import { isPatentFundingEventOrderQuery } from "../src/recall/selectors/sourceOr
 import { isCombinatoricsProbabilityEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { isSneakerSafetyEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/sneakerSafetyEventOrder";
 import { isPatentProcessStagesEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/patentProcessStagesEventOrder";
+import { isAcademicMentorshipEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/academicMentorshipEventOrder";
 import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
 import {
   isResumeDesignInstructionQuery,
@@ -206,6 +207,7 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "eventOrder.sneakerSafety": isSneakerSafetyEventOrderQuery,
   "eventOrder.patentProcessStages":
     isPatentProcessStagesEventOrderQuery,
+  "eventOrder.academicMentorship": isAcademicMentorshipEventOrderQuery,
   "instruction.trelloSprintCriteriaAbstention":
     isTrelloSprintPrioritizationCriteriaAbstentionQuery,
   "instruction.resumeDesign": isResumeDesignInstructionQuery,

@@ -9479,6 +9479,120 @@ function buildPatentProcessStagesEventOrderBeamRows(): unknown[] {
   ];
 }
 
+function buildAcademicMentorshipEventOrderBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda worried about meeting my new academic mentor, Robert, who's 75 and a retired professor, at the East Janethaven Library on Feb 10, 2024 - how can I make a good impression on him? ->-> 1,5",
+      id: 14,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that I won't be able to improve my essay grades from B- to A by June 15, 2024, so can you help me create a plan to focus on persuasive academic writing? ->-> 1,9",
+      id: 24,
+      role: "user",
+    },
+    {
+      content:
+        "I'm really inspired by Robert's 1985 essay on gender studies that he shared during our April 4 Zoom call, and I'm thinking of using some of those argument angles in my essay, but how can I make sure I'm not copying his ideas? ->-> 2,5",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda struggling to understand how to apply rhetorical devices and bias from those 5 key articles I finished noting by April 4, can you help me break it down further? ->-> 2,14",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I'm finalizing my first draft of the essay by May 15, 2024, and I have 4,500 words to submit, can you help me manage my time effectively to meet this deadline? ->-> 3,2",
+      id: 116,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide whether to prioritize Robert's recommendation to use stronger warrants for claims on gender bias, which he mentioned when he reviewed my draft on May 9, or to focus on other aspects of my essay ->-> 3,5",
+      id: 124,
+      role: "user",
+    },
+    {
+      content:
+        "I've been experiencing some self-doubt about my argument strength, especially after May 7 when I had doubts, but then I consulted Robert's feedback and it really helped me overcome them, how can I continue to build my confidence in my arguments? ->-> 3,21",
+      id: 156,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to decide how to best approach the conference paper on media representation with Greg, and since Robert suggested submitting my essay to a journal, I'm wondering if I should focus on making my essay a stronger, more persuasive piece before working on the conference paper ->-> 4,5",
+      id: 170,
+      role: "user",
+    },
+    {
+      content:
+        "I re-examined 7 feminist critiques on May 29 for a deeper synthesis, and now I'm wondering how to effectively incorporate these new insights into my essay without overwhelming the reader ->-> 4,14",
+      id: 190,
+      role: "user",
+    },
+    {
+      content:
+        "I'm feeling quite confident after getting such a high grade on July 10, but I want to make sure I'm on the right track for our Zoom meeting on July 20, can you help me review my progress and plan for the conference preparation? ->-> 5,3",
+      id: 214,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "academic-mentorship-event-order",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Education",
+        id: 28,
+        subtopics: [
+          "Meeting the mentor",
+          "Essay inspiration",
+          "Feedback on warrants",
+          "Conference paper",
+        ],
+        theme:
+          "Academic work and mentorship across conversations",
+        title:
+          "Academic Mentorship",
+      },
+      narratives: "Academic work and mentorship event order coverage",
+      probing_questions: {
+        event_ordering: [
+          {
+            answer:
+              "You raised these aspects in this order: meeting your new academic mentor, being inspired by the 1985 essay shared on a Zoom call, considering feedback on stronger warrants, debating the conference paper versus the essay, and feeling confident after a high grade ahead of a follow-up Zoom meeting.",
+            ordering_type: "mention_sequence",
+            question:
+              "Can you list the order in which I brought up different aspects of my academic work and mentorship throughout our conversations in order? Mention ONLY and ONLY five items.",
+            question_id: "academic-mentorship-event-order",
+            question_type: "event_ordering",
+            source_chat_ids: [14, 64, 124, 170, 214],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Graduate student working with an academic mentor",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildWeatherAutocompleteBugFixConfirmationBeamRows(): unknown[] {
   const turns = [
     {
@@ -12599,6 +12713,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([32, 70, 122, 188, 190]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the academic mentorship event order coverage through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-academic-mentorship-event-order",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildAcademicMentorshipEventOrderBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([14, 64, 124, 170, 214]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

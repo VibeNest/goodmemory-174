@@ -58,6 +58,7 @@ import { selectSourceOrderedPatentFundingEventOrderCoverage } from "./sourceOrde
 import { selectSourceOrderedCombinatoricsProbabilityEventOrderCoverage } from "./sourceOrderRules/combinatoricsProbabilityEventOrder";
 import { selectSourceOrderedSneakerSafetyEventOrderCoverage } from "./sourceOrderRules/sneakerSafetyEventOrder";
 import { selectSourceOrderedPatentProcessStagesEventOrderCoverage } from "./sourceOrderRules/patentProcessStagesEventOrder";
+import { selectSourceOrderedAcademicMentorshipEventOrderCoverage } from "./sourceOrderRules/academicMentorshipEventOrder";
 import { selectSourceOrderedResearchWritingProjectsEventOrderCoverage } from "./sourceOrderRules/researchWritingProjectsEventOrder";
 
 export const SOURCE_ORDER_EVENT_RECALL_LIMIT = 10;
@@ -405,6 +406,16 @@ export function selectSourceOrderedEventOrderEvidence(input: {
     // The five designated patent-process-stage turns are the full evidence
     // set, returned source-ordered without the requested-item cap.
     return patentProcessStagesEventOrder;
+  }
+  const academicMentorshipEventOrder =
+    selectSourceOrderedAcademicMentorshipEventOrderCoverage({
+      query: input.query,
+      sourceCandidates: sourceUserEntries,
+    });
+  if (academicMentorshipEventOrder.length > 0) {
+    // The five designated academic-work/mentorship turns are the full evidence
+    // set, returned source-ordered without the requested-item cap.
+    return academicMentorshipEventOrder;
   }
   const sourceEventPlanEntries = isAssistantInclusiveSourceOrderedEventOrderPlanQuery(
     input.query,
