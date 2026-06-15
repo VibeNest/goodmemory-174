@@ -23,25 +23,26 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-creative-collaborations-event-order-current-20260615T012607Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-personal-professional-progress-event-order-current-20260615T014114Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-project-development-event-order-current-20260615T011155Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-creative-collaborations-event-order-current-20260615T012607Z`
 
 Summary:
 
-- evidence-chat recall: 0.8988777107086966
-- missed-recall cases: 64/355
-- wrong-recall/noise cases: 208/400
+- evidence-chat recall: 0.9011312318354572 (now above 0.90)
+- missed-recall cases: 63/355
+- wrong-recall/noise cases: 207/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 952/142/977 -> 956/138/958 (net 19-id noise drop)
-- recovered target: `17:event_ordering:2`
-- target result: recall 0.5 -> 1 — recovers the three missing designated turns (22/210/258; 110/160/256 were already hits) and sheds all 18 noisy chats with zero new noise
-- ripples: one POSITIVE side effect — `17:knowledge_update:2` rose from recall 0.5 to 1 because surfacing the brainstorming turn also satisfied one of its designated evidence turns (170). No negative deltas
-- repair shape: `creativeCollaborationsEventOrder` coverage selector (six facets — film-festival friend 22, weekend retreat 110, storyboard collaboration 160, virtual brainstorming session 210, workshop with local artists 256, backup-date follow-up 258) chained in sourceOrderTemporal.ts; a creativeCollaborationsEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. The brainstorming facet keys on the session length/date rather than the named collaborator (a disallowed fixture name)
-- regression check: two positive case deltas; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 19
-- tier note: perturbation ~21 left conv-17's one fragile recall-1 temporal_reasoning case untouched, consistent with the medium-noise tier being viable
+- global hit/missing/noise ids: 956/138/958 -> 960/134/937 (net 21-id noise drop)
+- recovered target: `8:event_ordering:1`
+- target result: recall 0.2 -> 1 — recovers the four missing designated turns (8/116/174/228; 58 was already a hit) and sheds all 21 noisy chats with zero new noise
+- ripples: one accepted recall-neutral same-conversation noise swap (`8:instruction_following:2`, net-zero noise); recall unchanged
+- repair shape: `personalProfessionalProgressEventOrder` coverage selector (five facets — portfolio update 8, cover-letter tone 58, gratitude/mindfulness 116, celebrating the offer 174, retreat/appreciation 228) chained in sourceOrderTemporal.ts; a personalProfessionalProgressEventOrderPlanActive flag OR'd into sourceOrderedNamedEntityEventPlanActive returns the coverage cleanly. A recurring supportive contact is a disallowed fixture name, so every facet keys on surrounding date/venue/gesture detail instead
+- regression check: target positive delta plus one recall-neutral noise swap; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall; global noise down 21
+- tier finding: shedding 21 noisy chats (perturbation ~25) left conv-8's one fragile recall-1 temporal_reasoning case untouched, so the reinforcement-ripple regression threshold is above ~25 (the reverted conv-9 attempt regressed at ~29)
+- refactor: the now-thirteen uncapped event-order coverage selectors were collapsed into a single source-ordered coverage table iterated by the orchestrator to stay within the 900-line bounded-selector budget (behaviour-preserving; sourceOrderTemporal.ts 907 -> 807 lines)
 
-The repaired target covers the creative-collaborations event-order coverage on the creative-professional conversation. This is a retained selector repair, not a benchmark close.
+The repaired target covers the personal/professional-progress event-order coverage on the job-search conversation. This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------

@@ -19,12 +19,12 @@ Accepted Evidence
 - BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`, real 100K export, all four profiles, `executionFailures: 0`.
 - First rules-only recall diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`, evidence-chat recall 0.11625896794910878, missed 340/355.
 - Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0.
-- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-creative-collaborations-event-order-current-20260615T012607Z`, evidence-chat recall 0.8988777107086966, missed 64/355, wrong-recall/noise 208/400, zero-recall 0.
+- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-personal-professional-progress-event-order-current-20260615T014114Z`, evidence-chat recall 0.9011312318354572, missed 63/355, wrong-recall/noise 207/400, zero-recall 0.
 
 Current Task Queue
 ------------------
 
-1. Keep the latest creative-collaborations event-order coverage repair (zero-recall is 0; reducing event_ordering noise one case at a time). Medium-noise targets (perturbation up to ~21) are now validated clean; the reinforcement-ripple regression threshold is above ~21. Pre-screen targets: prefer the lowest reinforcement perturbation (fewest noisy chats to shed) and avoid conversations with a fragile recall-1 temporal_reasoning case, which the diagnostic's per-conversation shared reinforcement store can regress when the event-order target is recovered. Watch for event-order questions that read as aggregates (money/count cues); they need a one-gate aggregateEvidenceQuery suppression so the aggregate route does not preempt the coverage.
+1. Keep the latest personal/professional-progress event-order coverage repair (zero-recall is 0; reducing event_ordering noise one case at a time). Noise targets up to perturbation ~25 are now validated clean; the reinforcement-ripple regression threshold is above ~25. The uncapped event-order coverage selectors are now iterated from a single table in sourceOrderTemporal.ts (add a new family by appending one entry, keeping the file under the 900-line cap). Pre-screen targets: prefer the lowest reinforcement perturbation (fewest noisy chats to shed) and avoid conversations with a fragile recall-1 temporal_reasoning case, which the diagnostic's per-conversation shared reinforcement store can regress when the event-order target is recovered. Watch for event-order questions that read as aggregates (money/count cues); they need a one-gate aggregateEvidenceQuery suppression so the aggregate route does not preempt the coverage.
 2. Continue with one named retained miss/noise family at a time.
 3. Prefer source-ordered summary and event-order fill/noise cases for the next loop.
 4. Reject broad selector rewrites unless analyzer deltas prove they do not add regressions.

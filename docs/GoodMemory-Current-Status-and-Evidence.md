@@ -41,7 +41,7 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Phase 63 BEAM is active and remains partial.
 - Accepted LongMemEval close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z` with 454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong answers 46, and `executionFailures: 0`.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current` and gate `run-20260518003000`.
-- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-creative-collaborations-event-order-current-20260615T012607Z`, evidence-chat recall 0.8988777107086966, missed 64/355, wrong-recall/noise 208/400, zero-recall 0, and hit/missing/noise ids 952/142/977 -> 956/138/958 (17:event_ordering:2 recovered from recall 0.5 to 1 and shed 18 noisy chats; a positive side effect also lifted 17:knowledge_update:2 from 0.5 to 1).
+- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-personal-professional-progress-event-order-current-20260615T014114Z`, evidence-chat recall 0.9011312318354572, missed 63/355, wrong-recall/noise 207/400, zero-recall 0, and hit/missing/noise ids 956/138/958 -> 960/134/937 (8:event_ordering:1 recovered from recall 0.2 to 1 and shed 21 noisy chats; one recall-neutral same-conversation noise swap).
 
 ## Phase 40 Release Evidence
 
