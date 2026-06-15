@@ -23,22 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-contradiction-firstdenial-extract-current-20260615T124515Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-coin-toss-contradiction-current-20260615T131350Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-personal-statement-scholarship-interval-current-20260615T121837Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-contradiction-firstdenial-extract-current-20260615T124515Z`
 
-Summary (behavior-preserving extraction — contradictionRules/firstDenialPairs.ts, no recovery):
+Summary (sixth contradiction_resolution recovery — first via the extracted firstDenialPairs module):
 
-- evidence-chat recall: 0.935582383188017 (unchanged)
-- missed-recall cases: 38/355 (unchanged)
-- wrong-recall/noise cases: 183/400 (unchanged)
+- evidence-chat recall: 0.9369908338922424
+- missed-recall cases: 37/355
+- wrong-recall/noise cases: 182/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 993/101/854 (unchanged)
-- case deltas vs baseline: ZERO (analyzer caseDeltaCount 0; byte-identical global metrics)
-- refactor shape: moved the simple "Have I ever X?" first-statement/denial machinery out of contradiction.ts (897 -> 699 lines) into a new `src/recall/selectors/contradictionRules/firstDenialPairs.ts` (224 lines) — the 7 gates (atsCourseEnrollment, willAttorneyMeeting, patentWebinar, movieWatchlist, writingSessions, anniversaryCelebration, bootstrapComponents), their 7 first/denial pattern-pairs, the FIRST_DENIAL_CONTRADICTION_PAIRS dispatch table, the shared selectFirstDenialContradictionPair helper, and selectTabulatedFirstDenialContradictionPair. contradiction.ts imports the table-runner and re-exports the per-case gates so the narrow-gate enrichment import is unchanged. The complex non-pair selectors (sessionManagement, twoFactorAuth, familyMovieInvite) stay in contradiction.ts.
-- verification: typecheck clean; full suite 2545 pass / 2 skip / 0 fail (identical to pre-extraction, all contradiction + pair-recovery + architecture-cap tests green); analyzer zero deltas
+- global hit/missing/noise ids: 993/101/854 -> 994/100/852
+- recovered target: `5:contradiction_resolution:1`
+- target result: recall 0.5 -> 1 — recovers the missing first-statement turn 36 ("score of 4/5 correct on the 5 coin toss problems") to pair with the already-hit denial turn 66 ("never completed any coin toss problems"), and sheds its two noisy chats (44/60)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-5 carries 5:tr:1, 5:tr:2 (both prior recoveries) and the rest of its cases unchanged, all held
+- repair shape: added isCoinTossProblemsContradictionQuery gate (`contradiction.coinTossProblems` = "coin toss problems" && "completed", 1/400) + a first/denial pattern-pair + one FIRST_DENIAL_CONTRADICTION_PAIRS table entry in src/recall/selectors/contradictionRules/firstDenialPairs.ts + an enrichment GATE_FUNCTIONS entry. The FIRST pattern keys on "score of 4/5 correct on the 5 coin toss problems" so it excludes the two near-duplicate turns (44/60) that also say "completed 5 coin toss problems ... 4/5 correct"; contradiction.ts re-exports the new gate so the enrichment import stays uniform.
+- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. (Full suite: the only failure is the known host-bootstrap timeout flake tests/cli/cli.test.ts "plans install dry-run from existing config", which fails identically on clean HEAD under load — unrelated to recall selectors.)
 
-This frees ~200 lines under the 900-line architecture cap so contradiction_resolution pair recoveries can resume: a new pair = a gate + two patterns + one FIRST_DENIAL_CONTRADICTION_PAIRS entry in the new module + an enrichment entry. NEXT LOOP recovers 5:contradiction_resolution:1 (coin-toss: first_statement turn 36 "4/5 correct on the 5 coin toss problems" MISSING, denial turn 66 "never completed any coin toss problems" HIT, noise [44,60], conv-5). Remaining partial-recall families: contradiction_resolution (9, NOW UNBLOCKED), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, but lowest-noise "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a behavior-preserving refactor, not a benchmark close.
+The repaired target covers the coin-toss-problems contradiction. Six contradiction_resolution cases now recovered; the extracted module makes each new pair a gate + two patterns + one table entry + an enrichment entry. NEXT clean 2-turn pairs: 3:cr:2 (noise 2), 18:cr:2 (noise 3, "Greg" allowed), then 11:cr:1 (needs surrounding phrasing for the disallowed "Michael"). Remaining partial-recall families: contradiction_resolution (8), temporal_reasoning (2, need broad-gate widening), multi_session_reasoning (11, "how many" aggregates have an upstream candidate-pool recall gap), instruction_following (6, answer_ai_question-blocked), knowledge_update (3, answer_ai_question-blocked). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
