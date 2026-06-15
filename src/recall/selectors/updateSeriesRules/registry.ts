@@ -7,6 +7,7 @@ import { selectSourceOrderedHolidayGiftBudgetEvidence } from "./holidayGiftBudge
 import { selectSourceOrderedImmigrationConsultantSessionEvidence } from "./immigrationConsultantSession";
 import { selectSourceOrderedOnboardingModulesCompletionEvidence } from "./onboardingModulesCompletion";
 import { selectSourceOrderedProbabilityStudyHoursEvidence } from "./probabilityStudyHours";
+import { selectSourceOrderedPrototypeBudgetEvidence } from "./prototypeBudget";
 import { selectSourceOrderedProbateTimelineEvidence } from "./probateTimeline";
 import { selectSourceOrderedRemoteWorkScheduleEvidence } from "./remoteWorkSchedule";
 import { selectSourceOrderedSnackBudgetEvidence } from "./snackBudget";
@@ -43,6 +44,7 @@ const UPDATE_SERIES_RULE_SELECTORS: ReadonlyArray<
   selectSourceOrderedZoteroSourcesEvidence,
   selectSourceOrderedProbabilityStudyHoursEvidence,
   selectSourceOrderedSnackBudgetEvidence,
+  selectSourceOrderedPrototypeBudgetEvidence,
 ];
 
 export function selectUpdateSeriesRuleFamilyEvidence(

@@ -8253,6 +8253,89 @@ function buildSnackBudgetUpdateBeamRows(): unknown[] {
   ];
 }
 
+function buildPrototypeBudgetUpdateBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I've allocated $4,000 for initial patent filing fees and $5,500 for attorney fees by July 2024, can you help me create a budget plan to cover additional consultation hours? ->-> 1,21",
+      id: 64,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about the $7,000 budget for prototype refinement and patent attorney fees, will it be enough to cover everything through August 2024? ->-> 3,5",
+      id: 130,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried that with the increased budget allocation to $8,000 through August 2024, I might not be able to cover all the additional prototype enhancements, what are my options? ->-> 3,21",
+      id: 176,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried about potential infringement claims, so I've prepared a contingency plan and budgeted $8,000 for legal reserve, but I'm not sure if that's enough ->-> 5,8",
+      id: 324,
+      role: "user",
+    },
+    {
+      content:
+        "I've allocated $15,000 for marketing and patent maintenance fees through 2025, but I'm not sure if this is enough, can you give me some advice on how to manage my budget effectively for the next year? ->-> 5,5",
+      id: 318,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "prototype-budget-update",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Business",
+        id: 20,
+        subtopics: [
+          "Prototype refinement",
+          "Patent attorney fees",
+          "Budget allocation",
+          "Product development",
+        ],
+        theme:
+          "Tracking the prototype-refinement budget across conversations",
+        title:
+          "Prototype Refinement Budget",
+      },
+      narratives: "Prototype budget knowledge update",
+      probing_questions: {
+        knowledge_update: [
+          {
+            answer: "$8,000",
+            difficulty: "easy",
+            question:
+              "What is the budget allocated for prototype refinement and patent attorney fees through August?",
+            question_id: "prototype-budget-update",
+            question_type: "knowledge_update",
+            source_chat_ids: { original_info: [130], updated_info: [176] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Inventor budgeting a patent prototype",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildZoteroSourcesUpdateBeamRows(): unknown[] {
   const turns = [
     {
@@ -14075,6 +14158,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([66, 102]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps prototype budget update evidence through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-prototype-budget-update",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildPrototypeBudgetUpdateBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([130, 176]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
