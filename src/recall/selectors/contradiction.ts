@@ -30,6 +30,7 @@ export {
   isCoinTossProblemsContradictionQuery,
   isDelegatingTasksContradictionQuery,
   isEditingTimelineCollaborationContradictionQuery,
+  isContactFormApiIntegrationContradictionQuery,
 } from "./contradictionRules/firstDenialPairs";
 
 export const CONTRADICTION_POSITIVE_RECALL_LIMIT = 3;

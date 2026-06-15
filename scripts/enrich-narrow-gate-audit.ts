@@ -85,6 +85,7 @@ import {
   isAtsCourseEnrollmentContradictionQuery,
   isBootstrapComponentsContradictionQuery,
   isCoinTossProblemsContradictionQuery,
+  isContactFormApiIntegrationContradictionQuery,
   isDelegatingTasksContradictionQuery,
   isEditingTimelineCollaborationContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -308,6 +309,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "contradiction.bootstrapComponents":
     isBootstrapComponentsContradictionQuery,
   "contradiction.coinTossProblems": isCoinTossProblemsContradictionQuery,
+  "contradiction.contactFormApiIntegration":
+    isContactFormApiIntegrationContradictionQuery,
   "contradiction.delegatingTasks": isDelegatingTasksContradictionQuery,
   "contradiction.editingTimelineCollaboration":
     isEditingTimelineCollaborationContradictionQuery,

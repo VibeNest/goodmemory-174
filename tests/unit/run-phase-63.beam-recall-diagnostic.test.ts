@@ -10257,6 +10257,82 @@ function buildEditingTimelineCollaborationContradictionBeamRows(): unknown[] {
   ];
 }
 
+function buildContactFormApiIntegrationContradictionBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm trying to integrate Bootstrap's form-control and btn-primary classes into my project for consistent styling and hover effects, but I'm having trouble getting it to work with my custom CSS ->-> 2,7",
+      id: 72,
+      role: "user",
+    },
+    {
+      content:
+        "I'm getting ready for the scheduled peer review on April 15, 2024, and I want to make sure my code is perfect, especially the parts focusing on accessibility and API integration, so can you help me review this code snippet that handles form submission and integrates with the API; I've used Bootstrap's form-control and btn-primary classes for styling and added aria-labels to meet WCAG 2.1 AA standards ->-> 2,24",
+      id: 112,
+      role: "user",
+    },
+    {
+      content:
+        "I'm having some trouble with my contact form submission. I've never tested it with any API integration before, and I'm not sure how to handle the errors. I'm using Formspree API v2, and I've tried the sample POST request but I'm getting a 200 OK response with a latency of 250ms. Can you help me implement the correct error handling and validation? ->-> 2,27",
+      id: 120,
+      role: "user",
+    },
+    {
+      content:
+        "I'm trying to fix this intermittent \"Formspree 500 Internal Server Error\" on my contact form submission, and I've added retry logic with exponential backoff in my JavaScript code, but I'm not sure if it's correctly implemented, can you review my retry logic? ->-> 3,19",
+      id: 166,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "contact-form-api-integration-contradiction",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Technology",
+        id: 3,
+        subtopics: [
+          "Contact form",
+          "API integration",
+          "Bootstrap styling",
+          "Error handling",
+        ],
+        theme:
+          "Building and debugging a contact form across conversations",
+        title:
+          "Contact Form Development",
+      },
+      narratives: "Contact form API integration testing contradiction",
+      probing_questions: {
+        contradiction_resolution: [
+          {
+            answer: "It depends",
+            question:
+              "Have I tested the contact form submission with any API integration before?",
+            question_id: "contact-form-api-integration-contradiction",
+            question_type: "contradiction_resolution",
+            source_chat_ids: { first_statement: [72], second_statement: [120] },
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: developer building a contact form",
+        user_relationships: "None mentioned",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -16082,6 +16158,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([24, 92]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the contact form API integration contradiction pair through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-contact-form-api-integration-contradiction",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildContactFormApiIntegrationContradictionBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([72, 120]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 

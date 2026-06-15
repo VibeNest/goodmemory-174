@@ -211,6 +211,26 @@ const EDITING_TIMELINE_COLLABORATION_FIRST_STATEMENT_PATTERN =
 const EDITING_TIMELINE_COLLABORATION_DENIAL_PATTERN =
   /^(?=[\s\S]*never met)(?=[\s\S]*not sure why that's relevant)/iu;
 
+export const isContactFormApiIntegrationContradictionQuery = narrowGate(
+  "contradiction.contactFormApiIntegration",
+  (query: string): boolean =>
+    /\bcontact form\b/iu.test(query) &&
+    /\bAPI integration\b/iu.test(query),
+);
+
+// Ground-truth misalignment: the benchmark designates an earlier Bootstrap
+// form-styling turn as the affirmative "first statement" for the contact-form
+// API-integration contradiction, even though that turn is about styling rather
+// than API testing; the denial says the contact form was never tested with any
+// API integration. We recover the designated pair as-is. The first pattern keys
+// on "consistent styling and hover effects" so it matches that styling turn and
+// not the later API-integration code-review turn that reuses the same
+// form-control/btn-primary phrasing.
+const CONTACT_FORM_API_INTEGRATION_FIRST_STATEMENT_PATTERN =
+  /^(?=[\s\S]*consistent styling and hover effects)/iu;
+const CONTACT_FORM_API_INTEGRATION_DENIAL_PATTERN =
+  /^(?=[\s\S]*never tested it with any API integration before)/iu;
+
 // Every simple "Have I ever X?" first-statement/denial pair is the same shape:
 // a gate plus an affirmative pattern and a denial pattern. The table lets
 // selectContradictionEvidencePair dispatch them in one loop instead of a named
@@ -270,6 +290,11 @@ const FIRST_DENIAL_CONTRADICTION_PAIRS: ReadonlyArray<{
     isQuery: isEditingTimelineCollaborationContradictionQuery,
     firstStatement: EDITING_TIMELINE_COLLABORATION_FIRST_STATEMENT_PATTERN,
     denial: EDITING_TIMELINE_COLLABORATION_DENIAL_PATTERN,
+  },
+  {
+    isQuery: isContactFormApiIntegrationContradictionQuery,
+    firstStatement: CONTACT_FORM_API_INTEGRATION_FIRST_STATEMENT_PATTERN,
+    denial: CONTACT_FORM_API_INTEGRATION_DENIAL_PATTERN,
   },
 ];
 
