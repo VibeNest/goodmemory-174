@@ -23,24 +23,24 @@ Accepted Inputs
 Latest Accepted Diagnostic
 --------------------------
 
-Run: `run-phase63-beam-100k-recall-diagnostic-rules-bootstrap-components-contradiction-current-20260615T055850Z`
+Run: `run-phase63-beam-100k-recall-diagnostic-rules-first-draft-essay-grade-interval-current-20260615T061734Z`
 
-Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-anniversary-celebration-contradiction-current-20260615T054626Z`
+Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-bootstrap-components-contradiction-current-20260615T055850Z`
 
-Summary (fifth contradiction pair, first added through the new table):
+Summary (first temporal_reasoning recovery; pivot to the highest-ripple-risk family):
 
-- evidence-chat recall: 0.9214978761457635
-- missed-recall cases: 48/355
-- wrong-recall/noise cases: 193/400
+- evidence-chat recall: 0.9229063268499889
+- missed-recall cases: 47/355
+- wrong-recall/noise cases: 192/400
 - zero-recall cases: 0
-- global hit/missing/noise ids: 982/112/893 -> 983/111/891
-- recovered target: `3:contradiction_resolution:1`
-- target result: recall 0.5 -> 1 — recovers the missing first-statement turn 36 ("Bootstrap 5.3.0 ... prefer it over Foundation") to pair with the already-hit denial turn 56 ("never implemented any Bootstrap components"), and sheds its two noisy chats (48/122)
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. conv-3 tr[0.5,1] held, and the same-conv 3:cr:2 partial case was untouched
-- repair shape: new `bootstrapComponents` table entry (gate isBootstrapComponentsContradictionQuery / `contradiction.bootstrapComponents` = "bootstrap components" && "before", 1/400; FIRST pattern keys on "prefer it over Foundation" to exclude the later Bootstrap-optimization turn 48; DENIAL "never implemented any Bootstrap components"). Just gate + 2 patterns + 1 FIRST_DENIAL_CONTRADICTION_PAIRS entry + enrichment, no wrapper or chain block
+- global hit/missing/noise ids: 983/111/891 -> 984/110/888
+- recovered target: `7:temporal_reasoning:1`
+- target result: recall 0.5 -> 1 — recovers the missing end-anchor turn 24 ("improve my essay grades from B- to A by June 15") to pair with the already-hit start-anchor turn 116 ("first draft of the essay by May 15"), answer 31 days, and sheds its three noisy chats (160/66/192)
+- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. SIGNIFICANT: temporal_reasoning is the family that defines the reinforcement-ripple mechanism (the reverted passes 50/50-retry were tr regressions), yet this low-perturbation interval recovery left every other temporal_reasoning case unchanged; conv-7 carries both tr cases at recall 0.5 and the sibling 7:tr:2 held. The interval recipe's tight two-anchor return is ripple-free
+- repair shape: new `firstDraftEssayGradeDays` interval case in sourceOrderTemporalInterval.ts (gate isFirstDraftEssayGradeDaysIntervalQuery / `temporalInterval.firstDraftEssayGradeDays` = "first draft" && "improve my essay grades", 1/400; START "first draft of the essay by May 15" keys on "of the essay by May 15" to exclude near-duplicate noise turn 66 "first draft due May 15"; END "improve my essay grades from B- to A by June 15"; plus the four ternary-chain edits the existing recipe uses). The broad isTemporalIntervalQuery gate routes the question; the per-case gate selects the START/END anchor pair
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall
 
-The repaired target covers the Bootstrap-components contradiction. Five contradiction_resolution cases now recovered, nine remain, alongside six knowledge_update. NOTE: contradiction.ts is now 897/900; the NEXT contradiction case needs the per-case gate+patterns moved into per-case modules (mirroring updateSeriesRules/) before there is room. Remaining partial-recall families: temporal_reasoning (12), multi_session_reasoning (11), contradiction_resolution (9), instruction_following (6), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
+The repaired target covers the first-draft-to-essay-grade interval. Unlocks the 12-case temporal_reasoning workstream (now 11 remain). Remaining partial-recall families: temporal_reasoning (11), multi_session_reasoning (11), contradiction_resolution (9, but contradiction.ts is 897/900 so the next contradiction case needs per-case module extraction first), instruction_following (6, all blocked by answer_ai_question companion turns), knowledge_update (3, all answer_ai_question). This is a retained selector repair, not a benchmark close.
 
 Representative Live Evidence
 ----------------------------
