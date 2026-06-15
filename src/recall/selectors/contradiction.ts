@@ -20,6 +20,7 @@ export {
   isAiScreeningAccuracyUpdateGroupQuery,
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
+  isCoverLetterSubmissionCountQuery,
   isGrammarAnxietyContradictionQuery,
   isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,

@@ -254,6 +254,27 @@ const USER_ROLES_SECURITY_FEATURES_COUNT_FACET_PATTERNS: readonly RegExp[] = [
   /^(?=[\s\S]*account lockout)(?=[\s\S]*5 failed login attempts)/iu,
 ];
 
+// Another multi_session_reasoning aggregate group: the question asks how many
+// times the cover letter was submitted or revised before interview prep, so all
+// three designated user turns must be returned together. The msr route otherwise
+// surfaces a later May-5 near-duplicate plus generic cover-letter noise and drops
+// the April-15 and April-10 turns. All three carry the `->-> ` source marker; the
+// facets key on each turn's distinct date anchor so each matches exactly one and
+// the May-5 turn is excluded.
+export const isCoverLetterSubmissionCountQuery = narrowGate(
+  "multiSessionReasoning.coverLetterSubmissionCount",
+  (query: string): boolean =>
+    /how many times/iu.test(query) &&
+    /cover letter/iu.test(query) &&
+    /submitting or revising/iu.test(query),
+);
+
+const COVER_LETTER_SUBMISSION_COUNT_FACET_PATTERNS: readonly RegExp[] = [
+  /^(?=[\s\S]*April 15 deadline)(?=[\s\S]*standout cover letter)/iu,
+  /^(?=[\s\S]*submitted my cover letter to Greg for review on April 10)/iu,
+  /^(?=[\s\S]*submitted on April 23)(?=[\s\S]*stronger impact statements)/iu,
+];
+
 const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   isQuery: (query: string) => boolean;
   facets: readonly RegExp[];
@@ -297,6 +318,10 @@ const MULTI_FACET_CONTRADICTION_GROUPS: ReadonlyArray<{
   {
     isQuery: isUserRolesSecurityFeaturesCountQuery,
     facets: USER_ROLES_SECURITY_FEATURES_COUNT_FACET_PATTERNS,
+  },
+  {
+    isQuery: isCoverLetterSubmissionCountQuery,
+    facets: COVER_LETTER_SUBMISSION_COUNT_FACET_PATTERNS,
   },
 ];
 

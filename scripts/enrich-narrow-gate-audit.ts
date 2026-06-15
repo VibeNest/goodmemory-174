@@ -92,6 +92,7 @@ import {
   isCoinTossProblemsContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
   isContactFormApiIntegrationContradictionQuery,
+  isCoverLetterSubmissionCountQuery,
   isDelegatingTasksContradictionQuery,
   isEditingTimelineCollaborationContradictionQuery,
   isFamilyMovieInviteContradictionQuery,
@@ -339,6 +340,8 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
     isAccuracyImprovementComparisonQuery,
   "multiSessionReasoning.userRolesSecurityFeaturesCount":
     isUserRolesSecurityFeaturesCountQuery,
+  "multiSessionReasoning.coverLetterSubmissionCount":
+    isCoverLetterSubmissionCountQuery,
   "knowledgeUpdate.groceryBudgetGroup": isGroceryBudgetUpdateGroupQuery,
   "knowledgeUpdate.zoomCallScheduleGroup":
     isZoomCallScheduleUpdateGroupQuery,

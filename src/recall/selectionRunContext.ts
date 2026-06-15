@@ -37,6 +37,7 @@ import {
   isAiScreeningAccuracyUpdateGroupQuery,
   isApiKeyObtainedContradictionQuery,
   isConditionalProbabilityPracticeContradictionQuery,
+  isCoverLetterSubmissionCountQuery,
   isGrammarAnxietyContradictionQuery,
   isGroceryBudgetUpdateGroupQuery,
   isRemoteCollaborationContradictionQuery,
@@ -241,6 +242,7 @@ export function buildSelectionRunContext(
     isAiScreeningAccuracyUpdateGroupQuery(query) ||
     isAccuracyImprovementComparisonQuery(query) ||
     isUserRolesSecurityFeaturesCountQuery(query) ||
+    isCoverLetterSubmissionCountQuery(query) ||
     isBookSeriesGenresAggregateQuery(query) ||
     isFamilyMovieMarathonTitlesAggregateQuery(query) ||
     isPersonalStatementApplicationTypesAggregateQuery(query) ||

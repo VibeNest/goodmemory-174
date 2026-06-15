@@ -11330,6 +11330,88 @@ function buildUserRolesSecurityFeaturesCountBeamRows(): unknown[] {
   ];
 }
 
+function buildCoverLetterSubmissionCountBeamRows(): unknown[] {
+  const turns = [
+    {
+      content:
+        "I'm kinda curious, how can I highlight my hands-on problem-solving skills in a cover letter, you know, to show I'm all about deconstructing projects to understand their mechanics deeply, like I always do ->-> 1,3",
+      id: 4,
+      role: "user",
+    },
+    {
+      content:
+        "I'm kinda worried I won't make the April 15 deadline for the senior producer role at Island Media Group, can you help me craft a standout cover letter?? ->-> 1,10",
+      id: 20,
+      role: "user",
+    },
+    {
+      content:
+        "I've submitted my cover letter to Greg for review on April 10 and I'm kinda anxious to get his detailed feedback by April 14, you know, to see if I can improve it further ->-> 2,18",
+      id: 86,
+      role: "user",
+    },
+    {
+      content:
+        "I'm getting ready for my interview with Island Media Group on May 12, and I'm worried that my cover letter, which I submitted on April 23, might not have stronger impact statements as Greg suggested during our mock interview on April 25, so I'm scheduled for a follow-up with him on May 8 to work on that ->-> 3,2",
+      id: 106,
+      role: "user",
+    },
+    {
+      content:
+        "I've got a time anchor of May 5, 2024, and after submitting my cover letter, I'm preparing for the interview, but I'm not sure if I should focus on the fact that it's happening on May 12 or the career coach session with Greg that's coming up on May 8 ->-> 3,1",
+      id: 110,
+      role: "user",
+    },
+  ];
+
+  return [
+    {
+      chat: [
+        turns.map((turn) => ({
+          ...turn,
+          index: null,
+          question_type: "main_question",
+          time_anchor: "unknown",
+        })),
+      ],
+      conversation_id: "cover-letter-submission-count",
+      conversation_plan: "BATCH 1 PLAN",
+      conversation_seed: {
+        category: "Career",
+        id: 8,
+        subtopics: [
+          "Cover letter drafting",
+          "Submission and revision",
+          "Interview preparation",
+        ],
+        theme:
+          "Tracking cover letter submissions and revisions for a senior producer application",
+        title: "Cover Letter Submission Tracking",
+      },
+      narratives:
+        "Counting the times the cover letter was submitted or revised across the senior-producer application",
+      probing_questions: {
+        multi_session_reasoning: [
+          {
+            answer:
+              "You mentioned working on the cover letter three times before interview prep: crafting it for the April 15 deadline, submitting it to Greg on April 10, and the April 23 submission revised after his mock-interview feedback.",
+            question:
+              "How many times did I mention submitting or revising my cover letter before my interview preparation?",
+            question_id: "cover-letter-submission-count",
+            question_type: "multi_session_reasoning",
+            source_chat_ids: [20, 86, 106],
+          },
+        ],
+      },
+      user_profile: {
+        user_info: "USER PROFILE: Applicant for a senior producer role",
+        user_relationships: "Greg (reviewer/career coach)",
+      },
+      user_questions: [],
+    },
+  ];
+}
+
 function buildMovieWatchlistContradictionBeamRows(): unknown[] {
   const turns = [
     {
@@ -17454,6 +17536,29 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
 
     expect(testCase?.retrievedChatIds).toEqual([16, 84, 150]);
+    expect(testCase?.evidenceChatRecall).toBe(1);
+  });
+
+  it("keeps the cover-letter submission count source turns through the BEAM diagnostic path", async () => {
+    const report = await runPhase63BeamRecallDiagnostic(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-rules-only"],
+        runId: "run-beam-cover-letter-submission-count",
+      },
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-12T00:00:00.000Z"),
+        readFile: async () =>
+          JSON.stringify(buildCoverLetterSubmissionCountBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    const testCase = report.profiles["goodmemory-rules-only"]?.cases[0];
+
+    expect(testCase?.retrievedChatIds).toEqual([20, 86, 106]);
     expect(testCase?.evidenceChatRecall).toBe(1);
   });
 
