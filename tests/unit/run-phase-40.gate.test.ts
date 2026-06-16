@@ -67,7 +67,7 @@ function productCase(focus: keyof typeof PRODUCT_CASE_CONTRACTS): Record<string,
 
 function acceptedReports(): Record<string, string> {
   return {
-    [PACKAGE_JSON_PATH]: JSON.stringify({ version: "0.2.5" }),
+    [PACKAGE_JSON_PATH]: JSON.stringify({ version: "0.3.0" }),
     [PHASE39_REPORT_PATH]: JSON.stringify({
       acceptance: { decision: "accepted" },
       runId: "run-20260425041112",
@@ -330,7 +330,7 @@ describe("run-phase-40 gate", () => {
     expect(report.acceptance.decision).toBe("accepted");
     expect(report.generatedBy).toBe("scripts/run-phase-40-gate.ts");
     expect(report.phase).toBe("phase-40");
-    expect(report.releaseCandidate.version).toBe("0.2.5");
+    expect(report.releaseCandidate.version).toBe("0.3.0");
     expect(report.evidence.phase39Gate.status).toBe("accepted");
     expect(report.evidence.crossConsumerAdoption.status).toBe("accepted");
     expect(report.evidence.productEval.status).toBe("accepted");

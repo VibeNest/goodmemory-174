@@ -182,10 +182,10 @@ const EXPECTED_PRODUCT_CASES = [
 ] as const;
 const PHASE40_RELEASE_REGRESSION_PATTERN =
   "phase-40|package metadata exposes bin, exports, and key scripts|release checklist exists and covers the final gate|release workflow uses manual plus stable tag triggers, gate:phase-40, and tarball artifact upload|ci workflow runs the node package boundary matrix on Node 20, 22, and 24";
-const PHASE40_RELEASE_VERSION_PATTERN = /^0\.2\.\d+$/u;
+const STABLE_RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u;
 const PHASE40_IN_SCOPE = [
   "Phase 39 accepted gate as release input",
-  "v0.2 package metadata and release workflow evidence",
+  "stable package metadata and release workflow evidence",
   "cross-consumer adoption smoke",
   "product eval rollup versus no-memory baseline",
   "test:ci, Node package-boundary smoke, pack dry run, and release dry run",
@@ -585,7 +585,7 @@ function commandPassed(
 }
 
 function isPhase40StableReleaseVersion(version: string | undefined): boolean {
-  return version !== undefined && PHASE40_RELEASE_VERSION_PATTERN.test(version);
+  return version !== undefined && STABLE_RELEASE_VERSION_PATTERN.test(version);
 }
 
 function evidenceStatus(input: {
@@ -684,7 +684,7 @@ async function writeReport(input: {
     releaseChecklistAndStatus: evidenceStatus({
       accepted: regressionsAccepted && versionAccepted,
       acceptedReason:
-        "Release checklist, current status, task-board, package metadata, and release workflow regressions passed for the stable v0.2 release line.",
+        "Release checklist, current status, task-board, package metadata, and release workflow regressions passed for a stable release version.",
       blockedReason: commandEvidenceBlockedReason,
     }),
     releaseDryRun: evidenceStatus({
@@ -700,7 +700,7 @@ async function writeReport(input: {
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 40 release-candidate evidence is accepted for the stable v0.2 release line."
+        ? "Phase 40 release-candidate evidence is accepted for the stable release line."
         : blockedReason,
     },
     commands: input.commands,
