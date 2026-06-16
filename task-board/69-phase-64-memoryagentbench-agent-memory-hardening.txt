@@ -63,11 +63,26 @@ Tasks
   src/eval/memoryAgentBench.ts (normalized case shape, deterministic
   substring/exact-match metrics, one synthetic case per competency, and a
   per-competency summary); covered by tests/unit/eval.memory-agent-bench.test.ts.
-[TODO] P64-T003 Add external-root adapter and smoke report contract.
-[TODO] P64-T004 Add recall/action-policy diagnostic output from the first smoke
-  run, including noise and stale evidence counters.
+[DONE] P64-T003 Add external-root adapter and smoke report contract. Implemented
+  in scripts/run-phase-64-memory-agent-bench-smoke.ts (eval:phase-64-smoke):
+  seeds each normalized case into a fresh GoodMemory ("inject once"), recalls
+  rules-only per question ("query many"), and writes a retrieval-only smoke
+  report. Defaults to the synthetic fixtures and reads prepared cases from
+  GOODMEMORY_MAB_ROOT/cases.json (external-root convention, no vendoring). The
+  report carries every field the breakdown board requires (phase, benchmark,
+  mode, runId, generatedAt, upstream source/license, external root, profiles
+  compared, per-case competency + evidence recall + retrieved ids, stale count,
+  noise count, TTL action-policy readiness, executionFailures). Covered by
+  tests/unit/run-phase-64.memory-agent-bench-smoke.test.ts. See "First Smoke
+  Findings" below.
+[DONE] P64-T004 Add recall/action-policy diagnostic output from the first smoke
+  run, including noise and stale evidence counters. The smoke report emits
+  per-competency averageEvidenceRecall, fullyRetrievedCount, noiseChunkTotal,
+  staleSelectedCount, and (TTL) actionPolicyTransferReady, plus per-question
+  retrieved ids. First run recorded under "First Smoke Findings" below.
 [TODO] P64-T005 Implement only generic GoodMemory repairs from MemoryAgentBench
-  misses and rerun before LoCoMo.
+  misses and rerun before LoCoMo. First target from the readiness order and the
+  smoke run: conflict_update_resolution (CR stale selection), then noise_budgeting.
 
 
 Commands
@@ -121,6 +136,35 @@ Source Intake Findings (P64-T001, 2026-06-15)
 - Metric implementation: substring_exact_match (gold is a normalized substring
   of the answer, case/space-insensitive) and exact_match (normalized equality).
   Both are deterministic, so AR/CR/LRU/TTL need no LLM judge for the smoke slice.
+
+
+First Smoke Findings (P64-T003/T004, 2026-06-15)
+------------------------------------------------
+
+First deterministic run of `eval:phase-64-smoke` over the four synthetic cases
+(rules-only retrieval, in-memory storage, hash embedding), executionFailures 0:
+
+- AR  : evidenceRecall 1.0, fullyRetrieved 1/1, noise 2, stale 0
+- TTL : evidenceRecall 1.0, fullyRetrieved 1/1, noise 1, stale 0,
+        actionPolicyTransferReady true
+- LRU : evidenceRecall 1.0, fullyRetrieved 1/1, noise 3, stale 0
+- CR  : evidenceRecall 1.0, fullyRetrieved 1/1, noise 1, stale 1
+
+Reading:
+
+- Retrieval surfaces the gold evidence for every competency, so the seed/recall
+  pipeline is sound (the necessary condition for answering is met).
+- CR staleSelectedCount 1: rules-only recall pulls the superseded $5,000 chunk
+  alongside the current $8,000. This is the measured conflict_update_resolution
+  gap and the first P64-T005 repair target.
+- Noise is the full non-evidence chunk set for these tiny cases (everything is
+  retrieved). It confirms the noise_budgeting risk; meaningful only once larger
+  cases give real distractor pressure, so it is the second repair target.
+- Answer/task accuracy is intentionally not scored here (retrieval-only smoke);
+  the report marks it deferred-to-live-mode for a later live generator.
+
+Report (gitignored research evidence):
+reports/eval/research/phase-64/mab/run-phase64-mab-smoke-current/smoke-report.json
 
 
 Current Prep Boundary

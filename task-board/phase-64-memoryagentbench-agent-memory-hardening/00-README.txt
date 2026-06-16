@@ -7,6 +7,14 @@ Status
 [ACTIVE] Phase 64 is active: Phase 63 BEAM was explicitly paused on 2026-06-15
 (parked at rules-only retrieval recall 0.9621, README benchmark row recorded).
 
+Progress: P64-T001/T002 done (source intake + synthetic smoke contract). P64-T003
+done: external-root adapter + retrieval-only smoke report
+(scripts/run-phase-64-memory-agent-bench-smoke.ts, eval:phase-64-smoke). P64-T004
+done: the report emits per-competency evidence recall, noise, stale, and TTL
+action-policy readiness; first run recorded (executionFailures 0, evidence recall
+1.0 across AR/TTL/LRU/CR, CR stale-selection 1 = first repair target). Next:
+P64-T005 generic repair, starting with conflict_update_resolution then noise.
+
 
 Why Phase 64 Needs Prep
 -----------------------
