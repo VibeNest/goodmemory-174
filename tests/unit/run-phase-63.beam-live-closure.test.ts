@@ -241,9 +241,10 @@ describe("phase-63 BEAM live closure runner", () => {
           return JSON.stringify(buildBeamRows());
         },
         runLiveSlice: async (options) => {
-          expect(options.caseSelection).toBe("all-cases");
-          expect(options.limit).toBeUndefined();
-          expect(options.recallReportPath).toBe("/tmp/recall.json");
+          const resolved = options ?? {};
+          expect(resolved.caseSelection).toBe("all-cases");
+          expect(resolved.limit).toBeUndefined();
+          expect(resolved.recallReportPath).toBe("/tmp/recall.json");
           return buildLiveReport();
         },
         writeFile: async (path, value) => {

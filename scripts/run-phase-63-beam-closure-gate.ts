@@ -75,7 +75,7 @@ function validateClosureReport(value: unknown): Phase63BeamLiveClosureReport {
   if (!isRecord(value)) {
     throw new Error("Phase 63 BEAM closure gate requires a closure report object");
   }
-  const report = value as Phase63BeamLiveClosureReport;
+  const report = value as unknown as Phase63BeamLiveClosureReport;
   if (report.phase !== "phase-63") {
     throw new Error("Phase 63 BEAM closure gate requires a phase-63 report");
   }

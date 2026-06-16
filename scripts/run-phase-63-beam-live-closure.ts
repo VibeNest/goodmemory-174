@@ -126,7 +126,7 @@ function validateRecallDiagnosticReport(input: {
   if (!isRecord(input.report)) {
     throw new Error("Phase 63 BEAM closure requires a recall diagnostic object");
   }
-  const report = input.report as BeamReport;
+  const report = input.report as unknown as BeamReport;
   if (report.phase !== "phase-63") {
     throw new Error("Phase 63 BEAM closure requires a phase-63 recall report");
   }
