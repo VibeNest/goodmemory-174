@@ -80,9 +80,26 @@ Tasks
   per-competency averageEvidenceRecall, fullyRetrievedCount, noiseChunkTotal,
   staleSelectedCount, and (TTL) actionPolicyTransferReady, plus per-question
   retrieved ids. First run recorded under "First Smoke Findings" below.
-[TODO] P64-T005 Implement only generic GoodMemory repairs from MemoryAgentBench
-  misses and rerun before LoCoMo. First target from the readiness order and the
-  smoke run: conflict_update_resolution (CR stale selection), then noise_budgeting.
+[IN PROGRESS] P64-T005 Implement only generic GoodMemory repairs from
+  MemoryAgentBench misses and rerun before LoCoMo.
+  FINDING (2026-06-15): the first candidate "miss" (CR stale selection) is NOT a
+  retrieval bug. GoodMemory supersession (src/remember/handlers.ts ~405-415)
+  intentionally retires only explicit-over-INFERRED facts; an explicit-over-
+  explicit change would regress BEAM knowledge_update / multi_session_reasoning,
+  which require the value history to stay retrievable. At retrieval, surfacing
+  the history AND the current value (evidence recall 1.0) is correct; the real
+  conflict-resolution signal is at ANSWER time (use the current value), scored
+  deterministically by the upstream match modes.
+  DONE so far: deterministic live-answer scaffold in
+  scripts/run-phase-64-memory-agent-bench-smoke.ts — injectable answerGenerator
+  (no real LLM yet), retrieved-context builder, answer scored via
+  scoreMemoryAgentBenchAnswer; report gains mode retrieval-only|live-answer and
+  per-competency answerAccuracy + answeredCount. Additive only (no shared
+  recall/remember change -> zero BEAM blast radius). Test proves CR passes on the
+  current value despite stale history co-retrieval.
+  NEXT: wire a real generator later (LLM, deferred); then noise_budgeting once
+  larger external cases give real distractor pressure. Do NOT pursue
+  explicit-over-explicit supersession (BEAM-regressing).
 
 
 Commands
@@ -155,8 +172,14 @@ Reading:
 - Retrieval surfaces the gold evidence for every competency, so the seed/recall
   pipeline is sound (the necessary condition for answering is met).
 - CR staleSelectedCount 1: rules-only recall pulls the superseded $5,000 chunk
-  alongside the current $8,000. This is the measured conflict_update_resolution
-  gap and the first P64-T005 repair target.
+  alongside the current $8,000. CORRECTED FRAMING (P64-T005 investigation): this
+  is NOT a bug. GoodMemory keeps the value history retrievable on purpose (BEAM
+  knowledge_update / multi_session_reasoning need it); supersession retires only
+  explicit-over-inferred facts. With the current value also retrieved (recall
+  1.0), conflict resolution is decided at ANSWER time, not by dropping stale
+  history. The live-answer scaffold confirms CR passes on the current value
+  ($8,000) despite stale co-retrieval. So stale-selected is a precision signal,
+  not a recall failure.
 - Noise is the full non-evidence chunk set for these tiny cases (everything is
   retrieved). It confirms the noise_budgeting risk; meaningful only once larger
   cases give real distractor pressure, so it is the second repair target.

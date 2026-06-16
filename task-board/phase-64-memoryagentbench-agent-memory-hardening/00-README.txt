@@ -12,8 +12,14 @@ done: external-root adapter + retrieval-only smoke report
 (scripts/run-phase-64-memory-agent-bench-smoke.ts, eval:phase-64-smoke). P64-T004
 done: the report emits per-competency evidence recall, noise, stale, and TTL
 action-policy readiness; first run recorded (executionFailures 0, evidence recall
-1.0 across AR/TTL/LRU/CR, CR stale-selection 1 = first repair target). Next:
-P64-T005 generic repair, starting with conflict_update_resolution then noise.
+1.0 across AR/TTL/LRU/CR). P64-T005 in progress: investigation showed the "CR
+stale-selection" is NOT a retrieval bug (GoodMemory keeps value history
+retrievable on purpose; explicit-over-explicit supersession would regress BEAM
+knowledge_update) — conflict resolution is decided at ANSWER time. Added a
+deterministic live-answer scaffold (injectable answerGenerator, answer scored via
+match modes, mode retrieval-only|live-answer, per-competency answerAccuracy);
+additive only, zero BEAM blast radius. Next: wire a real generator (LLM, later);
+then noise_budgeting once larger external cases give real distractor pressure.
 
 
 Why Phase 64 Needs Prep
