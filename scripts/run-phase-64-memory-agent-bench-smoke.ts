@@ -27,6 +27,7 @@ import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import {
   buildMemoryAgentBenchSmokeCases,
   MEMORY_AGENT_BENCH_COMPETENCIES,
+  scoreMemoryAgentBenchAnswer,
   type MemoryAgentBenchCase,
   type MemoryAgentBenchCompetency,
   type MemoryAgentBenchQuestion,
@@ -53,7 +54,25 @@ export interface MemoryAgentBenchSmokeCliOptions {
   runId?: string;
 }
 
+// Live-answer seam (mirrors the BEAM live-slice generator). Given the retrieved
+// context, produce a candidate answer. Correctness is then scored DETERMINISTI-
+// CALLY by the upstream match mode (substring_exact_match / exact_match) via
+// scoreMemoryAgentBenchAnswer, so no LLM judge is needed. Wiring a real model is
+// deferred ("later"); supplying a generator flips the run into "live-answer"
+// mode, otherwise the run stays retrieval-only.
+export interface MemoryAgentBenchAnswerGeneratorInput {
+  memoryContext: string;
+  question: MemoryAgentBenchQuestion;
+  retrievedChunkIds: readonly number[];
+  testCase: MemoryAgentBenchCase;
+}
+
+export type MemoryAgentBenchAnswerGenerator = (
+  input: MemoryAgentBenchAnswerGeneratorInput,
+) => Promise<string>;
+
 export interface MemoryAgentBenchSmokeDependencies {
+  answerGenerator?: MemoryAgentBenchAnswerGenerator;
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
   now?: () => Date;
@@ -61,13 +80,17 @@ export interface MemoryAgentBenchSmokeDependencies {
   writeFile?: typeof writeFile;
 }
 
-// Per-question retrieval result. Answer correctness is deferred to live mode, so
-// only retrieval-quality fields are populated here.
+// Per-question result. Retrieval fields are always populated; answer fields are
+// null unless a live-answer generator is supplied.
 export interface MemoryAgentBenchQuestionRetrieval {
+  // null in retrieval-only mode; true/false once an answer is generated and
+  // scored by the upstream match mode.
+  answerCorrect: boolean | null;
   caseId: string;
   competency: MemoryAgentBenchCompetency;
   evidenceChunkIds: number[];
   evidenceRecall: number;
+  generatedAnswer: string | null;
   goldEvidenceFullyRetrieved: boolean;
   noiseChunkCount: number;
   questionId: string;
@@ -81,8 +104,12 @@ export interface MemoryAgentBenchCompetencyRetrievalSummary {
   // test-time-learning question (the necessary condition for action-policy
   // transfer). Null for competencies where the concept does not apply.
   actionPolicyTransferReady: boolean | null;
-  // Always null in the retrieval-only smoke; filled by a future live generator.
-  answerAccuracy: null;
+  // null in retrieval-only mode; the deterministic answer accuracy (correct /
+  // answered) once a live-answer generator is supplied. This is the real
+  // conflict-resolution / behaviour-transfer signal — e.g. CR passes when the
+  // answer uses the current value, regardless of stale history co-retrieval.
+  answerAccuracy: number | null;
+  answeredCount: number;
   averageEvidenceRecall: number;
   competency: MemoryAgentBenchCompetency;
   fullyRetrievedCount: number;
@@ -92,7 +119,7 @@ export interface MemoryAgentBenchCompetencyRetrievalSummary {
 }
 
 export interface MemoryAgentBenchSmokeReport {
-  answerEvaluation: "deferred-to-live-mode";
+  answerEvaluation: "deferred-to-live-mode" | "scored";
   benchmark: "memoryagentbench";
   // Resolved case source: "synthetic-smoke" or the external cases.json path.
   benchmarkSource: string;
@@ -105,8 +132,8 @@ export interface MemoryAgentBenchSmokeReport {
   generatedAt: string;
   generatedBy: string;
   license: string;
-  mode: "retrieval-only";
   phase: "phase-64";
+  mode: "retrieval-only" | "live-answer";
   profilesCompared: string[];
   questionCount: number;
   runDirectory: string;
@@ -276,10 +303,12 @@ export function scoreMemoryAgentBenchRetrieval(input: {
   ).length;
 
   return {
+    answerCorrect: null,
     caseId: input.testCase.caseId,
     competency: question.competency,
     evidenceChunkIds: question.evidenceChunkIds,
     evidenceRecall,
+    generatedAnswer: null,
     goldEvidenceFullyRetrieved: evidenceRecall === 1,
     noiseChunkCount,
     questionId: question.questionId,
@@ -287,6 +316,19 @@ export function scoreMemoryAgentBenchRetrieval(input: {
     staleChunkIds: question.staleChunkIds,
     staleChunkSelected: question.staleChunkIds.some((id) => retrieved.has(id)),
   };
+}
+
+// Build the answer-generation context from the chunks recall actually surfaced,
+// in source order. This is what a live generator (or judge) sees.
+export function buildMemoryAgentBenchAnswerContext(input: {
+  retrievedChunkIds: readonly number[];
+  testCase: MemoryAgentBenchCase;
+}): string {
+  const retrieved = new Set(input.retrievedChunkIds);
+  return input.testCase.chunks
+    .filter((chunk) => retrieved.has(chunk.id))
+    .map((chunk) => `- chunk_id=${chunk.id} (${chunk.role}): ${chunk.content}`)
+    .join("\n");
 }
 
 export function summarizeMemoryAgentBenchRetrieval(
@@ -300,6 +342,8 @@ export function summarizeMemoryAgentBenchRetrieval(
     const fullyRetrievedCount = bucket.filter(
       (result) => result.goldEvidenceFullyRetrieved,
     ).length;
+    const answered = bucket.filter((result) => result.answerCorrect !== null);
+    const answeredCount = answered.length;
     return {
       // TTL action-policy transfer needs the taught rule to be retrievable; the
       // retrieval-only smoke reports readiness, not the applied behaviour.
@@ -307,7 +351,12 @@ export function summarizeMemoryAgentBenchRetrieval(
         competency === "TTL"
           ? questionCount > 0 && fullyRetrievedCount === questionCount
           : null,
-      answerAccuracy: null,
+      answerAccuracy:
+        answeredCount === 0
+          ? null
+          : answered.filter((result) => result.answerCorrect === true).length /
+            answeredCount,
+      answeredCount,
       averageEvidenceRecall:
         questionCount === 0
           ? 0
@@ -469,22 +518,44 @@ export async function runMemoryAgentBenchSmoke(
           scope,
           strategy: "rules-only",
         });
-        results.push(
-          scoreMemoryAgentBenchRetrieval({
+        const retrievedChunkIds =
+          collectMemoryAgentBenchRetrievedChunkIds(recall);
+        const retrieval = scoreMemoryAgentBenchRetrieval({
+          question,
+          retrievedChunkIds,
+          testCase,
+        });
+        if (dependencies.answerGenerator) {
+          const generatedAnswer = await dependencies.answerGenerator({
+            memoryContext: buildMemoryAgentBenchAnswerContext({
+              retrievedChunkIds,
+              testCase,
+            }),
             question,
-            retrievedChunkIds:
-              collectMemoryAgentBenchRetrievedChunkIds(recall),
+            retrievedChunkIds,
             testCase,
-          }),
-        );
+          });
+          results.push({
+            ...retrieval,
+            answerCorrect: scoreMemoryAgentBenchAnswer({
+              answer: generatedAnswer,
+              goldAnswer: question.goldAnswer,
+              matchMode: question.matchMode,
+            }),
+            generatedAnswer,
+          });
+        } else {
+          results.push(retrieval);
+        }
       } catch {
         executionFailures += 1;
       }
     }
   }
+  const liveAnswer = dependencies.answerGenerator !== undefined;
 
   const report: MemoryAgentBenchSmokeReport = {
-    answerEvaluation: "deferred-to-live-mode",
+    answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
     benchmark: "memoryagentbench",
     benchmarkSource,
     caseCount: cases.length,
@@ -495,7 +566,7 @@ export async function runMemoryAgentBenchSmoke(
     generatedAt: now().toISOString(),
     generatedBy: GENERATED_BY,
     license: UPSTREAM_LICENSE,
-    mode: "retrieval-only",
+    mode: liveAnswer ? "live-answer" : "retrieval-only",
     phase: "phase-64",
     profilesCompared: [...PROFILES_COMPARED],
     questionCount: results.length,

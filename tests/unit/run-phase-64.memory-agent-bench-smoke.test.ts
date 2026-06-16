@@ -146,10 +146,12 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
   it("summarizes per-competency retrieval with TTL action-policy readiness", () => {
     const results: MemoryAgentBenchQuestionRetrieval[] = [
       {
+        answerCorrect: null,
         caseId: "ttl",
         competency: "TTL",
         evidenceChunkIds: [1],
         evidenceRecall: 1,
+        generatedAnswer: null,
         goldEvidenceFullyRetrieved: true,
         noiseChunkCount: 2,
         questionId: "ttl:1",
@@ -162,6 +164,7 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
 
     const ttl = summary.find((entry) => entry.competency === "TTL");
     expect(ttl?.actionPolicyTransferReady).toBe(true);
+    expect(ttl?.answeredCount).toBe(0);
     expect(ttl?.averageEvidenceRecall).toBe(1);
     expect(ttl?.noiseChunkTotal).toBe(2);
     expect(ttl?.answerAccuracy).toBeNull();
@@ -263,5 +266,47 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     expect(JSON.parse(writes[0]?.contents ?? "{}").runId).toBe(
       "run-mab-smoke-test",
     );
+  });
+
+  it("scores answer accuracy in live-answer mode and proves CR passes on the current value despite stale history", async () => {
+    // A perfect generator answers every question with its gold value.
+    const perfect = await runMemoryAgentBenchSmoke(
+      { runId: "run-mab-live", outputDir: "/tmp/mab-out" },
+      {
+        answerGenerator: async ({ question }) => question.goldAnswer,
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(perfect.mode).toBe("live-answer");
+    expect(perfect.answerEvaluation).toBe("scored");
+    for (const name of ["AR", "TTL", "LRU", "CR"]) {
+      const entry = competency(perfect, name);
+      expect(entry.answeredCount).toBe(1);
+      expect(entry.answerAccuracy).toBe(1);
+    }
+    // The CR reframe: the stale $5,000 chunk is still retrieved (history), but
+    // the competency PASSES because the answer uses the current value.
+    expect(competency(perfect, "CR").staleSelectedCount).toBe(1);
+    expect(competency(perfect, "CR").answerAccuracy).toBe(1);
+    const cr = perfect.cases.find((entry) => entry.competency === "CR");
+    expect(cr?.answerCorrect).toBe(true);
+    expect(cr?.generatedAnswer).toBe("$8,000");
+
+    // A generator that answers CR with the superseded value fails CR only.
+    const stale = await runMemoryAgentBenchSmoke(
+      { runId: "run-mab-live-stale", outputDir: "/tmp/mab-out" },
+      {
+        answerGenerator: async ({ question }) =>
+          question.competency === "CR"
+            ? "The travel budget is $5,000."
+            : question.goldAnswer,
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(competency(stale, "CR").answerAccuracy).toBe(0);
+    expect(competency(stale, "AR").answerAccuracy).toBe(1);
   });
 });
