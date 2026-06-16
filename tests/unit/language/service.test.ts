@@ -107,6 +107,12 @@ describe("language service", () => {
       ),
     ).toBe(true);
     expect(
+      service.isOpenLoopQuery(
+        "I got a message that I need to verify my identity; what do I do?",
+        "en-US",
+      ),
+    ).toBe(false);
+    expect(
       service.isContinuationQuery(
         "How many items do I need to pick up or return from a store?",
         "en-US",

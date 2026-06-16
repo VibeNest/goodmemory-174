@@ -120,8 +120,10 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     });
     expect(fullyRetrieved.evidenceRecall).toBe(1);
     expect(fullyRetrieved.goldEvidenceFullyRetrieved).toBe(true);
+    expect(fullyRetrieved.missingEvidenceChunkIds).toEqual([]);
     // Stale chunk 1 and evidence chunks 3/5 are excluded from noise; only 2 is noise.
     expect(fullyRetrieved.noiseChunkCount).toBe(1);
+    expect(fullyRetrieved.noiseChunkIds).toEqual([2]);
     expect(fullyRetrieved.staleChunkSelected).toBe(true);
 
     const partial = scoreMemoryAgentBenchRetrieval({
@@ -139,7 +141,9 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     });
     expect(partial.evidenceRecall).toBe(0.5);
     expect(partial.goldEvidenceFullyRetrieved).toBe(false);
+    expect(partial.missingEvidenceChunkIds).toEqual([5]);
     expect(partial.noiseChunkCount).toBe(0);
+    expect(partial.noiseChunkIds).toEqual([]);
     expect(partial.staleChunkSelected).toBe(false);
   });
 
@@ -153,7 +157,9 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
         evidenceRecall: 1,
         generatedAnswer: null,
         goldEvidenceFullyRetrieved: true,
+        missingEvidenceChunkIds: [],
         noiseChunkCount: 2,
+        noiseChunkIds: [2, 3],
         questionId: "ttl:1",
         retrievedChunkIds: [1, 2, 3],
         staleChunkIds: [],

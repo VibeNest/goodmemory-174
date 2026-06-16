@@ -97,9 +97,68 @@ Tasks
   per-competency answerAccuracy + answeredCount. Additive only (no shared
   recall/remember change -> zero BEAM blast radius). Test proves CR passes on the
   current value despite stale history co-retrieval.
-  NEXT: wire a real generator later (LLM, deferred); then noise_budgeting once
-  larger external cases give real distractor pressure. Do NOT pursue
-  explicit-over-explicit supersession (BEAM-regressing).
+  EXTERNAL-ROOT RULES SMOKE (2026-06-16): prepared
+  /private/tmp/MAB/cases.json from upstream Hugging Face rows without vendoring
+  data into the repo: eventqa_full (AR, 5 questions), icl_banking77 (TTL, 6),
+  detective_qa (LRU, 6), and factconsolidation_sh_6k (CR, 8). First run
+  `run-phase64-mab-external-rules-current` exposed an AR normalization bug: the
+  EventQA questions used the first row questions, but the generated evidence
+  chunks came from a later previous_events window, so its AR recall 0.0 is not a
+  valid product signal. Regenerated AR chunks from the initial event plus the
+  first five gold next-events and reran:
+  `bun run eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB --run-id
+  run-phase64-mab-external-rules-ar-normalized-current`; report:
+  reports/eval/research/phase-64/mab/run-phase64-mab-external-rules-ar-normalized-current/smoke-report.json.
+  Corrected result: executionFailures 0; AR recall 0.6 with 3/5 fully retrieved
+  and noise 9; TTL recall 0.3889 with 1/6 fully retrieved and
+  actionPolicyTransferReady false; LRU recall 0.6667 with 4/6 fully retrieved;
+  CR recall 1.0 with 8/8 fully retrieved, noise 20, and staleSelectedCount 8.
+  Reading: the larger external-root slice creates real retrieval pressure before
+  any LLM call. Remaining AR misses are generic lexical/ranking misses from long
+  option-list questions: the gold option appears verbatim, but token overlap is
+  diluted and the default generic limit can still prefer already-occurred events.
+  Do not add an EventQA-specific option parser as the first fix. CR still
+  supports the prior framing (current facts retrieved, stale history
+  co-retrieved, answer-time resolution needed).
+  FIRST GENERIC REPAIR (2026-06-16): narrowed English open-loop query routing so
+  support/instruction questions such as "I got a message that I need to verify my
+  identity; what do I do?" no longer request the `open_loop` slot, while explicit
+  open-loop/todo/handoff/signoff wording and personal pickup/return count queries
+  stay routed as before. Covered by tests/unit/language/service.test.ts and
+  tests/unit/recall.router.test.ts. External rerun
+  `run-phase64-mab-external-rules-open-loop-support-guard-current` completed with
+  executionFailures 0. Delta vs corrected baseline: TTL recall improved from
+  0.3889 to 0.4444 and TTL noise dropped from 10 to 9; AR stayed 0.6, LRU stayed
+  0.6667, CR stayed 1.0 with staleSelectedCount 8. The changed TTL case
+  `icl_banking77_5900shot_balance_no3` moved from 1/3 gold evidence with 2 noise
+  chunks to 2/3 gold evidence with 1 noise chunk after the slot mismatch was
+  removed. `actionPolicyTransferReady` remains false, so do not start the LLM call
+  leg yet. BEAM SPOT-CHECK (2026-06-16): full 100K rules-only recall diagnostic
+  after this routing change:
+  `run-phase63-beam-100k-recall-diagnostic-rules-open-loop-guard-spotcheck-20260616T000000Z`.
+  Compared against accepted BEAM baseline
+  `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`,
+  analyzer reported caseDeltaCount 0 and every bucket delta 0. Global summary
+  stayed evidence-chat recall 0.9620612564274538, missed 20/355, zero-recall 0,
+  wrongRecall 167/400, hit/missing/noise ids 1023/71/807. Conclusion: the
+  English open-loop support-question guard has no measurable BEAM 100K rules-only
+  regression.
+  DIAGNOSTIC CONTRACT UPDATE (2026-06-16): scoreMemoryAgentBenchRetrieval now
+  emits per-question `missingEvidenceChunkIds` and `noiseChunkIds` in addition to
+  counts, covered by tests/unit/run-phase-64.memory-agent-bench-smoke.test.ts.
+  External rerun `run-phase64-mab-external-rules-missing-noise-ids-current`
+  completed with unchanged aggregate metrics (AR 0.6, TTL 0.4444, LRU 0.6667,
+  CR 1.0; executionFailures 0) and direct miss ids in the report. Remaining TTL
+  misses: no1 missing [5,6] after retrieving [4]; no2 missing [7,8,9] with all
+  retrieved chunks noise [14,4,21,1]; no3 missing [10] with noise [14]; no4
+  missing [13,15] with noise [34]; no5 missing [17,18] with noise [27].
+  Remaining LRU misses: no0 missing [1] while retrieving [2,3,6,4]; no5 missing
+  [6] while retrieving [2,3,5,4]. Rejected exploratory repairs: adding
+  `source_order` tags to all external chunks reduced LRU, and normalizing the
+  `withdrawl` typo to `withdrawal` did not improve TTL no2. NEXT: choose between
+  semantic/hybrid retrieval for TTL label-transfer misses or a small live-answer
+  generator; do not keep more lexical one-off rules without changed-case proof.
+  Do NOT pursue explicit-over-explicit supersession (BEAM-regressing).
 
 
 Commands

@@ -92,7 +92,9 @@ export interface MemoryAgentBenchQuestionRetrieval {
   evidenceRecall: number;
   generatedAnswer: string | null;
   goldEvidenceFullyRetrieved: boolean;
+  missingEvidenceChunkIds: number[];
   noiseChunkCount: number;
+  noiseChunkIds: number[];
   questionId: string;
   retrievedChunkIds: number[];
   staleChunkIds: number[];
@@ -296,11 +298,17 @@ export function scoreMemoryAgentBenchRetrieval(input: {
       : evidenceHit / question.evidenceChunkIds.length;
   const staleSet = new Set(question.staleChunkIds);
   const evidenceSet = new Set(question.evidenceChunkIds);
+  const missingEvidenceChunkIds = question.evidenceChunkIds.filter(
+    (id) => !retrieved.has(id),
+  );
   // Noise is a retrieved chunk that is neither gold evidence nor a tracked
   // stale/superseded chunk (those are reported separately).
-  const noiseChunkCount = input.retrievedChunkIds.filter(
-    (id) => !evidenceSet.has(id) && !staleSet.has(id),
-  ).length;
+  const noiseChunkIds = input.retrievedChunkIds.filter(
+    (id, index, all) =>
+      !evidenceSet.has(id) &&
+      !staleSet.has(id) &&
+      all.indexOf(id) === index,
+  );
 
   return {
     answerCorrect: null,
@@ -310,7 +318,9 @@ export function scoreMemoryAgentBenchRetrieval(input: {
     evidenceRecall,
     generatedAnswer: null,
     goldEvidenceFullyRetrieved: evidenceRecall === 1,
-    noiseChunkCount,
+    missingEvidenceChunkIds,
+    noiseChunkCount: noiseChunkIds.length,
+    noiseChunkIds,
     questionId: question.questionId,
     retrievedChunkIds: input.retrievedChunkIds,
     staleChunkIds: question.staleChunkIds,

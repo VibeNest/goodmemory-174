@@ -254,6 +254,19 @@ describe("recall router", () => {
     expect(plan.requestedSlots).toEqual([]);
   });
 
+  it("does not route support verification questions as open-loop slots", () => {
+    const plan = planRecall({
+      retrievalProfile: "general_chat",
+      query: "I got a message that I need to verify my identity; what do I do?",
+      runtime: {
+        hasWorkingMemory: false,
+        hasJournal: false,
+      },
+    });
+
+    expect(plan.requestedSlots).toEqual([]);
+  });
+
   it("plans reference queries with next-step support without widening primary slots", () => {
     const plan = planRecall({
       retrievalProfile: "general_chat",

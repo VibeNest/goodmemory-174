@@ -18,6 +18,12 @@ const BUILTIN_SPECIALIZED_ADAPTERS = [
   createEnglishLanguageAdapter(),
 ];
 const FALLBACK_ADAPTER = createGenericLanguageAdapter();
+const ENGLISH_EXPLICIT_OPEN_LOOP_QUERY_PATTERN =
+  /\b(?:open loop|handoff|signoff|todo|to-do)\b/iu;
+const ENGLISH_SUPPORT_INSTRUCTION_QUERY_PATTERN =
+  /\b(?:what\s+(?:do|should|can)\s+i\s+do|how\s+(?:do|can|should)\s+i|how\s+should\s+i|what\s+steps\s+should\s+i)\b/iu;
+const ENGLISH_OPEN_LOOP_AMBIGUOUS_SUPPORT_TRIGGER_PATTERN =
+  /\b(?:need to|have to|verification|verify)\b/iu;
 
 function primaryLanguage(locale: string): string {
   return locale.toLowerCase().split("-")[0] ?? locale.toLowerCase();
@@ -326,7 +332,17 @@ export function createLanguageService(
       return createQueryPatterns(contextLocale(context)).focus.test(query);
     },
     isOpenLoopQuery(query, context) {
-      return createQueryPatterns(contextLocale(context)).openLoop.test(query);
+      const locale = contextLocale(context);
+      if (
+        primaryLanguage(locale) === "en" &&
+        ENGLISH_SUPPORT_INSTRUCTION_QUERY_PATTERN.test(query) &&
+        ENGLISH_OPEN_LOOP_AMBIGUOUS_SUPPORT_TRIGGER_PATTERN.test(query) &&
+        !ENGLISH_EXPLICIT_OPEN_LOOP_QUERY_PATTERN.test(query)
+      ) {
+        return false;
+      }
+
+      return createQueryPatterns(locale).openLoop.test(query);
     },
     isBlockerQuery(query, context) {
       return createQueryPatterns(contextLocale(context)).blocker.test(query);
