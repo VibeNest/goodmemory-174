@@ -2845,7 +2845,7 @@ describe("goodmemory cli installed host config", () => {
         await workspace.cleanup();
       }
     },
-    10_000,
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
   );
 
   it("validates dry-run install storage options like the real installer path", async () => {

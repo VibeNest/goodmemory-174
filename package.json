@@ -1,6 +1,6 @@
 {
   "name": "goodmemory",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Memory layer for chat, copilot, and agent applications.",
   "license": "MIT",
   "homepage": "https://github.com/hjqcan/GoodMemory#readme",
@@ -84,7 +84,7 @@
     "test:integration": "bun test tests/integration",
     "test:scenarios": "bun test tests/scenarios",
     "test:eval": "bun test tests/eval",
-    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-coverage.ts",
     "test:ci": "bun run typecheck && bun run test:coverage",
     "test:watch": "bun test --watch",
     "typecheck": "bunx tsc --noEmit",

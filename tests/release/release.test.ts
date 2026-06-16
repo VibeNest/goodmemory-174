@@ -716,7 +716,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.2.5");
+    expect(pkg.version).toBe("0.3.0");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -826,7 +826,7 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.test).toBe("bun test");
     expect(pkg.scripts?.["test:all"]).toBe("bun --config=bunfig.all.toml test tests third-party");
     expect(pkg.scripts?.["test:coverage"]).toBe(
-      "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text && bun run scripts/check-coverage.ts",
+      "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-coverage.ts",
     );
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
@@ -1399,9 +1399,9 @@ describe("release metadata and docs", () => {
     expect(guide).not.toContain("query-resolved");
   });
 
-  it("v0.2 package metadata and public release docs agree on the current stable patch", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.2.5");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.2.5.tgz");
+  it("v0.3 package metadata and public release docs agree on the current stable release", async () => {
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.3.0");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.3.0.tgz");
 
     const releaseDocPaths = [
       "README.md",
