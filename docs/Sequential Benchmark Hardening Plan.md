@@ -15,7 +15,7 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 
 - Phase 62 LongMemEval is accepted as the first external-benchmark hardening slice.
 - Phase 63 BEAM is active and still partial.
-- Current BEAM work is scoped to provider-free recall diagnostics plus small live answer-generation/judge slices before any public score.
+- Current BEAM work is scoped to provider-free recall diagnostics, small live answer-generation/judge slices, and a prepared full live closure path before any public score.
 
 ## Accepted Phase 62 Checkpoint
 
@@ -44,6 +44,8 @@ Phase 63 remains recall-limited and noisy. The next loop should stay narrow:
 
 Do not treat a focused green or one recovered row as BEAM closure.
 
+For BEAM closure, use the full live closure path only after the live eval and judge model environment is ready. The closure runner requires a full zero-failure recall diagnostic, runs live answer generation and semantic judging over every BEAM 100K case, writes the measured answer accuracy as evidence, and does not define a separate numeric pass threshold.
+
 ## Commands
 
 ```text
@@ -53,6 +55,8 @@ bun run gate:phase-63
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
 bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --limit 3 --run-id <run-id>
+bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --run-id <run-id>
+bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 ```
 
 ## Source And Evidence Pointers

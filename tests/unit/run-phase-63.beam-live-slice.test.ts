@@ -61,6 +61,14 @@ function buildBeamRows(): unknown[] {
             question_type: "preference_following",
           },
         ],
+        abstention: [
+          {
+            evidence_chat_ids: [],
+            question: "Which deployment window did Mira approve?",
+            question_id: "beam-live-q3",
+            question_type: "abstention",
+          },
+        ],
       },
       user_profile: {
         user_info: "USER PROFILE: Mira",
@@ -112,6 +120,7 @@ describe("phase-63 BEAM live slice runner", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/BEAM",
+      caseSelection: undefined,
       caseIds: ["beam-live-q1"],
       limit: 2,
       outputDir: undefined,
@@ -120,6 +129,80 @@ describe("phase-63 BEAM live slice runner", () => {
       runId: "run-beam-live",
       scale: undefined,
     });
+  });
+
+  it("parses the --case-selection flag and rejects unknown selections", () => {
+    expect(
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--case-selection",
+        "recall-misses",
+      ]).caseSelection,
+    ).toBe("recall-misses");
+
+    expect(
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--case-selection",
+        "all-evidence",
+      ]).caseSelection,
+    ).toBe("all-evidence");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--case-selection",
+        "not-a-selection",
+      ]),
+    ).toThrow("--case-selection must be all-cases, all-evidence, or recall-misses");
+  });
+
+  it("can select every BEAM case for live closure coverage", async () => {
+    const report = await runPhase63BeamLiveSlice(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseSelection: "all-cases",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-beam-live-all",
+      },
+      {
+        answerGenerator: async (input) =>
+          input.testCase.answerable ? input.testCase.answer : "No answer.",
+        answerJudge: async (input) => ({
+          correct:
+            input.expectedAnswer === input.actualAnswer ||
+            input.actualAnswer === "No answer.",
+          method: "semantic_judge",
+          reasoning: "The candidate matches the fixture answer.",
+        }),
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          expect(path).toBe(join("/tmp/BEAM", "100K.json"));
+          return JSON.stringify(buildBeamRows());
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.summary.totalCases).toBe(3);
+    expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
+      "beam-live-q1",
+      "beam-live-q2",
+      "beam-live-q3",
+    ]);
   });
 
   it("keeps contradiction and ordering synthesis guidance in the live prompt", () => {

@@ -48,9 +48,10 @@ export const PHASE63_BEAM_LIVE_SLICE_RUN_ID =
   "run-phase63-beam-100k-live-slice-current";
 export const PHASE63_LIVE_REQUEST_TIMEOUT_ENV =
   "GOODMEMORY_PHASE63_LIVE_REQUEST_TIMEOUT_MS";
+export const PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME =
+  "live-slice-report.json";
 
 const GENERATED_BY = "scripts/run-phase-63-beam-live-slice.ts";
-const REPORT_FILE_NAME = "live-slice-report.json";
 const SOURCE_ORDER_CONTEXT_LIMIT = 40;
 const SOURCE_ORDER_CONTEXT_REQUESTED_ITEM_MAX_LIMIT = 10;
 const ORDERED_EVIDENCE_FOUNDATION_PATTERN =
@@ -132,6 +133,7 @@ const beamLiveJudgeSchema = z.object({
 
 export interface Phase63BeamLiveSliceCliOptions {
   benchmarkRoot?: string;
+  caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
   limit?: number;
   outputDir?: string;
@@ -164,6 +166,11 @@ export interface Phase63BeamLiveAnswerJudgeInput {
 export type Phase63BeamLiveAnswerJudge = (
   input: Phase63BeamLiveAnswerJudgeInput,
 ) => Promise<BeamAnswerScore>;
+
+export type Phase63BeamLiveCaseSelection =
+  | "all-cases"
+  | "all-evidence"
+  | "recall-misses";
 
 export interface Phase63BeamLiveSliceDependencies {
   answerGenerator?: Phase63BeamLiveAnswerGenerator;
@@ -275,6 +282,24 @@ function parseProfile(value: string | undefined): BeamProfile | undefined {
   return profiles[0];
 }
 
+function parseCaseSelection(
+  value: string | undefined,
+): Phase63BeamLiveCaseSelection | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (
+    value === "all-cases" ||
+    value === "all-evidence" ||
+    value === "recall-misses"
+  ) {
+    return value;
+  }
+  throw new Error(
+    "--case-selection must be all-cases, all-evidence, or recall-misses",
+  );
+}
+
 export function parsePhase63BeamLiveSliceCliOptions(
   argv: readonly string[],
 ): Phase63BeamLiveSliceCliOptions {
@@ -282,6 +307,9 @@ export function parsePhase63BeamLiveSliceCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
+    caseSelection: parseCaseSelection(
+      resolveCliFlagValue(argv, "--case-selection"),
+    ),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
     limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
@@ -1339,6 +1367,7 @@ async function scoreLiveCase(input: {
 }
 
 function selectCases(input: {
+  caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
   limit?: number;
   recallCaseIds: Set<string>;
@@ -1350,6 +1379,15 @@ function selectCases(input: {
   const filtered = allCases.filter((testCase) => {
     if (explicitCaseIds.size > 0) {
       return explicitCaseIds.has(testCase.questionId);
+    }
+    if (input.caseSelection === "all-cases") {
+      return true;
+    }
+    if (input.caseSelection === "all-evidence") {
+      return testCase.answerable && testCase.evidenceChatIds.length > 0;
+    }
+    if (input.caseSelection === "recall-misses") {
+      return input.recallCaseIds.has(testCase.questionId);
     }
     if (input.recallCaseIds.size > 0) {
       return input.recallCaseIds.has(testCase.questionId);
@@ -1406,6 +1444,7 @@ export async function runPhase63BeamLiveSlice(
       })
     : new Set<string>();
   const testCases = selectCases({
+    caseSelection: options.caseSelection,
     caseIds: options.caseIds,
     limit: options.limit,
     recallCaseIds,
@@ -1475,7 +1514,7 @@ export async function runPhase63BeamLiveSlice(
 
   await mkdirImpl(runDirectory, { recursive: true });
   await writeFileImpl(
-    join(runDirectory, REPORT_FILE_NAME),
+    join(runDirectory, PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME),
     `${JSON.stringify(report, null, 2)}\n`,
   );
   return report;
@@ -1492,7 +1531,10 @@ function buildCliSummary(report: Phase63BeamLiveSliceReport): {
   return {
     mode: report.mode,
     profile: report.profile,
-    reportPath: join(report.runDirectory, REPORT_FILE_NAME),
+    reportPath: join(
+      report.runDirectory,
+      PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME,
+    ),
     runDirectory: report.runDirectory,
     runId: report.runId,
     summary: report.summary,

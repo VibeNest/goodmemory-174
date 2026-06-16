@@ -10,6 +10,7 @@ Status
 - Current mode: internal recall/noise hardening.
 - Current outcome wording: partial progress, not BEAM closure.
 - Current data root: `/private/tmp/BEAM`.
+- Closure path: prepared but not executed. `eval:phase-63-live-closure` requires ready live eval/judge model env and a full zero-failure recall diagnostic; `gate:phase-63-beam-closure` promotes the resulting closure report only after coverage/failure checks pass.
 - Public reporting remains deferred until LongMemEval, BEAM, MemoryAgentBench, and LoCoMo all have accepted evidence.
 
 Accepted Inputs
@@ -104,6 +105,8 @@ bun run gate:phase-63
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
 bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --limit 3 --run-id <run-id>
+bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --run-id <run-id>
+bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 ```
 
 Breakdown

@@ -8,7 +8,7 @@ Current Boundary
 
 - Phase 63 is active and partial.
 - Phase 62 LongMemEval is accepted and no longer blocks BEAM.
-- Current Phase 63 work targets provider-free BEAM recall diagnostics and small live BEAM slices before any public score.
+- Current Phase 63 work targets provider-free BEAM recall diagnostics, small live BEAM slices, and a prepared full live closure path before any public score.
 - Main phase file: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
 
 Accepted Evidence
@@ -38,6 +38,7 @@ Acceptance Checks For A Retained Repair
 - Retained diagnostic completes with `executionFailures: 0`.
 - Analyzer comparison shows no negative recall deltas, hit-loss, newly-missing evidence, or positive missing-id deltas. Positive noise deltas are accepted only as explicitly documented same-conversation reinforcement tradeoffs with recall unchanged on the rippled case.
 - Docs mention only the accepted latest run and current next boundary.
+- BEAM closure additionally requires `eval:phase-63-live-closure` over every 100K case, linked to a full zero-failure recall diagnostic, followed by `gate:phase-63-beam-closure`. Do not count the small live slice as closure.
 
 Commands
 --------
@@ -47,5 +48,7 @@ bun test tests/unit/recall.selection.test.ts tests/unit/run-phase-63.beam-recall
 bun run typecheck
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
+bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --run-id <run-id>
+bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 git diff --check
 ```

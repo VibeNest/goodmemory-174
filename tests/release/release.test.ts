@@ -995,6 +995,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-63"]).toBe(
       "bun run scripts/run-phase-63-eval.ts",
     );
+    expect(pkg.scripts?.["eval:phase-63-live-closure"]).toBe(
+      "bun run scripts/run-phase-63-beam-live-closure.ts",
+    );
     expect(pkg.scripts?.["eval:phase-63-live-slice"]).toBe(
       "bun run scripts/run-phase-63-beam-live-slice.ts",
     );
@@ -1091,6 +1094,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["gate:phase-63"]).toBe(
       "bun run scripts/run-phase-63-gate.ts",
+    );
+    expect(pkg.scripts?.["gate:phase-63-beam-closure"]).toBe(
+      "bun run scripts/run-phase-63-beam-closure-gate.ts",
     );
     expect(pkg.scripts?.["release:rc-dry-run"]).toBe(
       "bun run scripts/run-phase-29-rc-dry-run.ts",

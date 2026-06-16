@@ -76,6 +76,7 @@ describe("run-phase-63 gate", () => {
       "test",
       "tests/unit/analyze-phase-63-beam-report.test.ts",
       "tests/unit/beam.test.ts",
+      "tests/unit/run-phase-63.beam-live-closure.test.ts",
       "tests/unit/run-phase-63.beam-live-slice.test.ts",
       "tests/unit/prepare-phase-63-beam-data.test.ts",
       "tests/unit/run-phase-63.beam-recall-diagnostic.test.ts",
