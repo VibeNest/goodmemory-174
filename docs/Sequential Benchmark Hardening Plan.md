@@ -16,6 +16,7 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 - Phase 62 LongMemEval is accepted as the first external-benchmark hardening slice.
 - Phase 63 BEAM is active and still partial.
 - Current BEAM work is scoped to provider-free recall diagnostics, small live answer-generation/judge slices, and a prepared full live closure path before any public score.
+- MemoryAgentBench (Phase 64) and LoCoMo (Phase 65) adapters are brought up as retrieval-only smokes (deterministic, `executionFailures` 0) that mirror the BEAM recall-diagnostic seam; their live LLM answer/judge layers are deferred. No upstream MemoryAgentBench (MIT) or LoCoMo (CC BY-NC 4.0, non-commercial) data is vendored — real data flows only through the external-root convention.
 
 ## Accepted Phase 62 Checkpoint
 
@@ -63,5 +64,7 @@ bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-re
 
 - Phase board: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
 - Phase breakdown: `task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt`
+- Phase 64 board: `task-board/69-phase-64-memoryagentbench-agent-memory-hardening.txt`
+- Phase 65 board: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`
 - Current repo status: `docs/GoodMemory-Current-Status-and-Evidence.md`
 - Generated artifacts: `reports/eval/` and `reports/quality-gates/`

@@ -1,0 +1,115 @@
+Phase 65: LoCoMo Very-Long-Term Conversational-Memory Hardening
+===============================================================
+
+Status
+------
+
+[BRING-UP DONE] Phase 65 LoCoMo is the fourth and final leg of the Sequential
+Benchmark Hardening Plan (LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo).
+Bring-up T001-T004 is complete and on main: source intake, contract + synthetic
+smoke fixtures, smoke adapter, and tests, all green. The live LLM answer/judge
+layer is deferred (the LLM call has not been restored yet); the smoke is
+retrieval-only by default with a deferred live-answer scaffold in place.
+
+Phase 64 MemoryAgentBench remains the active hardening leg; its live answer
+generator is also deferred. Phase 63 BEAM live closure is deferred per the user.
+
+
+Driver
+------
+
+LoCoMo (snap-research/locomo, "Evaluating Very Long-Term Conversational Memory
+of LLM Agents", arXiv:2402.17753) evaluates memory over ten multi-session
+conversations between two speakers (avg ~300 turns / ~9K tokens, up to 35
+sessions). Each conversation is annotated with question-answering pairs whose
+gold evidence is a list of dialog-turn ids (the upstream "dia_id" strings,
+formatted "D<session>:<turn>").
+
+QA category codes (verified against snap-research/locomo): 1 multi-hop, 2
+temporal, 3 open-domain, 4 single-hop, 5 adversarial. Adversarial samples carry
+an "adversarial_answer" (the tempting wrong answer) alongside the correct
+"answer". LoCoMo's primary QA metric is token-level F1; adversarial questions
+are scored on resisting the tempting answer.
+
+License: CC BY-NC 4.0 (NON-COMMERCIAL). This is stricter than MemoryAgentBench's
+MIT, so the no-vendoring discipline is mandatory: no upstream LoCoMo data is
+copied into the repo. The external-root convention (GOODMEMORY_LOCOMO_ROOT/
+cases.json with already-normalized cases) is the only path that touches real
+data.
+
+
+Accepted Scope (bring-up)
+-------------------------
+
+- Mirror the Phase 63 BEAM / Phase 64 MemoryAgentBench recall-diagnostic seam:
+  deterministic in-memory storage, hash embedding adapter, deterministic
+  createId/now, every dialog turn preserved as a retrievable fact, rules-only
+  recall.
+- Retrieval-only smoke by default; report per-category evidence-turn recall,
+  missing evidence, noise, and a multi_hop cross-session-chain readiness flag.
+- Deferred live-answer scaffold only (injectable answerGenerator, answer scored
+  deterministically by the upstream match mode). Do NOT wire a real LLM yet.
+- No dataset-specific keyword branches as a first repair; no vendoring.
+
+
+Tasks
+-----
+
+[DONE] P65-T001 Source intake + license/dataset/format verification.
+  Verified: repo snap-research/locomo; data/locomo10.json (10 conversations);
+  turn = {speaker, dia_id:"D1:3", text}; QA = {question, answer, evidence:
+  ["D1:3"], category:int (+adversarial_answer for category 5)}; category codes
+  1..5 above; license CC BY-NC 4.0. Recorded here and in the breakdown board.
+
+[DONE] P65-T002 src/eval/locomo.ts contract + synthetic smoke fixtures.
+  Normalized case shape (turns keyed by dia_id, questions with category +
+  evidence dia_ids + gold answer + match mode + adversarialAnswer), upstream
+  integer category-code mapping (normalizeLocomoCategoryCode), deterministic
+  answer metrics (locomoTokenF1 — SQuAD-style token F1 with articles/punctuation
+  dropped — locomoExactMatch, scoreLocomoAnswer with an adversarial-abstention
+  mode), parseLocomoSession, and one synthetic smoke case per category.
+
+[DONE] P65-T003 scripts/run-phase-65-locomo-smoke.ts adapter + retrieval report.
+  Alias eval:phase-65-smoke. Seeds every turn as a retrievable fact
+  ([LOCOMO dia_id=D1:3 speaker=...], attributes.diaId, tags dia_id:D1:3, role
+  forced user), rules-only recall, collects retrieved dia_ids (regex
+  dia_id[:=]D\d+:\d+), scores evidence recall / missing / noise per question and
+  multi_hop cross-session-chain readiness per category. Default synthetic;
+  external root GOODMEMORY_LOCOMO_ROOT/cases.json. Retrieval-only report
+  (answerAccuracy null, deferred-to-live-mode) with the full provenance header
+  (phase/benchmark/mode/runId/license/upstreamSource/externalRoot/
+  profilesCompared/upstreamAnswerMetricByCategory). Report path gitignored:
+  reports/eval/research/phase-65/locomo/<runId>/smoke-report.json.
+
+[DONE] P65-T004 Tests + green suite/typecheck.
+  tests/unit/eval.locomo.test.ts (contract: fixtures, category-code mapping,
+  dia_id parsing, token-F1/exact/adversarial scoring, per-category summary) and
+  tests/unit/run-phase-65.locomo-smoke.test.ts (adapter: cli, external-root
+  load + rejection, retrieval scoring, summary, scope, dia_id collection, full
+  synthetic run, live-answer mode + adversarial bait). Full unit suite + tsc
+  pass (CLI suite-level SIGTERM flake passes in isolation).
+
+[DEFERRED] P65-T005 Live answer generator + real external-root pressure.
+  Wire a real LLM answer generator (deferred — LLM call not yet restored), then
+  run the external-root slice (GOODMEMORY_LOCOMO_ROOT) for genuine multi-hop /
+  temporal / adversarial retrieval pressure. Synthetic smoke is too small for
+  real misses (evidence recall 1.0, noise tiny).
+
+
+First Synthetic Smoke (deterministic, executionFailures 0)
+----------------------------------------------------------
+
+run id run-phase65-locomo-smoke-current. Evidence recall 1.0 and gold fully
+retrieved for all five categories (seed/recall pipeline sound). Noise per
+category: single_hop 1, multi_hop 0, temporal 0, open_domain 1, adversarial 1.
+multi_hop crossSessionChainReady true (both sessions' evidence retrieved). This
+proves ingestion/contract shape only; real misses await external-root data.
+
+
+Source And Evidence Pointers
+----------------------------
+
+- Plan: docs/Sequential Benchmark Hardening Plan.md
+- Breakdown: task-board/phase-65-locomo-conversational-memory-hardening/00-README.txt
+- Upstream: https://github.com/snap-research/locomo (CC BY-NC 4.0)
+- Generated artifacts: reports/eval/research/phase-65/locomo/ (gitignored)
