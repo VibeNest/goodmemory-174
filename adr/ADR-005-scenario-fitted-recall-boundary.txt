@@ -104,10 +104,9 @@ per-gate audit (scripts/audit-narrow-gates.ts) splits the gates into
 dead / case_fitted / load_bearing so the genuinely-overfit subset can be pruned
 without losing the general ones. Reproduce with the Measurement commands above.
 
-Confirmed-dead set (re-verified 2026-06-18 against current code + BEAM 100K):
-disabling these 14 gates together produced ZERO case deltas vs the baseline
-(recall stayed 0.9621, 20 missed, 167 wrong-recall — identical), so they are
-inert on this split and safe to remove under the "prune dead" policy:
+Dead-on-100K but NOT removable (corrected finding, 2026-06-18):
+disabling these 14 gates together produced ZERO case deltas vs the baseline on
+the 100K split (recall stayed 0.9621, 20 missed, 167 wrong-recall — identical):
   aggregate.feedWeight, aggregate.accommodationCost, aggregate.aquariumTank,
   aggregate.bikeService, aggregate.foodDeliveryService,
   aggregate.formalEducationDuration, aggregate.furnitureActivity,
@@ -115,17 +114,22 @@ inert on this split and safe to remove under the "prune dead" policy:
   aggregate.medicalProvider, updateSeries.mortgagePreapproval,
   updateSeries.recentFamilyTrip, updateSeries.relationshipLatestLocation,
   updateSeries.sharedGroceryListMethod.
-Reproduce: set GOODMEMORY_DISABLED_NARROW_GATES to that list and re-run the
-diagnostic; diff per-case evidenceChatRecall against selection-refactor-baseline.
 
-Removal note: each gate's predicate is woven into multiple sites of
-recall/selectors/aggregate.ts and updateSeries.ts (live disjunction branches),
-not isolated files — ~70 edit points across files the in-flight benchmark-closure
-effort also edits. Because the gates are inert (zero recall impact), removal is
-hygiene, not correctness, and is best done as a coordinated cleanup on those
-selector files rather than concurrent surgery. The case_fitted eventOrder.*
-family is NOT in scope for pruning (each fires on its specific case — load-bearing
-for it); the dual metric is how its over-fitting is surfaced instead.
+IMPORTANT: "dead on the 100K split" is NOT a deletion license. An attempt to
+remove these gates broke 14 dedicated unit tests in tests/unit/recall.selection
+(e.g. "keeps accommodation cost evidence when the query asks for per-night
+lodging comparisons", "prefers the latest mortgage preapproval evidence over
+stale amounts"). Each gate is pinned by a TDD unit test asserting its behavior,
+and the gates were built during BEAM hardening for cases that the 100K split
+simply does not contain (they likely fire on the 500K/1M splits). They are
+therefore intentional, tested behavior — not dead code — and the removal was
+reverted. The audit's per-split "dead" verdict is an ANALYSIS signal (it
+explains the dual-metric gap), not a prune list.
+
+Treatment: surface the over-fitting via the dual metric (done) and gate new
+rules via the admission criteria above. Do NOT delete gates on a single-split
+"dead" verdict; deletion would require evidence they are unused across ALL
+splits AND removal of their unit tests, which is out of scope here.
 
 Consequences
 ------------
