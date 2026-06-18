@@ -35,7 +35,9 @@ adr/
 ├── ADR-001-memory-taxonomy.txt
 ├── ADR-002-public-api.txt
 ├── ADR-003-runtime-context-controls.txt
-└── ADR-004-maintenance-engine.txt
+├── ADR-004-maintenance-engine.txt
+├── ADR-005-scenario-fitted-recall-boundary.txt        # dual-metric recall + scenario-rule admission
+└── ADR-006-module-layering-and-shared-contracts.txt   # domain/ contract home, provider ↛ eval
 
 src/
 ├── index.ts                                                   # package root exports
