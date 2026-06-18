@@ -12,7 +12,7 @@ import type { MemoryScope } from "../domain/scope";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { EvidenceRecord } from "../evidence/contracts";
-import type { SessionArchive } from "../evolution/contracts";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import {
   createLanguageService,
   type LanguageService,

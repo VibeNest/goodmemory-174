@@ -17,13 +17,13 @@ import type {
   LearningProposal,
   PromotionRecord,
   SessionArchive,
-} from "../evolution/contracts";
+} from "../domain/evolutionRecords";
 import {
   EXPERIENCES_COLLECTION,
   LEARNING_PROPOSALS_COLLECTION,
   PROMOTION_RECORDS_COLLECTION,
   SESSION_ARCHIVES_COLLECTION,
-} from "../evolution/contracts";
+} from "../domain/evolutionRecords";
 import type {
   DocumentStore,
   SessionStore,

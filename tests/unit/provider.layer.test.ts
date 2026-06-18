@@ -13,7 +13,7 @@ import {
   createProviderRecallRouter,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
-} from "../../src/provider/layer";
+} from "../../src/eval/provider-harness";
 
 describe("provider layer contract", () => {
   it("builds explicit runtime metadata for fallback and live provider targets", () => {

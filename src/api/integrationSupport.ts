@@ -1,7 +1,7 @@
 import type { AgentInputEvent, HostAgentEvent } from "../agentEvents";
 import type { FeedbackKind } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
-import type { HostActionDecision, HostKind } from "../host/contracts";
+import type { HostActionDecision, HostKind } from "../domain/hostTypes";
 import type {
   FeedbackPromotionReceipt,
   FeedbackProposalReceipt,

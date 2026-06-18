@@ -13,8 +13,8 @@ import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
 import {
   createSessionArchive,
-} from "../evolution/contracts";
-import type { SessionArchive } from "../evolution/contracts";
+} from "../domain/evolutionRecords";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import type { SessionStore } from "../storage/contracts";
 
 export interface RuntimeArchiveStore {

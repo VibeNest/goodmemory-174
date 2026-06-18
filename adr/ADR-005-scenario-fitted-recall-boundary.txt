@@ -1,0 +1,152 @@
+ADR-005: Scenario-Fitted Recall Boundary and Dual-Metric Reporting
+==================================================================
+
+Status
+------
+Accepted (2026-06-17)
+
+Context
+-------
+The rules-only recall path under src/recall/selectors/ contains a large set of
+"narrow gates" and source-order coverage rules (see src/recall/narrowGates.ts,
+which describes them as "narrow, scenario-fitted query classifiers"). A subset
+of these — most visibly the eventOrder.* family in
+src/recall/selectors/sourceOrderRules/ — are fitted to specific benchmark
+conversations: their query patterns and facet regexes match literal proper
+nouns and phrasings drawn from individual benchmark cases (e.g. a rule whose
+QUERY_PATTERN requires the exact phrase "personal and work-related challenges"
+and whose facets match strings like "Blue Bay Resort" / "collaborating with
+Greg").
+
+Two problems follow:
+
+1. Misleading quality signal. A headline rules-only recall number (~0.96 on the
+   internal benchmark) is produced partly by these case-fitted rules, which can
+   only ever fire on the exact benchmark inputs they were written for. A real
+   user's data never contains "Blue Bay Resort", so the case-fitted rules never
+   fire for them. The reported number therefore overstates generalization.
+
+2. Shipped overfitting. package.json "files" publishes both src/ and dist/, so
+   the case-fitted rules are shipped to npm consumers as part of the library.
+
+The repository already has partial, reactive guardrails in
+tests/unit/architecture.boundaries.test.ts:
+  - DISALLOWED_SELECTOR_FILENAME_PATTERN bans some case-name filenames
+    (Alexis|Greg|Kimberly|Stephen|...).
+  - DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN bans some fixture-literal
+    contents (ashlee|laura|mason|...).
+These blocklists are incomplete (they enumerate names cleaned up in the past
+rather than the general pattern), so new case-fitted rules can still land.
+
+The authoritative way to quantify the gap already exists:
+src/recall/narrowGates.ts exposes a kill switch
+(GOODMEMORY_DISABLED_NARROW_GATES) and listRegisteredNarrowGateIds();
+scripts/audit-narrow-gates.ts uses them to classify each gate as dead /
+case_fitted / load_bearing against the BEAM benchmark.
+
+Decision
+--------
+1. Two recall numbers, always reported together. Whenever a rules-only recall
+   figure is published (README, boards, eval artifacts), it MUST be accompanied
+   by a "generalization recall" figure measured with every narrow gate disabled
+   (GOODMEMORY_DISABLED_NARROW_GATES set to all registered gate ids). The gap
+   between the two is the scenario-fitting contribution and must be visible, not
+   hidden. scripts/list-scenario-gates.ts emits the id list for the kill switch;
+   see Measurement below.
+
+2. Admission criteria for new scenario rules. A new narrow gate / source-order
+   coverage rule may be added only if ALL of the following hold, recorded in the
+   commit message or linked board item:
+   a. A general formulation was attempted first and demonstrably could not cover
+      the case without unacceptable collateral noise.
+   b. The rule keys on structural/semantic signals, NOT on literal proper nouns
+      or verbatim phrases copied from a benchmark transcript.
+   c. The rule is justified by >= 2 distinct cases (a single-case rule is
+      "case_fitted" by the audit definition and is not admissible as new work).
+   d. The author ran the audit (or recorded why it could not run) and the gate
+      is not "dead".
+
+3. Pruning is evidence-gated. Gates are removed based on audit verdicts (dead,
+   or case_fitted that the team decides to drop), never on guesswork. Pruning
+   requires the BEAM benchmark dataset to be present so the audit can run; see
+   the Local SQLite / benchmark notes for dataset provenance (BEAM is CC BY-NC
+   4.0 and is NOT vendored into the repo).
+
+4. No silent growth. The scenario-rule set should not grow without going through
+   (2). A follow-up guard (a file-count freeze on
+   src/recall/selectors/sourceOrderRules/) is recommended once the set has been
+   pruned to its load-bearing core; it is intentionally NOT added now because an
+   in-flight benchmark-closure effort is still editing that directory and a hard
+   freeze would break its build.
+
+Measurement
+-----------
+Generalization recall (all scenario fitting disabled), once the BEAM dataset is
+available at the diagnostic's benchmark root:
+
+  GOODMEMORY_DISABLED_NARROW_GATES="$(bun run scripts/list-scenario-gates.ts)" \
+    bun run scripts/run-phase-63-beam-recall-diagnostic.ts --run-id generalization
+
+Per-gate dead/case_fitted/load_bearing classification:
+
+  bun run scripts/audit-narrow-gates.ts
+
+Measured (2026-06-18, BEAM 100K, goodmemory-rules-only, 355 evidence cases)
+---------------------------------------------------------------------------
+  fitted (all narrow gates on):       evidence-chat recall 0.9621, 20 missed
+  generalization (all 151 gates off): evidence-chat recall 0.6822, 147 missed
+  gap: 27.99 points; 127 of 355 evidence cases (36%) depend on narrow gates.
+
+The headline 0.96 is therefore substantially produced by scenario-fitted
+classifiers; on the non-gated path recall is 0.68. This is the floor (it
+disables ALL narrow gates, including any legitimately-general ones); the
+per-gate audit (scripts/audit-narrow-gates.ts) splits the gates into
+dead / case_fitted / load_bearing so the genuinely-overfit subset can be pruned
+without losing the general ones. Reproduce with the Measurement commands above.
+
+Dead-on-100K but NOT removable (corrected finding, 2026-06-18):
+disabling these 14 gates together produced ZERO case deltas vs the baseline on
+the 100K split (recall stayed 0.9621, 20 missed, 167 wrong-recall — identical):
+  aggregate.feedWeight, aggregate.accommodationCost, aggregate.aquariumTank,
+  aggregate.bikeService, aggregate.foodDeliveryService,
+  aggregate.formalEducationDuration, aggregate.furnitureActivity,
+  aggregate.healthIssueOrder, aggregate.magazineSubscription,
+  aggregate.medicalProvider, updateSeries.mortgagePreapproval,
+  updateSeries.recentFamilyTrip, updateSeries.relationshipLatestLocation,
+  updateSeries.sharedGroceryListMethod.
+
+IMPORTANT: "dead on the 100K split" is NOT a deletion license. An attempt to
+remove these gates broke 14 dedicated unit tests in tests/unit/recall.selection
+(e.g. "keeps accommodation cost evidence when the query asks for per-night
+lodging comparisons", "prefers the latest mortgage preapproval evidence over
+stale amounts"). Each gate is pinned by a TDD unit test asserting its behavior,
+and the gates were built during BEAM hardening for cases that the 100K split
+simply does not contain (they likely fire on the 500K/1M splits). They are
+therefore intentional, tested behavior — not dead code — and the removal was
+reverted. The audit's per-split "dead" verdict is an ANALYSIS signal (it
+explains the dual-metric gap), not a prune list.
+
+Treatment: surface the over-fitting via the dual metric (done) and gate new
+rules via the admission criteria above. Do NOT delete gates on a single-split
+"dead" verdict; deletion would require evidence they are unused across ALL
+splits AND removal of their unit tests, which is out of scope here.
+
+Consequences
+------------
++ The published quality signal becomes honest: readers see both the fitted and
+  the generalizing recall, and the delta is explicit.
++ New overfitting is gated by explicit admission criteria rather than landing
+  silently.
+- Until the BEAM dataset is restored locally, the generalization number cannot
+  be recomputed here; the dual-metric policy is in force but the live figure is
+  filled by whoever holds the dataset (CI or the maintainer).
+- The full prune of the eventOrder.* family is deferred to a dataset-backed
+  session; this ADR records the boundary so the set stops growing in the
+  meantime.
+
+Related
+-------
+- src/recall/narrowGates.ts (kill switch, listRegisteredNarrowGateIds)
+- scripts/audit-narrow-gates.ts, scripts/list-scenario-gates.ts
+- tests/unit/architecture.boundaries.test.ts (selector overfitting guards)
+- ADR-006 (module layering and shared contracts)

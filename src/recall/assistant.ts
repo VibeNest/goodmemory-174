@@ -3,7 +3,7 @@ import type {
   FactMemory,
   ReferenceMemory,
 } from "../domain/records";
-import type { SessionArchive } from "../evolution/contracts";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import type {
   RecallSource,
   RecallSlot,

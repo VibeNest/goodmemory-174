@@ -11,7 +11,7 @@ import type {
 } from "../domain/records";
 import type { EvidenceRecord } from "../evidence/contracts";
 import { isSteeringOnlyBehavioralPolicy } from "../evolution/behavioralPolicy";
-import type { SessionArchive } from "../evolution/contracts";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import { FEEDBACK_RECALL_LIMIT } from "./budgets";
 import type { RetrievalProfile, RoutingDecision } from "./router";
 

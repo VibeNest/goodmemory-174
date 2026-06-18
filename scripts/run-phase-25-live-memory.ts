@@ -12,7 +12,7 @@ import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
   createProviderTextGenerator,
-} from "../src/provider/layer";
+} from "../src/eval/provider-harness";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import {
   resolveFlagValue,

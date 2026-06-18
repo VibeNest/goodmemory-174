@@ -25,7 +25,7 @@ import {
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
-import { createProviderTextGenerator } from "../src/provider/layer";
+import { createProviderTextGenerator } from "../src/eval/provider-harness";
 import { resolveLiveModelConfig } from "./run-eval";
 import { resolveCliFlagValue } from "./cli-options";
 import {

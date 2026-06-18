@@ -9,7 +9,7 @@ import type {
   DocumentStore,
   SessionStore,
 } from "../storage/contracts";
-import { SESSION_ARCHIVES_COLLECTION } from "../evolution/contracts";
+import { SESSION_ARCHIVES_COLLECTION } from "../domain/evolutionRecords";
 import {
   createRuntimeContextService as createInternalRuntimeContextService,
 } from "./contextService";

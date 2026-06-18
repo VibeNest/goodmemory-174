@@ -204,6 +204,46 @@ interface BuildSelectionRunContextInput {
   routingDecision: RoutingDecision;
 }
 
+// Query families whose winning route returns a complete evidence set; the
+// instruction append-and-prune and direct-factual-companion augmenters stand
+// down for them so standing "Always ..." instructions and lookup companions
+// cannot override or dilute the winner.
+function isInstructionAugmentationStandDownQuery(query: string): boolean {
+  return (
+    isGrammarAnxietyContradictionQuery(query) ||
+    isRemoteCollaborationContradictionQuery(query) ||
+    isWorkshopAttendanceContradictionQuery(query) ||
+    isApiKeyObtainedContradictionQuery(query) ||
+    isConditionalProbabilityPracticeContradictionQuery(query) ||
+    isGroceryBudgetUpdateGroupQuery(query) ||
+    isZoomCallScheduleUpdateGroupQuery(query) ||
+    isAiScreeningAccuracyUpdateGroupQuery(query) ||
+    isAccuracyImprovementComparisonQuery(query) ||
+    isUserRolesSecurityFeaturesCountQuery(query) ||
+    isCoverLetterSubmissionCountQuery(query) ||
+    isProjectCardTotalCountQuery(query) ||
+    isBookSeriesGenresAggregateQuery(query) ||
+    isFamilyMovieMarathonTitlesAggregateQuery(query) ||
+    isPersonalStatementApplicationTypesAggregateQuery(query) ||
+    isResumeImprovementAreasAggregateQuery(query) ||
+    isResumeAtsSequencingReasoningQuery(query) ||
+    isPeerFeedbackBalanceReasoningQuery(query) ||
+    isReadingPlanBalanceReasoningQuery(query) ||
+    isEntertainmentSpendingReasoningQuery(query) ||
+    isSneakerBudgetComparisonReasoningQuery(query) ||
+    isWorkBoundaryOrderReasoningQuery(query)
+  );
+}
+
+function isExactSourceOrderedReasoningQuery(query: string): boolean {
+  return (
+    isProbabilityCalculationConfirmationReasoningQuery(query) ||
+    isPatentFilingDeadlineReasoningQuery(query) ||
+    isSourceOrderedSecurityFeatureCountReasoningQuery(query) ||
+    isSneakerBudgetComparisonReasoningQuery(query)
+  );
+}
+
 export function buildSelectionRunContext(
   input: BuildSelectionRunContextInput,
 ): SelectionRunContext {
@@ -228,33 +268,8 @@ export function buildSelectionRunContext(
     language,
     queryLocale,
   );
-  // Query families whose winning route returns a complete evidence set; the
-  // instruction append-and-prune and direct-factual-companion augmenters
-  // stand down for them so standing "Always ..." instructions and lookup
-  // companions cannot override or dilute the winner.
   const instructionAugmentationStandDownQuery =
-    isGrammarAnxietyContradictionQuery(query) ||
-    isRemoteCollaborationContradictionQuery(query) ||
-    isWorkshopAttendanceContradictionQuery(query) ||
-    isApiKeyObtainedContradictionQuery(query) ||
-    isConditionalProbabilityPracticeContradictionQuery(query) ||
-    isGroceryBudgetUpdateGroupQuery(query) ||
-    isZoomCallScheduleUpdateGroupQuery(query) ||
-    isAiScreeningAccuracyUpdateGroupQuery(query) ||
-    isAccuracyImprovementComparisonQuery(query) ||
-    isUserRolesSecurityFeaturesCountQuery(query) ||
-    isCoverLetterSubmissionCountQuery(query) ||
-    isProjectCardTotalCountQuery(query) ||
-    isBookSeriesGenresAggregateQuery(query) ||
-    isFamilyMovieMarathonTitlesAggregateQuery(query) ||
-    isPersonalStatementApplicationTypesAggregateQuery(query) ||
-    isResumeImprovementAreasAggregateQuery(query) ||
-    isResumeAtsSequencingReasoningQuery(query) ||
-    isPeerFeedbackBalanceReasoningQuery(query) ||
-    isReadingPlanBalanceReasoningQuery(query) ||
-    isEntertainmentSpendingReasoningQuery(query) ||
-    isSneakerBudgetComparisonReasoningQuery(query) ||
-    isWorkBoundaryOrderReasoningQuery(query);
+    isInstructionAugmentationStandDownQuery(query);
   const aggregateMoneyQuery = isAggregateMoneyQuery(query);
   const aggregateNumericQuery = isAggregateNumericQuery(query);
   const comparativeMetricQuery = isComparativeMetricQuery(query);
@@ -263,10 +278,7 @@ export function buildSelectionRunContext(
   const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
   const temporalIntervalQuery = isTemporalIntervalQuery(query);
   const exactSourceOrderedReasoningQuery =
-    isProbabilityCalculationConfirmationReasoningQuery(query) ||
-    isPatentFilingDeadlineReasoningQuery(query) ||
-    isSourceOrderedSecurityFeatureCountReasoningQuery(query) ||
-    isSneakerBudgetComparisonReasoningQuery(query);
+    isExactSourceOrderedReasoningQuery(query);
   const aggregateEvidenceQuery = !exactSourceOrderedReasoningQuery &&
     // The hiring-automation event-order coverage question reads like an
     // aggregate (cost-saving money cues plus a "five items" count), so the

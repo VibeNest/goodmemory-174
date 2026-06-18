@@ -18,7 +18,7 @@ import {
   createProviderJudgeModel,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
-} from "../src/provider/layer";
+} from "../src/eval/provider-harness";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { canBootstrapPostgresStorageBackend } from "../src/storage/postgres";
 import {

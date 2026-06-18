@@ -2,7 +2,7 @@ import type {
   MemoryCandidate,
   MemoryCandidateMetadata,
   ProfileField,
-} from "../remember/candidates";
+} from "../domain/memoryCandidate";
 import type {
   LanguageAdapter,
   LanguageCandidateExtractionInput,
