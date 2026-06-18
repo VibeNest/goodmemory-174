@@ -164,7 +164,6 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "aggregate.declinedFinancialOpportunity":
     aggregateNarrowGates.isDeclinedFinancialOpportunityQuery,
   "aggregate.museumVisitOrder": aggregateNarrowGates.isMuseumVisitOrderQuery,
-  "aggregate.healthIssueOrder": aggregateNarrowGates.isHealthIssueOrderQuery,
   "aggregate.accommodationCost": aggregateNarrowGates.isAccommodationCostQuery,
   "aggregate.furnitureActivity": aggregateNarrowGates.isFurnitureActivityAggregateQuery,
   "aggregate.propertyViewing": aggregateNarrowGates.isPropertyViewingAggregateQuery,
@@ -175,12 +174,10 @@ const GATE_FUNCTIONS: Record<string, (query: string) => boolean> = {
   "aggregate.medicalProvider": aggregateNarrowGates.isMedicalProviderAggregateQuery,
   "aggregate.plantAcquisition": aggregateNarrowGates.isPlantAcquisitionAggregateQuery,
   "aggregate.aquariumTank": aggregateNarrowGates.isAquariumTankAggregateQuery,
-  "aggregate.bikeService": aggregateNarrowGates.isBikeServiceAggregateQuery,
   "aggregate.magazineSubscription":
     aggregateNarrowGates.isMagazineSubscriptionAggregateQuery,
   "aggregate.formalEducationDuration":
     aggregateNarrowGates.isFormalEducationDurationQuery,
-  "aggregate.feedWeight": aggregateNarrowGates.isFeedWeightAggregateQuery,
   "aggregate.siblingCount": aggregateNarrowGates.isSiblingCountAggregateQuery,
   "aggregate.personalElectronicsCost":
     aggregateNarrowGates.isPersonalElectronicsCostQuery,

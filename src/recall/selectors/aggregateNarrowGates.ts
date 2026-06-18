@@ -22,13 +22,6 @@ export const isMuseumVisitOrderQuery = narrowGate(
   },
 );
 
-export const isHealthIssueOrderQuery = narrowGate(
-  "aggregate.healthIssueOrder",
-  (query: string): boolean => {
-  return /\bwhich\b[\s\S]{0,120}\bhealth\s+issues?\b[\s\S]{0,120}\bfirst\b/iu.test(query);
-  },
-);
-
 export const isAccommodationCostQuery = narrowGate(
   "aggregate.accommodationCost",
   (query: string): boolean => {
@@ -93,15 +86,6 @@ export const isAquariumTankAggregateQuery = narrowGate(
   },
 );
 
-export const isBikeServiceAggregateQuery = narrowGate(
-  "aggregate.bikeService",
-  (query: string): boolean => {
-  return /\bhow many\b/i.test(query) &&
-    /\bbikes?\b/i.test(query) &&
-    /\b(?:service|serviced|plan|planned|maintenance|replace|replaced|cleaned|lubricated)\b/i.test(query);
-  },
-);
-
 export const isMagazineSubscriptionAggregateQuery = narrowGate(
   "aggregate.magazineSubscription",
   (query: string): boolean => {
@@ -115,14 +99,6 @@ export const isFormalEducationDurationQuery = narrowGate(
   (query: string): boolean => {
   return /\b(?:how many years|total)\b/i.test(query) &&
     /\b(?:formal education|high school|Bachelor'?s|degree|education)\b/i.test(query);
-  },
-);
-
-export const isFeedWeightAggregateQuery = narrowGate(
-  "aggregate.feedWeight",
-  (query: string): boolean => {
-  return /\b(?:total|combined|sum)\b/i.test(query) &&
-    /\b(?:weight|pounds?|feed|grains)\b/i.test(query);
   },
 );
 
