@@ -104,6 +104,29 @@ per-gate audit (scripts/audit-narrow-gates.ts) splits the gates into
 dead / case_fitted / load_bearing so the genuinely-overfit subset can be pruned
 without losing the general ones. Reproduce with the Measurement commands above.
 
+Confirmed-dead set (re-verified 2026-06-18 against current code + BEAM 100K):
+disabling these 14 gates together produced ZERO case deltas vs the baseline
+(recall stayed 0.9621, 20 missed, 167 wrong-recall — identical), so they are
+inert on this split and safe to remove under the "prune dead" policy:
+  aggregate.feedWeight, aggregate.accommodationCost, aggregate.aquariumTank,
+  aggregate.bikeService, aggregate.foodDeliveryService,
+  aggregate.formalEducationDuration, aggregate.furnitureActivity,
+  aggregate.healthIssueOrder, aggregate.magazineSubscription,
+  aggregate.medicalProvider, updateSeries.mortgagePreapproval,
+  updateSeries.recentFamilyTrip, updateSeries.relationshipLatestLocation,
+  updateSeries.sharedGroceryListMethod.
+Reproduce: set GOODMEMORY_DISABLED_NARROW_GATES to that list and re-run the
+diagnostic; diff per-case evidenceChatRecall against selection-refactor-baseline.
+
+Removal note: each gate's predicate is woven into multiple sites of
+recall/selectors/aggregate.ts and updateSeries.ts (live disjunction branches),
+not isolated files — ~70 edit points across files the in-flight benchmark-closure
+effort also edits. Because the gates are inert (zero recall impact), removal is
+hygiene, not correctness, and is best done as a coordinated cleanup on those
+selector files rather than concurrent surgery. The case_fitted eventOrder.*
+family is NOT in scope for pruning (each fires on its specific case — load-bearing
+for it); the dual metric is how its over-fitting is surfaced instead.
+
 Consequences
 ------------
 + The published quality signal becomes honest: readers see both the fitted and
