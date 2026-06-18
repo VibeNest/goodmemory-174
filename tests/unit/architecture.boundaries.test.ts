@@ -772,4 +772,25 @@ describe("architecture boundaries", () => {
     const source = await readFile(join(SRC_ROOT, "eval/reporting.ts"), "utf8");
     expect(source).not.toMatch(/export\s+(interface|type)\s+/);
   });
+
+  it("keeps the provider layer free of eval harness imports", async () => {
+    const files = await collectTypeScriptFiles(join(SRC_ROOT, "provider"));
+    const offenders: Array<{ file: string; targets: string[] }> = [];
+
+    for (const file of files) {
+      const targets = await collectInternalImportEdges(file);
+      const disallowedTargets = targets.filter((target) =>
+        target.startsWith("eval/"),
+      );
+
+      if (disallowedTargets.length > 0) {
+        offenders.push({
+          file: toSourceRelativePath(file),
+          targets: disallowedTargets,
+        });
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
 });

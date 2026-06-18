@@ -31,7 +31,7 @@ import {
   createProviderMemoryExtractor,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
-} from "../src/provider/layer";
+} from "../src/eval/provider-harness";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export type EvalMode = "live" | "fallback";
