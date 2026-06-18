@@ -21,18 +21,10 @@ if (import.meta.main) {
   const ids = listScenarioGateIds();
   const pretty = Bun.argv.includes("--pretty");
   if (pretty) {
-    const byFamily = new Map<string, string[]>();
     for (const id of ids) {
-      const family = id.split(".")[0] ?? "misc";
-      byFamily.set(family, [...(byFamily.get(family) ?? []), id]);
+      console.log(id);
     }
-    for (const [family, familyIds] of [...byFamily.entries()].sort()) {
-      console.error(`# ${family} (${familyIds.length})`);
-      for (const id of familyIds) {
-        console.error(`  ${id}`);
-      }
-    }
-    console.error(`# total: ${ids.length}`);
+  } else {
+    console.log(ids.join(","));
   }
-  console.log(ids.join(","));
 }
