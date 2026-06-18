@@ -40,14 +40,19 @@ the matching benchmark is completed and backed by a report.
 |---|---|---:|---:|---|
 | ImplicitMemBench Full-300 | overall score | 213.26 / 300 (71.09%) with `goodmemory-distilled-feedback+controlled-priming` | 128 / 300 (42.67%) upstream-chat baseline | [live full-300 summary](./reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json) |
 | LongMemEval full 500 | answer accuracy plus evidence-session recall | answer accuracy 454 / 500 (90.8%); evidence-session recall 0.9590 with `goodmemory-hybrid` | answer accuracy 451 / 500 (90.2%) latest accepted full-context reference | [accepted report](./reports/eval/research/phase-62/longmemeval/run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z/report.json) |
-| BEAM (100K, rules-only retrieval diagnostic) | evidence-chat recall | 0.9621 evidence-chat recall with `goodmemory-rules-only` (100K split, 355 evidence questions of 400; 20 missed-recall, 0 zero-recall) | 0.1163 first rules-only diagnostic on the same split | [latest accepted diagnostic](./reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z/recall-diagnostic.json) |
+| BEAM (100K, rules-only retrieval diagnostic) | evidence-chat recall (dual: fitted vs generalization) | **fitted 0.9621** with `goodmemory-rules-only` (all narrow gates on; 100K split, 355 evidence questions of 400; 20 missed-recall, 0 zero-recall) — **generalization 0.6822** with all 151 narrow gates disabled (147 missed). The 28-pt gap is the scenario-fitted contribution, not general retrieval (see [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)). | 0.1163 first rules-only diagnostic on the same split | [latest accepted diagnostic](./reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z/recall-diagnostic.json) |
 | MemoryAgentBench | - | - | - | - |
 | LoCoMo | - | - | - | - |
 
 These rows are research and hardening evidence, not a final public leaderboard.
 The BEAM row reports rules-only retrieval recall (evidence-chat recall over the
 100K split), not end-to-end answer accuracy; its answer evaluation is not yet
-run. The current external benchmark order is LongMemEval -> BEAM ->
+run. Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
+recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
+and a `generalization` figure (all narrow gates disabled). The large gap means
+much of the fitted recall comes from scenario-fitted query classifiers tuned to
+specific BEAM cases, which do not fire on unrelated user data; readers should
+treat the generalization figure as the floor for out-of-distribution inputs. The current external benchmark order is LongMemEval -> BEAM ->
 MemoryAgentBench -> LoCoMo. Use
 [task-board/00-README.txt](./task-board/00-README.txt) for execution order and
 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)

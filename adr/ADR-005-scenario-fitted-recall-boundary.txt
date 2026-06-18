@@ -91,6 +91,19 @@ Per-gate dead/case_fitted/load_bearing classification:
 
   bun run scripts/audit-narrow-gates.ts
 
+Measured (2026-06-18, BEAM 100K, goodmemory-rules-only, 355 evidence cases)
+---------------------------------------------------------------------------
+  fitted (all narrow gates on):       evidence-chat recall 0.9621, 20 missed
+  generalization (all 151 gates off): evidence-chat recall 0.6822, 147 missed
+  gap: 27.99 points; 127 of 355 evidence cases (36%) depend on narrow gates.
+
+The headline 0.96 is therefore substantially produced by scenario-fitted
+classifiers; on the non-gated path recall is 0.68. This is the floor (it
+disables ALL narrow gates, including any legitimately-general ones); the
+per-gate audit (scripts/audit-narrow-gates.ts) splits the gates into
+dead / case_fitted / load_bearing so the genuinely-overfit subset can be pruned
+without losing the general ones. Reproduce with the Measurement commands above.
+
 Consequences
 ------------
 + The published quality signal becomes honest: readers see both the fitted and
