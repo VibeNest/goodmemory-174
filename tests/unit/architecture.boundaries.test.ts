@@ -773,6 +773,34 @@ describe("architecture boundaries", () => {
     expect(source).not.toMatch(/export\s+(interface|type)\s+/);
   });
 
+  it("keeps support layers from importing up into write/integration layers", async () => {
+    const checks: Array<{ dir: string; forbidden: string }> = [
+      { dir: "language", forbidden: "remember/" },
+      { dir: "policy", forbidden: "remember/" },
+      { dir: "api", forbidden: "host/" },
+    ];
+    const offenders: Array<{ file: string; targets: string[] }> = [];
+
+    for (const { dir, forbidden } of checks) {
+      const files = await collectTypeScriptFiles(join(SRC_ROOT, dir));
+      for (const file of files) {
+        const targets = await collectInternalImportEdges(file);
+        const disallowedTargets = targets.filter((target) =>
+          target.startsWith(forbidden),
+        );
+
+        if (disallowedTargets.length > 0) {
+          offenders.push({
+            file: toSourceRelativePath(file),
+            targets: disallowedTargets,
+          });
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps the provider layer free of eval harness imports", async () => {
     const files = await collectTypeScriptFiles(join(SRC_ROOT, "provider"));
     const offenders: Array<{ file: string; targets: string[] }> = [];

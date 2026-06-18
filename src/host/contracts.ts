@@ -15,6 +15,7 @@ import type { GoodMemoryPolicyHooks } from "../policy/hooks";
 import type { DocumentStore } from "../storage/contracts";
 import type { MemoryScope } from "../domain/scope";
 import type { MarkdownArtifactFile } from "../governance/markdownArtifacts";
+import type { HostActionDecision, HostKind } from "../domain/hostTypes";
 
 export type {
   AgentEventIngestResult,
@@ -24,6 +25,8 @@ export type {
   AgentEventScope,
   AgentEventStructuredValue,
   HostAgentEvent,
+  HostActionDecision,
+  HostKind,
 };
 
 export type HostArtifactType =
@@ -34,8 +37,6 @@ export type HostArtifactType =
   | "playbook";
 
 export type HostAdapterMode = "file-assisted" | "file-authoritative";
-
-export type HostKind = "generic" | "claude" | "codex";
 
 export interface HostArtifact extends MarkdownArtifactFile {
   artifactType: HostArtifactType;
@@ -123,12 +124,6 @@ export interface HostWriteArtifactResult {
   status: "applied" | "noop";
   updatedArtifact: HostArtifact;
 }
-
-export type HostActionDecision =
-  | "allow"
-  | "allow_with_guidance"
-  | "review_required"
-  | "blocked";
 
 export type HostActionKind = "command" | "file_edit" | "tool_call";
 

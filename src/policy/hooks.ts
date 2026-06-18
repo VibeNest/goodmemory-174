@@ -9,7 +9,7 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
-import type { MemoryCandidate } from "../remember/candidates";
+import type { MemoryCandidate } from "../domain/memoryCandidate";
 
 export interface PolicyContext {
   scope: MemoryScope;

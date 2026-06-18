@@ -1,5 +1,5 @@
 import type { FeedbackKind } from "../domain/records";
-import type { MemoryCandidate } from "../remember/candidates";
+import type { MemoryCandidate } from "../domain/memoryCandidate";
 
 export type LocaleResolutionSource = "explicit" | "detected" | "default";
 
