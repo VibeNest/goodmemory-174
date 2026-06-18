@@ -801,6 +801,29 @@ describe("architecture boundaries", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps storage and runtime from importing the evolution feature module", async () => {
+    const offenders: Array<{ file: string; targets: string[] }> = [];
+
+    for (const dir of ["storage", "runtime"]) {
+      const files = await collectTypeScriptFiles(join(SRC_ROOT, dir));
+      for (const file of files) {
+        const targets = await collectInternalImportEdges(file);
+        const disallowedTargets = targets.filter((target) =>
+          target.startsWith("evolution/"),
+        );
+
+        if (disallowedTargets.length > 0) {
+          offenders.push({
+            file: toSourceRelativePath(file),
+            targets: disallowedTargets,
+          });
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   it("keeps the provider layer free of eval harness imports", async () => {
     const files = await collectTypeScriptFiles(join(SRC_ROOT, "provider"));
     const offenders: Array<{ file: string; targets: string[] }> = [];

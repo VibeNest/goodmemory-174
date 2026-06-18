@@ -46,29 +46,38 @@ Decision
 3. Guards. architecture.boundaries.test.ts now asserts provider ↛ eval and the
    support-layer boundaries (language/policy ↛ remember, api ↛ host).
 
+4. evolution records relocated to the domain leaf. The whole evolution/contracts
+   surface — records (SessionArchive, ExperienceRecord, LearningProposal,
+   PromotionRecord), enums, collection constants, AND the pure create*
+   constructors — moved to domain/evolutionRecords.ts (a zero-import leaf);
+   evolution/contracts.ts is now a re-export barrel. storage/, runtime/, and
+   recall/ import the records from domain instead of evolution. This breaks the
+   evolution<->storage and evolution<->runtime cycles (storage/runtime no longer
+   import evolution at all). Guarded by a storage/runtime ↛ evolution test. The
+   recall-side change is type-only (SessionArchive import path), so it carries no
+   behavior risk.
+
 Deferred
 --------
-The evolution<->{storage,recall,runtime} cycles are NOT pure type-only edges and
-are intentionally left for a dedicated, dataset-aware session:
-  - storage/repositories.ts constructs evolution records via the create* factory
-    functions (a runtime value dependency), not just the record types.
+Only the evolution<->recall cycle remains. It is NOT a type-only edge:
   - recall/contextBuilder.ts imports the runtime function
     isSteeringOnlyBehavioralPolicy from evolution/behavioralPolicy.
-  - runtime/public.ts imports the SESSION_ARCHIVES_COLLECTION constant.
-Relocating only the record interfaces to domain/ would not break these edges, so
-breaking them requires real decoupling (moving constructors/constants or
-inverting the dependency) and touches hot recall files. These cycles are
-type+value back-references that the runtime tolerates today (no initialization
-hazard observed); severity is low, so the work is sequenced after the
-benchmark-closure effort that is actively editing recall/.
+  - evolution/rawBehavioralExemplars.ts imports recall/engine.
+Breaking it requires relocating isSteeringOnlyBehavioralPolicy (or inverting the
+rawBehavioralExemplars dependency) and touches the recall hot path, whose
+behavior cannot be strongly verified locally without the BEAM dataset and which
+is actively edited by the benchmark-closure effort. Low severity; sequenced
+after that effort. The overfit prune of the scenario-fitted eventOrder.* rules
+is likewise dataset-gated (see ADR-005).
 
 Consequences
 ------------
 + Importing the production api/install surface no longer pulls the eval harness
   into the dependency closure or the published bundle.
-+ Four directory cycles removed (provider<->eval, language<->remember,
-  policy<->remember, api<->host); the remaining three are documented with a
-  concrete decoupling plan.
++ Six directory cycles removed (provider<->eval, language<->remember,
+  policy<->remember, api<->host, evolution<->storage, evolution<->runtime); the
+  one remaining (evolution<->recall) is documented with a concrete decoupling
+  plan.
 + domain/ remains the single home for cross-layer contracts, reinforced by tests.
 - Two contract clusters now live in domain/ and are re-exported elsewhere;
   readers must follow the re-export to the definition (acceptable; the

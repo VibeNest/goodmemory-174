@@ -5,7 +5,7 @@ import type {
   ReferenceMemory,
 } from "../../domain/records";
 import { buildFeedbackIdentityKey, isActiveMemoryLifecycle } from "../../domain/records";
-import type { SessionArchive } from "../../evolution/contracts";
+import type { SessionArchive } from "../../domain/evolutionRecords";
 import type { LanguageService } from "../../language";
 import { FEEDBACK_RECALL_LIMIT } from "../budgets";
 import type { RecallCandidateTrace } from "../engine";

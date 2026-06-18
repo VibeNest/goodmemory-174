@@ -15,7 +15,7 @@ import type {
   LearningProposal,
   PromotionRecord,
   SessionArchive,
-} from "../evolution/contracts";
+} from "../domain/evolutionRecords";
 import type { VectorRecord } from "./contracts";
 
 interface ProfileRepositoryPort {

@@ -10,7 +10,7 @@ import type {
 } from "../domain/records";
 import { isSameScope, type MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
-import type { SessionArchive } from "../evolution/contracts";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import type {
   RecallCandidateTrace,
   RecallHit,

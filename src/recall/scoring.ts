@@ -12,7 +12,7 @@ import { resolveMemoryLifecycle } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import type { SessionArchive } from "../evolution/contracts";
+import type { SessionArchive } from "../domain/evolutionRecords";
 import type { LanguageService } from "../language";
 import type { RecallVectorSearchPort } from "../storage/ports";
 import { factVerificationAdvisoryPenalty } from "../verify/policy";
