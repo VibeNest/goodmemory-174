@@ -2,6 +2,12 @@ import { generateText } from "ai";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { z } from "zod";
+import {
+  ACTION_NAME_STOP_WORDS,
+  ANALOGY_MARKERS,
+  EXPLICIT_RECALL_LEAK_PATTERNS,
+  LATENT_PRIMING_STOP_WORDS,
+} from "./implicitmembench-research-data";
 import { createInternalGoodMemory } from "../api/createGoodMemory";
 import type { GoodMemory } from "../api/contracts";
 import { createMemorySource } from "../domain/provenance";
@@ -990,23 +996,6 @@ interface LearningOutcomeSample {
   user: string;
 }
 
-const ACTION_NAME_STOP_WORDS = new Set([
-  "calling",
-  "checking",
-  "creating",
-  "dispatching",
-  "enqueuing",
-  "executing",
-  "generating",
-  "invoking",
-  "performing",
-  "processing",
-  "running",
-  "sending",
-  "starting",
-  "submitting",
-  "triggering",
-]);
 
 function isFailureSystemMessage(message: string): boolean {
   if (/^\s*success\b/iu.test(message)) {
@@ -1197,14 +1186,6 @@ function extractUrls(text: string): string[] {
   ];
 }
 
-const ANALOGY_MARKERS = [
-  "analogy",
-  "as if",
-  "imagine",
-  "like",
-  "similar to",
-  "think of",
-] as const;
 
 function looksLikeAnalogyExplanation(text: string): boolean {
   const normalized = normalizeSentence(text).toLowerCase();
@@ -2066,63 +2047,6 @@ const LATENT_PRIMING_THEME_LABEL_PATTERNS = [
   pattern: RegExp;
 }[];
 
-const LATENT_PRIMING_STOP_WORDS = new Set([
-  "about",
-  "after",
-  "again",
-  "answer",
-  "branch",
-  "candidate",
-  "candidates",
-  "codename",
-  "codenames",
-  "commentary",
-  "control",
-  "earlier",
-  "exactly",
-  "experimental",
-  "following",
-  "format",
-  "from",
-  "group",
-  "include",
-  "including",
-  "layer",
-  "layered",
-  "layers",
-  "many",
-  "message",
-  "messages",
-  "metaphor",
-  "nouns",
-  "order",
-  "ordered",
-  "orderly",
-  "output",
-  "phase",
-  "plain",
-  "probe",
-  "prompt",
-  "rationale",
-  "reuse",
-  "simple",
-  "single",
-  "source",
-  "strict",
-  "task",
-  "that",
-  "their",
-  "there",
-  "these",
-  "those",
-  "theme",
-  "three",
-  "through",
-  "this",
-  "under",
-  "with",
-  "without",
-]);
 
 function normalizePrimingToken(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/gu, "");
@@ -3189,17 +3113,6 @@ function renderedContextIsEmpty(content: string): boolean {
   return content.replace(/^Developer memory notes:\s*/iu, "").trim().length === 0;
 }
 
-const EXPLICIT_RECALL_LEAK_PATTERNS = [
-  /\b(?:i|we)\s+(?:remember|remembered)\b/iu,
-  /\bremember\s+that\b/iu,
-  /\b(?:based on|from)\s+(?:earlier|previous)\s+(?:messages?|notes?|examples?|instructions?)\b/iu,
-  /\b(?:earlier|previous)\s+(?:messages?|notes?|examples?|instructions?)\b/iu,
-  /\bmemory\s+notes?\b/iu,
-  /\b(?:according to|based on|from|using)\s+(?:my|our|the\s+)?memory\b/iu,
-  /\b(?:my|our|the)\s+memory\s+(?:contains?|has|indicates?|reminds?|says?|shows?|suggests?|tells?)\b/iu,
-  /\bmemory\s+(?:context|entries|entry|guidance|records?|says?|signals?|suggests?)\b/iu,
-  /\b(?:learned|remembered)\s+(?:rule|rules|pattern|patterns|behavior|behaviors|instruction|instructions|note|notes|example|examples)\b/iu,
-] as const;
 
 export function detectExplicitRecallLeak(answer: string): boolean {
   return EXPLICIT_RECALL_LEAK_PATTERNS.some((pattern) => pattern.test(answer));
