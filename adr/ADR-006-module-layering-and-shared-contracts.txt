@@ -1,0 +1,82 @@
+ADR-006: Module Layering and Shared Contracts
+=============================================
+
+Status
+------
+Accepted (2026-06-17)
+
+Context
+-------
+A dependency review found the layering largely sound (domain/ is a true leaf;
+storage does not reach up into recall/remember/api; the read/write split holds)
+but eroded in two ways:
+
+1. Production depended on the eval harness. src/provider/layer.ts imported
+   src/eval/{answer-generator,judge-model,judge,runners}, while
+   src/eval/{suite,reporting,...} imported src/provider/layer — a provider<->eval
+   directory cycle. Because api/ and install/ import provider/layer, importing
+   the production surface dragged the entire eval harness into the dependency
+   closure (and the bundle).
+
+2. Several directory cycles came from a lower/support layer importing a TYPE
+   that lived in a higher layer. The shared type belonged in a neutral leaf.
+
+tests/unit/architecture.boundaries.test.ts already enforces the most important
+rules (core contracts and core behavior may not import api/eval/provider/llm or
+storage implementations) but did not forbid provider->eval, nor the support-layer
+back-edges below.
+
+Decision
+--------
+1. provider/ must not import eval/. Eval-serving glue that constructs eval
+   harness components (createProviderTextGenerator / createProviderJudgeModel)
+   moved to src/eval/provider-harness.ts. The dependency direction is now one-way
+   (eval -> provider). Locked by an architecture-test guard.
+
+2. Shared contracts live in domain/ (the leaf), not in a feature layer. Types
+   needed by both a low/support layer and the layer that owns the behavior are
+   relocated into domain/ and re-exported from their original module for
+   backward compatibility:
+   - domain/memoryCandidate.ts  (MemoryCandidate + extraction type cluster),
+     re-exported by remember/candidates.ts. Removes language->remember and
+     policy->remember back-edges.
+   - domain/hostTypes.ts        (HostKind, HostActionDecision), re-exported by
+     host/contracts.ts. Removes the api->host back-edge.
+
+3. Guards. architecture.boundaries.test.ts now asserts provider ↛ eval and the
+   support-layer boundaries (language/policy ↛ remember, api ↛ host).
+
+Deferred
+--------
+The evolution<->{storage,recall,runtime} cycles are NOT pure type-only edges and
+are intentionally left for a dedicated, dataset-aware session:
+  - storage/repositories.ts constructs evolution records via the create* factory
+    functions (a runtime value dependency), not just the record types.
+  - recall/contextBuilder.ts imports the runtime function
+    isSteeringOnlyBehavioralPolicy from evolution/behavioralPolicy.
+  - runtime/public.ts imports the SESSION_ARCHIVES_COLLECTION constant.
+Relocating only the record interfaces to domain/ would not break these edges, so
+breaking them requires real decoupling (moving constructors/constants or
+inverting the dependency) and touches hot recall files. These cycles are
+type+value back-references that the runtime tolerates today (no initialization
+hazard observed); severity is low, so the work is sequenced after the
+benchmark-closure effort that is actively editing recall/.
+
+Consequences
+------------
++ Importing the production api/install surface no longer pulls the eval harness
+  into the dependency closure or the published bundle.
++ Four directory cycles removed (provider<->eval, language<->remember,
+  policy<->remember, api<->host); the remaining three are documented with a
+  concrete decoupling plan.
++ domain/ remains the single home for cross-layer contracts, reinforced by tests.
+- Two contract clusters now live in domain/ and are re-exported elsewhere;
+  readers must follow the re-export to the definition (acceptable; the
+  re-export keeps call sites stable).
+
+Related
+-------
+- tests/unit/architecture.boundaries.test.ts
+- src/eval/provider-harness.ts, src/provider/layer.ts
+- src/domain/memoryCandidate.ts, src/domain/hostTypes.ts
+- ADR-002 (public API), ADR-005 (scenario-fitted recall boundary)
