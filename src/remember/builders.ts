@@ -1,5 +1,4 @@
 import {
-  createEpisodeMemory,
   createFactMemory,
   createFeedbackMemory,
   createPreferenceMemory,
@@ -8,7 +7,6 @@ import {
   isActiveMemoryLifecycle,
 } from "../domain/records";
 import type {
-  EpisodeMemory,
   FactMemory,
   FeedbackMemory,
   PreferenceMemory,
