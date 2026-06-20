@@ -94,12 +94,6 @@ export type BehavioralPolicyComputedResponseRule =
   | BehavioralPolicyComputedBinaryOperatorRule
   | BehavioralPolicyComputedRecurrenceRule;
 
-export type TextResponseEnactmentOperationKind =
-  | "rewrite_output_slot"
-  | "require_warning"
-  | "block_surface"
-  | "require_precondition_check";
-
 export interface TextResponseRewriteOutputSlotOperation {
   computedResponseRule?: BehavioralPolicyComputedResponseRule;
   exactFragments?: BehavioralPolicyFragments;
