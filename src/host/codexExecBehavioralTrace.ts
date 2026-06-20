@@ -82,10 +82,6 @@ interface CodexWarningTraceActionCandidate {
   turnId?: string;
 }
 
-type CodexTraceActionCandidate =
-  | CodexCommandTraceActionCandidate
-  | CodexWarningTraceActionCandidate;
-
 export interface BuildCodexBehavioralTraceInput {
   cue: string;
   parseCommandAction: (command: string) => BehavioralFirstAction | undefined;
