@@ -133,16 +133,6 @@ function freezeArtifactTypes(
   return Object.freeze([...artifactTypes]);
 }
 
-function slugifySegment(value: string): string {
-  const ascii = value.normalize("NFKD").replace(/[^\x00-\x7F]/g, "");
-  const slug = ascii
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug.length > 0 ? slug : "playbook";
-}
-
 function resolveHostArtifactType(input: {
   kind: HostArtifact["kind"];
   relativePath: string;
