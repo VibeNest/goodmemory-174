@@ -44,7 +44,7 @@ export function buildRememberEventTrace(
   };
 }
 
-export function scoreCandidate(candidate: MemoryCandidate): number {
+function scoreCandidate(candidate: MemoryCandidate): number {
   if (candidate.kindHint === "noise") {
     return 0;
   }
@@ -72,7 +72,7 @@ export function scoreCandidate(candidate: MemoryCandidate): number {
   return 0.4;
 }
 
-export function hasValidCandidatePayload(candidate: MemoryCandidate): boolean {
+function hasValidCandidatePayload(candidate: MemoryCandidate): boolean {
   const trimmedContent = candidate.content.trim();
 
   if (candidate.kindHint === "profile") {
