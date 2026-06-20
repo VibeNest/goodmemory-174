@@ -16,7 +16,6 @@ import {
 } from "./run-phase-62-shared";
 import type { Phase62CliOptions } from "./run-phase-62-shared";
 import {
-  LONGMEMEVAL_PROFILES,
   normalizeLongMemEvalProfileList,
 } from "../src/eval/longmemeval";
 import type {
