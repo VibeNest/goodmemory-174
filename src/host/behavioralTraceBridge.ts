@@ -12,7 +12,7 @@ import {
   type HostBehavioralTraceEvent,
 } from "./behavioralTrace";
 
-export interface RecordBehavioralTraceInput {
+interface RecordBehavioralTraceInput {
   memory: GoodMemory;
   scope: MemoryScope;
   trace: HostBehavioralTrace;

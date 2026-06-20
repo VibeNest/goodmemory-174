@@ -1,18 +1,18 @@
 import { chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 
-export interface ManagedMarker {
+interface ManagedMarker {
   end: string;
   start: string;
 }
 
-export interface ManagedWriteFileChange {
+interface ManagedWriteFileChange {
   action: "created" | "unchanged" | "updated";
   path: string;
   relativePath: string;
 }
 
-export interface ManagedFileChange {
+interface ManagedFileChange {
   action: "created" | "deleted" | "unchanged" | "updated";
   path: string;
   relativePath: string;

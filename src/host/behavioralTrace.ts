@@ -8,7 +8,7 @@ export type HostBehavioralOutcome =
   | "timeout"
   | "user_corrected";
 
-export type HostBehavioralOutcomeSource = "host_lifecycle" | "warning_message";
+type HostBehavioralOutcomeSource = "host_lifecycle" | "warning_message";
 
 export interface HostBehavioralTraceEvent {
   actionKind: HostBehavioralActionKind;
