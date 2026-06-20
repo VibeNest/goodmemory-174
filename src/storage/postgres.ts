@@ -898,10 +898,3 @@ export async function canBootstrapPostgresStorageBackend(
   await ensureStorageBackend(config);
   return true;
 }
-
-export async function canUsePostgresVectorExtension(
-  config: PostgresStorageConfig,
-): Promise<boolean> {
-  const status = await getPostgresVectorExtensionStatus(config);
-  return status !== "missing";
-}
