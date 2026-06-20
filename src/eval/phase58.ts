@@ -242,15 +242,3 @@ export function judgePhase58TextCase(input: {
     caseDefinition: input.caseDefinition,
   });
 }
-
-export interface Phase58Judges {
-  judgePrimingPair: (input: {
-    caseDefinition: PrimingImplicitMemBenchCase;
-    controlAnswer: string;
-    experimentalAnswer: string;
-  }) => Promise<{ influenceScore: number; reason: string }>;
-  judgeTextBehavior: (input: {
-    answer: string;
-    caseDefinition: TextImplicitMemBenchCase;
-  }) => Promise<{ passed: boolean; reason: string }>;
-}
