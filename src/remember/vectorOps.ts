@@ -5,7 +5,6 @@ import {
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { RememberVectorPort } from "../storage/ports";
 import type {
-  PendingVectorDelete,
   RememberWriteState,
   RollbackAction,
 } from "./contracts";

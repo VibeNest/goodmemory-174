@@ -1,8 +1,5 @@
 import { buildEpisodeEmbeddingWrite } from "../embedding/vectorWrites";
-import {
-  createLanguageService,
-  type LanguageService,
-} from "../language";
+import { createLanguageService } from "../language";
 import type { PolicyContext } from "../policy/hooks";
 import { createDeterministicMemoryExtractor } from "./deterministicExtractor";
 import { maybeBuildEpisode } from "./episodes";

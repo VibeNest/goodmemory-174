@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import type {
   BuildContextResult,
   GoodMemory,
-  RecallInput,
   RecallResult,
   RememberInput,
 } from "../api/contracts";
