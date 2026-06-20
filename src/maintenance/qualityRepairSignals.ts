@@ -40,11 +40,6 @@ const QUALITY_REPAIR_SOURCE_VALUES = new Set([
   "quality_failure_sample",
   "quality_repair_guardrail",
 ]);
-const QUALITY_DEMOTIVE_FAILURE_LABELS = new Set<MemoryQualityFailureLabel>([
-  "over_remembering",
-  "wrong_recall",
-  "noisy_procedural_memory",
-]);
 const QUALITY_DEMOTIVE_REVIEW_OUTCOMES = new Set<MemoryQualityReviewOutcome>([
   "false_write",
   "rejected_as_unsafe_or_noisy",
@@ -150,10 +145,4 @@ export function readMemoryQualityReplacementMemoryId(
     "memoryQualityReplacementMemoryId",
   )?.trim();
   return replacementId && replacementId.length > 0 ? replacementId : null;
-}
-
-export function isDemotiveMemoryQualityFailureLabel(
-  label: MemoryQualityFailureLabel,
-): boolean {
-  return QUALITY_DEMOTIVE_FAILURE_LABELS.has(label);
 }
