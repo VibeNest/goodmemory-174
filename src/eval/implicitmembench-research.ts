@@ -7,7 +7,9 @@ import {
   ANALOGY_MARKERS,
   EXPLICIT_RECALL_LEAK_PATTERNS,
   LATENT_PRIMING_STOP_WORDS,
+  SAFE_PRIMING_CANDIDATES,
 } from "./implicitmembench-research-data";
+import type { SafePrimingCandidate } from "./implicitmembench-research-data";
 import { createInternalGoodMemory } from "../api/createGoodMemory";
 import type { GoodMemory } from "../api/contracts";
 import { createMemorySource } from "../domain/provenance";
@@ -1932,7 +1934,7 @@ interface LatentPrimingInfluencePacket {
   sourceNounBlacklist: string[];
 }
 
-type LatentPrimingSemanticField =
+export type LatentPrimingSemanticField =
   | "abyssal_depth"
   | "alchemy_transformation"
   | "arctic_survival"
@@ -2439,204 +2441,6 @@ function strictJsonPrimingProbe(prompt: string): boolean {
   const lowerPrompt = prompt.toLowerCase();
   return lowerPrompt.includes("strict json") && lowerPrompt.includes("candidates");
 }
-
-interface SafePrimingCandidate {
-  codename: string;
-  rationale: string;
-}
-
-const SAFE_PRIMING_CANDIDATES = {
-  abyssal_depth: [
-    {
-      codename: "Keel",
-      rationale:
-        "Suggests steady bearing, trimming excess while holding course through long unsettled passages.",
-    },
-    {
-      codename: "Ballast",
-      rationale:
-        "Conveys deliberate settling, packing weight efficiently so motion stays measured and unhurried.",
-    },
-    {
-      codename: "Caisson",
-      rationale:
-        "Implies compact strength beneath surfaces, supporting immense load with disciplined economical design.",
-    },
-  ],
-  alchemy_transformation: [
-    {
-      codename: "Athanor",
-      rationale:
-        "Steady heat compresses scattered substance, leaving a cleaner, rarer form.",
-    },
-    {
-      codename: "Cinnabar",
-      rationale:
-        "A dark mineral brightens by stages, turning disorder into concentrated value.",
-    },
-    {
-      codename: "Nigredo",
-      rationale:
-        "Initial darkness becomes useful order after pressure and disciplined craft.",
-    },
-  ],
-  arctic_survival: [
-    {
-      codename: "Rimehold",
-      rationale:
-        "It suggests severe conditions condensed into a resilient, sheltered core.",
-    },
-    {
-      codename: "Borealkeep",
-      rationale:
-        "It evokes pale distance narrowed by discipline, warmth, and forward resolve.",
-    },
-    {
-      codename: "Whiteout",
-      rationale:
-        "It frames confusion becoming sparse guidance across a hard blank field.",
-    },
-  ],
-  cathedral_structure: [
-    {
-      codename: "Clerestory",
-      rationale:
-        "It suggests uplifted structure channeling scattered light into a unified span.",
-    },
-    {
-      codename: "Buttress",
-      rationale:
-        "It evokes quiet support, holding great weight while leaving graceful openness.",
-    },
-    {
-      codename: "Reliquary",
-      rationale:
-        "It frames precious fragments gathered into a reverent, durable enclosure.",
-    },
-  ],
-  espionage_intrigue: [
-    {
-      codename: "Deadrop",
-      rationale:
-        "It suggests discreet transfer, hiding dense value inside an ordinary exchange.",
-    },
-    {
-      codename: "Tradecraft",
-      rationale:
-        "It evokes careful misdirection, where every small move carries concealed intent.",
-    },
-    {
-      codename: "Coverline",
-      rationale:
-        "It frames secrecy as a narrow path that keeps essentials protected.",
-    },
-  ],
-  jazz_improvisation: [
-    {
-      codename: "Backbeat",
-      rationale:
-        "It suggests lively timing, tightening fragments into a responsive shared pulse.",
-    },
-    {
-      codename: "Bluebreak",
-      rationale:
-        "It evokes expressive variation, bending spare material into memorable motion.",
-    },
-    {
-      codename: "Riffline",
-      rationale:
-        "It frames compact invention as a quick phrase that invites reply.",
-    },
-  ],
-  mycelium_network: [
-    {
-      codename: "Rhizome",
-      rationale:
-        "It suggests quiet linkage, distributing small resources through an unseen living grid.",
-    },
-    {
-      codename: "Underweave",
-      rationale:
-        "It evokes hidden connectivity, drawing scattered pieces into mutual support.",
-    },
-    {
-      codename: "Symbiote",
-      rationale:
-        "It frames compact growth as cooperation spreading through subtle channels.",
-    },
-  ],
-  neutral: [
-    {
-      codename: "Ledgerline",
-      rationale:
-        "It suggests careful tracking where scattered readings stay clear, compact, and comparable.",
-    },
-    {
-      codename: "Gridmark",
-      rationale:
-        "It evokes measured placement, turning dispersed pieces into a tidy visible pattern.",
-    },
-    {
-      codename: "Plainstack",
-      rationale:
-        "It frames useful reduction as clean layers arranged for quick inspection.",
-    },
-  ],
-  oracle_prophecy: [
-    {
-      codename: "Portentline",
-      rationale:
-        "It suggests tomorrow arriving as a quiet sign gathered before choices harden.",
-    },
-    {
-      codename: "Augurglass",
-      rationale:
-        "It evokes uncertain futures clarifying through restraint, patience, and careful interpretation.",
-    },
-    {
-      codename: "Vowcast",
-      rationale:
-        "It frames hidden consequence as a solemn signal drawn into one name.",
-    },
-  ],
-  orbital_motion: [
-    {
-      codename: "Barycenter",
-      rationale:
-        "Shared tension gathers scattered mass, keeping compact motion near a steady center.",
-    },
-    {
-      codename: "Libration",
-      rationale:
-        "A slight wobble becomes disciplined recurrence, conserving effort through balanced return.",
-    },
-    {
-      codename: "Apsis",
-      rationale:
-        "A far swing tightens at the edge, saving energy through curved timing.",
-    },
-  ],
-  volcanic_release: [
-    {
-      codename: "Caldera",
-      rationale:
-        "It suggests a stored surge narrowing into a smaller, forceful shape.",
-    },
-    {
-      codename: "Cinderloom",
-      rationale:
-        "It evokes glowing fragments woven tightly, preserving spark while reducing scattered motion.",
-    },
-    {
-      codename: "Mantlelock",
-      rationale:
-        "It frames dense material settling inward before a decisive outward pulse.",
-    },
-  ],
-} as const satisfies Record<
-  LatentPrimingSemanticField,
-  readonly SafePrimingCandidate[]
->;
 
 function primingCandidateText(candidate: SafePrimingCandidate): string {
   return `${candidate.codename} ${candidate.rationale}`;
