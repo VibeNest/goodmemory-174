@@ -36,15 +36,6 @@ export async function readInstalledHostRuntimeConfig(
   return parseInstalledHostRuntimeConfig(parsed, host);
 }
 
-export async function readInstalledHostDebug(
-  host: InstalledHostKind,
-  homeRoot: string | undefined,
-  dependencies: InstalledHostRuntimeConfigDependencies,
-): Promise<boolean> {
-  const config = await readInstalledHostRuntimeConfig(host, homeRoot, dependencies);
-  return config.status === "ok" ? config.config.debug : false;
-}
-
 export async function readWorkspaceHostOptInConfig(
   host: InstalledHostKind,
   workspaceRoot: string,
