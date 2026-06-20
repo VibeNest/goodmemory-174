@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { GoodMemory, RecallResult } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import type { MessageAnnotation } from "../remember/candidates";
+import { NUMBER_TOKEN_PATTERN, NUMBER_WORD_VALUES } from "./longmemeval-data";
 
 export const LONGMEMEVAL_PROFILES = [
   "baseline-no-memory",
@@ -382,45 +383,6 @@ function normalizeAnswer(value: string): string {
     .replace(/\s+/g, " ")
     .replace(/[.。]+$/g, "");
 }
-
-const NUMBER_WORD_VALUES = {
-  eight: 8,
-  eighteen: 18,
-  eighty: 80,
-  eleven: 11,
-  fifteen: 15,
-  fifty: 50,
-  five: 5,
-  forty: 40,
-  four: 4,
-  fourteen: 14,
-  nine: 9,
-  nineteen: 19,
-  ninety: 90,
-  one: 1,
-  seven: 7,
-  seventeen: 17,
-  seventy: 70,
-  six: 6,
-  sixteen: 16,
-  sixty: 60,
-  ten: 10,
-  thirteen: 13,
-  thirty: 30,
-  three: 3,
-  twelve: 12,
-  twenty: 20,
-  two: 2,
-  zero: 0,
-} as const;
-
-const NUMBER_WORD_PATTERN =
-  "ninety(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|eighty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|seventy(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|sixty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|fifty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|forty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|thirty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|twenty(?:[-\\s]+(?:one|two|three|four|five|six|seven|eight|nine))?|nineteen|eighteen|seventeen|sixteen|fifteen|fourteen|thirteen|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one|zero";
-
-const NUMBER_TOKEN_PATTERN = new RegExp(
-  `\\b(?:\\d+(?:\\.\\d+)?|${NUMBER_WORD_PATTERN})\\b`,
-  "giu",
-);
 
 function parseNumberToken(token: string): number | null {
   if (/^\d+(?:\.\d+)?$/u.test(token)) {
