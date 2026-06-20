@@ -1,12 +1,12 @@
-import type {
-  ImplicitMemBenchCaseResult,
-  ImplicitMemBenchResearchCase,
-  ImplicitMemBenchResearchMode,
-  ImplicitMemBenchResearchProfile,
-  ImplicitMemBenchResearchReport,
-  PrimingImplicitMemBenchCase,
+import {
+  type ImplicitMemBenchCaseResult,
+  type ImplicitMemBenchResearchCase,
+  type ImplicitMemBenchResearchMode,
+  type ImplicitMemBenchResearchProfile,
+  type ImplicitMemBenchResearchReport,
+  type PrimingImplicitMemBenchCase,
+  detectExplicitRecallLeak,
 } from "./implicitmembench-research";
-import { detectExplicitRecallLeak } from "./implicitmembench-research";
 
 export type Phase60OverallProfile =
   | ImplicitMemBenchResearchProfile

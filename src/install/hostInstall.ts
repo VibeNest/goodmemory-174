@@ -22,15 +22,13 @@ import {
   readPositiveInteger,
   readContextMode,
   readRetrievalProfile,
-} from "./hostConfigValidation";
-import type {
-  InstalledHostActivationMode,
-  InstalledHostContextMode,
-  InstalledHostEmbeddingProviderConfig,
-  InstalledHostModelProviderConfig,
-  InstalledHostProviderConfig,
-  InstalledHostWritebackConfig,
-  InstalledHostWritebackMode,
+  type InstalledHostActivationMode,
+  type InstalledHostContextMode,
+  type InstalledHostEmbeddingProviderConfig,
+  type InstalledHostModelProviderConfig,
+  type InstalledHostProviderConfig,
+  type InstalledHostWritebackConfig,
+  type InstalledHostWritebackMode,
 } from "./hostConfigValidation";
 import {
   registerInstalledHostMcp,

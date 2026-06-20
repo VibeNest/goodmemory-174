@@ -7,10 +7,8 @@ import {
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
-} from "./hostExecutionContext";
-import type {
-  InstalledHostContextDependencies,
-  InstalledHostResolvedContext,
+  type InstalledHostContextDependencies,
+  type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import { evaluateInstalledHostPreToolUse } from "./hostActionRuntime";
@@ -20,8 +18,10 @@ import {
   writeInstalledHostProgressiveRecordCache,
 } from "./hostProgressiveRecall";
 import { recordInstalledHostWritebackRecallHits } from "./hostWritebackAuditRuntime";
-import { executeInstalledHostWriteback } from "./hostWritebackRuntime";
-import type { InstalledHostWritebackResult } from "./hostWritebackRuntime";
+import {
+  executeInstalledHostWriteback,
+  type InstalledHostWritebackResult,
+} from "./hostWritebackRuntime";
 import { parseGoodMemoryRecordRef } from "../progressive/recall";
 
 export type InstalledHostHookCommand =

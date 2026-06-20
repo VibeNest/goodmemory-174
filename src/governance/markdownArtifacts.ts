@@ -1,15 +1,15 @@
-import type {
-  ArtifactSpillRecord,
-  EpisodeMemory,
-  FactMemory,
-  FeedbackMemory,
-  PreferenceMemory,
-  ReferenceMemory,
-  SessionJournal,
-  UserProfile,
-  WorkingMemorySnapshot,
+import {
+  type ArtifactSpillRecord,
+  type EpisodeMemory,
+  type FactMemory,
+  type FeedbackMemory,
+  type PreferenceMemory,
+  type ReferenceMemory,
+  type SessionJournal,
+  type UserProfile,
+  type WorkingMemorySnapshot,
+  resolveMemoryLifecycle,
 } from "../domain/records";
-import { resolveMemoryLifecycle } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { EvidenceRecord } from "../evidence/contracts";
 import type {

@@ -8,11 +8,12 @@ import type {
   GoodMemoryConfig,
   RecallResult,
 } from "../api/contracts";
-import type { MemoryScope } from "../domain/scope";
-import { scopeToKey } from "../domain/scope";
+import { scopeToKey, type MemoryScope } from "../domain/scope";
 import { createHostAdapter } from "../host";
-import type { ProgressiveRecallService } from "../progressive/recall";
-import { parseGoodMemoryRecordRef } from "../progressive/recall";
+import {
+  parseGoodMemoryRecordRef,
+  type ProgressiveRecallService,
+} from "../progressive/recall";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,

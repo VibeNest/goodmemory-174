@@ -20,8 +20,8 @@ import {
   readInstalledHostWritebackLedger,
   withInstalledHostWritebackLedgerLock,
   writeInstalledHostWritebackLedger,
+  type InstalledHostWritebackLinkedRecordId,
 } from "./hostWritebackAuditLedger";
-import type { InstalledHostWritebackLinkedRecordId } from "./hostWritebackAuditLedger";
 import {
   isRecord,
   normalizeText,

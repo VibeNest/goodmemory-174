@@ -1,8 +1,3 @@
-import type {
-  GenerateTextOnFinishCallback,
-  StreamTextOnFinishCallback,
-  ToolSet,
-} from "ai";
 import type { ModelMessage, SystemModelMessage } from "@ai-sdk/provider-utils";
 
 import type { GoodMemory } from "../api/contracts";
@@ -17,7 +12,13 @@ import type {
   AgentInputEvent,
 } from "../agentEvents";
 
-import { generateText, streamText } from "ai";
+import {
+  generateText,
+  streamText,
+  type GenerateTextOnFinishCallback,
+  type StreamTextOnFinishCallback,
+  type ToolSet,
+} from "ai";
 
 const DEFAULT_GENERATE_TEXT = generateText;
 const DEFAULT_STREAM_TEXT = streamText;

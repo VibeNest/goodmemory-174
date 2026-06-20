@@ -20,12 +20,10 @@ import {
   createHostAdapter,
   ingestHostAgentEvent,
   resolveHostActionExecutionPlan,
-} from "../host";
-import type {
-  HostActionIntent,
-  HostAdapter,
-  HostPlannedAction,
-  HostRecommendedFirstStep,
+  type HostActionIntent,
+  type HostAdapter,
+  type HostPlannedAction,
+  type HostRecommendedFirstStep,
 } from "../host";
 import {
   isRecord,
@@ -35,10 +33,8 @@ import {
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
-} from "./hostExecutionContext";
-import type {
-  InstalledHostContextDependencies,
-  InstalledHostResolvedContext,
+  type InstalledHostContextDependencies,
+  type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 

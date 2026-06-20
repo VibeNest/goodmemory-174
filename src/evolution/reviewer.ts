@@ -1,9 +1,9 @@
-import type {
-  FactMemory,
-  FeedbackMemory,
-  FeedbackKind,
+import {
+  type FactMemory,
+  type FeedbackMemory,
+  type FeedbackKind,
+  normalizeFeedbackAppliesTo,
 } from "../domain/records";
-import { normalizeFeedbackAppliesTo } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { EvolutionRepositoryPort } from "../storage/ports";
 import {
@@ -28,8 +28,8 @@ import {
 import {
   buildAgentEventCorrectionGroupKey,
   readAgentEventCorrectionMetadata,
+  type AgentEventCorrectionMetadata,
 } from "./feedbackCorrections";
-import type { AgentEventCorrectionMetadata } from "./feedbackCorrections";
 import {
   refreshDelayedProposal,
   sameProposalContent,

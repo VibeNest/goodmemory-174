@@ -19,11 +19,11 @@ import type {
   JudgedEvalCase,
   PersistedEvalMode,
 } from "./contracts";
-import type {
-  JudgeModel,
-  JudgeResult,
+import {
+  type JudgeModel,
+  type JudgeResult,
+  runJudgeComparison,
 } from "./judge";
-import { runJudgeComparison } from "./judge";
 import {
   aggregateJudgedCases,
   persistEvalArtifacts,
@@ -38,12 +38,10 @@ import {
   type EvalAnswerGenerator,
 } from "./runners";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
-import type {
-  MaintenanceStrategyRolloutConfig,
-  RetrievalStrategyRolloutConfig,
-  StrategyRolloutConfig,
-} from "./strategy-rollout";
 import {
+  type MaintenanceStrategyRolloutConfig,
+  type RetrievalStrategyRolloutConfig,
+  type StrategyRolloutConfig,
   buildRetrievalStrategyRolloutConfig,
   buildStrategyRolloutMetadata,
   normalizeStrategyRolloutMetadata,

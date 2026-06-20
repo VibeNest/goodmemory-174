@@ -1,7 +1,5 @@
-import type {
-  BehavioralPolicyComputedResponseRule,
-} from "./behavioralPolicy";
 import {
+  type BehavioralPolicyComputedResponseRule,
   evaluateComputedResponseRule,
   extractComputedResponseRule,
   recoverCanonicalActionFromTemplate,

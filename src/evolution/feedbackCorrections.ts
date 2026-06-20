@@ -1,5 +1,4 @@
-import type { FeedbackKind } from "../domain/records";
-import { normalizeFeedbackAppliesTo } from "../domain/records";
+import { type FeedbackKind, normalizeFeedbackAppliesTo } from "../domain/records";
 import type { ExperienceRecord } from "./contracts";
 
 const AGENT_EVENT_FEEDBACK_ORIGIN = "agent_event";

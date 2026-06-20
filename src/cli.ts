@@ -9,21 +9,20 @@ import type {
   RecallInput,
   RecallResult,
 } from "./api/contracts";
-import { bootstrapHostWorkspace } from "./bootstrap/hostBootstrap";
-import type { BootstrapHostKind } from "./bootstrap/hostBootstrap";
-import { normalizeScope } from "./domain/scope";
-import type { MemoryScope } from "./domain/scope";
+import {
+  bootstrapHostWorkspace,
+  type BootstrapHostKind,
+} from "./bootstrap/hostBootstrap";
+import { normalizeScope, type MemoryScope } from "./domain/scope";
 import {
   disableHostWorkspace,
   enableHostWorkspace,
   installHost,
   uninstallHost,
-} from "./install/hostInstall";
-import type {
-  InstalledHostFileChange,
-  InstallHostResult,
-  InstalledHostKind,
-  InstalledHostStorageProvider,
+  type InstalledHostFileChange,
+  type InstallHostResult,
+  type InstalledHostKind,
+  type InstalledHostStorageProvider,
 } from "./install/hostInstall";
 import {
   inspectInstalledHostHookRegistration,
@@ -34,34 +33,32 @@ import {
 } from "./install/hostHookConfig";
 import {
   executeInstalledHostHook,
+  type InstalledHostHookCommand,
 } from "./install/hostHookRuntime";
-import type { InstalledHostHookCommand } from "./install/hostHookRuntime";
 import { executeInstalledHostAction } from "./install/hostActionRuntime";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
+  type InstalledHostResolvedContext,
 } from "./install/hostExecutionContext";
-import type { InstalledHostResolvedContext } from "./install/hostExecutionContext";
 import {
   forgetInstalledHostWritebackAuditEvent,
   inspectInstalledHostWritebackAudit,
 } from "./install/hostWritebackAuditRuntime";
-import type {
-  InstalledHostActivationMode,
-  InstalledHostContextMode,
-  InstalledHostEmbeddingProviderConfig,
-  InstalledHostModelProviderConfig,
-  InstalledHostProviderConfig,
-  InstalledHostRuntimeConfig,
-  InstalledHostWritebackConfig,
-  InstalledHostWritebackMode,
-} from "./install/hostConfigValidation";
 import {
   DEFAULT_INSTALLED_HOST_ACTIVATION_MODE,
   DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
   DEFAULT_INSTALLED_HOST_WRITEBACK,
   readContextMode,
   readWritebackMode,
+  type InstalledHostActivationMode,
+  type InstalledHostContextMode,
+  type InstalledHostEmbeddingProviderConfig,
+  type InstalledHostModelProviderConfig,
+  type InstalledHostProviderConfig,
+  type InstalledHostRuntimeConfig,
+  type InstalledHostWritebackConfig,
+  type InstalledHostWritebackMode,
 } from "./install/hostConfigValidation";
 import {
   readInstalledHostRuntimeConfig,
@@ -69,9 +66,7 @@ import {
 } from "./install/hostRuntimeConfig";
 import {
   executeInstalledHostWriteback,
-} from "./install/hostWritebackRuntime";
-import type {
-  InstalledHostWritebackResult,
+  type InstalledHostWritebackResult,
 } from "./install/hostWritebackRuntime";
 import {
   inspectInstalledHostMcpRegistration,

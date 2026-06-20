@@ -9,10 +9,10 @@ import type {
   RecallRouterStrategy,
   RetrievalProfile,
 } from "../recall/router";
-import type {
-  RetrievalStrategyRolloutConfig,
+import {
+  assertRetrievalPromotionAuthorizationAllowsDefaultRollout,
+  type RetrievalStrategyRolloutConfig,
 } from "../governance/retrievalInternalRollout";
-import { assertRetrievalPromotionAuthorizationAllowsDefaultRollout } from "../governance/retrievalInternalRollout";
 
 interface InternalRetrievalRolloutState {
   assistedRecallRouterEnabled: boolean;

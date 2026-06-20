@@ -7,15 +7,15 @@ import {
   parseToolOutcomeMetadata,
   readCompiledGuidance,
 } from "./behavioralTelemetry";
-import { createPromotionRecord } from "./contracts";
 import { readAgentEventCorrectionMetadata } from "./feedbackCorrections";
-import type {
-  ExperienceRecord,
-  LearningProposal,
-  PromotionDecision,
-  PromotionGateOutcome,
-  PromotionRecord,
-  SessionArchive,
+import {
+  createPromotionRecord,
+  type ExperienceRecord,
+  type LearningProposal,
+  type PromotionDecision,
+  type PromotionGateOutcome,
+  type PromotionRecord,
+  type SessionArchive,
 } from "./contracts";
 
 export interface ProposalGateDecision {

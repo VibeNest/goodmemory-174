@@ -1,9 +1,5 @@
 import type { EpisodeMemory } from "../domain/records";
 import type {
-  TextResponseEnactmentOperation,
-  TextResponseEnactmentPlan,
-} from "./behavioralPolicy";
-import type {
   ExperienceRecord,
   SessionArchive,
 } from "./contracts";
@@ -12,6 +8,8 @@ import type {
   RecallHit,
 } from "../recall/engine";
 import {
+  type TextResponseEnactmentOperation,
+  type TextResponseEnactmentPlan,
   buildStructuredTextResponseControlLines,
   deriveRuleBehavioralPolicy,
   resolveTextResponseEnactmentPlanFromPolicies,

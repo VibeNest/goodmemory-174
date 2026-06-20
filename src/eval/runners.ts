@@ -23,19 +23,17 @@ import type {
   ScenarioTurn,
 } from "./dataset";
 import type { RecallRouterStrategy } from "../recall/router";
-import type {
-  MaintenanceStrategyLabel,
-  RetrievalStrategyRolloutConfig,
-  StrategyRolloutConfig,
-  ReviewerStrategyLabel,
-} from "./strategy-rollout";
-import type { MemoryExtractionStrategy } from "../remember/candidates";
-import type { RememberResult as PublicRememberResult } from "../remember/contracts";
 import {
+  type MaintenanceStrategyLabel,
+  type RetrievalStrategyRolloutConfig,
+  type StrategyRolloutConfig,
+  type ReviewerStrategyLabel,
   resolveMaintenanceStrategyRollout,
   resolveRetrievalStrategyRollout,
   resolveReviewerStrategyRollout,
 } from "./strategy-rollout";
+import type { MemoryExtractionStrategy } from "../remember/candidates";
+import type { RememberResult as PublicRememberResult } from "../remember/contracts";
 
 const DEFAULT_HYGIENE_MAINTENANCE_JOBS = [
   "dedupe",
