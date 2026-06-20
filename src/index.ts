@@ -10,7 +10,6 @@ import type {
   PreferenceMemory,
   ReferenceKind,
   ReferenceMemory,
-  SessionBuffer,
   SessionJournal,
   UserProfile,
   WorkingMemorySnapshot,
@@ -34,7 +33,6 @@ import type {
   PolicyContext,
   PolicyMemoryRecord,
 } from "./policy/hooks";
-import { ARTIFACT_SPILL_COLLECTION } from "./runtime/spillover";
 import {
   renderMemoryPacket,
   type MemoryPacket,
@@ -43,14 +41,10 @@ import type { RecallRouterStrategy } from "./recall/router";
 import type { MemoryExtractionStrategy } from "./remember/candidates";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
 import {
-  createLanguageService,
   type LanguageAdapter,
   type LanguageConfig,
   type LocaleDetector,
 } from "./language";
-import {
-  buildMarkdownArtifacts,
-} from "./governance/markdownArtifacts";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "./storage/memory";
 import {
   createPostgresDocumentStore,
