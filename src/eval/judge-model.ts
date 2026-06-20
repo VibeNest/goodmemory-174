@@ -6,9 +6,7 @@ import {
   resolveAISDKModel,
   withAISDKRetries,
 } from "../provider/ai-sdk-runtime";
-import type { AISDKRetryOptions } from "../provider/ai-sdk-runtime";
-import type { FetchLike } from "../provider/ai-sdk-runtime";
-import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
+import type { AISDKModelConfig, AISDKRetryOptions, FetchLike } from "../provider/ai-sdk-runtime";
 import type { JudgeModel } from "./judge";
 import { judgeResultSchema } from "./judge";
 

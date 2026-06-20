@@ -8,8 +8,8 @@ import type {
 import { createInstalledHostMemory } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import { resolveInstallRoot } from "./hostRuntimeConfig";
-import { buildProgressiveScopeDigest } from "../progressive/recall";
 import {
+  buildProgressiveScopeDigest,
   createProgressiveRecallService,
   type ProgressiveRecallService,
   type ProgressiveRecordDetail,
