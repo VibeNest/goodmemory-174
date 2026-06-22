@@ -358,7 +358,7 @@ export function buildPhase63BeamPrompt(input: {
   ].join("\n\n");
 }
 
-function createBeamAnswerGenerator(
+export function createBeamAnswerGenerator(
   requestTimeoutMs = resolvePhase63LiveRequestTimeoutMs(),
 ): Phase63BeamLiveAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
@@ -443,7 +443,7 @@ async function runLiveAnswerJudge(
   };
 }
 
-function createBeamAnswerJudge(
+export function createBeamAnswerJudge(
   requestTimeoutMs = resolvePhase63LiveRequestTimeoutMs(),
 ): Phase63BeamLiveAnswerJudge {
   const model = resolveLiveModelConfig("GOODMEMORY_JUDGE");
