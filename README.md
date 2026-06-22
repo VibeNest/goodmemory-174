@@ -46,8 +46,14 @@ the matching benchmark is completed and backed by a report.
 
 These rows are research and hardening evidence, not a final public leaderboard.
 The BEAM row reports rules-only retrieval recall (evidence-chat recall over the
-100K split), not end-to-end answer accuracy; its answer evaluation is not yet
-run. Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
+100K split). End-to-end live answer closure has now been run internally
+(`run-phase63-beam-100k-live-closure-gpt55-current`): 224 / 400 answer accuracy
+(0.56) with rules-only retrieval and a same-model semantic judge,
+`executionFailures: 0`. That is internal measured evidence, not a public
+benchmark claim — it rides on the fitted recall below and uses the answer model
+as its own judge, so the accepted README row stays retrieval-focused until
+answer-gap hardening and cross-benchmark evidence mature.
+Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
 recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
 and a `generalization` figure (all narrow gates disabled). The large gap means
 much of the fitted recall comes from scenario-fitted query classifiers tuned to
