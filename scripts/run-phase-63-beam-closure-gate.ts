@@ -29,6 +29,7 @@ export interface Phase63BeamClosureGateReport {
     correctCases: number;
     executionFailures: number;
     liveReportPath: string;
+    profile: string;
     recallDiagnosticRunId: string;
     recallReportPath: string;
     scale: string;
@@ -154,6 +155,7 @@ export async function runPhase63BeamClosureGate(
       correctCases: closureReport.summary.correctCases,
       executionFailures: closureReport.summary.executionFailures,
       liveReportPath: closureReport.liveReportPath,
+      profile: closureReport.profile,
       recallDiagnosticRunId: closureReport.summary.recallDiagnosticRunId,
       recallReportPath: closureReport.recallReportPath,
       scale: closureReport.summary.scale,

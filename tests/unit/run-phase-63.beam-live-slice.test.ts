@@ -131,6 +131,20 @@ describe("phase-63 BEAM live slice runner", () => {
     });
   });
 
+  it("accepts the hybrid live profile", () => {
+    expect(
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--profile",
+        "goodmemory-hybrid",
+      ]).profile,
+    ).toBe("goodmemory-hybrid");
+  });
+
   it("parses the --case-selection flag and rejects unknown selections", () => {
     expect(
       parsePhase63BeamLiveSliceCliOptions([

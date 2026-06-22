@@ -80,12 +80,16 @@ function parseProfile(value: string | undefined): BeamProfile | undefined {
     return undefined;
   }
   const profiles = normalizeBeamProfileList([value]);
-  if (profiles[0] !== "goodmemory-rules-only") {
+  if (!isPhase63BeamLiveClosureProfile(profiles[0])) {
     throw new Error(
-      "Phase 63 BEAM live closure currently supports --profile goodmemory-rules-only.",
+      "Phase 63 BEAM live closure currently supports --profile goodmemory-rules-only or goodmemory-hybrid.",
     );
   }
   return profiles[0];
+}
+
+function isPhase63BeamLiveClosureProfile(profile: BeamProfile): boolean {
+  return profile === "goodmemory-rules-only" || profile === "goodmemory-hybrid";
 }
 
 function parseScale(value: string | undefined): BeamCase["scale"] | undefined {
@@ -217,9 +221,9 @@ export async function runPhase63BeamLiveClosure(
   const profile = options.profile ?? "goodmemory-rules-only";
   const runId = options.runId ?? PHASE63_BEAM_LIVE_CLOSURE_RUN_ID;
   const scale = options.scale ?? "100K";
-  if (profile !== "goodmemory-rules-only") {
+  if (!isPhase63BeamLiveClosureProfile(profile)) {
     throw new Error(
-      "Phase 63 BEAM live closure currently supports goodmemory-rules-only only.",
+      "Phase 63 BEAM live closure currently supports goodmemory-rules-only or goodmemory-hybrid only.",
     );
   }
   if (scale !== "100K") {

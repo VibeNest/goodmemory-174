@@ -15,6 +15,7 @@ import type {
 import type {
   Phase63BeamLiveSliceReport,
 } from "../../scripts/run-phase-63-beam-live-slice";
+import type { BeamProfile } from "../../src/eval/beam";
 
 function buildBeamRows(): unknown[] {
   return [
@@ -86,7 +87,7 @@ function buildBeamRows(): unknown[] {
   ];
 }
 
-function buildRecallReport(): string {
+function buildRecallReport(profile: BeamProfile = "goodmemory-rules-only"): string {
   return JSON.stringify({
     benchmarkRoot: "/tmp/BEAM",
     generatedAt: "2026-06-15T20:00:00.000Z",
@@ -95,7 +96,7 @@ function buildRecallReport(): string {
     outputDir: "/tmp/out",
     phase: "phase-63",
     profiles: {
-      "goodmemory-rules-only": {
+      [profile]: {
         cases: [],
         summary: {
           evidenceChatRecall: 0.9,
@@ -112,14 +113,17 @@ function buildRecallReport(): string {
     summary: {
       caseCountsByQuestionType: {},
       executionFailures: 0,
-      profilesCompared: ["goodmemory-rules-only"],
+      profilesCompared: [profile],
       scale: "100K",
       totalCases: 3,
     },
   });
 }
 
-function buildLiveReport(totalCases = 3): Phase63BeamLiveSliceReport {
+function buildLiveReport(
+  totalCases = 3,
+  profile: BeamProfile = "goodmemory-rules-only",
+): Phase63BeamLiveSliceReport {
   return {
     benchmarkRoot: "/tmp/BEAM",
     cases: [],
@@ -128,7 +132,7 @@ function buildLiveReport(totalCases = 3): Phase63BeamLiveSliceReport {
     mode: "live-answer-slice",
     outputDir: "/tmp/out",
     phase: "phase-63",
-    profile: "goodmemory-rules-only",
+    profile,
     recallReportPath: "/tmp/recall.json",
     runDirectory: "/tmp/out/run-closure",
     runId: "run-closure",
@@ -144,7 +148,7 @@ function buildLiveReport(totalCases = 3): Phase63BeamLiveSliceReport {
       evidenceChatRecall: 0.9,
       executionFailures: 0,
       missedRecallCases: 1,
-      profilesCompared: ["goodmemory-rules-only"],
+      profilesCompared: [profile],
       scale: "100K",
       totalCases,
       wrongAnswerCases: totalCases - 2,
@@ -153,7 +157,9 @@ function buildLiveReport(totalCases = 3): Phase63BeamLiveSliceReport {
   };
 }
 
-function buildClosureReport(): Phase63BeamLiveClosureReport {
+function buildClosureReport(
+  profile: BeamProfile = "goodmemory-rules-only",
+): Phase63BeamLiveClosureReport {
   return {
     benchmarkRoot: "/tmp/BEAM",
     generatedAt: "2026-06-15T20:45:00.000Z",
@@ -162,7 +168,7 @@ function buildClosureReport(): Phase63BeamLiveClosureReport {
     mode: "live-answer-closure",
     outputDir: "/tmp/out",
     phase: "phase-63",
-    profile: "goodmemory-rules-only",
+    profile,
     recallReportPath: "/tmp/recall.json",
     runDirectory: "/tmp/out/run-closure",
     runId: "run-closure",
@@ -180,7 +186,7 @@ function buildClosureReport(): Phase63BeamLiveClosureReport {
       executionFailures: 0,
       expectedTotalCases: 3,
       missedRecallCases: 1,
-      profilesCompared: ["goodmemory-rules-only"],
+      profilesCompared: [profile],
       recallDiagnosticEvidenceChatRecall: 0.9,
       recallDiagnosticExecutionFailures: 0,
       recallDiagnosticRunId: "run-recall",
@@ -219,6 +225,22 @@ describe("phase-63 BEAM live closure runner", () => {
       runId: "run-closure",
       scale: "100K",
     });
+  });
+
+  it("accepts the hybrid live closure profile", () => {
+    expect(
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--recall-report",
+        "/tmp/recall.json",
+        "--profile",
+        "goodmemory-hybrid",
+      ]).profile,
+    ).toBe("goodmemory-hybrid");
   });
 
   it("wraps a full all-cases live answer run as closure evidence", async () => {
@@ -263,6 +285,37 @@ describe("phase-63 BEAM live closure runner", () => {
         `/tmp/out/run-closure/${PHASE63_BEAM_LIVE_CLOSURE_REPORT_FILE_NAME}`,
       ),
     ).toBe(true);
+  });
+
+  it("wraps a hybrid full live answer run as closure evidence", async () => {
+    const report = await runPhase63BeamLiveClosure(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-hybrid",
+        recallReportPath: "/tmp/recall-hybrid.json",
+        runId: "run-hybrid-closure",
+      },
+      {
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/tmp/recall-hybrid.json") {
+            return buildRecallReport("goodmemory-hybrid");
+          }
+          return JSON.stringify(buildBeamRows());
+        },
+        runLiveSlice: async (options) => {
+          const resolved = options ?? {};
+          expect(resolved.caseSelection).toBe("all-cases");
+          expect(resolved.profile).toBe("goodmemory-hybrid");
+          return buildLiveReport(3, "goodmemory-hybrid");
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.profile).toBe("goodmemory-hybrid");
+    expect(report.summary.profilesCompared).toEqual(["goodmemory-hybrid"]);
   });
 
   it("rejects partial live coverage", async () => {
@@ -321,6 +374,7 @@ describe("phase-63 BEAM closure gate", () => {
     ]);
     expect(result.status).toBe("accepted");
     expect(result.summary.closureRunId).toBe("run-closure");
+    expect(result.summary.profile).toBe("goodmemory-rules-only");
     expect(
       writes.has("/tmp/gates/run-gate/phase-63-beam-closure-gate.json"),
     ).toBe(true);
