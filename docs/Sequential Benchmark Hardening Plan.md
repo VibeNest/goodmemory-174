@@ -14,7 +14,7 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 ## Current State
 
 - Phase 62 LongMemEval is accepted as the first external-benchmark hardening slice.
-- Phase 63 BEAM is active and still partial.
+- Phase 63 BEAM has a first accepted rules-only live closure (measured answer accuracy 0.56 over all 400 100K cases, evidence-chat recall 0.9621, `executionFailures: 0`, gate accepted); it remains scenario-fitted and recall-limited, and recall/noise plus answer-quality hardening continues.
 - Current BEAM work is scoped to provider-free recall diagnostics, small live answer-generation/judge slices, and a prepared full live closure path before any public score.
 - MemoryAgentBench (Phase 64) and LoCoMo (Phase 65) adapters are brought up as retrieval-only smokes (deterministic, `executionFailures` 0) that mirror the BEAM recall-diagnostic seam; their live LLM answer/judge layers are deferred. No upstream MemoryAgentBench (MIT) or LoCoMo (CC BY-NC 4.0, non-commercial) data is vendored — real data flows only through the external-root convention.
 
@@ -24,6 +24,15 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 - Profile: `goodmemory-hybrid`
 - Result: 454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong answers 46, `executionFailures: 0`.
 - Boundary: accepted internal LongMemEval close evidence, not a README-level public benchmark claim.
+
+## Accepted Phase 63 BEAM Closure Checkpoint
+
+- Closure run: `run-phase63-beam-100k-live-closure-gpt55-current` (profile `goodmemory-rules-only`, scale 100K, all 400 cases).
+- Prerequisite recall diagnostic (zero-failure): `run-phase63-beam-100k-recall-diagnostic-rules-postmerge-current`, evidence-chat recall 0.9620612564274538, missed-recall 20/355, `executionFailures: 0`, 400 cases.
+- Gate: `run-phase63-beam-closure-gate-gpt55-current` — accepted (17/17 closure+slice unit tests).
+- Models: `gpt-5.5` answer generation + `gpt-5.5` semantic judge (OpenAI-compatible `ai.gurkiai.com`).
+- Result: 224/400 answer accuracy (0.56), evidence-chat recall 0.9620612564274538, missed-recall 20/355, wrong-answer 176/400, wrong-recall/noise 167/400, `executionFailures: 0`.
+- Boundary: first internal measured BEAM close evidence, NOT a public benchmark claim. The 0.56 rides on scenario-fitted recall (0.9621; the non-gated generalization floor is ~0.68), and the judge is the same model as the generator (`gpt-5.5`), so it carries self-evaluation bias. The gate accepts on full coverage plus zero execution failures, not a numeric score threshold. The answer-vs-recall gap (224 correct despite 0.96 evidence recall) is the next hardening frontier alongside recall/noise.
 
 ## Active Phase 63 Evidence
 
@@ -45,7 +54,7 @@ Phase 63 remains recall-limited and noisy. The next loop should stay narrow:
 
 Do not treat a focused green or one recovered row as BEAM closure.
 
-For BEAM closure, use the full live closure path only after the live eval and judge model environment is ready. The closure runner requires a full zero-failure recall diagnostic, runs live answer generation and semantic judging over every BEAM 100K case, writes the measured answer accuracy as evidence, and does not define a separate numeric pass threshold.
+For BEAM closure, use the full live closure path only after the live eval and judge model environment is ready. The closure runner supports `goodmemory-rules-only` and `goodmemory-hybrid`, requires a full zero-failure recall diagnostic for the same profile, runs live answer generation and semantic judging over every BEAM 100K case, writes the measured answer accuracy as evidence, and does not define a separate numeric pass threshold.
 
 ## Commands
 
@@ -53,10 +62,10 @@ For BEAM closure, use the full live closure path only after the live eval and ju
 bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw
 bun run eval:phase-63
 bun run gate:phase-63
-bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id <run-id>
+bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
-bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --limit 3 --run-id <run-id>
-bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --run-id <run-id>
+bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --limit 3 --run-id <run-id>
+bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 ```
 

@@ -8,9 +8,9 @@ Status
 
 - Active benchmark: BEAM 100K.
 - Current mode: internal recall/noise hardening.
-- Current outcome wording: partial progress, not BEAM closure.
+- Current outcome wording: first rules-only live closure measured + gated (answer accuracy 0.56); still scenario-fitted and recall-limited, hardening continues.
 - Current data root: `/private/tmp/BEAM`.
-- Closure path: prepared but not executed. `eval:phase-63-live-closure` requires ready live eval/judge model env and a full zero-failure recall diagnostic; `gate:phase-63-beam-closure` promotes the resulting closure report only after coverage/failure checks pass.
+- Closure path: first rules-only closure executed + gated (see Latest Accepted Closure). `eval:phase-63-live-closure` supports `goodmemory-rules-only` and `goodmemory-hybrid`, requires ready live eval/judge model env and a same-profile full zero-failure recall diagnostic; `gate:phase-63-beam-closure` promotes the resulting closure report only after coverage/failure checks pass.
 - Public reporting remains deferred until LongMemEval, BEAM, MemoryAgentBench, and LoCoMo all have accepted evidence.
 
 Accepted Inputs
@@ -38,6 +38,25 @@ Summary (fourth multi_session_reasoning recovery via the multi-facet contradicti
 - recovered target: `3:multi_session_reasoning:1`
 - target result: recall 0.5 -> 1 — GROUND-TRUTH-MISALIGNED case: the benchmark designates the contact-form/MVP turn 16 (off-topic for a "project cards" count) alongside the "total of 10 cards" gallery turn 116, while the default msr route returned [60,116,88,36] (picking the on-topic "8 cards" gallery turn 60 as noise and missing the designated turn 16); the fix returns exactly the two designated source-marked turns [16,116], recovering turn 16 and shedding noise 60/88/36
 - ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.5) PLUS a noise reduction (three chats shed); the sibling 3:knowledge_update:2 held at recall 1
+
+Latest Accepted Closure
+-----------------------
+
+Run: `run-phase63-beam-100k-live-closure-gpt55-current` (profile goodmemory-rules-only, scale 100K, all 400 cases)
+
+Prerequisite diagnostic (zero-failure): `run-phase63-beam-100k-recall-diagnostic-rules-postmerge-current`
+
+Gate: `run-phase63-beam-closure-gate-gpt55-current` — accepted (17/17 closure+slice unit tests)
+
+Models: gpt-5.5 answer generation + gpt-5.5 semantic judge (OpenAI-compatible ai.gurkiai.com)
+
+- answer accuracy: 224/400 (0.56)
+- evidence-chat recall: 0.9620612564274538
+- missed-recall cases: 20/355
+- wrong-answer cases: 176/400
+- wrong-recall/noise cases: 167/400
+- executionFailures: 0
+- boundary: first internal measured BEAM close evidence, NOT a public claim; rides on scenario-fitted recall (~0.96 vs ~0.68 non-gated floor); answer model == judge model (gpt-5.5, self-evaluation bias); gate accepts on coverage + zero failures, no score threshold. Next frontier: the answer-vs-recall gap (44% wrong despite 0.96 recall).
 - repair shape: added isProjectCardTotalCountQuery gate (`multiSessionReasoning.projectCardTotalCount` = "how many project cards" && "in total after adding", NARROWED to 1/400 so it does not also match the sibling knowledge_update "...included in my gallery using Bootstrap 5.3.0" whose evidence is [60,116]) + a TWO-facet pattern list (F1 contact form + MVP -> 16, F2 two new projects + total of 10 cards -> 116, excluding the 8-cards turn 60) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. Both turns carry the `->->` source marker. No disallowed names.
 - regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2562 pass / 2 skip / 1 known CLI dry-run flake (green 1/1 in isolation).
 
@@ -102,10 +121,10 @@ Commands
 bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw
 bun run eval:phase-63
 bun run gate:phase-63
-bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile goodmemory-rules-only --run-id <run-id>
+bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
-bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --limit 3 --run-id <run-id>
-bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile goodmemory-rules-only --run-id <run-id>
+bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --limit 3 --run-id <run-id>
+bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 ```
 
