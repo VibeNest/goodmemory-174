@@ -5,12 +5,10 @@ import {
   createPreferenceMemory,
   createReferenceMemory,
   isActiveMemoryLifecycle,
-} from "../domain/records";
-import type {
-  FactMemory,
-  FeedbackMemory,
-  PreferenceMemory,
-  ReferenceMemory,
+  type FactMemory,
+  type FeedbackMemory,
+  type PreferenceMemory,
+  type ReferenceMemory,
 } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
 import type { MemoryScope } from "../domain/scope";
@@ -24,13 +22,13 @@ import {
 import {
   createEvidenceRecord,
   EVIDENCE_COLLECTION,
+  type EvidenceRecord,
 } from "../evidence/contracts";
-import type { EvidenceRecord } from "../evidence/contracts";
 import type { LanguageService } from "../language";
-import { passesDefaultScopeGuard } from "../policy/hooks";
-import type {
-  GoodMemoryPolicyHooks,
-  PolicyContext,
+import {
+  passesDefaultScopeGuard,
+  type GoodMemoryPolicyHooks,
+  type PolicyContext,
 } from "../policy/hooks";
 import type { MemoryCandidate } from "../remember/candidates";
 import type { DocumentStore } from "../storage/contracts";

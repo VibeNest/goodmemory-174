@@ -64,7 +64,7 @@ function resolveVerificationContext(input: {
   };
 }
 
-export function assessFactVerificationNeed(input: {
+function assessFactVerificationNeed(input: {
   fact: FactMemory;
   query: string;
   referenceTime: string;

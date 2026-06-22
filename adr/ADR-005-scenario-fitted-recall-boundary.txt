@@ -104,32 +104,32 @@ per-gate audit (scripts/audit-narrow-gates.ts) splits the gates into
 dead / case_fitted / load_bearing so the genuinely-overfit subset can be pruned
 without losing the general ones. Reproduce with the Measurement commands above.
 
-Dead-on-100K but NOT removable (corrected finding, 2026-06-18):
-disabling these 14 gates together produced ZERO case deltas vs the baseline on
-the 100K split (recall stayed 0.9621, 20 missed, 167 wrong-recall — identical):
-  aggregate.feedWeight, aggregate.accommodationCost, aggregate.aquariumTank,
-  aggregate.bikeService, aggregate.foodDeliveryService,
-  aggregate.formalEducationDuration, aggregate.furnitureActivity,
-  aggregate.healthIssueOrder, aggregate.magazineSubscription,
-  aggregate.medicalProvider, updateSeries.mortgagePreapproval,
-  updateSeries.recentFamilyTrip, updateSeries.relationshipLatestLocation,
-  updateSeries.sharedGroceryListMethod.
+Gate pruning — what a single-split "dead" verdict does and does NOT license
+(final finding, 2026-06-18):
+Disabling 14 gates flagged dead on the 100K split produced ZERO case deltas
+there. But "dead on one split" is NOT a deletion license. Cross-checking those
+14 against ALL splits (100K/500K/1M, 1,800 questions) AND the test suite:
+  - 4 fire on 500K/1M (load-bearing on larger splits): aggregate.accommodationCost,
+    aggregate.furnitureActivity, aggregate.medicalProvider,
+    updateSeries.mortgagePreapproval.
+  - 7 fire on no split but ARE pinned by unit/LongMemEval tests (real tested
+    behavior the 100K split just lacks): aggregate.aquariumTank,
+    aggregate.magazineSubscription, aggregate.foodDeliveryService,
+    aggregate.formalEducationDuration, and the 3 updateSeries gates
+    (relationshipLatestLocation / recentFamilyTrip / sharedGroceryListMethod —
+    these serve LongMemEval's "personal evidence families").
+  - 3 fire on no split AND have zero test coverage — genuinely dead:
+    aggregate.feedWeight, aggregate.bikeService, aggregate.healthIssueOrder.
 
-IMPORTANT: "dead on the 100K split" is NOT a deletion license. An attempt to
-remove these gates broke 14 dedicated unit tests in tests/unit/recall.selection
-(e.g. "keeps accommodation cost evidence when the query asks for per-night
-lodging comparisons", "prefers the latest mortgage preapproval evidence over
-stale amounts"). Each gate is pinned by a TDD unit test asserting its behavior,
-and the gates were built during BEAM hardening for cases that the 100K split
-simply does not contain (they likely fire on the 500K/1M splits). They are
-therefore intentional, tested behavior — not dead code — and the removal was
-reverted. The audit's per-split "dead" verdict is an ANALYSIS signal (it
-explains the dual-metric gap), not a prune list.
+Only the last 3 were removed (verified: typecheck clean, full suite green,
+BEAM recall identical at 0.9621 / 20 missed). The first attempt — deleting on the
+100K-only verdict — broke 14 tests and was reverted; that mistake is the reason
+this ADR exists.
 
-Treatment: surface the over-fitting via the dual metric (done) and gate new
-rules via the admission criteria above. Do NOT delete gates on a single-split
-"dead" verdict; deletion would require evidence they are unused across ALL
-splits AND removal of their unit tests, which is out of scope here.
+Rule: a gate is removable only if it fires on NO split AND breaks NO test. A
+single-split "dead" verdict is an ANALYSIS signal (it explains the dual-metric
+gap), never a prune list. For everything else, surface the over-fitting via the
+dual metric and gate new rules via the admission criteria above.
 
 Consequences
 ------------

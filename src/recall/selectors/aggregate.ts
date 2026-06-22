@@ -2,7 +2,6 @@ import type { LanguageService } from "../../language";
 import type { RankedFactCandidate } from "../scoring";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 import {
-  HEALTH_ISSUE_EVENT_FACT_PATTERN,
   isTemporalIntervalEvidenceFact,
   isTemporalIntervalQuery,
   REALIZED_TEMPORAL_EVENT_FACT_PATTERN,
@@ -24,16 +23,13 @@ import {
 import {
   isAccommodationCostQuery,
   isAquariumTankAggregateQuery,
-  isBikeServiceAggregateQuery,
   isBookSeriesGenresAggregateQuery,
   isCountableEventActivityAggregateQuery,
   isDeclinedFinancialOpportunityQuery,
   isFamilyMovieMarathonTitlesAggregateQuery,
-  isFeedWeightAggregateQuery,
   isFoodDeliveryServiceAggregateQuery,
   isFormalEducationDurationQuery,
   isFurnitureActivityAggregateQuery,
-  isHealthIssueOrderQuery,
   isMagazineSubscriptionAggregateQuery,
   isMedicalProviderAggregateQuery,
   isModelKitCountQuery,
@@ -56,16 +52,13 @@ import {
 export {
   isAccommodationCostQuery,
   isAquariumTankAggregateQuery,
-  isBikeServiceAggregateQuery,
   isBookSeriesGenresAggregateQuery,
   isCountableEventActivityAggregateQuery,
   isDeclinedFinancialOpportunityQuery,
   isFamilyMovieMarathonTitlesAggregateQuery,
-  isFeedWeightAggregateQuery,
   isFoodDeliveryServiceAggregateQuery,
   isFormalEducationDurationQuery,
   isFurnitureActivityAggregateQuery,
-  isHealthIssueOrderQuery,
   isMagazineSubscriptionAggregateQuery,
   isMedicalProviderAggregateQuery,
   isModelKitCountQuery,
@@ -397,13 +390,6 @@ export function hasAggregateDomainSignal(input: {
   }
 
   if (
-    isBikeServiceAggregateQuery(input.query) &&
-    BIKE_SERVICE_FACT_PATTERN.test(input.entry.fact.content)
-  ) {
-    return true;
-  }
-
-  if (
     isMagazineSubscriptionAggregateQuery(input.query) &&
     MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(input.entry.fact.content)
   ) {
@@ -413,13 +399,6 @@ export function hasAggregateDomainSignal(input: {
   if (
     isFormalEducationDurationQuery(input.query) &&
     FORMAL_EDUCATION_FACT_PATTERN.test(input.entry.fact.content)
-  ) {
-    return true;
-  }
-
-  if (
-    isFeedWeightAggregateQuery(input.query) &&
-    FEED_WEIGHT_FACT_PATTERN.test(input.entry.fact.content)
   ) {
     return true;
   }
@@ -530,13 +509,6 @@ export function hasAggregateFactCountSignal(
   }
 
   if (
-    isHealthIssueOrderQuery(query) &&
-    HEALTH_ISSUE_EVENT_FACT_PATTERN.test(entry.fact.content)
-  ) {
-    return true;
-  }
-
-  if (
     /\bprojects?\b/i.test(query) &&
     (
       entry.fact.category === "project" ||
@@ -635,20 +607,12 @@ export function hasAggregateFactCountSignal(
       AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
-      isBikeServiceAggregateQuery(query) &&
-      BIKE_SERVICE_FACT_PATTERN.test(entry.fact.content)
-    ) ||
-    (
       isMagazineSubscriptionAggregateQuery(query) &&
       MAGAZINE_SUBSCRIPTION_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
       isFormalEducationDurationQuery(query) &&
       FORMAL_EDUCATION_FACT_PATTERN.test(entry.fact.content)
-    ) ||
-    (
-      isFeedWeightAggregateQuery(query) &&
-      FEED_WEIGHT_FACT_PATTERN.test(entry.fact.content)
     ) ||
     (
       isSiblingCountAggregateQuery(query) &&
@@ -815,19 +779,9 @@ export function aggregateEvidencePriority(
     priority += 80;
   }
   if (
-    isHealthIssueOrderQuery(query) &&
-    HEALTH_ISSUE_EVENT_FACT_PATTERN.test(valueContent)
-  ) {
-    priority += 80;
-  }
-  if (
     (
       isAquariumTankAggregateQuery(query) &&
       AQUARIUM_TANK_OWNERSHIP_FACT_PATTERN.test(valueContent)
-    ) ||
-    (
-      isBikeServiceAggregateQuery(query) &&
-      BIKE_SERVICE_FACT_PATTERN.test(valueContent)
     ) ||
     (
       isMagazineSubscriptionAggregateQuery(query) &&
@@ -836,10 +790,6 @@ export function aggregateEvidencePriority(
     (
       isFormalEducationDurationQuery(query) &&
       FORMAL_EDUCATION_FACT_PATTERN.test(valueContent)
-    ) ||
-    (
-      isFeedWeightAggregateQuery(query) &&
-      FEED_WEIGHT_FACT_PATTERN.test(valueContent)
     ) ||
     (
       isSiblingCountAggregateQuery(query) &&

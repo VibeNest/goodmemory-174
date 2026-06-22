@@ -8,7 +8,6 @@ import {
 } from "../governance/retrievalInternalRollout";
 import type {
   PromotedRecallRouterStrategy,
-  RetrievalStrategyPromotionAuthorization,
   RetrievalStrategyRolloutConfig,
   StrategyRolloutMode,
 } from "../governance/retrievalInternalRollout";

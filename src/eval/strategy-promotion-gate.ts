@@ -1,6 +1,5 @@
 import type {
   EvalPublicSurfaceDecision,
-  EvalRegressionDashboardSummary,
   EvalRuntimeMetadata,
   EvalStrategyPromotionGateDecision,
   EvalStrategyPromotionGateThresholds,
@@ -14,10 +13,8 @@ import {
   DEFAULT_PROMOTED_REVIEWER_STRATEGY,
   type MaintenanceStrategyPromotionAuthorization,
   type MaintenanceStrategyRolloutConfig,
-  DEFAULT_PROMOTED_RETRIEVAL_STRATEGY,
   type PromotedRecallRouterStrategy,
   type RetrievalStrategyPromotionAuthorization,
-  type RetrievalStrategyRolloutConfig,
   type ReviewerStrategyPromotionAuthorization,
   type ReviewerStrategyRolloutConfig,
   type StrategyRolloutConfig,

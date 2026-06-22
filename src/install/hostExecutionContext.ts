@@ -4,8 +4,7 @@ import type {
   GoodMemory,
   GoodMemoryConfig,
 } from "../api/contracts";
-import { normalizeScope } from "../domain/scope";
-import type { MemoryScope } from "../domain/scope";
+import { normalizeScope, type MemoryScope } from "../domain/scope";
 import { resolveWorkspaceId } from "../host/managedFiles";
 import {
   createProviderEmbeddingAdapter,
@@ -14,13 +13,11 @@ import {
 import {
   DEFAULT_INSTALLED_HOST_MAX_TOKENS,
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
-} from "./hostConfigValidation";
-import type {
-  InstalledHostActivationMode,
-  InstalledHostContextMode,
-  InstalledHostProviderConfig,
-  InstalledHostWritebackConfig,
-  WorkspaceHostOptInConfig,
+  type InstalledHostActivationMode,
+  type InstalledHostContextMode,
+  type InstalledHostProviderConfig,
+  type InstalledHostWritebackConfig,
+  type WorkspaceHostOptInConfig,
 } from "./hostConfigValidation";
 import type { InstalledHostKind } from "./hostInstall";
 import {

@@ -9,8 +9,8 @@ import type {
 } from "./contracts";
 
 export const DEFAULT_SQLITE_STORAGE_PATH = ".goodmemory/memory.sqlite";
-export const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
-export const STORAGE_URL_ENV = "GOODMEMORY_STORAGE_URL";
+const STORAGE_PROVIDER_ENV = "GOODMEMORY_STORAGE_PROVIDER";
+const STORAGE_URL_ENV = "GOODMEMORY_STORAGE_URL";
 const EMBEDDING_ENV_PREFIX = "GOODMEMORY_EMBEDDING";
 const ASSISTED_EXTRACTOR_ENV_PREFIX = "GOODMEMORY_ASSISTED_EXTRACTOR";
 
@@ -192,11 +192,11 @@ function resolveRuntimeCapabilities(
   };
 }
 
-export function isPostgresConnectionString(value: string): boolean {
+function isPostgresConnectionString(value: string): boolean {
   return /^(?:postgres|postgresql):\/\//i.test(value.trim());
 }
 
-export function resolveSQLiteStorageUrl(
+function resolveSQLiteStorageUrl(
   rawPath: string | undefined,
   cwd = process.cwd(),
 ): string {
@@ -330,7 +330,7 @@ export function resolveGoodMemoryRuntimeResolution(input: {
   };
 }
 
-export function resolveEmbeddingModelConfigFromProviderConfig(
+function resolveEmbeddingModelConfigFromProviderConfig(
   config: GoodMemoryEmbeddingProviderConfig | undefined,
 ): AISDKModelConfig | null {
   if (!config) {
@@ -379,7 +379,7 @@ export function resolveEmbeddingModelConfigFromProviderConfig(
   };
 }
 
-export function resolveAssistedExtractorModelConfigFromProviderConfig(
+function resolveAssistedExtractorModelConfigFromProviderConfig(
   config: GoodMemoryExtractionProviderConfig | undefined,
 ): AISDKModelConfig | null {
   if (!config) {

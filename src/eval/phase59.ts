@@ -148,18 +148,6 @@ export function judgePhase59TextCase(input: {
   });
 }
 
-export interface Phase59Judges {
-  judgePrimingPair: (input: {
-    caseDefinition: PrimingImplicitMemBenchCase;
-    controlAnswer: string;
-    experimentalAnswer: string;
-  }) => Promise<{ influenceScore: number; reason: string }>;
-  judgeTextBehavior: (input: {
-    answer: string;
-    caseDefinition: TextImplicitMemBenchCase;
-  }) => Promise<{ passed: boolean; reason: string }>;
-}
-
 const phase59SmokeEmbeddingAdapter: EmbeddingAdapter = {
   async embed(texts: string[]): Promise<number[][]> {
     return texts.map((text) => {

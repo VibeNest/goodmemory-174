@@ -8,7 +8,6 @@ import {
 import type { EvidenceRecord } from "../evidence/contracts";
 import {
   behavioralPolicyActionSatisfiesCanonical,
-  behavioralPolicyActionsEqual,
   type BehavioralPolicyAction,
   readBehavioralPolicyFromFeedbackMemory,
   selectBehavioralPolicies,

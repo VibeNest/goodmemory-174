@@ -16,8 +16,7 @@ import type {
   ReviseMemoryResult,
 } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
-import type { RememberConfig } from "../remember/profiles";
-import { rememberRules } from "../remember/profiles";
+import { rememberRules, type RememberConfig } from "../remember/profiles";
 import { isProviderBackedRecallError } from "../recall/errors";
 
 export const GOODMEMORY_HTTP_MEMORY_BRIDGE_CONTRACT_VERSION =

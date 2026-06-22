@@ -1,8 +1,4 @@
-import type {
-  ExportMemoryResult,
-  GoodMemory,
-  RecallResult,
-} from "../api/contracts";
+import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import type { InstalledHostWritebackAuditInspection } from "../install/hostWritebackAuditRuntime";
 import type { InstalledHostKind } from "../install/hostInstall";
@@ -158,6 +154,3 @@ export interface RuntimeViewerServerHandle {
   token: string;
   url: string;
 }
-
-export type RuntimeViewerExportedMemory = ExportMemoryResult;
-export type RuntimeViewerRecallResult = RecallResult;

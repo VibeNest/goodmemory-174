@@ -13,7 +13,6 @@ import {
   isBookSeriesGenresAggregateQuery,
   isComparativeMetricQuery,
   isFamilyMovieMarathonTitlesAggregateQuery,
-  isHealthIssueOrderQuery,
   isMuseumVisitOrderQuery,
   isPersonalStatementApplicationTypesAggregateQuery,
   isResumeImprovementAreasAggregateQuery,
@@ -275,7 +274,6 @@ export function buildSelectionRunContext(
   const comparativeMetricQuery = isComparativeMetricQuery(query);
   const socialMetricTotalQuery = isSocialMetricTotalQuery(query);
   const museumVisitOrderQuery = isMuseumVisitOrderQuery(query);
-  const healthIssueOrderQuery = isHealthIssueOrderQuery(query);
   const temporalIntervalQuery = isTemporalIntervalQuery(query);
   const exactSourceOrderedReasoningQuery =
     isExactSourceOrderedReasoningQuery(query);
@@ -290,7 +288,6 @@ export function buildSelectionRunContext(
     comparativeMetricQuery ||
     socialMetricTotalQuery ||
     museumVisitOrderQuery ||
-    healthIssueOrderQuery ||
     temporalIntervalQuery
   );
   const temporalEventOrderQuery = isTemporalEventOrderQuery(query);

@@ -279,25 +279,4 @@ export function judgePhase51PrimingPair(input: {
   };
 }
 
-export function summarizePhase51Profiles(
-  cases: readonly ImplicitMemBenchCaseResult[],
-): {
-  blockingCases: number;
-  passedBlockingCases: number;
-  primingCases: number;
-  structuredCases: number;
-  taskFiles: string[];
-} {
-  return {
-    blockingCases: cases.filter((caseResult) => caseResult.blocking).length,
-    passedBlockingCases: cases.filter((caseResult) => caseResult.blocking && caseResult.passed)
-      .length,
-    primingCases: cases.filter((caseResult) => caseResult.datasetFamily === "priming")
-      .length,
-    structuredCases: cases.filter((caseResult) => caseResult.scorerFamily === "structured_first_action")
-      .length,
-    taskFiles: [...new Set(cases.map((caseResult) => caseResult.taskFile))].sort(),
-  };
-}
-
 export { PHASE51_SMOKE_CASE_COUNT };

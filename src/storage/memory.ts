@@ -11,7 +11,6 @@ import type {
   SessionStore,
   StorageDocument,
   VectorRecord,
-  VectorSearchInput,
   VectorSearchResult,
   VectorStore,
 } from "./contracts";

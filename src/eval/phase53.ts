@@ -10,7 +10,6 @@ import {
   createPhase52SmokeAnswer,
   judgePhase52PrimingPair,
   judgePhase52TextCase,
-  summarizePhase52Profiles,
 } from "./phase52";
 
 const PHASE53_SMOKE_CASE_COUNT = 15;
@@ -141,12 +140,6 @@ export function judgePhase53PrimingPair(input: {
   experimentalAnswer: string;
 }): ImplicitMemBenchPrimingJudgeResult {
   return judgePhase52PrimingPair(input);
-}
-
-export function summarizePhase53Profiles(
-  cases: readonly ImplicitMemBenchCaseResult[],
-): ReturnType<typeof summarizePhase52Profiles> {
-  return summarizePhase52Profiles(cases);
 }
 
 export { PHASE53_SMOKE_CASE_COUNT };

@@ -4,11 +4,9 @@ import { createInternalGoodMemory } from "../api/createGoodMemory";
 import { readGoodMemoryEvalSupport } from "../api/evalSupport";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
-import type {
-  BehavioralFirstAction,
-  BehavioralOutcomeRecordInput,
-} from "../evolution/behavioralTelemetry";
 import {
+  type BehavioralFirstAction,
+  type BehavioralOutcomeRecordInput,
   behavioralFirstActionsEqual,
   isToolOutcomeExperience,
 } from "../evolution/behavioralTelemetry";

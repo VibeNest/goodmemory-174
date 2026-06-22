@@ -14,7 +14,6 @@ import type {
   RuntimeWorkerJobStatus,
   RuntimeWorkerQueue,
   RuntimeWorkerQueueSnapshot,
-  RuntimeWorkerRecoverInput,
   RuntimeWorkerRecoverResult,
   RuntimeWorkerRepair,
   RuntimeWorkerStatusInput,

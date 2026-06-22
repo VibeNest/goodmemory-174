@@ -6,8 +6,6 @@ import {
 import { validateHostAgentEvent } from "../agentEvents";
 import type { HostAgentEvent } from "./contracts";
 
-export type { AgentEventIngestResult } from "../api/integrationSupport";
-
 export async function ingestHostAgentEvent(
   memory: GoodMemory,
   event: HostAgentEvent,

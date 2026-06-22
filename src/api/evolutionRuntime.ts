@@ -10,10 +10,7 @@ import {
   createEvidenceRecord,
   type EvidenceRecord,
 } from "../evidence/contracts";
-import type {
-  LearningProposal,
-} from "../evolution/contracts";
-import type { ExperienceRecord } from "../evolution/contracts";
+import type { ExperienceRecord, LearningProposal } from "../evolution/contracts";
 import {
   buildBehavioralOutcomeExperienceRecord,
   type BehavioralOutcomeObservationResult,
