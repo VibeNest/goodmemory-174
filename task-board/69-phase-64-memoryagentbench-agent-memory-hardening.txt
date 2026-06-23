@@ -249,6 +249,23 @@ Tasks
   needs the LLM endpoint (deferred per the user). Separately, the AR recall-0.24
   long-prefix gap is a generic retrieval-routing target (do NOT add an event_qa
   branch), best done on a calm tree with a BEAM spot-check.
+  AR GAP DIAGNOSIS (2026-06-23, read-only, no code change): the AR and CR external
+  chunks come from the SAME normalizer pattern (user-role facts), yet rules-only
+  retrieval behaves very differently by competency. CR (short, single-intent
+  queries like "Where was Alice born?") retrieves a STABLE ~5 chunks every question
+  (72/73 return exactly 5). AR (long multiple-choice "which event happens next"
+  queries) is ERRATIC: retrieved-count distribution {0:17, 1:12, 2:19, 3:23, 5:7,
+  6:22}, i.e. 17/100 return ZERO chunks and the rest scatter 1-6. The zero-retrieval
+  questions are spread across positions (incl. the SHORT first question no0), so it
+  is NOT purely query length -- the difference is the query SHAPE. The gold answer
+  is lexically present in the AR query (it is one of the multiple-choice
+  candidates), yet 17% retrieve nothing, so rules-only is not doing naive substring
+  matching; its query-formation/scoring degrades on long noisy multiple-choice
+  prompts (token overlap diluted across cumulative events + candidate list).
+  Candidate GENERAL fix (not event_qa-specific): a zero-retrieval fallback that
+  broadens when rules-only would return nothing. DEFER the change: it is shared
+  recall (BEAM blast radius) and needs a BEAM recall-diagnostic spot-check on a calm
+  tree (the concurrent workstream is currently churning shared recall/smoke files).
 
 
 Commands
