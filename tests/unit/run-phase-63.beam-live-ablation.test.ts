@@ -137,6 +137,12 @@ describe("phase-63 BEAM live ablation runner", () => {
     expect(selectAblationChatIds({ ...shared, mode: "full-context" })).toEqual([
       1, 2, 3, 4,
     ]);
+    expect(
+      selectAblationChatIds({ ...shared, mode: "gold-evidence-pack" }),
+    ).toEqual([2, 4]);
+    expect(
+      selectAblationChatIds({ ...shared, mode: "retrieved-evidence-pack" }),
+    ).toEqual([2, 3]);
   });
 
   it("builds source-ordered, deduplicated context and skips unknown ids", () => {

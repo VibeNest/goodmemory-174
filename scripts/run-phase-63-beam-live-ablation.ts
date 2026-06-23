@@ -18,6 +18,8 @@ import type {
   Phase63BeamLiveAnswerGenerator,
   Phase63BeamLiveAnswerJudge,
 } from "./run-phase-63-beam-live-slice";
+import { buildPhase63AnswerEvidencePack } from "./phase63-answer-evidence-pack";
+import type { Phase63EvidenceTurn } from "./phase63-answer-evidence-pack";
 
 // Why this exists: the live closure measures one point (goodmemory-normal = the
 // recall->compress->answer pipeline, ~0.56). To know whether 0.56 is bounded by
@@ -35,6 +37,8 @@ export const PHASE63_ABLATION_MODES = [
   "retrieved-hit-only",
   "retrieved-raw-uncompressed",
   "full-context",
+  "gold-evidence-pack",
+  "retrieved-evidence-pack",
 ] as const;
 
 export type Phase63AblationMode = (typeof PHASE63_ABLATION_MODES)[number];
@@ -42,6 +46,12 @@ export type Phase63AblationMode = (typeof PHASE63_ABLATION_MODES)[number];
 const RETRIEVAL_DEPENDENT_MODES: ReadonlySet<Phase63AblationMode> = new Set([
   "retrieved-hit-only",
   "retrieved-raw-uncompressed",
+  "retrieved-evidence-pack",
+]);
+
+const EVIDENCE_PACK_MODES: ReadonlySet<Phase63AblationMode> = new Set([
+  "gold-evidence-pack",
+  "retrieved-evidence-pack",
 ]);
 
 export interface Phase63AblationCliOptions {
@@ -181,7 +191,46 @@ export function selectAblationChatIds(input: {
       return [...input.retrievedChatIds];
     case "full-context":
       return [...input.allChatIds];
+    case "gold-evidence-pack":
+      return [...input.evidenceChatIds];
+    case "retrieved-evidence-pack":
+      return [...input.retrievedChatIds];
   }
+}
+
+// Pack modes reshape the selected turns into the source-ordered, operation-aware
+// evidence pack; the other modes use the raw seeded surface.
+function buildModeMemoryContext(input: {
+  chatIds: readonly number[];
+  mode: Phase63AblationMode;
+  question: string;
+  turnsById: Map<number, BeamChatTurn>;
+}): string {
+  if (!EVIDENCE_PACK_MODES.has(input.mode)) {
+    return buildAblationMemoryContext({
+      chatIds: input.chatIds,
+      turnsById: input.turnsById,
+    });
+  }
+  const seen = new Set<number>();
+  const turns: Phase63EvidenceTurn[] = [];
+  for (const chatId of [...input.chatIds].sort((left, right) => left - right)) {
+    if (seen.has(chatId)) {
+      continue;
+    }
+    seen.add(chatId);
+    const turn = input.turnsById.get(chatId);
+    if (!turn) {
+      continue;
+    }
+    turns.push({
+      chatId: turn.id,
+      content: turn.content,
+      role: turn.role,
+      timeAnchor: turn.timeAnchor,
+    });
+  }
+  return buildPhase63AnswerEvidencePack({ question: input.question, turns });
 }
 
 async function mapWithConcurrency<T, R>(
@@ -306,7 +355,12 @@ export async function runPhase63BeamLiveAblation(
         mode,
         retrievedChatIds: retrievedByQuestionId.get(testCase.questionId) ?? [],
       });
-      const memoryContext = buildAblationMemoryContext({ chatIds, turnsById });
+      const memoryContext = buildModeMemoryContext({
+        chatIds,
+        mode,
+        question: testCase.question,
+        turnsById,
+      });
       const base: Phase63AblationCaseResult = {
         answerable: testCase.answerable,
         contextChatCount: chatIds.length,
