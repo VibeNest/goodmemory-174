@@ -47,9 +47,11 @@ the matching benchmark is completed and backed by a report.
 These rows are research and hardening evidence, not a final public leaderboard.
 The BEAM row reports rules-only retrieval recall (evidence-chat recall over the
 100K split). End-to-end live answer closure has now been run internally
-(`run-phase63-beam-100k-live-closure-gpt55-current`): 224 / 400 answer accuracy
-(0.56) with rules-only retrieval and a same-model semantic judge,
-`executionFailures: 0`. That is internal measured evidence, not a public
+(`run-phase63-beam-100k-live-closure-gpt55-evidence-pack-current`): 261 / 400
+answer accuracy (0.6525) with rules-only retrieval, a general answer-time
+evidence pack (`src/answer/evidencePack.ts`), and a same-model semantic judge,
+`executionFailures: 0` — up from 224 / 400 (0.56) before the evidence pack, at
+identical recall. That is internal measured evidence, not a public
 benchmark claim — it rides on the fitted recall below and uses the answer model
 as its own judge, so the accepted README row stays retrieval-focused until
 answer-gap hardening and cross-benchmark evidence mature.

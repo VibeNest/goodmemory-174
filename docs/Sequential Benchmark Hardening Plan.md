@@ -14,7 +14,7 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 ## Current State
 
 - Phase 62 LongMemEval is accepted as the first external-benchmark hardening slice.
-- Phase 63 BEAM has a first accepted rules-only live closure (measured answer accuracy 0.56 over all 400 100K cases, evidence-chat recall 0.9621, `executionFailures: 0`, gate accepted); it remains scenario-fitted and recall-limited, and recall/noise plus answer-quality hardening continues.
+- Phase 63 BEAM has an accepted rules-only live closure: routing the answer context through the general evidence pack (`--evidence-pack`, `src/answer/evidencePack.ts`) raised measured answer accuracy from 0.56 to 0.6525 (261/400) over all 400 100K cases at identical recall (0.9621), `executionFailures: 0`, gate accepted; it remains scenario-fitted and recall-limited, and recall/noise plus answer-quality hardening continues.
 - Current BEAM work is scoped to provider-free recall diagnostics, small live answer-generation/judge slices, and a prepared full live closure path before any public score.
 - MemoryAgentBench (Phase 64) is active with deterministic retrieval smokes, external-root rules reports, and a real live-answer path (`eval:phase-64-smoke -- --live --evidence-pack`). AR/CR/LRU/TTL use deterministic upstream match-mode scoring, not an LLM judge. The synthetic live evidence pack `run-phase64-mab-synthetic-live-pack` exposed a reasoning-wrapper false negative in LRU scoring; scoring now strips `<think>` wrappers before matching while keeping the raw generated answer for audit. This remains internal synthetic/small-slice evidence, not an accepted external-root closure or public score.
 - LoCoMo (Phase 65) is brought up as a retrieval-only smoke (deterministic, `executionFailures` 0) that mirrors the BEAM recall-diagnostic seam; its live LLM answer/judge layer is still deferred. No upstream MemoryAgentBench (MIT) or LoCoMo (CC BY-NC 4.0, non-commercial) data is vendored -- real data flows only through the external-root convention.
@@ -28,12 +28,13 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
 
 ## Accepted Phase 63 BEAM Closure Checkpoint
 
-- Closure run: `run-phase63-beam-100k-live-closure-gpt55-current` (profile `goodmemory-rules-only`, scale 100K, all 400 cases).
+- Closure run: `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-current` (profile `goodmemory-rules-only`, scale 100K, all 400 cases, `--evidence-pack`).
 - Prerequisite recall diagnostic (zero-failure): `run-phase63-beam-100k-recall-diagnostic-rules-postmerge-current`, evidence-chat recall 0.9620612564274538, missed-recall 20/355, `executionFailures: 0`, 400 cases.
-- Gate: `run-phase63-beam-closure-gate-gpt55-current` — accepted (17/17 closure+slice unit tests).
+- Gate: `run-phase63-beam-closure-gate-gpt55-evidence-pack-current` — accepted (20/20 closure+slice unit tests).
 - Models: `gpt-5.5` answer generation + `gpt-5.5` semantic judge (OpenAI-compatible `ai.gurkiai.com`).
-- Result: 224/400 answer accuracy (0.56), evidence-chat recall 0.9620612564274538, missed-recall 20/355, wrong-answer 176/400, wrong-recall/noise 167/400, `executionFailures: 0`.
-- Boundary: first internal measured BEAM close evidence, NOT a public benchmark claim. The 0.56 rides on scenario-fitted recall (0.9621; the non-gated generalization floor is ~0.68), and the judge is the same model as the generator (`gpt-5.5`), so it carries self-evaluation bias. The gate accepts on full coverage plus zero execution failures, not a numeric score threshold. The answer-vs-recall gap (224 correct despite 0.96 evidence recall) is the next hardening frontier alongside recall/noise.
+- Result: 261/400 answer accuracy (0.6525), evidence-chat recall 0.9620612564274538, missed-recall 20/355, wrong-answer 139/400, wrong-recall/noise 167/400, `executionFailures: 0`.
+- Answer-time change: the answer context is built by the general, benchmark-agnostic `src/answer/evidencePack.ts` (operation inferred from the question, source-ordered + timestamped, "latest entry is the current value" framing) instead of the bespoke per-case context. At identical retrieval that is +37 cases over the prior rules-only baseline (`run-phase63-beam-100k-live-closure-gpt55-current`, 224/400 = 0.56, same 0.9621 recall) and matches the full-400 ablation (retrieved-evidence-pack 265/400 = 0.6625). The same module answers the current value on MemoryAgentBench CR, so the gain is general answer-time shaping, not benchmark fitting.
+- Boundary: internal measured BEAM close evidence, NOT a public benchmark claim. The 0.6525 rides on scenario-fitted recall (0.9621; the non-gated generalization floor is ~0.68), and the judge is the same model as the generator (`gpt-5.5`), so it carries self-evaluation bias. The gate accepts on full coverage plus zero execution failures, not a numeric score threshold. The remaining answer-vs-recall gap (139 wrong despite 0.96 evidence recall) concentrates in contradiction_resolution and event_ordering — the ablation's weakest types, where BEAM's expected answer is a strict scripted format — and is the next hardening frontier alongside recall/noise. The first rules-only closure without the pack (224/400 = 0.56, gate `run-phase63-beam-closure-gate-gpt55-current`) is retained in git history as the baseline.
 
 ## Active Phase 63 Evidence
 
