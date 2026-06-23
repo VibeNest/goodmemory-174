@@ -34,6 +34,46 @@ function buildEventQaRowsResponse() {
   };
 }
 
+// A tiny synthetic factconsolidation (CR) row: a numbered fact list whose gold
+// answers recur a controlled number of times. "red" recurs in 4 facts (over the
+// default --max-evidence-facts 3) and must be dropped as common-string noise.
+function buildFactConsolidationRowsResponse() {
+  return {
+    num_rows_total: 8,
+    partial: false,
+    rows: [
+      {
+        row: {
+          answers: [["London"], ["pesapallo"], ["Paris"], ["red"]],
+          context: [
+            "Here is a list of facts:",
+            "0. Alice was born in London.",
+            "1. Bob plays pesapallo.",
+            "2. Carol lives in Paris.",
+            "3. Bob now plays pesapallo professionally.",
+            "4. The flag is red.",
+            "5. The car is red.",
+            "6. The barn is red.",
+            "7. The apple is red.",
+          ].join("\n"),
+          metadata: {
+            qa_pair_ids: ["fc_no0", "fc_no1", "fc_no2", "fc_no3"],
+            source: "factconsolidation_sh_6k",
+          },
+          questions: [
+            "Where was Alice born?",
+            "What does Bob play?",
+            "Where does Carol live?",
+            "What color is the flag?",
+          ],
+        },
+        row_idx: 4,
+        truncated_cells: [],
+      },
+    ],
+  };
+}
+
 describe("prepare-phase-64 MemoryAgentBench data script", () => {
   it("parses competency, offset, max-questions, and merge flags", () => {
     expect(
@@ -54,6 +94,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).toEqual({
       competency: "AR",
       dataset: "ai-hyz/MemoryAgentBench",
+      maxEvidenceFacts: 3,
       maxQuestions: 20,
       merge: true,
       offset: 5,
@@ -73,6 +114,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).toEqual({
       competency: "AR",
       dataset: "ai-hyz/MemoryAgentBench",
+      maxEvidenceFacts: 3,
       maxQuestions: null,
       merge: false,
       offset: 5,
@@ -111,6 +153,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: false,
         offset: 5,
@@ -175,6 +218,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 3,
         maxQuestions: 1,
         merge: false,
         offset: 5,
@@ -196,6 +240,89 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     expect(parsed.cases[0].chunks).toHaveLength(2);
   });
 
+  it("normalizes a factconsolidation (CR) row, dropping high-recurrence answers", async () => {
+    const writes = new Map<string, string>();
+    const result = await preparePhase64MemoryAgentBenchData(
+      {
+        competency: "CR",
+        dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 3,
+        maxQuestions: null,
+        merge: false,
+        offset: 4,
+        outputRoot: "/tmp/MAB",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async (url) => {
+          expect(url).toContain("split=Conflict_Resolution");
+          expect(url).toContain("offset=4");
+          return buildFactConsolidationRowsResponse();
+        },
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+
+    expect(result.competency).toBe("CR");
+    expect(result.caseId).toBe("cr_factconsolidation_sh_6k");
+    expect(result.chunkCount).toBe(8); // every fact injected as a chunk
+    expect(result.questionCount).toBe(3); // London, pesapallo, Paris kept
+    expect(result.droppedQuestions).toBe(1); // "red" (4 facts) dropped as noise
+
+    const parsed = JSON.parse(writes.get("/tmp/MAB/cases.json") ?? "{}");
+    const testCase = parsed.cases[0];
+    // chunk id == fact number + 1; content keeps the "N. " prefix.
+    expect(testCase.chunks[0]).toEqual({
+      content: "0. Alice was born in London.",
+      id: 1,
+      role: "user",
+    });
+    const evidenceByAnswer = Object.fromEntries(
+      testCase.questions.map(
+        (q: { evidenceChunkIds: number[]; goldAnswer: string }) => [
+          q.goldAnswer,
+          q.evidenceChunkIds,
+        ],
+      ),
+    );
+    expect(evidenceByAnswer.London).toEqual([1]); // fact 0
+    expect(evidenceByAnswer.pesapallo).toEqual([2, 4]); // facts 1 + 3 (consolidation chain)
+    expect(evidenceByAnswer.Paris).toEqual([3]); // fact 2
+    expect(evidenceByAnswer.red).toBeUndefined(); // dropped
+    expect(testCase.questions[0]).toMatchObject({
+      competency: "CR",
+      matchMode: "substring_exact_match",
+      staleChunkIds: [],
+    });
+  });
+
+  it("tightens the CR recurrence filter with --max-evidence-facts 1", async () => {
+    const writes = new Map<string, string>();
+    const result = await preparePhase64MemoryAgentBenchData(
+      {
+        competency: "CR",
+        dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 1,
+        maxQuestions: null,
+        merge: false,
+        offset: 4,
+        outputRoot: "/tmp/MAB",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async () => buildFactConsolidationRowsResponse(),
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+    // pesapallo (2 facts) now also dropped; only London + Paris (1 fact each) stay.
+    expect(result.questionCount).toBe(2);
+    expect(result.droppedQuestions).toBe(2);
+  });
+
   it("merges by replacing same-competency cases while retaining others", async () => {
     const writes = new Map<string, string>();
     const existing = {
@@ -208,6 +335,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: true,
         offset: 5,
@@ -237,6 +365,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: false,
         offset: 5,
@@ -266,6 +395,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
         {
           competency: "AR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
           offset: 5,
@@ -294,6 +424,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
         {
           competency: "AR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
           offset: 999,
@@ -308,12 +439,13 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).rejects.toThrow("empty");
   });
 
-  it("throws a clear not-implemented error for non-AR competencies", async () => {
+  it("rejects malformed CR rows before writing normalized cases", async () => {
     await expect(
       preparePhase64MemoryAgentBenchData(
         {
           competency: "CR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
           offset: 0,
@@ -325,6 +457,6 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
           writeFile: async () => undefined,
         },
       ),
-    ).rejects.toThrow("not implemented yet");
+    ).rejects.toThrow("produced no numbered facts");
   });
 });

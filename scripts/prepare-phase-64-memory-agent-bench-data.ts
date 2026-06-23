@@ -14,11 +14,26 @@
 //
 // Competencies map to upstream splits:
 //   AR  -> Accurate_Retrieval        (implemented: event_qa rows, see below)
+//   CR  -> Conflict_Resolution       (implemented: factconsolidation single-hop, see below)
 //   TTL -> Test_Time_Learning        (follow-up)
 //   LRU -> Long_Range_Understanding  (follow-up)
-//   CR  -> Conflict_Resolution       (follow-up)
 //
-// AR / event_qa normalization (the only one with a fully STRUCTURAL gold-evidence
+// CR / factconsolidation single-hop normalization: the upstream row's context is
+// "Here is a list of facts: 0. <fact> 1. <fact> ...". Each numbered fact is a
+// chunk (chunk id == fact number + 1; content keeps the "N. " prefix). The
+// conflict-resolution task asks for the current consolidated value, and the gold
+// answer string appears in the fact(s) that state it. Gold evidence is therefore
+// the chunk(s) whose text contains the gold answer -- BUT only when that count is
+// small (<= --max-evidence-facts, default 3). Rare-valued answers (e.g.
+// "pesäpallo") land in 1-3 facts (the genuine consolidation chain); common-string
+// answers recur across many unrelated facts, where substring evidence is trivially
+// noisy (the same invalid-signal class avoided for AR ruler_qa). Questions over the
+// recurrence threshold are DROPPED with a logged count, not silently kept. Every
+// fact is still injected as a chunk (the full distractor set); staleChunkIds is
+// left empty because identifying the superseded value reliably needs subject
+// extraction, a separate follow-up.
+//
+// AR / event_qa normalization (the one with a fully STRUCTURAL gold-evidence
 // derivation, so no fragile substring guessing): the upstream row carries
 // `metadata.previous_events` (cumulative numbered event lists) and `answers`
 // (the correct next event per question). The event sequence is therefore
@@ -34,12 +49,18 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { resolveCliFlagValue } from "./cli-options";
+import { normalizeMemoryAgentBenchAnswer } from "../src/eval/memoryAgentBench";
 import type {
   MemoryAgentBenchCase,
   MemoryAgentBenchChunk,
   MemoryAgentBenchCompetency,
   MemoryAgentBenchQuestion,
 } from "../src/eval/memoryAgentBench";
+
+// Derive CR evidence with the SAME normalization the smoke uses to score
+// substring_exact_match, so a fact that counts as evidence is one the scorer
+// would also accept.
+const normalizeMatch = normalizeMemoryAgentBenchAnswer;
 
 export const MEMORY_AGENT_BENCH_DATASET = "ai-hyz/MemoryAgentBench";
 export const MEMORY_AGENT_BENCH_UPSTREAM_SOURCE =
@@ -65,14 +86,20 @@ export const MEMORY_AGENT_BENCH_COMPETENCY_SPLITS: Record<
 // implemented normalizer. AR row 5 is `eventqa_full`.
 const DEFAULT_OFFSET_BY_COMPETENCY: Record<MemoryAgentBenchCompetency, number> = {
   AR: 5,
+  CR: 4,
   TTL: 0,
   LRU: 0,
-  CR: 0,
 };
+
+// CR only: drop a question whose gold answer appears in more than this many facts
+// (common-string recurrence => noisy evidence). Ignored by other competencies.
+const DEFAULT_MAX_EVIDENCE_FACTS = 3;
 
 export interface Phase64MabPrepareOptions {
   competency: MemoryAgentBenchCompetency;
   dataset: string;
+  // CR only: max facts a gold answer may appear in before the question is dropped.
+  maxEvidenceFacts: number;
   // null = keep every question in the row.
   maxQuestions: number | null;
   // When true, retain existing cases of OTHER competencies in cases.json and
@@ -88,6 +115,8 @@ export interface Phase64MabPrepareResult {
   chunkCount: number;
   competency: MemoryAgentBenchCompetency;
   dataset: string;
+  // Questions skipped during normalization (CR recurrence filter); 0 otherwise.
+  droppedQuestions: number;
   generatedAt: string;
   merged: boolean;
   metadataFile: string;
@@ -157,6 +186,11 @@ export function parsePhase64MabPrepareCliOptions(
   return {
     competency,
     dataset: resolveCliFlagValue(argv, "--dataset") ?? MEMORY_AGENT_BENCH_DATASET,
+    maxEvidenceFacts: parseNonNegativeInteger(
+      resolveCliFlagValue(argv, "--max-evidence-facts"),
+      DEFAULT_MAX_EVIDENCE_FACTS,
+      "--max-evidence-facts",
+    ),
     maxQuestions: parseMaxQuestions(resolveCliFlagValue(argv, "--max-questions")),
     merge: argv.includes("--merge"),
     offset: parseNonNegativeInteger(
@@ -372,17 +406,134 @@ function normalizeEventQaRow(
   };
 }
 
+// Parse the CR "Here is a list of facts: 0. <fact> 1. <fact> ..." context into
+// ordered numbered facts. The fact number is taken verbatim; chunk id is fact
+// number + 1 (so chunk id 1 == fact 0), matching the smoke's 1-based chunk ids.
+function parseNumberedFacts(context: string): Array<{ content: string; number: number }> {
+  const matches = [
+    ...context.matchAll(/(?:^|\s)(\d+)\.\s+([\s\S]*?)(?=\s+\d+\.\s|\s*$)/gu),
+  ];
+  return matches.map((match) => ({
+    content: `${match[1]}. ${match[2].trim()}`,
+    number: Number(match[1]),
+  }));
+}
+
+// CR / factconsolidation single-hop normalizer (see module header).
+function normalizeFactConsolidationRow(
+  row: Record<string, unknown>,
+  truncatedCells: readonly string[],
+  options: Phase64MabPrepareOptions,
+): { case: MemoryAgentBenchCase; droppedQuestions: number } {
+  assertConsumedCellsIntact(truncatedCells, ["context", "questions", "answers", "metadata"]);
+  if (typeof row.context !== "string") {
+    throw new Error('MemoryAgentBench factconsolidation row "context" must be a string');
+  }
+  const metadata = isRecord(row.metadata) ? row.metadata : undefined;
+  if (!metadata) {
+    throw new Error(
+      "MemoryAgentBench factconsolidation row must include a metadata object",
+    );
+  }
+  const questions = asStringArray(row.questions, "questions");
+  const qaPairIds = asStringArray(metadata.qa_pair_ids, "metadata.qa_pair_ids");
+  if (!Array.isArray(row.answers)) {
+    throw new Error('MemoryAgentBench row field "answers" must be an array');
+  }
+  const sourceDataset =
+    typeof metadata.source === "string" && metadata.source.length > 0
+      ? metadata.source
+      : "fact_consolidation_sh";
+
+  const facts = parseNumberedFacts(row.context);
+  if (facts.length === 0) {
+    throw new Error(
+      "MemoryAgentBench factconsolidation row produced no numbered facts",
+    );
+  }
+  const chunks: MemoryAgentBenchChunk[] = facts.map((fact) => ({
+    content: fact.content,
+    id: fact.number + 1,
+    role: "user",
+  }));
+  const normalizedFacts = facts.map((fact) => ({
+    chunkId: fact.number + 1,
+    normalized: normalizeMatch(fact.content),
+  }));
+
+  const available = Math.min(row.answers.length, questions.length, qaPairIds.length);
+  const normalizedQuestions: MemoryAgentBenchQuestion[] = [];
+  let droppedQuestions = 0;
+  for (let index = 0; index < available; index += 1) {
+    if (
+      options.maxQuestions !== null &&
+      normalizedQuestions.length >= options.maxQuestions
+    ) {
+      break;
+    }
+    const goldAnswer = firstGoldAnswer(row.answers, index);
+    const goldNormalized = normalizeMatch(goldAnswer);
+    if (goldNormalized.length === 0) {
+      droppedQuestions += 1;
+      continue;
+    }
+    const evidenceChunkIds = normalizedFacts
+      .filter((fact) => fact.normalized.includes(goldNormalized))
+      .map((fact) => fact.chunkId);
+    // Keep only low-recurrence answers: 1..maxEvidenceFacts facts is the genuine
+    // consolidation chain; more is common-string noise (drop it).
+    if (
+      evidenceChunkIds.length === 0 ||
+      evidenceChunkIds.length > options.maxEvidenceFacts
+    ) {
+      droppedQuestions += 1;
+      continue;
+    }
+    normalizedQuestions.push({
+      competency: "CR",
+      evidenceChunkIds,
+      goldAnswer,
+      matchMode: "substring_exact_match",
+      question: questions[index],
+      questionId: qaPairIds[index] ?? `${sourceDataset}_no${index}`,
+      staleChunkIds: [],
+    });
+  }
+  if (normalizedQuestions.length === 0) {
+    throw new Error(
+      "MemoryAgentBench factconsolidation row produced no questions with low-recurrence evidence",
+    );
+  }
+
+  return {
+    case: {
+      caseId: `cr_${sourceDataset}`,
+      chunks,
+      competency: "CR",
+      questions: normalizedQuestions,
+      sourceDataset,
+    },
+    droppedQuestions,
+  };
+}
+
 function normalizeRowToCase(
   competency: MemoryAgentBenchCompetency,
   row: Record<string, unknown>,
   truncatedCells: readonly string[],
   options: Phase64MabPrepareOptions,
-): MemoryAgentBenchCase {
+): { case: MemoryAgentBenchCase; droppedQuestions: number } {
   if (competency === "AR") {
-    return normalizeEventQaRow(row, truncatedCells, options);
+    return {
+      case: normalizeEventQaRow(row, truncatedCells, options),
+      droppedQuestions: 0,
+    };
+  }
+  if (competency === "CR") {
+    return normalizeFactConsolidationRow(row, truncatedCells, options);
   }
   throw new Error(
-    `MemoryAgentBench prep: the ${competency} normalizer is not implemented yet (only AR/event_qa is available). Tracked as a Phase 64 follow-up.`,
+    `MemoryAgentBench prep: the ${competency} normalizer is not implemented yet (AR/event_qa and CR/factconsolidation are available). Tracked as a Phase 64 follow-up.`,
   );
 }
 
@@ -440,7 +591,7 @@ export async function preparePhase64MemoryAgentBenchData(
   const totalQuestionsAvailable = Array.isArray(row.questions)
     ? row.questions.length
     : 0;
-  const normalizedCase = normalizeRowToCase(
+  const { case: normalizedCase, droppedQuestions } = normalizeRowToCase(
     options.competency,
     row,
     truncatedCells,
@@ -466,6 +617,7 @@ export async function preparePhase64MemoryAgentBenchData(
     chunkCount: normalizedCase.chunks.length,
     competency: options.competency,
     dataset: options.dataset,
+    droppedQuestions,
     generatedAt,
     merged: options.merge,
     metadataFile,
