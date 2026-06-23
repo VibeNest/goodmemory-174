@@ -230,10 +230,25 @@ Tasks
   than AR's long multiple-choice ordering queries. The prior hand-made CR A/B
   (0.94 answer accuracy, evRecall 0.473) used a different question selection and a
   live answer model; this is the reproducible retrieval-only baseline.
-  NEXT: TTL/LRU normalizers each need their own evidence-definition decision (TTL
-  ICL ~76 demos/label; LRU whole-story) -- a design task, not a mechanical add.
-  Then choose semantic/hybrid retrieval for the long-prefix AR misses or a small
-  external-root live-answer slice over the reproducible AR+CR root.
+  TTL/LRU RETRIEVAL-PREP RULED OUT (2026-06-23, probed): retrieval-recall is only a
+  meaningful, reproducibly-derivable signal for AR and CR; TTL and LRU are
+  intrinsically answer-time evaluations. Probe evidence -- TTL/ICL banking77
+  (offset 1) has 5897 demos across 77 labels (~76 demos/label, balanced), and each
+  gold label recurs ~76 times, so "evidence = same-label demos" yields ~76 evidence
+  chunks/question and a near-meaningless retrieval recall (you can never retrieve
+  76; retrieving ~3 = recall ~0.04), plus seeding ~5900 chunks is heavy. LRU is
+  infbench_sum summarization (offsets 0-99, 1 long-answer Q, LLM-judge/F1 = out of
+  scope) and detective_qa (offsets 100+, 6 multiple-choice Qs like "C. The Brandt
+  couple") where answering needs whole-story reasoning, not a single evidence
+  passage. So the prep now gives TTL/LRU a clear error pointing at the live-answer
+  path (eval:phase-64-smoke --live) instead of a misleading low-signal normalizer.
+  This closes the "add CR/TTL/LRU normalizers" item: the reproducible retrieval-prep
+  is COMPLETE for the two competencies where retrieval-recall is meaningful (AR, CR).
+  NEXT: the meaningful TTL/LRU evaluation, and a full AR+CR answer-accuracy closure,
+  run through the live-answer path (--live --evidence-pack), which is wired but
+  needs the LLM endpoint (deferred per the user). Separately, the AR recall-0.24
+  long-prefix gap is a generic retrieval-routing target (do NOT add an event_qa
+  branch), best done on a calm tree with a BEAM spot-check.
 
 
 Commands

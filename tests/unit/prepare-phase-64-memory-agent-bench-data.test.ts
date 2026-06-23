@@ -459,4 +459,27 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       ),
     ).rejects.toThrow("produced no numbered facts");
   });
+
+  it("points TTL/LRU at the live-answer path (no retrieval-recall normalizer)", async () => {
+    for (const competency of ["TTL", "LRU"] as const) {
+      await expect(
+        preparePhase64MemoryAgentBenchData(
+          {
+            competency,
+            dataset: "ai-hyz/MemoryAgentBench",
+            maxEvidenceFacts: 3,
+            maxQuestions: null,
+            merge: false,
+            offset: 0,
+            outputRoot: "/tmp/MAB",
+          },
+          {
+            mkdir: async () => undefined,
+            requestJson: async () => buildEventQaRowsResponse(),
+            writeFile: async () => undefined,
+          },
+        ),
+      ).rejects.toThrow("answer accuracy at live-answer time");
+    }
+  });
 });

@@ -532,8 +532,16 @@ function normalizeRowToCase(
   if (competency === "CR") {
     return normalizeFactConsolidationRow(row, truncatedCells, options);
   }
+  // TTL/LRU are intentionally NOT retrieval-recall prep targets. Probing the
+  // upstream rows showed they expose no meaningful per-question gold evidence:
+  // TTL (ICL, e.g. banking77) carries ~76 demos per label, so "evidence = same-
+  // label demos" makes retrieval recall near-meaningless; LRU is whole-story
+  // detective_qa / InfBench summarization, where the whole context is "evidence".
+  // Their meaningful evaluation is answer accuracy at live-answer time
+  // (eval:phase-64-smoke --live), not retrieval. AR/event_qa and CR/
+  // factconsolidation are the competencies with a defensible retrieval signal.
   throw new Error(
-    `MemoryAgentBench prep: the ${competency} normalizer is not implemented yet (AR/event_qa and CR/factconsolidation are available). Tracked as a Phase 64 follow-up.`,
+    `MemoryAgentBench prep: ${competency} has no retrieval-recall normalizer. AR/event_qa and CR/factconsolidation expose meaningful per-question gold evidence; TTL (ICL ~76 demos/label) and LRU (whole-story detective_qa/summarization) do not, so their meaningful evaluation is answer accuracy at live-answer time (eval:phase-64-smoke --live), not retrieval. See the Phase 64 board.`,
   );
 }
 
