@@ -34,6 +34,13 @@ import {
 } from "../src/eval/memoryAgentBench";
 import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+import {
+  requestOpenAICompatibleText,
+  withAISDKRetries,
+} from "../src/provider/ai-sdk-runtime";
+import { resolveLiveModelConfig } from "./run-eval";
+import { buildPhase63AnswerEvidencePack } from "./phase63-answer-evidence-pack";
+import type { Phase63EvidenceTurn } from "./phase63-answer-evidence-pack";
 
 export const MEMORY_AGENT_BENCH_SMOKE_RUN_ID =
   "run-phase64-mab-smoke-current";
@@ -49,7 +56,13 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface MemoryAgentBenchSmokeCliOptions {
   benchmarkRoot?: string;
+  // When true, shape the answer context as the source-ordered evidence pack
+  // (current-value resolver) instead of the plain retrieved-chunk list.
+  evidencePack?: boolean;
   limit?: number;
+  // When true (and no answerGenerator is injected), construct the real LLM
+  // generator and run in live-answer mode.
+  live?: boolean;
   outputDir?: string;
   runId?: string;
 }
@@ -160,7 +173,9 @@ export function parseMemoryAgentBenchSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[MEMORY_AGENT_BENCH_ROOT_ENV],
+    evidencePack: argv.includes("--evidence-pack"),
     limit,
+    live: argv.includes("--live"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
   };
@@ -341,6 +356,65 @@ export function buildMemoryAgentBenchAnswerContext(input: {
     .join("\n");
 }
 
+// General answer-time context shaping: reuse the evidence pack so the
+// current-value resolver validated on BEAM applies here too. CR co-retrieves the
+// stale ($5k) and current ($8k) facts; the pack's "latest entry is the current
+// value" framing is what picks the current one. MAB chunks carry no time anchor,
+// so source order is the chunk id (higher = later = current).
+export function buildMemoryAgentBenchEvidencePackContext(input: {
+  question: MemoryAgentBenchQuestion;
+  retrievedChunkIds: readonly number[];
+  testCase: MemoryAgentBenchCase;
+}): string {
+  const retrieved = new Set(input.retrievedChunkIds);
+  const turns: Phase63EvidenceTurn[] = input.testCase.chunks
+    .filter((chunk) => retrieved.has(chunk.id))
+    .map((chunk) => ({
+      chatId: chunk.id,
+      content: chunk.content,
+      role: chunk.role,
+      timeAnchor: "",
+    }));
+  return buildPhase63AnswerEvidencePack({
+    question: input.question.question,
+    turns,
+  });
+}
+
+const MEMORY_AGENT_BENCH_ANSWER_SYSTEM =
+  "You answer questions using only the supplied memory context. Combining or summarizing information that is present in the context is expected; do not state facts that are absent from it.";
+
+export function buildMemoryAgentBenchPrompt(input: {
+  memoryContext: string;
+  question: string;
+}): string {
+  return [
+    "Memory context:",
+    input.memoryContext.trim().length > 0 ? input.memoryContext : "(none)",
+    `Question:\n${input.question}`,
+    "Answer concisely using only the memory context above. Return only the answer.",
+  ].join("\n\n");
+}
+
+const MEMORY_AGENT_BENCH_LIVE_REQUEST_TIMEOUT_MS = 120000;
+
+// Real LLM generator (deterministic match-mode scoring downstream, so no judge).
+export function createMemoryAgentBenchLiveAnswerGenerator(): MemoryAgentBenchAnswerGenerator {
+  const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  return async (input) =>
+    withAISDKRetries(() =>
+      requestOpenAICompatibleText({
+        model,
+        prompt: buildMemoryAgentBenchPrompt({
+          memoryContext: input.memoryContext,
+          question: input.question.question,
+        }),
+        system: MEMORY_AGENT_BENCH_ANSWER_SYSTEM,
+        timeoutMs: MEMORY_AGENT_BENCH_LIVE_REQUEST_TIMEOUT_MS,
+      }),
+    );
+}
+
 export function summarizeMemoryAgentBenchRetrieval(
   results: readonly MemoryAgentBenchQuestionRetrieval[],
 ): MemoryAgentBenchCompetencyRetrievalSummary[] {
@@ -507,6 +581,10 @@ export async function runMemoryAgentBenchSmoke(
     readFile: readFileImpl,
   });
 
+  const answerGenerator =
+    dependencies.answerGenerator ??
+    (options.live ? createMemoryAgentBenchLiveAnswerGenerator() : undefined);
+
   const results: MemoryAgentBenchQuestionRetrieval[] = [];
   let executionFailures = 0;
   for (const testCase of cases) {
@@ -535,12 +613,19 @@ export async function runMemoryAgentBenchSmoke(
           retrievedChunkIds,
           testCase,
         });
-        if (dependencies.answerGenerator) {
-          const generatedAnswer = await dependencies.answerGenerator({
-            memoryContext: buildMemoryAgentBenchAnswerContext({
-              retrievedChunkIds,
-              testCase,
-            }),
+        if (answerGenerator) {
+          const memoryContext = options.evidencePack
+            ? buildMemoryAgentBenchEvidencePackContext({
+                question,
+                retrievedChunkIds,
+                testCase,
+              })
+            : buildMemoryAgentBenchAnswerContext({
+                retrievedChunkIds,
+                testCase,
+              });
+          const generatedAnswer = await answerGenerator({
+            memoryContext,
             question,
             retrievedChunkIds,
             testCase,
@@ -562,7 +647,7 @@ export async function runMemoryAgentBenchSmoke(
       }
     }
   }
-  const liveAnswer = dependencies.answerGenerator !== undefined;
+  const liveAnswer = answerGenerator !== undefined;
 
   const report: MemoryAgentBenchSmokeReport = {
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",

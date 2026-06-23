@@ -42,10 +42,23 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/MAB",
+      evidencePack: false,
       limit: 2,
+      live: false,
       outputDir: "/tmp/out",
       runId: "run-mab",
     });
+    const withFlags = parseMemoryAgentBenchSmokeCliOptions([
+      "bun",
+      "run",
+      "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+      "--benchmark-root",
+      "/tmp/MAB",
+      "--live",
+      "--evidence-pack",
+    ]);
+    expect(withFlags.live).toBe(true);
+    expect(withFlags.evidencePack).toBe(true);
 
     expect(() =>
       parseMemoryAgentBenchSmokeCliOptions([
