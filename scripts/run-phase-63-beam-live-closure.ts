@@ -29,6 +29,7 @@ const GENERATED_BY = "scripts/run-phase-63-beam-live-closure.ts";
 
 export interface Phase63BeamLiveClosureCliOptions {
   benchmarkRoot?: string;
+  evidencePack?: boolean;
   outputDir?: string;
   profile?: BeamProfile;
   recallReportPath?: string;
@@ -38,6 +39,7 @@ export interface Phase63BeamLiveClosureCliOptions {
 
 export interface Phase63BeamLiveClosureReport {
   benchmarkRoot: string;
+  evidencePack: boolean;
   generatedAt: string;
   generatedBy: typeof GENERATED_BY;
   liveReportPath: string;
@@ -109,6 +111,7 @@ export function parsePhase63BeamLiveClosureCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
+    evidencePack: argv.includes("--evidence-pack"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
     recallReportPath: resolveCliFlagValue(argv, "--recall-report"),
@@ -221,6 +224,7 @@ export async function runPhase63BeamLiveClosure(
   const profile = options.profile ?? "goodmemory-rules-only";
   const runId = options.runId ?? PHASE63_BEAM_LIVE_CLOSURE_RUN_ID;
   const scale = options.scale ?? "100K";
+  const evidencePack = options.evidencePack ?? false;
   if (!isPhase63BeamLiveClosureProfile(profile)) {
     throw new Error(
       "Phase 63 BEAM live closure currently supports goodmemory-rules-only or goodmemory-hybrid only.",
@@ -246,6 +250,7 @@ export async function runPhase63BeamLiveClosure(
     {
       benchmarkRoot,
       caseSelection: "all-cases",
+      evidencePack,
       outputDir,
       profile,
       recallReportPath: options.recallReportPath,
@@ -264,6 +269,7 @@ export async function runPhase63BeamLiveClosure(
   const runDirectory = join(outputDir, runId);
   const report: Phase63BeamLiveClosureReport = {
     benchmarkRoot,
+    evidencePack,
     generatedAt: now().toISOString(),
     generatedBy: GENERATED_BY,
     liveReportPath: join(runDirectory, PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME),
@@ -311,6 +317,7 @@ export async function runPhase63BeamLiveClosure(
 }
 
 function buildCliSummary(report: Phase63BeamLiveClosureReport): {
+  evidencePack: boolean;
   liveReportPath: string;
   mode: "live-answer-closure";
   recallReportPath: string;
@@ -321,6 +328,7 @@ function buildCliSummary(report: Phase63BeamLiveClosureReport): {
   summary: Phase63BeamLiveClosureReport["summary"];
 } {
   return {
+    evidencePack: report.evidencePack,
     liveReportPath: report.liveReportPath,
     mode: report.mode,
     recallReportPath: report.recallReportPath,

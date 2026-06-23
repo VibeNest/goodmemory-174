@@ -162,6 +162,7 @@ function buildClosureReport(
 ): Phase63BeamLiveClosureReport {
   return {
     benchmarkRoot: "/tmp/BEAM",
+    evidencePack: false,
     generatedAt: "2026-06-15T20:45:00.000Z",
     generatedBy: "scripts/run-phase-63-beam-live-closure.ts",
     liveReportPath: "/tmp/out/run-closure/live-slice-report.json",
@@ -219,6 +220,7 @@ describe("phase-63 BEAM live closure runner", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/BEAM",
+      evidencePack: false,
       outputDir: undefined,
       profile: "goodmemory-rules-only",
       recallReportPath: "/tmp/recall.json",

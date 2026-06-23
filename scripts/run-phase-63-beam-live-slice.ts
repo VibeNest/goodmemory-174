@@ -28,6 +28,8 @@ import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { createProviderTextGenerator } from "../src/eval/provider-harness";
 import { resolveLiveModelConfig } from "./run-eval";
 import { resolveCliFlagValue } from "./cli-options";
+import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
+import type { EvidenceTurn } from "../src/answer/evidencePack";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,
@@ -135,6 +137,7 @@ export interface Phase63BeamLiveSliceCliOptions {
   benchmarkRoot?: string;
   caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
+  evidencePack?: boolean;
   limit?: number;
   outputDir?: string;
   profile?: BeamProfile;
@@ -315,6 +318,7 @@ export function parsePhase63BeamLiveSliceCliOptions(
       resolveCliFlagValue(argv, "--case-selection"),
     ),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
+    evidencePack: argv.includes("--evidence-pack"),
     limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
@@ -1079,11 +1083,46 @@ export function buildPhase63BeamSourceOrderedContext(input: {
   return [...header, ...lines].join("\n");
 }
 
+// General answer-time shaping for the closure path. Routes the retrieved turns
+// through the shared, benchmark-agnostic `buildAnswerEvidencePack` (validated on
+// MemoryAgentBench CR, not fitted to BEAM) instead of the bespoke per-case
+// source-ordered/raw context. The pack infers the operation (count/order/general)
+// from the question and adds the "latest entry is the current value" framing for
+// every question type, which is the lever the ablation matrix measured
+// (retrieved-context answer accuracy 0.560 -> 0.662).
+export function buildPhase63BeamEvidencePackContext(input: {
+  retrievedChatIds: readonly number[];
+  testCase: BeamCase;
+}): string {
+  const retrievedIds = new Set(input.retrievedChatIds);
+  const turns: EvidenceTurn[] = input.testCase.chat
+    .flat()
+    .filter((turn) => retrievedIds.has(turn.id))
+    .map((turn) => ({
+      content: turn.content,
+      orderKey: sourceOrderValue(turn),
+      role: turn.role,
+      sourceId: turn.id,
+      timeAnchor: turn.timeAnchor,
+    }));
+  return buildAnswerEvidencePack({
+    question: input.testCase.question,
+    turns,
+  });
+}
+
 export function buildPhase63BeamAnswerMemoryContext(input: {
+  evidencePack?: boolean;
   memoryContext: string;
   retrievedChatIds: readonly number[];
   testCase: BeamCase;
 }): string {
+  if (input.evidencePack) {
+    return buildPhase63BeamEvidencePackContext({
+      retrievedChatIds: input.retrievedChatIds,
+      testCase: input.testCase,
+    });
+  }
   const sections: string[] = [];
   const sourceOrderedContext = buildPhase63BeamSourceOrderedContext({
     retrievedChatIds: input.retrievedChatIds,
@@ -1274,6 +1313,7 @@ function buildExecutionFailure(input: {
 async function scoreLiveCase(input: {
   answerGenerator: Phase63BeamLiveAnswerGenerator;
   answerJudge: Phase63BeamLiveAnswerJudge;
+  evidencePack: boolean;
   memory: GoodMemory;
   profile: BeamProfile;
   runId: string;
@@ -1301,6 +1341,7 @@ async function scoreLiveCase(input: {
 
   const retrievedChatIds = collectPhase63BeamRetrievedChatIds(recall);
   const memoryContext = buildPhase63BeamAnswerMemoryContext({
+    evidencePack: input.evidencePack,
     memoryContext: collectMemoryContext(recall),
     retrievedChatIds,
     testCase: input.testCase,
@@ -1483,6 +1524,7 @@ export async function runPhase63BeamLiveSlice(
         await scoreLiveCase({
           answerGenerator,
           answerJudge,
+          evidencePack: options.evidencePack ?? false,
           memory,
           profile,
           runId,

@@ -122,6 +122,7 @@ describe("phase-63 BEAM live slice runner", () => {
       benchmarkRoot: "/tmp/BEAM",
       caseSelection: undefined,
       caseIds: ["beam-live-q1"],
+      evidencePack: false,
       limit: 2,
       outputDir: undefined,
       profile: "goodmemory-rules-only",
@@ -296,6 +297,62 @@ describe("phase-63 BEAM live slice runner", () => {
       memoryContext.indexOf("chat_id=12"),
     );
     expect(memoryContext).toContain("Retrieved GoodMemory records");
+  });
+
+  it("routes through the general evidence pack when evidencePack is set", () => {
+    const testCase = {
+      answer: "8000",
+      answerable: true,
+      chat: [
+        [
+          {
+            content: "My monthly budget is $5,000.",
+            id: 4,
+            index: "4",
+            questionType: "knowledge_update",
+            role: "user",
+            timeAnchor: "January-10-2024",
+          },
+          {
+            content: "I increased my monthly budget to $8,000.",
+            id: 12,
+            index: "12",
+            questionType: "knowledge_update",
+            role: "user",
+            timeAnchor: "April-25-2024",
+          },
+        ],
+      ],
+      conversationId: "beam-live-pack",
+      evidenceChatIds: [4, 12],
+      question: "What is my current monthly budget?",
+      questionId: "beam-live-pack-q1",
+      questionType: "knowledge_update",
+      scale: "100K" as const,
+    };
+
+    const packed = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "- chat_id=4: My monthly budget is $5,000.",
+      retrievedChatIds: [12, 4],
+      testCase,
+    });
+    const plain = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: false,
+      memoryContext: "- chat_id=4: My monthly budget is $5,000.",
+      retrievedChatIds: [12, 4],
+      testCase,
+    });
+
+    // The general pack adds current-value framing for a non-ordering update
+    // question that the default raw-records path leaves unframed.
+    expect(packed).toContain("Evidence (source-ordered, earliest first):");
+    expect(packed).toContain("latest entry is the current value");
+    // Earliest source order first regardless of retrieval order.
+    expect(packed.indexOf("#4")).toBeLessThan(packed.indexOf("#12"));
+    // It replaces, not augments, the bespoke source-ordered section.
+    expect(packed).not.toContain("Source-ordered retrieved turns");
+    expect(plain).not.toContain("latest entry is the current value");
   });
 
   it("prunes noisy source-ordered retrieved turns to the requested ordered evidence count", () => {
