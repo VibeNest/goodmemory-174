@@ -21,12 +21,24 @@ describe("phase-63 live answer-gap analyzer", () => {
         "/tmp/BEAM",
         "--run-id",
         "run-x",
+        "--scale",
+        "500K",
       ]),
     ).toMatchObject({
       benchmarkRoot: "/tmp/BEAM",
       liveReportPath: "/tmp/live.json",
       runId: "run-x",
+      scale: "500K",
     });
+    expect(() =>
+      parsePhase63AnswerGapCliOptions([
+        "bun",
+        "run",
+        "scripts/analyze-phase-63-live-answer-gap.ts",
+        "--scale",
+        "50K",
+      ]),
+    ).toThrow("--scale must be 100K, 500K, 1M, 10M, or unknown");
   });
 
   it("counts unique noise chats excluding evidence", () => {

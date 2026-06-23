@@ -31,10 +31,11 @@ export function inferAnswerOperation(question: string): AnswerOperation {
 
 export interface EvidenceTurn {
   content: string;
+  // Explicit source order for answer-time chronology. This may be a chat index,
+  // chunk order, or occurred-at ordinal; it is separate from source identity.
+  orderKey: number;
   role: string;
-  // Monotonic source order key (e.g. chat id, chunk id, turn index). Higher =
-  // later = more recent, so the pack puts the current value last.
-  sourceId: number;
+  sourceId: number | string;
   timeAnchor: string;
 }
 
@@ -46,7 +47,7 @@ const OPERATION_FRAMING: Record<AnswerOperation, string> = {
   general: "",
 };
 
-// Source-ordered (earliest sourceId first), deduplicated, timestamped. The
+// Source-ordered (earliest orderKey first), deduplicated, timestamped. The
 // trailing note makes update-recency explicit without suppressing genuine
 // contradictions: the latest entry is the current state unless two entries are
 // irreconcilable.
@@ -55,15 +56,16 @@ export function buildAnswerEvidencePack(input: {
   turns: readonly EvidenceTurn[];
 }): string {
   const operation = inferAnswerOperation(input.question);
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const ordered: EvidenceTurn[] = [];
   for (const turn of [...input.turns].sort(
-    (left, right) => left.sourceId - right.sourceId,
+    (left, right) => left.orderKey - right.orderKey,
   )) {
-    if (seen.has(turn.sourceId)) {
+    const sourceKey = `${typeof turn.sourceId}:${turn.sourceId}`;
+    if (seen.has(sourceKey)) {
       continue;
     }
-    seen.add(turn.sourceId);
+    seen.add(sourceKey);
     ordered.push(turn);
   }
 

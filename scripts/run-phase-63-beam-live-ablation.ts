@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BeamCase, BeamChatTurn, BeamProfile } from "../src/eval/beam";
+import { normalizeBeamProfileList } from "../src/eval/beam";
 import { resolveCliFlagValue } from "./cli-options";
 import {
   flattenPhase63BeamCases,
@@ -135,6 +136,40 @@ function parseLimit(value: string | undefined): number | undefined {
   return parsed;
 }
 
+function parseScale(value: string | undefined): BeamCase["scale"] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (
+    value === "100K" ||
+    value === "500K" ||
+    value === "1M" ||
+    value === "10M" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  throw new Error("--scale must be 100K, 500K, 1M, 10M, or unknown");
+}
+
+function isPhase63AblationProfile(profile: BeamProfile): boolean {
+  return profile === "goodmemory-rules-only" || profile === "goodmemory-hybrid";
+}
+
+function parseProfile(value: string | undefined): BeamProfile | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const profiles = normalizeBeamProfileList([value]);
+  const profile = profiles[0];
+  if (!isPhase63AblationProfile(profile)) {
+    throw new Error(
+      "Phase 63 BEAM ablation currently supports --profile goodmemory-rules-only or goodmemory-hybrid.",
+    );
+  }
+  return profile;
+}
+
 export function parsePhase63AblationCliOptions(
   argv: readonly string[],
 ): Phase63AblationCliOptions {
@@ -146,7 +181,9 @@ export function parsePhase63AblationCliOptions(
     liveReportPath: resolveCliFlagValue(argv, "--live-report"),
     mode: parseMode(resolveCliFlagValue(argv, "--mode")),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
     runId: resolveCliFlagValue(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
   };
 }
 
@@ -225,6 +262,7 @@ function buildModeMemoryContext(input: {
     }
     turns.push({
       content: turn.content,
+      orderKey: turn.id,
       role: turn.role,
       sourceId: turn.id,
       timeAnchor: turn.timeAnchor,

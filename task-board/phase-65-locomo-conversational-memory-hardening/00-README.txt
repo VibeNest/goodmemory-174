@@ -9,8 +9,9 @@ Hardening Plan and the last in the sequence (LongMemEval -> BEAM ->
 MemoryAgentBench -> LoCoMo). Bring-up T001-T004 is complete and on main; the
 live LLM answer/judge layer is deferred (the LLM call has not been restored).
 
-Phase 64 MemoryAgentBench remains the active hardening leg (its live generator
-is also deferred). Phase 63 BEAM live closure is deferred per the user.
+Phase 64 MemoryAgentBench remains the active hardening leg (its real live-answer
+path exists behind `--live`, but no accepted external-root live closure exists).
+Phase 63 BEAM live closure is deferred per the user.
 
 
 What LoCoMo Is

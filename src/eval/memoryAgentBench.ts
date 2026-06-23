@@ -62,6 +62,25 @@ export function normalizeMemoryAgentBenchAnswer(value: string): string {
   return value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLowerCase();
 }
 
+export function extractMemoryAgentBenchScoredAnswer(value: string): string {
+  const withoutClosedReasoning = value
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/giu, "")
+    .trim();
+  if (withoutClosedReasoning !== value.trim()) {
+    return withoutClosedReasoning;
+  }
+
+  const openReasoning = value.match(/^\s*<think\b[^>]*>([\s\S]*)$/iu);
+  if (!openReasoning) {
+    return value.trim();
+  }
+  const nonEmptyLines = openReasoning[1]
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  return nonEmptyLines.at(-1) ?? "";
+}
+
 export function substringExactMatch(answer: string, gold: string): boolean {
   const normalizedGold = normalizeMemoryAgentBenchAnswer(gold);
   if (normalizedGold.length === 0) {
@@ -82,9 +101,10 @@ export function scoreMemoryAgentBenchAnswer(input: {
   goldAnswer: string;
   matchMode: MemoryAgentBenchMatchMode;
 }): boolean {
+  const scoredAnswer = extractMemoryAgentBenchScoredAnswer(input.answer);
   return input.matchMode === "substring_exact_match"
-    ? substringExactMatch(input.answer, input.goldAnswer)
-    : exactMatch(input.answer, input.goldAnswer);
+    ? substringExactMatch(scoredAnswer, input.goldAnswer)
+    : exactMatch(scoredAnswer, input.goldAnswer);
 }
 
 // Synthetic smoke fixture: one small case per competency, following the shapes

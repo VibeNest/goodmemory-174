@@ -18,7 +18,11 @@ retrievable on purpose; explicit-over-explicit supersession would regress BEAM
 knowledge_update) — conflict resolution is decided at ANSWER time. Added a
 deterministic live-answer scaffold (injectable answerGenerator, answer scored via
 match modes, mode retrieval-only|live-answer, per-competency answerAccuracy);
-additive only, zero BEAM blast radius. First external-root rules smoke is now
+additive only, zero BEAM blast radius. The real model path now exists behind
+`--live`, and can be paired with `--evidence-pack`; synthetic live evidence
+`run-phase64-mab-synthetic-live-pack` exposed a reasoning-wrapper false negative
+in LRU scoring, so scoring strips recognized `<think>` wrappers before matching
+while preserving the raw generated answer. First external-root rules smoke is now
 recorded: /private/tmp/MAB/cases.json was prepared from upstream Hugging Face
 rows (eventqa_full, icl_banking77, detective_qa, factconsolidation_sh_6k), and
 the corrected run `run-phase64-mab-external-rules-ar-normalized-current`
@@ -29,8 +33,9 @@ query routing for support/instruction questions; rerun
 `run-phase64-mab-external-rules-open-loop-support-guard-current` improved TTL
 from 0.3889 to 0.4444 and reduced TTL noise from 10 to 9, while AR/LRU/CR stayed
 unchanged. TTL action-policy readiness is still false, so the next step remains
-rules-only miss tracing before any real LLM call. The report contract now also
-includes per-question `missingEvidenceChunkIds` and `noiseChunkIds`; the latest
+rules-only miss tracing or a bounded external-root live-answer slice, not a
+claim of full closure. The report contract now also includes per-question
+`missingEvidenceChunkIds` and `noiseChunkIds`; the latest
 external rerun `run-phase64-mab-external-rules-missing-noise-ids-current` keeps
 the same aggregate metrics while making the remaining misses directly visible.
 
@@ -171,7 +176,7 @@ Result:
 Reading:
 
 - The external-root slice is meaningfully harder than the synthetic smoke and
-  should be used before any live-answer LLM call.
+  should be used before any wider live-answer LLM run or closure claim.
 - CR confirms the current framing: current facts are retrievable, but stale
   history is co-retrieved, so conflict resolution belongs at answer time rather
   than explicit-over-explicit supersession.
@@ -223,8 +228,9 @@ Delta vs corrected baseline:
 - AR and LRU misses remain generic lexical/ranking pressure; CR still needs
   answer-time resolution rather than retrieval-time explicit-over-explicit
   supersession.
-- Because TTL `actionPolicyTransferReady` is still false, hold the real LLM call
-  leg until the remaining TTL semantic/label-transfer misses are traced.
+- Because TTL `actionPolicyTransferReady` is still false, do not treat a small
+  live-answer run as external-root closure until the remaining TTL
+  semantic/label-transfer misses are traced or explicitly bounded.
 
 BEAM safety spot-check:
 
@@ -293,7 +299,8 @@ Reading:
 - LRU is generic ranking/limit pressure, with answer-relevant non-gold chunks
   sometimes retrieved; do not add benchmark-specific option parsing.
 - Next credible choices are semantic/hybrid retrieval for TTL label transfer or
-  a small live-answer generator, not more lexical one-off rules.
+  a small external-root live-answer slice after the scoring-wrapper fix, not more
+  lexical one-off rules.
 
 Report (gitignored research evidence):
 reports/eval/research/phase-64/mab/run-phase64-mab-external-rules-missing-noise-ids-current/smoke-report.json

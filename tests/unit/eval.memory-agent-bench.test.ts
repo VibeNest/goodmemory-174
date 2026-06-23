@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildMemoryAgentBenchSmokeCases,
   exactMatch,
+  extractMemoryAgentBenchScoredAnswer,
   MEMORY_AGENT_BENCH_COMPETENCIES,
   type MemoryAgentBenchQuestion,
   type MemoryAgentBenchQuestionResult,
@@ -52,6 +53,31 @@ describe("MemoryAgentBench smoke contract", () => {
     expect(exactMatch("urgent", "Urgent")).toBe(true);
     expect(exactMatch("urgent now", "urgent")).toBe(false);
     expect(substringExactMatch("anything at all", "")).toBe(false);
+  });
+
+  it("strips reasoning wrappers only for scored MemoryAgentBench answers", () => {
+    const raw = [
+      "<think>",
+      "The badge moved from Alice to Bob, then Carol.",
+      "</think>",
+      "Carol",
+    ].join("\n");
+    expect(extractMemoryAgentBenchScoredAnswer(raw)).toBe("Carol");
+    expect(exactMatch(raw, "Carol")).toBe(false);
+    expect(
+      scoreMemoryAgentBenchAnswer({
+        answer: raw,
+        goldAnswer: "Carol",
+        matchMode: "exact_match",
+      }),
+    ).toBe(true);
+    expect(
+      scoreMemoryAgentBenchAnswer({
+        answer: "Carol is the holder.",
+        goldAnswer: "Carol",
+        matchMode: "exact_match",
+      }),
+    ).toBe(false);
   });
 
   it("accepts each smoke case gold answer and rejects the stale or wrong one", () => {

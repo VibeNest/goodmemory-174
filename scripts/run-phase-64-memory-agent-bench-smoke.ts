@@ -360,7 +360,8 @@ export function buildMemoryAgentBenchAnswerContext(input: {
 // current-value resolver validated on BEAM applies here too. CR co-retrieves the
 // stale ($5k) and current ($8k) facts; the pack's "latest entry is the current
 // value" framing is what picks the current one. MAB chunks carry no time anchor,
-// so source order is the chunk id (higher = later = current).
+// so this adapter explicitly uses normalized chunk order as the answer-time
+// order key.
 export function buildMemoryAgentBenchEvidencePackContext(input: {
   question: MemoryAgentBenchQuestion;
   retrievedChunkIds: readonly number[];
@@ -371,6 +372,7 @@ export function buildMemoryAgentBenchEvidencePackContext(input: {
     .filter((chunk) => retrieved.has(chunk.id))
     .map((chunk) => ({
       content: chunk.content,
+      orderKey: chunk.id,
       role: chunk.role,
       sourceId: chunk.id,
       timeAnchor: "",

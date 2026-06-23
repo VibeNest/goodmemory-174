@@ -90,13 +90,13 @@ Tasks
   the history AND the current value (evidence recall 1.0) is correct; the real
   conflict-resolution signal is at ANSWER time (use the current value), scored
   deterministically by the upstream match modes.
-  DONE so far: deterministic live-answer scaffold in
-  scripts/run-phase-64-memory-agent-bench-smoke.ts — injectable answerGenerator
-  (no real LLM yet), retrieved-context builder, answer scored via
-  scoreMemoryAgentBenchAnswer; report gains mode retrieval-only|live-answer and
-  per-competency answerAccuracy + answeredCount. Additive only (no shared
-  recall/remember change -> zero BEAM blast radius). Test proves CR passes on the
-  current value despite stale history co-retrieval.
+  DONE so far: live-answer path in
+  scripts/run-phase-64-memory-agent-bench-smoke.ts — injectable answerGenerator,
+  real model mode via --live, retrieved/evidence-pack context builder, answer
+  scored via scoreMemoryAgentBenchAnswer; report gains mode
+  retrieval-only|live-answer and per-competency answerAccuracy + answeredCount.
+  Additive only (no shared recall/remember change -> zero BEAM blast radius).
+  Tests prove CR passes on the current value despite stale history co-retrieval.
   EXTERNAL-ROOT RULES SMOKE (2026-06-16): prepared
   /private/tmp/MAB/cases.json from upstream Hugging Face rows without vendoring
   data into the repo: eventqa_full (AR, 5 questions), icl_banking77 (TTL, 6),
@@ -156,9 +156,19 @@ Tasks
   [6] while retrieving [2,3,5,4]. Rejected exploratory repairs: adding
   `source_order` tags to all external chunks reduced LRU, and normalizing the
   `withdrawl` typo to `withdrawal` did not improve TTL no2. NEXT: choose between
-  semantic/hybrid retrieval for TTL label-transfer misses or a small live-answer
-  generator; do not keep more lexical one-off rules without changed-case proof.
-  Do NOT pursue explicit-over-explicit supersession (BEAM-regressing).
+  semantic/hybrid retrieval for TTL label-transfer misses or a small external-root
+  live-answer slice after the scoring-wrapper fix; do not keep more lexical
+  one-off rules without changed-case proof. Do NOT pursue explicit-over-explicit
+  supersession (BEAM-regressing).
+  LIVE-ANSWER SCORING UPDATE (2026-06-23): synthetic live evidence
+  `run-phase64-mab-synthetic-live-pack` proved the --live --evidence-pack path
+  works, but also exposed a scoring false negative: LRU generated
+  `<think>...</think>\nCarol`, semantically the gold answer, and strict
+  exact-match marked it wrong. scoreMemoryAgentBenchAnswer now strips recognized
+  reasoning wrappers before deterministic match-mode scoring while preserving the
+  raw generatedAnswer in reports. This fixes model-output-format pollution; it is
+  not a wider semantic judge and does not turn synthetic live evidence into an
+  accepted external-root closure.
 
 
 Commands
@@ -242,8 +252,9 @@ Reading:
 - Noise is the full non-evidence chunk set for these tiny cases (everything is
   retrieved). It confirms the noise_budgeting risk; meaningful only once larger
   cases give real distractor pressure, so it is the second repair target.
-- Answer/task accuracy is intentionally not scored here (retrieval-only smoke);
-  the report marks it deferred-to-live-mode for a later live generator.
+- Answer/task accuracy is intentionally not scored in this retrieval-only smoke;
+  the report marks it deferred-to-live-mode. Separate live-answer mode now exists
+  behind --live and can be combined with --evidence-pack for small live slices.
 
 Report (gitignored research evidence):
 reports/eval/research/phase-64/mab/run-phase64-mab-smoke-current/smoke-report.json

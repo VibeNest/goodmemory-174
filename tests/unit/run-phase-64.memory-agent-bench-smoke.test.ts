@@ -328,4 +328,23 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     expect(competency(stale, "CR").answerAccuracy).toBe(0);
     expect(competency(stale, "AR").answerAccuracy).toBe(1);
   });
+
+  it("scores live answers after stripping reasoning wrappers while preserving the raw answer", async () => {
+    const report = await runMemoryAgentBenchSmoke(
+      { runId: "run-mab-live-think", outputDir: "/tmp/mab-out" },
+      {
+        answerGenerator: async ({ question }) =>
+          question.competency === "LRU"
+            ? "<think>\nCarol follows Bob in the badge chain.\n</think>\nCarol"
+            : question.goldAnswer,
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    const lru = report.cases.find((entry) => entry.competency === "LRU");
+    expect(lru?.generatedAnswer).toContain("<think>");
+    expect(lru?.answerCorrect).toBe(true);
+    expect(competency(report, "LRU").answerAccuracy).toBe(1);
+  });
 });

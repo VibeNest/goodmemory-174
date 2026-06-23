@@ -298,6 +298,22 @@ function emptyCountRecord<T extends string>(keys: readonly T[]): Record<T, numbe
   return Object.fromEntries(keys.map((key) => [key, 0])) as Record<T, number>;
 }
 
+function parseScale(value: string | undefined): Phase63AnswerGapOptions["scale"] {
+  if (!value) {
+    return undefined;
+  }
+  if (
+    value === "100K" ||
+    value === "500K" ||
+    value === "1M" ||
+    value === "10M" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+  throw new Error("--scale must be 100K, 500K, 1M, 10M, or unknown");
+}
+
 export async function analyzePhase63LiveAnswerGap(
   options: Phase63AnswerGapOptions = {},
   dependencies: Phase63AnswerGapDependencies = {},
@@ -460,6 +476,7 @@ export function parsePhase63AnswerGapCliOptions(
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     outputPath: resolveCliFlagValue(argv, "--output-path"),
     runId: resolveCliFlagValue(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
   };
 }
 

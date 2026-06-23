@@ -17,9 +17,27 @@ describe("answer evidence pack", () => {
     const pack = buildAnswerEvidencePack({
       question: "What is the dog's name?",
       turns: [
-        { sourceId: 4, content: "later", role: "user", timeAnchor: "Mar" },
-        { sourceId: 2, content: "earlier", role: "user", timeAnchor: "Jan" },
-        { sourceId: 2, content: "dup", role: "user", timeAnchor: "Jan" },
+        {
+          sourceId: 4,
+          orderKey: 4,
+          content: "later",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "earlier",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "dup",
+          role: "user",
+          timeAnchor: "Jan",
+        },
       ],
     });
     const earlierIdx = pack.indexOf("#2");
@@ -32,15 +50,54 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("the latest entry is the current value");
   });
 
+  it("orders evidence by explicit orderKey rather than source identity", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What is current?",
+      turns: [
+        {
+          sourceId: 2,
+          orderKey: 20,
+          content: "later by order key",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 99,
+          orderKey: 10,
+          content: "earlier by order key",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
+    });
+    expect(pack.indexOf("#99")).toBeLessThan(pack.indexOf("#2"));
+  });
+
   it("adds count framing only for count questions", () => {
     const count = buildAnswerEvidencePack({
       question: "How many times did I submit?",
-      turns: [{ sourceId: 1, content: "x", role: "user", timeAnchor: "Jan" }],
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "x",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
     });
     expect(count).toContain("count or total");
     const general = buildAnswerEvidencePack({
       question: "What is X?",
-      turns: [{ sourceId: 1, content: "x", role: "user", timeAnchor: "Jan" }],
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "x",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
     });
     expect(general).not.toContain("count or total");
     expect(general).not.toContain("order or sequence");
@@ -49,7 +106,15 @@ describe("answer evidence pack", () => {
   it("adds order framing for order/sequence questions", () => {
     const order = buildAnswerEvidencePack({
       question: "In what order did I build the features?",
-      turns: [{ sourceId: 1, content: "x", role: "user", timeAnchor: "Jan" }],
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "x",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
     });
     expect(order).toContain("order or sequence");
   });

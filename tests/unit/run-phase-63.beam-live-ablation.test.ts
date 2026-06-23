@@ -102,11 +102,17 @@ describe("phase-63 BEAM live ablation runner", () => {
         "gold-evidence-only",
         "--run-id",
         "run-abl",
+        "--scale",
+        "500K",
+        "--profile",
+        "goodmemory-hybrid",
       ]),
     ).toMatchObject({
       benchmarkRoot: "/tmp/BEAM",
       mode: "gold-evidence-only",
+      profile: "goodmemory-hybrid",
       runId: "run-abl",
+      scale: "500K",
     });
     expect(() =>
       parsePhase63AblationCliOptions([
@@ -117,6 +123,24 @@ describe("phase-63 BEAM live ablation runner", () => {
         "not-a-mode",
       ]),
     ).toThrow("--mode must be one of");
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--profile",
+        "baseline-no-memory",
+      ]),
+    ).toThrow("currently supports --profile goodmemory-rules-only or goodmemory-hybrid");
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--scale",
+        "50K",
+      ]),
+    ).toThrow("--scale must be 100K, 500K, 1M, 10M, or unknown");
   });
 
   it("selects chat ids per ablation mode", () => {
