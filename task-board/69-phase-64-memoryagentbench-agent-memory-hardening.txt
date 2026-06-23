@@ -266,6 +266,18 @@ Tasks
   broadens when rules-only would return nothing. DEFER the change: it is shared
   recall (BEAM blast radius) and needs a BEAM recall-diagnostic spot-check on a calm
   tree (the concurrent workstream is currently churning shared recall/smoke files).
+  FEASIBILITY SCOPED (2026-06-23, read-only): src/recall/ is NOT in the concurrent
+  workstream's dirty set, so it is collision-calm; the fix lands in
+  src/recall/engine.ts (919 lines, slot-based) and should EXTEND the existing
+  fallback seam (RecallResult.fallback is already "none" | "same_slot_unique_
+  candidate") rather than bolt on a parallel path. Risk refinement: because the
+  fallback is gated on rules-only returning ZERO hits, and BEAM rules-only recall is
+  0.96 (queries almost never return zero), its BEAM delta should be ~0 -- verify
+  with the recall diagnostic (a zero caseDelta confirms safety). It is still a
+  non-trivial core-engine integration that deserves a focused effort, not a hurried
+  loop; the prerequisites (calm src/recall, narrow zero-retrieval gate, BEAM
+  diagnostic available at /private/tmp/BEAM) are now recorded so it can start
+  de-risked.
 
 
 Commands
