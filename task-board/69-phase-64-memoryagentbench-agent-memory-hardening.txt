@@ -169,6 +169,47 @@ Tasks
   raw generatedAnswer in reports. This fixes model-output-format pollution; it is
   not a wider semantic judge and does not turn synthetic live evidence into an
   accepted external-root closure.
+  REPRODUCIBLE EXTERNAL-ROOT PREP (2026-06-23): the external root was previously
+  hand-normalized and lost whenever /private/tmp/MAB was cleared, blocking any
+  repeatable per-competency closure. Added scripts/prepare-phase-64-memory-agent-bench-data.ts
+  (alias prepare:phase-64-mab), mirroring the BEAM prep: it fetches one upstream
+  row from Hugging Face ai-hyz/MemoryAgentBench (MIT) via the datasets-server rows
+  endpoint and writes an already-normalized cases.json into the external root (no
+  vendoring; only the script + test live in the repo). Injectable fetch/write deps
+  make it fully unit-testable offline (tests/unit/prepare-phase-64-memory-agent-bench-data.test.ts,
+  11 tests). Competency -> split: AR/Accurate_Retrieval, TTL/Test_Time_Learning,
+  LRU/Long_Range_Understanding, CR/Conflict_Resolution. Only the AR normalizer is
+  implemented so far, and intentionally over event_qa rows (default offset 5,
+  eventqa_full), NOT ruler_qa: event_qa is the one AR sub-dataset with a fully
+  STRUCTURAL gold-evidence derivation -- metadata.previous_events + answers define
+  an event-ordering sequence, so chunk N == event N and question i's gold evidence
+  is the next-event chunk (id i+2) by construction. ruler_qa answers (e.g.
+  "France") recur across dozens of documents, so substring-derived evidence would
+  be trivially noisy (the same invalid-signal class as the earlier AR window bug).
+  --max-questions caps the slice (0 = all); --merge replaces only this competency's
+  cases in an existing cases.json while retaining others; default overwrites.
+  TTL/LRU/CR normalizers throw a clear not-implemented error (tracked follow-ups).
+  Additive only (new script + test + alias; zero src/ change -> zero BEAM blast
+  radius); full unit suite green (2089 pass / 0 fail, tsc clean).
+  FIRST REPRODUCIBLE AR EXTERNAL-ROOT SMOKE (2026-06-23): regenerated the AR root
+  (`bun run prepare:phase-64-mab -- --competency AR --max-questions 0`, 101 event
+  chunks + 100 questions) and ran the deterministic rules smoke
+  `run-phase64-mab-external-ar-eventqa-reproducible-current`: executionFailures 0,
+  AR averageEvidenceRecall 0.24 (24/100 fully retrieved), noiseChunkTotal 262,
+  staleSelectedCount 0. This is the first FULL-row AR diagnostic (the prior 0.6 was
+  a 5-question hand slice, not comparable). Recall decays monotonically with
+  event-ordering position: Q0-19 10/20, Q20-39 6/20, Q40-59 4/20, Q60-79 2/20,
+  Q80-99 2/20; retrieved-per-question averages 2.9 (some queries, incl. no0, return
+  0 chunks). Reading: rules-only retrieval is weak on the long multiple-choice
+  "which event happens next" query shape -- the growing cumulative-event prefix
+  dilutes the gold next-event's token overlap and it falls outside the small top-K.
+  This is genuine retrieval pressure with no LLM call, and a candidate for generic
+  query-routing work; do NOT add an event_qa-specific branch as the first fix.
+  NEXT: add CR/TTL/LRU normalizers (CR via the Conflict_Resolution fact lists,
+  reproducing the prior hand-made 0.94 A/B as a script; TTL via the ICL demos),
+  then choose between semantic/hybrid retrieval for the long-prefix AR/TTL misses
+  or a small external-root live-answer slice. Report (gitignored):
+  reports/eval/research/phase-64/mab/run-phase64-mab-external-ar-eventqa-reproducible-current/smoke-report.json.
 
 
 Commands
@@ -177,6 +218,12 @@ Commands
 ```text
 bun run analyze:phase-64-readiness -- \
   --phase63-analysis-path reports/eval/research/phase-63/beam/<run-id>/recall-diagnostic-analysis.json
+
+# Regenerate a per-competency external root (no vendoring; writes <root>/cases.json):
+bun run prepare:phase-64-mab -- --competency AR --output-root /private/tmp/MAB --max-questions 0
+# --offset <row> selects the upstream row; --merge keeps other competencies' cases.
+
+bun run eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB --run-id <run-id>
 ```
 
 

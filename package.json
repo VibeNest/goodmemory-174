@@ -184,6 +184,7 @@
     "analyze:phase-63-recall-diagnostic": "bun run scripts/analyze-phase-63-recall-diagnostic.ts",
     "analyze:phase-64-readiness": "bun run scripts/analyze-phase-64-readiness.ts",
     "prepare:phase-63-beam": "bun run scripts/prepare-phase-63-beam-data.ts",
+    "prepare:phase-64-mab": "bun run scripts/prepare-phase-64-memory-agent-bench-data.ts",
     "eval:phase-63": "bun run scripts/run-phase-63-eval.ts",
     "eval:phase-63-live-closure": "bun run scripts/run-phase-63-beam-live-closure.ts",
     "eval:phase-63-live-slice": "bun run scripts/run-phase-63-beam-live-slice.ts",
