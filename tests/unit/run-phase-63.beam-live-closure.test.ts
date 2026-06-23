@@ -224,6 +224,7 @@ describe("phase-63 BEAM live closure runner", () => {
       outputDir: undefined,
       profile: "goodmemory-rules-only",
       recallReportPath: "/tmp/recall.json",
+      resume: false,
       runId: "run-closure",
       scale: "100K",
     });

@@ -5,6 +5,7 @@ import {
   buildPhase63BeamPrompt,
   compressPhase63BeamMemoryContextText,
   extractPhase63BeamRequestedItemCount,
+  loadPhase63BeamLiveSliceProgress,
   parsePhase63BeamLiveSliceCliOptions,
   runPhase63BeamLiveSlice,
 } from "../../scripts/run-phase-63-beam-live-slice";
@@ -127,6 +128,7 @@ describe("phase-63 BEAM live slice runner", () => {
       outputDir: undefined,
       profile: "goodmemory-rules-only",
       recallReportPath: "/tmp/recall.json",
+      resume: false,
       runId: "run-beam-live",
       scale: undefined,
     });
@@ -203,6 +205,7 @@ describe("phase-63 BEAM live slice runner", () => {
           method: "semantic_judge",
           reasoning: "The candidate matches the fixture answer.",
         }),
+        appendFile: async () => undefined,
         mkdir: async () => undefined,
         readFile: async (path) => {
           expect(path).toBe(join("/tmp/BEAM", "100K.json"));
@@ -218,6 +221,105 @@ describe("phase-63 BEAM live slice runner", () => {
       "beam-live-q2",
       "beam-live-q3",
     ]);
+  });
+
+  it("parses the live-slice progress sidecar (last write wins, errors retried, torn line tolerated)", () => {
+    const ok = (id: string, correct: boolean) =>
+      JSON.stringify({ questionId: id, result: { questionId: id, correct } });
+    const errored = (id: string) =>
+      JSON.stringify({
+        questionId: id,
+        result: {
+          questionId: id,
+          executionError: { message: "boom", stage: "answer_generation" },
+        },
+      });
+    const raw = `${[
+      ok("q1", false),
+      ok("q1", true),
+      errored("q2"),
+      ok("q3", true),
+      "{ torn-final-line",
+    ].join("\n")}\n`;
+
+    const completed = loadPhase63BeamLiveSliceProgress(raw);
+
+    expect([...completed.keys()].sort()).toEqual(["q1", "q3"]);
+    expect(completed.get("q1")?.correct).toBe(true);
+    expect(completed.has("q2")).toBe(false);
+  });
+
+  it("resumes a live slice from the progress sidecar, skipping already-scored cases", async () => {
+    let answerCalls = 0;
+    const appended: string[] = [];
+    const priorQ1 = {
+      answerScore: {
+        correct: true,
+        method: "semantic_judge",
+        reasoning: "prior run",
+      },
+      answerable: true,
+      conversationId: "beam-live-smoke",
+      correct: true,
+      evidenceChatIds: [2],
+      evidenceChatRecall: 1,
+      expectedAnswer: "prior",
+      hypothesis: "RESUMED-FROM-SIDECAR",
+      memoryContextChars: 12,
+      questionId: "beam-live-q1",
+      questionType: "information_extraction",
+      retrievedChatIds: [2],
+    };
+
+    const report = await runPhase63BeamLiveSlice(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseSelection: "all-cases",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        resume: true,
+        runId: "run-beam-live-resume",
+      },
+      {
+        answerGenerator: async (input) => {
+          answerCalls += 1;
+          return input.testCase.answerable
+            ? input.testCase.answer
+            : "No answer.";
+        },
+        answerJudge: async (input) => ({
+          correct:
+            input.expectedAnswer === input.actualAnswer ||
+            input.actualAnswer === "No answer.",
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        appendFile: async (_path, value) => {
+          appended.push(String(value));
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (String(path).endsWith("100K.json")) {
+            return JSON.stringify(buildBeamRows());
+          }
+          if (String(path).endsWith("live-slice-progress.jsonl")) {
+            return `${JSON.stringify({ questionId: "beam-live-q1", result: priorQ1 })}\n`;
+          }
+          return "";
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    // q1 was already scored on the prior run -> only q2 and q3 hit the generator.
+    expect(answerCalls).toBe(2);
+    expect(
+      report.cases.find((testCase) => testCase.questionId === "beam-live-q1")
+        ?.hypothesis,
+    ).toBe("RESUMED-FROM-SIDECAR");
+    expect(report.summary.totalCases).toBe(3);
+    // Only the two freshly-scored cases are appended to the sidecar.
+    expect(appended).toHaveLength(2);
   });
 
   it("keeps contradiction and ordering synthesis guidance in the live prompt", () => {
@@ -576,6 +678,7 @@ describe("phase-63 BEAM live slice runner", () => {
             reasoning: "The candidate preserves the owner.",
           };
         },
+        appendFile: async () => undefined,
         mkdir: async () => undefined,
         now: () => new Date("2026-05-18T01:00:00.000Z"),
         readFile: async (path) => {

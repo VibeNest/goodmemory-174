@@ -33,6 +33,7 @@ export interface Phase63BeamLiveClosureCliOptions {
   outputDir?: string;
   profile?: BeamProfile;
   recallReportPath?: string;
+  resume?: boolean;
   runId?: string;
   scale?: BeamCase["scale"];
 }
@@ -115,6 +116,7 @@ export function parsePhase63BeamLiveClosureCliOptions(
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
     recallReportPath: resolveCliFlagValue(argv, "--recall-report"),
+    resume: argv.includes("--resume"),
     runId: resolveCliFlagValue(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValue(argv, "--scale")),
   };
@@ -225,6 +227,7 @@ export async function runPhase63BeamLiveClosure(
   const runId = options.runId ?? PHASE63_BEAM_LIVE_CLOSURE_RUN_ID;
   const scale = options.scale ?? "100K";
   const evidencePack = options.evidencePack ?? false;
+  const resume = options.resume ?? false;
   if (!isPhase63BeamLiveClosureProfile(profile)) {
     throw new Error(
       "Phase 63 BEAM live closure currently supports goodmemory-rules-only or goodmemory-hybrid only.",
@@ -254,6 +257,7 @@ export async function runPhase63BeamLiveClosure(
       outputDir,
       profile,
       recallReportPath: options.recallReportPath,
+      resume,
       runId,
       scale,
     },

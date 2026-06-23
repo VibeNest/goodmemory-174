@@ -1,5 +1,5 @@
 import { generateObject } from "ai";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { GoodMemory } from "../src/api/contracts";
@@ -52,6 +52,12 @@ export const PHASE63_LIVE_REQUEST_TIMEOUT_ENV =
   "GOODMEMORY_PHASE63_LIVE_REQUEST_TIMEOUT_MS";
 export const PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME =
   "live-slice-report.json";
+// Append-only per-case progress sidecar. A live closure over 400 cases is a
+// ~2-hour run against a flaky external endpoint; writing each scored case here
+// lets `--resume` skip already-completed cases (and skip the expensive
+// conversation re-seed for fully-done conversations) after a mid-run outage.
+export const PHASE63_BEAM_LIVE_SLICE_PROGRESS_FILE_NAME =
+  "live-slice-progress.jsonl";
 
 const GENERATED_BY = "scripts/run-phase-63-beam-live-slice.ts";
 const SOURCE_ORDER_CONTEXT_LIMIT = 40;
@@ -142,6 +148,7 @@ export interface Phase63BeamLiveSliceCliOptions {
   outputDir?: string;
   profile?: BeamProfile;
   recallReportPath?: string;
+  resume?: boolean;
   runId?: string;
   scale?: BeamCase["scale"];
 }
@@ -178,6 +185,7 @@ export type Phase63BeamLiveCaseSelection =
 export interface Phase63BeamLiveSliceDependencies {
   answerGenerator?: Phase63BeamLiveAnswerGenerator;
   answerJudge?: Phase63BeamLiveAnswerJudge;
+  appendFile?: typeof appendFile;
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
   now?: () => Date;
@@ -323,6 +331,7 @@ export function parsePhase63BeamLiveSliceCliOptions(
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
     recallReportPath: resolveCliFlagValue(argv, "--recall-report"),
+    resume: argv.includes("--resume"),
     runId: resolveCliFlagValue(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValue(argv, "--scale")),
   };
@@ -1442,6 +1451,46 @@ function selectCases(input: {
   return filtered.slice(0, input.limit);
 }
 
+interface Phase63BeamLiveSliceProgressEntry {
+  questionId: string;
+  result: Phase63BeamLiveSliceCaseResult;
+}
+
+// Parse the append-only progress sidecar into a map of successfully-scored cases
+// (last write per questionId wins). Cases whose most recent entry recorded an
+// executionError are omitted so a resumed run retries them, and a torn final
+// line from a crash mid-write is tolerated.
+export function loadPhase63BeamLiveSliceProgress(
+  raw: string,
+): Map<string, Phase63BeamLiveSliceCaseResult> {
+  const completed = new Map<string, Phase63BeamLiveSliceCaseResult>();
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    let entry: Phase63BeamLiveSliceProgressEntry;
+    try {
+      entry = JSON.parse(trimmed) as Phase63BeamLiveSliceProgressEntry;
+    } catch {
+      continue;
+    }
+    if (
+      typeof entry?.questionId !== "string" ||
+      typeof entry.result !== "object" ||
+      entry.result === null
+    ) {
+      continue;
+    }
+    if (entry.result.executionError) {
+      completed.delete(entry.questionId);
+      continue;
+    }
+    completed.set(entry.questionId, entry.result);
+  }
+  return completed;
+}
+
 export async function runPhase63BeamLiveSlice(
   options: Phase63BeamLiveSliceCliOptions = {},
   dependencies: Phase63BeamLiveSliceDependencies = {},
@@ -1472,6 +1521,7 @@ export async function runPhase63BeamLiveSlice(
   const readFileImpl =
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = dependencies.writeFile ?? writeFile;
+  const appendFileImpl = dependencies.appendFile ?? appendFile;
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
   const scale = options.scale ?? "100K";
@@ -1506,10 +1556,41 @@ export async function runPhase63BeamLiveSlice(
     casesByConversation.set(testCase.conversationId, group);
   }
 
+  const progressPath = join(
+    runDirectory,
+    PHASE63_BEAM_LIVE_SLICE_PROGRESS_FILE_NAME,
+  );
+  const resume = options.resume ?? false;
+  await mkdirImpl(runDirectory, { recursive: true });
+  const completedCases = resume
+    ? loadPhase63BeamLiveSliceProgress(
+        await readFileImpl(progressPath).catch(() => ""),
+      )
+    : new Map<string, Phase63BeamLiveSliceCaseResult>();
+  if (!resume) {
+    // Fresh run: empty the progress sidecar so a later --resume only sees the
+    // cases scored by this run.
+    await writeFileImpl(progressPath, "");
+  }
+
   const cases: Phase63BeamLiveSliceCaseResult[] = [];
   for (const conversationCases of casesByConversation.values()) {
     const row = conversationCases[0]?.row;
     if (!row) {
+      continue;
+    }
+    const pendingCases = conversationCases.filter(
+      (testCase) => !completedCases.has(testCase.questionId),
+    );
+    if (pendingCases.length === 0) {
+      // Whole conversation already scored on a prior run: reuse the results and
+      // skip the expensive conversation re-seed.
+      for (const testCase of conversationCases) {
+        const prior = completedCases.get(testCase.questionId);
+        if (prior) {
+          cases.push(prior);
+        }
+      }
       continue;
     }
     const memory =
@@ -1520,17 +1601,25 @@ export async function runPhase63BeamLiveSlice(
       runId,
     });
     for (const testCase of conversationCases) {
-      cases.push(
-        await scoreLiveCase({
-          answerGenerator,
-          answerJudge,
-          evidencePack: options.evidencePack ?? false,
-          memory,
-          profile,
-          runId,
-          testCase,
-        }),
+      const prior = completedCases.get(testCase.questionId);
+      if (prior) {
+        cases.push(prior);
+        continue;
+      }
+      const result = await scoreLiveCase({
+        answerGenerator,
+        answerJudge,
+        evidencePack: options.evidencePack ?? false,
+        memory,
+        profile,
+        runId,
+        testCase,
+      });
+      await appendFileImpl(
+        progressPath,
+        `${JSON.stringify({ questionId: testCase.questionId, result })}\n`,
       );
+      cases.push(result);
     }
   }
 
