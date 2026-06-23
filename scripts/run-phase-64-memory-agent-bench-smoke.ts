@@ -39,8 +39,8 @@ import {
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
 import { resolveLiveModelConfig } from "./run-eval";
-import { buildPhase63AnswerEvidencePack } from "./phase63-answer-evidence-pack";
-import type { Phase63EvidenceTurn } from "./phase63-answer-evidence-pack";
+import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
+import type { EvidenceTurn } from "../src/answer/evidencePack";
 
 export const MEMORY_AGENT_BENCH_SMOKE_RUN_ID =
   "run-phase64-mab-smoke-current";
@@ -367,15 +367,15 @@ export function buildMemoryAgentBenchEvidencePackContext(input: {
   testCase: MemoryAgentBenchCase;
 }): string {
   const retrieved = new Set(input.retrievedChunkIds);
-  const turns: Phase63EvidenceTurn[] = input.testCase.chunks
+  const turns: EvidenceTurn[] = input.testCase.chunks
     .filter((chunk) => retrieved.has(chunk.id))
     .map((chunk) => ({
-      chatId: chunk.id,
       content: chunk.content,
       role: chunk.role,
+      sourceId: chunk.id,
       timeAnchor: "",
     }));
-  return buildPhase63AnswerEvidencePack({
+  return buildAnswerEvidencePack({
     question: input.question.question,
     turns,
   });

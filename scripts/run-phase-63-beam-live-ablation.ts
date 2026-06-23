@@ -18,8 +18,8 @@ import type {
   Phase63BeamLiveAnswerGenerator,
   Phase63BeamLiveAnswerJudge,
 } from "./run-phase-63-beam-live-slice";
-import { buildPhase63AnswerEvidencePack } from "./phase63-answer-evidence-pack";
-import type { Phase63EvidenceTurn } from "./phase63-answer-evidence-pack";
+import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
+import type { EvidenceTurn } from "../src/answer/evidencePack";
 
 // Why this exists: the live closure measures one point (goodmemory-normal = the
 // recall->compress->answer pipeline, ~0.56). To know whether 0.56 is bounded by
@@ -213,7 +213,7 @@ function buildModeMemoryContext(input: {
     });
   }
   const seen = new Set<number>();
-  const turns: Phase63EvidenceTurn[] = [];
+  const turns: EvidenceTurn[] = [];
   for (const chatId of [...input.chatIds].sort((left, right) => left - right)) {
     if (seen.has(chatId)) {
       continue;
@@ -224,13 +224,13 @@ function buildModeMemoryContext(input: {
       continue;
     }
     turns.push({
-      chatId: turn.id,
       content: turn.content,
       role: turn.role,
+      sourceId: turn.id,
       timeAnchor: turn.timeAnchor,
     });
   }
-  return buildPhase63AnswerEvidencePack({ question: input.question, turns });
+  return buildAnswerEvidencePack({ question: input.question, turns });
 }
 
 async function mapWithConcurrency<T, R>(
