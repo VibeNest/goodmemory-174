@@ -399,6 +399,67 @@ export function buildMemoryAgentBenchPrompt(input: {
   ].join("\n\n");
 }
 
+// P67-C task-specific answer harness. CR and the synthetic fallback keep the
+// general prompt (CR already scores ~0.96 via the evidence-pack current-value
+// framing, so it must not regress). AR / TTL / LRU get strict output-format
+// prompts because their gold answers are format-exact (a verbatim candidate, a
+// label number, a verbatim multiple-choice option) and the general "answer
+// concisely" prompt produces conversational text that fails exact/substring match.
+const MEMORY_AGENT_BENCH_AR_SYSTEM =
+  "You select which event happens next in a sequence. The question lists events that already occurred and a list of possible subsequent events. Choose the single event that happens next and output it copied EXACTLY from that list, with no other text, no quotes, and no explanation.";
+const MEMORY_AGENT_BENCH_TTL_SYSTEM =
+  "You are an in-context intent classifier. The memory context contains demonstrations of the form '<utterance> label: <number>'. Find the demonstration whose utterance most closely matches the new utterance and output ONLY its label number (digits only) — no words, no punctuation, no explanation.";
+const MEMORY_AGENT_BENCH_LRU_SYSTEM =
+  "You answer a multiple-choice question about a long story using only the supplied context. Output ONLY the full correct option exactly as written, including its letter prefix (for example 'C. The Brandt couple'). Do not output JSON, reasoning, or any other text.";
+
+export function buildMemoryAgentBenchCompetencyPrompt(input: {
+  competency: MemoryAgentBenchCompetency;
+  memoryContext: string;
+  question: string;
+}): string {
+  const context = input.memoryContext.trim().length > 0 ? input.memoryContext : "(none)";
+  if (input.competency === "AR") {
+    return [
+      "Memory context:",
+      context,
+      `Question:\n${input.question}`,
+      "Output only the single correct next event, copied verbatim from the list of possible subsequent events.",
+    ].join("\n\n");
+  }
+  if (input.competency === "TTL") {
+    return [
+      "Labeled demonstrations (memory):",
+      context,
+      `New utterance to classify:\n${input.question}`,
+      "Output only the label number of the demonstration whose utterance is most similar to the new utterance.",
+    ].join("\n\n");
+  }
+  if (input.competency === "LRU") {
+    return [
+      "Story context:",
+      context,
+      `Question:\n${input.question}`,
+      "Output only the full correct option, copied verbatim including its letter (for example 'C. The Brandt couple').",
+    ].join("\n\n");
+  }
+  return buildMemoryAgentBenchPrompt({ memoryContext: input.memoryContext, question: input.question });
+}
+
+export function resolveMemoryAgentBenchAnswerSystem(
+  competency: MemoryAgentBenchCompetency,
+): string {
+  switch (competency) {
+    case "AR":
+      return MEMORY_AGENT_BENCH_AR_SYSTEM;
+    case "TTL":
+      return MEMORY_AGENT_BENCH_TTL_SYSTEM;
+    case "LRU":
+      return MEMORY_AGENT_BENCH_LRU_SYSTEM;
+    default:
+      return MEMORY_AGENT_BENCH_ANSWER_SYSTEM;
+  }
+}
+
 const MEMORY_AGENT_BENCH_LIVE_REQUEST_TIMEOUT_MS = 120000;
 
 // Real LLM generator (deterministic match-mode scoring downstream, so no judge).
@@ -408,11 +469,12 @@ export function createMemoryAgentBenchLiveAnswerGenerator(): MemoryAgentBenchAns
     withAISDKRetries(() =>
       requestOpenAICompatibleText({
         model,
-        prompt: buildMemoryAgentBenchPrompt({
+        prompt: buildMemoryAgentBenchCompetencyPrompt({
+          competency: input.question.competency,
           memoryContext: input.memoryContext,
           question: input.question.question,
         }),
-        system: MEMORY_AGENT_BENCH_ANSWER_SYSTEM,
+        system: resolveMemoryAgentBenchAnswerSystem(input.question.competency),
         timeoutMs: MEMORY_AGENT_BENCH_LIVE_REQUEST_TIMEOUT_MS,
       }),
     );

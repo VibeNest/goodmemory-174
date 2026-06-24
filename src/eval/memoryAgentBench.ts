@@ -62,10 +62,42 @@ export function normalizeMemoryAgentBenchAnswer(value: string): string {
   return value.normalize("NFKC").replace(/\s+/gu, " ").trim().toLowerCase();
 }
 
+// Some upstream MemoryAgentBench tasks (e.g. LRU detective_qa) prompt for a JSON
+// object like {"answer": "C. The Brandt couple", "reasoning": "..."} while the gold
+// is the bare option string. Pull the "answer" field so JSON-wrapped output is
+// scored on the answer, not the whole envelope. Returns null when no such object
+// is present (so plain answers are untouched).
+function extractJsonAnswerField(value: string): string | null {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  if (start === -1 || end === -1 || end < start) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value.slice(start, end + 1)) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "answer" in parsed &&
+      typeof (parsed as { answer: unknown }).answer === "string"
+    ) {
+      return (parsed as { answer: string }).answer;
+    }
+  } catch {
+    // not a JSON answer envelope; fall through
+  }
+  return null;
+}
+
 export function extractMemoryAgentBenchScoredAnswer(value: string): string {
   const withoutClosedReasoning = value
     .replace(/<think\b[^>]*>[\s\S]*?<\/think>/giu, "")
     .trim();
+  // Prefer a JSON {"answer": ...} envelope when the model emits one.
+  const jsonAnswer = extractJsonAnswerField(withoutClosedReasoning);
+  if (jsonAnswer !== null) {
+    return jsonAnswer;
+  }
   if (withoutClosedReasoning !== value.trim()) {
     return withoutClosedReasoning;
   }
