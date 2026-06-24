@@ -81,6 +81,10 @@ export interface LocomoSmokeCliOptions {
   // raw dialogue turns (improvement-plan #3). Requires GOODMEMORY_EVAL_* model env.
   conversationalExtraction?: boolean;
   evidencePack?: boolean;
+  // Opt-in (with --conversational-extraction): drop facts that merely echo their
+  // raw turn so only genuinely-normalized facts augment storage, reducing the
+  // candidate-pool dilution measured on non-phrasing-gap categories.
+  smartFusion?: boolean;
   limit?: number;
   live?: boolean;
   outputDir?: string;
@@ -205,6 +209,7 @@ export function parseLocomoSmokeCliOptions(
     evidencePack: argv.includes("--evidence-pack"),
     multiHop: argv.includes("--multihop"),
     rerank: argv.includes("--rerank"),
+    smartFusion: argv.includes("--smart-fusion"),
     limit,
     live: argv.includes("--live"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
@@ -262,17 +267,53 @@ export async function seedLocomoCase(input: {
   });
 }
 
+// Lexical overlap (Szymkiewicz-Simpson) between a normalized fact and its source
+// turn. A fact that closely echoes its raw turn added little normalization and
+// only inflates the candidate pool; a low-overlap fact genuinely bridged a
+// phrasing gap (coreference resolution, restructuring) and is worth keeping.
+export function locomoFactTurnOverlap(
+  factContent: string,
+  turnContent: string,
+): number {
+  const tokens = (value: string): Set<string> =>
+    new Set(
+      (value.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
+        (token) => token.length > 2,
+      ),
+    );
+  const factTokens = tokens(factContent);
+  const turnTokens = tokens(turnContent);
+  if (factTokens.size === 0 || turnTokens.size === 0) {
+    return 0;
+  }
+  let intersection = 0;
+  for (const token of factTokens) {
+    if (turnTokens.has(token)) {
+      intersection += 1;
+    }
+  }
+  return intersection / Math.min(factTokens.size, turnTokens.size);
+}
+
+// Above this fact-vs-turn overlap a conversational fact is treated as a near-copy
+// of its raw turn (no phrasing-gap value) and dropped under smart fusion, to
+// fight the candidate-pool dilution measured when every fact is stored.
+const LOCOMO_SMART_FUSION_OVERLAP_THRESHOLD = 0.8;
+
 // Conversational atomic-fact ingest (improvement-plan #3). Instead of storing raw
 // dialogue turns, decompose each session into self-contained, coreference-resolved,
 // entity/date-normalized atomic claims via the injected LLM extractor and store
 // those as the retrievable unit, preserving each fact's source dia_id so the SAME
 // evidence-turn recall metric (scoreLocomoRetrieval) applies unchanged. Sessions
 // are extracted independently to preserve within-session coreference context.
-// Opt-in; only used when --conversational-extraction is set.
+// Opt-in; only used when --conversational-extraction is set. When smartFusion is
+// set, facts that merely echo their raw turn (high overlap) are dropped so only
+// genuinely-normalized, phrasing-gap-bridging facts augment the raw turns.
 export async function seedLocomoCaseConversational(input: {
   extractor: MemoryExtractor;
   memory: GoodMemory;
   runId: string;
+  smartFusion?: boolean;
   testCase: LocomoCase;
 }): Promise<void> {
   const scope = buildLocomoScope({
@@ -294,14 +335,23 @@ export async function seedLocomoCaseConversational(input: {
         role: "user",
       })),
     });
-    const facts = extraction.candidates.filter(
+    const resolveTurn = (index: number): LocomoTurn =>
+      sessionTurns[Math.max(0, Math.min(index, sessionTurns.length - 1))]!;
+    let facts = extraction.candidates.filter(
       (candidate) => candidate.kindHint !== "noise",
     );
+    if (input.smartFusion) {
+      facts = facts.filter(
+        (fact) =>
+          locomoFactTurnOverlap(
+            fact.content,
+            resolveTurn(fact.sourceMessageIndex).content,
+          ) < LOCOMO_SMART_FUSION_OVERLAP_THRESHOLD,
+      );
+    }
     if (facts.length === 0) {
       continue;
     }
-    const resolveTurn = (index: number): LocomoTurn =>
-      sessionTurns[Math.max(0, Math.min(index, sessionTurns.length - 1))]!;
     await input.memory.remember({
       annotations: facts.map((fact, messageIndex) => {
         const turn = resolveTurn(fact.sourceMessageIndex);
@@ -761,6 +811,7 @@ export async function runLocomoSmoke(
           extractor: conversationalExtractor,
           memory,
           runId,
+          smartFusion: options.smartFusion,
           testCase,
         });
       }

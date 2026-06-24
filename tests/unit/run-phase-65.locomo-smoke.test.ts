@@ -6,6 +6,7 @@ import {
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
   createLocomoSmokeMemory,
+  locomoFactTurnOverlap,
   loadLocomoCases,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
   parseLocomoSmokeCliOptions,
@@ -58,6 +59,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       outputDir: "/tmp/out",
       rerank: false,
       runId: "run-locomo",
+      smartFusion: false,
     });
 
     expect(
@@ -618,5 +620,89 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     ]) {
       expect(category(report, name).questionCount).toBe(1);
     }
+  });
+
+  it("locomoFactTurnOverlap separates near-copy facts from genuinely normalized ones", () => {
+    expect(
+      locomoFactTurnOverlap(
+        "Caroline went to the support group on Tuesday.",
+        "Caroline went to the support group on Tuesday.",
+      ),
+    ).toBeGreaterThan(0.9);
+    expect(
+      locomoFactTurnOverlap(
+        "Caroline attended the downtown LGBTQ support group.",
+        "Melanie: yeah, dance is pretty much my whole escape honestly.",
+      ),
+    ).toBeLessThan(0.4);
+  });
+
+  it("smart fusion drops conversational facts that merely echo their raw turn", async () => {
+    const testCase: LocomoCase = {
+      caseId: "smart",
+      sourceConversation: "smart",
+      speakers: ["Caroline", "Melanie"],
+      turns: [
+        {
+          diaId: "D1:1",
+          speaker: "Caroline",
+          content: "The vault access code is 7788 for the downtown lab.",
+        },
+        { diaId: "D1:2", speaker: "Caroline", content: "Yeah, I finally went." },
+      ],
+      questions: [],
+    };
+    const extractor: MemoryExtractor = {
+      async extract() {
+        return {
+          candidates: [
+            {
+              id: "a",
+              kindHint: "fact",
+              explicitness: "explicit",
+              // Near-verbatim echo of turn 0 -> dropped by smart fusion.
+              content: "The vault access code is 7788 for the downtown lab.",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            },
+            {
+              id: "b",
+              kindHint: "fact",
+              explicitness: "explicit",
+              // Genuinely normalized claim from turn 1 -> kept.
+              content: "Caroline attended the contemporary dance workshop.",
+              sourceMessageIndex: 1,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 0,
+        };
+      },
+    };
+
+    const memory = createLocomoSmokeMemory();
+    await seedLocomoCaseConversational({
+      extractor,
+      memory,
+      runId: "t",
+      smartFusion: true,
+      testCase,
+    });
+    const scope = buildLocomoScope({ caseId: "smart", runId: "t" });
+
+    // The near-copy fact (D1:1) was dropped, so the vault code is not retrievable
+    // from a stored fact; the normalized fact (D1:2) was kept.
+    const vault = await memory.recall({
+      query: "What is the vault access code?",
+      scope,
+      strategy: "rules-only",
+    });
+    expect(collectLocomoRetrievedTurnIds(vault)).not.toContain("D1:1");
+    const dance = await memory.recall({
+      query: "What workshop did Caroline attend?",
+      scope,
+      strategy: "rules-only",
+    });
+    expect(collectLocomoRetrievedTurnIds(dance)).toContain("D1:2");
   });
 });
