@@ -23,8 +23,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../src/api/createGoodMemory";
-import type { GoodMemory, RecallResult } from "../src/api/contracts";
+import type { GoodMemory, GoodMemoryConfig, RecallResult } from "../src/api/contracts";
 import type { EmbeddingAdapter } from "../src/embedding/contracts";
+import { createLexicalCoverageReranker } from "../src/recall/reranker";
 import {
   buildLocomoSmokeCases,
   LOCOMO_QA_CATEGORIES,
@@ -64,6 +65,13 @@ export interface LocomoSmokeCliOptions {
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
   bm25?: boolean;
+  // Opt-in deterministic query decomposition (Move 3). Gateway-free.
+  decompose?: boolean;
+  // Opt-in N-hop iterative recall (Move 6); true = 2 passes. Gateway-free
+  // (lexical bridge entities).
+  multiHop?: boolean;
+  // Opt-in gateway-free lexical-coverage reranker over the top-K (Move 5).
+  rerank?: boolean;
   // Opt-in (live-answer only): build the answer context from the records recall
   // actually surfaced (normalized facts included) instead of reconstructing raw
   // turns, mirroring the product buildContext path. Targets the answer-assembly
@@ -193,7 +201,10 @@ export function parseLocomoSmokeCliOptions(
     answerFromRecalled: argv.includes("--answer-from-recalled"),
     bm25: argv.includes("--bm25"),
     conversationalExtraction: argv.includes("--conversational-extraction"),
+    decompose: argv.includes("--decompose"),
     evidencePack: argv.includes("--evidence-pack"),
+    multiHop: argv.includes("--multihop"),
+    rerank: argv.includes("--rerank"),
     limit,
     live: argv.includes("--live"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
@@ -597,19 +608,27 @@ function createSmokeEmbeddingAdapter(): EmbeddingAdapter {
 }
 
 export function createLocomoSmokeMemory(
-  options: { bm25?: boolean } = {},
+  options: { bm25?: boolean; rerank?: boolean } = {},
 ): GoodMemory {
   // Deterministic id and clock seams keep repeated smoke runs reproducible:
   // ranking tie-breaks fall back to fact-id and timestamp comparisons.
   let idCounter = 0;
   let clockTick = 0;
+  // BM25 mode measures the pure Okapi BM25 lexical leg: enable bm25Ranking and
+  // drop the hashed smoke embedding so the additive ranking slot is BM25 alone
+  // (recall runs under the "hybrid" strategy, which is where the leg applies).
+  // The gateway-free lexical-coverage reranker is the embedding-free second stage
+  // over the top-K (Move 5).
+  const adapters: NonNullable<GoodMemoryConfig["adapters"]> = {};
+  if (!options.bm25) {
+    adapters.embeddingAdapter = createSmokeEmbeddingAdapter();
+  }
+  if (options.rerank) {
+    adapters.reranker = createLexicalCoverageReranker();
+  }
   return createGoodMemory({
-    // BM25 mode measures the pure Okapi BM25 lexical leg: enable bm25Ranking and
-    // drop the hashed smoke embedding so the additive ranking slot is BM25 alone
-    // (recall runs under the "hybrid" strategy, which is where the leg applies).
-    ...(options.bm25
-      ? { retrieval: { bm25Ranking: true } }
-      : { adapters: { embeddingAdapter: createSmokeEmbeddingAdapter() } }),
+    ...(options.bm25 ? { retrieval: { bm25Ranking: true } } : {}),
+    ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
     storage: {
       provider: "memory",
     },
@@ -692,7 +711,8 @@ export async function runLocomoSmoke(
   const now = dependencies.now ?? (() => new Date());
   const createMemory =
     dependencies.createMemory ??
-    (() => createLocomoSmokeMemory({ bm25: options.bm25 }));
+    (() =>
+      createLocomoSmokeMemory({ bm25: options.bm25, rerank: options.rerank }));
   // BM25 ranking applies under the "hybrid" strategy; the default stays on the
   // pure-lexical rules-only floor.
   const recallStrategy: "hybrid" | "rules-only" = options.bm25
@@ -754,6 +774,8 @@ export async function runLocomoSmoke(
           query: question.question,
           scope,
           strategy: recallStrategy,
+          decompose: options.decompose,
+          multiHop: options.multiHop,
         });
         const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
         const retrieval = scoreLocomoRetrieval({

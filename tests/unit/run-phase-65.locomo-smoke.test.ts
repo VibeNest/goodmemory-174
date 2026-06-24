@@ -50,10 +50,13 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
       conversationalExtraction: false,
+      decompose: false,
       evidencePack: false,
       limit: 2,
       live: false,
+      multiHop: false,
       outputDir: "/tmp/out",
+      rerank: false,
       runId: "run-locomo",
     });
 
@@ -584,5 +587,36 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     // The normalized, coreference-resolved claim is surfaced to the answer model
     // (a raw-turn reconstruction would not contain this phrasing).
     expect(ctx).toContain("losing her banking job");
+  });
+
+  it("runs the full deterministic embedding-free stack (bm25+decompose+multihop+rerank, no gateway)", async () => {
+    const report = await runLocomoSmoke(
+      {
+        bm25: true,
+        decompose: true,
+        multiHop: true,
+        rerank: true,
+        runId: "run-locomo-detstack",
+        outputDir: "/tmp/locomo-out",
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.bm25Ranking).toBe(true);
+    // The whole deterministic stack composes end to end with no execution
+    // failures and still scores every QA category.
+    expect(report.executionFailures).toBe(0);
+    for (const name of [
+      "single_hop",
+      "multi_hop",
+      "temporal",
+      "open_domain",
+      "adversarial",
+    ]) {
+      expect(category(report, name).questionCount).toBe(1);
+    }
   });
 });
