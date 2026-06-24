@@ -127,6 +127,59 @@ Tasks
     (the question-to-dialog phrasing gap).
 
 
+Base-Retrieval Research (eval-only, retrieval-only; NOT a public claim)
+----------------------------------------------------------------------
+
+All numbers below are conv-1 (419 turns, 199 questions, all five categories),
+rules-only retrieval, executionFailures 0. The fresh reproduced baseline
+(run id locomo-baseline-retrieval) is overall evidence recall 0.0687,
+zero-retrieval 0.9196, noise 4.45; single_hop recall 0.0571 / zero-retrieval
+0.9429; neighbor-beats-gold 0.5382 (the lexically-best turn is usually NOT the
+gold turn). The "worth continuing" bar set for these probes: overall recall
+>= 0.15, single_hop recall >= 0.15, zero-retrieval <= 0.75, noise <= ~2x.
+
+[DONE] Retrieval-gap analyzer (commit f20d110, `analyze:phase-65-locomo-retrieval-gap`).
+  Committed JSON-in/out diagnostic (smoke-report + cases -> retrieval-gap-analysis).
+  Quantifies the bottleneck: zero-retrieval 0.92, single_hop worst at 0.94 (proves
+  it is BASE retrieval, not multi-hop reasoning), neighbor-beats-gold 0.54/0.79.
+
+[RULED OUT] P65-R001 positional windows + rules-light query expansion (eval-only
+  scripts, UNCOMMITTED -- negative results, harness-coupled). Window retrieval:
+  contained recall 0.069 -> 0.121 at radius 8 while noise explodes 4.5 -> 14.2 and
+  zero-retrieval stays ~0.88. Query expansion (generic conversational clusters, no
+  fixture rules): overall recall 0.069 -> 0.073, only multi_hop improved. Positional
+  and hand-crafted lexical bridges are insufficient; the gap is open-ended semantic.
+
+[DONE] P65-R002 turn-caption retrieval probe (Step 3, eval-only; committed as the
+  Step 3 research slice: `prepare:phase-65-locomo-captioned`,
+  scripts/prepare-phase-65-locomo-captioned-root.ts + unit test). It writes a
+  captioned external root where each turn keeps its diaId and raw text but gains a
+  gpt-5.5 semantic caption (raw + caption), evidence ids unchanged, so any recall
+  lift means the SAME gold turn became retrievable. Leakage guard (tested): the
+  captioner is given dialog turns ONLY -- never questions, gold answers, or
+  evidence ids. Both variants captioned all 419 turns with 0 caption failures.
+    turn-only (paraphrase; run id locomo-caption-turn-only-retrieval):
+      overall recall 0.0704, zero-retrieval 0.9246, noise 4.20; single_hop 0.0857.
+    local-window-2 (+-2 neighbors used only to ground the center caption; run id
+    locomo-caption-window2-retrieval):
+      overall recall 0.0779, zero-retrieval 0.9196, noise 4.40; single_hop 0.1000.
+  RESULT: caption enrichment does NOT materially move exact gold-turn recall. Both
+  variants FAIL the bar (overall 0.07-0.08 vs >= 0.15; zero-retrieval 0.92 vs
+  <= 0.75; single_hop 0.10 vs >= 0.15). Window-2 modestly beats turn-only
+  (grounding > paraphrase) and captioning did push neighbor-beats-gold 0.54 -> 0.46
+  (the gold turn became lexically more competitive), but not over the retrieval
+  threshold -- zero-retrieval is unchanged at 92%. multi_hop and temporal regressed
+  (captions dilute the specific entity/time tokens those categories need).
+  MECHANISM: captioning every turn uniformly raises signal and noise together, so a
+  surface-lexical retriever still cannot rank the gold turn above its neighbors.
+  CONCLUSION: per the probe's own decision rule (neither variant moves recall
+  meaningfully), the next lever is SEMANTIC / EMBEDDING (hybrid) retrieval that
+  ranks by meaning, not surface token overlap -- not captions and not more lexical
+  rules. No neural embedding endpoint is currently available
+  (ai.gurkiai.com serves no embedding model). Live answer was deliberately NOT run
+  (retrieval did not improve materially).
+
+
 First Synthetic Smoke (deterministic, executionFailures 0)
 ----------------------------------------------------------
 
