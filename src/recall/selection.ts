@@ -13,6 +13,7 @@ import type { FactSelectionRuntime } from "./factSelection/contracts";
 import {
   createSelectionDraft,
   finalizeSuppressionReasons,
+  selectZeroRetrievalLexicalFallback,
 } from "./factSelection/draft";
 import { FACT_SELECTION_ROUTE_TABLE } from "./factSelection/routeTable";
 import { buildSelectionRunContext } from "./selectionRunContext";
@@ -266,6 +267,11 @@ export function selectFacts(
 
     draft.summary.augmenterStages.push(stage.apply({ ctx, draft, runtime }));
   }
+
+  // Last resort when no route or augmenter selected any fact: surface the single
+  // best-lexical compatible fact instead of returning nothing (abstention is
+  // preserved for candidates with only incidental overlap). See the helper.
+  selectZeroRetrievalLexicalFallback({ compatible, draft });
 
   finalizeSuppressionReasons({ compatible, traces });
 

@@ -42,6 +42,38 @@ export function createSelectionDraft(input: {
   };
 }
 
+// Minimum lexical overlap for the zero-retrieval fallback to surface a fact.
+// Calibrated so a clearly query-relevant fact (substantial token overlap) is
+// recovered when every selection route suppressed it, while queries whose
+// candidates have only incidental overlap stay empty (correct abstention).
+// Validated to leave the large-scale rules-only recall diagnostic unchanged.
+const ZERO_RETRIEVAL_FALLBACK_MIN_LEXICAL = 0.1;
+
+/**
+ * Last-resort selection: when no route or augmenter selected any fact but a
+ * compatible candidate has substantial lexical overlap with the query, select
+ * the single best-lexical fact rather than returning nothing. This recovers
+ * queries the router classifies as generic (intentScore 0) whose long/noisy
+ * phrasing dilutes every candidate below the per-route thresholds, while
+ * preserving correct abstention for queries with no lexically-related memory.
+ * It must run after every route and augmenter and only fires on an otherwise
+ * empty fact slot, so it adds no facts to queries that already select.
+ */
+export function selectZeroRetrievalLexicalFallback(input: {
+  compatible: RankedFactCandidate[];
+  draft: SelectionDraft;
+}): void {
+  if (input.draft.selected.length > 0 || input.compatible.length === 0) {
+    return;
+  }
+  const bestLexical = input.compatible.reduce((best, entry) =>
+    entry.lexicalScore > best.lexicalScore ? entry : best,
+  );
+  if (bestLexical.lexicalScore >= ZERO_RETRIEVAL_FALLBACK_MIN_LEXICAL) {
+    input.draft.select(bestLexical, "generic", "zero_retrieval_lexical");
+  }
+}
+
 /**
  * Legacy final post-loop block: relabel still-unselected compatible
  * candidates from "not selected" to "below generic threshold". Must run after

@@ -3,7 +3,10 @@ import { createFactMemory } from "../../src/domain/records";
 import { createLanguageService } from "../../src/language";
 import type { RecallCandidateTrace } from "../../src/recall/engine";
 import { buildFactCandidates, rankFactCandidates } from "../../src/recall/scoring";
-import { createSelectionDraft } from "../../src/recall/factSelection/draft";
+import {
+  createSelectionDraft,
+  selectZeroRetrievalLexicalFallback,
+} from "../../src/recall/factSelection/draft";
 import {
   FACT_SELECTION_ROUTE_TABLE,
   PRIMARY_FACT_SELECTION_ORDER,
@@ -25,6 +28,19 @@ function buildRankedEntry() {
     buildFactCandidates([fact], "garden redesign", language, "en", TIMESTAMP),
     "rules-only",
   )[0]!;
+}
+
+function buildEntryWithLexical(id: string, lexicalScore: number) {
+  const base = buildRankedEntry();
+  const fact = createFactMemory({
+    id,
+    userId: "user-1",
+    category: "project",
+    content: base.fact.content,
+    source: { method: "explicit", extractedAt: TIMESTAMP },
+    updatedAt: TIMESTAMP,
+  });
+  return { ...base, fact, lexicalScore };
 }
 
 function buildTrace(memoryId: string): RecallCandidateTrace {
@@ -81,6 +97,68 @@ describe("selection draft", () => {
     expect(draft.summary).toEqual({ augmenterStages: [] });
     expect(draft.selected).toEqual([]);
     expect(draft.selectedIds.size).toBe(0);
+  });
+});
+
+describe("zero-retrieval lexical fallback", () => {
+  it("surfaces the best-lexical fact when nothing was selected and overlap is substantial", () => {
+    const entry = buildEntryWithLexical("fact-zrf-hi", 0.15);
+    const traces = [buildTrace(entry.fact.id)];
+    const draft = createSelectionDraft({ traces });
+
+    selectZeroRetrievalLexicalFallback({ compatible: [entry], draft });
+
+    expect(draft.selected).toHaveLength(1);
+    expect(draft.selected[0]?.fact.id).toBe("fact-zrf-hi");
+    expect(traces[0]?.returned).toBe(true);
+    expect(traces[0]?.fallback).toBe("zero_retrieval_lexical");
+  });
+
+  it("preserves abstention when the best lexical overlap is below the floor", () => {
+    const entry = buildEntryWithLexical("fact-zrf-lo", 0.05);
+    const traces = [buildTrace(entry.fact.id)];
+    const draft = createSelectionDraft({ traces });
+
+    selectZeroRetrievalLexicalFallback({ compatible: [entry], draft });
+
+    expect(draft.selected).toHaveLength(0);
+  });
+
+  it("does not fire when a fact was already selected", () => {
+    const selectedEntry = buildEntryWithLexical("fact-zrf-sel", 0.2);
+    const otherEntry = buildEntryWithLexical("fact-zrf-other", 0.3);
+    const traces = [buildTrace(selectedEntry.fact.id), buildTrace(otherEntry.fact.id)];
+    const draft = createSelectionDraft({ traces });
+    draft.select(selectedEntry);
+
+    selectZeroRetrievalLexicalFallback({
+      compatible: [selectedEntry, otherEntry],
+      draft,
+    });
+
+    expect(draft.selected).toHaveLength(1);
+    expect(draft.selected[0]?.fact.id).toBe("fact-zrf-sel");
+  });
+
+  it("picks the highest-lexical candidate among several", () => {
+    const a = buildEntryWithLexical("fact-zrf-a", 0.11);
+    const b = buildEntryWithLexical("fact-zrf-b", 0.22);
+    const c = buildEntryWithLexical("fact-zrf-c", 0.05);
+    const traces = [buildTrace(a.fact.id), buildTrace(b.fact.id), buildTrace(c.fact.id)];
+    const draft = createSelectionDraft({ traces });
+
+    selectZeroRetrievalLexicalFallback({ compatible: [a, b, c], draft });
+
+    expect(draft.selected).toHaveLength(1);
+    expect(draft.selected[0]?.fact.id).toBe("fact-zrf-b");
+  });
+
+  it("is a no-op when there are no compatible candidates", () => {
+    const draft = createSelectionDraft({ traces: [] });
+
+    selectZeroRetrievalLexicalFallback({ compatible: [], draft });
+
+    expect(draft.selected).toHaveLength(0);
   });
 });
 

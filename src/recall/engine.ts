@@ -121,7 +121,7 @@ export interface RecallCandidateTrace {
   evidenceScore?: number;
   outcomeScore?: number;
   verificationPenaltyScore?: number;
-  fallback: "none" | "same_slot_unique_candidate";
+  fallback: "none" | "same_slot_unique_candidate" | "zero_retrieval_lexical";
   evidenceIds?: string[];
 }
 
