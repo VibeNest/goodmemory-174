@@ -1,0 +1,33 @@
+{
+  "benchmark": "LongMemEval",
+  "status": "candidate_public_claim",
+  "dataset": {
+    "source": "https://github.com/xiaowu0162/LongMemEval",
+    "license": null,
+    "vendored": false
+  },
+  "run": {
+    "commit": null,
+    "packageVersion": null,
+    "command": "eval:phase-62 (run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z)",
+    "executionFailures": 0
+  },
+  "model": {
+    "answerModel": "gpt-5.5",
+    "judgeModel": "gpt-5.5",
+    "sameModelJudge": true
+  },
+  "metrics": {
+    "primary": "answer accuracy (full 500)",
+    "score": 0.908,
+    "baseline": 0.902
+  },
+  "coverage": {
+    "complete": true,
+    "note": "full 500 questions; evidence-session recall 0.9590 is a separate deterministic signal"
+  },
+  "claimBoundary": {
+    "publicClaimAllowed": false,
+    "reason": "Closest to a public claim, but blocked: answer accuracy partially relies on a same-model semantic judge (gpt-5.5 answer + gpt-5.5 judge) for the semantic_judge subset (the other methods abstention/contains/exact/expected_alternative/numeric_count are deterministic); license, exact commit, and v0.3 package version are unverified. P67-B replay must run on the v0.3 surface with an independent judge for the semantic_judge subset (or report a deterministic-only sub-score)."
+  }
+}

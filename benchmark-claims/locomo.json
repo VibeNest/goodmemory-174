@@ -1,0 +1,33 @@
+{
+  "benchmark": "LoCoMo",
+  "status": "paused_boundary",
+  "dataset": {
+    "source": "https://github.com/snap-research/locomo",
+    "license": "CC BY-NC 4.0",
+    "vendored": false
+  },
+  "run": {
+    "commit": "2b2ec71",
+    "packageVersion": null,
+    "command": "eval:phase-65-smoke (representative conv-1, 199 questions, live --evidence-pack)",
+    "executionFailures": 0
+  },
+  "model": {
+    "answerModel": "gpt-5.5",
+    "judgeModel": null,
+    "sameModelJudge": false
+  },
+  "metrics": {
+    "primary": "answer accuracy (representative conv-1, 199 questions)",
+    "score": 0.02,
+    "baseline": null
+  },
+  "coverage": {
+    "complete": false,
+    "note": "representative single-conversation pressure run, not the full benchmark; this is a banked retrieval-boundary finding, not a performance result"
+  },
+  "claimBoundary": {
+    "publicClaimAllowed": false,
+    "reason": "Paused at a retrieval boundary. Deterministic scoring (no judge), but answer accuracy 0.020 with exact gold-turn recall ~0.07-0.08 and zero-retrieval ~0.92; positional windows, query expansion, and LLM turn-captioning were all ruled out under the lexical/rules substrate. Not claimable; reopen only as P65-R003 when a real neural embedding endpoint is available. CC BY-NC 4.0 is non-commercial."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "benchmark": "BEAM",
+  "status": "internal_evidence",
+  "dataset": {
+    "source": "BEAM (100K split)",
+    "license": null,
+    "vendored": false
+  },
+  "run": {
+    "commit": null,
+    "packageVersion": null,
+    "command": "eval:phase-63-live-closure (run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current)",
+    "executionFailures": 0
+  },
+  "model": {
+    "answerModel": "gpt-5.5",
+    "judgeModel": "gpt-5.5",
+    "sameModelJudge": true
+  },
+  "metrics": {
+    "primary": "answer accuracy (100K, 400 cases)",
+    "score": 0.695,
+    "baseline": 0.56
+  },
+  "coverage": {
+    "complete": true,
+    "note": "fitted evidence-chat recall 0.9621 vs generalization floor 0.6822; baseline 0.56 is the internal no-pack ablation, not an external reference"
+  },
+  "claimBoundary": {
+    "publicClaimAllowed": false,
+    "reason": "Pipeline/gate evidence only. Blocked: same-model judge (gpt-5.5 answer + gpt-5.5 judge); fitted-vs-generalization recall gap (0.9621 vs 0.6822); below the 0.75+ improvement target; license/commit/package-version unverified. P67-D must raise answer accuracy to >=0.75 with an independent judge and always report fitted AND generalization recall."
+  }
+}

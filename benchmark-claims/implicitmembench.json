@@ -1,0 +1,33 @@
+{
+  "benchmark": "ImplicitMemBench",
+  "status": "candidate_public_claim",
+  "dataset": {
+    "source": null,
+    "license": null,
+    "vendored": false
+  },
+  "run": {
+    "commit": null,
+    "packageVersion": null,
+    "command": "phase-61 live full-300 (run-phase61-full300-20260505T170001Z)",
+    "executionFailures": 0
+  },
+  "model": {
+    "answerModel": "gpt-5.5",
+    "judgeModel": "gpt-5.5",
+    "sameModelJudge": true
+  },
+  "metrics": {
+    "primary": "overall score (Full-300)",
+    "score": 0.7109,
+    "baseline": 0.4267
+  },
+  "coverage": {
+    "complete": true,
+    "note": "Full-300; scorer families priming_pair_judge / text_behavior_judge (judge-scored) + structured_first_action (deterministic)"
+  },
+  "claimBoundary": {
+    "publicClaimAllowed": false,
+    "reason": "Blocked: most scorer families are LLM-judge-based with a same-model judge (gpt-5.5 answer + gpt-5.5 judge); dataset source/license unverified; exact commit and v0.3 package version unpinned. Needs an independent judge and verified provenance before a public claim."
+  }
+}

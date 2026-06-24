@@ -1,0 +1,33 @@
+{
+  "benchmark": "MemoryAgentBench",
+  "status": "internal_evidence",
+  "dataset": {
+    "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench",
+    "license": "MIT",
+    "vendored": false
+  },
+  "run": {
+    "commit": "1aec35d",
+    "packageVersion": null,
+    "command": "eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB --live --evidence-pack (run-phase64-mab-ar-cr-live-closure-rerun-current)",
+    "executionFailures": 0
+  },
+  "model": {
+    "answerModel": "gpt-5.5",
+    "judgeModel": null,
+    "sameModelJudge": false
+  },
+  "metrics": {
+    "primary": "CR answer accuracy (deterministic upstream match-mode)",
+    "score": 0.959,
+    "baseline": null
+  },
+  "coverage": {
+    "complete": false,
+    "note": "only AR (0.67) and CR (0.959) measured; TTL 0/30 and LRU 1/6 are answer-format-mismatch boundaries that need task-specific harnesses (P67-C). No upstream baseline captured."
+  },
+  "claimBoundary": {
+    "publicClaimAllowed": false,
+    "reason": "Cleanest methodology of all benchmarks (deterministic upstream match-mode scoring, NO LLM judge, so no same-model bias), but blocked by incomplete coverage (TTL/LRU unfinished) and a missing upstream baseline. P67-C task-specific harnesses (TTL classification, LRU multiple-choice with 50+ rows) plus a baseline make this the fastest honest deterministic public claim."
+  }
+}
