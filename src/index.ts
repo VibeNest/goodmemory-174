@@ -134,6 +134,8 @@ export type {
   CurrentValueReason,
   CurrentValueResolution,
 } from "./answer/currentValueResolution";
+export { computeBm25Scores } from "./recall/bm25";
+export type { Bm25Document, Bm25Options } from "./recall/bm25";
 export type {
   MemoryLifecycleState,
   MemorySource,
@@ -307,6 +309,7 @@ export type {
   GoodMemoryJobsFacade,
   GoodMemoryJobsLookupInput,
   GoodMemoryProviderConfig,
+  GoodMemoryRetrievalConfig,
   GoodMemoryRuntimeAppendMessageInput,
   GoodMemoryRuntimeBufferResult,
   GoodMemoryRuntimeEndSessionInput,

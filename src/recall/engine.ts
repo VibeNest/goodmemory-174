@@ -65,6 +65,7 @@ import {
   type RoutingDecision,
 } from "./router";
 import { ProviderBackedRecallError } from "./errors";
+import { computeBm25Scores } from "./bm25";
 import {
   searchSemanticScores,
   type SemanticSearchScores,
@@ -156,6 +157,11 @@ export interface RecallResult {
 export interface RecallEngineConfig {
   assistedRouter?: RecallRouterAssistant;
   embedding?: EmbeddingAdapter;
+  // Opt-in: when set (and no neural semantic search runs), populate the additive
+  // ranking slot with Okapi BM25 over the in-memory candidate pool for
+  // non-rules-only strategies. Off by default, so rules-only/hybrid ranking is
+  // unchanged unless explicitly enabled.
+  bm25Ranking?: boolean;
   language?: LanguageService;
   repositories: RecallRepositoryPort & { vectorIndex?: RecallVectorSearchPort | null };
   runtime: RecallRuntimePort;
@@ -397,7 +403,14 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
       const routerAvailability = {
-        semanticSearch: Boolean(config.embedding && vectorIndex),
+        // BM25 ranking populates the same additive slot as neural semantic
+        // search, so it also counts as "semantic search available" for routing:
+        // without this, a requested hybrid strategy would fall back to
+        // rules-only whenever no embedding endpoint exists, disabling BM25
+        // exactly when it is the intended lexical-semantic signal.
+        semanticSearch: Boolean(
+          (config.embedding && vectorIndex) || config.bm25Ranking,
+        ),
         llmRouting: Boolean(config.assistedRouter),
       };
 
@@ -567,6 +580,45 @@ export function createRecallEngine(config: RecallEngineConfig) {
             stage: "semantic_search",
           });
         }
+      } else if (
+        config.bm25Ranking &&
+        routingDecision.strategy !== "rules-only"
+      ) {
+        // Embedding-free path: Okapi BM25 over the in-memory candidate pool
+        // populates the same additive ranking slot a neural semantic score
+        // would, giving hybrid/llm-assisted ranking IDF + length normalization
+        // with no embedding endpoint. rules-only never consumes this slot, so
+        // the pure lexical floor is preserved.
+        const tokenizeForLocale = (text: string): string[] =>
+          language.tokenize(text, resolvedLanguage.locale, {
+            excludeStopwords: true,
+          });
+        semanticScores = {
+          facts: computeBm25Scores(
+            input.query,
+            factsRaw.map((fact) => ({
+              id: fact.id,
+              text: `${fact.content} ${fact.subject ?? ""}`,
+            })),
+            { tokenize: tokenizeForLocale },
+          ),
+          references: computeBm25Scores(
+            input.query,
+            referencesRaw.map((reference) => ({
+              id: reference.id,
+              text: `${reference.title} ${reference.pointer} ${reference.description ?? ""}`,
+            })),
+            { tokenize: tokenizeForLocale },
+          ),
+          episodes: computeBm25Scores(
+            input.query,
+            episodesRaw.map((episode) => ({
+              id: episode.id,
+              text: `${episode.summary} ${(episode.topics ?? []).join(" ")}`,
+            })),
+            { tokenize: tokenizeForLocale },
+          ),
+        };
       }
 
       const filteredProfile = await applyRecallPolicyToProfile(profile, {

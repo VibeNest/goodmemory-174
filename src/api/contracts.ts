@@ -97,6 +97,17 @@ export interface GoodMemoryProviderConfig {
   extraction?: GoodMemoryExtractionProviderConfig;
 }
 
+export interface GoodMemoryRetrievalConfig {
+  // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
+  // lexical ranking signal for hybrid/llm-assisted strategies, populating the
+  // same ranking slot the neural semantic score would, so it works with no
+  // embedding endpoint. The default rules-only lexical floor is unchanged and
+  // never receives the additive term; this only adds signal under non-rules-only
+  // strategies. Defaults to off, so accepted rules-only/hybrid behavior is
+  // unchanged unless explicitly enabled.
+  bm25Ranking?: boolean;
+}
+
 export interface GoodMemoryConfig {
   storage?: StorageConfig;
   policy?: GoodMemoryPolicyHooks;
@@ -104,6 +115,7 @@ export interface GoodMemoryConfig {
   remember?: RememberConfig;
   observability?: GoodMemoryObservabilityConfig;
   providers?: GoodMemoryProviderConfig;
+  retrieval?: GoodMemoryRetrievalConfig;
   adapters?: {
     assistedExtractor?: MemoryExtractor;
     documentStore?: DocumentStore;
