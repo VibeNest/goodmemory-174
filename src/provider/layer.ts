@@ -1,9 +1,16 @@
 import type { RecallRouterAssistant } from "../recall/assistant";
-import type { MemoryExtractor } from "../remember/candidates";
+import type {
+  MemoryExtractionInput,
+  MemoryExtractor,
+} from "../remember/candidates";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import type { AISDKModelConfig } from "./ai-sdk-runtime";
 import { createAISDKEmbeddingAdapter } from "./ai-sdk-runtime";
-import { createLLMMemoryExtractor } from "./memory-extractor";
+import {
+  buildConversationalMemoryExtractionPrompt,
+  CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
+  createLLMMemoryExtractor,
+} from "./memory-extractor";
 import { createLLMRecallRouter } from "./recall-router";
 import type {
   ModelProviderId,
@@ -15,6 +22,7 @@ interface ProviderMemoryExtractorFactory {
   (input: {
     dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
+    promptBuilder?: (input: MemoryExtractionInput) => string;
     system?: string;
   }): MemoryExtractor;
 }
@@ -96,6 +104,7 @@ export function normalizeProviderRuntimeMetadata(
 
 export function createProviderMemoryExtractor(input: {
   model: AISDKModelConfig;
+  promptBuilder?: (input: MemoryExtractionInput) => string;
   system?: string;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
   requestTimeoutMs?: number;
@@ -103,7 +112,28 @@ export function createProviderMemoryExtractor(input: {
   return (input.createMemoryExtractor ?? createLLMMemoryExtractor)({
     dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
     model: input.model,
+    promptBuilder: input.promptBuilder,
     system: input.system,
+  });
+}
+
+// Opt-in conversational atomic-fact extractor: same provider wiring as
+// createProviderMemoryExtractor, but prompts the model to decompose dialogue
+// into self-contained, coreference-resolved, entity/date-normalized atomic
+// claims. Inject the result as `adapters.assistedExtractor` to improve recall
+// on conversational corpora (the LoCoMo phrasing-gap lever) without an embedding
+// endpoint. Default extraction is unchanged unless this is injected.
+export function createProviderConversationalMemoryExtractor(input: {
+  model: AISDKModelConfig;
+  createMemoryExtractor?: ProviderMemoryExtractorFactory;
+  requestTimeoutMs?: number;
+}): MemoryExtractor {
+  return createProviderMemoryExtractor({
+    model: input.model,
+    promptBuilder: buildConversationalMemoryExtractionPrompt,
+    system: CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
+    createMemoryExtractor: input.createMemoryExtractor,
+    requestTimeoutMs: input.requestTimeoutMs,
   });
 }
 

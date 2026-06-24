@@ -59,6 +59,7 @@ import {
   createSQLiteVectorStore,
 } from "../storage/sqlitePublic";
 import {
+  createProviderConversationalMemoryExtractor,
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
 } from "../provider/layer";
@@ -621,7 +622,9 @@ class GoodMemoryImpl implements GoodMemory {
     const assistedExtractor =
       config.adapters?.assistedExtractor ??
       (runtimeResolution.assistedExtractorModelConfig
-        ? createProviderMemoryExtractor({
+        ? (config.providers?.extraction?.mode === "conversational"
+            ? createProviderConversationalMemoryExtractor
+            : createProviderMemoryExtractor)({
             model: runtimeResolution.assistedExtractorModelConfig,
           })
         : undefined);

@@ -260,6 +260,53 @@ export function buildMemoryExtractionPrompt(
   ].join("\n\n");
 }
 
+export const CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT = [
+  "You decompose a multi-speaker conversation into atomic, self-contained memory facts for later retrieval.",
+  "Each fact must capture exactly one claim, resolve who or what every reference points to, and read correctly on its own without the surrounding dialogue.",
+  "Only record information grounded in the conversation; never invent details.",
+].join(" ");
+
+// Conversational atomic-fact extraction: rewrite raw dialogue turns into
+// self-contained, coreference-resolved, entity/date-normalized atomic claims so
+// later retrieval matches a question against a normalized fact instead of a raw
+// utterance. This bridges the question-to-dialogue vocabulary gap without a
+// neural embedding endpoint (the documented LoCoMo recall bottleneck). It is an
+// opt-in write-time pass; it does not change default extraction.
+export function buildConversationalMemoryExtractionPrompt(
+  input: MemoryExtractionInput,
+): string {
+  const transcript = input.messages
+    .map((message, index) => `[${index}] ${message.role}: ${message.content}`)
+    .join("\n");
+
+  return [
+    "Decompose this conversation into atomic, self-contained memory facts for retrieval.",
+    "Rewrite each fact so a reader who has never seen the conversation can fully understand it.",
+    [
+      "Rules for every fact:",
+      "- Capture exactly ONE atomic claim (one subject, one predicate, one object).",
+      "- Resolve all coreferences: replace pronouns (he, she, it, they, this, that) and vague references with the explicit named entity, and attribute first-person statements to the speaker by name when the name is known.",
+      "- Make it self-contained: it must be understandable without the surrounding turns.",
+      '- Normalize entities and dates: prefer full names over nicknames, and rewrite relative dates ("last week", "yesterday", "in two days") into absolute dates when the conversation provides a reference date; otherwise keep the original wording.',
+      "- Keep the originating speaker as sourceRole and the originating message index as sourceMessageIndex.",
+      '- Set explicitness to "explicit" when the fact is directly stated and "inferred" when you reasonably deduced it.',
+      "- Put the primary entity the fact is about in metadata.subject.",
+      "- Skip greetings, acknowledgements, and chit-chat; count those messages in ignoredMessageCount.",
+    ].join("\n"),
+    "Respond with a single JSON object. Do not use markdown fences or commentary.",
+    [
+      "The JSON object must contain:",
+      "candidates: an array of objects with id, kindHint, explicitness, content, sourceMessageIndex, sourceRole, and optional metadata.",
+      "ignoredMessageCount: a non-negative integer.",
+      `Allowed kindHint values: ${MEMORY_CANDIDATE_KIND_HINT_VALUES.join(", ")} (use "fact" for most conversational claims).`,
+      `Allowed explicitness values: ${MEMORY_CANDIDATE_EXPLICITNESS_VALUES.join(" or ")}.`,
+    ].join(" "),
+    `Locale hint: ${input.locale ?? "auto"}`,
+    "Conversation:",
+    transcript,
+  ].join("\n\n");
+}
+
 export function createLLMMemoryExtractor(input: {
   dependencies?: MemoryExtractorDependencies;
   model: AISDKModelConfig;

@@ -83,6 +83,13 @@ export interface GoodMemoryExtractionProviderConfig {
   model: string;
   apiKey: string;
   baseURL?: string;
+  // Assisted extraction prompt mode. "default" extracts durable product memory
+  // (profiles, preferences, references, facts). "conversational" decomposes
+  // dialogue into self-contained, coreference-resolved, entity/date-normalized
+  // atomic claims to improve recall on conversational corpora (the LoCoMo
+  // phrasing-gap lever) without a neural embedding endpoint. Defaults to
+  // "default" when omitted, so existing configs are unchanged.
+  mode?: "default" | "conversational";
 }
 
 export interface GoodMemoryProviderConfig {
