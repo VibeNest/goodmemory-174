@@ -460,10 +460,11 @@ For server integrations, start with the thin examples:
 For Python/FastAPI backends, use the packaged `goodmemory-http-bridge` path
 described below.
 
-## Opt-In Recall Tuning: Multi-Hop And Offline Embedding
+## Opt-In Recall Tuning: Multi-Hop, Offline Embedding, And Conversational Extraction
 
-Both knobs below are optional and conservative by design. Default recall is
-single-pass and rules-only; nothing changes unless you opt in.
+The knobs below are optional and conservative by design. Default recall is
+single-pass and rules-only, and default extraction is unchanged; nothing happens
+unless you opt in.
 
 ### Opt-in multi-hop recall
 
@@ -513,6 +514,45 @@ const memory = createGoodMemory({
   question-to-text phrasing gap that surface lexical overlap already misses.
 - For real semantic ranking, configure a neural embedding provider via
   `GOODMEMORY_EMBEDDING_*` instead.
+
+### Opt-in conversational fact extraction
+
+By default, assisted extraction (when a `providers.extraction` model is
+configured) pulls durable product memory — profiles, preferences, references,
+and facts. Set `providers.extraction.mode: "conversational"` to instead
+decompose dialogue into self-contained, coreference-resolved, entity- and
+date-normalized atomic claims at write time, so later retrieval matches a
+normalized fact instead of a raw conversational turn.
+
+```ts
+const memory = createGoodMemory({
+  providers: {
+    extraction: {
+      provider: "openai",
+      model: "gpt-5.5",
+      apiKey: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY!,
+      baseURL: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL,
+      mode: "conversational",
+    },
+  },
+});
+```
+
+Use it for chat/agent products where memory comes from multi-turn conversation
+and questions are phrased differently from how things were said ("Who is the
+user's manager?" vs. "yeah my boss Dana signed off").
+
+- It is opt-in. Leaving `mode` unset (or omitting `providers.extraction`) keeps
+  the default extraction behavior; the recall ranking path is untouched.
+- It is a **write-time LLM pass**: it uses your configured chat model, so it adds
+  extraction latency and token cost, and like any LLM step it can drop or
+  misphrase a claim. Raw turns remain the ground truth.
+- It is **not** semantic retrieval. It normalizes the stored text so lexical
+  retrieval has a better surface to match; it does not rank by meaning. It is the
+  embedding-free lever for the conversational phrasing gap, not a replacement for
+  a neural embedding provider.
+- Do **not** quote a benchmark number from it without held-out validation, and
+  do not tune the extraction prompt to a specific benchmark's phrasing.
 
 ## Runtime And Storage
 

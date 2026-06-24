@@ -356,9 +356,9 @@ Runtime archive 默认不持久化。显式调用
 但不会写入 archive。即使产品选择启用 archive，也应保持 summary-only，
 不要把 raw transcript 当作默认记忆来源。
 
-## 可选 Recall 调优：多跳与离线 Embedding
+## 可选 Recall 调优：多跳、离线 Embedding 与对话事实抽取
 
-两个选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，不开启就不会改变行为。
+下面这些选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，默认抽取也保持不变，不开启就不会改变行为。
 
 ### 可选多跳 recall（multiHop）
 
@@ -395,6 +395,37 @@ const memory = createGoodMemory({
 - 它**不是**神经语义检索：向量是 hashed 词面特征，只能在词面相似的候选之间打破并列，不理解语义。
 - **不要**用它来宣称语义 benchmark 提升：它无法弥合词面重叠已经错过的「问题↔文本」措辞差距。
 - 需要真正的语义排序时，请改为通过 `GOODMEMORY_EMBEDDING_*` 配置神经 embedding provider。
+
+### 可选对话事实抽取（conversational）
+
+默认情况下，配置了 `providers.extraction` 模型后的 assisted 抽取提取的是 durable 产品记忆——
+profile、preference、reference、fact。把 `providers.extraction.mode` 设为 `"conversational"`，
+则改为在写入时把对话分解成自包含、已消解指代、实体与日期归一化的原子事实（atomic claim），
+这样后续检索匹配的是归一化后的事实，而不是原始对话轮。
+
+```ts
+const memory = createGoodMemory({
+  providers: {
+    extraction: {
+      provider: "openai",
+      model: "gpt-5.5",
+      apiKey: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY!,
+      baseURL: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL,
+      mode: "conversational",
+    },
+  },
+});
+```
+
+适用于记忆来自多轮对话、且提问措辞与当时说法不同的 chat / agent 产品
+（「用户的经理是谁？」对「嗯我老板 Dana 批了」）。
+
+- opt-in；不设置 `mode`（或不配置 `providers.extraction`）就保持默认抽取行为，recall 排序路径不受影响。
+- 它是**写入时的一次 LLM 调用**：使用你配置的 chat 模型，因此会增加抽取延迟与 token 成本，
+  并且和任何 LLM 步骤一样可能漏掉或改写事实。原始对话轮仍是 ground truth。
+- 它**不是**语义检索：只是把存储文本归一化，让词面检索有更好的匹配面，不按语义排序。
+  它是针对对话措辞差距的「无 embedding 杠杆」，不替代神经 embedding provider。
+- 没有 held-out 验证前**不要**用它的数字宣称 benchmark 提升，也不要把抽取 prompt 调到某个 benchmark 的措辞上。
 
 ## Runtime 与存储
 
