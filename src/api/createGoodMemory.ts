@@ -36,6 +36,7 @@ import {
 import type { RecallRouterAssistant } from "../recall/assistant";
 import { renderMemoryPacket } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
+import { iterativeRecall } from "../recall/iterativeRecall";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
@@ -770,13 +771,21 @@ class GoodMemoryImpl implements GoodMemory {
       scope: input.scope,
       attributes: {
         ignoreMemory: Boolean(input.ignoreMemory),
+        multiHop: Boolean(input.multiHop),
         requestedRetrievalProfile: input.retrievalProfile ?? "default",
         requestedStrategy: input.strategy ?? "default",
       },
     });
 
     try {
-      const result = await this.recallEngine.recall(input);
+      const result = input.multiHop
+        ? (
+            await iterativeRecall({
+              query: input.query,
+              recall: (query) => this.recallEngine.recall({ ...input, query }),
+            })
+          ).result
+        : await this.recallEngine.recall(input);
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,
         result,

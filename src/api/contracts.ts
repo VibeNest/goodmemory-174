@@ -116,6 +116,11 @@ export interface RecallInput {
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
+  // Opt-in two-pass retrieval for multi-hop questions: after the first pass,
+  // bridge entities (names/values) from the retrieved facts expand the query and
+  // a second pass reaches facts reachable only through that bridge. Defaults to
+  // single-pass recall.
+  multiHop?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
 }
