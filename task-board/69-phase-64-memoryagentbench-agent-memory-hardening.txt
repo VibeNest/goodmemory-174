@@ -317,6 +317,23 @@ Tasks
   evidence (2 competencies, single model, deterministic scoring), NOT an accepted
   external-root closure or public score; TTL/LRU answer eval still pending; the one
   executionFailure means a retry/resume pass would be needed for a zero-failure gate.
+  ZERO-FAILURE AR+CR LIVE CLOSURE (2026-06-23, accepted): rebuilt the reproducible
+  root and reran the live answer path -- run `run-phase64-mab-ar-cr-live-closure-rerun-current`
+  (`eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB --live --evidence-pack`).
+  This run is CLEAN: executionFailures 0, 173/173 scored. CR answerAccuracy 0.959
+  (70/73), AR answerAccuracy 0.67 (100/100 answered). gpt-5.5 answer generation from
+  the general evidence pack, scored DETERMINISTICALLY by the upstream match mode (no
+  LLM judge -> no self-eval bias), external root reproducible via prepare:phase-64-mab.
+  The plain rerun landed clean with no resume sidecar needed (the live generator
+  already wraps requestOpenAICompatibleText in withAISDKRetries; the prior run's lone
+  failure was a transient endpoint hiccup). AR ROSE 0.616 -> 0.67 vs the prior run:
+  the shipped zero-retrieval lexical fallback (commit 5612446) improved AR retrieval
+  (recall 0.242 -> 0.260) -> better answer context -> more correct answers, an
+  end-to-end cross-validation that the fallback helps real answers, not just the
+  retrieval metric. This is an ACCEPTED zero-failure live evidence for AR+CR and the
+  generalization claim: evidencePack is NOT a BEAM-only trick (CR 0.959 on real MAB
+  CR) and current-value resolution generalizes from BEAM to MAB. Still internal
+  small-slice evidence (2 competencies, single gpt-5.5 model), not a public score.
 
 
 Commands
