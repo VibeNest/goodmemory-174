@@ -28,6 +28,7 @@ import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import {
   buildLocomoSmokeCases,
   LOCOMO_QA_CATEGORIES,
+  parseLocomoSession,
   scoreLocomoAnswer,
   type LocomoCase,
   type LocomoQaCategory,
@@ -35,6 +36,13 @@ import {
 } from "../src/eval/locomo";
 import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+import {
+  requestOpenAICompatibleText,
+  withAISDKRetries,
+} from "../src/provider/ai-sdk-runtime";
+import { resolveLiveModelConfig } from "./run-eval";
+import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
+import type { EvidenceTurn } from "../src/answer/evidencePack";
 
 export const LOCOMO_SMOKE_RUN_ID = "run-phase65-locomo-smoke-current";
 export const LOCOMO_SMOKE_REPORT_FILE_NAME = "smoke-report.json";
@@ -329,6 +337,69 @@ export function buildLocomoAnswerContext(input: {
     .join("\n");
 }
 
+// Evidence-pack variant of the answer context. LoCoMo turns carry no wall-clock
+// timestamp, so the answer-time order key is the turn's position in the
+// conversation and the time anchor is its 1-based session index (sessions run in
+// chronological order upstream). The shared pack then applies the same
+// operation-framing + current-value resolution validated on BEAM and MAB, with
+// no LoCoMo-specific tuning.
+export function buildLocomoEvidencePackContext(input: {
+  question: LocomoQuestion;
+  retrievedTurnIds: readonly string[];
+  testCase: LocomoCase;
+}): string {
+  const retrieved = new Set(input.retrievedTurnIds);
+  const turns: EvidenceTurn[] = input.testCase.turns
+    .map((turn, index) => ({ index, turn }))
+    .filter(({ turn }) => retrieved.has(turn.diaId))
+    .map(({ index, turn }) => ({
+      content: turn.content,
+      orderKey: index,
+      role: turn.speaker,
+      sourceId: turn.diaId,
+      timeAnchor: `session ${parseLocomoSession(turn.diaId)}`,
+    }));
+  return buildAnswerEvidencePack({
+    question: input.question.question,
+    turns,
+  });
+}
+
+const LOCOMO_ANSWER_SYSTEM =
+  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing.";
+
+export function buildLocomoPrompt(input: {
+  memoryContext: string;
+  question: string;
+}): string {
+  return [
+    "Dialog context:",
+    input.memoryContext.trim().length > 0 ? input.memoryContext : "(none)",
+    `Question:\n${input.question}`,
+    "Answer concisely using only the dialog context above. Return only the answer.",
+  ].join("\n\n");
+}
+
+const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120000;
+
+// Real LLM generator (deterministic token-F1 / exact / adversarial scoring
+// downstream, so no judge).
+export function createLocomoLiveAnswerGenerator(): LocomoAnswerGenerator {
+  const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  return async (input) =>
+    withAISDKRetries(() =>
+      requestOpenAICompatibleText({
+        model,
+        prompt: buildLocomoPrompt({
+          memoryContext: input.memoryContext,
+          question: input.question.question,
+        }),
+        system: LOCOMO_ANSWER_SYSTEM,
+        timeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
+      }),
+    );
+}
+
 export function summarizeLocomoRetrieval(
   results: readonly LocomoQuestionRetrieval[],
 ): LocomoCategoryRetrievalSummary[] {
@@ -490,6 +561,10 @@ export async function runLocomoSmoke(
     readFile: readFileImpl,
   });
 
+  const answerGenerator =
+    dependencies.answerGenerator ??
+    (options.live ? createLocomoLiveAnswerGenerator() : undefined);
+
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
   for (const testCase of cases) {
@@ -514,12 +589,18 @@ export async function runLocomoSmoke(
           retrievedTurnIds,
           testCase,
         });
-        if (dependencies.answerGenerator) {
-          const generatedAnswer = await dependencies.answerGenerator({
-            memoryContext: buildLocomoAnswerContext({
-              retrievedTurnIds,
-              testCase,
-            }),
+        if (answerGenerator) {
+          const generatedAnswer = await answerGenerator({
+            memoryContext: options.evidencePack
+              ? buildLocomoEvidencePackContext({
+                  question,
+                  retrievedTurnIds,
+                  testCase,
+                })
+              : buildLocomoAnswerContext({
+                  retrievedTurnIds,
+                  testCase,
+                }),
             question,
             retrievedTurnIds,
             testCase,
@@ -542,7 +623,7 @@ export async function runLocomoSmoke(
       }
     }
   }
-  const liveAnswer = dependencies.answerGenerator !== undefined;
+  const liveAnswer = answerGenerator !== undefined;
 
   const report: LocomoSmokeReport = {
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
