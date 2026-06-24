@@ -140,6 +140,11 @@ export interface RecallInput {
   // a second pass reaches facts reachable only through that bridge. Defaults to
   // single-pass recall.
   multiHop?: boolean;
+  // Opt-in query decomposition: split a compound query into sub-queries, recall
+  // each separately, and union the results (the packet is re-rendered over the
+  // union). Lexical-compatible and provider-free by default (a deterministic
+  // splitter). Defaults to a single recall; composes with multiHop.
+  decompose?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
 }

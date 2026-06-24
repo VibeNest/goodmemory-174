@@ -34,9 +34,10 @@ import {
   type GoodMemoryTracer,
 } from "../observability/tracer";
 import type { RecallRouterAssistant } from "../recall/assistant";
-import { renderMemoryPacket } from "../recall/contextBuilder";
+import { buildMemoryPacket, renderMemoryPacket } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
 import { iterativeRecall } from "../recall/iterativeRecall";
+import { decomposedRecall } from "../recall/queryDecomposition";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
@@ -178,6 +179,108 @@ function buildRememberTraceLinks(events: RememberResult["events"]): GoodMemoryTr
     }
   }
   return links;
+}
+
+function unionRecordsById<T extends { id: string }>(
+  results: readonly RecallResult[],
+  select: (result: RecallResult) => readonly T[],
+): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+  for (const result of results) {
+    for (const item of select(result)) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
+      }
+    }
+  }
+  return merged;
+}
+
+function unionMetadataList<T>(
+  results: readonly RecallResult[],
+  select: (metadata: RecallResult["metadata"]) => readonly T[],
+): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+  for (const result of results) {
+    for (const item of select(result.metadata)) {
+      const key = JSON.stringify(item);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
+      }
+    }
+  }
+  return merged;
+}
+
+// Union the retrieved records across the primary recall and each sub-query
+// recall (primary first, deduped by id), then re-render the packet over the
+// union so the merged RecallResult stays internally consistent. Session-scoped
+// singletons (profile, working memory, journal) come from the primary recall.
+function mergeDecomposedRecallResults(
+  primary: RecallResult,
+  supplementary: RecallResult[],
+): RecallResult {
+  if (supplementary.length === 0) {
+    return primary;
+  }
+  const results = [primary, ...supplementary];
+  const facts = unionRecordsById(results, (result) => result.facts);
+  const preferences = unionRecordsById(results, (result) => result.preferences);
+  const references = unionRecordsById(results, (result) => result.references);
+  const feedback = unionRecordsById(results, (result) => result.feedback);
+  const episodes = unionRecordsById(results, (result) => result.episodes);
+  const archives = unionRecordsById(results, (result) => result.archives);
+  const evidence = unionRecordsById(results, (result) => result.evidence);
+  const packet = buildMemoryPacket({
+    profile: primary.profile,
+    preferences,
+    references,
+    facts,
+    feedback,
+    archives,
+    evidence,
+    episodes,
+    workingMemory: primary.workingMemory,
+    journal: primary.journal,
+    locale: primary.metadata.locale,
+    routingDecision: primary.metadata.routingDecision,
+  });
+  return {
+    profile: primary.profile,
+    preferences,
+    references,
+    facts,
+    feedback,
+    archives,
+    evidence,
+    episodes,
+    workingMemory: primary.workingMemory,
+    journal: primary.journal,
+    packet,
+    metadata: {
+      ...primary.metadata,
+      tokenCount: packet.debug?.estimatedTokens ?? primary.metadata.tokenCount,
+      hits: unionMetadataList(results, (metadata) => metadata.hits),
+      candidateTraces: unionMetadataList(
+        results,
+        (metadata) => metadata.candidateTraces,
+      ),
+      verificationHints: unionMetadataList(
+        results,
+        (metadata) => metadata.verificationHints,
+      ),
+      policyApplied: [
+        ...new Set([
+          ...results.flatMap((result) => result.metadata.policyApplied),
+          "decomposed_recall",
+        ]),
+      ],
+    },
+  };
 }
 
 function buildRecallTraceLinks(result: RecallResult): GoodMemoryTraceLink[] {
@@ -776,20 +879,35 @@ class GoodMemoryImpl implements GoodMemory {
       attributes: {
         ignoreMemory: Boolean(input.ignoreMemory),
         multiHop: Boolean(input.multiHop),
+        decompose: Boolean(input.decompose),
         requestedRetrievalProfile: input.retrievalProfile ?? "default",
         requestedStrategy: input.strategy ?? "default",
       },
     });
 
     try {
-      const result = input.multiHop
+      const singlePassRecall = (query: string) =>
+        this.recallEngine.recall({ ...input, query });
+      const perQueryRecall = input.multiHop
+        ? async (query: string) =>
+            (await iterativeRecall({ query, recall: singlePassRecall })).result
+        : singlePassRecall;
+      const result = input.decompose
         ? (
-            await iterativeRecall({
+            await decomposedRecall({
               query: input.query,
-              recall: (query) => this.recallEngine.recall({ ...input, query }),
+              recall: perQueryRecall,
+              merge: mergeDecomposedRecallResults,
             })
           ).result
-        : await this.recallEngine.recall(input);
+        : input.multiHop
+          ? (
+              await iterativeRecall({
+                query: input.query,
+                recall: singlePassRecall,
+              })
+            ).result
+          : await this.recallEngine.recall(input);
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,
         result,

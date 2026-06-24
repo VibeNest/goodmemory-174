@@ -126,6 +126,14 @@ export type {
   IterativeRecallOutcome,
 } from "./recall/iterativeRecall";
 export {
+  decomposedRecall,
+  splitQueryIntoSubQueries,
+} from "./recall/queryDecomposition";
+export type {
+  DecomposedRecallOutcome,
+  QueryDecompositionOptions,
+} from "./recall/queryDecomposition";
+export {
   resolveCurrentValue,
   resolveCurrentValuesByGroup,
 } from "./answer/currentValueResolution";
