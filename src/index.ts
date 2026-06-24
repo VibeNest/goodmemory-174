@@ -117,6 +117,14 @@ export {
   createLocalEmbeddingAdapter,
   embedTextLocally,
 } from "./embedding/localEmbeddingAdapter";
+export {
+  extractBridgeEntities,
+  iterativeRecall,
+} from "./recall/iterativeRecall";
+export type {
+  IterativeRecallOptions,
+  IterativeRecallOutcome,
+} from "./recall/iterativeRecall";
 export type {
   MemoryLifecycleState,
   MemorySource,
