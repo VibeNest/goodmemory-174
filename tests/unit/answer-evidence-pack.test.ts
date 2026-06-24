@@ -232,11 +232,41 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("Contradiction resolution:");
     expect(pack).toContain("Contradiction evidence guide:");
     expect(pack).toContain("Potential denial/no side:");
-    expect(pack).toContain("Potential affirmative/done side:");
+    expect(pack).toContain("Potential affirmative/done side");
     expect(pack).toContain("Do not answer yes or no first");
     expect(pack).toContain("I notice you've mentioned contradictory information");
     expect(pack).toContain("ask for clarification");
     expect(pack).not.toContain("latest supported value as current");
+  });
+
+  it("surfaces a non-whitelist affirmative as the affirmative side of a contradiction", () => {
+    // "downloaded" / "manage" are outside the affirmative verb whitelist; the
+    // affirmative side must still be surfaced (as a non-denial assertion) so the
+    // answer does not collapse to the denial.
+    const pack = buildAnswerEvidencePack({
+      question: "Have I started using Zotero?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "I downloaded Zotero to manage my citations.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "I have never used any citation management software.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+    const affirmativeSection = pack.slice(pack.indexOf("affirmative/done side"));
+    expect(affirmativeSection).toContain("downloaded Zotero");
+    expect(affirmativeSection).not.toContain("(not directly detected");
+    expect(pack).toContain("lead with the affirmative claim");
   });
 
   it("adds multi-session facet framing for cross-session reasoning", () => {

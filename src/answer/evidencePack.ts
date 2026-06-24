@@ -197,9 +197,9 @@ function buildAnswerShapeGuidance(input: {
   }
   if (input.operation === "contradiction") {
     return [
-      "Answer shape: Do not answer yes or no first.",
+      "Answer shape: Do not answer yes or no first, and do not collapse the answer to the denial just because it appears later.",
       "Begin by saying: I notice you've mentioned contradictory information about this.",
-      "Then name both sides from the evidence and ask for clarification.",
+      "Then name both sides from the evidence—lead with the affirmative claim (what the user said they did, have, or completed), then state the conflicting denial—and ask for clarification.",
     ].join(" ");
   }
   return undefined;
@@ -208,12 +208,11 @@ function buildAnswerShapeGuidance(input: {
 function buildContradictionEvidenceGuide(
   ordered: readonly EvidenceTurn[],
 ): string {
-  const formatMatches = (pattern: RegExp): string => {
-    const matches = ordered.filter((turn) => pattern.test(turn.content));
-    if (matches.length === 0) {
+  const formatTurns = (turns: readonly EvidenceTurn[], pattern: RegExp): string => {
+    if (turns.length === 0) {
       return "(not directly detected; inspect the evidence text for this side)";
     }
-    return matches
+    return turns
       .map(
         (turn) =>
           `- [#${turn.sourceId}] ${extractSnippetAroundPattern(
@@ -223,12 +222,23 @@ function buildContradictionEvidenceGuide(
       )
       .join("\n");
   };
+  const denialTurns = ordered.filter((turn) =>
+    CONTRADICTION_DENIAL_PATTERN.test(turn.content),
+  );
+  // The affirmative side is every retrieved assertion that is NOT a denial, so a
+  // contradiction is still surfaced when the affirmative verb falls outside the
+  // affirmative pattern (e.g. downloaded, collaborated, attended, met, scheduled).
+  // Relying only on the narrow affirmative whitelist hid the affirmative side and
+  // let the answer collapse to the denial.
+  const affirmativeTurns = ordered.filter(
+    (turn) => !CONTRADICTION_DENIAL_PATTERN.test(turn.content),
+  );
   return [
     "Contradiction evidence guide:",
     "Potential denial/no side:",
-    formatMatches(CONTRADICTION_DENIAL_PATTERN),
-    "Potential affirmative/done side:",
-    formatMatches(CONTRADICTION_AFFIRMATIVE_PATTERN),
+    formatTurns(denialTurns, CONTRADICTION_DENIAL_PATTERN),
+    "Potential affirmative/done side (assertions that are not denials):",
+    formatTurns(affirmativeTurns, CONTRADICTION_AFFIRMATIVE_PATTERN),
     "Use the user's question target to phrase both sides; avoid substituting adjacent implementation details as the contradiction target.",
   ].join("\n");
 }
