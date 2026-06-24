@@ -79,6 +79,32 @@ export interface SemanticSearchScores {
 
 const SEMANTIC_TIE_BREAK_EPSILON = 0.2;
 
+// The semantic similarity score is promoted from a tie-break-only signal to a
+// first-class ADDITIVE ranking term for hybrid/semantic strategies, while
+// "rules-only" stays a pure lexical floor. The weight is intentionally
+// sub-lexical (a perfect semantic match contributes less than a strong
+// multi-term lexical match) and is the single tunable constant to validate on
+// held-out BEAM generalization recall + LongMemEval once a real neural
+// embedding endpoint populates non-zero semantic scores. Until such an endpoint
+// exists every semanticScore is 0 (semantic search is gated on
+// `strategy === "hybrid" && config.embedding && vectorIndex` in recall/engine),
+// so this term is a guaranteed no-op and cannot regress the accepted
+// rules-only/hybrid numbers. Without this promotion a perfect embedding could
+// only reorder candidates inside the +/-0.2 tie-break band, capping the payoff
+// of any embedding endpoint to near zero.
+const SEMANTIC_ADDITIVE_WEIGHT = 0.6;
+
+function effectiveRankingScore(
+  score: number,
+  semanticScore: number,
+  strategy: RecallRouterStrategy,
+): number {
+  if (strategy === "rules-only") {
+    return score;
+  }
+  return score + SEMANTIC_ADDITIVE_WEIGHT * semanticScore;
+}
+
 function categoryPriority(
   category: FactMemory["category"],
   query: string,
@@ -671,7 +697,9 @@ function compareFactCandidates(
   right: RankedFactCandidate,
   strategy: RecallRouterStrategy,
 ): number {
-  const scoreDelta = right.score - left.score;
+  const scoreDelta =
+    effectiveRankingScore(right.score, right.semanticScore, strategy) -
+    effectiveRankingScore(left.score, left.semanticScore, strategy);
 
   if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
     return scoreDelta;
@@ -706,7 +734,9 @@ function compareReferenceCandidates(
   right: RankedReferenceCandidate,
   strategy: RecallRouterStrategy,
 ): number {
-  const scoreDelta = right.score - left.score;
+  const scoreDelta =
+    effectiveRankingScore(right.score, right.semanticScore, strategy) -
+    effectiveRankingScore(left.score, left.semanticScore, strategy);
 
   if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
     return scoreDelta;
@@ -738,7 +768,9 @@ function compareEpisodeCandidates(
   right: RankedEpisodeCandidate,
   strategy: RecallRouterStrategy,
 ): number {
-  const scoreDelta = right.score - left.score;
+  const scoreDelta =
+    effectiveRankingScore(right.score, right.semanticScore, strategy) -
+    effectiveRankingScore(left.score, left.semanticScore, strategy);
 
   if (Math.abs(scoreDelta) > SEMANTIC_TIE_BREAK_EPSILON) {
     return scoreDelta;

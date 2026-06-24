@@ -9,6 +9,7 @@ import {
   buildFactCandidates,
   sortFeedback,
   normalizeSemanticScores,
+  rankFactCandidates,
   rankReferenceCandidates,
   buildReferenceCandidates,
 } from "../../src/recall/scoring";
@@ -140,6 +141,84 @@ describe("recall scoring", () => {
     );
 
     expect(ranked[0]?.reference.id).toBe("ref-hi");
+  });
+
+  // Initiative 1: semanticScore must be a first-class ADDITIVE ranking term for
+  // hybrid (not tie-break-only), while rules-only stays a pure lexical floor.
+  // Two facts with identical content (so every lexical/intent/freshness term is
+  // equal) are separated only by their injected semantic scores.
+  const buildTwinFactCandidates = (
+    semanticScores?: Map<string, number>,
+  ) => {
+    const language = createLanguageService();
+    const content = "The current blocker is the rollout approval.";
+    const facts = [
+      createFactMemory({
+        id: "fact-a",
+        userId: "user-1",
+        category: "project",
+        content,
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-b",
+        userId: "user-1",
+        category: "project",
+        content,
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+    return buildFactCandidates(
+      facts,
+      "What is the rollout blocker?",
+      language,
+      "en",
+      TIMESTAMP,
+      semanticScores,
+    );
+  };
+
+  it("rules-only ignores semantic scores entirely (pure lexical floor)", () => {
+    // fact-b has the far higher semantic score, but rules-only must not look at
+    // it: with all lexical terms tied, ranking falls to the deterministic id
+    // order, surfacing fact-a.
+    const candidates = buildTwinFactCandidates(
+      new Map([
+        ["fact-a", 0.2],
+        ["fact-b", 0.9],
+      ]),
+    );
+    const ranked = rankFactCandidates(candidates, "rules-only");
+    expect(ranked[0]?.fact.id).toBe("fact-a");
+  });
+
+  it("hybrid promotes the higher semantic score additively over a lexical tie", () => {
+    const candidates = buildTwinFactCandidates(
+      new Map([
+        ["fact-a", 0.2],
+        ["fact-b", 0.9],
+      ]),
+    );
+    const ranked = rankFactCandidates(candidates, "hybrid");
+    expect(ranked[0]?.fact.id).toBe("fact-b");
+  });
+
+  it("is a no-op when no semantic scores are present (endpoint-free parity)", () => {
+    // With every semanticScore defaulting to 0, hybrid and rules-only must
+    // produce identical rankings — this is the guarantee that wiring the
+    // additive term cannot regress the accepted rules-only/hybrid numbers until
+    // a real embedding endpoint supplies non-zero scores.
+    const rulesOnly = rankFactCandidates(
+      buildTwinFactCandidates(),
+      "rules-only",
+    );
+    const hybrid = rankFactCandidates(buildTwinFactCandidates(), "hybrid");
+    expect(hybrid.map((candidate) => candidate.fact.id)).toEqual(
+      rulesOnly.map((candidate) => candidate.fact.id),
+    );
+    expect(hybrid[0]?.fact.id).toBe("fact-a");
   });
 
   it("prefers recently used feedback when sorting active guidance", () => {
