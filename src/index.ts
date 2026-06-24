@@ -125,6 +125,15 @@ export type {
   IterativeRecallOptions,
   IterativeRecallOutcome,
 } from "./recall/iterativeRecall";
+export {
+  resolveCurrentValue,
+  resolveCurrentValuesByGroup,
+} from "./answer/currentValueResolution";
+export type {
+  CurrentValueEntry,
+  CurrentValueReason,
+  CurrentValueResolution,
+} from "./answer/currentValueResolution";
 export type {
   MemoryLifecycleState,
   MemorySource,
