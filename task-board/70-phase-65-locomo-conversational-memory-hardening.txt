@@ -14,6 +14,22 @@ representative full-conversation-1 live run measured the real remaining
 bottleneck as BASE RETRIEVAL, not answer organization (see P65-T005 below).
 This is adapter / live-path / prep complete, NOT LoCoMo performance closure.
 
+[RETRIEVAL RESEARCH PAUSED — FIRM BOUNDARY] Phase 65 LoCoMo retrieval research is
+paused at a firm boundary. Representative conv-1 raw retrieval shows 0.069 recall
+and 0.92 zero-retrieval. Dialog windows, rules-light query expansion, and LLM
+turn-captioning were each tested as eval-only probes (see "Base-Retrieval
+Research" below). None materially moved exact gold-turn recall; captioning's best
+variant (local-window-2) reached only 0.0779 recall with zero-retrieval still
+~0.92. The result rules out answer-pack tuning, multiHop bridging, positional
+widening, handcrafted query expansion, and caption enrichment under the current
+lexical/rules retrieval substrate. Conclusion: LoCoMo requires real
+semantic/embedding retrieval that ranks by meaning, not surface lexical overlap.
+The local hashed lexical embedding adapter is deliberately NOT probed — it is
+another lexical/tie-break proxy and would pollute (not advance) this conclusion.
+Reopen only when a neural embedding endpoint or equivalent semantic retrieval
+backend is available; the next legal entry is P65-R003 "Neural semantic retrieval
+probe for LoCoMo" whose prerequisite is a real embedding endpoint.
+
 Phase 64 MemoryAgentBench remains the active hardening leg; its real live-answer
 path exists behind `--live`, but no accepted external-root live closure exists.
 Phase 63 BEAM live closure is deferred per the user.
