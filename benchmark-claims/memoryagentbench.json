@@ -1,16 +1,16 @@
 {
   "benchmark": "MemoryAgentBench",
-  "status": "internal_evidence",
+  "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench",
     "license": "MIT",
     "vendored": false
   },
   "run": {
-    "commit": "1aec35d",
-    "packageVersion": null,
-    "command": "eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB --live --evidence-pack (run-phase64-mab-ar-cr-live-closure-rerun-current)",
-    "executionFailures": 0
+    "commit": "fbb2ec6",
+    "packageVersion": "0.3.0",
+    "command": "eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB-67c-full --live --evidence-pack (run-phase67c-mab-harness-full-current; AR100 CR73 TTL30 LRU56)",
+    "executionFailures": 5
   },
   "model": {
     "answerModel": "gpt-5.5",
@@ -18,16 +18,16 @@
     "sameModelJudge": false
   },
   "metrics": {
-    "primary": "CR answer accuracy (deterministic upstream match-mode)",
+    "primary": "CR answer accuracy (deterministic upstream match-mode, judge-free)",
     "score": 0.959,
     "baseline": null
   },
   "coverage": {
-    "complete": false,
-    "note": "only AR (0.67) and CR (0.959) measured; TTL 0/30 and LRU 1/6 are answer-format-mismatch boundaries that need task-specific harnesses (P67-C). No upstream baseline captured."
+    "complete": true,
+    "note": "all four competencies now measured with the P67-C task-specific answer harness: CR 0.959 (70/73), AR 0.853 (81/95), TTL 0.767 (23/30, up from 0/30), LRU 0.518 (29/56, up from 1/6). Deterministic upstream match-mode scoring, no LLM judge."
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "Cleanest methodology of all benchmarks (deterministic upstream match-mode scoring, NO LLM judge, so no same-model bias), but blocked by incomplete coverage (TTL/LRU unfinished) and a missing upstream baseline. P67-C task-specific harnesses (TTL classification, LRU multiple-choice with 50+ rows) plus a baseline make this the fastest honest deterministic public claim."
+    "reason": "Strongest honest candidate of all benchmarks: deterministic, judge-free (no same-model bias), and the P67-C task-specific harness lifts every competency past target (CR 0.959, AR 0.853, TTL 0.767, LRU 0.518). CR ~0.96 is the cleanest claim and beats the published single-hop ceiling ~0.60. REMAINING BLOCKERS for a public claim: (1) no in-harness baseline reproduced (the ~0.60 ceiling is external, not run here) so metrics.baseline is null; (2) executionFailures 5, not 0 — the failures are transient shared-gateway drops on long sequential runs (15/15 clean in isolation), so a clean run needs resumable retry infra (the BEAM live-slice pattern), not a harness change. REQUIRED DISCLOSURES if ever promoted: MAB measures answer-formatting / current-value resolution strength, NOT retrieval — 66% of correct CR, 68% of correct AR, and 100% of correct TTL answers had no full gold evidence retrieved (mean evidence recall CR 0.57 / AR 0.27 / TTL 0.02); AR is a multiple-choice leak (the gold next-event is a prompt candidate) so it must never be headlined as retrieval; TTL was a fixable answer-format artifact (0 -> 0.767 from the classification harness alone); LRU (0.518, evidence recall 0.68) is the most retrieval-coupled but remains hard."
   }
 }
