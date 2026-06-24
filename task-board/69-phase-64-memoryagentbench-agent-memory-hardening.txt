@@ -4,10 +4,16 @@ Phase 64: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[ACTIVE] Phase 64 MemoryAgentBench is now the active leg. Phase 63 BEAM was
-explicitly PAUSED on 2026-06-15 (parked at rules-only retrieval recall 0.9621;
-BEAM row recorded in README.md). The BEAM resume plan lives in its breakdown
-board (task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt).
+[CLOSED — INTERNAL EVIDENCE] Phase 64 MemoryAgentBench is closed as an accepted
+internal AR+CR zero-failure live closure (CR 0.959, AR 0.67, executionFailures 0,
+reproducible external root via prepare:phase-64-mab) plus a recorded TTL/LRU
+answer-format boundary. This is internal small-slice evidence (two competencies,
+single gpt-5.5 model, deterministic upstream match-mode scoring, no LLM judge),
+NOT a public benchmark claim; the MAB README row stays blank. Phase 63 BEAM
+remains PAUSED (rules-only retrieval recall 0.9621; answer-gap hardening owned by
+the BEAM workstream; resume plan in
+task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt). Current active
+lane: v0.3 release readiness / public-surface hardening (Phase 66).
 
 
 Driver
@@ -80,8 +86,16 @@ Tasks
   per-competency averageEvidenceRecall, fullyRetrievedCount, noiseChunkTotal,
   staleSelectedCount, and (TTL) actionPolicyTransferReady, plus per-question
   retrieved ids. First run recorded under "First Smoke Findings" below.
-[IN PROGRESS] P64-T005 Implement only generic GoodMemory repairs from
+[DONE] P64-T005 Implement only generic GoodMemory repairs from
   MemoryAgentBench misses and rerun before LoCoMo.
+  CLOSED 2026-06-23 as the accepted zero-failure AR+CR live closure
+  (`run-phase64-mab-ar-cr-live-closure-rerun-current`: CR answerAccuracy 0.959,
+  AR 0.67, executionFailures 0, deterministic match-mode scoring, no judge) plus
+  the TTL/LRU answer-format boundary (TTL 0/30, LRU 1/6 — strict format-token
+  gold needs a dedicated classification harness, not the general live path).
+  General recall-robustness fix shipped on the way (zero-retrieval lexical
+  fallback, commit 5612446, BEAM caseDeltaCount 0). Internal small-slice
+  evidence, not a public claim. Full investigation log retained below.
   FINDING (2026-06-15): the first candidate "miss" (CR stale selection) is NOT a
   retrieval bug. GoodMemory supersession (src/remember/handlers.ts ~405-415)
   intentionally retires only explicit-over-INFERRED facts; an explicit-over-

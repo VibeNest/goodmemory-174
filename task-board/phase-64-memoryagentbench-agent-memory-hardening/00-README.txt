@@ -4,15 +4,19 @@ Phase 64 Breakdown: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[ACTIVE] Phase 64 is active: Phase 63 BEAM was explicitly paused on 2026-06-15
-(parked at rules-only retrieval recall 0.9621, README benchmark row recorded).
+[CLOSED — INTERNAL EVIDENCE] Phase 64 is closed as the accepted zero-failure
+AR+CR live closure (CR 0.959, AR 0.67, executionFailures 0) plus the TTL/LRU
+answer-format boundary; internal small-slice evidence, not a public claim. Phase
+63 BEAM remains paused (rules-only retrieval recall 0.9621). Current active lane:
+v0.3 release readiness / public-surface hardening (Phase 66).
 
 Progress: P64-T001/T002 done (source intake + synthetic smoke contract). P64-T003
 done: external-root adapter + retrieval-only smoke report
 (scripts/run-phase-64-memory-agent-bench-smoke.ts, eval:phase-64-smoke). P64-T004
 done: the report emits per-competency evidence recall, noise, stale, and TTL
 action-policy readiness; first run recorded (executionFailures 0, evidence recall
-1.0 across AR/TTL/LRU/CR). P64-T005 in progress: investigation showed the "CR
+1.0 across AR/TTL/LRU/CR). P64-T005 (DONE — accepted zero-failure AR+CR live
+closure + TTL/LRU answer-format boundary): investigation showed the "CR
 stale-selection" is NOT a retrieval bug (GoodMemory keeps value history
 retrievable on purpose; explicit-over-explicit supersession would regress BEAM
 knowledge_update) — conflict resolution is decided at ANSWER time. Added a
