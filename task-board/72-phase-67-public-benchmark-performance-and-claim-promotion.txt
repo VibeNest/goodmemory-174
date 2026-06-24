@@ -1,0 +1,106 @@
+Phase 67: Public Benchmark Performance and Claim Promotion
+=========================================================
+
+Status
+------
+
+[ACTIVE] Phase 67 turns GoodMemory's internal benchmark evidence into honest,
+reproducible, public-claim-ready scores. The discipline: no internal number
+reaches a public README row until it passes the public benchmark claim gate
+(P67-A). This phase opens no LoCoMo retrieval work (paused, board 70) and does
+not change the Phase 63 BEAM answer-pack code lane (owned by the BEAM workstream);
+P67-D is scoped but deferred until that lane is collision-calm or reassigned.
+
+
+Goal
+----
+
+Turn internal benchmark evidence into honest, reproducible, public-claim-ready
+scores. Every claimed benchmark must have a claim report with dataset source,
+license, command, commit, model, scorer, and baseline; executionFailures 0; no
+same-model judge for public semantic-judge claims; fitted AND generalization
+recall reported together for BEAM.
+
+
+Key Finding (P67-A, 2026-06-24)
+-------------------------------
+
+The claim gate's first verdict over all five benchmarks: 0 publicly claimable
+today, each blocked for a precise reason.
+
+- LongMemEval (0.908), ImplicitMemBench (0.711), BEAM (0.695): blocked by a
+  SAME-MODEL judge (gpt-5.5 answer + gpt-5.5 judge; .env EVAL and JUDGE are both
+  gpt-5.5 @ ai.gurkiai.com) plus unverified provenance/commit.
+- MemoryAgentBench (CR 0.959 / AR 0.67): cleanest methodology — deterministic
+  upstream match-mode scoring, NO judge, so no same-model bias — but blocked by
+  incomplete coverage (TTL 0/30, LRU 1/6) and a missing baseline.
+- LoCoMo (0.020): a retrieval boundary, not a performance result.
+
+INFRA CONSTRAINT: there is currently NO independent judge model (only gpt-5.5 is
+served). So the same-model-judge blocker on LongMemEval/BEAM cannot be cleared by
+a judge swap right now. The two viable JUDGE-FREE public-claim routes are:
+  1. MemoryAgentBench — complete TTL/LRU coverage + add a baseline (P67-C); it is
+     already deterministic and judge-free.
+  2. LongMemEval deterministic subset — report only the judge-free methods
+     (abstention/contains/exact/expected_alternative/numeric_count), excluding the
+     semantic_judge questions, as a separate honest sub-score (P67-B).
+These are the fastest honest paths; the independent-judge path is infra-blocked
+like LoCoMo's neural-embedding path.
+
+
+Tasks
+-----
+
+[DONE] P67-A Public benchmark claim gate (commit 3565877,
+  scripts/run-public-benchmark-claim-gate.ts, gate:public-benchmark-claim).
+  BenchmarkClaimReport schema + pure rule engine + over-claim detection; committed
+  declarations under benchmark-claims/<name>.json; gitignored gate report under
+  reports/release/claims/. Unit-tested (7/7). First run: 5 declarations, all
+  consistent, 0 over-claiming, 0 publicly claimable.
+
+[TODO] P67-B LongMemEval public-claim replay. Replay on the v0.3 package surface;
+  produce a public-claim report; verify license/provenance; pin commit + package
+  version + command; confirm executionFailures 0. Because no independent judge is
+  available, report a JUDGE-FREE deterministic sub-score (exclude semantic_judge
+  questions) as the public-claim candidate, with the judge-scored figure kept
+  internal. Promote the README row only after the claim gate flips this
+  declaration to publicClaimAllowed true. NEEDS USER GO (real benchmark run).
+
+[TODO] P67-C MemoryAgentBench task-specific answer harness. AR (output the selected
+  option only), CR (hold 0.959), TTL classification harness (label-id output;
+  0/30 -> >=0.50), LRU multiple-choice harness (50+ rows). Deterministic scoring,
+  no judge. Add an upstream baseline. Targets AR>=0.70, CR>=0.95, TTL>=0.50,
+  LRU>=0.50, executionFailures 0. This is the fastest fully judge-free public claim.
+
+[DEFERRED] P67-D BEAM answer-gap improvement to >=0.75. Top lanes: conflict_update,
+  instruction_following, temporal_order. Requires an independent judge (infra-
+  blocked) and touches the BEAM answer-pack code lane (owned by the BEAM
+  workstream) — do not start until that lane is collision-calm or reassigned.
+
+[BLOCKED] P67-E LoCoMo neural semantic retrieval probe (P65-R003). Reopen only
+  when a real neural embedding endpoint is available. Do not run local hashed
+  embedding. See board 70.
+
+
+Acceptance Criteria
+-------------------
+
+- Every claimed benchmark has a claim declaration (benchmark-claims/<name>.json).
+- Every declaration has dataset source, license, command, commit, package version,
+  model, scorer, and baseline.
+- executionFailures = 0.
+- No same-model judge for public semantic-judge claims.
+- No MAB / LoCoMo README row promotion until the claim gate passes for it.
+- BEAM always reports fitted and generalization recall together.
+- The claim gate (gate:public-benchmark-claim --strict) is consistent (no
+  over-claiming) before any README benchmark row changes.
+
+
+Source And Evidence Pointers
+----------------------------
+
+- Claim gate: scripts/run-public-benchmark-claim-gate.ts (gate:public-benchmark-claim)
+- Declarations: benchmark-claims/*.json
+- Gate report (gitignored): reports/release/claims/claim-gate-report.json + summary.md
+- Release readiness (Phase 66): scripts/run-v0-3-release-readiness.ts
+- LoCoMo paused boundary: task-board/70-phase-65-...txt
