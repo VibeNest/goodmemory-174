@@ -46,15 +46,16 @@ the matching benchmark is completed and backed by a report.
 
 These rows are research and hardening evidence, not a final public leaderboard.
 The BEAM row reports rules-only retrieval recall (evidence-chat recall over the
-100K split). End-to-end live answer closure has now been run internally
-(`run-phase63-beam-100k-live-closure-gpt55-evidence-pack-current`): 261 / 400
-answer accuracy (0.6525) with rules-only retrieval, a general answer-time
-evidence pack (`src/answer/evidencePack.ts`), and a same-model semantic judge,
-`executionFailures: 0` — up from 224 / 400 (0.56) before the evidence pack, at
-identical recall. That is internal measured evidence, not a public
-benchmark claim — it rides on the fitted recall below and uses the answer model
-as its own judge, so the accepted README row stays retrieval-focused until
-answer-gap hardening and cross-benchmark evidence mature.
+100K split). An end-to-end measured full-run checkpoint has now been run internally
+(`run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`):
+278 / 400 answer accuracy (0.695) with rules-only retrieval, a general
+answer-time evidence pack (`src/answer/evidencePack.ts`), and a same-model
+semantic judge, `executionFailures: 0` — up from 224 / 400 (0.56) before the
+evidence pack and 261 / 400 (0.6525) at the prior pack checkpoint, at identical
+recall. That is internal measured evidence, not a public benchmark claim — it
+rides on the fitted recall below and uses the answer model as its own judge, so
+the accepted README row stays retrieval-focused while answer-gap hardening and
+cross-benchmark evidence mature.
 Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
 recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
 and a `generalization` figure (all narrow gates disabled). The large gap means
