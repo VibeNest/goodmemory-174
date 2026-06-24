@@ -241,6 +241,7 @@ function buildModeMemoryContext(input: {
   chatIds: readonly number[];
   mode: Phase63AblationMode;
   question: string;
+  questionType?: string;
   turnsById: Map<number, BeamChatTurn>;
 }): string {
   if (!EVIDENCE_PACK_MODES.has(input.mode)) {
@@ -268,7 +269,11 @@ function buildModeMemoryContext(input: {
       timeAnchor: turn.timeAnchor,
     });
   }
-  return buildAnswerEvidencePack({ question: input.question, turns });
+  return buildAnswerEvidencePack({
+    question: input.question,
+    questionType: input.questionType,
+    turns,
+  });
 }
 
 async function mapWithConcurrency<T, R>(
@@ -397,6 +402,7 @@ export async function runPhase63BeamLiveAblation(
         chatIds,
         mode,
         question: testCase.question,
+        questionType: testCase.questionType,
         turnsById,
       });
       const base: Phase63AblationCaseResult = {

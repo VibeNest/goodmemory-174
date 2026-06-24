@@ -1,53 +1,100 @@
 Phase 63 Breakdown: BEAM Scale And Noise Hardening
 ==================================================
 
-This breakdown is intentionally compact. It lists current work and accepted boundaries only; detailed historical run notes were removed from this current entrypoint.
+This breakdown is intentionally compact. It lists current work and accepted
+boundaries only; use generated reports and git history for provenance.
 
 Current Boundary
 ----------------
 
 - Phase 63 is active and partial.
 - Phase 62 LongMemEval is accepted and no longer blocks BEAM.
-- Current Phase 63 work targets provider-free BEAM recall diagnostics, small live BEAM slices, and a prepared full live closure path before any public score.
+- Current Phase 63 work is answer-gap hardening with recall/noise follow-up.
+- The latest accepted BEAM full-run evidence is a measured checkpoint, not
+  performance closure and not a public benchmark claim.
 - Main phase file: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
 
 Accepted Evidence
 -----------------
 
-- LongMemEval accepted close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`, 454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35, wrong recall 6, wrong answers 46, and `executionFailures: 0`.
+- LongMemEval accepted close:
+  `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`,
+  454/500 answer accuracy, evidence-session recall 0.9590, missed recall 35,
+  wrong recall 6, wrong answers 46, and `executionFailures: 0`.
 - BEAM smoke: `run-phase63-beam-smoke-current`, gate `run-20260518003000`.
-- BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`, real 100K export, all four profiles, `executionFailures: 0`.
-- First rules-only recall diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-full-20260518T005500Z`, evidence-chat recall 0.11625896794910878, missed 340/355.
-- Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0.
-- Latest accepted retained run: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`, evidence-chat recall 0.9620612564274538, missed 20/355, wrong-recall/noise 167/400, zero-recall 0 (3:multi_session_reasoning:1 recovered 0.5->1 via a two-facet multiFacetGroups group — fourth multi_session_reasoning recovery through the multi-facet contradiction route, a ground-truth-misaligned [16,116] pair; the narrowed gate avoids the sibling knowledge_update 3:ku:2; returns exactly [16,116], recovers the contact-form turn 16 and sheds noise 60/88/36; cleanest single delta, a recall gain plus a noise reduction, zero ripples; confirmed-reachable msr cases now exhausted).
+- BEAM adapter proof: `run-phase63-beam-100k-full-initial-20260518T000335Z`,
+  real 100K export, all four profiles, `executionFailures: 0`.
+- Latest retained recall diagnostic:
+  `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`,
+  evidence-chat recall 0.9620612564274538, missed 20/355,
+  wrong-recall/noise 167/400, zero-recall 0.
+- Latest accepted measured full-run checkpoint:
+  `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`,
+  278/400 answer accuracy (0.695), wrong-answer 122/400,
+  evidence-chat recall 0.9620612564274538, `executionFailures: 0`, gate
+  `run-phase63-beam-closure-gate-gpt55-evidence-pack-answer-hardening-current` accepted.
+- Prior evidence-pack checkpoint:
+  `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-current`,
+  261/400 answer accuracy (0.6525), same recall.
+- Prior no-pack baseline:
+  `run-phase63-beam-100k-live-closure-gpt55-current`, 224/400 answer accuracy
+  (0.56), same recall.
 
 Current Task Queue
 ------------------
 
-1. MULTI-FACET CONTRADICTION is the new active recipe (pass 89 recovered 10:cr:1, the FIRST multi-evidence/3-turn contradiction). The recipe lives in src/recall/selectors/contradictionRules/multiFacetGroups.ts: a gate + an ordered facet-pattern list + selectMultiFacetContradictionGroup (filter conversation-evidence + user-answer + sourceOrderSortKey; pickFirst each facet via valueBearingFactContent; return all source-ordered iff ALL facets present) + the MULTI_FACET_CONTRADICTION_GROUPS table + selectTabulatedMultiFacetContradictionGroup, chained in selectContradictionEvidencePair. A new case = a gate + facet-pattern list + one table entry + re-export the gate from contradiction.ts + enrichment entry + ADD the gate to instructionAugmentationStandDownQuery (else the companion augmenter appends noise to the small winner). KEY: markerless turns (no `->->`, e.g. answer_ai_question/follow-ups) ARE matchable here because the filter uses conversation-evidence + user-answer + chatId, NOT SOURCE_MESSAGE_TAG. THE CLEAN MULTI-EVIDENCE CONTRADICTION SET IS EXHAUSTED (14 contradiction cases). ANSWER_AI_QUESTION knowledge_update cases are UNBLOCKED via the multiFacetGroups matcher (filter = conversation-evidence + user-answer + chatId, NOT SOURCE_MESSAGE_TAG, so it reaches markerless turns): passes 94 (16:ku:1) + 95 (8:ku:1) recovered. **CRITICAL PROCESS LESSON (pass 95 first attempt, REVERTED): multiFacetGroups does NOT work for instruction_following — a gate matching an instruction query (1:if:1) collides with the existing instructionRules continuation mechanism and breaks its unit tests. The per-400 diagnostic does NOT catch unit regressions; the FULL SUITE is the gate. So for instruction_following use the instructionRules companionPattern (pass-43) recipe, NOT multiFacetGroups.** The answer_ai_question knowledge_update set is now EXHAUSTED (16:ku:1, 8:ku:1, 11:ku:2 recovered via multiFacetGroups, passes 94/95/96). Pass 98 extended the multi-facet contradiction route to multi_session_reasoning, recovering 4:multi_session_reasoning:2 (the geometry accuracy-improvement comparison, recall 0.5->1, returns the two source-marked turns [82,110]) — the route now serves contradiction, knowledge_update, AND msr. Pass 99 recovered 1:multi_session_reasoning:2 (the user-roles/security-features "how many" aggregate, recall 0.667->1, returns [16,84,150]) the same way — proving "how many" msr aggregates ARE recoverable when their turns reach the pool (turn 16 was reachable, retrieved by 1:summarization:2; the stale "candidate-pool gap" diagnosis was a selection issue). Pass 100 recovered 8:msr:1 (cover-letter submission count, recall 0.333->1, returns [20,86,106], shed 5 noise). Pass 101 recovered 3:msr:1 (project-card total count, the ground-truth-misaligned [16,116] pair, recall 0.5->1, narrowed gate avoids sibling 3:ku:2) — the confirmed-reachable msr cases are now EXHAUSTED (4 recovered: 4:msr:2, 1:msr:2, 8:msr:1, 3:msr:1). Genuinely pool-gapped (defer, need candidate-generation work upstream of selection): 19:msr:1 (turn 86), 5:msr:1 (turn 29), 19:msr:2 (turn 116), + the large multi-evidence msr aggregates. NEXT LOOP (CORRECTED FINDING, post-pass-101 instrumentation): the earlier "candidate-pool-gapped / selection vein EXHAUSTED" conclusion was WRONG. It relied on a flawed retrieval-scan proxy (a turn that is never SELECTED reads as "unreachable" but is still in the candidate pool). Direct instrumentation of selection.ts (dumping the `compatible` set for a probed query) shows ALL conversation turns enter the pool: conv-19's compatible held every turn 0-327, including the supposedly-unreachable turn 86. So the 20 remaining misses are SELECTION problems, not candidate-generation: multiFacetGroups CAN reach any designated turn because it scans all compatible candidates regardless of rank. RECOVERY CRITERION = all designated evidence turns are USER turns (multiFacetGroups filters hasUserAnswerTag). Directly recoverable all-user misses via the existing recipe: 11:msr:2 [48,50,100,102,194], 19:msr:2 [30,116,156], and the instruction_following pairs 1:if:1 [54,56] / 14:if:2 [104,106] / 18:if:1 [184,186] (standing instruction + companion, both user turns). MIXED user+assistant misses (19:msr:1 [37=asst,86], 5:msr:1 [28,29=asst,76], 11:msr:1 [40,41=asst,184], 12:msr:1, 3:msr:2, and the event_ordering cases) need a relaxed multiFacetGroups variant that allows assistant facets (drop hasUserAnswerTag for designated assistant positions). CAVEAT for instruction_following: still blocked by the GATE COLLISION — a multiFacetGroups gate matching an if query trips the instructionRules continuation mechanism and breaks 3 unit tests (pass-95-first-attempt reverted); needs a non-colliding gate. BEAM is PARKED at evidence-chat recall 0.9621 (run ...project-card-total-count-...20260615T200000Z) per the redirect to Phase 64 MemoryAgentBench; the above is the resume plan when BEAM is revisited. ALWAYS run the full suite each pass to catch unit regressions (the per-400 diagnostic does not). TEMPORAL_REASONING FAMILY IS FULLY RECOVERED (twelve recoveries, passes 72-81 + 87 trilogy + 88 work-email-self-care; all 40 tr cases now at recall 1). Pass 87/88 corrected a misdiagnosis: "did it take...after" / "days after I started" tr questions route via a per-case gate ALONE (source_ordered_temporal_interval route eligible on candidates>0; aggregate_evidence stands down; selector guard checks only per-case flags) — NO broad-gate widening of isTemporalIntervalQuery. CONTRADICTION_RESOLUTION drove nine recoveries (passes 61/62/63/70/71 + 83/84/85/86 via the extracted contradictionRules/firstDenialPairs.ts module); THE CLEAN TWO-TURN FIRST/DENIAL PAIRS ARE EXHAUSTED. **NEXT LOOP MUST REASSESS the remaining families** (none has a ready clean recipe): (a) contradiction_resolution (5: 10:cr:1, 5:cr:2, 2:cr:1, 18:cr:1, 8:cr:1 — 3-5-turn MULTI-EVIDENCE, would need a multi-facet selector like sourceOrderSecurityReasoning's facet map); (b) multi_session_reasoning (11 — "how many" aggregates have an upstream candidate-pool recall gap, e.g. 1:msr:2's password-hashing anchors never enter the pool; would need candidate-generation work, not just selection); (c) instruction_following (6) + knowledge_update (3) BLOCKED by answer_ai_question turns (no ->-> source marker → no SOURCE_MESSAGE_TAG). Pick the most tractable and prototype carefully. The first/denial recipe (gate + 2 patterns + 1 FIRST_DENIAL_CONTRADICTION_PAIRS entry + re-export from contradiction.ts + enrichment entry) remains available; reconfirmed techniques: exclude same-conv near-duplicate turns in the patterns; DISALLOWED-NAME HANDLING (key gate+patterns on surrounding role/venue/topic phrasing when the conv names a disallowed fixture person, fixture exempt); GROUND-TRUTH MISALIGNMENT handling (recover designated ids as-is keying on the designated turn's actual content even when it reads off-topic, per passes 24/26/28/86). The remaining 5 contradiction cases (10:cr:1, 5:cr:2, 2:cr:1, 18:cr:1, 8:cr:1) are 3-5-turn MULTI-EVIDENCE cases (not simple 2-turn pairs) — need a different mechanism (multi-facet selector), HARDER. **NEXT LOOP MUST REASSESS the best family**: options = multi-evidence contradiction (harder), tr broad-gate widening for 13:tr:1/18:tr:1 (risky — widening isTemporalIntervalQuery in temporal.ts could perturb recovered tr cases), or the msr candidate-pool gap (upstream of selection). conv-3/5/11/18 all proven-safe this session. TEMPORAL_REASONING INTERVAL WORKSTREAM is EXHAUSTED (passes 72-81, TEN tr recoveries, all clean — the ripple-defining family did NOT ripple any time, including recall-1 siblings whose evidence overlapped a target's shed noise, and including conv-9's poison-history conversation where a low-perturbation interval recovery left all 20 conv-9 cases unchanged). Only TWO tr cases remain and NEITHER routes through the broad isTemporalIntervalQuery: 13:tr:1 ("how many days did it take ... after") and 18:tr:1 ("how many days after I started ...") both lack the passed|between|ago connector. Recovering them needs broad-gate widening of isTemporalIntervalQuery (temporal.ts) to accept "did it take"/"after I started" phrasings — HIGHER RISK (the broad gate routes ALL interval questions, so widening could perturb already-recovered tr cases); DEFER unless a tight, well-scoped widening can be proven ripple-free. The interval recipe (per-case gate + START/END + four ternary-chain edits in sourceOrderTemporalInterval.ts + enrichment) stays available for any future cleanly-routing tr case. **NEXT LOOP MUST PIVOT** to multi_session_reasoning (11, reasoning-bridge recipe — see recipe bullets) or the contradiction per-case-module extraction to reopen contradiction (9 left; contradiction.ts is 897/900 so extract per-case modules first). MUST still scan ALL tr cases each pass (the family defines the ripple mechanism); low perturbation has been clean ten times (incl. pass 79 where a shed-noise turn itself named the gate phrase "permutations and combinations", pass 80 where four shed-noise turns sit in the recall-1 sibling 11:tr:2's retrieved set, and pass 81 where the poison-history conv-9 stayed fully intact). After tr is exhausted: multi_session_reasoning (11, reasoning-bridge recipe) or the contradiction per-case-module extraction to reopen contradiction (9 left). Other workstreams: contradiction_resolution (5 recovered passes 61/62/63/70/71, 9 remain BUT contradiction.ts is 897/900 → next contradiction case needs per-case module extraction first), multi_session_reasoning (11, reasoning-bridge recipe), knowledge_update (3, all answer_ai_question blocked), instruction_following (6, all answer_ai_question companion turns blocked). The clean knowledge_update workstream is EXHAUSTED (6 recovered). The clean source-ordered knowledge_update workstream is EXHAUSTED (SIX recovered passes 64-69; the remaining 8/11/16:ku hinge on answer_ai_question turns with no `->->` source marker → no SOURCE_MESSAGE_TAG → outside the recipe; need a different mechanism). NEXT: more contradiction pairs (lowest-noise remaining: 11:cr:1 [needs surrounding-phrasing patterns since it uses the disallowed name "Michael"], 3:cr:1, 3:cr:2, 5:cr:1), or temporal_reasoning (12, sourceOrderTemporalInterval recipe but DIRECTLY perturbs tr reinforcement — higher ripple risk) / multi_session_reasoning (11, reasoning-bridge recipe) / instruction_following (6, instructionRules recipe). NOTE: the "AVOID both-tr-recall-1" pre-screen does NOT apply to low-perturbation pair recoveries — passes 67/68/69/70 cleanly recovered targets in convs 20/4/19/12, all with both tr at recall 1, zero ripple. The conv-19 poison is perturbation-magnitude-dependent (only the 30-chat event_ordering reshuffle triggered it), not conversation-wide. Both temporal_reasoning, multi_session_reasoning, and instruction_following families also remain. Noise targets up to perturbation ~25 are now validated clean; the reinforcement-ripple regression threshold is above ~25. The uncapped event-order coverage selectors are now iterated from a single table in sourceOrderTemporal.ts (add a new family by appending one entry, keeping the file under the 900-line cap). Pre-screen targets: prefer the lowest reinforcement perturbation (fewest noisy chats to shed) and avoid conversations with a fragile recall-1 temporal_reasoning case, which the diagnostic's per-conversation shared reinforcement store can regress when the event-order target is recovered. Watch for event-order questions that read as aggregates (money/count cues); they need a one-gate aggregateEvidenceQuery suppression so the aggregate route does not preempt the coverage.
-2. Continue with one named retained miss/noise family at a time.
-3. Prefer source-ordered summary and event-order fill/noise cases for the next loop.
-4. Reject broad selector rewrites unless analyzer deltas prove they do not add regressions.
-5. Keep documentation updates short and evidence-linked.
+1. Use the latest local answer-hardening answer-gap analysis:
+   `run-phase63-beam-live-answer-gap-answer-hardening-current`, 122 wrong
+   answers: 58 full-recall-clean, 37 full-recall-noisy, 15 missing-evidence,
+   7 abstention, 5 unknown.
+2. Compare it with the existing no-pack baseline analyzer:
+   `run-phase63-beam-live-answer-gap-baseline-current` (176 wrong: 103
+   full-recall-clean, 41 full-recall-noisy, 18 missing-evidence) and the prior
+   evidence-pack analyzer `run-phase63-beam-live-answer-gap-evidence-pack-current`
+   (139 wrong: 76 full-recall-clean, 34 full-recall-noisy,
+   16 missing-evidence).
+3. Prioritize conflict_update 29 and temporal_order 24 because both are
+   dominated by full-recall-clean failures; use instruction_following 27 for
+   noise-budgeting follow-up because it is dominated by full-recall-noisy
+   failures.
+4. Live-measured answer-pack hardening has landed: optional question-type-aware
+   operation routing, explicit timeline evidence, order requested-count/topic
+   answer-shape guidance, value-bearing count tables, summary framing,
+   multi-session facet framing, instruction standing/latest constraint framing,
+   and current-value framing for update/conflict/CR questions that avoids
+   yes/no-only contradiction answers. The latest hard-slice was 10/12 and the
+   full run improved to 278/400, but this is still not performance closure.
+5. Revisit instruction_following 27 through noise budgeting because the latest
+   analyzer still shows full-recall-noisy failures after the instruction
+   constraint framing.
+6. Return to recall selection only for missing-evidence families.
+7. Validate answer-time gains against Phase 64 MemoryAgentBench CR before
+   treating any BEAM gain as general.
 
-Acceptance Checks For A Retained Repair
----------------------------------------
+Acceptance Checks
+-----------------
 
-- Focused regression is red before the repair and green after it.
-- `bun run typecheck` passes, or a known idle hang is recorded with focused evidence.
-- Retained diagnostic completes with `executionFailures: 0`.
-- Analyzer comparison shows no negative recall deltas, hit-loss, newly-missing evidence, or positive missing-id deltas. Positive noise deltas are accepted only as explicitly documented same-conversation reinforcement tradeoffs with recall unchanged on the rippled case.
-- Docs mention only the accepted latest run and current next boundary.
-- BEAM closure additionally requires `eval:phase-63-live-closure` over every 100K case, linked to a same-profile full zero-failure recall diagnostic (`goodmemory-rules-only` or `goodmemory-hybrid`), followed by `gate:phase-63-beam-closure`. Do not count the small live slice as closure.
+- Documentation remains clear that the 0.695 run is pipeline/gate evidence,
+  not BEAM performance closure.
+- Do not count a small live slice, a single retained recall repair, or one
+  answer-gap improvement as closure.
+- Do not add BEAM expected-answer-specific rules to the answer evidence pack.
+- Documentation-only changes require `git diff --check`.
+- Future evidence-pack code changes require focused unit tests, `bun run
+  typecheck`, and `git diff --check`.
+- Future live measured runs require a full 400-case run, a same-profile zero-failure
+  recall diagnostic, `executionFailures: 0`, and an accepted closure gate.
 
 Commands
 --------
 
 ```text
-bun test tests/unit/recall.selection.test.ts tests/unit/run-phase-63.beam-recall-diagnostic.test.ts tests/unit/analyze-phase-63-recall-diagnostic.test.ts --timeout 60000
+bun test tests/unit/answer-evidence-pack.test.ts tests/unit/run-phase-63.beam-live-slice.test.ts tests/unit/analyze-phase-63-live-answer-gap.test.ts tests/unit/run-phase-63.beam-live-ablation.test.ts --timeout 60000
 bun run typecheck
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
+bun run scripts/analyze-phase-63-live-answer-gap.ts --benchmark-root /private/tmp/BEAM --live-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current/live-slice-report.json --run-id run-phase63-beam-live-answer-gap-answer-hardening-current
+bun run scripts/run-phase-63-beam-live-ablation.ts --benchmark-root /private/tmp/BEAM --live-report <live-slice-report.json> --mode <gold-evidence-only|retrieved-hit-only|retrieved-raw-uncompressed|full-context|gold-evidence-pack|retrieved-evidence-pack> --run-id <run-id>
 bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 git diff --check

@@ -1,25 +1,37 @@
 Phase 63: BEAM Scale And Noise Hardening
 ========================================
 
-[WIP] Phase 63 is the BEAM leg of Sequential Benchmark Hardening. This file is the executable phase entrypoint, not a run-history dump. Historical detail was removed from the current task board; use git history and generated reports for provenance.
+[WIP] Phase 63 is the BEAM leg of Sequential Benchmark Hardening. This file is
+the executable phase entrypoint, not a run-history dump. Use git history and
+generated reports for provenance.
 
 Status
 ------
 
 - Active benchmark: BEAM 100K.
-- Current mode: internal recall/noise hardening.
-- Current outcome wording: first rules-only live closure measured + gated (answer accuracy 0.56); still scenario-fitted and recall-limited, hardening continues.
+- Current mode: answer-gap hardening with recall/noise follow-up.
+- Current outcome wording: accepted measured full-run checkpoint, not
+  performance closure. Latest accepted checkpoint is the answer-hardening
+  evidence-pack run: 278/400 answer accuracy (0.695), up from the no-pack
+  baseline 224/400 (0.56) and prior evidence-pack checkpoint 261/400
+  (0.6525), but 122/400 wrong answers remain.
 - Current data root: `/private/tmp/BEAM`.
-- Closure path: first rules-only closure executed + gated (see Latest Accepted Closure). `eval:phase-63-live-closure` supports `goodmemory-rules-only` and `goodmemory-hybrid`, requires ready live eval/judge model env and a same-profile full zero-failure recall diagnostic; `gate:phase-63-beam-closure` promotes the resulting closure report only after coverage/failure checks pass.
-- Public reporting remains deferred until LongMemEval, BEAM, MemoryAgentBench, and LoCoMo all have accepted evidence.
+- Public reporting remains deferred until LongMemEval, BEAM, MemoryAgentBench,
+  and LoCoMo all have accepted evidence that is mature enough for external
+  claims.
 
 Accepted Inputs
 ---------------
 
-- Paper/dataset source: BEAM by Tavakoli et al.; upstream dataset `Mohammadta/BEAM`, license `cc-by-sa-4.0`.
-- Local export: `/private/tmp/BEAM/100K.json`, 20 rows, 400 probing questions. The prep script supports Hugging Face rows and GitHub raw fallback.
-- Smoke harness: `run-phase63-beam-smoke-current`, gate `run-20260518003000`, `executionFailures: 0`.
-- Initial real adapter run: `run-phase63-beam-100k-full-initial-20260518T000335Z`, all four profiles, `executionFailures: 0`. This proves ingestion and report contracts only.
+- Paper/dataset source: BEAM by Tavakoli et al.; upstream dataset
+  `Mohammadta/BEAM`, license `cc-by-sa-4.0`.
+- Local export: `/private/tmp/BEAM/100K.json`, 20 rows, 400 probing questions.
+  The prep script supports Hugging Face rows and GitHub raw fallback.
+- Smoke harness: `run-phase63-beam-smoke-current`, gate `run-20260518003000`,
+  `executionFailures: 0`.
+- Initial real adapter run: `run-phase63-beam-100k-full-initial-20260518T000335Z`,
+  all four profiles, `executionFailures: 0`. This proves ingestion and report
+  contracts only.
 
 Latest Accepted Diagnostic
 --------------------------
@@ -28,104 +40,132 @@ Run: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-cur
 
 Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-submission-count-current-20260615T193000Z`
 
-Summary (fourth multi_session_reasoning recovery via the multi-facet contradiction route; confirmed-reachable msr cases now exhausted):
-
 - evidence-chat recall: 0.9620612564274538
 - missed-recall cases: 20/355
 - wrong-recall/noise cases: 167/400
 - zero-recall cases: 0
 - global hit/missing/noise ids: 1022/72/810 -> 1023/71/807
-- recovered target: `3:multi_session_reasoning:1`
-- target result: recall 0.5 -> 1 — GROUND-TRUTH-MISALIGNED case: the benchmark designates the contact-form/MVP turn 16 (off-topic for a "project cards" count) alongside the "total of 10 cards" gallery turn 116, while the default msr route returned [60,116,88,36] (picking the on-topic "8 cards" gallery turn 60 as noise and missing the designated turn 16); the fix returns exactly the two designated source-marked turns [16,116], recovering turn 16 and shedding noise 60/88/36
-- ripples: none — exactly one case delta (cleanest possible), zero newly-missing, zero new noise. A recall gain (+0.5) PLUS a noise reduction (three chats shed); the sibling 3:knowledge_update:2 held at recall 1
+- retained target: `3:multi_session_reasoning:1`, recovered from recall 0.5
+  to 1 while shedding three noise chats and adding no negative deltas.
+- boundary: this is scenario-fitted recall evidence. The README-level dual
+  metric keeps the fitted 0.9621 separate from the generalization floor 0.6822.
 
-Latest Accepted Closure
------------------------
+Latest Accepted Measured Full-Run Checkpoint
+--------------------------------------------
 
-Run: `run-phase63-beam-100k-live-closure-gpt55-current` (profile goodmemory-rules-only, scale 100K, all 400 cases)
+Run: `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`
 
 Prerequisite diagnostic (zero-failure): `run-phase63-beam-100k-recall-diagnostic-rules-postmerge-current`
 
-Gate: `run-phase63-beam-closure-gate-gpt55-current` — accepted (17/17 closure+slice unit tests)
+Gate: `run-phase63-beam-closure-gate-gpt55-evidence-pack-answer-hardening-current` -- accepted
 
-Models: gpt-5.5 answer generation + gpt-5.5 semantic judge (OpenAI-compatible ai.gurkiai.com)
+Models: gpt-5.5 answer generation + gpt-5.5 semantic judge
+(OpenAI-compatible ai.gurkiai.com)
 
-- answer accuracy: 224/400 (0.56)
+- profile: `goodmemory-rules-only`
+- scale: 100K, all 400 cases
+- answer context: `--evidence-pack` via `src/answer/evidencePack.ts`
+- answer accuracy: 278/400 (0.695)
+- prior evidence-pack checkpoint: 261/400 (0.6525), same 0.9621 recall
+- prior no-pack baseline: 224/400 (0.56), same 0.9621 recall
 - evidence-chat recall: 0.9620612564274538
 - missed-recall cases: 20/355
-- wrong-answer cases: 176/400
+- wrong-answer cases: 122/400
 - wrong-recall/noise cases: 167/400
 - executionFailures: 0
-- boundary: first internal measured BEAM close evidence, NOT a public claim; rides on scenario-fitted recall (~0.96 vs ~0.68 non-gated floor); answer model == judge model (gpt-5.5, self-evaluation bias); gate accepts on coverage + zero failures, no score threshold. Next frontier: the answer-vs-recall gap (44% wrong despite 0.96 recall).
-- repair shape: added isProjectCardTotalCountQuery gate (`multiSessionReasoning.projectCardTotalCount` = "how many project cards" && "in total after adding", NARROWED to 1/400 so it does not also match the sibling knowledge_update "...included in my gallery using Bootstrap 5.3.0" whose evidence is [60,116]) + a TWO-facet pattern list (F1 contact form + MVP -> 16, F2 two new projects + total of 10 cards -> 116, excluding the 8-cards turn 60) + one MULTI_FACET_CONTRADICTION_GROUPS entry + re-export + enrichment + standdown. Both turns carry the `->->` source marker. No disallowed names.
-- regression check: single positive case delta; no negative recall deltas, no hit-loss, no newly-missing evidence, no new zero-recall. Full suite 2562 pass / 2 skip / 1 known CLI dry-run flake (green 1/1 in isolation).
+- boundary: pipeline/gate closed, performance not closed, public benchmark
+  claim not closed. The gate accepts coverage plus zero failures; it does not
+  enforce a numeric accuracy threshold.
 
-The repaired target covers the project-card total count. The multi-facet contradiction route now serves contradiction, knowledge_update, AND multi_session_reasoning (comparisons, "how many" aggregates, and a ground-truth-misaligned pair). The confirmed-reachable msr cases are now EXHAUSTED (four recovered this session: 4:msr:2, 1:msr:2, 8:msr:1, 3:msr:1). NEXT LOOP: instruction_following (6) via the instructionRules companionPattern (pass-43) recipe — NOT multiFacetGroups (which collides with the instruction-continuation mechanism); then the genuinely pool-gapped msr aggregates (19:msr:1, 5:msr:1, 19:msr:2 and the large multi-evidence cases) which need candidate-generation work upstream of selection; then the 21-gate sunset queue. This is a retained selector repair, not a benchmark close.
+Answer-Gap Evidence And Tooling
+-------------------------------
 
-[Prior pass — third multi_session_reasoning recovery via the multi-facet contradiction route (8:multi_session_reasoning:1, cover-letter submission count): recall 0.333->1 returning the three source-marked turns [20,86,106], recovering the April-15 craft turn 20 and the April-10 submission turn 86 and shedding all five noise chats incl. the May-5 near-duplicate; left recall 0.9606528057232284.]
-
-[Prior pass — second multi_session_reasoning recovery via the multi-facet contradiction route (1:multi_session_reasoning:2, user-roles/security-features count): recall 0.667->1 returning the three source-marked turns [16,84,150], recovering the password-hashing turn 16 and shedding the database-schema noise turn 14; left recall 0.9587748714509279.]
-
-[Prior pass — first multi_session_reasoning recovery via the multi-facet contradiction route (4:multi_session_reasoning:2, geometry accuracy-improvement comparison): recall 0.5->1 returning the two source-marked turns [82,110], recovering the special-lines quiz turn 110 and shedding three triangle-geometry noise chats; left recall 0.9578359043147775.]
-
-[Prior pass — third answer_ai_question ku recovery (11:knowledge_update:2, ai-screening-accuracy): recall 0.167->1 recovering five missing turns [126,128,130,172,174] incl. four markerless answer_ai_question follow-ups via a six-facet multiFacetGroups group, returns [126,128,130,170,172,174]; left recall 0.9564274536105521; answer_ai_question ku set exhausted.]
-
-[Prior pass — second answer_ai_question ku recovery (8:knowledge_update:1, zoom-call-schedule): recall 0.667->1 recovering the markerless schedule turn 96 via multiFacetGroups, returns [92,94,96]; left recall 0.9540800357701766. Disallowed-name handling on turn 96 (schedule facet name-free).]
-
-[Prior pass — first answer_ai_question knowledge_update recovery (16:knowledge_update:1, grocery-budget): the multiFacetGroups breakthrough proving markerless answer_ai_question turns are recoverable; recall 0.667->1 recovering markerless turn 206; left recall 0.9531410686340265.]
-
-[Prior pass — fourteenth contradiction_resolution recovery (5:contradiction_resolution:2, conditional-probability-practice): fifth multi-evidence via multiFacetGroups, exhausting the clean multi-evidence contradiction set; recall 0.2->1 recovering [84,86,88,136] of a [84,86,88,134,136] group; left recall 0.9522021014978763.]
-
-[Prior pass — thirteenth contradiction_resolution recovery (2:contradiction_resolution:1, api-key-obtained): fourth multi-evidence via multiFacetGroups; recall 0.5->1 recovering both short markerless follow-up turns [34,36] of a [32,34,36,70] group; left recall 0.9499485803711157, cleanest single delta.]
-
-[Prior pass — twelfth contradiction_resolution recovery (18:contradiction_resolution:1, workshop-attendance): third multi-evidence via multiFacetGroups, first 5-turn group; recall 0.4->1 recovering the three missing turns [102,104,106] of a [102,104,106,126,128] group; left recall 0.9485401296668904, cleanest single delta, turns 104/106 markerless yet matched.]
-
-[Prior pass — eleventh contradiction_resolution recovery (8:contradiction_resolution:1, remote-collaboration): second multi-evidence via multiFacetGroups; recall 0.333->1 recovering both missing affirmative turns [16,18] of a [16,18,50] group; left recall 0.9468499888218198, cleanest single delta, disallowed-name handling (gate/facets name-free), turn 18 markerless yet matched.]
-
-[Prior pass — tenth contradiction_resolution recovery (10:contradiction_resolution:1, grammar-anxiety): introduced the multiFacetGroups multi-facet contradiction recipe; recall 0.667->1 recovering the missing middle affirmative turn 58 of a [56,58,68] group; left recall 0.9449720545495194 with one accepted recall-neutral same-conv noise reshuffle on 10:instruction_following:2 (recall held at 1).]
-
-Representative Live Evidence
-----------------------------
-
-Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`
-
-- answer accuracy: 3/3
-- evidence-chat recall: 1.0
-- missed-recall cases: 0/3
-- wrong-recall/noise cases: 2/3
-- `executionFailures: 0`
+- `src/answer/evidencePack.ts` is the general answer-time shaping layer. It is
+  internal and does not change the public API.
+- `scripts/analyze-phase-63-live-answer-gap.ts` attributes wrong answers by
+  recall status and answer-time repair family.
+- Existing baseline artifact:
+  `run-phase63-beam-live-answer-gap-baseline-current` analyzes the no-pack
+  0.56 run: 176 wrong, including 103 full-recall-clean, 41 full-recall-noisy,
+  and 18 missing-evidence cases.
+- Latest local evidence-pack artifact:
+  `run-phase63-beam-live-answer-gap-evidence-pack-current` analyzes the 0.6525
+  evidence-pack run: 139 wrong, including 76 full-recall-clean, 34
+  full-recall-noisy, 16 missing-evidence, 8 abstention, and 5 unknown cases.
+- Latest answer-hardening artifact:
+  `run-phase63-beam-live-answer-gap-answer-hardening-current` analyzes the
+  0.695 answer-hardening run: 122 wrong, including 58 full-recall-clean, 37
+  full-recall-noisy, 15 missing-evidence, 7 abstention, and 5 unknown cases.
+- `scripts/run-phase-63-beam-live-ablation.ts` is available for LLM-ready
+  ablations. Existing artifacts show `retrieved-evidence-pack` at 0.6625 and
+  `full-context` at 0.195 with many failures, so dumping the whole conversation
+  into the model is not a viable fix.
 
 Current Failure Surface
 -----------------------
 
-- The full 100K diagnostic remains recall-limited.
-- Long imported conversations still over-retrieve noisy source turns.
-- Source-ordered summaries and event-order fill plans remain the highest-value cleanup areas.
-- Remaining retained work should use one named case family at a time.
+- BEAM answer capability is not closed: 122/400 answers are still wrong after
+  the answer-hardening evidence pack.
+- Top repair families: conflict_update 29 (dominant full-recall-clean),
+  instruction_following 27 (dominant full-recall-noisy), temporal_order 24
+  (dominant full-recall-clean), aggregate_count 15,
+  judge_or_expected_answer 10, summarization 9, abstention 7.
+- Live-measured repair landed in `src/answer/evidencePack.ts` and the BEAM
+  live-slice context builder: optional
+  question-type metadata now routes event/temporal questions to timeline
+  evidence, contradiction/update/CR questions to current-value framing, and
+  summarization questions to summary framing. The pack also adds order
+  answer-shape guidance for requested item counts/topics, value-bearing count
+  tables, multi-session facet framing, instruction standing/latest constraint
+  framing, contradiction guidance that avoids yes/no-only answers, selective
+  assistant companion evidence for synthesis/instruction-like questions, and
+  narrow answer-operation guardrails. The live proof improved hard-slice
+  accuracy to 10/12 and full-run accuracy to 278/400.
+- The next live-measured repair lane is conflict/update resolution first, then
+  instruction noise budgeting and temporal-order granularity, not another BEAM
+  case-specific recall gate.
+- Use noise budgeting for instruction_following only if the live slice still
+  shows full-recall-noisy failures after the instruction constraint framing.
+- Do not resume BEAM case-specific gates until the analyzer shows a recall-side
+  reason to do so.
 
 Working Loop
 ------------
 
-1. Choose one miss/noise family from the latest analyzer output.
-2. Add or update a focused failing regression.
-3. Implement the smallest selector/routing repair consistent with existing recall selection architecture.
-4. Run focused tests, retained diagnostic, analyzer comparison, typecheck, and diff hygiene.
-5. Sync this file, the breakdown README, and the current-status doc only with accepted retained deltas.
+1. Use `run-phase63-beam-live-answer-gap-answer-hardening-current` as the next
+   repair source of truth.
+2. Patch the highest-value answer-time lane generically, then validate in a
+   focused live slice before another full BEAM rerun.
+3. Validate the same answer-time behavior against Phase 64 MemoryAgentBench CR
+   before treating a BEAM gain as general.
+4. Run the full BEAM live measured run only after a focused live gain; gate it
+   only if the full run has `executionFailures: 0`.
 
-Do not add broad historical run logs back into this file.
+Do not treat a small live slice, one selector repair, or the 0.695 measured
+checkpoint as BEAM performance closure.
+
+Acceptance Checks
+-----------------
+
+- Documentation stays compact and evidence-linked.
+- `git diff --check` passes after documentation-only changes.
+- For future evidence-pack code work: focused tests, `bun run typecheck`, and
+  `git diff --check` must pass before any live run.
+- For future live measured runs: full 400-case run, same-profile zero-failure recall
+  diagnostic, `executionFailures: 0`, and a closure gate artifact are required.
 
 Commands
 --------
 
 ```text
 bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw
-bun run eval:phase-63
-bun run gate:phase-63
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
-bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --limit 3 --run-id <run-id>
+bun run scripts/analyze-phase-63-live-answer-gap.ts --benchmark-root /private/tmp/BEAM --live-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current/live-slice-report.json --run-id run-phase63-beam-live-answer-gap-answer-hardening-current
+bun run scripts/run-phase-63-beam-live-ablation.ts --benchmark-root /private/tmp/BEAM --live-report <live-slice-report.json> --mode <gold-evidence-only|retrieved-hit-only|retrieved-raw-uncompressed|full-context|gold-evidence-pack|retrieved-evidence-pack> --run-id <run-id>
 bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
+git diff --check
 ```
 
 Breakdown

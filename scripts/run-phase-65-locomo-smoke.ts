@@ -49,7 +49,9 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface LocomoSmokeCliOptions {
   benchmarkRoot?: string;
+  evidencePack?: boolean;
   limit?: number;
+  live?: boolean;
   outputDir?: string;
   runId?: string;
 }
@@ -153,7 +155,9 @@ export function parseLocomoSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
+    evidencePack: argv.includes("--evidence-pack"),
     limit,
+    live: argv.includes("--live"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
   };

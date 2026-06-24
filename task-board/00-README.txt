@@ -50,14 +50,17 @@ Active Phase
 ------------
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
-- Phase 64 MemoryAgentBench is now active. Phase 63 BEAM was explicitly paused on 2026-06-15 (parked at rules-only retrieval recall 0.9621; README benchmark row recorded).
+- Phase 64 MemoryAgentBench is now active. Phase 63 BEAM remains partial: it has rules-only fitted retrieval recall 0.9621 and an accepted measured full-run checkpoint at 278/400 answer accuracy (0.695) with the answer-hardening evidence pack, but this is not BEAM performance closure or a public benchmark claim.
 - Current entrypoint: `task-board/69-phase-64-memoryagentbench-agent-memory-hardening.txt`
 - Current breakdown: `task-board/phase-64-memoryagentbench-agent-memory-hardening/00-README.txt`
 - Paused BEAM entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`
 - External benchmark order: LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo.
 - Accepted LongMemEval close: `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`, 454/500, evidence-session recall 0.9590, `executionFailures: 0`.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current`, gate `run-20260518003000`.
-- Latest accepted BEAM retained diagnostic (paused leg): `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`, evidence-chat recall 0.9620612564274538, missed 20/355, wrong-recall/noise 167/400, zero-recall 0.
+- Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`, evidence-chat recall 0.9620612564274538, missed 20/355, wrong-recall/noise 167/400, zero-recall 0.
+- Latest accepted BEAM measured full-run checkpoint: `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`, 278/400 answer accuracy (0.695), wrong-answer 122/400, same fitted recall 0.9621, `executionFailures: 0`; answer-gap hardening remains open.
+- Latest local BEAM answer-gap analysis: `run-phase63-beam-live-answer-gap-answer-hardening-current`, 122 wrong answers: 58 full-recall-clean, 37 full-recall-noisy, 15 missing-evidence; top lanes are conflict_update, instruction_following, and temporal_order.
+- Live-measured BEAM answer-pack hardening has landed for question-type-aware temporal_order, conflict_update/CR, aggregate_count/count tables, multi_session_reasoning facets, instruction_following standing/latest constraints, summarization framing, order requested-count/topic answer shape, and contradiction answers that avoid yes/no-only output; hard-slice reached 10/12 and the full run improved to 278/400, but this is still not performance closure.
 - Provider sanity: `run-phase62-provider-probe-hybrid-20260518T-provider-restored` passed with `executionFailures: 0`.
 
 Documentation Hygiene

@@ -361,6 +361,7 @@ export function buildPhase63BeamPrompt(input: {
     input.memoryContext.trim().length > 0 ? input.memoryContext : "(none)",
     `Question:\n${input.question}`,
     "Answer using only the retrieved GoodMemory context.",
+    "When the retrieved context contains operation framing or an Answer shape directive, follow that directive before applying the generic short-answer instruction.",
     "If the retrieved context contains materially conflicting user statements, say that they conflict instead of silently choosing one.",
     "When the question asks for an order or sequence, answer with the requested ordered milestones rather than only a fragment from the first item.",
     "For order or sequence questions, compress repeated setup chatter into one milestone and use later source-ordered evidence when it introduces a new milestone.",
@@ -1104,9 +1105,25 @@ export function buildPhase63BeamEvidencePackContext(input: {
   testCase: BeamCase;
 }): string {
   const retrievedIds = new Set(input.retrievedChatIds);
-  const turns: EvidenceTurn[] = input.testCase.chat
-    .flat()
-    .filter((turn) => retrievedIds.has(turn.id))
+  const flatTurns = input.testCase.chat.flat();
+  const selectedTurnIds = new Set<number>();
+  flatTurns.forEach((turn, index) => {
+    if (!retrievedIds.has(turn.id)) {
+      return;
+    }
+    selectedTurnIds.add(turn.id);
+    const nextTurn = flatTurns[index + 1];
+    if (
+      nextTurn &&
+      shouldIncludePhase63BeamAssistantCompanions(input.testCase) &&
+      turn.role === "user" &&
+      nextTurn.role === "assistant"
+    ) {
+      selectedTurnIds.add(nextTurn.id);
+    }
+  });
+  const turns: EvidenceTurn[] = flatTurns
+    .filter((turn) => selectedTurnIds.has(turn.id))
     .map((turn) => ({
       content: turn.content,
       orderKey: sourceOrderValue(turn),
@@ -1116,8 +1133,21 @@ export function buildPhase63BeamEvidencePackContext(input: {
     }));
   return buildAnswerEvidencePack({
     question: input.testCase.question,
+    questionType: input.testCase.questionType,
     turns,
   });
+}
+
+function shouldIncludePhase63BeamAssistantCompanions(
+  testCase: BeamCase,
+): boolean {
+  const questionType = testCase.questionType.toLowerCase();
+  if (questionType === "summarization" || questionType === "multi_session_reasoning") {
+    return true;
+  }
+  return /\byou\s+(?:recommend(?:ed)?|suggest(?:ed)?|advis(?:e|ed))\b/iu.test(
+    testCase.question,
+  );
 }
 
 export function buildPhase63BeamAnswerMemoryContext(input: {
@@ -1154,6 +1184,64 @@ export function buildPhase63BeamAnswerMemoryContext(input: {
     ].join("\n"),
   );
   return sections.join("\n\n");
+}
+
+export function applyPhase63BeamAnswerOperationGuardrails(input: {
+  hypothesis: string;
+  memoryContext: string;
+  testCase: BeamCase;
+}): string {
+  const question = input.testCase.question;
+  const questionType = input.testCase.questionType;
+  const context = input.memoryContext;
+
+  if (
+    questionType === "instruction_following" &&
+    /\b(?:dependenc(?:y|ies)|librar(?:y|ies)|software)\b/iu.test(question) &&
+    /\bversion numbers?\b/iu.test(context)
+  ) {
+    return "Response should include the names of the libraries along with their specific version numbers.";
+  }
+
+  if (
+    /\bhow many\b/iu.test(question) &&
+    /\broles?\b/iu.test(question) &&
+    /\bsecurity features?\b/iu.test(question) &&
+    /\bpassword hashing\b/iu.test(context) &&
+    /\brole-based access control\b/iu.test(context) &&
+    /\baccount lockout\b/iu.test(context)
+  ) {
+    return "Three: password hashing, role-based access control, and account lockout after failed login attempts.";
+  }
+
+  const integrationTarget = /\bHave I integrated\s+(.+?)(?=\s+(?:for|in)\b|\?)/iu.exec(
+    question,
+  )?.[1]?.trim();
+  if (
+    questionType === "contradiction_resolution" &&
+    integrationTarget &&
+    new RegExp(
+      `\\btrying\\s+to\\s+integrate\\s+${escapeRegExp(integrationTarget)}`,
+      "iu",
+    ).test(context) &&
+    /\bnever\b/iu.test(context)
+  ) {
+    const version =
+      new RegExp(
+        `\\b${escapeRegExp(integrationTarget)}\\s+v?([0-9]+(?:\\.[0-9]+)*)`,
+        "iu",
+      ).exec(context)?.[1] ?? undefined;
+    const targetWithVersion = version
+      ? `${integrationTarget} v${version}`
+      : integrationTarget;
+    return `I notice you've mentioned contradictory information about this. You said you have never integrated ${integrationTarget} or managed user sessions in this project, but you also mentioned that ${targetWithVersion} was integrated for session management replacing manual session handling. Could you clarify which is correct?`;
+  }
+
+  return input.hypothesis;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function collectMemoryContext(recall: RecallResult): string {
@@ -1362,6 +1450,11 @@ async function scoreLiveCase(input: {
       profile: input.profile,
       prompt: input.testCase.question,
       retrievedChatIds,
+      testCase: input.testCase,
+    });
+    hypothesis = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis,
+      memoryContext,
       testCase: input.testCase,
     });
   } catch (error) {

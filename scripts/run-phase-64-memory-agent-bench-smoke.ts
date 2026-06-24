@@ -379,6 +379,7 @@ export function buildMemoryAgentBenchEvidencePackContext(input: {
     }));
   return buildAnswerEvidencePack({
     question: input.question.question,
+    questionType: input.question.competency,
     turns,
   });
 }

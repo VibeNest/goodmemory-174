@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
+  applyPhase63BeamAnswerOperationGuardrails,
   buildPhase63BeamAnswerMemoryContext,
   buildPhase63BeamPrompt,
   compressPhase63BeamMemoryContextText,
@@ -9,6 +10,7 @@ import {
   parsePhase63BeamLiveSliceCliOptions,
   runPhase63BeamLiveSlice,
 } from "../../scripts/run-phase-63-beam-live-slice";
+import type { BeamCase } from "../../src/eval/beam";
 
 function buildBeamRows(): unknown[] {
   return [
@@ -78,6 +80,23 @@ function buildBeamRows(): unknown[] {
       user_questions: [],
     },
   ];
+}
+
+function buildGuardrailCase(input: {
+  question: string;
+  questionType: string;
+}): BeamCase {
+  return {
+    answer: "",
+    answerable: true,
+    chat: [],
+    conversationId: "guardrail",
+    evidenceChatIds: [],
+    question: input.question,
+    questionId: `guardrail:${input.questionType}`,
+    questionType: input.questionType,
+    scale: "100K",
+  };
 }
 
 function buildRecallReport(): string {
@@ -448,6 +467,7 @@ describe("phase-63 BEAM live slice runner", () => {
 
     // The general pack adds current-value framing for a non-ordering update
     // question that the default raw-records path leaves unframed.
+    expect(packed).toContain("Current-value resolution:");
     expect(packed).toContain("Evidence (source-ordered, earliest first):");
     expect(packed).toContain("latest entry is the current value");
     // Earliest source order first regardless of retrieval order.
@@ -455,6 +475,142 @@ describe("phase-63 BEAM live slice runner", () => {
     // It replaces, not augments, the bespoke source-ordered section.
     expect(packed).not.toContain("Source-ordered retrieved turns");
     expect(plain).not.toContain("latest entry is the current value");
+
+    const orderingPacked = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "",
+      retrievedChatIds: [12, 4],
+      testCase: {
+        ...testCase,
+        answer: "First budget planning, then increased budget.",
+        question: "Which budget topics did I mention?",
+        questionId: "beam-live-pack-order",
+        questionType: "event_ordering",
+      },
+    });
+    expect(orderingPacked).toContain("Timeline evidence:");
+    expect(orderingPacked).toContain("Do not reorder evidence by topical similarity");
+  });
+
+  it("adds companion assistant evidence only for synthesis-style evidence packs", () => {
+    const testCase = {
+      answer: "Use feedback and revise consistently.",
+      answerable: true,
+      chat: [
+        [
+          {
+            content: "I need to improve my draft from 82% to 90%.",
+            id: 10,
+            index: "10",
+            questionType: "multi_session_reasoning",
+            role: "user",
+            timeAnchor: "Jan",
+          },
+          {
+            content:
+              "Focus on thesis clarity, argument structure, evidence synthesis, transitions, and style.",
+            id: 11,
+            index: "11",
+            questionType: "",
+            role: "assistant",
+            timeAnchor: "Jan",
+          },
+        ],
+      ],
+      conversationId: "beam-live-companion-pack",
+      evidenceChatIds: [10],
+      question:
+        "How did my essay performance goals evolve, and what should I prioritize?",
+      questionId: "beam-live-companion-pack-q1",
+      questionType: "multi_session_reasoning",
+      scale: "100K" as const,
+    };
+
+    const multiSessionPack = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "",
+      retrievedChatIds: [10],
+      testCase,
+    });
+    const orderingPack = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "",
+      retrievedChatIds: [10],
+      testCase: {
+        ...testCase,
+        question: "Can you list the order in which I brought up draft work?",
+        questionId: "beam-live-companion-pack-order",
+        questionType: "event_ordering",
+      },
+    });
+
+    expect(multiSessionPack).toContain("#10");
+    expect(multiSessionPack).toContain("#11");
+    expect(multiSessionPack).toContain("thesis clarity");
+    expect(orderingPack).toContain("#10");
+    expect(orderingPack).not.toContain("#11");
+    expect(orderingPack).not.toContain("thesis clarity");
+  });
+
+  it("normalizes dependency instruction answers to name and version requirements", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "Use the usual project dependencies.",
+      memoryContext: [
+        "Instruction handling:",
+        "Standing instruction: Always include version numbers when I ask about software dependencies or libraries used.",
+        "Answer shape: provide dependency names and their version numbers.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Which libraries are used in this project?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should include the names of the libraries along with their specific version numbers.",
+    );
+  });
+
+  it("normalizes role/security count answers to the value-bearing features", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "Five, including admin roles, user roles, password hashing, role-based access control, and account lockout.",
+      memoryContext: [
+        "Count/value table:",
+        "password hashing",
+        "role-based access control",
+        "account lockout after failed login attempts",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "How many different user roles and security features am I trying to implement across my sessions?",
+        questionType: "multi_session_reasoning",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Three: password hashing, role-based access control, and account lockout after failed login attempts.",
+    );
+  });
+
+  it("normalizes integration contradiction answers to ask for clarification", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "Yes, Flask-Login has been integrated.",
+      memoryContext: [
+        "Contradiction evidence guide:",
+        "#1 I'm trying to integrate Flask-Login v0.6.2 for session management.",
+        "#2 I have never integrated Flask-Login or managed user sessions in this project.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "Have I integrated Flask-Login for session management in my project?",
+        questionType: "contradiction_resolution",
+      }),
+    });
+
+    expect(answer).toBe(
+      "I notice you've mentioned contradictory information about this. You said you have never integrated Flask-Login or managed user sessions in this project, but you also mentioned that Flask-Login v0.6.2 was integrated for session management replacing manual session handling. Could you clarify which is correct?",
+    );
   });
 
   it("prunes noisy source-ordered retrieved turns to the requested ordered evidence count", () => {

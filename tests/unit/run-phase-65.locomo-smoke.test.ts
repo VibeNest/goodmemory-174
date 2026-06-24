@@ -42,7 +42,9 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/LOCOMO",
+      evidencePack: false,
       limit: 2,
+      live: false,
       outputDir: "/tmp/out",
       runId: "run-locomo",
     });
