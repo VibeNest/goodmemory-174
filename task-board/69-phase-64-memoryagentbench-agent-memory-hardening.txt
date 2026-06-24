@@ -334,6 +334,32 @@ Tasks
   generalization claim: evidencePack is NOT a BEAM-only trick (CR 0.959 on real MAB
   CR) and current-value resolution generalizes from BEAM to MAB. Still internal
   small-slice evidence (2 competencies, single gpt-5.5 model), not a public score.
+  TTL + LRU LIVE-ANSWER EVAL (2026-06-23, commits a5fc3d0/1ce619e): completed the
+  4-competency live-answer picture by adding answer-eval normalizers for TTL/ICL
+  (normalizeIclRow, "<utterance>\nlabel:<id>" demos -> chunks, gold = label id,
+  exact_match, --max-chunks caps the ~5900 demos) and LRU/detective_qa
+  (normalizeDetectiveQaRow, story chunked into 2000-char windows, gold = the full
+  multiple-choice option e.g. "C. The Brandt couple", exact_match). Results:
+  TTL run `run-phase64-mab-ttl-live-slice-current` (banking77, 5897 demos, 30 Qs)
+  = answerAccuracy 0.0 (0/30), execFails 0, evRecall 0.020; LRU run
+  `run-phase64-mab-lru-live-slice-current` (detective_qa, 200 story windows, 6 Qs)
+  = answerAccuracy 0.167 (1/6), execFails 0, evRecall 0.667. KEY BOUNDARY FINDING:
+  the GENERAL live-answer path + deterministic match-mode generalizes for AR/CR
+  because their gold answers are natural EXTRACTIVE spans the conversational answer
+  prompt emits ("France", "$8000", an event sentence), but NOT for TTL/LRU because
+  their gold answers are strict FORMAT tokens. TTL 0/30 is a prompt-format mismatch,
+  not model inability: the gold is a label id ("28") but the general Q&A prompt makes
+  the model answer the banking utterance conversationally ("I understand your
+  transfer is pending..."), so exact_match never fires (the demos confirm the gold
+  is correct; retrieval also surfaces only ~2% of the 76 same-label demos). LRU 1/6
+  is higher because the in-prompt options + "Output:" cue make the model produce a
+  well-formed choice, but whole-story whodunit reasoning over a few retrieved windows
+  is hard (2/6 abstained, 1/6 wrapped the answer in JSON) and 6 Qs is a tiny sample.
+  So a meaningful TTL eval needs a dedicated CLASSIFICATION harness (output the label
+  id), and LRU needs more rows for a stable number -- both are answer-format-specific
+  follow-ups, NOT generic-live-path metrics. This bounds the cross-benchmark
+  generalization claim: it holds for extractive-answer competencies (AR/CR), and
+  TTL/LRU expose where the general path's answer prompt + strict scoring break down.
 
 
 Commands
