@@ -113,6 +113,10 @@ export {
   EVIDENCE_COLLECTION,
 } from "./evidence/contracts";
 export type { EmbeddingAdapter } from "./embedding/contracts";
+export {
+  createLocalEmbeddingAdapter,
+  embedTextLocally,
+} from "./embedding/localEmbeddingAdapter";
 export type {
   MemoryLifecycleState,
   MemorySource,
