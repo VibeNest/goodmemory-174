@@ -74,6 +74,38 @@ function buildFactConsolidationRowsResponse() {
   };
 }
 
+// A tiny synthetic ICL (TTL) row: "<utterance>\nlabel: <id>" demos. Gold label
+// 11 has two demos (kept); gold 99 has none (dropped, cannot be learned).
+function buildIclRowsResponse() {
+  return {
+    num_rows_total: 6,
+    partial: false,
+    rows: [
+      {
+        row: {
+          answers: [["11"], ["99"]],
+          context: [
+            "I tried to transfer money but it failed.\nlabel: 11",
+            "My card got lost yesterday.\nlabel: 22",
+            "Another failed transfer attempt.\nlabel: 11",
+            "I need a new PIN.\nlabel: 33",
+          ].join("\n\n"),
+          metadata: {
+            qa_pair_ids: ["icl_no0", "icl_no1"],
+            source: "icl_banking77_5900shot_balance",
+          },
+          questions: [
+            "My transfer keeps failing, what's wrong?",
+            "An utterance whose gold label has no demo.",
+          ],
+        },
+        row_idx: 1,
+        truncated_cells: [],
+      },
+    ],
+  };
+}
+
 describe("prepare-phase-64 MemoryAgentBench data script", () => {
   it("parses competency, offset, max-questions, and merge flags", () => {
     expect(
@@ -94,6 +126,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).toEqual({
       competency: "AR",
       dataset: "ai-hyz/MemoryAgentBench",
+      maxChunks: null,
       maxEvidenceFacts: 3,
       maxQuestions: 20,
       merge: true,
@@ -114,6 +147,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).toEqual({
       competency: "AR",
       dataset: "ai-hyz/MemoryAgentBench",
+      maxChunks: null,
       maxEvidenceFacts: 3,
       maxQuestions: null,
       merge: false,
@@ -153,6 +187,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: false,
@@ -218,6 +253,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 3,
         maxQuestions: 1,
         merge: false,
@@ -246,6 +282,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "CR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: false,
@@ -304,6 +341,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "CR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 1,
         maxQuestions: null,
         merge: false,
@@ -335,6 +373,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: true,
@@ -365,6 +404,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
       {
         competency: "AR",
         dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
         maxEvidenceFacts: 3,
         maxQuestions: null,
         merge: false,
@@ -395,6 +435,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
         {
           competency: "AR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxChunks: null,
           maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
@@ -424,6 +465,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
         {
           competency: "AR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxChunks: null,
           maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
@@ -445,6 +487,7 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
         {
           competency: "CR",
           dataset: "ai-hyz/MemoryAgentBench",
+          maxChunks: null,
           maxEvidenceFacts: 3,
           maxQuestions: null,
           merge: false,
@@ -460,26 +503,97 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).rejects.toThrow("produced no numbered facts");
   });
 
-  it("points TTL/LRU at the live-answer path (no retrieval-recall normalizer)", async () => {
-    for (const competency of ["TTL", "LRU"] as const) {
-      await expect(
-        preparePhase64MemoryAgentBenchData(
-          {
-            competency,
-            dataset: "ai-hyz/MemoryAgentBench",
-            maxEvidenceFacts: 3,
-            maxQuestions: null,
-            merge: false,
-            offset: 0,
-            outputRoot: "/tmp/MAB",
-          },
-          {
-            mkdir: async () => undefined,
-            requestJson: async () => buildEventQaRowsResponse(),
-            writeFile: async () => undefined,
-          },
-        ),
-      ).rejects.toThrow("answer accuracy at live-answer time");
-    }
+  it("normalizes a TTL/ICL row into an answer-eval case (label-id gold, exact_match)", async () => {
+    const writes = new Map<string, string>();
+    const result = await preparePhase64MemoryAgentBenchData(
+      {
+        competency: "TTL",
+        dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
+        maxEvidenceFacts: 3,
+        maxQuestions: null,
+        merge: false,
+        offset: 1,
+        outputRoot: "/tmp/MAB",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async (url) => {
+          expect(url).toContain("split=Test_Time_Learning");
+          return buildIclRowsResponse();
+        },
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+
+    expect(result.competency).toBe("TTL");
+    expect(result.caseId).toBe("ttl_icl_banking77_5900shot_balance");
+    expect(result.chunkCount).toBe(4); // every demo injected
+    expect(result.questionCount).toBe(1); // gold 11 kept
+    expect(result.droppedQuestions).toBe(1); // gold 99 has no demo
+
+    const parsed = JSON.parse(writes.get("/tmp/MAB/cases.json") ?? "{}");
+    const question = parsed.cases[0].questions[0];
+    expect(question).toMatchObject({
+      competency: "TTL",
+      goldAnswer: "11",
+      matchMode: "exact_match",
+      evidenceChunkIds: [1, 3], // both label-11 demos
+      staleChunkIds: [],
+    });
+    // the chunk content keeps the "<utterance>\nlabel: <id>" mapping for ICL.
+    expect(parsed.cases[0].chunks[0].content).toContain("label: 11");
+  });
+
+  it("caps injected TTL demos with --max-chunks", async () => {
+    const writes = new Map<string, string>();
+    const result = await preparePhase64MemoryAgentBenchData(
+      {
+        competency: "TTL",
+        dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: 2,
+        maxEvidenceFacts: 3,
+        maxQuestions: null,
+        merge: false,
+        offset: 1,
+        outputRoot: "/tmp/MAB",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async () => buildIclRowsResponse(),
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+    // Only the first 2 demos injected (label 11, label 22); gold 11 keeps demo 1.
+    expect(result.chunkCount).toBe(2);
+    expect(result.questionCount).toBe(1);
+    const parsed = JSON.parse(writes.get("/tmp/MAB/cases.json") ?? "{}");
+    expect(parsed.cases[0].questions[0].evidenceChunkIds).toEqual([1]);
+  });
+
+  it("leaves LRU as a tracked follow-up (no normalizer yet)", async () => {
+    await expect(
+      preparePhase64MemoryAgentBenchData(
+        {
+          competency: "LRU",
+          dataset: "ai-hyz/MemoryAgentBench",
+          maxChunks: null,
+          maxEvidenceFacts: 3,
+          maxQuestions: null,
+          merge: false,
+          offset: 0,
+          outputRoot: "/tmp/MAB",
+        },
+        {
+          mkdir: async () => undefined,
+          requestJson: async () => buildEventQaRowsResponse(),
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow("tracked follow-up");
   });
 });

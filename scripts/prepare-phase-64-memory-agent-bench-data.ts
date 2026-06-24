@@ -87,7 +87,7 @@ export const MEMORY_AGENT_BENCH_COMPETENCY_SPLITS: Record<
 const DEFAULT_OFFSET_BY_COMPETENCY: Record<MemoryAgentBenchCompetency, number> = {
   AR: 5,
   CR: 4,
-  TTL: 0,
+  TTL: 1,
   LRU: 0,
 };
 
@@ -98,6 +98,9 @@ const DEFAULT_MAX_EVIDENCE_FACTS = 3;
 export interface Phase64MabPrepareOptions {
   competency: MemoryAgentBenchCompetency;
   dataset: string;
+  // TTL only: cap the number of injected ICL demos (the upstream rows ship
+  // thousands; null keeps them all). Bounds seed cost for the live-answer slice.
+  maxChunks: number | null;
   // CR only: max facts a gold answer may appear in before the question is dropped.
   maxEvidenceFacts: number;
   // null = keep every question in the row.
@@ -186,6 +189,7 @@ export function parsePhase64MabPrepareCliOptions(
   return {
     competency,
     dataset: resolveCliFlagValue(argv, "--dataset") ?? MEMORY_AGENT_BENCH_DATASET,
+    maxChunks: parseMaxQuestions(resolveCliFlagValue(argv, "--max-chunks")),
     maxEvidenceFacts: parseNonNegativeInteger(
       resolveCliFlagValue(argv, "--max-evidence-facts"),
       DEFAULT_MAX_EVIDENCE_FACTS,
@@ -517,6 +521,110 @@ function normalizeFactConsolidationRow(
   };
 }
 
+// TTL / ICL (in-context learning, e.g. banking77) ANSWER-EVAL normalizer. Each
+// upstream demo "<utterance>\nlabel: <id>" becomes a chunk so retrieving it
+// teaches the utterance->label mapping; the question is a new utterance and the
+// gold answer is its label id (exact_match). Retrieval recall is intentionally
+// NOT the metric (a gold label has dozens of demos); this case exists for the
+// live-answer path, which tests whether the test-time-learned policy can be
+// applied at answer time. evidenceChunkIds points at the same-label demos for the
+// diagnostic only. --max-chunks bounds the (thousands of) injected demos.
+function normalizeIclRow(
+  row: Record<string, unknown>,
+  truncatedCells: readonly string[],
+  options: Phase64MabPrepareOptions,
+): { case: MemoryAgentBenchCase; droppedQuestions: number } {
+  assertConsumedCellsIntact(truncatedCells, ["context", "questions", "answers", "metadata"]);
+  if (typeof row.context !== "string") {
+    throw new Error('MemoryAgentBench TTL/ICL row "context" must be a string');
+  }
+  const metadata = isRecord(row.metadata) ? row.metadata : undefined;
+  if (!metadata) {
+    throw new Error("MemoryAgentBench TTL/ICL row must include a metadata object");
+  }
+  const questions = asStringArray(row.questions, "questions");
+  const qaPairIds = asStringArray(metadata.qa_pair_ids, "metadata.qa_pair_ids");
+  if (!Array.isArray(row.answers)) {
+    throw new Error('MemoryAgentBench row field "answers" must be an array');
+  }
+  const sourceDataset =
+    typeof metadata.source === "string" && metadata.source.length > 0
+      ? metadata.source
+      : "icl";
+
+  const rawDemos = row.context
+    .split(/\n\s*\n+/u)
+    .map((demo) => demo.trim())
+    .filter((demo) => demo.length > 0);
+  const demoLimit =
+    options.maxChunks === null
+      ? rawDemos.length
+      : Math.min(options.maxChunks, rawDemos.length);
+  const chunks: MemoryAgentBenchChunk[] = [];
+  const labelToChunkIds = new Map<string, number[]>();
+  for (let index = 0; index < demoLimit; index += 1) {
+    const demo = rawDemos[index];
+    const labelMatch = /label:\s*(\S+)\s*$/u.exec(demo);
+    if (!labelMatch) {
+      continue;
+    }
+    const chunkId = chunks.length + 1;
+    chunks.push({ content: demo, id: chunkId, role: "user" });
+    const label = labelMatch[1];
+    const ids = labelToChunkIds.get(label) ?? [];
+    ids.push(chunkId);
+    labelToChunkIds.set(label, ids);
+  }
+  if (chunks.length === 0) {
+    throw new Error("MemoryAgentBench TTL/ICL row produced no labeled demos");
+  }
+
+  const available = Math.min(row.answers.length, questions.length, qaPairIds.length);
+  const normalizedQuestions: MemoryAgentBenchQuestion[] = [];
+  let droppedQuestions = 0;
+  for (let index = 0; index < available; index += 1) {
+    if (
+      options.maxQuestions !== null &&
+      normalizedQuestions.length >= options.maxQuestions
+    ) {
+      break;
+    }
+    const goldAnswer = firstGoldAnswer(row.answers, index);
+    const evidenceChunkIds = labelToChunkIds.get(goldAnswer.trim()) ?? [];
+    // Drop a question whose gold label has no demo in the injected set: it cannot
+    // be learned in-context, so it would only measure the missing demo, not policy.
+    if (evidenceChunkIds.length === 0) {
+      droppedQuestions += 1;
+      continue;
+    }
+    normalizedQuestions.push({
+      competency: "TTL",
+      evidenceChunkIds,
+      goldAnswer,
+      matchMode: "exact_match",
+      question: questions[index],
+      questionId: qaPairIds[index] ?? `${sourceDataset}_no${index}`,
+      staleChunkIds: [],
+    });
+  }
+  if (normalizedQuestions.length === 0) {
+    throw new Error(
+      "MemoryAgentBench TTL/ICL row produced no questions whose gold label has an injected demo",
+    );
+  }
+
+  return {
+    case: {
+      caseId: `ttl_${sourceDataset}`,
+      chunks,
+      competency: "TTL",
+      questions: normalizedQuestions,
+      sourceDataset,
+    },
+    droppedQuestions,
+  };
+}
+
 function normalizeRowToCase(
   competency: MemoryAgentBenchCompetency,
   row: Record<string, unknown>,
@@ -532,16 +640,15 @@ function normalizeRowToCase(
   if (competency === "CR") {
     return normalizeFactConsolidationRow(row, truncatedCells, options);
   }
-  // TTL/LRU are intentionally NOT retrieval-recall prep targets. Probing the
-  // upstream rows showed they expose no meaningful per-question gold evidence:
-  // TTL (ICL, e.g. banking77) carries ~76 demos per label, so "evidence = same-
-  // label demos" makes retrieval recall near-meaningless; LRU is whole-story
-  // detective_qa / InfBench summarization, where the whole context is "evidence".
-  // Their meaningful evaluation is answer accuracy at live-answer time
-  // (eval:phase-64-smoke --live), not retrieval. AR/event_qa and CR/
-  // factconsolidation are the competencies with a defensible retrieval signal.
+  if (competency === "TTL") {
+    return normalizeIclRow(row, truncatedCells, options);
+  }
+  // LRU is whole-story detective_qa / InfBench summarization, where the whole
+  // context is "evidence" and answering needs whole-story reasoning, not a single
+  // passage; its answer-eval normalizer is a tracked follow-up. AR/event_qa,
+  // CR/factconsolidation (retrieval) and TTL/ICL (answer-eval) are implemented.
   throw new Error(
-    `MemoryAgentBench prep: ${competency} has no retrieval-recall normalizer. AR/event_qa and CR/factconsolidation expose meaningful per-question gold evidence; TTL (ICL ~76 demos/label) and LRU (whole-story detective_qa/summarization) do not, so their meaningful evaluation is answer accuracy at live-answer time (eval:phase-64-smoke --live), not retrieval. See the Phase 64 board.`,
+    `MemoryAgentBench prep: ${competency} has no normalizer yet. AR/event_qa and CR/factconsolidation expose retrieval evidence; TTL/ICL has an answer-eval normalizer for the live path; LRU (whole-story detective_qa/summarization) answer-eval is a tracked follow-up. See the Phase 64 board.`,
   );
 }
 
