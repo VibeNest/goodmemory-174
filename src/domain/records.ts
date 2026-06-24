@@ -72,6 +72,29 @@ export function isActiveMemoryLifecycle(record: {
   return resolveMemoryLifecycle(record) === "active";
 }
 
+// True when a fact's bi-temporal validity window has closed (validUntil) or its
+// TTL has elapsed (expiresAt) at `referenceTime`. Facts without either boundary
+// never expire, so this is a no-op for memory that does not opt into validity.
+export function isFactExpired(
+  fact: { validUntil?: string; expiresAt?: string },
+  referenceTime: string,
+): boolean {
+  const reference = new Date(referenceTime).getTime();
+  if (Number.isNaN(reference)) {
+    return false;
+  }
+  for (const boundary of [fact.validUntil, fact.expiresAt]) {
+    if (boundary === undefined) {
+      continue;
+    }
+    const time = new Date(boundary).getTime();
+    if (!Number.isNaN(time) && time <= reference) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export type FactKind =
   | "blocker"
   | "open_loop"
@@ -108,6 +131,14 @@ export interface FactMemory {
   lastAccessedAt?: string;
   verificationPressureCount?: number;
   lastVerificationHintAt?: string;
+  // Bi-temporal validity window in event/world time (distinct from createdAt /
+  // updatedAt, which are transaction time) plus an optional hard TTL. When
+  // validUntil or expiresAt is at/before the reference time, the opt-in
+  // ttlExpiry maintenance job demotes the fact to "inactive". All optional, so
+  // facts without them never expire.
+  validFrom?: string;
+  validUntil?: string;
+  expiresAt?: string;
   demotedAt?: string;
   demotionReason?: string;
   supersededBy?: string | null;
@@ -338,6 +369,9 @@ export function createFactMemory(
     lastAccessedAt: input.lastAccessedAt,
     verificationPressureCount: input.verificationPressureCount ?? 0,
     lastVerificationHintAt: input.lastVerificationHintAt,
+    validFrom: input.validFrom,
+    validUntil: input.validUntil,
+    expiresAt: input.expiresAt,
     demotedAt: input.demotedAt,
     demotionReason: input.demotionReason,
     supersededBy: input.supersededBy ?? null,

@@ -1,5 +1,6 @@
 import {
   createFactMemory,
+  isFactExpired,
   createEpisodeMemory,
   isActiveMemoryLifecycle,
 } from "../domain/records";
@@ -42,7 +43,8 @@ export type MaintenanceJobName =
   | "contradiction"
   | "qualityRepair"
   | "consolidation"
-  | "embeddingRepair";
+  | "embeddingRepair"
+  | "ttlExpiry";
 
 export interface MaintenanceRunnerConfig {
   embedding?: EmbeddingAdapter;
@@ -523,6 +525,46 @@ async function runQualityRepair(
   };
 }
 
+// Demote facts whose bi-temporal validity window has closed (validUntil) or
+// whose TTL has elapsed (expiresAt) to "inactive", so recall (which only
+// surfaces active facts) stops returning stale entries -- the "memory bloat"
+// failure mode where expired facts pollute top-k results. A no-op for facts
+// without validUntil/expiresAt, so it only acts on memory that opted into TTL.
+async function runTtlExpiry(
+  repositories: MaintenanceRepositoryPort,
+  vectorIndex: MaintenanceVectorPort | null,
+  scope: MemoryScope,
+  timestamp: string,
+): Promise<MaintenanceJobReport> {
+  const facts = (await repositories.facts.listByScope(scope)).filter(
+    (fact) => fact.lifecycle === "active",
+  );
+  let applied = 0;
+
+  for (const fact of facts) {
+    if (!isFactExpired(fact, timestamp)) {
+      continue;
+    }
+    await repositories.facts.add(
+      createFactMemory({
+        ...fact,
+        lifecycle: "inactive",
+        isActive: false,
+        demotedAt: timestamp,
+        demotionReason: "ttl_expired",
+        updatedAt: timestamp,
+      }),
+    );
+    await vectorIndex?.deleteFactEmbedding(fact.id);
+    applied += 1;
+  }
+
+  return {
+    name: "ttlExpiry",
+    applied,
+  };
+}
+
 async function runEpisodeConsolidation(
   repositories: MaintenanceRepositoryPort,
   vectorIndex: MaintenanceVectorPort | null,
@@ -759,6 +801,18 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
               config.repositories,
               vectorIndex,
               language,
+              scope,
+              timestamp,
+            ),
+          );
+          continue;
+        }
+
+        if (job === "ttlExpiry") {
+          reports.push(
+            await runTtlExpiry(
+              config.repositories,
+              vectorIndex,
               scope,
               timestamp,
             ),

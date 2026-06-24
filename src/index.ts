@@ -103,6 +103,7 @@ export {
   createSessionJournal,
   createUserProfile,
   createWorkingMemorySnapshot,
+  isFactExpired,
 } from "./domain/records";
 export type {
   EvidenceKind,
