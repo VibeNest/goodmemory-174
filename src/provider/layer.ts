@@ -125,12 +125,19 @@ export function createProviderMemoryExtractor(input: {
 // endpoint. Default extraction is unchanged unless this is injected.
 export function createProviderConversationalMemoryExtractor(input: {
   model: AISDKModelConfig;
+  // Opt-in: prefix each extracted fact with a brief situating context (the
+  // embedding-free Contextual Retrieval lever) to fight question-to-dialogue
+  // vocabulary mismatch. Off by default.
+  contextualDescriptor?: boolean;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
   requestTimeoutMs?: number;
 }): MemoryExtractor {
   return createProviderMemoryExtractor({
     model: input.model,
-    promptBuilder: buildConversationalMemoryExtractionPrompt,
+    promptBuilder: (payload) =>
+      buildConversationalMemoryExtractionPrompt(payload, {
+        contextualDescriptor: input.contextualDescriptor,
+      }),
     system: CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
     createMemoryExtractor: input.createMemoryExtractor,
     requestTimeoutMs: input.requestTimeoutMs,

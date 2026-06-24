@@ -272,27 +272,42 @@ export const CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT = [
 // utterance. This bridges the question-to-dialogue vocabulary gap without a
 // neural embedding endpoint (the documented LoCoMo recall bottleneck). It is an
 // opt-in write-time pass; it does not change default extraction.
+export interface ConversationalExtractionOptions {
+  // When set, each fact is prefixed with a brief situating context drawn from the
+  // surrounding dialogue (the embedding-free Contextual Retrieval idea), so it is
+  // retrievable by vocabulary the bare claim would not contain. Off by default.
+  contextualDescriptor?: boolean;
+}
+
 export function buildConversationalMemoryExtractionPrompt(
   input: MemoryExtractionInput,
+  options?: ConversationalExtractionOptions,
 ): string {
   const transcript = input.messages
     .map((message, index) => `[${index}] ${message.role}: ${message.content}`)
     .join("\n");
 
+  const rules = [
+    "Rules for every fact:",
+    "- Capture exactly ONE atomic claim (one subject, one predicate, one object).",
+    "- Resolve all coreferences: replace pronouns (he, she, it, they, this, that) and vague references with the explicit named entity, and attribute first-person statements to the speaker by name when the name is known.",
+    "- Make it self-contained: it must be understandable without the surrounding turns.",
+    '- Normalize entities and dates: prefer full names over nicknames, and rewrite relative dates ("last week", "yesterday", "in two days") into absolute dates when the conversation provides a reference date; otherwise keep the original wording.',
+    "- Keep the originating speaker as sourceRole and the originating message index as sourceMessageIndex.",
+    '- Set explicitness to "explicit" when the fact is directly stated and "inferred" when you reasonably deduced it.',
+    "- Put the primary entity the fact is about in metadata.subject.",
+    "- Skip greetings, acknowledgements, and chit-chat; count those messages in ignoredMessageCount.",
+  ];
+  if (options?.contextualDescriptor) {
+    rules.push(
+      "- Begin the content with a brief contextual descriptor (the topic, the entity it concerns, and the time or session when known), drawn ONLY from the conversation, then state the atomic claim, so the fact is retrievable by words from the surrounding dialogue it would not otherwise contain. Never invent descriptor details.",
+    );
+  }
+
   return [
     "Decompose this conversation into atomic, self-contained memory facts for retrieval.",
     "Rewrite each fact so a reader who has never seen the conversation can fully understand it.",
-    [
-      "Rules for every fact:",
-      "- Capture exactly ONE atomic claim (one subject, one predicate, one object).",
-      "- Resolve all coreferences: replace pronouns (he, she, it, they, this, that) and vague references with the explicit named entity, and attribute first-person statements to the speaker by name when the name is known.",
-      "- Make it self-contained: it must be understandable without the surrounding turns.",
-      '- Normalize entities and dates: prefer full names over nicknames, and rewrite relative dates ("last week", "yesterday", "in two days") into absolute dates when the conversation provides a reference date; otherwise keep the original wording.',
-      "- Keep the originating speaker as sourceRole and the originating message index as sourceMessageIndex.",
-      '- Set explicitness to "explicit" when the fact is directly stated and "inferred" when you reasonably deduced it.',
-      "- Put the primary entity the fact is about in metadata.subject.",
-      "- Skip greetings, acknowledgements, and chit-chat; count those messages in ignoredMessageCount.",
-    ].join("\n"),
+    rules.join("\n"),
     "Respond with a single JSON object. Do not use markdown fences or commentary.",
     [
       "The JSON object must contain:",

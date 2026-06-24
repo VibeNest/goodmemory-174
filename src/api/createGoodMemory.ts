@@ -769,11 +769,15 @@ class GoodMemoryImpl implements GoodMemory {
     const assistedExtractor =
       config.adapters?.assistedExtractor ??
       (runtimeResolution.assistedExtractorModelConfig
-        ? (config.providers?.extraction?.mode === "conversational"
-            ? createProviderConversationalMemoryExtractor
-            : createProviderMemoryExtractor)({
-            model: runtimeResolution.assistedExtractorModelConfig,
-          })
+        ? config.providers?.extraction?.mode === "conversational"
+          ? createProviderConversationalMemoryExtractor({
+              model: runtimeResolution.assistedExtractorModelConfig,
+              contextualDescriptor:
+                config.providers?.extraction?.contextualDescriptors,
+            })
+          : createProviderMemoryExtractor({
+              model: runtimeResolution.assistedExtractorModelConfig,
+            })
         : undefined);
     const documentStore =
       config.adapters?.documentStore ??

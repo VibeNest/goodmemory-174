@@ -91,6 +91,11 @@ export interface GoodMemoryExtractionProviderConfig {
   // phrasing-gap lever) without a neural embedding endpoint. Defaults to
   // "default" when omitted, so existing configs are unchanged.
   mode?: "default" | "conversational";
+  // Opt-in (conversational mode only): prefix each extracted fact with a brief
+  // situating context from the surrounding dialogue (the embedding-free
+  // Contextual Retrieval lever) so it is retrievable by vocabulary the bare claim
+  // would not contain. Additive and never destructive; off by default.
+  contextualDescriptors?: boolean;
 }
 
 export interface GoodMemoryProviderConfig {
