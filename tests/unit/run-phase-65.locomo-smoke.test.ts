@@ -4,14 +4,17 @@ import type { LocomoCase } from "../../src/eval/locomo";
 import {
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
+  createLocomoSmokeMemory,
   loadLocomoCases,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
   parseLocomoSmokeCliOptions,
   runLocomoSmoke,
   scoreLocomoRetrieval,
+  seedLocomoCaseConversational,
   summarizeLocomoRetrieval,
   type LocomoQuestionRetrieval,
 } from "../../scripts/run-phase-65-locomo-smoke";
+import type { MemoryExtractor } from "../../src/remember/candidates";
 
 function category(
   report: Awaited<ReturnType<typeof runLocomoSmoke>>,
@@ -42,12 +45,22 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/LOCOMO",
+      conversationalExtraction: false,
       evidencePack: false,
       limit: 2,
       live: false,
       outputDir: "/tmp/out",
       runId: "run-locomo",
     });
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--conversational-extraction",
+      ]).conversationalExtraction,
+    ).toBe(true);
 
     expect(() =>
       parseLocomoSmokeCliOptions([
@@ -326,5 +339,108 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     );
     expect(category(baited, "adversarial").answerAccuracy).toBe(0);
     expect(category(baited, "single_hop").answerAccuracy).toBe(1);
+  });
+
+  it("conversational ingest stores atomic facts that preserve source dia_id provenance", async () => {
+    const testCase: LocomoCase = {
+      caseId: "conv-ingest",
+      sourceConversation: "conv-ingest",
+      speakers: ["Melanie", "Caroline"],
+      turns: [
+        { diaId: "D1:1", speaker: "Melanie", content: "How did it go?" },
+        { diaId: "D1:2", speaker: "Caroline", content: "I went there on Tuesday." },
+      ],
+      questions: [
+        {
+          questionId: "conv-ingest:q",
+          category: "temporal",
+          question: "When did Caroline go to the LGBTQ support group?",
+          goldAnswer: "Tuesday",
+          matchMode: "f1_token_overlap",
+          evidenceTurnIds: ["D1:2"],
+          adversarialAnswer: null,
+        },
+      ],
+    };
+    // The mock resolves the coreference ("I"/"there") into a self-contained,
+    // question-matching claim anchored to the gold turn (sourceMessageIndex 1 -> D1:2).
+    const extractor: MemoryExtractor = {
+      async extract() {
+        return {
+          candidates: [
+            {
+              id: "fact-1",
+              kindHint: "fact",
+              explicitness: "explicit",
+              content: "Caroline went to the LGBTQ support group on Tuesday.",
+              sourceMessageIndex: 1,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 1,
+        };
+      },
+    };
+
+    const memory = createLocomoSmokeMemory();
+    await seedLocomoCaseConversational({ extractor, memory, runId: "t", testCase });
+
+    const scope = buildLocomoScope({ caseId: "conv-ingest", runId: "t" });
+    const recall = await memory.recall({
+      query: testCase.questions[0]!.question,
+      scope,
+      strategy: "rules-only",
+    });
+    const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
+
+    // The normalized fact carries the gold turn's dia_id, so the SAME trusted
+    // recall metric counts it as retrieved even though the raw turn ("I went
+    // there on Tuesday") shares no entity vocabulary with the question.
+    expect(retrievedTurnIds).toContain("D1:2");
+    const score = scoreLocomoRetrieval({
+      question: testCase.questions[0]!,
+      retrievedTurnIds,
+      testCase,
+    });
+    expect(score.evidenceRecall).toBe(1);
+    expect(score.goldEvidenceFullyRetrieved).toBe(true);
+  });
+
+  it("runLocomoSmoke records the conversational ingest mode and surfaces normalized recall", async () => {
+    // A deterministic extractor that emits one self-contained fact per session,
+    // anchored to the session's first turn, lets the synthetic smoke run end to
+    // end through the conversational path without any live model.
+    const extractor: MemoryExtractor = {
+      async extract(input) {
+        return {
+          candidates: input.messages.slice(0, 1).map((message, index) => ({
+            id: `fact-${index}`,
+            kindHint: "fact" as const,
+            explicitness: "explicit" as const,
+            content: message.content,
+            sourceMessageIndex: index,
+            sourceRole: "user",
+          })),
+          ignoredMessageCount: Math.max(0, input.messages.length - 1),
+        };
+      },
+    };
+
+    const report = await runLocomoSmoke(
+      {
+        conversationalExtraction: true,
+        runId: "run-locomo-conv",
+        outputDir: "/tmp/locomo-out",
+      },
+      {
+        conversationalExtractor: extractor,
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.ingestMode).toBe("conversational-extraction");
+    expect(report.mode).toBe("retrieval-only");
+    expect(report.executionFailures).toBe(0);
   });
 });

@@ -33,6 +33,7 @@ import {
   type LocomoCase,
   type LocomoQaCategory,
   type LocomoQuestion,
+  type LocomoTurn,
 } from "../src/eval/locomo";
 import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
@@ -43,6 +44,8 @@ import {
 import { resolveLiveModelConfig } from "./run-eval";
 import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
 import type { EvidenceTurn } from "../src/answer/evidencePack";
+import { createProviderConversationalMemoryExtractor } from "../src/provider/layer";
+import type { MemoryExtractor } from "../src/remember/candidates";
 
 export const LOCOMO_SMOKE_RUN_ID = "run-phase65-locomo-smoke-current";
 export const LOCOMO_SMOKE_REPORT_FILE_NAME = "smoke-report.json";
@@ -57,6 +60,9 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface LocomoSmokeCliOptions {
   benchmarkRoot?: string;
+  // Opt-in: seed memory with LLM conversational atomic-fact extraction instead of
+  // raw dialogue turns (improvement-plan #3). Requires GOODMEMORY_EVAL_* model env.
+  conversationalExtraction?: boolean;
   evidencePack?: boolean;
   limit?: number;
   live?: boolean;
@@ -83,6 +89,10 @@ export type LocomoAnswerGenerator = (
 
 export interface LocomoSmokeDependencies {
   answerGenerator?: LocomoAnswerGenerator;
+  // Injected conversational extractor (tests pass a deterministic mock; the live
+  // run builds a gpt-5.5-backed one from GOODMEMORY_EVAL_* when --conversational-
+  // extraction is set).
+  conversationalExtractor?: MemoryExtractor;
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
   now?: () => Date;
@@ -138,6 +148,9 @@ export interface LocomoSmokeReport {
   externalRoot: string | null;
   generatedAt: string;
   generatedBy: string;
+  // How memory was seeded: raw dialogue turns, or LLM conversational atomic-fact
+  // extraction (improvement-plan #3, opt-in via --conversational-extraction).
+  ingestMode: "raw-turns" | "conversational-extraction";
   license: string;
   mode: "retrieval-only" | "live-answer";
   phase: "phase-65";
@@ -163,6 +176,7 @@ export function parseLocomoSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
+    conversationalExtraction: argv.includes("--conversational-extraction"),
     evidencePack: argv.includes("--evidence-pack"),
     limit,
     live: argv.includes("--live"),
@@ -219,6 +233,77 @@ export async function seedLocomoCase(input: {
       runId: input.runId,
     }),
   });
+}
+
+// Conversational atomic-fact ingest (improvement-plan #3). Instead of storing raw
+// dialogue turns, decompose each session into self-contained, coreference-resolved,
+// entity/date-normalized atomic claims via the injected LLM extractor and store
+// those as the retrievable unit, preserving each fact's source dia_id so the SAME
+// evidence-turn recall metric (scoreLocomoRetrieval) applies unchanged. Sessions
+// are extracted independently to preserve within-session coreference context.
+// Opt-in; only used when --conversational-extraction is set.
+export async function seedLocomoCaseConversational(input: {
+  extractor: MemoryExtractor;
+  memory: GoodMemory;
+  runId: string;
+  testCase: LocomoCase;
+}): Promise<void> {
+  const scope = buildLocomoScope({
+    caseId: input.testCase.caseId,
+    runId: input.runId,
+  });
+  const sessions = new Map<string, LocomoTurn[]>();
+  for (const turn of input.testCase.turns) {
+    const sessionKey = turn.diaId.split(":")[0] ?? turn.diaId;
+    const list = sessions.get(sessionKey) ?? [];
+    list.push(turn);
+    sessions.set(sessionKey, list);
+  }
+  for (const sessionTurns of sessions.values()) {
+    const extraction = await input.extractor.extract({
+      scope,
+      messages: sessionTurns.map((turn) => ({
+        content: `${turn.speaker}: ${turn.content}`,
+        role: "user",
+      })),
+    });
+    const facts = extraction.candidates.filter(
+      (candidate) => candidate.kindHint !== "noise",
+    );
+    if (facts.length === 0) {
+      continue;
+    }
+    const resolveTurn = (index: number): LocomoTurn =>
+      sessionTurns[Math.max(0, Math.min(index, sessionTurns.length - 1))]!;
+    await input.memory.remember({
+      annotations: facts.map((fact, messageIndex) => {
+        const turn = resolveTurn(fact.sourceMessageIndex);
+        return {
+          confirmed: true,
+          kindHint: "fact" as const,
+          messageIndex,
+          metadataPatch: {
+            attributes: { diaId: turn.diaId, speaker: turn.speaker },
+            category: "external_benchmark",
+            tags: ["locomo", `dia_id:${turn.diaId}`],
+          },
+          reason:
+            "LoCoMo conversational atomic-fact extraction preserves source dia_id provenance.",
+          remember: "always" as const,
+          verified: true,
+        };
+      }),
+      extractionStrategy: "rules-only",
+      messages: facts.map((fact) => {
+        const turn = resolveTurn(fact.sourceMessageIndex);
+        return {
+          content: `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}] ${fact.content}`,
+          role: "user",
+        };
+      }),
+      scope,
+    });
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -565,13 +650,30 @@ export async function runLocomoSmoke(
     dependencies.answerGenerator ??
     (options.live ? createLocomoLiveAnswerGenerator() : undefined);
 
+  const conversationalExtractor = options.conversationalExtraction
+    ? dependencies.conversationalExtractor ??
+      createProviderConversationalMemoryExtractor({
+        model: resolveLiveModelConfig("GOODMEMORY_EVAL"),
+        requestTimeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
+      })
+    : undefined;
+
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
   for (const testCase of cases) {
     const memory = createMemory();
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
     try {
-      await seedLocomoCase({ memory, runId, testCase });
+      if (conversationalExtractor) {
+        await seedLocomoCaseConversational({
+          extractor: conversationalExtractor,
+          memory,
+          runId,
+          testCase,
+        });
+      } else {
+        await seedLocomoCase({ memory, runId, testCase });
+      }
     } catch {
       executionFailures += testCase.questions.length;
       continue;
@@ -636,6 +738,9 @@ export async function runLocomoSmoke(
     externalRoot: options.benchmarkRoot ?? null,
     generatedAt: now().toISOString(),
     generatedBy: GENERATED_BY,
+    ingestMode: conversationalExtractor
+      ? "conversational-extraction"
+      : "raw-turns",
     license: UPSTREAM_LICENSE,
     mode: liveAnswer ? "live-answer" : "retrieval-only",
     phase: "phase-65",
