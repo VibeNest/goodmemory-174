@@ -638,6 +638,18 @@ export function summarizeLocomoRetrieval(
   });
 }
 
+// Question-weighted overall evidence-turn recall across all categories -- the
+// single headline number for an embedding-free retrieval comparison.
+export function overallLocomoEvidenceRecall(
+  results: readonly LocomoQuestionRetrieval[],
+): number {
+  if (results.length === 0) {
+    return 0;
+  }
+  const total = results.reduce((sum, result) => sum + result.evidenceRecall, 0);
+  return total / results.length;
+}
+
 function hashString(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {

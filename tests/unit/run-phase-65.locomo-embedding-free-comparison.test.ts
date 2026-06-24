@@ -1,0 +1,83 @@
+import { describe, expect, it } from "bun:test";
+import {
+  buildEmbeddingFreeComparisonRow,
+  EMBEDDING_FREE_COMPARISON_ARMS,
+  renderEmbeddingFreeComparison,
+  runEmbeddingFreeComparison,
+} from "../../scripts/run-phase-65-locomo-embedding-free-comparison";
+import {
+  overallLocomoEvidenceRecall,
+  type LocomoQuestionRetrieval,
+  type LocomoSmokeReport,
+} from "../../scripts/run-phase-65-locomo-smoke";
+
+describe("embedding-free LoCoMo comparison runner", () => {
+  it("defines the deterministic arms in increasing-capability order", () => {
+    expect(EMBEDDING_FREE_COMPARISON_ARMS.map((arm) => arm.label)).toEqual([
+      "jaccard-rules-only",
+      "bm25",
+      "bm25+decompose+nhop+rerank",
+    ]);
+    expect(EMBEDDING_FREE_COMPARISON_ARMS[0]?.options).toEqual({});
+    expect(EMBEDDING_FREE_COMPARISON_ARMS[1]?.options).toEqual({ bm25: true });
+    expect(EMBEDDING_FREE_COMPARISON_ARMS[2]?.options).toEqual({
+      bm25: true,
+      decompose: true,
+      multiHop: true,
+      rerank: true,
+    });
+  });
+
+  it("computes question-weighted overall evidence recall", () => {
+    expect(overallLocomoEvidenceRecall([])).toBe(0);
+    expect(
+      overallLocomoEvidenceRecall([
+        { evidenceRecall: 1 } as LocomoQuestionRetrieval,
+        { evidenceRecall: 0 } as LocomoQuestionRetrieval,
+        { evidenceRecall: 0.5 } as LocomoQuestionRetrieval,
+      ]),
+    ).toBeCloseTo(0.5, 5);
+  });
+
+  it("builds a comparison row from a report and renders a markdown table", () => {
+    const report = {
+      cases: [
+        { evidenceRecall: 0.4 } as LocomoQuestionRetrieval,
+        { evidenceRecall: 0.6 } as LocomoQuestionRetrieval,
+      ],
+      executionFailures: 0,
+      questionCount: 2,
+    } as LocomoSmokeReport;
+    const row = buildEmbeddingFreeComparisonRow("bm25", report);
+    expect(row.overallEvidenceRecall).toBeCloseTo(0.5, 5);
+
+    const md = renderEmbeddingFreeComparison([
+      {
+        label: "bm25",
+        overallEvidenceRecall: 0.352,
+        executionFailures: 0,
+        questionCount: 120,
+      },
+    ]);
+    expect(md).toContain("| bm25 | 35.2% | 0 | 120 |");
+  });
+
+  it("runs every deterministic arm on the synthetic smoke (gateway-free, in-memory)", async () => {
+    const rows = await runEmbeddingFreeComparison(
+      { outputDir: "/tmp/locomo-ef" },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(rows.map((row) => row.label)).toEqual([
+      "jaccard-rules-only",
+      "bm25",
+      "bm25+decompose+nhop+rerank",
+    ]);
+    for (const row of rows) {
+      expect(row.executionFailures).toBe(0);
+      expect(row.questionCount).toBeGreaterThan(0);
+    }
+  });
+});
