@@ -106,6 +106,34 @@ function buildIclRowsResponse() {
   };
 }
 
+// A tiny synthetic detective_qa (LRU) row: a short story plus one multiple-choice
+// whodunit whose options + "Output:" cue are in the question; gold is the full
+// chosen option (exact_match). The story mentions the answer entity.
+function buildDetectiveQaRowsResponse() {
+  return {
+    num_rows_total: 110,
+    partial: false,
+    rows: [
+      {
+        row: {
+          answers: [["B. The Brandt couple"]],
+          context:
+            "The manor stood silent. The Brandt couple had lived there for years before the incident, and several witnesses placed them at the scene.",
+          metadata: {
+            qa_pair_ids: ["detective_qa_book124_no0"],
+            source: "detective_qa_book124",
+          },
+          questions: [
+            "Who is related to the death? A. Mrs. Hemm B. The Brandt couple C. Miss House\nOutput:",
+          ],
+        },
+        row_idx: 100,
+        truncated_cells: [],
+      },
+    ],
+  };
+}
+
 describe("prepare-phase-64 MemoryAgentBench data script", () => {
   it("parses competency, offset, max-questions, and merge flags", () => {
     expect(
@@ -575,25 +603,45 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     expect(parsed.cases[0].questions[0].evidenceChunkIds).toEqual([1]);
   });
 
-  it("leaves LRU as a tracked follow-up (no normalizer yet)", async () => {
-    await expect(
-      preparePhase64MemoryAgentBenchData(
-        {
-          competency: "LRU",
-          dataset: "ai-hyz/MemoryAgentBench",
-          maxChunks: null,
-          maxEvidenceFacts: 3,
-          maxQuestions: null,
-          merge: false,
-          offset: 0,
-          outputRoot: "/tmp/MAB",
+  it("normalizes an LRU/detective_qa row into a multiple-choice answer-eval case", async () => {
+    const writes = new Map<string, string>();
+    const result = await preparePhase64MemoryAgentBenchData(
+      {
+        competency: "LRU",
+        dataset: "ai-hyz/MemoryAgentBench",
+        maxChunks: null,
+        maxEvidenceFacts: 3,
+        maxQuestions: null,
+        merge: false,
+        offset: 100,
+        outputRoot: "/tmp/MAB",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async (url) => {
+          expect(url).toContain("split=Long_Range_Understanding");
+          return buildDetectiveQaRowsResponse();
         },
-        {
-          mkdir: async () => undefined,
-          requestJson: async () => buildEventQaRowsResponse(),
-          writeFile: async () => undefined,
+        writeFile: async (path, value) => {
+          writes.set(path, value);
         },
-      ),
-    ).rejects.toThrow("tracked follow-up");
+      },
+    );
+
+    expect(result.competency).toBe("LRU");
+    expect(result.caseId).toBe("lru_detective_qa_book124");
+    expect(result.questionCount).toBe(1);
+    expect(result.chunkCount).toBeGreaterThan(0); // story chunked into windows
+
+    const parsed = JSON.parse(writes.get("/tmp/MAB/cases.json") ?? "{}");
+    const question = parsed.cases[0].questions[0];
+    expect(question).toMatchObject({
+      competency: "LRU",
+      goldAnswer: "B. The Brandt couple",
+      matchMode: "exact_match",
+      staleChunkIds: [],
+    });
+    // evidence = story windows mentioning the answer entity (option letter stripped).
+    expect(question.evidenceChunkIds.length).toBeGreaterThan(0);
   });
 });

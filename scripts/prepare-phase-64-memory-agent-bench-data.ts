@@ -88,8 +88,12 @@ const DEFAULT_OFFSET_BY_COMPETENCY: Record<MemoryAgentBenchCompetency, number> =
   AR: 5,
   CR: 4,
   TTL: 1,
-  LRU: 0,
+  LRU: 100,
 };
+
+// LRU detective_qa: fixed-size story chunk window (chars). The story is long
+// (hundreds of KB); windows give retrievable passages without per-paragraph noise.
+const DETECTIVE_QA_CHUNK_SIZE = 2000;
 
 // CR only: drop a question whose gold answer appears in more than this many facts
 // (common-string recurrence => noisy evidence). Ignored by other competencies.
@@ -625,6 +629,99 @@ function normalizeIclRow(
   };
 }
 
+// LRU / detective_qa ANSWER-EVAL normalizer. The story (row.context) is chunked
+// into fixed-size windows; each question is a multiple-choice whodunit whose
+// options and an "Output:" cue are already in the question text, and the gold is
+// the full chosen option (e.g. "C. The Brandt couple") scored by exact_match.
+// Answering needs whole-story reasoning, so retrieval recall is NOT the metric;
+// evidenceChunkIds points at story windows mentioning the answer entity for the
+// diagnostic only. This case exists for the live-answer path.
+function normalizeDetectiveQaRow(
+  row: Record<string, unknown>,
+  truncatedCells: readonly string[],
+  options: Phase64MabPrepareOptions,
+): { case: MemoryAgentBenchCase; droppedQuestions: number } {
+  assertConsumedCellsIntact(truncatedCells, ["context", "questions", "answers", "metadata"]);
+  if (typeof row.context !== "string") {
+    throw new Error('MemoryAgentBench LRU row "context" must be a string');
+  }
+  const metadata = isRecord(row.metadata) ? row.metadata : undefined;
+  if (!metadata) {
+    throw new Error("MemoryAgentBench LRU row must include a metadata object");
+  }
+  const questions = asStringArray(row.questions, "questions");
+  const qaPairIds = asStringArray(metadata.qa_pair_ids, "metadata.qa_pair_ids");
+  if (!Array.isArray(row.answers)) {
+    throw new Error('MemoryAgentBench row field "answers" must be an array');
+  }
+  const sourceDataset =
+    typeof metadata.source === "string" && metadata.source.length > 0
+      ? metadata.source
+      : "detective_qa";
+
+  const story = row.context;
+  const chunks: MemoryAgentBenchChunk[] = [];
+  for (let offset = 0; offset < story.length; offset += DETECTIVE_QA_CHUNK_SIZE) {
+    const content = story.slice(offset, offset + DETECTIVE_QA_CHUNK_SIZE).trim();
+    if (content.length > 0) {
+      chunks.push({ content, id: chunks.length + 1, role: "user" });
+    }
+  }
+  const chunkLimit =
+    options.maxChunks === null ? chunks.length : Math.min(options.maxChunks, chunks.length);
+  const injectedChunks = chunks.slice(0, chunkLimit);
+  if (injectedChunks.length === 0) {
+    throw new Error("MemoryAgentBench LRU row produced no story chunks");
+  }
+  const normalizedChunks = injectedChunks.map((chunk) => ({
+    chunkId: chunk.id,
+    normalized: normalizeMatch(chunk.content),
+  }));
+
+  const available = Math.min(row.answers.length, questions.length, qaPairIds.length);
+  const normalizedQuestions: MemoryAgentBenchQuestion[] = [];
+  for (let index = 0; index < available; index += 1) {
+    if (
+      options.maxQuestions !== null &&
+      normalizedQuestions.length >= options.maxQuestions
+    ) {
+      break;
+    }
+    const goldAnswer = firstGoldAnswer(row.answers, index);
+    // Evidence = story windows mentioning the answer entity (option letter stripped).
+    const entity = normalizeMatch(goldAnswer.replace(/^\s*[A-D][.)]\s*/u, ""));
+    const evidenceChunkIds =
+      entity.length > 0
+        ? normalizedChunks
+            .filter((chunk) => chunk.normalized.includes(entity))
+            .map((chunk) => chunk.chunkId)
+        : [];
+    normalizedQuestions.push({
+      competency: "LRU",
+      evidenceChunkIds,
+      goldAnswer,
+      matchMode: "exact_match",
+      question: questions[index],
+      questionId: qaPairIds[index] ?? `${sourceDataset}_no${index}`,
+      staleChunkIds: [],
+    });
+  }
+  if (normalizedQuestions.length === 0) {
+    throw new Error("MemoryAgentBench LRU row produced no questions");
+  }
+
+  return {
+    case: {
+      caseId: `lru_${sourceDataset}`,
+      chunks: injectedChunks,
+      competency: "LRU",
+      questions: normalizedQuestions,
+      sourceDataset,
+    },
+    droppedQuestions: 0,
+  };
+}
+
 function normalizeRowToCase(
   competency: MemoryAgentBenchCompetency,
   row: Record<string, unknown>,
@@ -643,12 +740,11 @@ function normalizeRowToCase(
   if (competency === "TTL") {
     return normalizeIclRow(row, truncatedCells, options);
   }
-  // LRU is whole-story detective_qa / InfBench summarization, where the whole
-  // context is "evidence" and answering needs whole-story reasoning, not a single
-  // passage; its answer-eval normalizer is a tracked follow-up. AR/event_qa,
-  // CR/factconsolidation (retrieval) and TTL/ICL (answer-eval) are implemented.
+  if (competency === "LRU") {
+    return normalizeDetectiveQaRow(row, truncatedCells, options);
+  }
   throw new Error(
-    `MemoryAgentBench prep: ${competency} has no normalizer yet. AR/event_qa and CR/factconsolidation expose retrieval evidence; TTL/ICL has an answer-eval normalizer for the live path; LRU (whole-story detective_qa/summarization) answer-eval is a tracked follow-up. See the Phase 64 board.`,
+    `MemoryAgentBench prep: unsupported competency ${competency}. Expected AR, CR, TTL, or LRU.`,
   );
 }
 
