@@ -60,6 +60,10 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface LocomoSmokeCliOptions {
   benchmarkRoot?: string;
+  // Opt-in: rank retrieval with the Okapi BM25 lexical leg (recall under the
+  // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
+  // Deterministic and embedding-free, so it needs no model gateway.
+  bm25?: boolean;
   // Opt-in: seed memory with LLM conversational atomic-fact extraction instead of
   // raw dialogue turns (improvement-plan #3). Requires GOODMEMORY_EVAL_* model env.
   conversationalExtraction?: boolean;
@@ -140,6 +144,9 @@ export interface LocomoSmokeReport {
   benchmark: "locomo";
   // Resolved case source: "synthetic-smoke" or the external cases.json path.
   benchmarkSource: string;
+  // Whether the Okapi BM25 lexical leg (hybrid strategy) ranked retrieval, vs
+  // the default naive-Jaccard rules-only floor.
+  bm25Ranking: boolean;
   caseCount: number;
   cases: LocomoQuestionRetrieval[];
   categories: LocomoCategoryRetrievalSummary[];
@@ -178,6 +185,7 @@ export function parseLocomoSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
+    bm25: argv.includes("--bm25"),
     conversationalExtraction: argv.includes("--conversational-extraction"),
     evidencePack: argv.includes("--evidence-pack"),
     limit,
@@ -546,15 +554,20 @@ function createSmokeEmbeddingAdapter(): EmbeddingAdapter {
   };
 }
 
-export function createLocomoSmokeMemory(): GoodMemory {
+export function createLocomoSmokeMemory(
+  options: { bm25?: boolean } = {},
+): GoodMemory {
   // Deterministic id and clock seams keep repeated smoke runs reproducible:
   // ranking tie-breaks fall back to fact-id and timestamp comparisons.
   let idCounter = 0;
   let clockTick = 0;
   return createGoodMemory({
-    adapters: {
-      embeddingAdapter: createSmokeEmbeddingAdapter(),
-    },
+    // BM25 mode measures the pure Okapi BM25 lexical leg: enable bm25Ranking and
+    // drop the hashed smoke embedding so the additive ranking slot is BM25 alone
+    // (recall runs under the "hybrid" strategy, which is where the leg applies).
+    ...(options.bm25
+      ? { retrieval: { bm25Ranking: true } }
+      : { adapters: { embeddingAdapter: createSmokeEmbeddingAdapter() } }),
     storage: {
       provider: "memory",
     },
@@ -635,7 +648,14 @@ export async function runLocomoSmoke(
   const writeFileImpl = dependencies.writeFile ?? writeFile;
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
-  const createMemory = dependencies.createMemory ?? createLocomoSmokeMemory;
+  const createMemory =
+    dependencies.createMemory ??
+    (() => createLocomoSmokeMemory({ bm25: options.bm25 }));
+  // BM25 ranking applies under the "hybrid" strategy; the default stays on the
+  // pure-lexical rules-only floor.
+  const recallStrategy: "hybrid" | "rules-only" = options.bm25
+    ? "hybrid"
+    : "rules-only";
   const runId = options.runId ?? LOCOMO_SMOKE_RUN_ID;
   const outputDir =
     options.outputDir ??
@@ -691,7 +711,7 @@ export async function runLocomoSmoke(
         const recall = await memory.recall({
           query: question.question,
           scope,
-          strategy: "rules-only",
+          strategy: recallStrategy,
         });
         const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
         const retrieval = scoreLocomoRetrieval({
@@ -739,6 +759,7 @@ export async function runLocomoSmoke(
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
     benchmark: "locomo",
     benchmarkSource,
+    bm25Ranking: options.bm25 ?? false,
     caseCount: cases.length,
     cases: results,
     categories: summarizeLocomoRetrieval(results),

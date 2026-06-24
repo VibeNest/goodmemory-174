@@ -46,6 +46,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/LOCOMO",
+      bm25: false,
       conversationalExtraction: false,
       evidencePack: false,
       limit: 2,
@@ -61,6 +62,15 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "scripts/run-phase-65-locomo-smoke.ts",
         "--conversational-extraction",
       ]).conversationalExtraction,
+    ).toBe(true);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--bm25",
+      ]).bm25,
     ).toBe(true);
 
     expect(() =>
@@ -509,5 +519,41 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     // The dropped turn D1:2 is still retrievable because extraction is additive:
     // the raw turn was preserved, never destructively replaced (arXiv 2605.12978).
     expect(collectLocomoRetrievedTurnIds(recall)).toContain("D1:2");
+  });
+
+  it("runs the synthetic smoke under the BM25 lexical leg (embedding-free, no gateway)", async () => {
+    const report = await runLocomoSmoke(
+      { bm25: true, runId: "run-locomo-bm25", outputDir: "/tmp/locomo-out" },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.bm25Ranking).toBe(true);
+    expect(report.mode).toBe("retrieval-only");
+    // The BM25/hybrid recall path runs end to end with no execution failures and
+    // still scores every QA category.
+    expect(report.executionFailures).toBe(0);
+    for (const name of [
+      "single_hop",
+      "multi_hop",
+      "temporal",
+      "open_domain",
+      "adversarial",
+    ]) {
+      expect(category(report, name).questionCount).toBe(1);
+    }
+  });
+
+  it("defaults bm25Ranking to false (rules-only floor)", async () => {
+    const report = await runLocomoSmoke(
+      { runId: "run-locomo-default-bm25", outputDir: "/tmp/locomo-out" },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(report.bm25Ranking).toBe(false);
   });
 });
