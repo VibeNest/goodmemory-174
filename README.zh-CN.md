@@ -356,6 +356,46 @@ Runtime archive 默认不持久化。显式调用
 但不会写入 archive。即使产品选择启用 archive，也应保持 summary-only，
 不要把 raw transcript 当作默认记忆来源。
 
+## 可选 Recall 调优：多跳与离线 Embedding
+
+两个选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，不开启就不会改变行为。
+
+### 可选多跳 recall（multiHop）
+
+`recall()` 默认单遍。传入 `multiHop: true` 启用 opt-in 两遍检索：先跑一遍查询，
+从第一遍证据里抽取桥接实体（bridge entities），用它们扩展查询，再跑第二遍。
+
+```ts
+const recall = await memory.recall({
+  scope,
+  query: "Who manages the project Alice started?",
+  multiHop: true,
+});
+```
+
+- opt-in；不设置 `multiHop` 时默认 recall 保持单遍，行为不变。
+- 它**不是**通用语义检索器：按命名实体做词面桥接，不按语义排序。
+- 当第一遍 recall 很弱时它会**增加噪声**：第一遍捞错证据 → 桥接实体错 → 扩展查询
+  反而稀释 recall。在 LoCoMo（base retrieval 很低）上实测 `multiHop` **降低**了 recall。
+  所以不要用它来修对话 / 措辞差距类检索，那需要真正的语义检索。
+
+### 离线本地 embedding adapter
+
+`createLocalEmbeddingAdapter()` 是确定性、离线、零依赖的 embedding adapter
+（hashed 字符 n-gram 向量）。在不配置 embedding provider 时注入它做词面/形态层面的并列打破：
+
+```ts
+import { createGoodMemory, createLocalEmbeddingAdapter } from "goodmemory";
+
+const memory = createGoodMemory({
+  adapters: { embeddingAdapter: createLocalEmbeddingAdapter() },
+});
+```
+
+- 它**不是**神经语义检索：向量是 hashed 词面特征，只能在词面相似的候选之间打破并列，不理解语义。
+- **不要**用它来宣称语义 benchmark 提升：它无法弥合词面重叠已经错过的「问题↔文本」措辞差距。
+- 需要真正的语义排序时，请改为通过 `GOODMEMORY_EMBEDDING_*` 配置神经 embedding provider。
+
 ## Runtime 与存储
 
 `createGoodMemory({})` 遵循 local-first auto-storage contract：

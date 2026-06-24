@@ -460,6 +460,60 @@ For server integrations, start with the thin examples:
 For Python/FastAPI backends, use the packaged `goodmemory-http-bridge` path
 described below.
 
+## Opt-In Recall Tuning: Multi-Hop And Offline Embedding
+
+Both knobs below are optional and conservative by design. Default recall is
+single-pass and rules-only; nothing changes unless you opt in.
+
+### Opt-in multi-hop recall
+
+`recall()` is single-pass by default. Pass `multiHop: true` for an opt-in
+two-pass retrieval: GoodMemory runs the query, extracts bridge entities named in
+the first-pass evidence, expands the query with them, and runs a second pass.
+
+```ts
+const recall = await memory.recall({
+  scope,
+  query: "Who manages the project Alice started?",
+  multiHop: true,
+});
+```
+
+Use it when the answer needs an entity that only the first hop names (hop 1 finds
+"Alice started Project Atlas"; hop 2 needs "who manages Project Atlas").
+
+- It is opt-in. Default recall stays single-pass; leaving `multiHop` unset
+  changes nothing.
+- It is **not** a general semantic retriever. It bridges named entities
+  lexically; it does not rank by meaning.
+- It can **add noise when first-pass recall is weak**: if hop 1 surfaces the
+  wrong evidence, the extracted bridge entities are wrong and the expanded query
+  dilutes recall. Measured on LoCoMo (where base retrieval is very low) `multiHop`
+  *hurt* recall, so do not reach for it to fix conversational / phrasing-gap
+  retrieval — that needs real semantic retrieval, not multi-hop bridging.
+
+### Offline local embedding adapter
+
+`createLocalEmbeddingAdapter()` is a deterministic, offline, dependency-free
+embedding adapter (hashed character-n-gram vectors). Inject it for
+lexical/morphological tie-breaking without configuring an embedding provider:
+
+```ts
+import { createGoodMemory, createLocalEmbeddingAdapter } from "goodmemory";
+
+const memory = createGoodMemory({
+  adapters: { embeddingAdapter: createLocalEmbeddingAdapter() },
+});
+```
+
+- It is **not** neural semantic retrieval. The vectors are hashed lexical
+  features, so they break ties between lexically similar candidates; they do not
+  understand meaning.
+- Do **not** use it to claim a semantic benchmark improvement. It cannot bridge a
+  question-to-text phrasing gap that surface lexical overlap already misses.
+- For real semantic ranking, configure a neural embedding provider via
+  `GOODMEMORY_EMBEDDING_*` instead.
+
 ## Runtime And Storage
 
 `createGoodMemory({})` follows a local-first auto-storage contract:
