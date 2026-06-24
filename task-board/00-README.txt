@@ -50,7 +50,10 @@ Active Phase
 ------------
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
-- Phase 64 MemoryAgentBench is now active. Phase 63 BEAM remains partial: it has rules-only fitted retrieval recall 0.9621 and an accepted measured full-run checkpoint at 278/400 answer accuracy (0.695) with the answer-hardening evidence pack, but this is not BEAM performance closure or a public benchmark claim.
+- Phase 64 MemoryAgentBench has an accepted internal AR/CR zero-failure live closure (CR 0.959, AR 0.67, `executionFailures: 0`); internal small-slice evidence, not a public claim.
+- Phase 65 LoCoMo is banked as retrieval-boundary evidence; paused until a real neural semantic retrieval endpoint is available (next entry P65-R003). Dialog windows, rules-light query expansion, and LLM turn-captioning were ruled out under the current lexical/rules substrate.
+- Phase 63 BEAM remains partial: rules-only fitted retrieval recall 0.9621 and an accepted measured full-run checkpoint at 278/400 answer accuracy (0.695) with the answer-hardening evidence pack, but not BEAM performance closure or a public claim; answer-gap hardening is owned by the BEAM workstream.
+- Current active lane: claim hygiene / release docs, unless the BEAM answer-pack workstream owns active code.
 - Current entrypoint: `task-board/69-phase-64-memoryagentbench-agent-memory-hardening.txt`
 - Current breakdown: `task-board/phase-64-memoryagentbench-agent-memory-hardening/00-README.txt`
 - Paused BEAM entrypoint: `task-board/68-phase-63-beam-scale-and-noise-hardening.txt`

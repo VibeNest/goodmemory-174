@@ -56,6 +56,13 @@ recall. That is internal measured evidence, not a public benchmark claim — it
 rides on the fitted recall below and uses the answer model as its own judge, so
 the accepted README row stays retrieval-focused while answer-gap hardening and
 cross-benchmark evidence mature.
+MemoryAgentBench and LoCoMo rows remain blank until promoted to public claims.
+Internally, MemoryAgentBench has AR/CR small-slice zero-failure evidence
+(CR 0.959, AR 0.67, `executionFailures: 0`), while LoCoMo has a representative
+live-path run (199 questions, 0.020 answer accuracy) and a banked
+retrieval-boundary finding: the current lexical/rules substrate is recall-bound
+on short conversational dialog (exact gold-turn recall ~0.07-0.08, zero-retrieval
+~0.92) and needs real semantic retrieval before any performance claim.
 Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
 recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
 and a `generalization` figure (all narrow gates disabled). The large gap means
