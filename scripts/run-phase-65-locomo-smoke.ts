@@ -148,8 +148,10 @@ export interface LocomoSmokeReport {
   externalRoot: string | null;
   generatedAt: string;
   generatedBy: string;
-  // How memory was seeded: raw dialogue turns, or LLM conversational atomic-fact
-  // extraction (improvement-plan #3, opt-in via --conversational-extraction).
+  // How memory was seeded: raw dialogue turns only, or raw turns PLUS additive
+  // LLM conversational atomic-fact extraction (improvement-plan #3, opt-in via
+  // --conversational-extraction). The conversational mode is never destructive:
+  // normalized facts augment the raw turns, they do not replace them.
   ingestMode: "raw-turns" | "conversational-extraction";
   license: string;
   mode: "retrieval-only" | "live-answer";
@@ -664,6 +666,14 @@ export async function runLocomoSmoke(
     const memory = createMemory();
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
     try {
+      // Always seed the raw dialogue turns. Conversational extraction is
+      // ADDITIVE, never destructive: per arXiv 2605.12978 (lossy LLM rewriting
+      // degrades utility), normalized atomic facts are stored ALONGSIDE the raw
+      // turns as extra retrievable units, so a turn the extractor drops or
+      // misphrases is still recoverable from its raw form. This mirrors the
+      // product path, where assisted extraction merges with deterministic
+      // extraction rather than replacing it.
+      await seedLocomoCase({ memory, runId, testCase });
       if (conversationalExtractor) {
         await seedLocomoCaseConversational({
           extractor: conversationalExtractor,
@@ -671,8 +681,6 @@ export async function runLocomoSmoke(
           runId,
           testCase,
         });
-      } else {
-        await seedLocomoCase({ memory, runId, testCase });
       }
     } catch {
       executionFailures += testCase.questions.length;

@@ -10,6 +10,7 @@ import {
   parseLocomoSmokeCliOptions,
   runLocomoSmoke,
   scoreLocomoRetrieval,
+  seedLocomoCase,
   seedLocomoCaseConversational,
   summarizeLocomoRetrieval,
   type LocomoQuestionRetrieval,
@@ -442,5 +443,71 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(report.ingestMode).toBe("conversational-extraction");
     expect(report.mode).toBe("retrieval-only");
     expect(report.executionFailures).toBe(0);
+  });
+
+  it("conversational ingest is additive: a turn the extractor drops stays retrievable from its raw form", async () => {
+    const testCase: LocomoCase = {
+      caseId: "additive",
+      sourceConversation: "additive",
+      speakers: ["Melanie", "Caroline"],
+      turns: [
+        { diaId: "D1:1", speaker: "Caroline", content: "I finally adopted a beagle." },
+        {
+          diaId: "D1:2",
+          speaker: "Caroline",
+          content: "The hiking trip to Mount Rainier was canceled by a storm.",
+        },
+      ],
+      questions: [
+        {
+          questionId: "additive:q",
+          category: "open_domain",
+          question: "What happened with the Mount Rainier hiking trip?",
+          goldAnswer: "canceled",
+          matchMode: "f1_token_overlap",
+          evidenceTurnIds: ["D1:2"],
+          adversarialAnswer: null,
+        },
+      ],
+    };
+    // A lossy extractor: it emits a fact for turn 0 only and DROPS turn 1.
+    const lossyExtractor: MemoryExtractor = {
+      async extract() {
+        return {
+          candidates: [
+            {
+              id: "fact-0",
+              kindHint: "fact",
+              explicitness: "explicit",
+              content: "Caroline adopted a beagle.",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 1,
+        };
+      },
+    };
+
+    const memory = createLocomoSmokeMemory();
+    // Mirror the harness's additive seeding order: raw turns first, then facts.
+    await seedLocomoCase({ memory, runId: "t", testCase });
+    await seedLocomoCaseConversational({
+      extractor: lossyExtractor,
+      memory,
+      runId: "t",
+      testCase,
+    });
+
+    const scope = buildLocomoScope({ caseId: "additive", runId: "t" });
+    const recall = await memory.recall({
+      query: testCase.questions[0]!.question,
+      scope,
+      strategy: "rules-only",
+    });
+
+    // The dropped turn D1:2 is still retrievable because extraction is additive:
+    // the raw turn was preserved, never destructively replaced (arXiv 2605.12978).
+    expect(collectLocomoRetrievedTurnIds(recall)).toContain("D1:2");
   });
 });
