@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import type { LocomoCase } from "../../src/eval/locomo";
 import {
+  buildLocomoRecalledContext,
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
   createLocomoSmokeMemory,
@@ -45,6 +46,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "2",
       ]),
     ).toEqual({
+      answerFromRecalled: false,
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
       conversationalExtraction: false,
@@ -555,5 +557,32 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       },
     );
     expect(report.bm25Ranking).toBe(false);
+  });
+
+  it("buildLocomoRecalledContext answers from recalled records (normalized facts), ordered by dia_id", () => {
+    const recall = {
+      facts: [
+        {
+          content:
+            "[LOCOMO dia_id=D2:5 speaker=Caroline] Caroline started a dance studio after losing her banking job.",
+        },
+        {
+          content:
+            "[LOCOMO dia_id=D1:3 speaker=Gina] Gina's favorite dance style is contemporary.",
+        },
+      ],
+    } as never;
+
+    const ctx = buildLocomoRecalledContext({ recall });
+    const lines = ctx.split("\n");
+
+    // Ordered by source dia_id (D1:3 before D2:5) for chronological reasoning.
+    expect(lines[0]).toContain("dia_id=D1:3");
+    expect(lines[0]).toContain("Gina");
+    expect(lines[0]).toContain("contemporary");
+    expect(lines[1]).toContain("dia_id=D2:5");
+    // The normalized, coreference-resolved claim is surfaced to the answer model
+    // (a raw-turn reconstruction would not contain this phrasing).
+    expect(ctx).toContain("losing her banking job");
   });
 });

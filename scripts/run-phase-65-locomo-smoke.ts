@@ -64,6 +64,11 @@ export interface LocomoSmokeCliOptions {
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
   bm25?: boolean;
+  // Opt-in (live-answer only): build the answer context from the records recall
+  // actually surfaced (normalized facts included) instead of reconstructing raw
+  // turns, mirroring the product buildContext path. Targets the answer-assembly
+  // bottleneck on conversational corpora.
+  answerFromRecalled?: boolean;
   // Opt-in: seed memory with LLM conversational atomic-fact extraction instead of
   // raw dialogue turns (improvement-plan #3). Requires GOODMEMORY_EVAL_* model env.
   conversationalExtraction?: boolean;
@@ -185,6 +190,7 @@ export function parseLocomoSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
+    answerFromRecalled: argv.includes("--answer-from-recalled"),
     bm25: argv.includes("--bm25"),
     conversationalExtraction: argv.includes("--conversational-extraction"),
     evidencePack: argv.includes("--evidence-pack"),
@@ -460,6 +466,42 @@ export function buildLocomoEvidencePackContext(input: {
   });
 }
 
+// Answer from the records recall ACTUALLY surfaced (raw turns plus any
+// normalized conversational facts), rather than reconstructing raw turns by
+// dia_id. This mirrors the product answer path (answer over recalled facts via
+// buildContext) and lets the answer model see the self-contained, coref-resolved
+// claims that bridged the phrasing gap during retrieval -- the assembly side of
+// the "assembly, not storage, is the bottleneck" finding. Records are ordered by
+// source dia_id so multi-session reasoning sees chronological context.
+export function buildLocomoRecalledContext(input: {
+  recall: RecallResult;
+}): string {
+  const parsed = (input.recall.facts ?? []).map((fact) => {
+    const content = typeof fact.content === "string" ? fact.content : "";
+    const match = content.match(
+      /\[LOCOMO dia_id=(D\d+:\d+) speaker=([^\]]*)\]\s*([\s\S]*)$/,
+    );
+    if (match) {
+      return {
+        diaId: match[1] ?? "",
+        speaker: (match[2] ?? "").trim(),
+        text: (match[3] ?? "").trim(),
+      };
+    }
+    return { diaId: "", speaker: "", text: content.trim() };
+  });
+  parsed.sort((left, right) =>
+    left.diaId.localeCompare(right.diaId, undefined, { numeric: true }),
+  );
+  return parsed
+    .map((record) =>
+      record.diaId
+        ? `- dia_id=${record.diaId} (${record.speaker}): ${record.text}`
+        : `- ${record.text}`,
+    )
+    .join("\n");
+}
+
 const LOCOMO_ANSWER_SYSTEM =
   "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing.";
 
@@ -721,16 +763,18 @@ export async function runLocomoSmoke(
         });
         if (answerGenerator) {
           const generatedAnswer = await answerGenerator({
-            memoryContext: options.evidencePack
-              ? buildLocomoEvidencePackContext({
-                  question,
-                  retrievedTurnIds,
-                  testCase,
-                })
-              : buildLocomoAnswerContext({
-                  retrievedTurnIds,
-                  testCase,
-                }),
+            memoryContext: options.answerFromRecalled
+              ? buildLocomoRecalledContext({ recall })
+              : options.evidencePack
+                ? buildLocomoEvidencePackContext({
+                    question,
+                    retrievedTurnIds,
+                    testCase,
+                  })
+                : buildLocomoAnswerContext({
+                    retrievedTurnIds,
+                    testCase,
+                  }),
             question,
             retrievedTurnIds,
             testCase,
