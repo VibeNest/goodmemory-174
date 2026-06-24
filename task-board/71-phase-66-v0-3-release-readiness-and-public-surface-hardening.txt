@@ -1,0 +1,105 @@
+Phase 66: v0.3 Release Readiness and Public Surface Hardening
+============================================================
+
+Status
+------
+
+[ACTIVE] Phase 66 is the current lane. After the Phase 62-65 sequential
+benchmark-hardening work produced enough internal evidence (LongMemEval accepted;
+BEAM measured checkpoint 0.695; MemoryAgentBench accepted internal AR/CR
+zero-failure live closure; LoCoMo banked retrieval boundary), the next priority
+is NOT more benchmarks. It is proving the v0.3 public package surface is
+installable, importable, explainable, and rollback-safe for real users.
+
+This phase is docs + release-tooling + examples only. It opens no new eval/code
+work, does not reopen LoCoMo (paused until a real neural embedding endpoint,
+see board 70), does not touch the Phase 63 BEAM answer-pack lane (owned by the
+BEAM workstream), and adds no new public benchmark claim.
+
+
+Driver
+------
+
+GoodMemory has scattered internal benchmark evidence but the public surface had
+drift: stale phase wording across docs, undocumented new recall knobs (multiHop,
+createLocalEmbeddingAdapter), and no single gate that proves the package ships
+and imports cleanly. A user installing `goodmemory@0.3.0` must be able to install,
+import, run, and understand it without being misled by README/docs.
+
+
+Scope / Non-Goals
+-----------------
+
+Do:
+- Sync benchmark claim boundaries across README, Current-Status, Plan, and board.
+- Document the new public recall knobs with anti-misuse cautions.
+- Ship a reproducible release-readiness gate (build/pack/import/CLI/consistency).
+- Smoke the real example entry points.
+
+Do NOT:
+- Reopen LoCoMo retrieval research (needs a neural embedding endpoint first).
+- Run the local hashed-embedding hybrid (a lexical proxy; would pollute results).
+- Touch the Phase 63 BEAM answer-pack workstream's code.
+- Put MAB / LoCoMo internal numbers into the public README benchmark table.
+- Add any new public benchmark claim.
+
+
+Tasks
+-----
+
+[DONE] P66-T001 Sync benchmark claim boundaries (commit 404cd2d): README
+  internal-boundary note (MAB/LoCoMo rows stay blank), Current-Status + Plan
+  LoCoMo boundary, task-board active-lane router. Verified no real version drift
+  (package + READMEs + Current-Status already 0.3.x); README.zh-CN has no
+  benchmark table and defers to Current-Status.
+[DONE] P66-T002 Close the Phase 64 board status (commit 704d741): P64-T005 DONE,
+  both Phase 64 board headers flipped to CLOSED, active lane set to Phase 66.
+[DONE] P66-T003 Release-readiness gate (commit ...gate, scripts/run-v0-3-release-
+  readiness.ts, alias gate:v0-3-release-readiness). Checks: typecheck, unit tests,
+  build + dist, npm pack manifest, exports-target resolution, by-name Node import
+  smoke (offline node_modules symlink), CLI -V/--version, version/docs
+  consistency, zh-CN claim-boundary defer. Writes reports/release/v0.3/
+  readiness-report.json + summary.md (gitignored; regenerate via the alias).
+  Pure summary renderer unit-tested.
+[DONE] P66-T004 Public API docs (commit ...docs): README.md + README.zh-CN.md gain
+  an "Opt-In Recall Tuning" section documenting multiHop (opt-in, single-pass
+  default, bridge-entity use, NOT a general semantic retriever, can add noise when
+  pass-1 is weak, measured to hurt on LoCoMo) and createLocalEmbeddingAdapter
+  (deterministic offline hashed lexical, tie-breaking only, NOT neural semantic,
+  must not be used to claim a semantic benchmark improvement).
+[DONE] P66-T005 Examples smoke (commit ...examples): examples/multihop-recall.ts
+  (minimal opt-in multiHop example, no semantic-reasoning overclaim) +
+  tests/unit/examples.smoke.test.ts running basic-chat, plain-ai-sdk-server, the
+  reference-chat-product backend, and the multi-hop example against in-memory
+  GoodMemory (no ports). The test's imports also pull examples/ into
+  `bun run typecheck` (examples/ is otherwise outside the tsconfig include),
+  catching example API drift at the gate.
+
+
+Acceptance Criteria
+-------------------
+
+- docs claim boundaries consistent across README / README.zh-CN / Current-Status /
+  Plan / task-board
+- package version and docs consistent (0.3.0 everywhere; no stale version)
+- build / typecheck / unit smoke green
+- npm pack manifest + by-name Node import smoke green
+- CLI -V / --version smoke green (prints the package version)
+- public API docs cover multiHop and createLocalEmbeddingAdapter with anti-misuse
+  cautions
+- no new public benchmark claim added
+
+The gate is the executable form of these criteria: `bun run
+gate:v0-3-release-readiness` (add --strict to fail the process on any required
+check). reports/release/v0.3/summary.md is the human-readable result.
+
+
+Source And Evidence Pointers
+----------------------------
+
+- Gate: scripts/run-v0-3-release-readiness.ts (alias gate:v0-3-release-readiness)
+- Gate report (gitignored): reports/release/v0.3/readiness-report.json + summary.md
+- Public API docs: README.md / README.zh-CN.md "Opt-In Recall Tuning" section
+- Claim boundaries: docs/GoodMemory-Current-Status-and-Evidence.md
+- Active-lane router: task-board/00-README.txt
+- LoCoMo paused boundary (do not reopen): task-board/70-phase-65-...txt
