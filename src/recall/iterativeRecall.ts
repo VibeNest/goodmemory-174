@@ -99,8 +99,27 @@ export function extractBridgeEntities(input: {
     .map((candidate) => candidate.token);
 }
 
+// Safety ceiling on the number of recall passes, independent of the requested
+// maxHops, so an injected expandQuery strategy can never trigger a runaway loop.
+const MAX_HOPS_CEILING = 6;
+const DEFAULT_MAX_HOPS = 2;
+
 export interface IterativeRecallOptions {
   bridgeEntityLimit?: number;
+  // Maximum total recall passes (>= 1). Default 2 (one bridge expansion), the
+  // historical two-pass behavior. The literature shows 2-3 hops capture most of
+  // the multi-hop gain; clamped to MAX_HOPS_CEILING.
+  maxHops?: number;
+  // Optional strategy for the next-hop query, e.g. an LLM that reads the facts so
+  // far and writes a focused follow-up question (reasoning-driven multi-hop).
+  // Returns the next query, or null to stop. When provided it replaces the
+  // default lexical bridge-entity expansion (so bridgeEntities stays empty).
+  expandQuery?: (input: {
+    originalQuery: string;
+    query: string;
+    facts: readonly { content: string }[];
+    hop: number;
+  }) => string | null | Promise<string | null>;
 }
 
 export interface IterativeRecallOutcome<TResult> {
@@ -117,26 +136,66 @@ export async function iterativeRecall<
   recall: (query: string) => Promise<TResult>;
   options?: IterativeRecallOptions;
 }): Promise<IterativeRecallOutcome<TResult>> {
-  const first = await input.recall(input.query);
-  const bridgeEntities = extractBridgeEntities({
-    facts: first.facts,
-    limit: input.options?.bridgeEntityLimit,
-    query: input.query,
-  });
-  if (bridgeEntities.length === 0) {
-    return {
-      bridgeEntities,
-      expandedQuery: input.query,
-      hops: 1,
-      result: first,
-    };
+  const maxHops = Math.min(
+    MAX_HOPS_CEILING,
+    Math.max(1, input.options?.maxHops ?? DEFAULT_MAX_HOPS),
+  );
+  const expandQuery = input.options?.expandQuery;
+
+  let result = await input.recall(input.query);
+  let activeQuery = input.query;
+  let hops = 1;
+  const bridgeEntities: string[] = [];
+  const seenBridge = new Set<string>();
+  const seenFactContent = new Set(result.facts.map((fact) => fact.content));
+
+  while (hops < maxHops) {
+    let nextQuery: string | null;
+    if (expandQuery) {
+      nextQuery = await expandQuery({
+        originalQuery: input.query,
+        query: activeQuery,
+        facts: result.facts,
+        hop: hops,
+      });
+    } else {
+      const hopBridges = extractBridgeEntities({
+        facts: result.facts,
+        limit: input.options?.bridgeEntityLimit,
+        query: activeQuery,
+      });
+      const freshBridges = hopBridges.filter(
+        (bridge) => !seenBridge.has(bridge.toLowerCase()),
+      );
+      if (freshBridges.length === 0) {
+        break;
+      }
+      for (const bridge of freshBridges) {
+        seenBridge.add(bridge.toLowerCase());
+        bridgeEntities.push(bridge);
+      }
+      nextQuery = `${input.query} ${bridgeEntities.join(" ")}`;
+    }
+    if (!nextQuery || nextQuery === activeQuery) {
+      break;
+    }
+    result = await input.recall(nextQuery);
+    activeQuery = nextQuery;
+    hops += 1;
+    // Stop early once a hop surfaces nothing new, so extra hops are not wasted.
+    const sizeBefore = seenFactContent.size;
+    for (const fact of result.facts) {
+      seenFactContent.add(fact.content);
+    }
+    if (seenFactContent.size === sizeBefore) {
+      break;
+    }
   }
-  const expandedQuery = `${input.query} ${bridgeEntities.join(" ")}`;
-  const second = await input.recall(expandedQuery);
+
   return {
     bridgeEntities,
-    expandedQuery,
-    hops: 2,
-    result: second,
+    expandedQuery: activeQuery,
+    hops,
+    result,
   };
 }

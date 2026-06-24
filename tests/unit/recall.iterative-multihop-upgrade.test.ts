@@ -1,0 +1,120 @@
+import { describe, expect, it } from "bun:test";
+import { createFactMemory, type FactMemory } from "../../src/domain/records";
+import type { RecallResult } from "../../src/api/contracts";
+import { iterativeRecall } from "../../src/recall/iterativeRecall";
+
+function fact(id: string, content: string): FactMemory {
+  return createFactMemory({
+    id,
+    userId: "u-1",
+    workspaceId: "workspace-a",
+    category: "project",
+    content,
+    source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+}
+
+// Same deterministic recall stand-in as the base iterative test: a fact is
+// retrieved when it shares a content word of length >= 4 with the query.
+function lexicalRecall(
+  corpus: readonly FactMemory[],
+): (query: string) => Promise<RecallResult> {
+  const significant = (text: string): Set<string> =>
+    new Set(
+      text
+        .toLowerCase()
+        .split(/[^a-z0-9]+/u)
+        .filter((token) => token.length >= 4),
+    );
+  return async (query: string) => {
+    const queryWords = significant(query);
+    const facts = corpus.filter((candidate) => {
+      for (const word of significant(candidate.content)) {
+        if (queryWords.has(word)) {
+          return true;
+        }
+      }
+      return false;
+    });
+    return { facts } as unknown as RecallResult;
+  };
+}
+
+describe("iterativeRecall multi-hop upgrade", () => {
+  // A two-bridge chain: query -> A (project) -> B (Brunhilde Vasquez) -> C (Tobias Quill).
+  const start = fact("a-start", "The project lead is Brunhilde Vasquez.");
+  const mid = fact("b-mid", "Brunhilde Vasquez mentors Tobias Quill.");
+  const end = fact("c-end", "Tobias Quill won the Hawthorne Prize.");
+  const distractor = fact("d", "The cafeteria menu changes weekly.");
+  const corpus = [start, mid, end, distractor];
+  const query = "Tell me about the project leadership";
+
+  it("default two passes reach the first bridge but not the second", async () => {
+    const outcome = await iterativeRecall({ query, recall: lexicalRecall(corpus) });
+    expect(outcome.hops).toBe(2);
+    const ids = outcome.result.facts.map((entry) => entry.id);
+    expect(ids).toContain("a-start");
+    expect(ids).toContain("b-mid");
+    expect(ids).not.toContain("c-end");
+  });
+
+  it("reaches the second bridge with maxHops: 3", async () => {
+    const outcome = await iterativeRecall({
+      query,
+      recall: lexicalRecall(corpus),
+      options: { maxHops: 3 },
+    });
+    expect(outcome.hops).toBe(3);
+    const ids = outcome.result.facts.map((entry) => entry.id);
+    expect(ids).toContain("c-end");
+    expect(ids).not.toContain("d");
+  });
+
+  it("stops early once a hop surfaces nothing new, without burning all hops", async () => {
+    // A short chain that exhausts at b-mid; a generous cap must not run forever.
+    const a = fact("a", "The release owner is Ingrid Solberg.");
+    const b = fact("b", "Ingrid Solberg approved the rollout.");
+    const outcome = await iterativeRecall({
+      query: "Who owns the release?",
+      recall: lexicalRecall([a, b]),
+      options: { maxHops: 5 },
+    });
+    expect(outcome.hops).toBeLessThan(5);
+  });
+
+  it("uses an injected expandQuery strategy and leaves lexical bridges empty", async () => {
+    const queriesSeen: string[] = [];
+    const outcome = await iterativeRecall({
+      query,
+      recall: (q) => {
+        queriesSeen.push(q);
+        return lexicalRecall(corpus)(q);
+      },
+      options: {
+        maxHops: 3,
+        // A stand-in "reasoning" strategy that walks the chain explicitly.
+        expandQuery: ({ hop }) =>
+          hop === 1
+            ? "Brunhilde Vasquez"
+            : hop === 2
+              ? "Tobias Quill"
+              : null,
+      },
+    });
+    expect(outcome.hops).toBe(3);
+    expect(outcome.bridgeEntities).toEqual([]);
+    expect(outcome.result.facts.map((entry) => entry.id)).toContain("c-end");
+    expect(queriesSeen).toEqual([query, "Brunhilde Vasquez", "Tobias Quill"]);
+  });
+
+  it("stays single-hop when expandQuery returns null", async () => {
+    const outcome = await iterativeRecall({
+      query,
+      recall: lexicalRecall(corpus),
+      options: { maxHops: 4, expandQuery: () => null },
+    });
+    expect(outcome.hops).toBe(1);
+  });
+});

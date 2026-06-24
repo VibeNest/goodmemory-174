@@ -932,9 +932,17 @@ class GoodMemoryImpl implements GoodMemory {
     try {
       const singlePassRecall = (query: string) =>
         this.recallEngine.recall({ ...input, query });
+      const multiHopMaxHops =
+        typeof input.multiHop === "number" ? input.multiHop : undefined;
       const perQueryRecall = input.multiHop
         ? async (query: string) =>
-            (await iterativeRecall({ query, recall: singlePassRecall })).result
+            (
+              await iterativeRecall({
+                query,
+                recall: singlePassRecall,
+                options: { maxHops: multiHopMaxHops },
+              })
+            ).result
         : singlePassRecall;
       let result = input.decompose
         ? (
@@ -949,6 +957,7 @@ class GoodMemoryImpl implements GoodMemory {
               await iterativeRecall({
                 query: input.query,
                 recall: singlePassRecall,
+                options: { maxHops: multiHopMaxHops },
               })
             ).result
           : await this.recallEngine.recall(input);

@@ -139,11 +139,12 @@ export interface RecallInput {
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
-  // Opt-in two-pass retrieval for multi-hop questions: after the first pass,
-  // bridge entities (names/values) from the retrieved facts expand the query and
-  // a second pass reaches facts reachable only through that bridge. Defaults to
-  // single-pass recall.
-  multiHop?: boolean;
+  // Opt-in iterative retrieval for multi-hop questions: after each pass, bridge
+  // entities (names/values) from the retrieved facts expand the query so a
+  // further pass reaches facts reachable only through that bridge. `true` runs
+  // the default two passes; a number sets the maximum number of passes (e.g. 3
+  // for two bridge expansions). Defaults to single-pass recall.
+  multiHop?: boolean | number;
   // Opt-in query decomposition: split a compound query into sub-queries, recall
   // each separately, and union the results (the packet is re-rendered over the
   // union). Lexical-compatible and provider-free by default (a deterministic
