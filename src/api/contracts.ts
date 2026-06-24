@@ -38,6 +38,7 @@ import type {
   RecallHit,
 } from "../recall/engine";
 import type { RecallAssistantInfluence } from "../recall/assistant";
+import type { Reranker } from "../recall/reranker";
 import type {
   RecallRouterStrategy,
   RoutingDecision,
@@ -120,6 +121,9 @@ export interface GoodMemoryConfig {
     assistedExtractor?: MemoryExtractor;
     documentStore?: DocumentStore;
     embeddingAdapter?: EmbeddingAdapter;
+    // Opt-in pointwise reranker. When set, recalled facts are reranked over their
+    // top-K window (and the packet re-rendered). Absent by default => no-op.
+    reranker?: Reranker;
     sessionStore?: SessionStore;
     vectorStore?: VectorStore;
   };
@@ -145,6 +149,9 @@ export interface RecallInput {
   // union). Lexical-compatible and provider-free by default (a deterministic
   // splitter). Defaults to a single recall; composes with multiHop.
   decompose?: boolean;
+  // When a reranker adapter is configured, reranking is applied unless this is
+  // set to false; ignored when no reranker is configured.
+  rerank?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
 }

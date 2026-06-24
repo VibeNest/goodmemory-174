@@ -134,6 +134,16 @@ export type {
   QueryDecompositionOptions,
 } from "./recall/queryDecomposition";
 export {
+  applyReranking,
+  createLexicalCoverageReranker,
+} from "./recall/reranker";
+export type {
+  Reranker,
+  RerankerDocument,
+  RerankerInput,
+  RerankerScore,
+} from "./recall/reranker";
+export {
   resolveCurrentValue,
   resolveCurrentValuesByGroup,
 } from "./answer/currentValueResolution";

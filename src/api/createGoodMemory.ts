@@ -38,6 +38,7 @@ import { buildMemoryPacket, renderMemoryPacket } from "../recall/contextBuilder"
 import { createRecallEngine } from "../recall/engine";
 import { iterativeRecall } from "../recall/iterativeRecall";
 import { decomposedRecall } from "../recall/queryDecomposition";
+import { applyReranking, type Reranker } from "../recall/reranker";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
@@ -279,6 +280,49 @@ function mergeDecomposedRecallResults(
           "decomposed_recall",
         ]),
       ],
+    },
+  };
+}
+
+// Rerank the recalled facts over their top-K window with the configured
+// pointwise reranker, then re-render the packet so it reflects the reranked
+// order. Other record arrays and session singletons are unchanged.
+async function applyFactRerankingToResult(
+  result: RecallResult,
+  reranker: Reranker,
+  query: string,
+): Promise<RecallResult> {
+  if (result.facts.length < 2) {
+    return result;
+  }
+  const facts = await applyReranking({
+    items: result.facts,
+    query,
+    reranker,
+    getText: (fact) => `${fact.content} ${fact.subject ?? ""}`,
+  });
+  const packet = buildMemoryPacket({
+    profile: result.profile,
+    preferences: result.preferences,
+    references: result.references,
+    facts,
+    feedback: result.feedback,
+    archives: result.archives,
+    evidence: result.evidence,
+    episodes: result.episodes,
+    workingMemory: result.workingMemory,
+    journal: result.journal,
+    locale: result.metadata.locale,
+    routingDecision: result.metadata.routingDecision,
+  });
+  return {
+    ...result,
+    facts,
+    packet,
+    metadata: {
+      ...result.metadata,
+      tokenCount: packet.debug?.estimatedTokens ?? result.metadata.tokenCount,
+      policyApplied: [...new Set([...result.metadata.policyApplied, "reranked"])],
     },
   };
 }
@@ -892,7 +936,7 @@ class GoodMemoryImpl implements GoodMemory {
         ? async (query: string) =>
             (await iterativeRecall({ query, recall: singlePassRecall })).result
         : singlePassRecall;
-      const result = input.decompose
+      let result = input.decompose
         ? (
             await decomposedRecall({
               query: input.query,
@@ -908,6 +952,10 @@ class GoodMemoryImpl implements GoodMemory {
               })
             ).result
           : await this.recallEngine.recall(input);
+      const reranker = this.config.adapters?.reranker;
+      if (reranker && input.rerank !== false) {
+        result = await applyFactRerankingToResult(result, reranker, input.query);
+      }
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,
         result,
