@@ -19,7 +19,7 @@
 // field per competency, set to null, so the contract is complete and the
 // deferral is explicit rather than silent.
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemory, RecallResult } from "../src/api/contracts";
@@ -63,7 +63,14 @@ export interface MemoryAgentBenchSmokeCliOptions {
   // When true (and no answerGenerator is injected), construct the real LLM
   // generator and run in live-answer mode.
   live?: boolean;
+  // Baseline ablation: answer with an EMPTY memory context (isolates how much the
+  // retrieved/organized memory contributes vs the model prior + prompt format).
+  noMemory?: boolean;
   outputDir?: string;
+  // Append each completed question to a progress JSONL and, when set, skip
+  // questions already completed in a prior pass — so a clean executionFailures 0
+  // run survives transient gateway drops without re-running everything.
+  resume?: boolean;
   runId?: string;
 }
 
@@ -86,6 +93,7 @@ export type MemoryAgentBenchAnswerGenerator = (
 
 export interface MemoryAgentBenchSmokeDependencies {
   answerGenerator?: MemoryAgentBenchAnswerGenerator;
+  appendFile?: (path: string, data: string) => Promise<unknown>;
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
   now?: () => Date;
@@ -147,8 +155,12 @@ export interface MemoryAgentBenchSmokeReport {
   generatedAt: string;
   generatedBy: string;
   license: string;
+  // True when answers were generated with an empty memory context (baseline).
+  noMemoryBaseline: boolean;
   phase: "phase-64";
   mode: "retrieval-only" | "live-answer";
+  // True when this run reused a prior pass's progress JSONL (--resume).
+  resumed: boolean;
   profilesCompared: string[];
   questionCount: number;
   runDirectory: string;
@@ -176,7 +188,9 @@ export function parseMemoryAgentBenchSmokeCliOptions(
     evidencePack: argv.includes("--evidence-pack"),
     limit,
     live: argv.includes("--live"),
+    noMemory: argv.includes("--no-memory"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    resume: argv.includes("--resume"),
     runId: resolveCliFlagValue(argv, "--run-id"),
   };
 }
@@ -650,21 +664,65 @@ export async function runMemoryAgentBenchSmoke(
     dependencies.answerGenerator ??
     (options.live ? createMemoryAgentBenchLiveAnswerGenerator() : undefined);
 
-  const results: MemoryAgentBenchQuestionRetrieval[] = [];
-  let executionFailures = 0;
-  for (const testCase of cases) {
-    const memory = createMemory();
-    const scope = buildMemoryAgentBenchScope({
-      caseId: testCase.caseId,
-      runId,
-    });
+  await mkdirImpl(runDirectory, { recursive: true });
+  const appendFileImpl =
+    dependencies.appendFile ?? ((path: string, data: string) => appendFile(path, data));
+  const progressPath = join(runDirectory, "live-progress.jsonl");
+
+  // Resume: load completed question results from a prior pass's progress JSONL so
+  // a follow-up pass only re-runs the questions that still failed.
+  const completed = new Map<string, MemoryAgentBenchQuestionRetrieval>();
+  if (options.resume) {
     try {
-      await seedMemoryAgentBenchCase({ memory, runId, testCase });
+      const raw = await readFileImpl(progressPath);
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.length === 0) {
+          continue;
+        }
+        try {
+          const entry = JSON.parse(trimmed) as MemoryAgentBenchQuestionRetrieval;
+          if (typeof entry?.questionId === "string") {
+            completed.set(entry.questionId, entry);
+          }
+        } catch {
+          // skip a corrupt progress line
+        }
+      }
     } catch {
-      executionFailures += testCase.questions.length;
-      continue;
+      // no prior progress; this is the first pass
+    }
+  }
+
+  const results: MemoryAgentBenchQuestionRetrieval[] = [];
+  let totalQuestions = 0;
+  for (const testCase of cases) {
+    totalQuestions += testCase.questions.length;
+    const hasPending = testCase.questions.some(
+      (question) => !completed.has(question.questionId),
+    );
+    // Seed only when this pass actually has work for the case; otherwise replay
+    // the stored results.
+    let memory: GoodMemory | undefined;
+    let scope: ReturnType<typeof buildMemoryAgentBenchScope> | undefined;
+    if (hasPending) {
+      memory = createMemory();
+      scope = buildMemoryAgentBenchScope({ caseId: testCase.caseId, runId });
+      try {
+        await seedMemoryAgentBenchCase({ memory, runId, testCase });
+      } catch {
+        memory = undefined; // seed failed; pending questions fail this pass
+      }
     }
     for (const question of testCase.questions) {
+      const cached = completed.get(question.questionId);
+      if (cached) {
+        results.push(cached);
+        continue;
+      }
+      if (!memory || !scope) {
+        continue; // could not seed; retried on the next --resume pass
+      }
       try {
         const recall = await memory.recall({
           query: question.question,
@@ -678,24 +736,29 @@ export async function runMemoryAgentBenchSmoke(
           retrievedChunkIds,
           testCase,
         });
+        let result: MemoryAgentBenchQuestionRetrieval;
         if (answerGenerator) {
-          const memoryContext = options.evidencePack
-            ? buildMemoryAgentBenchEvidencePackContext({
-                question,
-                retrievedChunkIds,
-                testCase,
-              })
-            : buildMemoryAgentBenchAnswerContext({
-                retrievedChunkIds,
-                testCase,
-              });
+          // --no-memory baseline answers with an empty context (isolates the
+          // model prior + prompt format from the contribution of memory).
+          const memoryContext = options.noMemory
+            ? ""
+            : options.evidencePack
+              ? buildMemoryAgentBenchEvidencePackContext({
+                  question,
+                  retrievedChunkIds,
+                  testCase,
+                })
+              : buildMemoryAgentBenchAnswerContext({
+                  retrievedChunkIds,
+                  testCase,
+                });
           const generatedAnswer = await answerGenerator({
             memoryContext,
             question,
             retrievedChunkIds,
             testCase,
           });
-          results.push({
+          result = {
             ...retrieval,
             answerCorrect: scoreMemoryAgentBenchAnswer({
               answer: generatedAnswer,
@@ -703,15 +766,25 @@ export async function runMemoryAgentBenchSmoke(
               matchMode: question.matchMode,
             }),
             generatedAnswer,
-          });
+          };
         } else {
-          results.push(retrieval);
+          result = retrieval;
+        }
+        results.push(result);
+        completed.set(question.questionId, result);
+        // Checkpoint so a later --resume can skip this question.
+        try {
+          await appendFileImpl(progressPath, `${JSON.stringify(result)}\n`);
+        } catch {
+          // progress checkpoint is best-effort; never fail a question on it
         }
       } catch {
-        executionFailures += 1;
+        // failed this pass; omitted from results (counted as an execution
+        // failure) and retried on the next --resume pass
       }
     }
   }
+  const executionFailures = totalQuestions - results.length;
   const liveAnswer = answerGenerator !== undefined;
 
   const report: MemoryAgentBenchSmokeReport = {
@@ -727,8 +800,10 @@ export async function runMemoryAgentBenchSmoke(
     generatedBy: GENERATED_BY,
     license: UPSTREAM_LICENSE,
     mode: liveAnswer ? "live-answer" : "retrieval-only",
+    noMemoryBaseline: options.noMemory === true,
     phase: "phase-64",
     profilesCompared: [...PROFILES_COMPARED],
+    resumed: options.resume === true,
     questionCount: results.length,
     runDirectory,
     runId,

@@ -45,7 +45,9 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
       evidencePack: false,
       limit: 2,
       live: false,
+      noMemory: false,
       outputDir: "/tmp/out",
+      resume: false,
       runId: "run-mab",
     });
     const withFlags = parseMemoryAgentBenchSmokeCliOptions([
