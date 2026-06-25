@@ -14,7 +14,7 @@ import { resolveCliFlagValue } from "./cli-options";
 
 type ArmOptions = Pick<
   LocomoSmokeCliOptions,
-  "bm25" | "decompose" | "multiHop" | "rerank"
+  "bm25" | "decompose" | "multiHop" | "rerank" | "conversationalExtraction"
 >;
 
 const ARMS: ReadonlyArray<{ label: string; options: ArmOptions }> = [
@@ -23,6 +23,14 @@ const ARMS: ReadonlyArray<{ label: string; options: ArmOptions }> = [
   { label: "bm25+decompose", options: { bm25: true, decompose: true } },
   { label: "bm25+multihop", options: { bm25: true, multiHop: true } },
   { label: "bm25+rerank", options: { bm25: true, rerank: true } },
+  {
+    label: "bm25+decompose+rerank",
+    options: { bm25: true, decompose: true, rerank: true },
+  },
+  {
+    label: "bm25+conversational",
+    options: { bm25: true, conversationalExtraction: true },
+  },
   {
     label: "bm25+decompose+multihop+rerank",
     options: { bm25: true, decompose: true, multiHop: true, rerank: true },
@@ -56,11 +64,18 @@ async function main(): Promise<void> {
   const limitRaw = resolveCliFlagValue(argv, "--limit");
   const limit = limitRaw === undefined ? undefined : Number(limitRaw);
   // Live answer A/B (deterministic F1, no judge) is bounded to the key arms.
-  const arms = live
-    ? ARMS.filter((arm) =>
-        ["jaccard-baseline", "bm25", "bm25+decompose"].includes(arm.label),
-      )
-    : ARMS;
+  const liveArms = ["jaccard-baseline", "bm25", "bm25+decompose"];
+  const armsFilterRaw = resolveCliFlagValue(argv, "--arms");
+  const armsFilter = armsFilterRaw
+    ? armsFilterRaw.split(",").map((label) => label.trim())
+    : null;
+  // An explicit --arms list selects from ALL arms; otherwise --live narrows to
+  // the key answer-A/B arms, and the default runs every arm.
+  const arms = armsFilter
+    ? ARMS.filter((arm) => armsFilter.includes(arm.label))
+    : live
+      ? ARMS.filter((arm) => liveArms.includes(arm.label))
+      : ARMS;
 
   const rows: Array<{
     label: string;
