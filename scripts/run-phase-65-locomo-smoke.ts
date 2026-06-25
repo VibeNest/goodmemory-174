@@ -40,6 +40,7 @@ import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   requestOpenAICompatibleText,
+  stripThinkingBlocks,
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
 import { resolveLiveModelConfig } from "./run-eval";
@@ -633,7 +634,7 @@ export function buildLocomoRecalledContext(input: {
 }
 
 const LOCOMO_ANSWER_SYSTEM =
-  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing.";
+  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). Output only the final answer with no explanation.";
 
 export function buildLocomoPrompt(input: {
   memoryContext: string;
@@ -653,8 +654,8 @@ const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120000;
 // downstream, so no judge).
 export function createLocomoLiveAnswerGenerator(): LocomoAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
-  return async (input) =>
-    withAISDKRetries(() =>
+  return async (input) => {
+    const raw = await withAISDKRetries(() =>
       requestOpenAICompatibleText({
         model,
         prompt: buildLocomoPrompt({
@@ -665,6 +666,11 @@ export function createLocomoLiveAnswerGenerator(): LocomoAnswerGenerator {
         timeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
       }),
     );
+    // Reasoning models (gpt-5.x) emit a <think>...</think> block before the
+    // answer; the text path does not strip it (only the structured path does),
+    // so strip it here or it pollutes the deterministic token-F1 score.
+    return stripThinkingBlocks(raw);
+  };
 }
 
 export function summarizeLocomoRetrieval(
