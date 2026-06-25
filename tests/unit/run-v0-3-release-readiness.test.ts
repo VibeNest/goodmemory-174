@@ -37,7 +37,7 @@ function report(overrides: Partial<ReleaseReadinessReport> = {}): ReleaseReadine
     ],
     generatedAt: "2026-06-23T00:00:00.000Z",
     generatedBy: "scripts/run-v0-3-release-readiness.ts",
-    packageVersion: "0.3.0",
+    packageVersion: "0.3.5",
     phase: "phase-66",
     summary: { failed: 1, passed: 1, skipped: 1, total: 3 },
     ...overrides,
@@ -48,7 +48,7 @@ describe("v0.3 release-readiness summary", () => {
   it("renders a markdown table with one row per check and escapes pipes", () => {
     const markdown = renderSummary(report());
     expect(markdown).toContain("# v0.3 Release Readiness");
-    expect(markdown).toContain("- package version: 0.3.0");
+    expect(markdown).toContain("- package version: 0.3.5");
     expect(markdown).toContain("| TypeScript typecheck | yes | PASS |");
     expect(markdown).toContain("| Unit test suite | no | SKIP |");
     // pipe inside a detail must be escaped so it does not break the table.

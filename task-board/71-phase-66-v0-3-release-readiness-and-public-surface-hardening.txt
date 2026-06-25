@@ -23,7 +23,7 @@ Driver
 GoodMemory has scattered internal benchmark evidence but the public surface had
 drift: stale phase wording across docs, undocumented new recall knobs (multiHop,
 createLocalEmbeddingAdapter), and no single gate that proves the package ships
-and imports cleanly. A user installing `goodmemory@0.3.0` must be able to install,
+and imports cleanly. A user installing `goodmemory@0.3.5` must be able to install,
 import, run, and understand it without being misled by README/docs.
 
 
@@ -81,7 +81,7 @@ Acceptance Criteria
 
 - docs claim boundaries consistent across README / README.zh-CN / Current-Status /
   Plan / task-board
-- package version and docs consistent (0.3.0 everywhere; no stale version)
+- package version and docs consistent (0.3.5 everywhere; no stale version)
 - build / typecheck / unit smoke green
 - npm pack manifest + by-name Node import smoke green
 - CLI -V / --version smoke green (prints the package version)

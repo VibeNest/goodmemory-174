@@ -1426,7 +1426,9 @@ describe("goodmemory cli host bootstrap", () => {
     }
   });
 
-  it("anchors generated Codex exports to the bootstrapped workspace root", async () => {
+  it(
+    "anchors generated Codex exports to the bootstrapped workspace root",
+    async () => {
     const workspace = await createTempWorkspace("goodmemory-codex-bootstrap-anchor");
     const caller = await createTempWorkspace("goodmemory-codex-bootstrap-caller");
 
@@ -1483,7 +1485,9 @@ describe("goodmemory cli host bootstrap", () => {
       await caller.cleanup();
       await workspace.cleanup();
     }
-  });
+    },
+    HOST_BOOTSTRAP_SCRIPT_TEST_TIMEOUT_MS,
+  );
 
   it(
     "generated Codex pre-tool-use hook blocks risky Bash commands and routes them to the action gate",

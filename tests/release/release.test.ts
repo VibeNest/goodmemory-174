@@ -716,7 +716,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.3.0");
+    expect(pkg.version).toBe("0.3.5");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -1406,8 +1406,8 @@ describe("release metadata and docs", () => {
   });
 
   it("v0.3 package metadata and public release docs agree on the current stable release", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.3.0");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.3.0.tgz");
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.3.5");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.3.5.tgz");
 
     const releaseDocPaths = [
       "README.md",
@@ -2931,7 +2931,9 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("Phase 64 MemoryAgentBench is now active");
+    expect(taskBoard).toContain("Phase 64 MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
+    expect(taskBoard).toContain("Phase 65 LoCoMo is banked as retrieval-boundary evidence");
+    expect(taskBoard).toContain("Current active lane: v0.3 release readiness / public-surface hardening (Phase 66)");
     expect(taskBoard).toContain(
       "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
     );

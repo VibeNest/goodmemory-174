@@ -14,7 +14,7 @@ function cleanReport(overrides: Partial<BenchmarkClaimReport> = {}): BenchmarkCl
     dataset: { license: "MIT", source: "https://example.com/bench", vendored: false },
     metrics: { baseline: 0.5, primary: "accuracy", score: 0.8 },
     model: { answerModel: "model-a", judgeModel: null, sameModelJudge: false },
-    run: { command: "eval:example", commit: "abc1234", executionFailures: 0, packageVersion: "0.3.0" },
+    run: { command: "eval:example", commit: "abc1234", executionFailures: 0, packageVersion: "0.3.5" },
     status: "candidate_public_claim",
     ...overrides,
   };
