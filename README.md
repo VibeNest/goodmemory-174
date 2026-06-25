@@ -41,7 +41,7 @@ the matching benchmark is completed and backed by a report.
 | ImplicitMemBench Full-300 | overall score | 213.26 / 300 (71.09%) with `goodmemory-distilled-feedback+controlled-priming` | 128 / 300 (42.67%) upstream-chat baseline | [live full-300 summary](./reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json) |
 | LongMemEval full 500 | answer accuracy plus evidence-session recall | answer accuracy 454 / 500 (90.8%); evidence-session recall 0.9590 with `goodmemory-hybrid` | answer accuracy 451 / 500 (90.2%) latest accepted full-context reference | [accepted report](./reports/eval/research/phase-62/longmemeval/run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z/report.json) |
 | BEAM (100K, rules-only retrieval diagnostic) | evidence-chat recall (dual: fitted vs generalization) | **fitted 0.9621** with `goodmemory-rules-only` (all narrow gates on; 100K split, 355 evidence questions of 400; 20 missed-recall, 0 zero-recall) — **generalization 0.6822** with all 151 narrow gates disabled (147 missed). The 28-pt gap is the scenario-fitted contribution, not general retrieval (see [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)). | 0.1163 first rules-only diagnostic on the same split | [latest accepted diagnostic](./reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z/recall-diagnostic.json) |
-| MemoryAgentBench | - | - | - | - |
+| MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [claim declaration](./benchmark-claims/memoryagentbench.json) |
 | LoCoMo | - | - | - | - |
 
 These rows are research and hardening evidence, not a final public leaderboard.
@@ -56,13 +56,21 @@ recall. That is internal measured evidence, not a public benchmark claim — it
 rides on the fitted recall below and uses the answer model as its own judge, so
 the accepted README row stays retrieval-focused while answer-gap hardening and
 cross-benchmark evidence mature.
-MemoryAgentBench and LoCoMo rows remain blank until promoted to public claims.
-Internally, MemoryAgentBench has AR/CR small-slice zero-failure evidence
-(CR 0.959, AR 0.67, `executionFailures: 0`), while LoCoMo has a representative
-live-path run (199 questions, 0.020 answer accuracy) and a banked
-retrieval-boundary finding: the current lexical/rules substrate is recall-bound
-on short conversational dialog (exact gold-turn recall ~0.07-0.08, zero-retrieval
-~0.92) and needs real semantic retrieval before any performance claim.
+The MemoryAgentBench row is GoodMemory's first public benchmark claim, and it is
+deliberately scoped. Only Conflict Resolution (CR 0.959) and Test-Time Learning
+(TTL 0.767) are claimed: a no-memory ablation scores both `0.000` (the questions
+are unanswerable without GoodMemory's retrieved consolidated fact / in-context
+demos), so these are genuine memory contributions, scored deterministically with
+no LLM judge (`executionFailures: 0`, 259 questions). Accurate Retrieval and
+Long-Range Understanding are EXCLUDED: the no-memory ablation scores them *higher*
+(AR 0.926 vs 0.890; LRU 0.632 vs 0.518), so they are multiple-choice leaks where
+the model answers from the candidates in the question, not memory wins. CR/TTL
+measure answer-time current-value resolution and in-context retrieval, not general
+retrieval recall. LoCoMo remains blank: a representative live-path run (199
+questions, 0.020 answer accuracy) plus a banked retrieval-boundary finding — the
+current lexical/rules substrate is recall-bound on short conversational dialog
+(exact gold-turn recall ~0.07-0.08, zero-retrieval ~0.92) and needs real semantic
+retrieval before any performance claim.
 Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
 recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
 and a `generalization` figure (all narrow gates disabled). The large gap means
