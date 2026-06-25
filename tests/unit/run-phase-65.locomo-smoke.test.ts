@@ -7,6 +7,8 @@ import {
   collectLocomoRetrievedTurnIds,
   createLocomoSmokeMemory,
   locomoFactTurnOverlap,
+  otherLocomoSpeaker,
+  resolveSpeakerCoref,
   loadLocomoCases,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
   parseLocomoSmokeCliOptions,
@@ -51,6 +53,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
       conversationalExtraction: false,
+      corefNormalize: false,
       decompose: false,
       evidencePack: false,
       limit: 2,
@@ -635,6 +638,69 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "Melanie: yeah, dance is pretty much my whole escape honestly.",
       ),
     ).toBeLessThan(0.4);
+  });
+
+  it("resolveSpeakerCoref rewrites first/second-person pronouns to participant names", () => {
+    expect(otherLocomoSpeaker({ speakers: ["Jon", "Gina"] } as never, "Jon")).toBe(
+      "Gina",
+    );
+
+    // First-person -> speaker; the named participant now appears in the text, so
+    // a question naming them can match a turn they spoke in the first person.
+    const jon = resolveSpeakerCoref("I lost my job as a banker.", "Jon", "Gina");
+    expect(jon).toBe("Jon lost Jon's job as a banker.");
+
+    // Second-person -> the other speaker.
+    const gina = resolveSpeakerCoref("How is your dance studio going?", "Gina", "Jon");
+    expect(gina).toBe("How is Jon's dance studio going?");
+
+    // Possessive of a name ending in s uses a bare apostrophe.
+    expect(resolveSpeakerCoref("That is my call.", "Chris", "Gina")).toBe(
+      "That is Chris' call.",
+    );
+  });
+
+  it("coref normalization lets a name-based query match a first-person turn", async () => {
+    // Two distinct first-person turns by different speakers; without coref the
+    // speaker name appears in neither content, so a name-based query cannot
+    // distinguish them. With coref, "I/my" become the speaker name.
+    const testCase: LocomoCase = {
+      caseId: "coref",
+      sourceConversation: "coref",
+      speakers: ["Jon", "Gina"],
+      turns: [
+        {
+          diaId: "D1:1",
+          speaker: "Gina",
+          content: "I just adopted a rescue greyhound.",
+        },
+        {
+          diaId: "D1:2",
+          speaker: "Jon",
+          content: "I opened my pottery studio downtown.",
+        },
+      ],
+      questions: [],
+    };
+    const scope = buildLocomoScope({ caseId: "coref", runId: "t" });
+
+    const normalized = createLocomoSmokeMemory();
+    await seedLocomoCase({
+      corefNormalize: true,
+      memory: normalized,
+      runId: "t",
+      testCase,
+    });
+    // "What did Jon open?" now matches Jon's turn (coref injected "Jon" into the
+    // content) and resolves to D1:2 rather than Gina's turn.
+    const retrieved = collectLocomoRetrievedTurnIds(
+      await normalized.recall({
+        query: "What did Jon open downtown?",
+        scope,
+        strategy: "rules-only",
+      }),
+    );
+    expect(retrieved).toContain("D1:2");
   });
 
   it("smart fusion drops conversational facts that merely echo their raw turn", async () => {

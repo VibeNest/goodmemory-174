@@ -65,6 +65,10 @@ export interface LocomoSmokeCliOptions {
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
   bm25?: boolean;
+  // Opt-in deterministic speaker-coreference normalization at seed time
+  // (first/second-person pronouns -> participant names). Gateway-free; bridges
+  // the coreference half of the phrasing gap without an LLM.
+  corefNormalize?: boolean;
   // Opt-in deterministic query decomposition (Move 3). Gateway-free.
   decompose?: boolean;
   // Opt-in N-hop iterative recall (Move 6); true = 2 passes. Gateway-free
@@ -205,6 +209,7 @@ export function parseLocomoSmokeCliOptions(
     answerFromRecalled: argv.includes("--answer-from-recalled"),
     bm25: argv.includes("--bm25"),
     conversationalExtraction: argv.includes("--conversational-extraction"),
+    corefNormalize: argv.includes("--coref-normalize"),
     decompose: argv.includes("--decompose"),
     evidencePack: argv.includes("--evidence-pack"),
     multiHop: argv.includes("--multihop"),
@@ -229,12 +234,68 @@ export function buildLocomoScope(input: {
   };
 }
 
+// The other participant in a (two-speaker) LoCoMo conversation.
+export function otherLocomoSpeaker(
+  testCase: LocomoCase,
+  speaker: string,
+): string {
+  return testCase.speakers.find((candidate) => candidate !== speaker) ?? speaker;
+}
+
+// Deterministic speaker-coreference normalization (GATEWAY-FREE). Rewrites
+// first-person pronouns to the speaker's name and second-person pronouns to the
+// other speaker, so a question that names a participant can lexically match a
+// turn where that participant spoke in the first person ("Why did Jon start the
+// studio?" against Jon's "I lost my job"). Bridges the coreference half of the
+// LoCoMo phrasing gap with no LLM; the synonym half ("destress" vs "stress
+// relief") still needs semantics. Faithful (resolves pronouns, drops no facts).
+export function resolveSpeakerCoref(
+  content: string,
+  speaker: string,
+  otherSpeaker: string,
+): string {
+  const possessive = (name: string): string =>
+    /s$/i.test(name) ? `${name}'` : `${name}'s`;
+  const replacements: Array<[RegExp, string]> = [
+    [/\bI'm\b/g, `${speaker} is`],
+    [/\bI've\b/g, `${speaker} has`],
+    [/\bI'll\b/g, `${speaker} will`],
+    [/\bI'd\b/g, `${speaker} would`],
+    [/\bmyself\b/gi, speaker],
+    [/\bmine\b/gi, possessive(speaker)],
+    [/\bmy\b/gi, possessive(speaker)],
+    [/\bme\b/gi, speaker],
+    [/\bI\b/g, speaker],
+    [/\byourself\b/gi, otherSpeaker],
+    [/\byou're\b/gi, `${otherSpeaker} is`],
+    [/\byours\b/gi, possessive(otherSpeaker)],
+    [/\byour\b/gi, possessive(otherSpeaker)],
+    [/\byou\b/gi, otherSpeaker],
+  ];
+  let result = content;
+  for (const [pattern, replacement] of replacements) {
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
 export async function seedLocomoCase(input: {
+  corefNormalize?: boolean;
   memory: GoodMemory;
   runId: string;
   testCase: LocomoCase;
 }): Promise<void> {
   const { turns } = input.testCase;
+  const renderTurnContent = (turn: LocomoTurn): string => {
+    const text = input.corefNormalize
+      ? resolveSpeakerCoref(
+          turn.content,
+          turn.speaker,
+          otherLocomoSpeaker(input.testCase, turn.speaker),
+        )
+      : turn.content;
+    return `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}] ${text}`;
+  };
   await input.memory.remember({
     annotations: turns.map((turn, messageIndex) => ({
       confirmed: true,
@@ -257,7 +318,7 @@ export async function seedLocomoCase(input: {
     // Force user role so rules-only extraction keeps every turn; the true
     // speaker is preserved in attributes and the content prefix.
     messages: turns.map((turn) => ({
-      content: `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}] ${turn.content}`,
+      content: renderTurnContent(turn),
       role: "user",
     })),
     scope: buildLocomoScope({
@@ -817,7 +878,12 @@ export async function runLocomoSmoke(
       // misphrases is still recoverable from its raw form. This mirrors the
       // product path, where assisted extraction merges with deterministic
       // extraction rather than replacing it.
-      await seedLocomoCase({ memory, runId, testCase });
+      await seedLocomoCase({
+        corefNormalize: options.corefNormalize,
+        memory,
+        runId,
+        testCase,
+      });
       if (conversationalExtractor) {
         await seedLocomoCaseConversational({
           extractor: conversationalExtractor,
