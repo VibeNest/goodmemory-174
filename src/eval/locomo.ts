@@ -69,6 +69,10 @@ export function deriveLocomoMatchMode(
 // "D<session>:<turn>" (e.g. "D1:3"); the recall diagnostic keys on it.
 export interface LocomoTurn {
   content: string;
+  // Absolute date/time of the turn's session (e.g. "1:56 pm on 8 May, 2023"),
+  // when the upstream conversation provides it. Carried so temporal answering can
+  // resolve relative dates ("last Saturday") against the gold's absolute date.
+  date?: string;
   diaId: string;
   speaker: string;
 }

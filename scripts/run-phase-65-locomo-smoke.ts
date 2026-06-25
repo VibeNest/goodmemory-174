@@ -294,7 +294,8 @@ export async function seedLocomoCase(input: {
           otherLocomoSpeaker(input.testCase, turn.speaker),
         )
       : turn.content;
-    return `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}] ${text}`;
+    const dateTag = turn.date ? ` date=${turn.date}` : "";
+    return `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}${dateTag}] ${text}`;
   };
   await input.memory.remember({
     annotations: turns.map((turn, messageIndex) => ({
@@ -435,7 +436,7 @@ export async function seedLocomoCaseConversational(input: {
       messages: facts.map((fact) => {
         const turn = resolveTurn(fact.sourceMessageIndex);
         return {
-          content: `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}] ${fact.content}`,
+          content: `[LOCOMO dia_id=${turn.diaId} speaker=${turn.speaker}${turn.date ? ` date=${turn.date}` : ""}] ${fact.content}`,
           role: "user",
         };
       }),
@@ -580,7 +581,7 @@ export function buildLocomoEvidencePackContext(input: {
       orderKey: index,
       role: turn.speaker,
       sourceId: turn.diaId,
-      timeAnchor: `session ${parseLocomoSession(turn.diaId)}`,
+      timeAnchor: turn.date ?? `session ${parseLocomoSession(turn.diaId)}`,
     }));
   return buildAnswerEvidencePack({
     question: input.question.question,
@@ -601,26 +602,33 @@ export function buildLocomoRecalledContext(input: {
   const parsed = (input.recall.facts ?? []).map((fact) => {
     const content = typeof fact.content === "string" ? fact.content : "";
     const match = content.match(
-      /\[LOCOMO dia_id=(D\d+:\d+) speaker=([^\]]*)\]\s*([\s\S]*)$/,
+      /\[LOCOMO dia_id=(D\d+:\d+) speaker=(.*?)(?: date=([^\]]*))?\]\s*([\s\S]*)$/,
     );
     if (match) {
       return {
         diaId: match[1] ?? "",
         speaker: (match[2] ?? "").trim(),
-        text: (match[3] ?? "").trim(),
+        date: (match[3] ?? "").trim(),
+        text: (match[4] ?? "").trim(),
       };
     }
-    return { diaId: "", speaker: "", text: content.trim() };
+    return { diaId: "", speaker: "", date: "", text: content.trim() };
   });
   parsed.sort((left, right) =>
     left.diaId.localeCompare(right.diaId, undefined, { numeric: true }),
   );
+  // Surface the absolute session date alongside each record so the answer model
+  // can resolve relative dates ("last Saturday") to the gold's absolute date.
   return parsed
-    .map((record) =>
-      record.diaId
-        ? `- dia_id=${record.diaId} (${record.speaker}): ${record.text}`
-        : `- ${record.text}`,
-    )
+    .map((record) => {
+      if (!record.diaId) {
+        return `- ${record.text}`;
+      }
+      const who = record.date
+        ? `${record.speaker}, ${record.date}`
+        : record.speaker;
+      return `- dia_id=${record.diaId} (${who}): ${record.text}`;
+    })
     .join("\n");
 }
 

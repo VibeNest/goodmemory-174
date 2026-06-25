@@ -51,6 +51,11 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
     if (!Array.isArray(session)) {
       continue;
     }
+    // Absolute session date/time (e.g. "1:56 pm on 8 May, 2023"), stored under a
+    // sibling "<session>_date_time" key upstream. Carried per turn so temporal
+    // answering can resolve relative dates to absolute ones.
+    const sessionDate = conversation[`${key}_date_time`];
+    const date = typeof sessionDate === "string" ? sessionDate : undefined;
     for (const entry of session) {
       if (!isRecord(entry)) {
         continue;
@@ -66,7 +71,7 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
       ) {
         continue;
       }
-      turns.push({ content, diaId, speaker });
+      turns.push(date === undefined ? { content, diaId, speaker } : { content, date, diaId, speaker });
     }
   }
   return turns;
