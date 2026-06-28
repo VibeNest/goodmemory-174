@@ -9,7 +9,7 @@
   "run": {
     "commit": null,
     "packageVersion": null,
-    "command": "eval:phase-62 (run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z)",
+    "command": "P67-B pipeline (BLOCKED on gpt-5.5 endpoint): eval:phase-62-full500 -> eval:phase-62-full500-retry-failures (until executionFailures 0) -> eval:phase-62-full500-summary (merge) -> eval:phase-62-deterministic-subset --report-path <merged report.json> (judge-free goodmemory-hybrid vs baseline-no-memory). Old with-judge run: run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z (report no longer on disk; reports/ is gitignored).",
     "executionFailures": 0
   },
   "model": {
@@ -18,7 +18,7 @@
     "sameModelJudge": true
   },
   "metrics": {
-    "primary": "answer accuracy (full 500)",
+    "primary": "answer accuracy (full 500, WITH same-model semantic_judge — NOT the planned public metric)",
     "score": 0.908,
     "baseline": 0.902
   },
@@ -28,6 +28,6 @@
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "Closest to a public claim, but blocked: answer accuracy partially relies on a same-model semantic judge (gpt-5.5 answer + gpt-5.5 judge) for the semantic_judge subset (the other methods abstention/contains/exact/expected_alternative/numeric_count are deterministic); license, exact commit, and v0.3 package version are unverified. P67-B replay must run on the v0.3 surface with an independent judge for the semantic_judge subset (or report a deterministic-only sub-score)."
+    "reason": "Blocked, but P67-B prep landed. The judge-free deterministic-subset ANALYZER is now built and unit-tested (scripts/run-phase-62-deterministic-subset.ts, alias eval:phase-62-deterministic-subset; pure summarizeLongMemEvalDeterministicSubset + 6 passing tests). It carves out the strict judge-free lower bound: a case counts correct only when scored by a deterministic method (abstention/exact/contains/expected_alternative/numeric_count); semantic_judge is excluded by construction (verified against the scorer in src/eval/longmemeval.ts, which only invokes the judge when every deterministic method returns mismatch). The planned public metric is goodmemory-hybrid deterministic-subset accuracy with baseline-no-memory (computed in the same run) as the judge-free baseline + memory-lift disclosure. The metrics block above (0.908) is the OLD with-judge number and is NOT the claim. Remaining blockers, all judge-INDEPENDENT now: (1) a fresh v0.3 full-500 run is required — BLOCKED on the gpt-5.5 endpoint (probed 2026-06-27, 503 no-distributor); (2) executionFailures must be driven to 0 via eval:phase-62-full500-retry-failures; (3) dataset.license must be verified upstream; (4) run.commit + run.packageVersion stamped from the fresh run. On a clean run the metric reframes to judge-free (judgeModel null, sameModelJudge false) and the gate is re-evaluated."
   }
 }
