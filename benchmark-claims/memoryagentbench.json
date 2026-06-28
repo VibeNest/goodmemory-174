@@ -24,7 +24,7 @@
   },
   "coverage": {
     "complete": true,
-    "note": "Clean run executionFailures 0 (259 questions, resumable retry). With-memory: CR 0.959 (70/73), TTL 0.767 (23/30), AR 0.890 (89/100), LRU 0.518 (29/56). No-memory ablation baseline (empty memory context): CR 0.000, TTL 0.000, AR 0.926, LRU 0.632."
+    "note": "Clean run executionFailures 0 (259 questions, resumable retry). With-memory: CR 0.959 (70/73), TTL 0.767 (23/30), AR 0.890 (89/100), LRU 0.518 (29/56). No-memory ablation baseline (empty memory context): CR 0.000 (0/73) and TTL 0.000 (0/30) on FULL coverage — the decisive disclosure that the public CR/TTL claim is a genuine memory win (both unanswerable without GoodMemory). AR 0.926 (87/94) and LRU 0.632 (12/19) are on PARTIAL coverage: the no-memory baseline run had executionFailures 43, all landing in AR/LRU (CR/TTL fully covered); they still directionally confirm memory does NOT help AR/LRU (no-memory >= with-memory), so AR/LRU are excluded from any claim. Verified against persisted artifacts reports/eval/research/phase-64/mab/run-phase67c-mab-harness-resumed-current (execFails 0) + run-phase67c-mab-baseline-current."
   },
   "claimBoundary": {
     "publicClaimAllowed": true,
