@@ -61,9 +61,19 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       multiHop: false,
       outputDir: "/tmp/out",
       rerank: false,
+      resume: false,
       runId: "run-locomo",
       smartFusion: false,
     });
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--resume",
+      ]).resume,
+    ).toBe(true);
 
     expect(
       parseLocomoSmokeCliOptions([
@@ -322,6 +332,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       { runId: "run-locomo-live", outputDir: "/tmp/locomo-out" },
       {
         answerGenerator: async ({ question }) => question.goldAnswer,
+        appendFile: async () => undefined,
         mkdir: async () => undefined,
         writeFile: (async () => undefined) as never,
       },
@@ -354,6 +365,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
           question.category === "adversarial"
             ? (question.adversarialAnswer ?? "Yes")
             : question.goldAnswer,
+        appendFile: async () => undefined,
         mkdir: async () => undefined,
         writeFile: (async () => undefined) as never,
       },
@@ -454,6 +466,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         outputDir: "/tmp/locomo-out",
       },
       {
+        appendFile: async () => undefined,
         conversationalExtractor: extractor,
         mkdir: async () => undefined,
         writeFile: (async () => undefined) as never,
@@ -774,5 +787,193 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       strategy: "rules-only",
     });
     expect(collectLocomoRetrievedTurnIds(dance)).toContain("D1:2");
+  });
+});
+
+describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
+  const outputDir = "/tmp/locomo-out";
+  const runId = "run-locomo-resume";
+  const progressPath = join(outputDir, runId, "live-progress.jsonl");
+
+  // Checkpointing is active only for model-backed runs, so the tests inject a
+  // deterministic answer generator to flip the runner into live-answer mode.
+  const answerGenerator = async (): Promise<string> => "checkpoint-answer";
+
+  async function firstRun(): Promise<{
+    lines: string[];
+    report: Awaited<ReturnType<typeof runLocomoSmoke>>;
+  }> {
+    const lines: string[] = [];
+    const report = await runLocomoSmoke(
+      { outputDir, runId },
+      {
+        answerGenerator,
+        appendFile: async (_path, data) => {
+          lines.push(data);
+        },
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    return { lines, report };
+  }
+
+  it("stays checkpoint-free in retrieval-only mode", async () => {
+    const appended: string[] = [];
+    const writes: string[] = [];
+    await runLocomoSmoke(
+      { outputDir, runId: "run-locomo-retrieval-only" },
+      {
+        appendFile: async (_path, data) => {
+          appended.push(data);
+        },
+        mkdir: async () => undefined,
+        writeFile: (async (path: string) => {
+          writes.push(path);
+        }) as never,
+      },
+    );
+    expect(appended).toEqual([]);
+    expect(writes.length).toBe(1);
+  });
+
+  it("checkpoints one line per completed question and replays them on --resume without reseeding", async () => {
+    const { lines, report } = await firstRun();
+    expect(report.resume).toBe(false);
+    expect(report.questionCount).toBeGreaterThan(1);
+    expect(lines.length).toBe(report.questionCount);
+
+    let memoryCreations = 0;
+    const resumed = await runLocomoSmoke(
+      { outputDir, runId, resume: true },
+      {
+        answerGenerator,
+        appendFile: async () => undefined,
+        createMemory: () => {
+          memoryCreations += 1;
+          throw new Error("fully-checkpointed case must skip seeding");
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === progressPath) {
+            return lines.join("");
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(memoryCreations).toBe(0);
+    expect(resumed.resume).toBe(true);
+    expect(resumed.executionFailures).toBe(0);
+    expect(resumed.questionCount).toBe(report.questionCount);
+    expect(resumed.cases.map((entry) => entry.questionId).sort()).toEqual(
+      report.cases.map((entry) => entry.questionId).sort(),
+    );
+  });
+
+  it("recomputes only the questions missing from the checkpoint on --resume", async () => {
+    const { lines, report } = await firstRun();
+    expect(lines.length).toBeGreaterThan(1);
+    const partial = lines.slice(0, -1);
+    const appended: string[] = [];
+    const resumed = await runLocomoSmoke(
+      { outputDir, runId, resume: true },
+      {
+        answerGenerator,
+        appendFile: async (_path, data) => {
+          appended.push(data);
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === progressPath) {
+            return partial.join("");
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(appended.length).toBe(1);
+    expect(resumed.questionCount).toBe(report.questionCount);
+    expect(resumed.executionFailures).toBe(0);
+  });
+
+  it("wraps the extractor in a content-addressed jsonl cache", async () => {
+    const { parseLocomoExtractionCacheLines, wrapMemoryExtractorWithJsonlCache } =
+      await import("../../scripts/run-phase-65-locomo-smoke");
+    let calls = 0;
+    const underlying: MemoryExtractor = {
+      async extract(input) {
+        calls += 1;
+        return {
+          candidates: [
+            {
+              content: `extracted from ${input.messages.length} messages`,
+              explicitness: "explicit",
+              id: "cand-1",
+              kindHint: "fact",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 0,
+        } as Awaited<ReturnType<MemoryExtractor["extract"]>>;
+      },
+    };
+    const appendedLines: string[] = [];
+    const wrapped = wrapMemoryExtractorWithJsonlCache(underlying, {
+      appendFile: async (_path, data) => {
+        appendedLines.push(data);
+      },
+      cachePath: "/tmp/locomo-out/cache.jsonl",
+      configTag: "test-model",
+      initialCache: new Map(),
+    });
+    const input = {
+      messages: [{ content: "Jon: I lost my job", role: "user" as const }],
+      scope: buildLocomoScope({ caseId: "c", runId: "r" }),
+    };
+    const first = await wrapped.extract(input);
+    const second = await wrapped.extract(input);
+    expect(calls).toBe(1);
+    expect(second.candidates).toEqual(first.candidates);
+    expect(appendedLines.length).toBe(1);
+
+    const revived = wrapMemoryExtractorWithJsonlCache(underlying, {
+      appendFile: async () => undefined,
+      cachePath: "/tmp/locomo-out/cache.jsonl",
+      configTag: "test-model",
+      initialCache: parseLocomoExtractionCacheLines(appendedLines.join("")),
+    });
+    const third = await revived.extract(input);
+    expect(calls).toBe(1);
+    expect(third.candidates).toEqual(first.candidates);
+
+    // A different config tag misses the cache.
+    const otherTag = wrapMemoryExtractorWithJsonlCache(underlying, {
+      appendFile: async () => undefined,
+      cachePath: "/tmp/locomo-out/cache.jsonl",
+      configTag: "other-model",
+      initialCache: parseLocomoExtractionCacheLines(appendedLines.join("")),
+    });
+    await otherTag.extract(input);
+    expect(calls).toBe(2);
+  });
+
+  it("skips broken checkpoint tail lines", async () => {
+    const { parseLocomoProgressLines } = await import(
+      "../../scripts/run-phase-65-locomo-smoke"
+    );
+    const good: Partial<LocomoQuestionRetrieval> = {
+      caseId: "c1",
+      evidenceRecall: 1,
+      questionId: "q1",
+    };
+    const parsed = parseLocomoProgressLines(
+      `${JSON.stringify(good)}\n{"caseId":"c1","questionId":"q2","evi`,
+    );
+    expect(parsed.length).toBe(1);
+    expect(parsed[0]?.questionId).toBe("q1");
   });
 });

@@ -20,7 +20,7 @@
 // `answerAccuracy` field per category, set to null, so the contract is complete
 // and the deferral is explicit rather than silent.
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemory, GoodMemoryConfig, RecallResult } from "../src/api/contracts";
@@ -51,6 +51,16 @@ import type { MemoryExtractor } from "../src/remember/candidates";
 
 export const LOCOMO_SMOKE_RUN_ID = "run-phase65-locomo-smoke-current";
 export const LOCOMO_SMOKE_REPORT_FILE_NAME = "smoke-report.json";
+// Per-question checkpoint (one completed LocomoQuestionRetrieval JSON per line),
+// mirroring the Phase 63/64 resumable-run pattern: long live runs survive
+// gateway outages by re-running with --resume, which replays completed
+// questions from this file instead of recomputing them.
+export const LOCOMO_LIVE_PROGRESS_FILE_NAME = "live-progress.jsonl";
+// Session-level conversational-extraction cache (content-addressed): extraction
+// is the expensive, model-backed half of a conversational-ingest run and does
+// not depend on recall-side flags, so re-runs of the same runId reuse it even
+// without --resume.
+export const LOCOMO_EXTRACTION_CACHE_FILE_NAME = "extraction-cache.jsonl";
 export const LOCOMO_ROOT_ENV = "GOODMEMORY_LOCOMO_ROOT";
 const GENERATED_BY = "scripts/run-phase-65-locomo-smoke.ts";
 const EXTERNAL_CASES_FILE_NAME = "cases.json";
@@ -92,6 +102,11 @@ export interface LocomoSmokeCliOptions {
   smartFusion?: boolean;
   limit?: number;
   live?: boolean;
+  // Opt-in: resume a previous run of the same runId from its per-question
+  // checkpoint (live-progress.jsonl). Completed questions are replayed from the
+  // checkpoint; a case whose questions are all checkpointed skips seeding (and
+  // therefore extraction) entirely.
+  resume?: boolean;
   outputDir?: string;
   runId?: string;
 }
@@ -115,6 +130,7 @@ export type LocomoAnswerGenerator = (
 
 export interface LocomoSmokeDependencies {
   answerGenerator?: LocomoAnswerGenerator;
+  appendFile?: (path: string, data: string) => Promise<void>;
   // Injected conversational extractor (tests pass a deterministic mock; the live
   // run builds a gpt-5.5-backed one from GOODMEMORY_EVAL_* when --conversational-
   // extraction is set).
@@ -187,6 +203,9 @@ export interface LocomoSmokeReport {
   phase: "phase-65";
   profilesCompared: string[];
   questionCount: number;
+  // Whether this report was assembled with --resume (some results replayed from
+  // the per-question checkpoint rather than recomputed).
+  resume: boolean;
   runDirectory: string;
   runId: string;
   // The answer/task metric upstream scores each category with, surfaced so a
@@ -218,6 +237,7 @@ export function parseLocomoSmokeCliOptions(
     smartFusion: argv.includes("--smart-fusion"),
     limit,
     live: argv.includes("--live"),
+    resume: argv.includes("--resume"),
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
   };
@@ -836,6 +856,97 @@ export async function loadLocomoCases(input: {
   return { benchmarkSource, cases };
 }
 
+export function locomoQuestionKey(caseId: string, questionId: string): string {
+  return `${caseId}::${questionId}`;
+}
+
+// Parse a live-progress.jsonl checkpoint. Broken tail lines (a write interrupted
+// by the crash the checkpoint exists to survive) are skipped, not fatal.
+export function parseLocomoProgressLines(raw: string): LocomoQuestionRetrieval[] {
+  const results: LocomoQuestionRetrieval[] = [];
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    try {
+      const value = JSON.parse(trimmed) as unknown;
+      if (
+        isRecord(value) &&
+        typeof value.caseId === "string" &&
+        typeof value.questionId === "string" &&
+        typeof value.evidenceRecall === "number"
+      ) {
+        results.push(value as unknown as LocomoQuestionRetrieval);
+      }
+    } catch {
+      // skip partial line
+    }
+  }
+  return results;
+}
+
+// Content-addressed session-extraction cache. The key hashes the exact extract()
+// messages plus a config tag (the eval model), so a cache entry is only reused
+// for the identical session content under the identical extractor config.
+export function wrapMemoryExtractorWithJsonlCache(
+  extractor: MemoryExtractor,
+  io: {
+    appendFile: (path: string, data: string) => Promise<void>;
+    cachePath: string;
+    configTag: string;
+    initialCache: ReadonlyMap<string, unknown>;
+  },
+): MemoryExtractor {
+  const cache = new Map(io.initialCache);
+  return {
+    async extract(input) {
+      const key = `${io.configTag}:${hashString(JSON.stringify(input.messages))}`;
+      const cached = cache.get(key);
+      if (cached !== undefined) {
+        // Only candidates are cached; ignoredMessageCount is a live-extraction
+        // diagnostic and is reported as 0 on replay.
+        return {
+          candidates: cached,
+          ignoredMessageCount: 0,
+        } as Awaited<ReturnType<MemoryExtractor["extract"]>>;
+      }
+      const extraction = await extractor.extract(input);
+      cache.set(key, extraction.candidates);
+      try {
+        await io.appendFile(
+          io.cachePath,
+          `${JSON.stringify({ candidates: extraction.candidates, key })}\n`,
+        );
+      } catch {
+        // Cache persistence is best-effort; extraction already succeeded.
+      }
+      return extraction;
+    },
+  };
+}
+
+export function parseLocomoExtractionCacheLines(
+  raw: string,
+): Map<string, unknown> {
+  const cache = new Map<string, unknown>();
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    try {
+      const value = JSON.parse(trimmed) as unknown;
+      if (isRecord(value) && typeof value.key === "string" && Array.isArray(value.candidates)) {
+        cache.set(value.key, value.candidates);
+      }
+    } catch {
+      // skip partial line
+    }
+  }
+  return cache;
+}
+
 export async function runLocomoSmoke(
   options: LocomoSmokeCliOptions = {},
   dependencies: LocomoSmokeDependencies = {},
@@ -861,6 +972,8 @@ export async function runLocomoSmoke(
     join(repoRoot, "reports", "eval", "research", "phase-65", "locomo");
   const runDirectory = join(outputDir, runId);
 
+  const appendFileImpl = dependencies.appendFile ?? appendFile;
+
   const { benchmarkSource, cases } = await loadLocomoCases({
     benchmarkRoot: options.benchmarkRoot,
     limit: options.limit,
@@ -871,17 +984,82 @@ export async function runLocomoSmoke(
     dependencies.answerGenerator ??
     (options.live ? createLocomoLiveAnswerGenerator() : undefined);
 
+  // The run directory exists from the start so the per-question checkpoint and
+  // the extraction cache can be appended to during the run, not only at the end.
+  await mkdirImpl(runDirectory, { recursive: true });
+  // Checkpointing exists to survive gateway outages, so it is active only for
+  // the expensive model-backed modes (live answers and/or LLM extraction);
+  // deterministic retrieval-only runs are cheap to recompute and stay
+  // byte-identical to the pre-checkpoint runner (no extra file writes).
+  const checkpointing =
+    answerGenerator !== undefined || options.conversationalExtraction === true;
+  const progressPath = join(runDirectory, LOCOMO_LIVE_PROGRESS_FILE_NAME);
+  const completed = new Map<string, LocomoQuestionRetrieval>();
+  if (checkpointing && options.resume) {
+    try {
+      for (const result of parseLocomoProgressLines(await readFileImpl(progressPath))) {
+        completed.set(locomoQuestionKey(result.caseId, result.questionId), result);
+      }
+    } catch {
+      // no checkpoint yet -> fresh run
+    }
+  } else if (checkpointing) {
+    // A fresh (non-resume) run must not inherit a stale checkpoint.
+    await writeFileImpl(progressPath, "");
+  }
+
   const conversationalExtractor = options.conversationalExtraction
     ? dependencies.conversationalExtractor ??
-      createProviderConversationalMemoryExtractor({
-        model: resolveLiveModelConfig("GOODMEMORY_EVAL"),
-        requestTimeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
-      })
+      (await (async () => {
+        // Session extraction is the expensive model-backed half of the run and is
+        // independent of recall-side flags, so the live extractor is always
+        // wrapped in a content-addressed cache scoped to this run directory.
+        const cachePath = join(runDirectory, LOCOMO_EXTRACTION_CACHE_FILE_NAME);
+        let initialCache: Map<string, unknown> = new Map();
+        try {
+          initialCache = parseLocomoExtractionCacheLines(await readFileImpl(cachePath));
+        } catch {
+          // no cache yet
+        }
+        return wrapMemoryExtractorWithJsonlCache(
+          createProviderConversationalMemoryExtractor({
+            model: resolveLiveModelConfig("GOODMEMORY_EVAL"),
+            requestTimeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
+          }),
+          {
+            appendFile: appendFileImpl,
+            cachePath,
+            configTag: process.env.GOODMEMORY_EVAL_MODEL ?? "eval-model",
+            initialCache,
+          },
+        );
+      })())
     : undefined;
 
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
+  let checkpointWriteFailures = 0;
   for (const testCase of cases) {
+    const pendingQuestions = testCase.questions.filter(
+      (question) =>
+        !completed.has(locomoQuestionKey(testCase.caseId, question.questionId)),
+    );
+    const replayCompleted = (): void => {
+      for (const question of testCase.questions) {
+        const cached = completed.get(
+          locomoQuestionKey(testCase.caseId, question.questionId),
+        );
+        if (cached) {
+          results.push(cached);
+        }
+      }
+    };
+    if (pendingQuestions.length === 0) {
+      // Everything in this case is checkpointed: skip seeding (and therefore
+      // extraction) entirely.
+      replayCompleted();
+      continue;
+    }
     const memory = createMemory();
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
     try {
@@ -908,10 +1086,25 @@ export async function runLocomoSmoke(
         });
       }
     } catch {
-      executionFailures += testCase.questions.length;
+      executionFailures += pendingQuestions.length;
+      replayCompleted();
       continue;
     }
-    for (const question of testCase.questions) {
+    replayCompleted();
+    const recordResult = async (result: LocomoQuestionRetrieval): Promise<void> => {
+      results.push(result);
+      if (!checkpointing) {
+        return;
+      }
+      try {
+        await appendFileImpl(progressPath, `${JSON.stringify(result)}\n`);
+      } catch {
+        // The checkpoint is an optimization: failing to persist it must never
+        // fail the question. Surfaced once after the loop.
+        checkpointWriteFailures += 1;
+      }
+    };
+    for (const question of pendingQuestions) {
       try {
         const recall = await memory.recall({
           query: question.question,
@@ -944,7 +1137,7 @@ export async function runLocomoSmoke(
             retrievedTurnIds,
             testCase,
           });
-          results.push({
+          await recordResult({
             ...retrieval,
             answerCorrect: scoreLocomoAnswer({
               adversarialAnswer: question.adversarialAnswer,
@@ -955,12 +1148,18 @@ export async function runLocomoSmoke(
             generatedAnswer,
           });
         } else {
-          results.push(retrieval);
+          await recordResult(retrieval);
         }
       } catch {
         executionFailures += 1;
       }
     }
+  }
+  if (checkpointWriteFailures > 0) {
+    process.stderr.write(
+      `LoCoMo smoke: ${checkpointWriteFailures} checkpoint write(s) failed; ` +
+        `--resume will recompute those questions.\n`,
+    );
   }
   const liveAnswer = answerGenerator !== undefined;
 
@@ -984,6 +1183,7 @@ export async function runLocomoSmoke(
     phase: "phase-65",
     profilesCompared: [...PROFILES_COMPARED],
     questionCount: results.length,
+    resume: options.resume ?? false,
     runDirectory,
     runId,
     upstreamAnswerMetricByCategory: deriveLocomoUpstreamMetricByCategory(cases),
