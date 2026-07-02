@@ -71,10 +71,23 @@ export interface RankedArchiveCandidate {
   score: number;
 }
 
+export interface SemanticFactCandidate {
+  id: string;
+  // RAW vector-store score (dot/inner product depending on the store), captured
+  // BEFORE normalizeSemanticScores rescales the map to max=1. Similarity
+  // thresholds must apply to this value, never to the normalized map.
+  score: number;
+}
+
 export interface SemanticSearchScores {
   facts: Map<string, number>;
   references: Map<string, number>;
   episodes: Map<string, number>;
+  // Present ONLY when the embedding+vectorIndex branch ran with the
+  // semantic-candidates union enabled. The BM25 branch must never set this: its
+  // scores are lexical, and unioning them would readmit the very lexical floor
+  // the union exists to bypass.
+  semanticFactCandidates?: SemanticFactCandidate[];
 }
 
 const SEMANTIC_TIE_BREAK_EPSILON = 0.2;
@@ -257,12 +270,19 @@ export async function searchSemanticScores(input: {
   query: string;
   scope: MemoryScope;
   vectorIndex: RecallVectorSearchPort;
+  // When set, the fact search widens to max(8, topK) and the raw-scored top-K
+  // fact hits are returned alongside the normalized additive map, feeding the
+  // opt-in semantic candidate-generation union. One search call serves both:
+  // the normalization denominator is the top-1 score, so widening the fetch
+  // never changes the normalized values of the previous top-8.
+  factCandidates?: { topK: number };
 }): Promise<SemanticSearchScores> {
   const [queryEmbedding] = await input.embedding.embed([input.query]);
   const filter = buildVectorScopeFilter(input.scope);
+  const factTopK = Math.max(8, Math.floor(input.factCandidates?.topK ?? 0));
   const [facts, references, episodes] = await Promise.all([
     input.vectorIndex.searchFactEmbedding(queryEmbedding, {
-      topK: 8,
+      topK: factTopK,
       filter,
     }),
     input.vectorIndex.searchReferenceEmbedding(queryEmbedding, {
@@ -279,6 +299,13 @@ export async function searchSemanticScores(input: {
     facts: normalizeSemanticScores(facts),
     references: normalizeSemanticScores(references),
     episodes: normalizeSemanticScores(episodes),
+    ...(input.factCandidates
+      ? {
+          semanticFactCandidates: facts
+            .slice(0, Math.max(1, Math.floor(input.factCandidates.topK)))
+            .map(({ id, score }) => ({ id, score })),
+        }
+      : {}),
   };
 }
 

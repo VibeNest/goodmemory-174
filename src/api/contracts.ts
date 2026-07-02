@@ -36,6 +36,7 @@ import type { MemoryPacket } from "../recall/contextBuilder";
 import type {
   RecallCandidateTrace,
   RecallHit,
+  RecallSemanticCandidatesConfig,
 } from "../recall/engine";
 import type { RecallAssistantInfluence } from "../recall/assistant";
 import type { Reranker } from "../recall/reranker";
@@ -103,6 +104,14 @@ export interface GoodMemoryProviderConfig {
   extraction?: GoodMemoryExtractionProviderConfig;
 }
 
+// Opt-in semantic candidate-generation union. Requires an embedding adapter +
+// vector store and the "hybrid" recall strategy; the cosine top-K facts are
+// then force-admitted into fact selection regardless of lexical overlap —
+// additive only (never removes or reorders lexically-admitted facts), with
+// maxAdditions as the noise budget. Off by default: when unset, recall
+// behavior is byte-identical.
+export type GoodMemorySemanticCandidatesConfig = RecallSemanticCandidatesConfig;
+
 export interface GoodMemoryRetrievalConfig {
   // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
   // lexical ranking signal for hybrid/llm-assisted strategies, populating the
@@ -112,6 +121,11 @@ export interface GoodMemoryRetrievalConfig {
   // strategies. Defaults to off, so accepted rules-only/hybrid behavior is
   // unchanged unless explicitly enabled.
   bm25Ranking?: boolean;
+  // Opt-in semantic candidate-generation union (see the type above). This is
+  // the only retrieval lever that can surface a fact sharing no tokens with
+  // the query; the additive semantic score alone only re-ranks candidates that
+  // already pass the lexical admission gates.
+  semanticCandidates?: GoodMemorySemanticCandidatesConfig;
 }
 
 export interface GoodMemoryConfig {

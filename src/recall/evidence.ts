@@ -198,6 +198,9 @@ export function buildHits(input: {
   journal: SessionJournal | null;
   evidenceIndex: EvidenceLinkIndex;
   routingDecision: RoutingDecision;
+  // Facts admitted by the semantic candidate-generation union, so their hits
+  // carry an attributable reason instead of the generic scope_match.
+  semanticUnionFactIds?: ReadonlySet<string>;
 }): RecallHit[] {
   const hits: RecallHit[] = [];
 
@@ -236,7 +239,9 @@ export function buildHits(input: {
         hits.push({
           id: fact.id,
           type: "fact",
-          reason: "scope_match",
+          reason: input.semanticUnionFactIds?.has(fact.id)
+            ? "semantic_union"
+            : "scope_match",
           sourceMethod: fact.source.method,
           evidenceIds: evidenceIdsForMemory(input.evidenceIndex, fact.id),
         });

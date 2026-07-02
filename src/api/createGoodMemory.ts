@@ -841,6 +841,7 @@ class GoodMemoryImpl implements GoodMemory {
       vectorIndex: repositories.vectorIndex,
       embedding: embeddingAdapter,
       bm25Ranking: config.retrieval?.bm25Ranking,
+      semanticCandidates: config.retrieval?.semanticCandidates,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()

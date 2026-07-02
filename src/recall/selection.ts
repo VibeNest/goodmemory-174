@@ -16,6 +16,8 @@ import {
   selectZeroRetrievalLexicalFallback,
 } from "./factSelection/draft";
 import { FACT_SELECTION_ROUTE_TABLE } from "./factSelection/routeTable";
+import { selectSemanticUnionCandidates } from "./factSelection/semanticUnion";
+import type { SemanticUnionSelectionInput } from "./factSelection/semanticUnion";
 import { buildSelectionRunContext } from "./selectionRunContext";
 import { selectSlotFacts } from "./selectionSlot";
 import {
@@ -46,6 +48,7 @@ export function selectFacts(
   referenceTime: string,
   semanticScores?: Map<string, number>,
   evidenceCountsByMemoryId?: Map<string, number>,
+  semanticUnion?: SemanticUnionSelectionInput,
 ): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
   const ranked = rankFactCandidates(
     buildFactCandidates(
@@ -77,6 +80,10 @@ export function selectFacts(
     evidenceScore: entry.evidenceScore,
     outcomeScore: entry.outcomeScore,
     verificationPenaltyScore: entry.verificationPenaltyScore,
+    // Feature-gated so union-off traces serialize byte-identically.
+    ...(semanticUnion && entry.semanticScore > 0
+      ? { semanticScore: entry.semanticScore }
+      : {}),
     fallback: "none",
   }));
   const compatible = ranked.filter(
@@ -272,6 +279,10 @@ export function selectFacts(
   // best-lexical compatible fact instead of returning nothing (abstention is
   // preserved for candidates with only incidental overlap). See the helper.
   selectZeroRetrievalLexicalFallback({ compatible, draft });
+
+  if (semanticUnion) {
+    selectSemanticUnionCandidates({ compatible, draft, union: semanticUnion });
+  }
 
   finalizeSuppressionReasons({ compatible, traces });
 

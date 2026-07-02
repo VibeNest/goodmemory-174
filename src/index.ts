@@ -329,6 +329,7 @@ export type {
   GoodMemoryJobsLookupInput,
   GoodMemoryProviderConfig,
   GoodMemoryRetrievalConfig,
+  GoodMemorySemanticCandidatesConfig,
   GoodMemoryRuntimeAppendMessageInput,
   GoodMemoryRuntimeBufferResult,
   GoodMemoryRuntimeEndSessionInput,

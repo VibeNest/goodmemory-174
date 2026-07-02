@@ -122,7 +122,16 @@ export interface RecallCandidateTrace {
   evidenceScore?: number;
   outcomeScore?: number;
   verificationPenaltyScore?: number;
-  fallback: "none" | "same_slot_unique_candidate" | "zero_retrieval_lexical";
+  // Normalized semantic similarity of this candidate. Emitted ONLY when the
+  // semantic-candidates union feature is active for the call, so traces of
+  // rules-only / BM25-only / union-off runs serialize byte-identically to the
+  // pre-union engine.
+  semanticScore?: number;
+  fallback:
+    | "none"
+    | "same_slot_unique_candidate"
+    | "zero_retrieval_lexical"
+    | "semantic_union";
   evidenceIds?: string[];
 }
 
@@ -154,6 +163,26 @@ export interface RecallResult {
   };
 }
 
+// Opt-in second candidate SOURCE: the cosine top-K facts from the vector index
+// are force-admitted into fact selection regardless of lexical/intent/subject
+// signal, under strategy=hybrid with an embedding adapter + vector index only.
+// This is the only mechanism that can surface a zero-lexical-overlap fact:
+// every admission gate in fact selection keys on lexical/intent/subject
+// signals, and the additive semanticScore only re-ranks already-admitted
+// candidates. Off by default; when unset, recall behavior is byte-identical.
+export interface RecallSemanticCandidatesConfig {
+  // Vector-store fetch size for the union source (the additive-ranking fetch
+  // becomes max(8, topK)). Default 8.
+  topK?: number;
+  // RAW vector-store score floor (dot/inner product; equals cosine only for
+  // unit-normalized embeddings). Default: no floor.
+  minSimilarity?: number;
+  // Noise budget: maximum facts ADMITTED BY THE UNION per recall. Candidates
+  // that deduped against route/augmenter/fallback selections or failed the
+  // compatible-pool check consume no budget. Default: topK.
+  maxAdditions?: number;
+}
+
 export interface RecallEngineConfig {
   assistedRouter?: RecallRouterAssistant;
   embedding?: EmbeddingAdapter;
@@ -162,6 +191,8 @@ export interface RecallEngineConfig {
   // non-rules-only strategies. Off by default, so rules-only/hybrid ranking is
   // unchanged unless explicitly enabled.
   bm25Ranking?: boolean;
+  // Opt-in semantic candidate-generation union (see the config type above).
+  semanticCandidates?: RecallSemanticCandidatesConfig;
   language?: LanguageService;
   repositories: RecallRepositoryPort & { vectorIndex?: RecallVectorSearchPort | null };
   runtime: RecallRuntimePort;
@@ -562,6 +593,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
       );
       const evidenceCountsByMemoryId = buildEvidenceCountByMemoryId(visibleEvidencePool);
       let semanticScores: SemanticSearchScores | undefined;
+      const semanticUnionTopK = Math.max(
+        1,
+        Math.floor(config.semanticCandidates?.topK ?? 8),
+      );
       if (
         routingDecision.strategy === "hybrid" &&
         config.embedding &&
@@ -573,6 +608,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
             query: input.query,
             scope: input.scope,
             vectorIndex,
+            ...(config.semanticCandidates
+              ? { factCandidates: { topK: semanticUnionTopK } }
+              : {}),
           });
         } catch (error) {
           throw new ProviderBackedRecallError({
@@ -589,6 +627,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
         // would, giving hybrid/llm-assisted ranking IDF + length normalization
         // with no embedding endpoint. rules-only never consumes this slot, so
         // the pure lexical floor is preserved.
+        // IMPORTANT: this branch must never populate `semanticFactCandidates` —
+        // BM25 scores are lexical, and feeding them to the semantic-candidates
+        // union would readmit the lexical floor the union exists to bypass.
         const tokenizeForLocale = (text: string): string[] =>
           language.tokenize(text, resolvedLanguage.locale, {
             excludeStopwords: true,
@@ -660,6 +701,29 @@ export function createRecallEngine(config: RecallEngineConfig) {
       if (suppressGuidanceLanes) {
         policyApplied.add("guidance_lanes_suppressed_for_fact_query");
       }
+      // The union is bound to the embedding branch by construction:
+      // semanticFactCandidates only exists when searchSemanticScores ran with
+      // factCandidates, which the BM25 branch never sets.
+      if (config.semanticCandidates && (!config.embedding || !vectorIndex)) {
+        policyApplied.add("semantic_candidates_unavailable");
+      }
+      const semanticUnion =
+        config.semanticCandidates &&
+        semanticScores?.semanticFactCandidates !== undefined &&
+        semanticScores.semanticFactCandidates.length > 0
+          ? {
+              candidates: semanticScores.semanticFactCandidates,
+              maxAdditions: Math.max(
+                0,
+                Math.floor(
+                  config.semanticCandidates.maxAdditions ?? semanticUnionTopK,
+                ),
+              ),
+              ...(config.semanticCandidates.minSimilarity !== undefined
+                ? { minSimilarity: config.semanticCandidates.minSimilarity }
+                : {}),
+            }
+          : undefined;
       const selectedFacts = selectFacts(
         factsRaw,
         input.query,
@@ -671,6 +735,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         currentReferenceTime,
         semanticScores?.facts,
         evidenceCountsByMemoryId,
+        semanticUnion,
       );
       let facts = await applyRecallPolicyToRecords(
         selectedFacts.facts,
@@ -963,6 +1028,17 @@ export function createRecallEngine(config: RecallEngineConfig) {
             journal,
             evidenceIndex,
             routingDecision,
+            // buildHits iterates the post-policy facts, so a union admit the
+            // recall policy removed never becomes a hit even though its
+            // selection trace exists.
+            semanticUnionFactIds: new Set(
+              selectedFacts.traces
+                .filter(
+                  (trace) =>
+                    trace.returned && trace.fallback === "semantic_union",
+                )
+                .map((trace) => trace.memoryId),
+            ),
           }),
         },
       };
