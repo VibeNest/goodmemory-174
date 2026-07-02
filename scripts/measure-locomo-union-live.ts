@@ -139,6 +139,10 @@ async function main(): Promise<void> {
   const limit = limitRaw === undefined ? undefined : Number(limitRaw);
   const resume = argv.includes("--resume");
   const withExtraction = argv.includes("--with-extraction");
+  // Gate-required ablation: answer every question with NO memory context (no
+  // seeding, no recall). With the abstention-format instruction the honest
+  // baseline is abstention on unanswerable probes and near-zero elsewhere.
+  const noMemory = argv.includes("--no-memory");
   const runId = resolveCliFlagValue(argv, "--run-id") ?? `run-locomo-union${topK}-live`;
   const outputDir =
     resolveCliFlagValue(argv, "--output-dir") ??
@@ -216,38 +220,45 @@ async function main(): Promise<void> {
     if (pending.length === 0) {
       continue;
     }
-    const memory = buildUnionMemory(union);
+    const memory = noMemory ? null : buildUnionMemory(union);
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
-    try {
-      // Raw turns always; extraction facts additively when --with-extraction.
-      await seedLocomoCase({ memory, runId, testCase });
-      if (extractor) {
-        await seedLocomoCaseConversational({
-          extractor,
-          memory,
-          runId,
-          testCase,
-        });
+    if (memory) {
+      try {
+        // Raw turns always; extraction facts additively when --with-extraction.
+        await seedLocomoCase({ memory, runId, testCase });
+        if (extractor) {
+          await seedLocomoCaseConversational({
+            extractor,
+            memory,
+            runId,
+            testCase,
+          });
+        }
+      } catch {
+        executionFailures += pending.length;
+        continue;
       }
-    } catch {
-      executionFailures += pending.length;
-      continue;
     }
     for (const question of pending) {
       try {
-        const recall = await memory.recall({
-          query: question.question,
-          scope,
-          strategy: "hybrid",
-        });
-        const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
+        const retrievedTurnIds = memory
+          ? collectLocomoRetrievedTurnIds(
+              await memory.recall({
+                query: question.question,
+                scope,
+                strategy: "hybrid",
+              }),
+            )
+          : [];
         const retrieval = scoreLocomoRetrieval({ question, retrievedTurnIds, testCase });
         const generatedAnswer = await answerGenerator({
-          memoryContext: buildLocomoEvidencePackContext({
-            question,
-            retrievedTurnIds,
-            testCase,
-          }),
+          memoryContext: memory
+            ? buildLocomoEvidencePackContext({
+                question,
+                retrievedTurnIds,
+                testCase,
+              })
+            : "",
           question,
           retrievedTurnIds,
           testCase,
@@ -291,6 +302,7 @@ async function main(): Promise<void> {
     mode: "live-answer",
     phase: "phase-65",
     questionCount: results.length,
+    noMemory,
     resume,
     runDirectory,
     runId,
