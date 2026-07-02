@@ -32,36 +32,28 @@ and the model runtime.
 
 ## Benchmark Results
 
-GoodMemory is moving through memory benchmarks one at a time. The compact table
-below shows accepted current evidence first, with empty rows left as `-` until
-the matching benchmark is completed and backed by a report.
+GoodMemory separates gate-verified public claims from internal research
+evidence. A number may appear in the public-claims table only after
+`gate:public-benchmark-claim --strict` passes for its committed declaration:
+complete coverage, `executionFailures: 0`, a no-memory baseline, deterministic
+scoring or an independent judge, verified dataset source and license, and a
+reproducible run (commit + command + package version).
 
-| Benchmark | Primary metric | GoodMemory result | Baseline / reference | Evidence |
+### Public claims (gate-verified)
+
+<!-- public-claims-table:start -->
+| Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
 |---|---|---:|---:|---|
-| ImplicitMemBench Full-300 | overall score | 213.26 / 300 (71.09%) with `goodmemory-distilled-feedback+controlled-priming` | 128 / 300 (42.67%) upstream-chat baseline | [live full-300 summary](./reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json) |
-| LongMemEval full 500 | judge-free deterministic-subset answer accuracy (same-model semantic judge excluded by construction) | **0.720** (360/500) with `goodmemory-rules-only`; +65.2pt over no-memory; evidence-session recall 0.9543 | no-memory baseline 0.068 (34/500; 30 of the 34 are bare abstentions) | [claim declaration](./benchmark-claims/longmemeval.json) |
-| BEAM (100K, rules-only retrieval diagnostic) | evidence-chat recall (dual: fitted vs generalization) | **fitted 0.9621** with `goodmemory-rules-only` (all narrow gates on; 100K split, 355 evidence questions of 400; 20 missed-recall, 0 zero-recall) — **generalization 0.6822** with all 151 narrow gates disabled (147 missed). The 28-pt gap is the scenario-fitted contribution, not general retrieval (see [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)). | 0.1163 first rules-only diagnostic on the same split | [latest accepted diagnostic](./reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z/recall-diagnostic.json) |
-| MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [claim declaration](./benchmark-claims/memoryagentbench.json) |
-| LoCoMo | - | - | - | - |
+| LongMemEval full 500 | judge-free deterministic-subset answer accuracy (same-model semantic judge excluded by construction) | **0.720** (360/500) with `goodmemory-rules-only`; +65.2pt over no-memory; evidence-session recall 0.9543 | no-memory baseline 0.068 (34/500; 30 of the 34 are bare abstentions) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
+| MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
+<!-- public-claims-table:end -->
 
-These rows are research and hardening evidence, not a final public leaderboard.
-The BEAM row reports rules-only retrieval recall (evidence-chat recall over the
-100K split). An end-to-end measured full-run checkpoint has now been run internally
-(`run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`):
-278 / 400 answer accuracy (0.695) with rules-only retrieval, a general
-answer-time evidence pack (`src/answer/evidencePack.ts`), and a same-model
-semantic judge, `executionFailures: 0` — up from 224 / 400 (0.56) before the
-evidence pack and 261 / 400 (0.6525) at the prior pack checkpoint, at identical
-recall. That is internal measured evidence, not a public benchmark claim — it
-rides on the fitted recall below and uses the answer model as its own judge, so
-the accepted README row stays retrieval-focused while answer-gap hardening and
-cross-benchmark evidence mature.
-The LongMemEval row is a judge-free public claim, replacing an earlier internal
-with-judge number (0.908) that is superseded and not claimable. A case counts as
-correct only when a deterministic method scores it (abstention / exact /
-contains / expected_alternative / numeric_count); the eval pipeline's same-model
-semantic judge (gpt-5.5 judging gpt-5.5) is excluded by construction — with it,
-the diagnostic overall accuracy is 0.896, reported for transparency but not
+The LongMemEval claim is judge-free, replacing an earlier internal with-judge
+number (0.908) that is superseded and not claimable. A case counts as correct
+only when a deterministic method scores it (abstention / exact / contains /
+expected_alternative / numeric_count); the eval pipeline's same-model semantic
+judge (gpt-5.5 judging gpt-5.5) is excluded by construction — with it, the
+diagnostic overall accuracy is 0.896, reported for transparency but not
 claimed. The claimed 0.720 (360/500, `executionFailures: 0`, v0.3.5) uses the
 embedding-free `goodmemory-rules-only` profile; abstention contributes only 28
 of the 360 correct answers, while the no-memory baseline's 0.068 is mostly bare
@@ -69,28 +61,40 @@ abstention (30 of its 34 correct), so the +65.2-point lift is the memory
 system's contribution. Judge-free refers to scoring — answers are still
 generated by gpt-5.5. Full provenance is in the
 [claim declaration](./benchmark-claims/longmemeval.json).
-The MemoryAgentBench row is GoodMemory's first public benchmark claim, and it is
-deliberately scoped. Only Conflict Resolution (CR 0.959) and Test-Time Learning
-(TTL 0.767) are claimed: a no-memory ablation scores both `0.000` (the questions
-are unanswerable without GoodMemory's retrieved consolidated fact / in-context
-demos), so these are genuine memory contributions, scored deterministically with
-no LLM judge (`executionFailures: 0`, 259 questions). Accurate Retrieval and
-Long-Range Understanding are EXCLUDED: the no-memory ablation scores them *higher*
-(AR 0.926 vs 0.890; LRU 0.632 vs 0.518), so they are multiple-choice leaks where
-the model answers from the candidates in the question, not memory wins. CR/TTL
-measure answer-time current-value resolution and in-context retrieval, not general
-retrieval recall. LoCoMo remains blank: a representative live-path run (199
-questions, 0.020 answer accuracy) plus a banked retrieval-boundary finding — the
-current lexical/rules substrate is recall-bound on short conversational dialog
-(exact gold-turn recall ~0.07-0.08, zero-retrieval ~0.92) and needs real semantic
-retrieval before any performance claim.
-Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) the BEAM
-recall is reported as a dual metric: a `fitted` figure (all narrow gates on)
-and a `generalization` figure (all narrow gates disabled). The large gap means
-much of the fitted recall comes from scenario-fitted query classifiers tuned to
-specific BEAM cases, which do not fire on unrelated user data; readers should
-treat the generalization figure as the floor for out-of-distribution inputs. The current external benchmark order is LongMemEval -> BEAM ->
-MemoryAgentBench -> LoCoMo. Use
+The MemoryAgentBench claim is GoodMemory's first public benchmark claim, and it
+is deliberately scoped. Only Conflict Resolution (CR 0.959) and Test-Time
+Learning (TTL 0.767) are claimed: a no-memory ablation scores both `0.000` (the
+questions are unanswerable without GoodMemory's retrieved consolidated fact /
+in-context demos), so these are genuine memory contributions, scored
+deterministically with no LLM judge (`executionFailures: 0`, 259 questions).
+Accurate Retrieval and Long-Range Understanding are EXCLUDED: the no-memory
+ablation scores them *higher* (AR 0.926 vs 0.890; LRU 0.632 vs 0.518), so they
+are multiple-choice leaks where the model answers from the candidates in the
+question, not memory wins. CR/TTL measure answer-time current-value resolution
+and in-context retrieval, not general retrieval recall.
+
+### Internal diagnostics (not public claims)
+
+These rows are research and hardening evidence, not claims. Each is blocked
+from public claim by its own committed declaration, which records the exact
+blockers. The underlying run reports live under gitignored `reports/` and are
+reproducible from the run commands recorded in the declarations.
+
+| Benchmark | Internal number | Why it is not claimable | Declaration |
+|---|---|---|---|
+| ImplicitMemBench Full-300 | overall 213.26 / 300 (0.7109) with `goodmemory-distilled-feedback+controlled-priming` vs 128 / 300 (0.4267) upstream-chat baseline | same-model judge (gpt-5.5 judging gpt-5.5) on most scorer families; dataset source/license unverified | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
+| BEAM (100K, rules-only retrieval diagnostic) | recall **fitted 0.9621** (all narrow gates on; 355 evidence questions of 400) vs **generalization 0.6822** (all 151 narrow gates disabled); measured answer checkpoint 278 / 400 (0.695) vs 224 / 400 (0.56) pre-evidence-pack, `executionFailures: 0` | same-model judge on the answer checkpoint; the 28-pt recall gap is scenario-fitted, not general retrieval (see [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)); generalization below the ≥0.75 target | [beam.json](./benchmark-claims/beam.json) |
+| LoCoMo | representative conv-1 live run 0.020 (4/199); exact gold-turn recall ~0.07-0.08, zero-retrieval ~0.92 on the lexical/rules substrate | banked retrieval boundary — answers are recall-bound; semantic candidate-generation retrieval work is in progress | [locomo.json](./benchmark-claims/locomo.json) |
+
+Per [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt) BEAM recall is
+a dual metric: a `fitted` figure (all narrow gates on) and a `generalization`
+figure (all narrow gates disabled). Much of the fitted recall comes from
+scenario-fitted query classifiers tuned to specific BEAM cases, which do not
+fire on unrelated user data; treat the generalization figure as the floor for
+out-of-distribution inputs. The BEAM answer checkpoint (0.695, general
+answer-time evidence pack `src/answer/evidencePack.ts`) additionally rides on
+that fitted recall and uses the answer model as its own judge, so it stays
+internal while answer-gap hardening and independent-judge scoring mature. Use
 [task-board/00-README.txt](./task-board/00-README.txt) for execution order and
 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
 for claim boundaries.

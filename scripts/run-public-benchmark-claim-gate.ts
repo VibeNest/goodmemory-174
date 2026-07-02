@@ -80,6 +80,9 @@ export function evaluateClaimBoundary(report: BenchmarkClaimReport): {
   if (!isNonEmpty(report.dataset.license)) {
     blockers.push("dataset.license missing/unverified");
   }
+  if (report.dataset.vendored !== false) {
+    blockers.push("dataset must not be vendored into the repo (dataset.vendored must be false)");
+  }
   if (report.model.sameModelJudge && isNonEmpty(report.model.judgeModel)) {
     blockers.push(
       "same-model judge bias (answer and judge are the same model); needs an independent judge or a deterministic scorer",
@@ -139,8 +142,107 @@ export interface ClaimGateEntry {
   consistent: boolean;
   declaredPublicClaimAllowed: boolean;
   file: string;
+  notes: string[];
   schemaErrors: string[];
   status: ClaimStatus;
+}
+
+// Non-blocking observations that must stay visible on every gate run (e.g. a
+// non-commercial dataset license is legal for research evidence but any public
+// claim wording must disclose it).
+export function collectClaimNotes(report: BenchmarkClaimReport): string[] {
+  const notes: string[] = [];
+  const license = report.dataset.license;
+  if (isNonEmpty(license) && /\bNC\b|non-?commercial/iu.test(license)) {
+    notes.push(
+      `non-commercial dataset license (${license.trim()}): any public claim must disclose the non-commercial scope`,
+    );
+  }
+  return notes;
+}
+
+// A README "public claims" table row is itself a public claim. The tables are
+// delimited by explicit markers so the check is language-agnostic (README.md and
+// README.zh-CN.md share the same markers).
+export const README_CLAIMS_TABLE_START = "<!-- public-claims-table:start -->";
+export const README_CLAIMS_TABLE_END = "<!-- public-claims-table:end -->";
+
+export interface ReadmeClaimTableCheck {
+  consistent: boolean;
+  file: string;
+  forbiddenRows: string[];
+  markersFound: boolean;
+  missingClaimableBenchmarks: string[];
+  rows: string[];
+  unmatchedRows: string[];
+}
+
+export function extractPublicClaimsTableRows(markdown: string): {
+  markersFound: boolean;
+  rows: string[];
+} {
+  const start = markdown.indexOf(README_CLAIMS_TABLE_START);
+  const end = markdown.indexOf(README_CLAIMS_TABLE_END);
+  if (start === -1 || end === -1 || end < start) {
+    return { markersFound: false, rows: [] };
+  }
+  const rows: string[] = [];
+  for (const line of markdown.slice(start, end).split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|")) {
+      continue;
+    }
+    const firstCell = trimmed
+      .split("|")
+      .map((cell) => cell.trim())
+      .filter((cell) => cell.length > 0)[0];
+    if (!isNonEmpty(firstCell)) {
+      continue;
+    }
+    if (/^:?-+:?$/u.test(firstCell)) {
+      continue;
+    }
+    if (rows.length === 0 && /benchmark|基准|基準/iu.test(firstCell)) {
+      continue;
+    }
+    rows.push(firstCell);
+  }
+  return { markersFound: true, rows };
+}
+
+export function checkReadmeClaimTables(
+  readmes: Array<{ content: string; file: string }>,
+  entries: ClaimGateEntry[],
+): ReadmeClaimTableCheck[] {
+  const claimable = entries
+    .filter((entry) => entry.computedPublicClaimAllowed && entry.consistent)
+    .map((entry) => entry.benchmark);
+  const declared = entries.map((entry) => entry.benchmark);
+  const matches = (row: string, benchmark: string): boolean =>
+    row.toLowerCase().includes(benchmark.toLowerCase());
+  return readmes.map(({ content, file }) => {
+    const { markersFound, rows } = extractPublicClaimsTableRows(content);
+    const forbiddenRows = rows.filter((row) =>
+      declared.some((benchmark) => !claimable.includes(benchmark) && matches(row, benchmark)),
+    );
+    const unmatchedRows = rows.filter(
+      (row) => !declared.some((benchmark) => matches(row, benchmark)),
+    );
+    const missingClaimableBenchmarks = claimable.filter(
+      (benchmark) => !rows.some((row) => matches(row, benchmark)),
+    );
+    return {
+      // Missing claimable benchmarks are under-claiming (promotion waits for
+      // explicit sign-off), so they are informational and do not fail the check.
+      consistent: markersFound && forbiddenRows.length === 0 && unmatchedRows.length === 0,
+      file,
+      forbiddenRows,
+      markersFound,
+      missingClaimableBenchmarks,
+      rows,
+      unmatchedRows,
+    };
+  });
 }
 
 export interface ClaimGateReport {
@@ -150,12 +252,15 @@ export interface ClaimGateReport {
   generatedBy: string;
   phase: "phase-67";
   publicClaimable: string[];
+  readmeChecks: ReadmeClaimTableCheck[];
+  readmeConsistent: boolean;
   summary: { consistent: number; overClaiming: number; publicClaimable: number; total: number };
 }
 
 export function buildClaimGateReport(
   declarations: Array<{ file: string; value: unknown }>,
   now: string,
+  readmes: Array<{ content: string; file: string }> = [],
 ): ClaimGateReport {
   const entries: ClaimGateEntry[] = [];
   for (const { file, value } of declarations) {
@@ -168,6 +273,7 @@ export function buildClaimGateReport(
         consistent: false,
         declaredPublicClaimAllowed: false,
         file,
+        notes: [],
         schemaErrors: schema.errors,
         status: "not_started",
         // schema invalid -> not consistent
@@ -183,6 +289,7 @@ export function buildClaimGateReport(
       consistent: report.claimBoundary.publicClaimAllowed === verdict.publicClaimAllowed,
       declaredPublicClaimAllowed: report.claimBoundary.publicClaimAllowed,
       file,
+      notes: collectClaimNotes(report),
       schemaErrors: [],
       status: report.status,
     });
@@ -197,6 +304,7 @@ export function buildClaimGateReport(
   const publicClaimable = entries
     .filter((entry) => entry.computedPublicClaimAllowed && entry.consistent)
     .map((entry) => entry.benchmark);
+  const readmeChecks = checkReadmeClaimTables(readmes, entries);
 
   return {
     allConsistent: entries.every((entry) => entry.consistent && entry.schemaErrors.length === 0),
@@ -205,6 +313,8 @@ export function buildClaimGateReport(
     generatedBy: "scripts/run-public-benchmark-claim-gate.ts",
     phase: "phase-67",
     publicClaimable,
+    readmeChecks,
+    readmeConsistent: readmeChecks.every((check) => check.consistent),
     summary: {
       consistent: entries.filter((entry) => entry.consistent).length,
       overClaiming,
@@ -240,7 +350,18 @@ export async function runPublicBenchmarkClaimGate(input: {
     declarations.push({ file, value });
   }
 
-  const report = buildClaimGateReport(declarations, now);
+  // A missing README (or missing table markers) is a real signal, not an error:
+  // the check reports markersFound=false and fails --strict.
+  const readmes: Array<{ content: string; file: string }> = [];
+  for (const file of ["README.md", "README.zh-CN.md"]) {
+    try {
+      readmes.push({ content: await readFileImpl(join(repoRoot, file)), file });
+    } catch {
+      readmes.push({ content: "", file });
+    }
+  }
+
+  const report = buildClaimGateReport(declarations, now, readmes);
   const outputDir = input.outputDir ?? join(repoRoot, "reports", "release", "claims");
   await mkdir(outputDir, { recursive: true });
   await writeFile(join(outputDir, "claim-gate-report.json"), `${JSON.stringify(report, null, 2)}\n`);
@@ -260,6 +381,34 @@ export function renderClaimGateSummary(report: ClaimGateReport): string {
   lines.push(
     `- publicly claimable now: ${report.publicClaimable.length > 0 ? report.publicClaimable.join(", ") : "none"}`,
   );
+  for (const check of report.readmeChecks) {
+    const detail = !check.markersFound
+      ? "public-claims-table markers missing"
+      : check.consistent
+        ? `${check.rows.length} row(s), consistent`
+        : [
+            check.forbiddenRows.length > 0
+              ? `FORBIDDEN rows (declaration not claimable): ${check.forbiddenRows.join("; ")}`
+              : "",
+            check.unmatchedRows.length > 0
+              ? `UNMATCHED rows (no declaration): ${check.unmatchedRows.join("; ")}`
+              : "",
+          ]
+            .filter((part) => part.length > 0)
+            .join(" | ");
+    lines.push(`- README check ${check.file}: ${check.consistent ? "OK" : "FAIL"} — ${detail}`);
+    if (check.missingClaimableBenchmarks.length > 0) {
+      lines.push(
+        `  (info: claimable but not yet promoted to ${check.file}: ` +
+          `${check.missingClaimableBenchmarks.join(", ")})`,
+      );
+    }
+  }
+  for (const entry of report.entries) {
+    for (const note of entry.notes) {
+      lines.push(`- note [${entry.benchmark}]: ${note}`);
+    }
+  }
   lines.push("");
   lines.push("| Benchmark | Status | Declared | Computed | Consistent | Blockers |");
   lines.push("|---|---|---|---|---|---|");
@@ -291,7 +440,10 @@ if (import.meta.main) {
     claimsDir: resolveCliFlagValue(Bun.argv, "--claims-dir"),
   });
   process.stdout.write(renderClaimGateSummary(report));
-  if (strict && (!report.allConsistent || report.summary.overClaiming > 0)) {
+  if (
+    strict &&
+    (!report.allConsistent || report.summary.overClaiming > 0 || !report.readmeConsistent)
+  ) {
     process.exitCode = 1;
   }
 }

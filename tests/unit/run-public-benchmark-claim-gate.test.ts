@@ -2,7 +2,12 @@ import { describe, expect, it } from "bun:test";
 import {
   type BenchmarkClaimReport,
   buildClaimGateReport,
+  checkReadmeClaimTables,
+  collectClaimNotes,
   evaluateClaimBoundary,
+  extractPublicClaimsTableRows,
+  README_CLAIMS_TABLE_END,
+  README_CLAIMS_TABLE_START,
   validateClaimReport,
 } from "../../scripts/run-public-benchmark-claim-gate";
 
@@ -101,5 +106,120 @@ describe("claim gate report", () => {
     const report = buildClaimGateReport([{ file: "broken.json", value: { benchmark: "Broken" } }], "t");
     expect(report.entries[0]?.schemaErrors.length).toBeGreaterThan(0);
     expect(report.allConsistent).toBe(false);
+  });
+
+  it("blocks a vendored dataset", () => {
+    const verdict = evaluateClaimBoundary(
+      cleanReport({ dataset: { license: "MIT", source: "https://example.com", vendored: true } }),
+    );
+    expect(verdict.publicClaimAllowed).toBe(false);
+    expect(verdict.blockers.join(" ")).toContain("vendored");
+  });
+
+  it("notes a non-commercial license without blocking it", () => {
+    const nc = cleanReport({
+      dataset: { license: "CC BY-NC 4.0", source: "https://example.com", vendored: false },
+    });
+    expect(evaluateClaimBoundary(nc).publicClaimAllowed).toBe(true);
+    expect(collectClaimNotes(nc).join(" ")).toContain("non-commercial");
+    expect(collectClaimNotes(cleanReport())).toEqual([]);
+  });
+});
+
+function readmeWithRows(rows: string[]): string {
+  return [
+    "# Title",
+    "",
+    README_CLAIMS_TABLE_START,
+    "| Benchmark | Result | Claim declaration |",
+    "|---|---:|---|",
+    ...rows,
+    README_CLAIMS_TABLE_END,
+    "",
+  ].join("\n");
+}
+
+describe("README public-claims table check", () => {
+  it("extracts rows between the markers, skipping header and separator", () => {
+    const parsed = extractPublicClaimsTableRows(
+      readmeWithRows([
+        "| LongMemEval full 500 | **0.720** | [x](./benchmark-claims/longmemeval.json) |",
+        "| MemoryAgentBench (CR, TTL) | **CR 0.959** | [x](./benchmark-claims/memoryagentbench.json) |",
+      ]),
+    );
+    expect(parsed.markersFound).toBe(true);
+    expect(parsed.rows).toEqual(["LongMemEval full 500", "MemoryAgentBench (CR, TTL)"]);
+  });
+
+  it("reports missing markers", () => {
+    expect(extractPublicClaimsTableRows("# no table here").markersFound).toBe(false);
+  });
+
+  it("passes when public rows map to claimable declarations and flags forbidden/unknown rows", () => {
+    const entries = buildClaimGateReport(
+      [
+        { file: "clean.json", value: cleanReport({ benchmark: "LongMemEval" }) },
+        {
+          file: "blocked.json",
+          value: cleanReport({
+            benchmark: "BEAM",
+            model: { answerModel: "gpt-5.5", judgeModel: "gpt-5.5", sameModelJudge: true },
+            claimBoundary: { publicClaimAllowed: false, reason: "same-model judge" },
+          }),
+        },
+      ],
+      "t",
+    ).entries;
+
+    const ok = checkReadmeClaimTables(
+      [{ content: readmeWithRows(["| LongMemEval full 500 | x | y |"]), file: "README.md" }],
+      entries,
+    )[0];
+    expect(ok?.consistent).toBe(true);
+
+    const forbidden = checkReadmeClaimTables(
+      [{ content: readmeWithRows(["| BEAM (100K) | x | y |"]), file: "README.md" }],
+      entries,
+    )[0];
+    expect(forbidden?.consistent).toBe(false);
+    expect(forbidden?.forbiddenRows).toEqual(["BEAM (100K)"]);
+
+    const unknown = checkReadmeClaimTables(
+      [{ content: readmeWithRows(["| MysteryBench | x | y |"]), file: "README.md" }],
+      entries,
+    )[0];
+    expect(unknown?.consistent).toBe(false);
+    expect(unknown?.unmatchedRows).toEqual(["MysteryBench"]);
+
+    const missingMarkers = checkReadmeClaimTables(
+      [{ content: "# stripped", file: "README.zh-CN.md" }],
+      entries,
+    )[0];
+    expect(missingMarkers?.consistent).toBe(false);
+  });
+
+  it("treats a claimable benchmark missing from the table as info, not failure", () => {
+    const entries = buildClaimGateReport(
+      [{ file: "clean.json", value: cleanReport({ benchmark: "LongMemEval" }) }],
+      "t",
+    ).entries;
+    const check = checkReadmeClaimTables(
+      [{ content: readmeWithRows([]), file: "README.md" }],
+      entries,
+    )[0];
+    expect(check?.consistent).toBe(true);
+    expect(check?.missingClaimableBenchmarks).toEqual(["LongMemEval"]);
+  });
+
+  it("feeds readme consistency into the gate report", () => {
+    const declarations = [{ file: "clean.json", value: cleanReport({ benchmark: "LongMemEval" }) }];
+    const good = buildClaimGateReport(declarations, "t", [
+      { content: readmeWithRows(["| LongMemEval full 500 | x | y |"]), file: "README.md" },
+    ]);
+    expect(good.readmeConsistent).toBe(true);
+    const bad = buildClaimGateReport(declarations, "t", [
+      { content: "# no markers", file: "README.md" },
+    ]);
+    expect(bad.readmeConsistent).toBe(false);
   });
 });

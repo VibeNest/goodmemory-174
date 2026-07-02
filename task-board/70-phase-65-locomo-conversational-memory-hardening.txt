@@ -30,6 +30,32 @@ Reopen only when a neural embedding endpoint or equivalent semantic retrieval
 backend is available; the next legal entry is P65-R003 "Neural semantic retrieval
 probe for LoCoMo" whose prerequisite is a real embedding endpoint.
 
+[P65-R003 RESOLVED 2026-06-27, NEGATIVE — commit bf7373f; banked here 2026-07-02]
+The prerequisite was met (OpenRouter /v1/embeddings, text-embedding-3-small,
+1536-dim, real vectors) and the probe ran (scripts/measure-locomo-neural.ts,
+four arms, deterministic gold-turn recall, no judge, no network beyond the
+embedding calls):
+
+  arm                                  recall(40Q)   recall(180Q)
+  jaccard baseline (rules-only)        14.2%         8.4%
+  BM25 additive (embedding-free)       44.8%         33.7%
+  neural text-embedding-3-small        44.8%         33.7%   <- ties BM25 exactly
+  hybrid-constant-embed (attribution)  14.2%         -
+
+A real neural embedding adds ZERO recall over embedding-free BM25. The
+constant-embed arm proves the lift comes from the additive ranking signal (not
+strategy=hybrid itself), and neural != constant proves the endpoint genuinely
+works. REFINED CONCLUSION: the ceiling is not the signal source but
+CANDIDATE-POOL ADMISSION — semanticScore (and BM25) only re-rank candidates
+that already pass the lexical admission gates (hasFactSelectionSignal:
+intent/lexical/subject only; the zero-retrieval fallback still needs
+lexicalScore >= 0.1), so zero-lexical-overlap gold turns can never be selected
+no matter how good the ranking signal is. All measured levers (BM25, neural,
+write-time conversational extraction) converge near the same ~45% probe
+ceiling. The reopened lane is therefore SEMANTIC CANDIDATE GENERATION (an
+opt-in union admission source into fact selection), not an embedding-endpoint
+hunt. Do NOT re-run endpoint probes expecting a win.
+
 Phase 64 MemoryAgentBench remains the active hardening leg; its real live-answer
 path exists behind `--live`, but no accepted external-root live closure exists.
 Phase 63 BEAM live closure is deferred per the user.
@@ -194,6 +220,12 @@ gold turn). The "worth continuing" bar set for these probes: overall recall
   rules. No neural embedding endpoint is currently available
   (ai.gurkiai.com serves no embedding model). Live answer was deliberately NOT run
   (retrieval did not improve materially).
+  [SUPERSEDED 2026-06-27 by P65-R003, commit bf7373f: a real endpoint (OpenRouter)
+  became available and was probed — neural == BM25 exactly (44.8%/33.7% vs
+  jaccard baseline 14.2%/8.4%); see the P65-R003 RESOLVED block near the top of
+  this board. The "semantic/embedding retrieval" lever as stated here is refined
+  to semantic CANDIDATE GENERATION (admission into the candidate pool), since
+  additive re-ranking is measured to be signal-source-agnostic.]
 
 
 First Synthetic Smoke (deterministic, executionFailures 0)
