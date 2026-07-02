@@ -31,6 +31,10 @@ interface Arm {
   bm25?: boolean;
   neural?: boolean;
   fakeEmbed?: boolean;
+  // P65-R004: semantic candidate-generation UNION (retrieval.semanticCandidates)
+  // — force-admits the vector top-K past the lexical admission gates. Only
+  // meaningful with a real embedding source (arm.neural).
+  union?: { topK?: number; maxAdditions?: number; minSimilarity?: number };
 }
 
 const ARMS: readonly Arm[] = [
@@ -41,6 +45,12 @@ const ARMS: readonly Arm[] = [
   // the additive semanticScore cannot differentiate). If this matches bm25/neural
   // recall, the lift is the hybrid candidate generation, not the signal.
   { label: "hybrid-constant-embed", strategy: "hybrid", fakeEmbed: true },
+  // P65-R004 arms: additive rerank (above) vs candidate-generation UNION. The
+  // additive ceiling is candidate ADMISSION; these measure whether admitting the
+  // cosine top-K directly moves gold-turn recall, and at what noise cost.
+  { label: "neural+union8", strategy: "hybrid", neural: true, union: { topK: 8 } },
+  { label: "neural+union16", strategy: "hybrid", neural: true, union: { topK: 16 } },
+  { label: "neural+union32", strategy: "hybrid", neural: true, union: { topK: 32 } },
 ];
 
 // A fake embedding adapter returning the same vector for every text, so all
@@ -74,8 +84,12 @@ function buildMemory(arm: Arm): GoodMemory {
     : arm.fakeEmbed
       ? { embeddingAdapter: constantEmbeddingAdapter as never }
       : undefined;
+  const retrieval = {
+    ...(arm.bm25 ? { bm25Ranking: true } : {}),
+    ...(arm.union ? { semanticCandidates: arm.union } : {}),
+  };
   return createGoodMemory({
-    ...(arm.bm25 ? { retrieval: { bm25Ranking: true } } : {}),
+    ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
     ...(adapters ? { adapters } : {}),
     storage: { provider: "memory" },
     testing: {
@@ -117,6 +131,8 @@ async function main(): Promise<void> {
     label: string;
     overall: number;
     byCategory: Record<string, number>;
+    avgNoise: number;
+    zeroGoldShare: number;
     failures: number;
     questions: number;
   }> = [];
@@ -159,6 +175,16 @@ async function main(): Promise<void> {
       label: arm.label,
       overall: overallLocomoEvidenceRecall(results),
       byCategory,
+      avgNoise:
+        results.length === 0
+          ? 0
+          : results.reduce((sum, entry) => sum + entry.noiseTurnCount, 0) /
+            results.length,
+      zeroGoldShare:
+        results.length === 0
+          ? 0
+          : results.filter((entry) => entry.evidenceRecall === 0).length /
+            results.length,
       failures,
       questions: results.length,
     });
@@ -166,14 +192,20 @@ async function main(): Promise<void> {
 
   console.log("# LoCoMo gold-turn recall: lexical floor vs BM25 vs REAL neural embedding (deterministic, no judge)");
   console.log("");
-  console.log(`| arm | overall | ${categories.join(" | ")} | failures | questions |`);
-  console.log(`|---|---:|${categories.map(() => "---:").join("|")}|---:|---:|`);
+  console.log(
+    `| arm | overall | ${categories.join(" | ")} | zeroGold | avgNoise | failures | questions |`,
+  );
+  console.log(
+    `|---|---:|${categories.map(() => "---:").join("|")}|---:|---:|---:|---:|`,
+  );
   for (const row of rows) {
     const cells = categories.map(
       (category) => `${((row.byCategory[category] ?? 0) * 100).toFixed(1)}%`,
     );
     console.log(
-      `| ${row.label} | ${(row.overall * 100).toFixed(1)}% | ${cells.join(" | ")} | ${row.failures} | ${row.questions} |`,
+      `| ${row.label} | ${(row.overall * 100).toFixed(1)}% | ${cells.join(" | ")} | ` +
+        `${(row.zeroGoldShare * 100).toFixed(1)}% | ${row.avgNoise.toFixed(2)} | ` +
+        `${row.failures} | ${row.questions} |`,
     );
   }
 }
