@@ -18,23 +18,70 @@
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory, type GoodMemory } from "../src";
-import { createProviderEmbeddingAdapter } from "../src/provider/layer";
+import {
+  createProviderConversationalMemoryExtractor,
+  createProviderEmbeddingAdapter,
+} from "../src/provider/layer";
 import { scoreLocomoAnswer } from "../src/eval/locomo";
+import {
+  requestOpenAICompatibleText,
+  stripThinkingBlocks,
+  withAISDKRetries,
+} from "../src/provider/ai-sdk-runtime";
 import { resolveCliFlagValue } from "./cli-options";
+import { resolveLiveModelConfig } from "./run-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   buildLocomoEvidencePackContext,
+  buildLocomoPrompt,
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
-  createLocomoLiveAnswerGenerator,
   loadLocomoCases,
+  LOCOMO_EXTRACTION_CACHE_FILE_NAME,
   locomoQuestionKey,
   overallLocomoEvidenceRecall,
+  parseLocomoExtractionCacheLines,
   parseLocomoProgressLines,
   scoreLocomoRetrieval,
+  seedLocomoCase,
+  seedLocomoCaseConversational,
   summarizeLocomoRetrieval,
+  wrapMemoryExtractorWithJsonlCache,
+  type LocomoAnswerGenerator,
   type LocomoQuestionRetrieval,
 } from "./run-phase-65-locomo-smoke";
+
+// Same instruction set as the harness generator, PLUS the exact abstention
+// token the upstream contract expects. LoCoMo normalizes every adversarial
+// gold to the literal string "No information available" and scores abstention
+// by token-F1 against it — an answer model that correctly abstains with "I
+// don't know" is scored WRONG on format alone (the same failure mode as MAB
+// TTL's 0/30, fixed there by teaching the expected answer FORM, scorer
+// untouched). Telling the model the expected abstention form is an
+// answer-format fix, not gold leakage: it applies to every question and
+// contains no per-question information.
+const UNION_LIVE_ANSWER_SYSTEM =
+  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). If the dialog context does not contain the information needed to answer, reply exactly: No information available. Never guess. Output only the final answer with no explanation.";
+
+const LIVE_REQUEST_TIMEOUT_MS = 120000;
+
+function createUnionLiveAnswerGenerator(): LocomoAnswerGenerator {
+  const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  return async (input) => {
+    const raw = await withAISDKRetries(() =>
+      requestOpenAICompatibleText({
+        model,
+        prompt: buildLocomoPrompt({
+          memoryContext: input.memoryContext,
+          question: input.question.question,
+        }),
+        system: UNION_LIVE_ANSWER_SYSTEM,
+        timeoutMs: LIVE_REQUEST_TIMEOUT_MS,
+      }),
+    );
+    return stripThinkingBlocks(raw);
+  };
+}
 
 function parseNumberFlag(argv: readonly string[], flag: string): number | undefined {
   const raw = resolveCliFlagValue(argv, flag);
@@ -91,6 +138,7 @@ async function main(): Promise<void> {
   const limitRaw = resolveCliFlagValue(argv, "--limit");
   const limit = limitRaw === undefined ? undefined : Number(limitRaw);
   const resume = argv.includes("--resume");
+  const withExtraction = argv.includes("--with-extraction");
   const runId = resolveCliFlagValue(argv, "--run-id") ?? `run-locomo-union${topK}-live`;
   const outputDir =
     resolveCliFlagValue(argv, "--output-dir") ??
@@ -123,7 +171,35 @@ async function main(): Promise<void> {
     ...(maxAdditions !== undefined ? { maxAdditions } : {}),
     ...(minSimilarity !== undefined ? { minSimilarity } : {}),
   };
-  const answerGenerator = createLocomoLiveAnswerGenerator();
+  const answerGenerator = createUnionLiveAnswerGenerator();
+  // Optional write-time conversational atomic-fact extraction (additive, never
+  // destructive), reusing the harness's seeder + the content-addressed cache so
+  // a cache file copied from a prior run skips every extraction LLM call.
+  const extractor = withExtraction
+    ? await (async () => {
+        const cachePath = join(runDirectory, LOCOMO_EXTRACTION_CACHE_FILE_NAME);
+        let initialCache: Map<string, unknown> = new Map();
+        try {
+          initialCache = parseLocomoExtractionCacheLines(
+            await readFile(cachePath, "utf8"),
+          );
+        } catch {
+          // no cache yet
+        }
+        return wrapMemoryExtractorWithJsonlCache(
+          createProviderConversationalMemoryExtractor({
+            model: resolveLiveModelConfig("GOODMEMORY_EVAL"),
+            requestTimeoutMs: LIVE_REQUEST_TIMEOUT_MS,
+          }),
+          {
+            appendFile: (path, data) => appendFile(path, data),
+            cachePath,
+            configTag: process.env.GOODMEMORY_EVAL_MODEL ?? "eval-model",
+            initialCache,
+          },
+        );
+      })()
+    : undefined;
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
 
@@ -142,11 +218,17 @@ async function main(): Promise<void> {
     }
     const memory = buildUnionMemory(union);
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
-    // Raw-turn seeding only (extraction is a separate lever measured by the
-    // harness's --conversational-extraction arm).
-    const { seedLocomoCase } = await import("./run-phase-65-locomo-smoke");
     try {
+      // Raw turns always; extraction facts additively when --with-extraction.
       await seedLocomoCase({ memory, runId, testCase });
+      if (extractor) {
+        await seedLocomoCaseConversational({
+          extractor,
+          memory,
+          runId,
+          testCase,
+        });
+      }
     } catch {
       executionFailures += pending.length;
       continue;
@@ -213,6 +295,9 @@ async function main(): Promise<void> {
     runDirectory,
     runId,
     union,
+    withExtraction,
+    // The abstention-format instruction is part of the measured configuration.
+    answerSystem: "union-live-abstention-format-v1",
   };
   await writeFile(
     join(runDirectory, "union-live-report.json"),
