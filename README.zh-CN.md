@@ -18,6 +18,60 @@ GoodMemory 不是 LLM、agent framework、向量数据库，也不是通用 RAG 
 - Local-first 存储：Bun 默认使用本地 SQLite；需要时可以接 Postgres、注入 adapter、启用 embedding provider。
 - 面向发布的验证路径：确定性测试、live eval、provider-backed eval、package smoke、quality gate。
 
+## 基准结果（Benchmark Results）
+
+GoodMemory 一次推进一个记忆基准。下表优先展示已接受的当前证据；某个基准完成并有报告支撑之前，对应行保持 `-` 留空。
+
+| 基准 | 主指标 | GoodMemory 结果 | 基线 / 参照 | 证据 |
+|---|---|---:|---:|---|
+| ImplicitMemBench Full-300 | overall score | 213.26 / 300（71.09%），`goodmemory-distilled-feedback+controlled-priming` | 128 / 300（42.67%），upstream-chat 基线 | [live full-300 summary](./reports/eval/live/phase-61-full300/run-phase61-full300-20260505T170001Z/overall-summary.json) |
+| LongMemEval full 500 | judge-free 确定性子集回答准确率（按构造排除同模型 semantic judge） | **0.720**（360/500），`goodmemory-rules-only`；比无记忆基线高 65.2 个百分点；evidence-session recall 0.9543 | 无记忆基线 0.068（34/500，其中 30 个是纯弃答） | [claim declaration](./benchmark-claims/longmemeval.json) |
+| BEAM（100K，rules-only 检索诊断） | evidence-chat recall（双指标：fitted 对 generalization） | **fitted 0.9621**，`goodmemory-rules-only`（所有窄门开启；100K split，400 题中 355 道证据题；20 missed-recall，0 zero-recall）——**generalization 0.6822**（151 个窄门全部关闭，147 missed）。28 个百分点的差距是 scenario-fitted 贡献，不是通用检索（见 [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)）。 | 0.1163，同一 split 上的首次 rules-only 诊断 | [latest accepted diagnostic](./reports/eval/research/phase-63/beam/run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z/recall-diagnostic.json) |
+| MemoryAgentBench (CR, TTL) | 回答准确率——确定性评分、无判官 | **CR 0.959，TTL 0.767** | 无记忆消融 0.000；已发表 single-hop CR 上限约 0.60 | [claim declaration](./benchmark-claims/memoryagentbench.json) |
+| LoCoMo | - | - | - | - |
+
+这些行是研究与加固证据，不是最终公开排行榜。
+BEAM 行报告的是 rules-only 检索 recall（100K split 上的 evidence-chat
+recall）。内部已经跑过一次端到端实测全量 checkpoint
+（`run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`）：
+rules-only 检索 + 通用 answer-time evidence pack（`src/answer/evidencePack.ts`）+
+同模型 semantic judge 得到 278 / 400 回答准确率（0.695），`executionFailures: 0`——
+相比引入 evidence pack 之前的 224 / 400（0.56）和上一个 pack checkpoint 的
+261 / 400（0.6525），recall 完全相同。这是内部实测证据，不是公开基准声明：
+它建立在下述 fitted recall 之上，并用回答模型给自己当判官，所以 README
+接受行仍然只报检索指标，等 answer-gap 加固和跨基准证据成熟。
+LongMemEval 行是 judge-free 公开声明，取代了此前一个已作废、不可声明的内部
+带判官数字（0.908）。一个 case 只有被确定性方法（abstention / exact /
+contains / expected_alternative / numeric_count）判对才计入；eval 流水线里的
+同模型 semantic judge（gpt-5.5 评 gpt-5.5）按构造排除在外——算上判官的诊断性
+整体准确率是 0.896，出于透明予以披露，但不作声明。声明的 0.720（360/500，
+`executionFailures: 0`，v0.3.5）使用无 embedding 的 `goodmemory-rules-only`
+profile；360 个判对里弃答只占 28 个，而无记忆基线的 0.068 里绝大多数是纯弃答
+（34 个对里占 30 个），所以 +65.2 个百分点的提升来自记忆系统本身。judge-free
+指的是评分方式——答案仍由 gpt-5.5 生成。完整溯源见
+[claim declaration](./benchmark-claims/longmemeval.json)。
+MemoryAgentBench 行是 GoodMemory 第一个公开基准声明，并且刻意限定了范围。
+只声明 Conflict Resolution（CR 0.959）和 Test-Time Learning（TTL 0.767）：
+无记忆消融在这两项上都是 `0.000`（没有 GoodMemory 检索到的合并事实 /
+in-context demos，这些问题根本无法作答），所以它们是真正的记忆贡献，并且以
+确定性方式评分、无 LLM 判官（`executionFailures: 0`，259 题）。Accurate
+Retrieval 和 Long-Range Understanding 被排除：无记忆消融在这两项上反而*更高*
+（AR 0.926 对 0.890；LRU 0.632 对 0.518），说明它们是选择题泄漏——模型直接从
+题目里的候选项作答，不是记忆的功劳。CR/TTL 度量的是回答时的 current-value
+resolution 和 in-context retrieval，不是通用检索 recall。LoCoMo 保持留空：
+一次代表性 live-path 运行（199 题，回答准确率 0.020）加一条已入档的检索边界
+结论——当前词面/规则底座在短对话语料上是 recall-bound 的（exact gold-turn
+recall 约 0.07-0.08，zero-retrieval 约 0.92），需要真正的语义检索之后才谈
+性能声明。
+按照 [ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt)，BEAM recall
+以双指标报告：`fitted`（所有窄门开启）与 `generalization`（所有窄门关闭）。
+巨大的差距说明 fitted recall 的很大一部分来自为特定 BEAM case 调出来的
+scenario-fitted query classifier，它们在无关用户数据上不会触发；读者应把
+generalization 数字当作 out-of-distribution 输入的下限。当前外部基准顺序是
+LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo。执行顺序见
+[task-board/00-README.txt](./task-board/00-README.txt)，claim boundary 见
+[docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。
+
 ## 选择你的接入路径
 
 GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory/host`、
@@ -232,8 +286,8 @@ goodmemory install codex \
 
 ## 应用集成快速开始
 
-当你在构建 chatbox、copilot 或产品 agent 时，使用 root package。更完整的
-应用接入路径见
+当你在构建 chatbox、copilot 或产品 agent 时，使用 root package。推荐的 Node
+服务路径就是 Express 和 Fastify 示例所用的同一条 thin loop。更完整的接入演练见
 [docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)。
 
 ```ts
@@ -355,6 +409,11 @@ Runtime archive 默认不持久化。显式调用
 `memory.runtime.endSession({ scope, archive: "off" })` 会清理 session state，
 但不会写入 archive。即使产品选择启用 archive，也应保持 summary-only，
 不要把 raw transcript 当作默认记忆来源。
+
+server 集成先从 thin examples 开始：
+[examples/express-chat-server.ts](./examples/express-chat-server.ts) 或
+[examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts)。
+Python/FastAPI 后端使用下文的 packaged `goodmemory-http-bridge` 路径。
 
 ## 可选 Recall 调优：多跳、离线 Embedding 与对话事实抽取
 
@@ -577,6 +636,9 @@ export async function handleMemoryChat(request: Request): Promise<Response> {
 说明：
 
 - canonical server example 是 [examples/plain-ai-sdk-server.ts](./examples/plain-ai-sdk-server.ts)。
+- 更薄的 Express 与 Fastify 示例是
+  [examples/express-chat-server.ts](./examples/express-chat-server.ts) 和
+  [examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts)。
 - `examples/vercel-ai-chat.ts` 保留为更底层的 wrapper/API 示例。
 - Next.js App Router 可以把 `export async function POST(request: Request)` 映射到同一段 handler 逻辑。
 - 第一条公开 server path 是 `ModelMessage`-first。
@@ -734,6 +796,7 @@ CLI surface：
 
 installed-package guides：
 
+- 15 分钟应用集成指南：[docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)
 - Reference integration guide：[docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
 - Codex handoff setup guide：[docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
 - Claude Code setup guide：[docs/GoodMemory-Claude-Code-Setup-Guide.md](./docs/GoodMemory-Claude-Code-Setup-Guide.md)
@@ -743,6 +806,8 @@ repo-local examples：
 - Basic chat integration：[examples/basic-chat.ts](./examples/basic-chat.ts)
 - Coding-agent flavored integration：[examples/coding-agent.ts](./examples/coding-agent.ts)
 - Plain AI SDK server integration：[examples/plain-ai-sdk-server.ts](./examples/plain-ai-sdk-server.ts)
+- Express chat server integration：[examples/express-chat-server.ts](./examples/express-chat-server.ts)
+- Fastify chat server integration：[examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts)
 - AI SDK wrapper integration：[examples/vercel-ai-chat.ts](./examples/vercel-ai-chat.ts)
 - Life-coach public remember profile：[examples/life-coach-remember-profile.ts](./examples/life-coach-remember-profile.ts)
 - Claude-style host artifact consumption：[examples/host-claude-artifacts.ts](./examples/host-claude-artifacts.ts)
@@ -754,6 +819,8 @@ repo-local examples：
 bun run example:chat
 bun run example:coding-agent
 bun run example:ai-sdk-server
+bun run example:express-chat
+bun run example:fastify-chat
 bun run example:vercel-ai
 bun run example:life-coach-profile
 bun run example:host-claude
