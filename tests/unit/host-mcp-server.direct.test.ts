@@ -184,7 +184,7 @@ describe("goodmemory mcp server direct handlers", () => {
     );
 
     expect(server.server._serverInfo.name).toBe("goodmemory-mcp");
-    expect(server.server._serverInfo.version).toBe("0.3.5");
+    expect(server.server._serverInfo.version).toBe("0.3.6");
     expect(Object.keys(server._registeredTools).sort()).toEqual([
       "goodmemory_get_context",
       "goodmemory_get_records",
