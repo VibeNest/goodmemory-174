@@ -2,32 +2,32 @@
   "benchmark": "LongMemEval",
   "status": "candidate_public_claim",
   "dataset": {
-    "source": "https://github.com/xiaowu0162/LongMemEval",
-    "license": null,
+    "source": "https://github.com/xiaowu0162/LongMemEval (data: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned, split longmemeval_s_cleaned)",
+    "license": "MIT",
     "vendored": false
   },
   "run": {
-    "commit": null,
-    "packageVersion": null,
-    "command": "P67-B pipeline (BLOCKED on gpt-5.5 endpoint): eval:phase-62-full500 -> eval:phase-62-full500-retry-failures (until executionFailures 0) -> eval:phase-62-full500-summary (merge) -> eval:phase-62-deterministic-subset --report-path <merged report.json> (judge-free goodmemory-hybrid vs baseline-no-memory). Old with-judge run: run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z (report no longer on disk; reports/ is gitignored).",
+    "commit": "6f9152c",
+    "packageVersion": "0.3.5",
+    "command": "eval:phase-62-full500 -- --benchmark-root <dir with longmemeval_s.json = HF longmemeval_s_cleaned> --profile goodmemory-rules-only --profile baseline-no-memory --shard-concurrency 4 --run-id run-phase67b-longmemeval-rules-deterministic-current (resumable via --resume-existing-shards; auto-merges) -> eval:phase-62-deterministic-subset -- --report-path <runDir>/report.json --claim-profile goodmemory-rules-only",
     "executionFailures": 0
   },
   "model": {
     "answerModel": "gpt-5.5",
-    "judgeModel": "gpt-5.5",
-    "sameModelJudge": true
+    "judgeModel": null,
+    "sameModelJudge": false
   },
   "metrics": {
-    "primary": "answer accuracy (full 500, WITH same-model semantic_judge — NOT the planned public metric)",
-    "score": 0.908,
-    "baseline": 0.902
+    "primary": "Judge-free deterministic-subset answer accuracy, goodmemory-rules-only profile, full 500 questions: a case counts correct ONLY when scored by a deterministic method (abstention/exact/contains/expected_alternative/numeric_count); semantic_judge is excluded by construction. Strict lower bound on overall accuracy.",
+    "score": 0.72,
+    "baseline": 0.068
   },
   "coverage": {
     "complete": true,
-    "note": "full 500 questions; evidence-session recall 0.9590 is a separate deterministic signal"
+    "note": "Full 500 questions, both profiles, executionFailures 0 (run-phase67b-longmemeval-rules-deterministic-current, 2026-07-02). Claim profile goodmemory-rules-only: 360/500 judge-free correct = exact 163 + contains 118 + numeric_count 50 + abstention 28 + expected_alternative 1 (abstention is only 7.8% of the judge-free correct — the claim is overwhelmingly content matches, not I-don't-know credit). Baseline-no-memory: 34/500 = 0.068, composed of abstention 30 + exact 3 + contains 1 — without memory the model can do little but correctly abstain. Memory lift +65.2 points. Diagnostics NOT claimed: same-model semantic_judge rescued 88 further mismatches (overall 0.896); evidence-session recall 0.9543."
   },
   "claimBoundary": {
-    "publicClaimAllowed": false,
-    "reason": "Blocked, but P67-B prep landed. The judge-free deterministic-subset ANALYZER is now built and unit-tested (scripts/run-phase-62-deterministic-subset.ts, alias eval:phase-62-deterministic-subset; pure summarizeLongMemEvalDeterministicSubset + 6 passing tests). It carves out the strict judge-free lower bound: a case counts correct only when scored by a deterministic method (abstention/exact/contains/expected_alternative/numeric_count); semantic_judge is excluded by construction (verified against the scorer in src/eval/longmemeval.ts, which only invokes the judge when every deterministic method returns mismatch). The planned public metric is goodmemory-hybrid deterministic-subset accuracy with baseline-no-memory (computed in the same run) as the judge-free baseline + memory-lift disclosure. The metrics block above (0.908) is the OLD with-judge number and is NOT the claim. Remaining blockers, all judge-INDEPENDENT now: (1) a fresh v0.3 full-500 run is required — BLOCKED on the gpt-5.5 endpoint (probed 2026-06-27, 503 no-distributor); (2) executionFailures must be driven to 0 via eval:phase-62-full500-retry-failures; (3) dataset.license must be verified upstream; (4) run.commit + run.packageVersion stamped from the fresh run. On a clean run the metric reframes to judge-free (judgeModel null, sameModelJudge false) and the gate is re-evaluated."
+    "publicClaimAllowed": true,
+    "reason": "Clears every gate rule: judge-free metric by construction (the deterministic-subset analyzer counts only string/numeric match methods verified in src/eval/longmemeval.ts — semantic_judge fires only after all deterministic methods mismatch and is EXCLUDED from the claim, so judgeModel is null for the claimed metric), executionFailures 0 on all 500x2 cases, reproducible (commit 6f9152c, v0.3.5, pinned command + run id, persisted artifacts under reports/eval/research/phase-62/longmemeval/), MIT license verified upstream 2026-07-02 (repo LICENSE + HF dataset card xiaowu0162/longmemeval-cleaned), complete coverage, baseline-no-memory computed in the SAME run. REQUIRED DISCLOSURES if promoted: (1) the claim profile is goodmemory-rules-only — the embedding-free rules pipeline (no hybrid/postgres/embedding deps); (2) the run pipeline does contain an optional same-model (gpt-5.5) semantic_judge stage, but it contributes ZERO to the claimed 0.72 — its rescues (88 cases, overall 0.896) are reported as diagnostics only; (3) answers are still GENERATED by gpt-5.5 — judge-free refers to scoring, not generation; (4) the historical 0.908 (goodmemory-hybrid, with-judge, 2026-05-17 run) is superseded and NOT claimable. README promotion pending user sign-off (claim-gate TRUE is necessary, not sufficient, per MAB precedent)."
   }
 }
