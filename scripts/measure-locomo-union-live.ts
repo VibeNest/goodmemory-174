@@ -139,6 +139,11 @@ async function main(): Promise<void> {
   const limit = limitRaw === undefined ? undefined : Number(limitRaw);
   const resume = argv.includes("--resume");
   const withExtraction = argv.includes("--with-extraction");
+  // Per-question LLM concurrency (recall + answer are independent across
+  // questions once a case is seeded; the JSONL checkpoint is key-based so
+  // completion order does not matter). Seeding/extraction stays sequential.
+  const concurrencyRaw = parseNumberFlag(argv, "--concurrency");
+  const concurrency = Math.max(1, Math.floor(concurrencyRaw ?? 1));
   // Gate-required ablation: answer every question with NO memory context (no
   // seeding, no recall). With the abstention-format instruction the honest
   // baseline is abstention on unanswerable probes and near-zero elsewhere.
@@ -239,55 +244,68 @@ async function main(): Promise<void> {
         continue;
       }
     }
-    for (const question of pending) {
-      try {
-        const retrievedTurnIds = memory
-          ? collectLocomoRetrievedTurnIds(
-              await memory.recall({
-                query: question.question,
-                scope,
-                strategy: "hybrid",
-              }),
-            )
-          : [];
-        const retrieval = scoreLocomoRetrieval({ question, retrievedTurnIds, testCase });
-        const generatedAnswer = await answerGenerator({
-          memoryContext: memory
-            ? buildLocomoEvidencePackContext({
-                question,
-                retrievedTurnIds,
-                testCase,
-              })
-            : "",
-          question,
-          retrievedTurnIds,
-          testCase,
-        });
-        const result: LocomoQuestionRetrieval = {
-          ...retrieval,
-          answerCorrect: scoreLocomoAnswer({
-            adversarialAnswer: question.adversarialAnswer,
-            answer: generatedAnswer,
-            goldAnswer: question.goldAnswer,
-            matchMode: question.matchMode,
-          }),
-          generatedAnswer,
-        };
-        results.push(result);
-        try {
-          await appendFile(progressPath, `${JSON.stringify(result)}\n`);
-        } catch {
-          // best-effort checkpoint
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (true) {
+        const index = cursor;
+        cursor += 1;
+        if (index >= pending.length) {
+          return;
         }
-      } catch {
-        executionFailures += 1;
+        const question = pending[index]!;
+        try {
+          const retrievedTurnIds = memory
+            ? collectLocomoRetrievedTurnIds(
+                await memory.recall({
+                  query: question.question,
+                  scope,
+                  strategy: "hybrid",
+                }),
+              )
+            : [];
+          const retrieval = scoreLocomoRetrieval({ question, retrievedTurnIds, testCase });
+          const generatedAnswer = await answerGenerator({
+            memoryContext: memory
+              ? buildLocomoEvidencePackContext({
+                  question,
+                  retrievedTurnIds,
+                  testCase,
+                })
+              : "",
+            question,
+            retrievedTurnIds,
+            testCase,
+          });
+          const result: LocomoQuestionRetrieval = {
+            ...retrieval,
+            answerCorrect: scoreLocomoAnswer({
+              adversarialAnswer: question.adversarialAnswer,
+              answer: generatedAnswer,
+              goldAnswer: question.goldAnswer,
+              matchMode: question.matchMode,
+            }),
+            generatedAnswer,
+          };
+          results.push(result);
+          try {
+            await appendFile(progressPath, `${JSON.stringify(result)}\n`);
+          } catch {
+            // best-effort checkpoint
+          }
+        } catch {
+          executionFailures += 1;
+        }
       }
-    }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, pending.length) }, () => worker()),
+    );
   }
 
   const categories = summarizeLocomoRetrieval(results);
   const answered = results.filter((entry) => entry.answerCorrect !== null);
   const report = {
+    concurrency,
     answerAccuracyOverall:
       answered.length === 0
         ? null
