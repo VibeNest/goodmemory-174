@@ -211,6 +211,19 @@ async function main(): Promise<void> {
     : undefined;
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
+  let surfacedErrors = 0;
+  const surfaceError = (question: string, error: unknown): void => {
+    // Failures must be visible: a silent per-question catch turned a systemic
+    // failure into an invisible executionFailures cascade once already.
+    if (surfacedErrors < 8) {
+      surfacedErrors += 1;
+      process.stderr.write(
+        `[union-live] question failed (${question.slice(0, 60)}): ${String(error).slice(0, 300)}\n`,
+      );
+    }
+  };
+  const sleep = (ms: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   for (const testCase of cases) {
     const pending = testCase.questions.filter(
@@ -253,47 +266,59 @@ async function main(): Promise<void> {
           return;
         }
         const question = pending[index]!;
-        try {
-          const retrievedTurnIds = memory
-            ? collectLocomoRetrievedTurnIds(
-                await memory.recall({
-                  query: question.question,
-                  scope,
-                  strategy: "hybrid",
-                }),
-              )
-            : [];
-          const retrieval = scoreLocomoRetrieval({ question, retrievedTurnIds, testCase });
-          const generatedAnswer = await answerGenerator({
-            memoryContext: memory
-              ? buildLocomoEvidencePackContext({
-                  question,
-                  retrievedTurnIds,
-                  testCase,
-                })
-              : "",
-            question,
-            retrievedTurnIds,
-            testCase,
-          });
-          const result: LocomoQuestionRetrieval = {
-            ...retrieval,
-            answerCorrect: scoreLocomoAnswer({
-              adversarialAnswer: question.adversarialAnswer,
-              answer: generatedAnswer,
-              goldAnswer: question.goldAnswer,
-              matchMode: question.matchMode,
-            }),
-            generatedAnswer,
-          };
-          results.push(result);
+        // Per-question retry: transient provider/gateway errors must not count
+        // a question as failed on the first miss.
+        let attempt = 0;
+        for (;;) {
           try {
-            await appendFile(progressPath, `${JSON.stringify(result)}\n`);
-          } catch {
-            // best-effort checkpoint
+            const retrievedTurnIds = memory
+              ? collectLocomoRetrievedTurnIds(
+                  await memory.recall({
+                    query: question.question,
+                    scope,
+                    strategy: "hybrid",
+                  }),
+                )
+              : [];
+            const retrieval = scoreLocomoRetrieval({ question, retrievedTurnIds, testCase });
+            const generatedAnswer = await answerGenerator({
+              memoryContext: memory
+                ? buildLocomoEvidencePackContext({
+                    question,
+                    retrievedTurnIds,
+                    testCase,
+                  })
+                : "",
+              question,
+              retrievedTurnIds,
+              testCase,
+            });
+            const result: LocomoQuestionRetrieval = {
+              ...retrieval,
+              answerCorrect: scoreLocomoAnswer({
+                adversarialAnswer: question.adversarialAnswer,
+                answer: generatedAnswer,
+                goldAnswer: question.goldAnswer,
+                matchMode: question.matchMode,
+              }),
+              generatedAnswer,
+            };
+            results.push(result);
+            try {
+              await appendFile(progressPath, `${JSON.stringify(result)}\n`);
+            } catch {
+              // best-effort checkpoint
+            }
+            break;
+          } catch (error) {
+            attempt += 1;
+            if (attempt >= 3) {
+              surfaceError(question.question, error);
+              executionFailures += 1;
+              break;
+            }
+            await sleep(attempt === 1 ? 2000 : 8000);
           }
-        } catch {
-          executionFailures += 1;
         }
       }
     };
