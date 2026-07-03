@@ -20,10 +20,17 @@
 // `answerAccuracy` field per category, set to null, so the contract is complete
 // and the deferral is explicit rather than silent.
 
+import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createGoodMemory } from "../src/api/createGoodMemory";
-import type { GoodMemory, GoodMemoryConfig, RecallResult } from "../src/api/contracts";
+import type {
+  GoodMemory,
+  GoodMemoryConfig,
+  GoodMemoryEmbeddingProviderConfig,
+  RecallResult,
+} from "../src/api/contracts";
+import { inspectGoodMemoryRuntime } from "../src/api/runtimeInfo";
 import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import { createLexicalCoverageReranker } from "../src/recall/reranker";
 import {
@@ -62,16 +69,28 @@ export const LOCOMO_LIVE_PROGRESS_FILE_NAME = "live-progress.jsonl";
 // without --resume.
 export const LOCOMO_EXTRACTION_CACHE_FILE_NAME = "extraction-cache.jsonl";
 export const LOCOMO_ROOT_ENV = "GOODMEMORY_LOCOMO_ROOT";
+const LOCOMO_PROGRESS_CONFIG_KIND = "locomo-progress-config";
 const GENERATED_BY = "scripts/run-phase-65-locomo-smoke.ts";
 const EXTERNAL_CASES_FILE_NAME = "cases.json";
 const UPSTREAM_SOURCE = "https://github.com/snap-research/locomo";
 const UPSTREAM_LICENSE = "CC BY-NC 4.0";
+const LOCOMO_QA_CATEGORY_SET: ReadonlySet<string> = new Set(
+  LOCOMO_QA_CATEGORIES,
+);
 // The smoke slice exercises GoodMemory's rules-only retrieval path only; a live
 // generator profile is added later.
 const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface LocomoSmokeCliOptions {
+  // Opt-in live-answer policy probe: LoCoMo open-domain questions sometimes
+  // require resolving common world facts from dialog evidence (for example a
+  // city -> state). Defaults off so adversarial/no-answer behavior stays
+  // conservative unless a run explicitly tests this answer policy.
+  allowCommonsenseResolution?: boolean;
   benchmarkRoot?: string;
+  caseIds?: string[];
+  questionIds?: string[];
+  questionCategories?: LocomoQaCategory[];
   // Opt-in: rank retrieval with the Okapi BM25 lexical leg (recall under the
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
@@ -87,6 +106,19 @@ export interface LocomoSmokeCliOptions {
   multiHop?: boolean;
   // Opt-in gateway-free lexical-coverage reranker over the top-K (Move 5).
   rerank?: boolean;
+  // Opt-in provider-backed embedding resolution via GOODMEMORY_EMBEDDING_* (or
+  // an injected provider config in tests). Without this flag, semantic-candidate
+  // smoke runs intentionally use the deterministic smoke embedding adapter and
+  // remain plumbing proof only.
+  providerEmbedding?: boolean;
+  // Opt-in semantic candidate-generation union: force-admit vector top-K facts
+  // into selection under hybrid recall. This is benchmark-probe plumbing only;
+  // the result is meaningful only when the embedding source is meaningful.
+  semanticCandidates?: boolean;
+  semanticCandidateMaxAdditions?: number;
+  semanticCandidateMinRelativeScore?: number;
+  semanticCandidateMinSimilarity?: number;
+  semanticCandidateTopK?: number;
   // Opt-in (live-answer only): build the answer context from the records recall
   // actually surfaced (normalized facts included) instead of reconstructing raw
   // turns, mirroring the product buildContext path. Targets the answer-assembly
@@ -177,7 +209,14 @@ export interface LocomoCategoryRetrievalSummary {
   questionCount: number;
 }
 
+export type LocomoAnswerContextMode =
+  | "evidence-pack"
+  | "raw-turns"
+  | "recalled-records";
+
 export interface LocomoSmokeReport {
+  allowCommonsenseResolution?: boolean;
+  answerContextMode?: LocomoAnswerContextMode;
   answerEvaluation: "deferred-to-live-mode" | "scored";
   benchmark: "locomo";
   // Resolved case source: "synthetic-smoke" or the external cases.json path.
@@ -185,6 +224,8 @@ export interface LocomoSmokeReport {
   // Whether the Okapi BM25 lexical leg (hybrid strategy) ranked retrieval, vs
   // the default naive-Jaccard rules-only floor.
   bm25Ranking: boolean;
+  // Selected case ids after --case-id filtering, in source order.
+  caseIds: string[];
   caseCount: number;
   cases: LocomoQuestionRetrieval[];
   categories: LocomoCategoryRetrievalSummary[];
@@ -203,11 +244,23 @@ export interface LocomoSmokeReport {
   phase: "phase-65";
   profilesCompared: string[];
   questionCount: number;
+  // Selected question categories after --category filtering, or null when all
+  // LoCoMo categories are included.
+  questionCategories: LocomoQaCategory[] | null;
+  questionIds?: string[] | null;
   // Whether this report was assembled with --resume (some results replayed from
   // the per-question checkpoint rather than recomputed).
   resume: boolean;
   runDirectory: string;
   runId: string;
+  semanticCandidateEmbeddingSource: "none" | "provider" | "smoke-hash";
+  semanticCandidates: {
+    enabled: boolean;
+    maxAdditions: number | null;
+    minRelativeScore: number | null;
+    minSimilarity: number | null;
+    topK: number | null;
+  };
   // The answer/task metric upstream scores each category with, surfaced so a
   // later live mode applies the matching deterministic check.
   upstreamAnswerMetricByCategory: Partial<Record<LocomoQaCategory, string>>;
@@ -222,18 +275,44 @@ export function parseLocomoSmokeCliOptions(
   if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
     throw new Error("--limit must be a positive integer.");
   }
+  const semanticCandidateTopK = parsePositiveIntegerFlag(
+    argv,
+    "--semantic-candidate-top-k",
+  );
+  const semanticCandidateMaxAdditions = parseNonNegativeIntegerFlag(
+    argv,
+    "--semantic-candidate-max-additions",
+  );
+  const semanticCandidateMinSimilarity = parseNonNegativeNumberFlag(
+    argv,
+    "--semantic-candidate-min-similarity",
+  );
+  const semanticCandidateMinRelativeScore = parseUnitIntervalFlag(
+    argv,
+    "--semantic-candidate-min-relative-score",
+  );
   return {
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
+    allowCommonsenseResolution: argv.includes("--allow-commonsense-resolution"),
     answerFromRecalled: argv.includes("--answer-from-recalled"),
     bm25: argv.includes("--bm25"),
+    caseIds: parseStringListFlag(argv, "--case-id"),
+    questionIds: parseStringListFlag(argv, "--question-id"),
+    questionCategories: parseLocomoCategoryListFlag(argv, "--category"),
     conversationalExtraction: argv.includes("--conversational-extraction"),
     corefNormalize: argv.includes("--coref-normalize"),
     decompose: argv.includes("--decompose"),
     evidencePack: argv.includes("--evidence-pack"),
     multiHop: argv.includes("--multihop"),
+    providerEmbedding: argv.includes("--provider-embedding"),
     rerank: argv.includes("--rerank"),
+    semanticCandidateMaxAdditions,
+    semanticCandidateMinRelativeScore,
+    semanticCandidateMinSimilarity,
+    semanticCandidates: argv.includes("--semantic-candidates"),
+    semanticCandidateTopK,
     smartFusion: argv.includes("--smart-fusion"),
     limit,
     live: argv.includes("--live"),
@@ -241,6 +320,114 @@ export function parseLocomoSmokeCliOptions(
     outputDir: resolveCliFlagValue(argv, "--output-dir"),
     runId: resolveCliFlagValue(argv, "--run-id"),
   };
+}
+
+function parseLocomoCategoryListFlag(
+  argv: readonly string[],
+  flagName: string,
+): LocomoQaCategory[] | undefined {
+  const values = parseStringListFlag(argv, flagName);
+  if (values === undefined) {
+    return undefined;
+  }
+  const categories: LocomoQaCategory[] = [];
+  const seen = new Set<LocomoQaCategory>();
+  for (const value of values) {
+    if (!LOCOMO_QA_CATEGORY_SET.has(value)) {
+      throw new Error(
+        `${flagName} must be one of: ${LOCOMO_QA_CATEGORIES.join(", ")}.`,
+      );
+    }
+    const category = value as LocomoQaCategory;
+    if (!seen.has(category)) {
+      categories.push(category);
+      seen.add(category);
+    }
+  }
+  return categories;
+}
+
+function parseStringListFlag(
+  argv: readonly string[],
+  flagName: string,
+): string[] | undefined {
+  const values: string[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] !== flagName) {
+      continue;
+    }
+    const raw = argv[index + 1];
+    if (!raw || raw.startsWith("--")) {
+      throw new Error(`${flagName} requires a value.`);
+    }
+    for (const value of raw.split(",")) {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        values.push(trimmed);
+      }
+    }
+  }
+  return values.length === 0 ? undefined : values;
+}
+
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flagName: string,
+): number | undefined {
+  const raw = resolveCliFlagValue(argv, flagName);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  return value;
+}
+
+function parseNonNegativeIntegerFlag(
+  argv: readonly string[],
+  flagName: string,
+): number | undefined {
+  const raw = resolveCliFlagValue(argv, flagName);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${flagName} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function parseNonNegativeNumberFlag(
+  argv: readonly string[],
+  flagName: string,
+): number | undefined {
+  const raw = resolveCliFlagValue(argv, flagName);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${flagName} must be a non-negative number.`);
+  }
+  return value;
+}
+
+function parseUnitIntervalFlag(
+  argv: readonly string[],
+  flagName: string,
+): number | undefined {
+  const raw = resolveCliFlagValue(argv, flagName);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0 || value > 1) {
+    throw new Error(`${flagName} must be greater than 0 and at most 1.`);
+  }
+  return value;
 }
 
 export function buildLocomoScope(input: {
@@ -470,6 +657,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJsonStringify).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function sha256(value: unknown): string {
+  return createHash("sha256").update(stableJsonStringify(value)).digest("hex");
+}
+
 export function collectLocomoTurnIdsFromRecord(record: unknown): string[] {
   if (!isRecord(record)) {
     return [];
@@ -656,6 +860,18 @@ export function buildLocomoRecalledContext(input: {
 const LOCOMO_ANSWER_SYSTEM =
   "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). Output only the final answer with no explanation.";
 
+export function buildLocomoSystemPrompt(input: {
+  allowCommonsenseResolution?: boolean;
+}): string {
+  if (!input.allowCommonsenseResolution) {
+    return LOCOMO_ANSWER_SYSTEM;
+  }
+  return [
+    LOCOMO_ANSWER_SYSTEM,
+    "When the dialog explicitly provides the underlying entity or place, you may use common general world knowledge to resolve that entity or place to the concise requested form.",
+  ].join(" ");
+}
+
 export function buildLocomoPrompt(input: {
   memoryContext: string;
   question: string;
@@ -672,8 +888,13 @@ const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120000;
 
 // Real LLM generator (deterministic token-F1 / exact / adversarial scoring
 // downstream, so no judge).
-export function createLocomoLiveAnswerGenerator(): LocomoAnswerGenerator {
+export function createLocomoLiveAnswerGenerator(input: {
+  allowCommonsenseResolution?: boolean;
+} = {}): LocomoAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
+  const system = buildLocomoSystemPrompt({
+    allowCommonsenseResolution: input.allowCommonsenseResolution,
+  });
   return async (input) => {
     const raw = await withAISDKRetries(() =>
       requestOpenAICompatibleText({
@@ -682,7 +903,7 @@ export function createLocomoLiveAnswerGenerator(): LocomoAnswerGenerator {
           memoryContext: input.memoryContext,
           question: input.question.question,
         }),
-        system: LOCOMO_ANSWER_SYSTEM,
+        system,
         timeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
       }),
     );
@@ -764,8 +985,29 @@ function createSmokeEmbeddingAdapter(): EmbeddingAdapter {
   };
 }
 
+function createNoopAssistedExtractor(): MemoryExtractor {
+  return {
+    async extract(input) {
+      return {
+        candidates: [],
+        ignoredMessageCount: input.messages.length,
+      };
+    },
+  };
+}
+
 export function createLocomoSmokeMemory(
-  options: { bm25?: boolean; rerank?: boolean } = {},
+  options: {
+    bm25?: boolean;
+    providerEmbedding?: boolean;
+    providerEmbeddingConfig?: GoodMemoryEmbeddingProviderConfig;
+    rerank?: boolean;
+    semanticCandidates?: boolean;
+    semanticCandidateMaxAdditions?: number;
+    semanticCandidateMinRelativeScore?: number;
+    semanticCandidateMinSimilarity?: number;
+    semanticCandidateTopK?: number;
+  } = {},
 ): GoodMemory {
   // Deterministic id and clock seams keep repeated smoke runs reproducible:
   // ranking tie-breaks fall back to fact-id and timestamp comparisons.
@@ -776,16 +1018,51 @@ export function createLocomoSmokeMemory(
   // (recall runs under the "hybrid" strategy, which is where the leg applies).
   // The gateway-free lexical-coverage reranker is the embedding-free second stage
   // over the top-K (Move 5).
-  const adapters: NonNullable<GoodMemoryConfig["adapters"]> = {};
-  if (!options.bm25) {
+  const adapters: NonNullable<GoodMemoryConfig["adapters"]> = {
+    assistedExtractor: createNoopAssistedExtractor(),
+  };
+  if (options.providerEmbedding && options.bm25) {
+    throw new Error(
+      "--provider-embedding cannot be combined with --bm25; hybrid recall uses the embedding branch before the BM25 fallback.",
+    );
+  }
+  if (!options.bm25 && !options.providerEmbedding) {
     adapters.embeddingAdapter = createSmokeEmbeddingAdapter();
   }
   if (options.rerank) {
     adapters.reranker = createLexicalCoverageReranker();
   }
-  return createGoodMemory({
-    ...(options.bm25 ? { retrieval: { bm25Ranking: true } } : {}),
+  const retrieval: NonNullable<GoodMemoryConfig["retrieval"]> = {
+    ...(options.bm25 ? { bm25Ranking: true } : {}),
+    ...(options.semanticCandidates
+      ? {
+          semanticCandidates: {
+            ...(options.semanticCandidateMaxAdditions !== undefined
+              ? { maxAdditions: options.semanticCandidateMaxAdditions }
+              : {}),
+            ...(options.semanticCandidateMinSimilarity !== undefined
+              ? { minSimilarity: options.semanticCandidateMinSimilarity }
+              : {}),
+            ...(options.semanticCandidateMinRelativeScore !== undefined
+              ? { minRelativeScore: options.semanticCandidateMinRelativeScore }
+              : {}),
+            ...(options.semanticCandidateTopK !== undefined
+              ? { topK: options.semanticCandidateTopK }
+              : {}),
+          },
+        }
+      : {}),
+  };
+  const memory = createGoodMemory({
+    ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
     ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
+    ...(options.providerEmbeddingConfig
+      ? {
+          providers: {
+            embedding: options.providerEmbeddingConfig,
+          },
+        }
+      : {}),
     storage: {
       provider: "memory",
     },
@@ -800,6 +1077,15 @@ export function createLocomoSmokeMemory(
       },
     },
   });
+  if (
+    options.providerEmbedding &&
+    inspectGoodMemoryRuntime(memory)?.embeddingEnabled !== true
+  ) {
+    throw new Error(
+      "--provider-embedding requires GOODMEMORY_EMBEDDING_PROVIDER, GOODMEMORY_EMBEDDING_MODEL, and GOODMEMORY_EMBEDDING_API_KEY (or an injected embedding provider config).",
+    );
+  }
+  return memory;
 }
 
 function assertNormalizedCase(value: unknown, index: number): LocomoCase {
@@ -830,7 +1116,10 @@ export function deriveLocomoUpstreamMetricByCategory(
 
 export async function loadLocomoCases(input: {
   benchmarkRoot?: string;
+  caseIds?: readonly string[];
   limit?: number;
+  questionIds?: readonly string[];
+  questionCategories?: readonly LocomoQaCategory[];
   readFile: (path: string) => Promise<string>;
 }): Promise<{ benchmarkSource: string; cases: LocomoCase[] }> {
   let cases: LocomoCase[];
@@ -850,6 +1139,58 @@ export async function loadLocomoCases(input: {
     cases = buildLocomoSmokeCases();
     benchmarkSource = "synthetic-smoke";
   }
+  if (input.caseIds && input.caseIds.length > 0) {
+    const requested = new Set(input.caseIds);
+    cases = cases.filter((testCase) => requested.has(testCase.caseId));
+    const found = new Set(cases.map((testCase) => testCase.caseId));
+    const missing = input.caseIds.filter((caseId) => !found.has(caseId));
+    if (missing.length > 0) {
+      throw new Error(
+        `LoCoMo case id(s) not found in ${benchmarkSource}: ${missing.join(", ")}`,
+      );
+    }
+  }
+  if (input.questionCategories && input.questionCategories.length > 0) {
+    const requested = new Set(input.questionCategories);
+    cases = cases
+      .map((testCase) => ({
+        ...testCase,
+        questions: testCase.questions.filter((question) =>
+          requested.has(question.category),
+        ),
+      }))
+      .filter((testCase) => testCase.questions.length > 0);
+    if (cases.length === 0) {
+      throw new Error(
+        `LoCoMo category filter matched no questions in ${benchmarkSource}: ` +
+          input.questionCategories.join(", "),
+      );
+    }
+  }
+  if (input.questionIds && input.questionIds.length > 0) {
+    const requested = new Set(input.questionIds);
+    cases = cases
+      .map((testCase) => ({
+        ...testCase,
+        questions: testCase.questions.filter((question) =>
+          requested.has(question.questionId),
+        ),
+      }))
+      .filter((testCase) => testCase.questions.length > 0);
+    const found = new Set(
+      cases.flatMap((testCase) =>
+        testCase.questions.map((question) => question.questionId),
+      ),
+    );
+    const missing = input.questionIds.filter(
+      (questionId) => !found.has(questionId),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `LoCoMo question id(s) not found in ${benchmarkSource}: ${missing.join(", ")}`,
+      );
+    }
+  }
   if (input.limit !== undefined) {
     cases = cases.slice(0, input.limit);
   }
@@ -858,6 +1199,193 @@ export async function loadLocomoCases(input: {
 
 export function locomoQuestionKey(caseId: string, questionId: string): string {
   return `${caseId}::${questionId}`;
+}
+
+interface LocomoProgressConfig {
+  allowCommonsenseResolution: boolean;
+  answerContextMode: LocomoAnswerContextMode;
+  benchmarkSource: string;
+  bm25Ranking: boolean;
+  caseIds: string[];
+  corefNormalize: boolean;
+  decompose: boolean;
+  externalRoot: string | null;
+  ingestMode: LocomoSmokeReport["ingestMode"];
+  limit: number | null;
+  liveAnswer: boolean;
+  modelConfig: {
+    embedding: Record<string, string | null>;
+    eval: Record<string, string | null>;
+  };
+  multiHop: boolean;
+  providerEmbedding: boolean;
+  questionCategories: LocomoQaCategory[] | null;
+  questionIds: string[] | null;
+  questions: Array<{
+    caseId: string;
+    category: LocomoQaCategory;
+    questionId: string;
+  }>;
+  recallStrategy: "hybrid" | "rules-only";
+  rerank: boolean;
+  runId: string;
+  semanticCandidateEmbeddingSource: LocomoSmokeReport["semanticCandidateEmbeddingSource"];
+  semanticCandidates: LocomoSmokeReport["semanticCandidates"];
+  smartFusion: boolean;
+}
+
+interface LocomoProgressHeader {
+  config: LocomoProgressConfig;
+  configFingerprint: string;
+  kind: typeof LOCOMO_PROGRESS_CONFIG_KIND;
+  version: 1;
+}
+
+function resolveLocomoAnswerContextMode(
+  options: Pick<LocomoSmokeCliOptions, "answerFromRecalled" | "evidencePack">,
+): LocomoAnswerContextMode {
+  if (options.answerFromRecalled) {
+    return "recalled-records";
+  }
+  if (options.evidencePack) {
+    return "evidence-pack";
+  }
+  return "raw-turns";
+}
+
+function locomoSemanticCandidateConfig(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    | "semanticCandidateMaxAdditions"
+    | "semanticCandidateMinRelativeScore"
+    | "semanticCandidateMinSimilarity"
+    | "semanticCandidates"
+    | "semanticCandidateTopK"
+  >,
+): LocomoSmokeReport["semanticCandidates"] {
+  return {
+    enabled: options.semanticCandidates ?? false,
+    maxAdditions: options.semanticCandidateMaxAdditions ?? null,
+    minRelativeScore: options.semanticCandidateMinRelativeScore ?? null,
+    minSimilarity: options.semanticCandidateMinSimilarity ?? null,
+    topK: options.semanticCandidateTopK ?? null,
+  };
+}
+
+function publicModelConfig(prefix: string): Record<string, string | null> {
+  return {
+    baseURL: process.env[`${prefix}_BASE_URL`] ?? null,
+    model: process.env[`${prefix}_MODEL`] ?? null,
+    provider: process.env[`${prefix}_PROVIDER`] ?? null,
+  };
+}
+
+function buildLocomoProgressConfig(input: {
+  answerContextMode: LocomoAnswerContextMode;
+  benchmarkSource: string;
+  cases: readonly LocomoCase[];
+  liveAnswer: boolean;
+  options: LocomoSmokeCliOptions;
+  recallStrategy: "hybrid" | "rules-only";
+  runId: string;
+  semanticCandidateEmbeddingSource: LocomoSmokeReport["semanticCandidateEmbeddingSource"];
+  semanticCandidates: LocomoSmokeReport["semanticCandidates"];
+}): LocomoProgressConfig {
+  return {
+    allowCommonsenseResolution: input.options.allowCommonsenseResolution ?? false,
+    answerContextMode: input.answerContextMode,
+    benchmarkSource: input.benchmarkSource,
+    bm25Ranking: input.options.bm25 ?? false,
+    caseIds: input.cases.map((testCase) => testCase.caseId),
+    corefNormalize: input.options.corefNormalize ?? false,
+    decompose: input.options.decompose ?? false,
+    externalRoot: input.options.benchmarkRoot ?? null,
+    ingestMode: input.options.conversationalExtraction
+      ? "conversational-extraction"
+      : "raw-turns",
+    limit: input.options.limit ?? null,
+    liveAnswer: input.liveAnswer,
+    modelConfig: {
+      embedding: publicModelConfig("GOODMEMORY_EMBEDDING"),
+      eval: publicModelConfig("GOODMEMORY_EVAL"),
+    },
+    multiHop: input.options.multiHop ?? false,
+    providerEmbedding: input.options.providerEmbedding ?? false,
+    questionCategories: input.options.questionCategories ?? null,
+    questionIds: input.options.questionIds ?? null,
+    questions: input.cases.flatMap((testCase) =>
+      testCase.questions.map((question) => ({
+        caseId: testCase.caseId,
+        category: question.category,
+        questionId: question.questionId,
+      })),
+    ),
+    recallStrategy: input.recallStrategy,
+    rerank: input.options.rerank ?? false,
+    runId: input.runId,
+    semanticCandidateEmbeddingSource: input.semanticCandidateEmbeddingSource,
+    semanticCandidates: input.semanticCandidates,
+    smartFusion: input.options.smartFusion ?? false,
+  };
+}
+
+function buildLocomoProgressHeader(
+  config: LocomoProgressConfig,
+): LocomoProgressHeader {
+  return {
+    config,
+    configFingerprint: sha256(config),
+    kind: LOCOMO_PROGRESS_CONFIG_KIND,
+    version: 1,
+  };
+}
+
+function buildLocomoProgressConfigLine(header: LocomoProgressHeader): string {
+  return `${JSON.stringify(header)}\n`;
+}
+
+function readLocomoProgressHeader(raw: string): LocomoProgressHeader | null {
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    try {
+      const value = JSON.parse(trimmed) as unknown;
+      if (
+        isRecord(value) &&
+        value.kind === LOCOMO_PROGRESS_CONFIG_KIND &&
+        typeof value.configFingerprint === "string" &&
+        isRecord(value.config)
+      ) {
+        return value as unknown as LocomoProgressHeader;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function assertLocomoProgressConfigMatches(input: {
+  expected: LocomoProgressHeader;
+  progressPath: string;
+  raw: string;
+}): void {
+  const actual = readLocomoProgressHeader(input.raw);
+  if (actual === null) {
+    throw new Error(
+      `LoCoMo progress file ${input.progressPath} does not include a config fingerprint; rerun without --resume or choose a new --run-id.`,
+    );
+  }
+  if (actual.configFingerprint !== input.expected.configFingerprint) {
+    throw new Error(
+      `LoCoMo progress config fingerprint mismatch for ${input.progressPath}: ` +
+        `checkpoint=${actual.configFingerprint}, current=${input.expected.configFingerprint}. ` +
+        "Rerun without --resume or choose a new --run-id.",
+    );
+  }
 }
 
 // Parse a live-progress.jsonl checkpoint. Broken tail lines (a write interrupted
@@ -884,6 +1412,24 @@ export function parseLocomoProgressLines(raw: string): LocomoQuestionRetrieval[]
     }
   }
   return results;
+}
+
+function rescoreCompletedLocomoResult(
+  result: LocomoQuestionRetrieval,
+  question: LocomoQuestion,
+): LocomoQuestionRetrieval {
+  if (result.generatedAnswer === null) {
+    return result;
+  }
+  return {
+    ...result,
+    answerCorrect: scoreLocomoAnswer({
+      adversarialAnswer: question.adversarialAnswer,
+      answer: result.generatedAnswer,
+      goldAnswer: question.goldAnswer,
+      matchMode: question.matchMode,
+    }),
+  };
 }
 
 // Content-addressed session-extraction cache. The key hashes the exact extract()
@@ -960,12 +1506,28 @@ export async function runLocomoSmoke(
   const createMemory =
     dependencies.createMemory ??
     (() =>
-      createLocomoSmokeMemory({ bm25: options.bm25, rerank: options.rerank }));
-  // BM25 ranking applies under the "hybrid" strategy; the default stays on the
-  // pure-lexical rules-only floor.
-  const recallStrategy: "hybrid" | "rules-only" = options.bm25
+      createLocomoSmokeMemory({
+        bm25: options.bm25,
+        providerEmbedding: options.providerEmbedding,
+        rerank: options.rerank,
+        semanticCandidateMaxAdditions: options.semanticCandidateMaxAdditions,
+        semanticCandidateMinRelativeScore:
+          options.semanticCandidateMinRelativeScore,
+        semanticCandidateMinSimilarity: options.semanticCandidateMinSimilarity,
+        semanticCandidates: options.semanticCandidates,
+        semanticCandidateTopK: options.semanticCandidateTopK,
+      }));
+  // BM25 ranking and semantic candidate generation both apply under the "hybrid"
+  // strategy; the default stays on the pure-lexical rules-only floor.
+  const recallStrategy: "hybrid" | "rules-only" =
+    options.bm25 || options.semanticCandidates
     ? "hybrid"
     : "rules-only";
+  const semanticCandidateEmbeddingSource = options.providerEmbedding
+    ? "provider"
+    : options.bm25
+      ? "none"
+      : "smoke-hash";
   const runId = options.runId ?? LOCOMO_SMOKE_RUN_ID;
   const outputDir =
     options.outputDir ??
@@ -976,13 +1538,36 @@ export async function runLocomoSmoke(
 
   const { benchmarkSource, cases } = await loadLocomoCases({
     benchmarkRoot: options.benchmarkRoot,
+    caseIds: options.caseIds,
     limit: options.limit,
+    questionIds: options.questionIds,
+    questionCategories: options.questionCategories,
     readFile: readFileImpl,
   });
 
   const answerGenerator =
     dependencies.answerGenerator ??
-    (options.live ? createLocomoLiveAnswerGenerator() : undefined);
+    (options.live
+      ? createLocomoLiveAnswerGenerator({
+          allowCommonsenseResolution: options.allowCommonsenseResolution,
+        })
+      : undefined);
+  const liveAnswer = answerGenerator !== undefined;
+  const answerContextMode = resolveLocomoAnswerContextMode(options);
+  const semanticCandidates = locomoSemanticCandidateConfig(options);
+  const progressHeader = buildLocomoProgressHeader(
+    buildLocomoProgressConfig({
+      answerContextMode,
+      benchmarkSource,
+      cases,
+      liveAnswer,
+      options,
+      recallStrategy,
+      runId,
+      semanticCandidateEmbeddingSource,
+      semanticCandidates,
+    }),
+  );
 
   // The run directory exists from the start so the per-question checkpoint and
   // the extraction cache can be appended to during the run, not only at the end.
@@ -996,16 +1581,33 @@ export async function runLocomoSmoke(
   const progressPath = join(runDirectory, LOCOMO_LIVE_PROGRESS_FILE_NAME);
   const completed = new Map<string, LocomoQuestionRetrieval>();
   if (checkpointing && options.resume) {
+    let progress = "";
     try {
-      for (const result of parseLocomoProgressLines(await readFileImpl(progressPath))) {
-        completed.set(locomoQuestionKey(result.caseId, result.questionId), result);
-      }
+      progress = await readFileImpl(progressPath);
     } catch {
       // no checkpoint yet -> fresh run
     }
+    if (progress.trim().length > 0) {
+      assertLocomoProgressConfigMatches({
+        expected: progressHeader,
+        progressPath,
+        raw: progress,
+      });
+      for (const result of parseLocomoProgressLines(progress)) {
+        completed.set(locomoQuestionKey(result.caseId, result.questionId), result);
+      }
+    } else {
+      await writeFileImpl(
+        progressPath,
+        buildLocomoProgressConfigLine(progressHeader),
+      );
+    }
   } else if (checkpointing) {
     // A fresh (non-resume) run must not inherit a stale checkpoint.
-    await writeFileImpl(progressPath, "");
+    await writeFileImpl(
+      progressPath,
+      buildLocomoProgressConfigLine(progressHeader),
+    );
   }
 
   const conversationalExtractor = options.conversationalExtraction
@@ -1050,7 +1652,7 @@ export async function runLocomoSmoke(
           locomoQuestionKey(testCase.caseId, question.questionId),
         );
         if (cached) {
-          results.push(cached);
+          results.push(rescoreCompletedLocomoResult(cached, question));
         }
       }
     };
@@ -1161,13 +1763,14 @@ export async function runLocomoSmoke(
         `--resume will recompute those questions.\n`,
     );
   }
-  const liveAnswer = answerGenerator !== undefined;
-
   const report: LocomoSmokeReport = {
+    allowCommonsenseResolution: options.allowCommonsenseResolution ?? false,
+    answerContextMode,
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
     benchmark: "locomo",
     benchmarkSource,
     bm25Ranking: options.bm25 ?? false,
+    caseIds: cases.map((testCase) => testCase.caseId),
     caseCount: cases.length,
     cases: results,
     categories: summarizeLocomoRetrieval(results),
@@ -1183,9 +1786,13 @@ export async function runLocomoSmoke(
     phase: "phase-65",
     profilesCompared: [...PROFILES_COMPARED],
     questionCount: results.length,
+    questionCategories: options.questionCategories ?? null,
+    questionIds: options.questionIds ?? null,
     resume: options.resume ?? false,
     runDirectory,
     runId,
+    semanticCandidateEmbeddingSource,
+    semanticCandidates,
     upstreamAnswerMetricByCategory: deriveLocomoUpstreamMetricByCategory(cases),
     upstreamSource: UPSTREAM_SOURCE,
   };
@@ -1200,19 +1807,27 @@ export async function runLocomoSmoke(
 
 function buildCliSummary(report: LocomoSmokeReport): {
   benchmarkSource: string;
+  caseIds: string[];
   categories: LocomoCategoryRetrievalSummary[];
   executionFailures: number;
   questionCount: number;
+  questionCategories: LocomoSmokeReport["questionCategories"];
   reportPath: string;
   runId: string;
+  semanticCandidateEmbeddingSource: LocomoSmokeReport["semanticCandidateEmbeddingSource"];
+  semanticCandidates: LocomoSmokeReport["semanticCandidates"];
 } {
   return {
     benchmarkSource: report.benchmarkSource,
+    caseIds: report.caseIds,
     categories: report.categories,
     executionFailures: report.executionFailures,
     questionCount: report.questionCount,
+    questionCategories: report.questionCategories,
     reportPath: join(report.runDirectory, LOCOMO_SMOKE_REPORT_FILE_NAME),
     runId: report.runId,
+    semanticCandidateEmbeddingSource: report.semanticCandidateEmbeddingSource,
+    semanticCandidates: report.semanticCandidates,
   };
 }
 

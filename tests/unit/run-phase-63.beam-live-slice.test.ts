@@ -127,6 +127,12 @@ describe("phase-63 BEAM live slice runner", () => {
         "scripts/run-phase-63-beam-live-slice.ts",
         "--benchmark-root",
         "/tmp/BEAM",
+        "--answer-gap-report",
+        "/tmp/answer-gap.json",
+        "--answer-gap-bucket",
+        "preference_following",
+        "--answer-gap-source-coverage-status",
+        "covered-or-no-warning",
         "--recall-report",
         "/tmp/recall.json",
         "--profile",
@@ -139,6 +145,9 @@ describe("phase-63 BEAM live slice runner", () => {
         "run-beam-live",
       ]),
     ).toEqual({
+      answerGapBuckets: ["preference_following"],
+      answerGapReportPath: "/tmp/answer-gap.json",
+      answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
       benchmarkRoot: "/tmp/BEAM",
       caseSelection: undefined,
       caseIds: ["beam-live-q1"],
@@ -341,6 +350,149 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(appended).toHaveLength(2);
   });
 
+  it("selects focused live cases from an answer-gap bucket report", async () => {
+    const report = await runPhase63BeamLiveSlice(
+      {
+        answerGapBuckets: ["preference_following"],
+        answerGapReportPath: "/tmp/answer-gap.json",
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-beam-live-answer-gap-preference",
+      },
+      {
+        answerGenerator: async (input) =>
+          input.testCase.answerable ? input.testCase.answer : "No answer.",
+        answerJudge: async (input) => ({
+          correct: input.expectedAnswer === input.actualAnswer,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        appendFile: async () => undefined,
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (String(path).endsWith("100K.json")) {
+            return JSON.stringify(buildBeamRows());
+          }
+          if (String(path).endsWith("answer-gap.json")) {
+            return JSON.stringify({
+              buckets: {
+                preference_following: ["beam-live-q2"],
+                temporal_order: ["beam-live-q1"],
+              },
+            });
+          }
+          return "";
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
+      "beam-live-q2",
+    ]);
+    expect(report.summary.caseCountsByQuestionType).toEqual({
+      preference_following: 1,
+    });
+  });
+
+  it("filters focused live cases by answer-gap source coverage status", async () => {
+    const report = await runPhase63BeamLiveSlice(
+      {
+        answerGapBuckets: ["preference_following"],
+        answerGapReportPath: "/tmp/answer-gap.json",
+        answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
+        benchmarkRoot: "/tmp/BEAM",
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-beam-live-answer-gap-source-coverage",
+      },
+      {
+        answerGenerator: async (input) =>
+          input.testCase.answerable ? input.testCase.answer : "No answer.",
+        answerJudge: async (input) => ({
+          correct: input.expectedAnswer === input.actualAnswer,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        appendFile: async () => undefined,
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (String(path).endsWith("100K.json")) {
+            return JSON.stringify(buildBeamRows());
+          }
+          if (String(path).endsWith("answer-gap.json")) {
+            return JSON.stringify({
+              cases: [
+                {
+                  bucket: "preference_following",
+                  questionId: "beam-live-q1",
+                  sourceCoverageStatus: "expected-cues-outside-source",
+                },
+                {
+                  bucket: "preference_following",
+                  questionId: "beam-live-q2",
+                  sourceCoverageStatus: "covered-or-no-warning",
+                },
+                {
+                  bucket: "abstention",
+                  questionId: "beam-live-q3",
+                  sourceCoverageStatus: "covered-or-no-warning",
+                },
+              ],
+            });
+          }
+          return "";
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
+      "beam-live-q2",
+    ]);
+  });
+
+  it("rejects answer-gap filters that match no live cases instead of falling back to the default slice", async () => {
+    await expect(
+      runPhase63BeamLiveSlice(
+        {
+          answerGapBuckets: ["temporal_order"],
+          answerGapReportPath: "/tmp/answer-gap.json",
+          benchmarkRoot: "/tmp/BEAM",
+          outputDir: "/tmp/out",
+          profile: "goodmemory-rules-only",
+          runId: "run-beam-live-answer-gap-empty",
+        },
+        {
+          answerGenerator: async (input) =>
+            input.testCase.answerable ? input.testCase.answer : "No answer.",
+          answerJudge: async (input) => ({
+            correct: input.expectedAnswer === input.actualAnswer,
+            method: "semantic_judge",
+            reasoning: "fixture",
+          }),
+          appendFile: async () => undefined,
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (String(path).endsWith("100K.json")) {
+              return JSON.stringify(buildBeamRows());
+            }
+            if (String(path).endsWith("answer-gap.json")) {
+              return JSON.stringify({
+                buckets: {
+                  preference_following: ["beam-live-q2"],
+                },
+              });
+            }
+            return "";
+          },
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow("answer-gap filters matched no BEAM cases");
+  });
+
   it("keeps contradiction and ordering synthesis guidance in the live prompt", () => {
     const prompt = buildPhase63BeamPrompt({
       memoryContext: "- chat_id=1: Mira said yes.\n- chat_id=2: Mira said no.",
@@ -471,7 +623,12 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(packed).toContain("Evidence (source-ordered, earliest first):");
     expect(packed).toContain("latest entry is the current value");
     // Earliest source order first regardless of retrieval order.
-    expect(packed.indexOf("#4")).toBeLessThan(packed.indexOf("#12"));
+    const evidenceSection = packed.slice(
+      packed.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(evidenceSection.indexOf("#4")).toBeLessThan(
+      evidenceSection.indexOf("#12"),
+    );
     // It replaces, not augments, the bespoke source-ordered section.
     expect(packed).not.toContain("Source-ordered retrieved turns");
     expect(plain).not.toContain("latest entry is the current value");
@@ -552,13 +709,14 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(orderingPack).not.toContain("thesis clarity");
   });
 
-  it("normalizes dependency instruction answers to name and version requirements", () => {
+  it("normalizes dependency instruction answers to concrete names and versions from context", () => {
     const answer = applyPhase63BeamAnswerOperationGuardrails({
       hypothesis: "Use the usual project dependencies.",
       memoryContext: [
-        "Instruction handling:",
-        "Standing instruction: Always include version numbers when I ask about software dependencies or libraries used.",
-        "Answer shape: provide dependency names and their version numbers.",
+        "Instruction constraints:",
+        "Always include version numbers when I ask about software dependencies or libraries used.",
+        "Supporting evidence for the requested answer:",
+        "The project uses Flask-Login 0.6.2, the current version of Flask, which is 2.3.1, and SQLite 3.39 as its database engine.",
       ].join("\n"),
       testCase: buildGuardrailCase({
         question: "Which libraries are used in this project?",
@@ -567,7 +725,7 @@ describe("phase-63 BEAM live slice runner", () => {
     });
 
     expect(answer).toBe(
-      "Response should include the names of the libraries along with their specific version numbers.",
+      "The project uses Flask-Login 0.6.2, Flask 2.3.1, and SQLite 3.39.",
     );
   });
 

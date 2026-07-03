@@ -12,9 +12,10 @@ is NOT more benchmarks. It is proving the v0.3 public package surface is
 installable, importable, explainable, and rollback-safe for real users.
 
 This phase is docs + release-tooling + examples only. It opens no new eval/code
-work, does not reopen LoCoMo (paused until a real neural embedding endpoint,
-see board 70), does not touch the Phase 63 BEAM answer-pack lane (owned by the
-BEAM workstream), and adds no new public benchmark claim.
+work, does not reopen LoCoMo performance work (semantic candidate-generation is
+only local plumbing until external-root evidence exists; see board 70), does not
+touch the Phase 63 BEAM answer-pack lane (owned by the BEAM workstream), and
+adds no new public benchmark claim.
 
 
 Driver
@@ -37,7 +38,8 @@ Do:
 - Smoke the real example entry points.
 
 Do NOT:
-- Reopen LoCoMo retrieval research (needs a neural embedding endpoint first).
+- Promote LoCoMo semantic-candidate research into defaults or public claims
+  before broader sharded coverage plus adversarial/noise/open-domain follow-up.
 - Run the local hashed-embedding hybrid (a lexical proxy; would pollute results).
 - Touch the Phase 63 BEAM answer-pack workstream's code.
 - Put MAB / LoCoMo internal numbers into the public README benchmark table.

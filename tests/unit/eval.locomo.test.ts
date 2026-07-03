@@ -115,6 +115,36 @@ describe("LoCoMo smoke contract", () => {
         matchMode: adversarial.matchMode,
       }),
     ).toBe(false);
+
+    // Upstream adversarial roots often use "No information available" as gold.
+    // The live prompt asks the model to say "I do not know" when context lacks
+    // support; score that as a correct abstention, while still rejecting bait.
+    expect(
+      scoreLocomoAnswer({
+        adversarialAnswer: "sunflowers",
+        answer: "I do not know",
+        goldAnswer: "No information available",
+        matchMode: "adversarial_abstention",
+      }),
+    ).toBe(true);
+    for (const answer of ["I do not know.", "I don't know", "I don’t know."]) {
+      expect(
+        scoreLocomoAnswer({
+          adversarialAnswer: "sunflowers",
+          answer,
+          goldAnswer: "No information available",
+          matchMode: "adversarial_abstention",
+        }),
+      ).toBe(true);
+    }
+    expect(
+      scoreLocomoAnswer({
+        adversarialAnswer: "sunflowers",
+        answer: "sunflowers",
+        goldAnswer: "No information available",
+        matchMode: "adversarial_abstention",
+      }),
+    ).toBe(false);
   });
 
   it("summarizes per-category accuracy, recall, and noise", () => {

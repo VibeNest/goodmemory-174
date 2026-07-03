@@ -163,6 +163,35 @@ export function locomoExactMatch(answer: string, gold: string): boolean {
   return normalizeLocomoAnswer(answer) === normalizeLocomoAnswer(gold);
 }
 
+const LOCOMO_NO_INFORMATION_GOLD = "no information available";
+
+function normalizeLocomoAbstentionText(value: string): string {
+  return tokenizeLocomoAnswer(value.replace(/['’]/gu, "")).join(" ");
+}
+
+const LOCOMO_ABSTENTION_ALIASES = new Set([
+  "i do not know",
+  "i dont know",
+  "unknown",
+  "not enough information",
+  "no information available",
+  "no information",
+].map(normalizeLocomoAbstentionText));
+const LOCOMO_NO_INFORMATION_GOLD_NORMALIZED = normalizeLocomoAbstentionText(
+  LOCOMO_NO_INFORMATION_GOLD,
+);
+
+function isLocomoAbstention(answer: string): boolean {
+  return LOCOMO_ABSTENTION_ALIASES.has(normalizeLocomoAbstentionText(answer));
+}
+
+function isLocomoNoInformationGold(gold: string): boolean {
+  return (
+    normalizeLocomoAbstentionText(gold) ===
+    LOCOMO_NO_INFORMATION_GOLD_NORMALIZED
+  );
+}
+
 // Deterministic pass threshold for the token-F1 modes. LoCoMo reports the raw F1
 // number; the smoke uses this threshold as the boolean gate, and a live mode can
 // still report locomoTokenF1() directly.
@@ -170,8 +199,9 @@ export const LOCOMO_F1_PASS_THRESHOLD = 0.5;
 
 // Deterministic correctness for the deferred live-answer layer. f1_token_overlap
 // passes when token-F1 with the gold answer clears the threshold; exact_match is
-// normalized equality; adversarial_abstention passes only when the answer both
-// resists the tempting answer AND matches the gold (correct) answer.
+// normalized equality; adversarial_abstention passes only when the answer resists
+// the tempting answer AND either matches the gold or explicitly abstains when
+// upstream gold is "No information available".
 export function scoreLocomoAnswer(input: {
   adversarialAnswer?: string | null;
   answer: string;
@@ -182,7 +212,11 @@ export function scoreLocomoAnswer(input: {
     return locomoExactMatch(input.answer, input.goldAnswer);
   }
   if (input.matchMode === "adversarial_abstention") {
+    const abstainsFromNoInformation =
+      isLocomoNoInformationGold(input.goldAnswer) &&
+      isLocomoAbstention(input.answer);
     const matchesGold =
+      abstainsFromNoInformation ||
       locomoTokenF1(input.answer, input.goldAnswer) >= LOCOMO_F1_PASS_THRESHOLD;
     const tempting = input.adversarialAnswer ?? null;
     const tookTheBait =

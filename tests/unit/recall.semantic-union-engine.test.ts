@@ -164,6 +164,37 @@ describe("semantic candidate-generation union (engine)", () => {
     expect(result.facts.map((fact) => fact.id)).not.toContain("fact-gold");
   });
 
+  it("applies minRelativeScore against the best raw semantic score", async () => {
+    const { engine, repositories, embedding } = await buildEngine({
+      semanticCandidates: { topK: 4, minRelativeScore: 0.97 },
+    });
+    const near = makeFact("fact-near", "Quiet music helps you relax in the evenings.");
+    await repositories.facts.add(near);
+    const [nearEmbedding] = await embedding.embed([near.content]);
+    await repositories.vectorIndex!.upsertFactEmbedding([
+      {
+        id: near.id,
+        embedding: nearEmbedding,
+        metadata: {
+          userId: scope.userId,
+          workspaceId: scope.workspaceId,
+          memoryType: "fact",
+        },
+        content: near.content,
+      },
+    ]);
+
+    const result = await engine.recall({
+      scope,
+      query: QUERY,
+      retrievalProfile: "general_chat",
+      strategy: "hybrid",
+    });
+    const ids = result.facts.map((fact) => fact.id);
+    expect(ids).toContain("fact-near");
+    expect(ids).not.toContain("fact-gold");
+  });
+
   it("treats maxAdditions as the noise budget and does not charge dedup hits against it", async () => {
     const { engine, repositories, embedding } = await buildEngine({
       semanticCandidates: { topK: 4, maxAdditions: 1 },

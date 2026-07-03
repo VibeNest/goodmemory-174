@@ -2,11 +2,14 @@ import { describe, expect, it } from "bun:test";
 import {
   analyzePhase63LiveAnswerGap,
   expectedHypothesisOverlap,
+  findPhase63SourceCoverageWarnings,
   parsePhase63AnswerGapCliOptions,
   resolvePhase63AnswerGapBucket,
   resolvePhase63AnswerGapRecallStatus,
+  resolvePhase63SourceCoverageStatus,
   uniqueNoiseChatCount,
 } from "../../scripts/analyze-phase-63-live-answer-gap";
+import type { BeamChatTurn } from "../../src/eval/beam";
 
 describe("phase-63 live answer-gap analyzer", () => {
   it("parses cli options", () => {
@@ -131,6 +134,12 @@ describe("phase-63 live answer-gap analyzer", () => {
     expect(
       resolvePhase63AnswerGapBucket({ ...base, questionType: "summarization" }),
     ).toBe("summarization");
+    expect(
+      resolvePhase63AnswerGapBucket({
+        ...base,
+        questionType: "preference_following",
+      }),
+    ).toBe("preference_following");
     // count phrasing wins over the multi_session_reasoning type
     expect(
       resolvePhase63AnswerGapBucket({
@@ -191,11 +200,82 @@ describe("phase-63 live answer-gap analyzer", () => {
     expect(expectedHypothesisOverlap("a b", "a c")).toBeCloseTo(0.5, 5);
   });
 
+  it("warns when expected cues appear outside the declared source chats", () => {
+    const turn = (id: number, content: string): BeamChatTurn => ({
+      content,
+      id,
+      index: "1,1",
+      questionType: "summarization",
+      role: "assistant",
+      timeAnchor: "March-15-2024",
+    });
+    const warnings = findPhase63SourceCoverageWarnings({
+      expectedAnswer:
+        "The plan later integrated a freelance contract into the budget while balancing income against expenses and savings.",
+      sourceCase: {
+        chat: [
+          [
+            turn(
+              10,
+              "The source budget covers a $2,000 emergency fund and warm clothing.",
+            ),
+            turn(
+              11,
+              "The later freelance contract increased income and changed the budget plan.",
+            ),
+          ],
+        ],
+        evidenceChatIds: [10],
+      },
+    });
+
+    expect(warnings).toContainEqual({
+      cue: "freelance contract",
+      matchingChatIdsOutsideEvidence: [11],
+    });
+  });
+
+  it("classifies source coverage audit status", () => {
+    const warning = {
+      cue: "freelance contract",
+      matchingChatIdsOutsideEvidence: [11],
+    };
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCoverageWarnings: [warning],
+      }),
+    ).toBe("not-audited");
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [10] },
+        sourceCoverageWarnings: [],
+      }),
+    ).toBe("covered-or-no-warning");
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [10] },
+        sourceCoverageWarnings: [warning],
+      }),
+    ).toBe("expected-cues-outside-source");
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [] },
+        sourceCoverageWarnings: [],
+      }),
+    ).toBe("no-declared-source-ids");
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [] },
+        sourceCoverageWarnings: [warning],
+      }),
+    ).toBe("no-declared-source-ids");
+  });
+
   it("analyzes a synthetic live report end to end", async () => {
     const liveReport = {
       profile: "goodmemory-rules-only",
       runId: "run-src",
-      summary: { totalCases: 7, correctCases: 1, wrongAnswerCases: 6 },
+      summary: { totalCases: 8, correctCases: 1, wrongAnswerCases: 7 },
       cases: [
         {
           questionId: "c1",
@@ -281,8 +361,29 @@ describe("phase-63 live answer-gap analyzer", () => {
           hypothesis: "some made up answer",
           conversationId: "1",
         },
+        {
+          questionId: "c8",
+          questionType: "summarization",
+          answerable: true,
+          correct: false,
+          evidenceChatRecall: 1,
+          evidenceChatIds: [10],
+          retrievedChatIds: [10],
+          expectedAnswer:
+            "The plan later integrated a freelance contract into the budget.",
+          hypothesis: "The plan covered a budget.",
+          conversationId: "1",
+        },
       ],
     };
+    const turn = (id: number, content: string): BeamChatTurn => ({
+      content,
+      id,
+      index: "1,1",
+      questionType: "summarization",
+      role: "assistant",
+      timeAnchor: "March-15-2024",
+    });
     const written: Record<string, string> = {};
     const report = await analyzePhase63LiveAnswerGap(
       { liveReportPath: "/tmp/live.json", outputPath: "/tmp/gap.json" },
@@ -296,25 +397,69 @@ describe("phase-63 live answer-gap analyzer", () => {
         questionByQuestionId: new Map([
           ["c4", "How many cards do I have in total?"],
         ]),
+        sourceCaseByQuestionId: new Map([
+          [
+            "c8",
+            {
+              chat: [
+                [
+                  turn(10, "The source budget covers warm clothing."),
+                  turn(
+                    11,
+                    "The later freelance contract changed the budget plan.",
+                  ),
+                ],
+              ],
+              evidenceChatIds: [10],
+            },
+          ],
+        ]),
       },
     );
 
-    expect(report.summary.wrongAnswerCases).toBe(6);
+    expect(report.summary.wrongAnswerCases).toBe(7);
     expect(report.summary.correctCases).toBe(1);
-    expect(report.summary.totalCases).toBe(7);
-    expect(report.recallStatusCounts["full-recall-clean"]).toBe(3);
+    expect(report.summary.totalCases).toBe(8);
+    expect(report.recallStatusCounts["full-recall-clean"]).toBe(4);
     expect(report.recallStatusCounts["full-recall-noisy"]).toBe(1);
     expect(report.recallStatusCounts["missing-evidence"]).toBe(1);
     expect(report.recallStatusCounts.abstention).toBe(1);
+    expect(report.sourceCoverageStatusCounts).toMatchObject({
+      "covered-or-no-warning": 0,
+      "expected-cues-outside-source": 1,
+      "no-declared-source-ids": 0,
+      "not-audited": 6,
+    });
     expect(report.buckets.conflict_update).toEqual(["c2"]);
     expect(report.buckets.temporal_order).toEqual(["c3"]);
     expect(report.buckets.aggregate_count).toEqual(["c4"]);
     expect(report.buckets.instruction_following).toEqual(["c5"]);
-    expect(report.buckets.summarization).toEqual(["c6"]);
+    expect(report.buckets.summarization).toEqual(["c6", "c8"]);
     expect(report.buckets.abstention).toEqual(["c7"]);
     expect(report.buckets.other).toEqual([]);
+    expect(report.summary.wrongSourceCoverageWarningCases).toBe(1);
+    expect(report.summary.wrongSourceCoverageWarnings).toBeGreaterThan(0);
+    expect(report.sourceCoverageWarningBuckets).toEqual([
+      {
+        bucket: "summarization",
+        caseCount: 1,
+        sampleQuestionIds: ["c8"],
+        warningCount: 3,
+      },
+    ]);
+    expect(
+      report.cases.find((testCase) => testCase.questionId === "c8")
+        ?.sourceCoverageWarnings,
+    ).toContainEqual({
+      cue: "freelance contract",
+      matchingChatIdsOutsideEvidence: [11],
+    });
+    expect(
+      report.cases.find((testCase) => testCase.questionId === "c8")
+        ?.sourceCoverageStatus,
+    ).toBe("expected-cues-outside-source");
     expect(report.summary.attributedShare).toBe(1);
-    expect(report.topRepairFamilies[0].count).toBe(1);
+    expect(report.topRepairFamilies[0].count).toBe(2);
     expect(written["/tmp/gap.json"]).toContain("topRepairFamilies");
   });
 });

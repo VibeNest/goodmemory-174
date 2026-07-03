@@ -863,6 +863,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
       const serverProcess = Bun.spawn({
         cmd: [
           "bun",
+          "--no-env-file",
           "run",
           "scripts/goodmemory-http-bridge.ts",
           "--host",

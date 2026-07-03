@@ -14,6 +14,11 @@ export interface SemanticUnionSelectionInput {
   maxAdditions: number;
   // RAW score floor; candidates below it are never admitted.
   minSimilarity?: number;
+  // Relative score floor: candidates below bestRawScore * minRelativeScore are
+  // never admitted. This lets widened topK probes keep near-best semantic hits
+  // while trimming tail noise. Range is enforced by callers that parse user
+  // input; the selector is defensive for direct callers.
+  minRelativeScore?: number;
 }
 
 /**
@@ -47,6 +52,11 @@ export function selectSemanticUnionCandidates(input: {
   const ordered = [...union.candidates].sort(
     (left, right) => right.score - left.score || left.id.localeCompare(right.id),
   );
+  const bestScore = ordered[0]?.score ?? 0;
+  const relativeFloor =
+    union.minRelativeScore !== undefined && union.minRelativeScore > 0
+      ? bestScore * union.minRelativeScore
+      : undefined;
   let admitted = 0;
   for (const candidate of ordered) {
     if (admitted >= union.maxAdditions) {
@@ -59,6 +69,13 @@ export function selectSemanticUnionCandidates(input: {
     }
     if (union.minSimilarity !== undefined && candidate.score < union.minSimilarity) {
       // Sorted descending: everything after is below the floor too.
+      break;
+    }
+    if (
+      relativeFloor !== undefined &&
+      candidate.score + Number.EPSILON < relativeFloor
+    ) {
+      // Sorted descending: everything after is below the relative floor too.
       break;
     }
     if (draft.selectedIds.has(candidate.id)) {

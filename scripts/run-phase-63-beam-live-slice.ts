@@ -140,6 +140,9 @@ const beamLiveJudgeSchema = z.object({
 });
 
 export interface Phase63BeamLiveSliceCliOptions {
+  answerGapBuckets?: readonly string[];
+  answerGapReportPath?: string;
+  answerGapSourceCoverageStatuses?: readonly string[];
   benchmarkRoot?: string;
   caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
@@ -319,6 +322,12 @@ export function parsePhase63BeamLiveSliceCliOptions(
   argv: readonly string[],
 ): Phase63BeamLiveSliceCliOptions {
   return {
+    answerGapBuckets: parseRepeatedFlag(argv, "--answer-gap-bucket"),
+    answerGapReportPath: resolveCliFlagValue(argv, "--answer-gap-report"),
+    answerGapSourceCoverageStatuses: parseRepeatedFlag(
+      argv,
+      "--answer-gap-source-coverage-status",
+    ),
     benchmarkRoot:
       resolveCliFlagValue(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
@@ -1200,7 +1209,11 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
     /\b(?:dependenc(?:y|ies)|librar(?:y|ies)|software)\b/iu.test(question) &&
     /\bversion numbers?\b/iu.test(context)
   ) {
-    return "Response should include the names of the libraries along with their specific version numbers.";
+    const dependencyMentions = extractVersionedDependencyMentions(context);
+    if (dependencyMentions.length > 0) {
+      return `The project uses ${formatNaturalList(dependencyMentions)}.`;
+    }
+    return input.hypothesis;
   }
 
   if (
@@ -1242,6 +1255,66 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function extractVersionedDependencyMentions(context: string): string[] {
+  const mentions: string[] = [];
+  const seen = new Set<string>();
+  const candidates: Array<{ index: number; name: string; version: string }> = [];
+  const addCandidate = (
+    match: RegExpMatchArray,
+    name: string | undefined,
+    version: string | undefined,
+  ) => {
+    if (!name || !version) {
+      return;
+    }
+    candidates.push({
+      index: match.index ?? 0,
+      name,
+      version,
+    });
+  };
+  const addMention = (name: string, version: string) => {
+    const normalized = `${name.trim()} ${version.trim().replace(/^v/iu, "")}`;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    mentions.push(normalized);
+  };
+
+  const adjacentPattern =
+    /\b([A-Z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*|SQLite)\s+v?([0-9]+(?:\.[0-9]+)+)\b/gu;
+  for (const match of context.matchAll(adjacentPattern)) {
+    addCandidate(match, match[1], match[2]);
+  }
+
+  const whichIsPattern =
+    /\b([A-Z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*|SQLite),?\s+which\s+is\s+v?([0-9]+(?:\.[0-9]+)+)\b/giu;
+  for (const match of context.matchAll(whichIsPattern)) {
+    addCandidate(match, match[1], match[2]);
+  }
+
+  for (const candidate of candidates.sort((left, right) => left.index - right.index)) {
+    addMention(candidate.name, candidate.version);
+  }
+
+  return mentions;
+}
+
+function formatNaturalList(values: readonly string[]): string {
+  if (values.length === 0) {
+    return "";
+  }
+  if (values.length === 1) {
+    return values[0];
+  }
+  if (values.length === 2) {
+    return `${values[0]} and ${values[1]}`;
+  }
+  return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
 }
 
 function collectMemoryContext(recall: RecallResult): string {
@@ -1313,6 +1386,80 @@ function filterCasesFromRecallReport(input: {
     .filter((questionId): questionId is string => questionId !== undefined);
 
   return new Set(selected);
+}
+
+function collectQuestionIdsFromUnknownArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function filterCasesFromAnswerGapReport(input: {
+  answerGapBuckets?: readonly string[];
+  answerGapReport: unknown;
+  answerGapSourceCoverageStatuses?: readonly string[];
+}): Set<string> {
+  const answerGapReport = input.answerGapReport;
+  if (!isRecord(answerGapReport)) {
+    return new Set();
+  }
+  const requestedBuckets = new Set(input.answerGapBuckets ?? []);
+  const requestedSourceCoverageStatuses = new Set(
+    input.answerGapSourceCoverageStatuses ?? [],
+  );
+  const cases = answerGapReport.cases;
+  if (Array.isArray(cases) && requestedSourceCoverageStatuses.size > 0) {
+    const selected: string[] = [];
+    for (const testCase of cases) {
+      if (!isRecord(testCase) || typeof testCase.questionId !== "string") {
+        continue;
+      }
+      if (
+        requestedBuckets.size > 0 &&
+        (typeof testCase.bucket !== "string" ||
+          !requestedBuckets.has(testCase.bucket))
+      ) {
+        continue;
+      }
+      if (
+        typeof testCase.sourceCoverageStatus !== "string" ||
+        !requestedSourceCoverageStatuses.has(testCase.sourceCoverageStatus)
+      ) {
+        continue;
+      }
+      selected.push(testCase.questionId);
+    }
+    return new Set(selected);
+  }
+  const buckets = answerGapReport.buckets;
+  if (isRecord(buckets)) {
+    const selected =
+      requestedBuckets.size > 0
+        ? [...requestedBuckets].flatMap((bucket) =>
+            collectQuestionIdsFromUnknownArray(buckets[bucket]),
+          )
+        : Object.values(buckets).flatMap(collectQuestionIdsFromUnknownArray);
+    return new Set(selected);
+  }
+  if (Array.isArray(cases)) {
+    const selected: string[] = [];
+    for (const testCase of cases) {
+      if (!isRecord(testCase) || typeof testCase.questionId !== "string") {
+        continue;
+      }
+      if (
+        requestedBuckets.size > 0 &&
+        (typeof testCase.bucket !== "string" ||
+          !requestedBuckets.has(testCase.bucket))
+      ) {
+        continue;
+      }
+      selected.push(testCase.questionId);
+    }
+    return new Set(selected);
+  }
+  return new Set();
 }
 
 function summarizeQuestionTypes(
@@ -1514,6 +1661,8 @@ async function scoreLiveCase(input: {
 }
 
 function selectCases(input: {
+  answerGapCaseIds?: Set<string>;
+  answerGapFilterProvided?: boolean;
   caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
   limit?: number;
@@ -1522,10 +1671,15 @@ function selectCases(input: {
   scale: BeamCase["scale"];
 }): BeamLiveSliceCase[] {
   const explicitCaseIds = new Set(input.caseIds ?? []);
+  const answerGapCaseIds = input.answerGapCaseIds ?? new Set<string>();
+  const answerGapFilterProvided = input.answerGapFilterProvided ?? false;
   const allCases = flattenPhase63BeamCases(input.rows, input.scale);
   const filtered = allCases.filter((testCase) => {
     if (explicitCaseIds.size > 0) {
       return explicitCaseIds.has(testCase.questionId);
+    }
+    if (answerGapFilterProvided) {
+      return answerGapCaseIds.has(testCase.questionId);
     }
     if (input.caseSelection === "all-cases") {
       return true;
@@ -1631,7 +1785,17 @@ export async function runPhase63BeamLiveSlice(
         recallReport: JSON.parse(await readFileImpl(options.recallReportPath)),
       })
     : new Set<string>();
+  const answerGapCaseIds = options.answerGapReportPath
+    ? filterCasesFromAnswerGapReport({
+        answerGapBuckets: options.answerGapBuckets,
+        answerGapReport: JSON.parse(await readFileImpl(options.answerGapReportPath)),
+        answerGapSourceCoverageStatuses: options.answerGapSourceCoverageStatuses,
+      })
+    : new Set<string>();
+  const answerGapFilterProvided = options.answerGapReportPath !== undefined;
   const testCases = selectCases({
+    answerGapCaseIds,
+    answerGapFilterProvided,
     caseSelection: options.caseSelection,
     caseIds: options.caseIds,
     limit: options.limit,
@@ -1639,6 +1803,11 @@ export async function runPhase63BeamLiveSlice(
     rows,
     scale,
   });
+  if (answerGapFilterProvided && testCases.length === 0) {
+    throw new Error(
+      "answer-gap filters matched no BEAM cases; refusing to fall back to the default live slice.",
+    );
+  }
   const answerGenerator =
     dependencies.answerGenerator ?? createBeamAnswerGenerator();
   const answerJudge = dependencies.answerJudge ?? createBeamAnswerJudge();

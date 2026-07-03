@@ -106,10 +106,11 @@ Current Failure Surface
 
 - BEAM answer capability is not closed: 122/400 answers are still wrong after
   the answer-hardening evidence pack.
-- Top repair families: conflict_update 29 (dominant full-recall-clean),
-  instruction_following 27 (dominant full-recall-noisy), temporal_order 24
-  (dominant full-recall-clean), aggregate_count 15,
-  judge_or_expected_answer 10, summarization 9, abstention 7.
+- Top repair families after the preference bucket split: conflict_update 29
+  (dominant full-recall-clean), instruction_following 27 (dominant
+  full-recall-noisy), temporal_order 23 (dominant full-recall-clean),
+  aggregate_count 15, summarization 9, preference_following 8, abstention 7,
+  and the remaining judge_or_expected_answer 3.
 - Live-measured repair landed in `src/answer/evidencePack.ts` and the BEAM
   live-slice context builder: optional
   question-type metadata now routes event/temporal questions to timeline
@@ -117,15 +118,21 @@ Current Failure Surface
   summarization questions to summary framing. The pack also adds order
   answer-shape guidance for requested item counts/topics, value-bearing count
   tables, multi-session facet framing, instruction standing/latest constraint
-  framing, contradiction guidance that avoids yes/no-only answers, selective
-  assistant companion evidence for synthesis/instruction-like questions, and
-  narrow answer-operation guardrails. The live proof improved hard-slice
-  accuracy to 10/12 and full-run accuracy to 278/400.
+  framing, contradiction guidance that avoids yes/no-only answers, local
+  contradiction minimal-pair extraction that suppresses adjacent implementation
+  noise, selective assistant companion evidence for synthesis/instruction-like
+  questions, and narrow answer-operation guardrails. The live proof improved
+  hard-slice accuracy to 10/12 and full-run accuracy to 278/400.
 - The next live-measured repair lane is conflict/update resolution first, then
   instruction noise budgeting and temporal-order granularity, not another BEAM
   case-specific recall gate.
 - Use noise budgeting for instruction_following only if the live slice still
   shows full-recall-noisy failures after the instruction constraint framing.
+- Treat the remaining judge_or_expected_answer 3 as expected-answer/judge-review
+  candidates unless a focused live slice shows a generic extraction failure:
+  one expected answer includes a slot not present in the retrieved evidence, one
+  is near-equivalent but omits an "intended actions" phrase, and one is factually
+  equivalent with an extra person name.
 - Do not resume BEAM case-specific gates until the analyzer shows a recall-side
   reason to do so.
 
@@ -144,6 +151,71 @@ Working Loop
 Do not treat a small live slice, one selector repair, or the 0.695 measured
 checkpoint as BEAM performance closure.
 
+Current local pre-live hardening in this worktree targets the analyzer's top
+answer-time lanes: conflict/update current-value ledgers with target
+date/time/quantity cues from the latest candidate, contradiction minimal-pair
+extraction that suppresses adjacent implementation noise, instruction
+constraint/support separation with bounded topic-matched evidence plus concrete
+answer-content cues for versioned dependencies and named tools, and
+temporal-order milestone cues with code-block stripping plus question-target
+timeline anchors that keep source order while suppressing adjacent project
+noise, plus aggregate/date count ledgers that separate endpoint dates, duration
+labels, and numeric
+quantities, plus source-ordered summary coverage checklists for user themes and
+assistant guidance, plus value-bearing summary anchors, plus required summary
+source-coverage audits for late topic shifts, plus analyzer-level
+source-coverage warnings for expected cues found outside declared source chats,
+plus abstention target checks that reject adjacent-but-insufficient evidence,
+plus preference-following constraint packs that treat user preferences as
+response requirements. This is deterministic and unit-verified only; it is not a
+new accepted BEAM checkpoint until a focused live slice and any later full live
+measured run prove it.
+
+Pre-live infrastructure check in this worktree: `/private/tmp/BEAM/100K.json`
+was rebuilt from GitHub raw via `prepare:phase-63-beam` (20 rows),
+`eval:phase-63` and `gate:phase-63` passed with `executionFailures: 0`, and
+`run-phase63-beam-100k-recall-diagnostic-rules-prelive-current` compared against
+`run-phase63-beam-100k-recall-diagnostic-rules-postmerge-current` with
+`caseDeltaCount: 0`, evidence-chat recall 0.9620612564274538, missed 20/355,
+wrong-recall/noise 167/400, and hit/missing/noise 1023/71/807. This proves
+refreshed root/recall readiness only; answer performance still requires a
+focused live slice.
+
+Focused summarization live check in this worktree:
+`run-phase63-beam-live-slice-summary-value-anchors-prelive-current` stayed at
+1/9 correct with `executionFailures: 0`, matching the prior summarization
+coverage slice. The analyzer rerun
+`run-phase63-beam-live-answer-gap-summary-value-anchors-current` found 8/9
+wrong-answer cases in summarization, with source-coverage warnings on 5/8 wrong
+cases and 21 cues. Representative cases include `9:summarization:1` expecting a
+freelance-contract budget stage outside its declared source chats and
+`14:summarization:1` expecting rental/subscription/discount/library/dietary
+details outside its source chats. Do not run full BEAM from this result; route
+summarization next to source-coverage / expected-answer compatibility review.
+The full source-coverage audit
+`run-phase63-beam-live-answer-gap-answer-hardening-source-coverage-current`
+keeps the accepted answer-hardening shape at 122 wrong answers, then adds source
+coverage status counts: 95 covered-or-no-warning, 15
+expected-cues-outside-source, and 12 no-declared-source-ids. Warning buckets are
+temporal_order 9 cases / 16 cues, summarization 5 / 21, aggregate_count 2 / 4,
+and conflict_update 1 / 2. Manual summarization audit: `9:summarization:1`,
+`14:summarization:1`, and `19:summarization:1` are declared-source mismatches;
+`20:summarization:1` and `20:summarization:2` have no declared source ids. Treat
+the summarization warnings as high-signal source/expected-answer review inputs;
+the temporal/count warning buckets are heuristic inspection queues before
+calling those lanes purely answer-pack failures. The live-slice runner now
+supports `--answer-gap-source-coverage-status covered-or-no-warning`; use it for
+answer-pack-only focused slices so source metadata mismatches do not dilute the
+measurement. For summarization, the corrected filtered answer-pack candidate set
+is only `12:summarization:1` and `14:summarization:2`; `18:summarization:1` and
+`18:summarization:2` are correctly classified as `no-declared-source-ids`. The
+corrected filtered live slice
+`run-phase63-beam-live-slice-summary-source-covered-v2-prelive-current` measured
+1/2 with `executionFailures: 0` and evidence recall 1.0: `12:summarization:1`
+passed, while `14:summarization:2` still failed because the source evidence is
+about movie recommendations and personal details while the expected answer asks
+for a generic project lifecycle.
+
 Acceptance Checks
 -----------------
 
@@ -158,11 +230,12 @@ Commands
 --------
 
 ```text
-bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw
+bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw --github-concurrency 8
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
 bun run scripts/analyze-phase-63-live-answer-gap.ts --benchmark-root /private/tmp/BEAM --live-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current/live-slice-report.json --run-id run-phase63-beam-live-answer-gap-answer-hardening-current
 bun run scripts/run-phase-63-beam-live-ablation.ts --benchmark-root /private/tmp/BEAM --live-report <live-slice-report.json> --mode <gold-evidence-only|retrieved-hit-only|retrieved-raw-uncompressed|full-context|gold-evidence-pack|retrieved-evidence-pack> --run-id <run-id>
+bun run eval:phase-63-live-slice -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --evidence-pack --answer-gap-report reports/eval/research/phase-63/beam/run-phase63-beam-live-answer-gap-answer-hardening-source-coverage-current/live-answer-gap-analysis.json --answer-gap-bucket preference_following --answer-gap-bucket abstention --answer-gap-bucket summarization --answer-gap-source-coverage-status covered-or-no-warning --run-id <run-id>
 bun run eval:phase-63-live-closure -- --benchmark-root /private/tmp/BEAM --recall-report <recall-diagnostic.json> --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
 bun run gate:phase-63-beam-closure -- --closure-report <phase-63-beam-closure-report.json> --run-id <gate-run-id>
 git diff --check

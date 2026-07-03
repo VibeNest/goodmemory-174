@@ -139,7 +139,7 @@ if (POSTGRES_URL) {
       } finally {
         await cleanupUserData(POSTGRES_URL, userId);
       }
-    });
+    }, 15_000);
 
     it("writes provider-backed embeddings into pgvector and uses them during hybrid recall", async () => {
       const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

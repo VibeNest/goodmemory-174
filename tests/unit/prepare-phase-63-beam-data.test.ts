@@ -86,14 +86,29 @@ describe("prepare-phase-63 BEAM data script", () => {
         "github-raw",
         "--github-api-root",
         "https://api.github.test/contents/chats",
+        "--github-concurrency",
+        "3",
         "--github-raw-root",
         "https://raw.github.test/BEAM/main/chats",
       ]),
     ).toMatchObject({
       githubApiRoot: "https://api.github.test/contents/chats",
+      githubConcurrency: 3,
       githubRawRoot: "https://raw.github.test/BEAM/main/chats",
       source: "github-raw",
     });
+  });
+
+  it("rejects invalid GitHub raw concurrency", () => {
+    expect(() =>
+      parsePhase63BeamPrepareCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-63-beam-data.ts",
+        "--github-concurrency",
+        "0",
+      ]),
+    ).toThrow("--github-concurrency must be a positive integer");
   });
 
   it("builds the Hugging Face rows endpoint URL", () => {
@@ -317,6 +332,123 @@ describe("prepare-phase-63 BEAM data script", () => {
         messages: [["I prefer minimal dependencies."]],
         time_anchor: "March-15-2024",
       },
+    ]);
+  });
+
+  it("fetches GitHub raw conversation folders concurrently while preserving row order", async () => {
+    const writes = new Map<string, string>();
+    const jsonResponses = new Map<string, unknown>([
+      [
+        "https://api.github.test/contents/chats/100K",
+        [
+          { name: "1", type: "dir" },
+          { name: "2", type: "dir" },
+        ],
+      ],
+    ]);
+    const textResponses = new Map<string, string>();
+    for (const conversationId of ["1", "2"]) {
+      jsonResponses.set(
+        `https://raw.github.test/BEAM/main/chats/100K/${conversationId}/chat.json`,
+        [
+          {
+            batch_number: 1,
+            time_anchor: "March-15-2024",
+            turns: [
+              [
+                {
+                  content: `conversation ${conversationId}`,
+                  id: Number(conversationId),
+                  index: `1,${conversationId}`,
+                  question_type: "main_question",
+                  role: "user",
+                  time_anchor: "March-15-2024",
+                },
+              ],
+            ],
+          },
+        ],
+      );
+      jsonResponses.set(
+        `https://raw.github.test/BEAM/main/chats/100K/${conversationId}/topic.json`,
+        { id: Number(conversationId), title: `Conversation ${conversationId}` },
+      );
+      jsonResponses.set(
+        `https://raw.github.test/BEAM/main/chats/100K/${conversationId}/probing_questions/probing_questions.json`,
+        { information_extraction: [] },
+      );
+      jsonResponses.set(
+        `https://raw.github.test/BEAM/main/chats/100K/${conversationId}/user_messages.json`,
+        [
+          {
+            messages: [{ content: `conversation ${conversationId}`, role: "user" }],
+            time_anchor: "March-15-2024",
+          },
+        ],
+      );
+      for (const fileName of [
+        "plan_new.txt",
+        "labels.txt",
+        "main_spec.txt",
+        "relationships.txt",
+      ]) {
+        textResponses.set(
+          `https://raw.github.test/BEAM/main/chats/100K/${conversationId}/${fileName}`,
+          `${fileName} ${conversationId}`,
+        );
+      }
+    }
+    let activeChatRequests = 0;
+    let maxActiveChatRequests = 0;
+
+    await preparePhase63BeamData(
+      {
+        dataset: "Mohammadta/BEAM",
+        githubApiRoot: "https://api.github.test/contents/chats",
+        githubConcurrency: 2,
+        githubRawRoot: "https://raw.github.test/BEAM/main/chats",
+        length: 2,
+        offset: 0,
+        outputRoot: "/tmp/BEAM",
+        source: "github-raw",
+        split: "100K",
+      },
+      {
+        mkdir: async () => undefined,
+        requestJson: async (url) => {
+          const value = jsonResponses.get(url);
+          if (value === undefined) {
+            throw new Error(`Unexpected JSON request ${url}`);
+          }
+          if (url.endsWith("/chat.json")) {
+            activeChatRequests += 1;
+            maxActiveChatRequests = Math.max(
+              maxActiveChatRequests,
+              activeChatRequests,
+            );
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            activeChatRequests -= 1;
+          }
+          return value;
+        },
+        requestText: async (url) => {
+          const value = textResponses.get(url);
+          if (value === undefined) {
+            throw new Error(`Unexpected text request ${url}`);
+          }
+          return value;
+        },
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+
+    const rows = JSON.parse(writes.get("/tmp/BEAM/100K.json") ?? "[]");
+    expect(maxActiveChatRequests).toBeGreaterThan(1);
+    expect(rows.map((row: { conversation_id: string }) => row.conversation_id)).toEqual([
+      "1",
+      "2",
     ]);
   });
 

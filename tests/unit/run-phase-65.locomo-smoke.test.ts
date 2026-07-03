@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { LocomoCase } from "../../src/eval/locomo";
 import {
+  buildLocomoSystemPrompt,
   buildLocomoRecalledContext,
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
@@ -49,9 +51,11 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "2",
       ]),
     ).toEqual({
+      allowCommonsenseResolution: false,
       answerFromRecalled: false,
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
+      caseIds: undefined,
       conversationalExtraction: false,
       corefNormalize: false,
       decompose: false,
@@ -60,11 +64,64 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       live: false,
       multiHop: false,
       outputDir: "/tmp/out",
+      providerEmbedding: false,
+      questionIds: undefined,
+      questionCategories: undefined,
       rerank: false,
       resume: false,
       runId: "run-locomo",
+      semanticCandidateMaxAdditions: undefined,
+      semanticCandidateMinSimilarity: undefined,
+      semanticCandidateMinRelativeScore: undefined,
+      semanticCandidates: false,
+      semanticCandidateTopK: undefined,
       smartFusion: false,
     });
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--case-id",
+        "locomo-conv-30, locomo-conv-41",
+        "--case-id",
+        "locomo-conv-42",
+      ]).caseIds,
+    ).toEqual(["locomo-conv-30", "locomo-conv-41", "locomo-conv-42"]);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--category",
+        "adversarial, open_domain",
+        "--category",
+        "multi_hop",
+      ]).questionCategories,
+    ).toEqual(["adversarial", "open_domain", "multi_hop"]);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id",
+        "conv-42:q60, conv-43:q32",
+        "--question-id",
+        "conv-48:q75",
+      ]).questionIds,
+    ).toEqual(["conv-42:q60", "conv-43:q32", "conv-48:q75"]);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--allow-commonsense-resolution",
+      ]).allowCommonsenseResolution,
+    ).toBe(true);
 
     expect(
       parseLocomoSmokeCliOptions([
@@ -93,6 +150,38 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]).bm25,
     ).toBe(true);
 
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding",
+      ]).providerEmbedding,
+    ).toBe(true);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidates",
+        "--semantic-candidate-top-k",
+        "8",
+        "--semantic-candidate-max-additions",
+        "2",
+        "--semantic-candidate-min-similarity",
+        "0.7",
+        "--semantic-candidate-min-relative-score",
+        "0.8",
+      ]),
+    ).toMatchObject({
+      semanticCandidateMaxAdditions: 2,
+      semanticCandidateMinSimilarity: 0.7,
+      semanticCandidateMinRelativeScore: 0.8,
+      semanticCandidates: true,
+      semanticCandidateTopK: 8,
+    });
+
     expect(() =>
       parseLocomoSmokeCliOptions([
         "bun",
@@ -102,6 +191,137 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "0",
       ]),
     ).toThrow("--limit must be a positive integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-max-additions",
+        "-1",
+      ]),
+    ).toThrow("--semantic-candidate-max-additions must be a non-negative integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--case-id",
+        "--bm25",
+      ]),
+    ).toThrow("--case-id requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--category",
+        "unsupported",
+      ]),
+    ).toThrow(
+      "--category must be one of: single_hop, multi_hop, temporal, open_domain, adversarial.",
+    );
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--category",
+        "--bm25",
+      ]),
+    ).toThrow("--category requires a value.");
+  });
+
+  it("requires provider embedding mode before the LoCoMo semantic run can claim real embedding evidence", () => {
+    const snapshot = {
+      GOODMEMORY_EMBEDDING_API_KEY: process.env.GOODMEMORY_EMBEDDING_API_KEY,
+      GOODMEMORY_EMBEDDING_BASE_URL: process.env.GOODMEMORY_EMBEDDING_BASE_URL,
+      GOODMEMORY_EMBEDDING_MODEL: process.env.GOODMEMORY_EMBEDDING_MODEL,
+      GOODMEMORY_EMBEDDING_PROVIDER: process.env.GOODMEMORY_EMBEDDING_PROVIDER,
+    };
+    delete process.env.GOODMEMORY_EMBEDDING_API_KEY;
+    delete process.env.GOODMEMORY_EMBEDDING_BASE_URL;
+    delete process.env.GOODMEMORY_EMBEDDING_MODEL;
+    delete process.env.GOODMEMORY_EMBEDDING_PROVIDER;
+
+    try {
+      expect(() =>
+        createLocomoSmokeMemory({
+          providerEmbedding: true,
+          semanticCandidates: true,
+        }),
+      ).toThrow("--provider-embedding requires GOODMEMORY_EMBEDDING_PROVIDER");
+    } finally {
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  });
+
+  it("uses provider embedding resolution instead of the smoke hash adapter when requested", () => {
+    const memory = createLocomoSmokeMemory({
+      providerEmbedding: true,
+      providerEmbeddingConfig: {
+        apiKey: "test-key",
+        baseURL: "https://example.invalid/v1",
+        model: "text-embedding-3-small",
+        provider: "openai",
+      },
+      semanticCandidates: true,
+    });
+
+    expect(inspectGoodMemoryRuntime(memory)).toMatchObject({
+      embeddingEnabled: true,
+    });
+  });
+
+  it("keeps retrieval-only smoke isolated from unrelated assisted-extractor env", async () => {
+    const snapshot = {
+      GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY:
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY,
+      GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL:
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL,
+      GOODMEMORY_ASSISTED_EXTRACTOR_MODEL:
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL,
+      GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER:
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER,
+    };
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "test-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "gpt-test";
+    delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL;
+    delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+
+    try {
+      const report = await runLocomoSmoke(
+        {
+          outputDir: "/tmp/locomo-out",
+          runId: "run-locomo-env-isolated",
+          semanticCandidates: true,
+        },
+        {
+          mkdir: async () => undefined,
+          writeFile: (async () => undefined) as never,
+        },
+      );
+
+      expect(report.executionFailures).toBe(0);
+      expect(report.semanticCandidateEmbeddingSource).toBe("smoke-hash");
+    } finally {
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
   });
 
   it("loads synthetic cases by default and normalized cases from an external root", async () => {
@@ -132,15 +352,114 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         },
       ],
     };
+    const externalTemporalCase: LocomoCase = {
+      caseId: "external-temporal",
+      sourceConversation: "external-conversation-2",
+      speakers: ["Jon", "Gina"],
+      turns: [
+        { diaId: "D1:1", speaker: "Jon", content: "I moved in March." },
+      ],
+      questions: [
+        {
+          questionId: "external-temporal:1",
+          category: "temporal",
+          question: "When did Jon move?",
+          goldAnswer: "March",
+          matchMode: "f1_token_overlap",
+          evidenceTurnIds: ["D1:1"],
+          adversarialAnswer: null,
+        },
+        {
+          questionId: "external-temporal:2",
+          category: "single_hop",
+          question: "Who moved?",
+          goldAnswer: "Jon",
+          matchMode: "f1_token_overlap",
+          evidenceTurnIds: ["D1:1"],
+          adversarialAnswer: null,
+        },
+      ],
+    };
+    const readExternalCases = async (path: string): Promise<string> => {
+      expect(path).toBe(join("/tmp/LOCOMO", "cases.json"));
+      return JSON.stringify({ cases: [externalCase, externalTemporalCase] });
+    };
     const external = await loadLocomoCases({
       benchmarkRoot: "/tmp/LOCOMO",
-      readFile: async (path) => {
-        expect(path).toBe(join("/tmp/LOCOMO", "cases.json"));
-        return JSON.stringify({ cases: [externalCase] });
-      },
+      readFile: readExternalCases,
     });
     expect(external.benchmarkSource).toBe(join("/tmp/LOCOMO", "cases.json"));
-    expect(external.cases).toEqual([externalCase]);
+    expect(external.cases).toEqual([externalCase, externalTemporalCase]);
+
+    const filtered = await loadLocomoCases({
+      benchmarkRoot: "/tmp/LOCOMO",
+      caseIds: ["external-temporal"],
+      readFile: readExternalCases,
+    });
+    expect(filtered.cases).toEqual([externalTemporalCase]);
+
+    const temporalOnly = await loadLocomoCases({
+      benchmarkRoot: "/tmp/LOCOMO",
+      questionCategories: ["temporal"],
+      readFile: readExternalCases,
+    });
+    expect(temporalOnly.cases).toEqual([
+      {
+        ...externalTemporalCase,
+        questions: [externalTemporalCase.questions[0]!],
+      },
+    ]);
+
+    const questionOnly = await loadLocomoCases({
+      benchmarkRoot: "/tmp/LOCOMO",
+      questionIds: [externalTemporalCase.questions[0]!.questionId],
+      readFile: readExternalCases,
+    });
+    expect(questionOnly.cases).toEqual([
+      {
+        ...externalTemporalCase,
+        questions: [externalTemporalCase.questions[0]!],
+      },
+    ]);
+
+    await expect(
+      loadLocomoCases({
+        benchmarkRoot: "/tmp/LOCOMO",
+        questionCategories: ["adversarial"],
+        readFile: readExternalCases,
+      }),
+    ).rejects.toThrow(
+      "LoCoMo category filter matched no questions in /tmp/LOCOMO/cases.json: adversarial",
+    );
+
+    await expect(
+      loadLocomoCases({
+        benchmarkRoot: "/tmp/LOCOMO",
+        caseIds: ["external-temporal", "missing-case"],
+        readFile: readExternalCases,
+      }),
+    ).rejects.toThrow(
+      "LoCoMo case id(s) not found in /tmp/LOCOMO/cases.json: missing-case",
+    );
+
+    await expect(
+      loadLocomoCases({
+        benchmarkRoot: "/tmp/LOCOMO",
+        questionIds: ["missing-question"],
+        readFile: readExternalCases,
+      }),
+    ).rejects.toThrow(
+      "LoCoMo question id(s) not found in /tmp/LOCOMO/cases.json: missing-question",
+    );
+  });
+
+  it("keeps commonsense resolution explicit in the live-answer system prompt", () => {
+    expect(buildLocomoSystemPrompt({})).not.toContain(
+      "general world knowledge",
+    );
+    expect(
+      buildLocomoSystemPrompt({ allowCommonsenseResolution: true }),
+    ).toContain("general world knowledge");
   });
 
   it("rejects an external root whose payload is not a normalized case array", async () => {
@@ -269,7 +588,15 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(report.benchmarkSource).toBe("synthetic-smoke");
     expect(report.executionFailures).toBe(0);
     expect(report.caseCount).toBe(5);
+    expect(report.caseIds).toEqual([
+      "synthetic-single-hop-dog",
+      "synthetic-multi-hop-visit",
+      "synthetic-temporal-promotion",
+      "synthetic-open-domain-cuisine",
+      "synthetic-adversarial-bowl",
+    ]);
     expect(report.questionCount).toBe(5);
+    expect(report.questionCategories).toBeNull();
 
     // Provenance/contract header fields.
     expect(report.phase).toBe("phase-65");
@@ -321,9 +648,46 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         LOCOMO_SMOKE_REPORT_FILE_NAME,
       ),
     );
-    expect(JSON.parse(writes[0]?.contents ?? "{}").runId).toBe(
+    const writtenReport = JSON.parse(writes[0]?.contents ?? "{}") as {
+      caseIds?: unknown;
+      questionCategories?: unknown;
+      runId?: unknown;
+    };
+    expect(writtenReport.runId).toBe(
       "run-locomo-smoke-test",
     );
+    expect(writtenReport.caseIds).toEqual(report.caseIds);
+    expect(writtenReport.questionCategories).toBeNull();
+  });
+
+  it("runs a targeted question-category slice without changing category summary shape", async () => {
+    const writes: Array<{ contents: string; path: string }> = [];
+    const report = await runLocomoSmoke(
+      {
+        outputDir: "/tmp/locomo-out",
+        questionCategories: ["adversarial"],
+        runId: "run-locomo-adversarial-slice",
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async (path: string, contents: string) => {
+          writes.push({ contents, path });
+        }) as never,
+      },
+    );
+
+    expect(report.caseCount).toBe(1);
+    expect(report.caseIds).toEqual(["synthetic-adversarial-bowl"]);
+    expect(report.questionCount).toBe(1);
+    expect(report.questionCategories).toEqual(["adversarial"]);
+    expect(category(report, "adversarial").questionCount).toBe(1);
+    expect(category(report, "single_hop").questionCount).toBe(0);
+    expect(category(report, "multi_hop").crossSessionChainReady).toBe(false);
+
+    const writtenReport = JSON.parse(writes[0]?.contents ?? "{}") as {
+      questionCategories?: unknown;
+    };
+    expect(writtenReport.questionCategories).toEqual(["adversarial"]);
   });
 
   it("scores answer accuracy in live-answer mode and resists the adversarial bait", async () => {
@@ -569,6 +933,33 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     }
   });
 
+  it("runs the synthetic smoke with opt-in semantic candidate generation", async () => {
+    const report = await runLocomoSmoke(
+      {
+        outputDir: "/tmp/locomo-out",
+        runId: "run-locomo-semantic-candidates",
+        semanticCandidateMaxAdditions: 1,
+        semanticCandidateMinRelativeScore: 0.8,
+        semanticCandidateTopK: 2,
+        semanticCandidates: true,
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.semanticCandidates).toEqual({
+      enabled: true,
+      maxAdditions: 1,
+      minRelativeScore: 0.8,
+      minSimilarity: null,
+      topK: 2,
+    });
+    expect(report.executionFailures).toBe(0);
+    expect(report.questionCount).toBeGreaterThan(0);
+  });
+
   it("defaults bm25Ranking to false (rules-only floor)", async () => {
     const report = await runLocomoSmoke(
       { runId: "run-locomo-default-bm25", outputDir: "/tmp/locomo-out" },
@@ -578,6 +969,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       },
     );
     expect(report.bm25Ranking).toBe(false);
+    expect(report.semanticCandidates.enabled).toBe(false);
   });
 
   it("buildLocomoRecalledContext answers from recalled records (normalized facts), ordered by dia_id", () => {
@@ -801,9 +1193,11 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
 
   async function firstRun(): Promise<{
     lines: string[];
+    progress: string;
     report: Awaited<ReturnType<typeof runLocomoSmoke>>;
   }> {
     const lines: string[] = [];
+    let progressSeed = "";
     const report = await runLocomoSmoke(
       { outputDir, runId },
       {
@@ -812,10 +1206,14 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
           lines.push(data);
         },
         mkdir: async () => undefined,
-        writeFile: (async () => undefined) as never,
+        writeFile: (async (path: string, data: string) => {
+          if (path === progressPath) {
+            progressSeed = data;
+          }
+        }) as never,
       },
     );
-    return { lines, report };
+    return { lines, progress: `${progressSeed}${lines.join("")}`, report };
   }
 
   it("stays checkpoint-free in retrieval-only mode", async () => {
@@ -838,7 +1236,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
   });
 
   it("checkpoints one line per completed question and replays them on --resume without reseeding", async () => {
-    const { lines, report } = await firstRun();
+    const { lines, progress, report } = await firstRun();
     expect(report.resume).toBe(false);
     expect(report.questionCount).toBeGreaterThan(1);
     expect(lines.length).toBe(report.questionCount);
@@ -856,7 +1254,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
         mkdir: async () => undefined,
         readFile: async (path) => {
           if (path === progressPath) {
-            return lines.join("");
+            return progress;
           }
           throw new Error(`unexpected read: ${path}`);
         },
@@ -872,10 +1270,137 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     );
   });
 
+  it("rejects --resume when the checkpoint belongs to a different experiment config", async () => {
+    const { progress } = await firstRun();
+
+    await expect(
+      runLocomoSmoke(
+        {
+          outputDir,
+          resume: true,
+          runId,
+          semanticCandidates: true,
+          semanticCandidateTopK: 8,
+        },
+        {
+          answerGenerator,
+          appendFile: async () => undefined,
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === progressPath) {
+              return progress;
+            }
+            throw new Error(`unexpected read: ${path}`);
+          },
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("LoCoMo progress config fingerprint mismatch");
+  });
+
+  it("re-scores checkpointed live answers on resume with the current scorer", async () => {
+    const testCase: LocomoCase = {
+      caseId: "external-adversarial",
+      sourceConversation: "external-adversarial",
+      speakers: ["Audrey", "Andrew"],
+      turns: [
+        {
+          diaId: "D1:1",
+          speaker: "Audrey",
+          content: "I never said what kind of flowers the tattoo shows.",
+        },
+      ],
+      questions: [
+        {
+          adversarialAnswer: "sunflowers",
+          category: "adversarial",
+          evidenceTurnIds: ["D1:1"],
+          goldAnswer: "No information available",
+          matchMode: "adversarial_abstention",
+          question: "What kind of flowers does Andrew have a tattoo of?",
+          questionId: "external-adversarial:1",
+        },
+      ],
+    };
+    const staleCheckpoint: LocomoQuestionRetrieval = {
+      answerCorrect: false,
+      caseId: testCase.caseId,
+      category: "adversarial",
+      evidenceRecall: 1,
+      evidenceTurnIds: ["D1:1"],
+      generatedAnswer: "I do not know",
+      goldEvidenceFullyRetrieved: true,
+      missingEvidenceTurnIds: [],
+      noiseTurnCount: 0,
+      noiseTurnIds: [],
+      questionId: "external-adversarial:1",
+      retrievedTurnIds: ["D1:1"],
+    };
+    const resumedRunId = "run-locomo-resume-rescore";
+    const resumedProgressPath = join(outputDir, resumedRunId, "live-progress.jsonl");
+    let progressSeed = "";
+    await runLocomoSmoke(
+      {
+        benchmarkRoot: "/tmp/LOCOMO",
+        caseIds: [testCase.caseId],
+        outputDir,
+        runId: resumedRunId,
+      },
+      {
+        answerGenerator,
+        appendFile: async () => undefined,
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === join("/tmp/LOCOMO", "cases.json")) {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async (path: string, data: string) => {
+          if (path === resumedProgressPath) {
+            progressSeed = data;
+          }
+        }) as never,
+      },
+    );
+    const resumed = await runLocomoSmoke(
+      {
+        benchmarkRoot: "/tmp/LOCOMO",
+        caseIds: [testCase.caseId],
+        outputDir,
+        resume: true,
+        runId: resumedRunId,
+      },
+      {
+        answerGenerator,
+        appendFile: async () => undefined,
+        createMemory: () => {
+          throw new Error("fully-checkpointed case must skip seeding");
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === join("/tmp/LOCOMO", "cases.json")) {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          if (path === resumedProgressPath) {
+            return `${progressSeed}${JSON.stringify(staleCheckpoint)}\n`;
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(resumed.questionCount).toBe(1);
+    expect(resumed.cases[0]?.answerCorrect).toBe(true);
+    expect(category(resumed, "adversarial").answerAccuracy).toBe(1);
+  });
+
   it("recomputes only the questions missing from the checkpoint on --resume", async () => {
-    const { lines, report } = await firstRun();
+    const { lines, progress, report } = await firstRun();
     expect(lines.length).toBeGreaterThan(1);
     const partial = lines.slice(0, -1);
+    const progressSeed = progress.slice(0, progress.length - lines.join("").length);
     const appended: string[] = [];
     const resumed = await runLocomoSmoke(
       { outputDir, runId, resume: true },
@@ -887,7 +1412,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
         mkdir: async () => undefined,
         readFile: async (path) => {
           if (path === progressPath) {
-            return partial.join("");
+            return `${progressSeed}${partial.join("")}`;
           }
           throw new Error(`unexpected read: ${path}`);
         },

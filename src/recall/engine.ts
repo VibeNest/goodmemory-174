@@ -177,6 +177,10 @@ export interface RecallSemanticCandidatesConfig {
   // RAW vector-store score floor (dot/inner product; equals cosine only for
   // unit-normalized embeddings). Default: no floor.
   minSimilarity?: number;
+  // Relative score floor. When set, admit only union candidates whose raw store
+  // score is at least bestRawScore * minRelativeScore. This is an opt-in noise
+  // control for widened semantic admission budgets. Default: no relative floor.
+  minRelativeScore?: number;
   // Noise budget: maximum facts ADMITTED BY THE UNION per recall. Candidates
   // that deduped against route/augmenter/fallback selections or failed the
   // compatible-pool check consume no budget. Default: topK.
@@ -721,6 +725,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
               ),
               ...(config.semanticCandidates.minSimilarity !== undefined
                 ? { minSimilarity: config.semanticCandidates.minSimilarity }
+                : {}),
+              ...(config.semanticCandidates.minRelativeScore !== undefined
+                ? {
+                    minRelativeScore:
+                      config.semanticCandidates.minRelativeScore,
+                  }
                 : {}),
             }
           : undefined;

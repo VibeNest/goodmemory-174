@@ -53,6 +53,18 @@ describe("answer evidence pack", () => {
         "instruction_following",
       ),
     ).toBe("instruction");
+    expect(
+      inferAnswerOperation(
+        "What tools should I use?",
+        "preference_following",
+      ),
+    ).toBe("preference");
+    expect(inferAnswerOperation("What happened?", "abstention")).toBe(
+      "abstention",
+    );
+    expect(inferAnswerOperation("How many modules were listed?", "abstention")).toBe(
+      "abstention",
+    );
   });
 
   it("builds a source-ordered, deduplicated, timestamped pack", () => {
@@ -94,7 +106,7 @@ describe("answer evidence pack", () => {
 
   it("orders evidence by explicit orderKey rather than source identity", () => {
     const pack = buildAnswerEvidencePack({
-      question: "What is current?",
+      question: "What did I mention?",
       turns: [
         {
           sourceId: 2,
@@ -153,6 +165,133 @@ describe("answer evidence pack", () => {
     expect(general).not.toContain("order or sequence");
   });
 
+  it("adds a date and quantity ledger for temporal count intervals", () => {
+    const count = buildAnswerEvidencePack({
+      question:
+        "How many days passed between when I started my 30-day editing challenge and when I completed the 15-day clarity editing challenge?",
+      questionType: "temporal_reasoning",
+      turns: [
+        {
+          sourceId: 88,
+          orderKey: 88,
+          content:
+            "I've entered a 30-day editing challenge starting April 2, and I'm sorta struggling to stay on track.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 218,
+          orderKey: 218,
+          content:
+            "I'm worried about my writing progress after completing that 15-day clarity editing challenge from May 10 to May 25, where I reduced filler words by 20%.",
+          role: "user",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    expect(count).toContain("Date/quantity ledger for counting:");
+    expect(count).toContain("#88");
+    expect(count).toContain("dates: April 2");
+    expect(count).toContain(
+      "duration labels (not endpoint dates by themselves): 30-day",
+    );
+    expect(count).toContain("#218");
+    expect(count).toContain("dates: May 10; May 25");
+    expect(count).toContain(
+      "duration labels (not endpoint dates by themselves): 15-day",
+    );
+    expect(count).toContain(
+      "Use start dates when the question asks between starts; use completion/end dates only when the question names completion/end.",
+    );
+    expect(count).toContain(
+      "Do not use a duration label such as 15-day or two-week as an interval endpoint date.",
+    );
+    expect(count.indexOf("Date/quantity ledger for counting:")).toBeLessThan(
+      count.indexOf("Value-bearing facts for counting:"),
+    );
+  });
+
+  it("distinguishes duration labels from endpoint dates in count intervals", () => {
+    const count = buildAnswerEvidencePack({
+      question:
+        "How many days do I have between scheduling the meeting and the start of the testing period?",
+      questionType: "temporal_reasoning",
+      turns: [
+        {
+          sourceId: 0,
+          orderKey: 0,
+          content:
+            "I'm trying to schedule a meeting for March 15, 2024, at 09:00 CET.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 50,
+          orderKey: 50,
+          content:
+            "The MVP deadline is April 5, 2024, to allow two weeks for testing and deployment.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    expect(count).toContain("dates: March 15, 2024");
+    expect(count).toContain("dates: April 5, 2024");
+    expect(count).toContain(
+      "duration labels (not endpoint dates by themselves): two weeks",
+    );
+    expect(count).toContain(
+      "Choose the two event dates named by the question's endpoint phrases, not unrelated intermediate dates.",
+    );
+  });
+
+  it("surfaces numeric quantity candidates for non-date counts", () => {
+    const count = buildAnswerEvidencePack({
+      question: "How many filming progress quantities did I mention?",
+      turns: [
+        {
+          sourceId: 156,
+          orderKey: 156,
+          content:
+            "The pilot episode is 75% complete by July 5, with 12 of 16 scenes filmed and 60% of post-production started.",
+          role: "user",
+          timeAnchor: "Jul",
+        },
+      ],
+    });
+
+    expect(count).toContain("other numeric quantities:");
+    expect(count).toContain("75% complete");
+    expect(count).toContain("12 of 16 scenes");
+    expect(count).toContain("60% of post-production");
+  });
+
+  it("keeps date ranges and currency quantities intact in count ledgers", () => {
+    const count = buildAnswerEvidencePack({
+      question: "How much event planning detail did I mention?",
+      turns: [
+        {
+          sourceId: 205,
+          orderKey: 205,
+          content:
+            "I planned a May 11-12 movie marathon, set a $2,000 emergency fund, and reserved $300 for warm clothing.",
+          role: "user",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    expect(count).toContain("dates: May 11-12");
+    expect(count).toContain("other numeric quantities: $2,000 emergency fund; $300 for warm clothing");
+    const quantityLine = count
+      .split("\n")
+      .find((line) => line.includes("other numeric quantities:"));
+    expect(quantityLine).not.toContain("; 000 emergency fund");
+    expect(quantityLine).not.toContain("12 movie marathon");
+  });
+
   it("adds order framing for order/sequence questions", () => {
     const order = buildAnswerEvidencePack({
       question:
@@ -182,6 +321,119 @@ describe("answer evidence pack", () => {
     expect(order).toContain("deployment/configuration plus testing or performance themes");
   });
 
+  it("adds source-ordered milestone cues for multi-topic order questions", () => {
+    const order = buildAnswerEvidencePack({
+      question:
+        "Can you list the order in which I brought up handling errors and promise rejections in order? Mention ONLY and ONLY five items.",
+      questionType: "event_ordering",
+      turns: [
+        {
+          sourceId: 28,
+          orderKey: 1,
+          content: [
+            "I'm trying to handle errors for invalid city names in my weather app, and I want to display user-friendly messages for HTTP 404 and 400 status codes.",
+            "I've been using asynchronous fetch calls using `fetch()` with async/await syntax.",
+            "```javascript",
+            "const data = await response.json();",
+            "```",
+            "I want to improve this code to handle invalid city names and provide a better user experience.",
+          ].join("\n"),
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 162,
+          orderKey: 2,
+          content:
+            "I'm having trouble with the fetchWeatherData function, specifically with the Unhandled Promise Rejection warning that I've been trying to fix by adding try/catch blocks around async calls.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    expect(order).toContain("Milestone cue candidates");
+    expect(order).toContain("#28 cues:");
+    expect(order).toContain("user-friendly messages for HTTP 404 and 400 status codes");
+    expect(order).toContain("asynchronous fetch calls");
+    expect(order).toContain("#162 cues:");
+    expect(order).toContain("try/catch blocks around async calls");
+    expect(order).not.toContain("response.json()");
+    expect(order.indexOf("#28 cues")).toBeLessThan(order.indexOf("#162 cues"));
+    expect(order.indexOf("Milestone cue candidates")).toBeLessThan(
+      order.indexOf("Timeline evidence:"),
+    );
+  });
+
+  it("adds target-matched order anchors before noisy timeline entries", () => {
+    const order = buildAnswerEvidencePack({
+      question:
+        "Can you list the order in which I brought up handling errors and promise rejections in order? Mention ONLY and ONLY five items.",
+      questionType: "event_ordering",
+      turns: [
+        {
+          sourceId: 10,
+          orderKey: 0,
+          content:
+            "I configured Flask 2.3.1 with SQLite 3.39 and improved connection handling for local development.",
+          role: "user",
+          timeAnchor: "Setup",
+        },
+        {
+          sourceId: 28,
+          orderKey: 1,
+          content:
+            "I want to handle errors for invalid city names in my weather app and display user-friendly messages for HTTP 404 and 400 status codes.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 162,
+          orderKey: 2,
+          content:
+            "I'm trying to fix an Unhandled Promise Rejection warning by adding try/catch blocks around async fetch calls.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    const anchorSection = order.slice(
+      order.indexOf("Question-target timeline anchors"),
+      order.indexOf("Milestone cue candidates"),
+    );
+    expect(anchorSection).toContain("#28");
+    expect(anchorSection).toContain("#162");
+    expect(anchorSection).not.toContain("#10");
+    expect(anchorSection).toContain("Use these source-ordered anchors first");
+    expect(order).toContain("[t=Setup | #10 | user] I configured Flask");
+  });
+
+  it("preserves formula cues while splitting order milestones", () => {
+    const order = buildAnswerEvidencePack({
+      question:
+        "Can you list the order in which I brought up combinatorial calculations and probability concepts? Mention ONLY and ONLY five items.",
+      questionType: "event_ordering",
+      turns: [
+        {
+          sourceId: 28,
+          orderKey: 1,
+          content:
+            "I'm trying to understand permutations and combinations with 3 objects, and I see that 3! equals 6, which represents arranging the objects, and 3C2 equals 3, which represents choosing 2 objects out of 3.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
+    });
+
+    const cueSection = order.slice(
+      order.indexOf("Milestone cue candidates"),
+      order.indexOf("Timeline evidence:"),
+    );
+    expect(cueSection).toContain("3! equals 6");
+    expect(cueSection).toContain("3C2 equals 3");
+  });
+
   it("adds current-value framing for update/conflict questions", () => {
     const pack = buildAnswerEvidencePack({
       question: "What is my current database after the update?",
@@ -206,6 +458,141 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("Current-value resolution:");
     expect(pack).toContain("Earlier entries are history");
     expect(pack).toContain("latest supported value as current");
+  });
+
+  it("adds a current-value ledger for update questions", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What date is my immigration consultant session scheduled for now?",
+      questionType: "knowledge_update",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "I first planned the consultant session for May 20.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "I moved the immigration consultant session to May 22.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Current-value ledger:");
+    expect(pack).toContain(
+      "Latest/current candidate: [t=Feb | #2] I moved the immigration consultant session to May 22.",
+    );
+    expect(pack).toContain(
+      "Earlier history superseded by that latest candidate:",
+    );
+    expect(pack).toContain("1. [t=Jan | #1] I first planned the consultant session for May 20.");
+    expect(pack).toContain(
+      "Use exact values, dates, amounts, names, and status terms from the latest/current candidate",
+    );
+  });
+
+  it("highlights updated target values inside the latest current-value candidate", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "When is my webinar scheduled now?",
+      questionType: "knowledge_update",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "The webinar was originally scheduled for March 20.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "The webinar was rescheduled from March 20 to March 27 to accommodate additional guest speakers.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    const valueCueSection = pack.slice(
+      pack.indexOf("Priority current-value cues:"),
+      pack.indexOf("Earlier history superseded by that latest candidate:"),
+    );
+    expect(valueCueSection).toContain("updated target values: March 27");
+    expect(valueCueSection).toContain("all date/time/quantity mentions");
+    expect(valueCueSection).toContain("March 20");
+    expect(valueCueSection).toContain("March 27");
+    expect(valueCueSection).toContain("Prefer updated target values");
+  });
+
+  it("treats as-of dates as context when a current-value deadline is present", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "By when should I finish the security review?",
+      questionType: "knowledge_update",
+      turns: [
+        {
+          sourceId: 108,
+          orderKey: 1,
+          content:
+            "Please finish the security review by April 22 while checking the latest libraries as of April 25.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const valueCueSection = pack.slice(
+      pack.indexOf("Priority current-value cues:"),
+      pack.indexOf("Earlier history:"),
+    );
+    expect(valueCueSection).toContain("updated target values: April 22");
+    expect(valueCueSection).toContain("as-of/reference values: April 25");
+    expect(valueCueSection).toContain(
+      "Do not answer with an as-of/reference value unless the question asks for that reference date",
+    );
+  });
+
+  it("keeps unrelated later noise out of the current-value ledger", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What is my current database after the update?",
+      questionType: "knowledge_update",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "I used SQLite first.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "I switched the durable database to Postgres.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 3,
+          orderKey: 3,
+          content: "I later planned a vacation budget.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    const ledgerSection = pack.slice(
+      pack.indexOf("Current-value ledger:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(ledgerSection).toContain(
+      "Latest/current candidate: [t=Feb | #2] I switched the durable database to Postgres.",
+    );
+    expect(ledgerSection).not.toContain("vacation budget");
   });
 
   it("adds contradiction framing that forbids resolving yes/no conflicts", () => {
@@ -236,6 +623,9 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("Do not answer yes or no first");
     expect(pack).toContain("I notice you've mentioned contradictory information");
     expect(pack).toContain("ask for clarification");
+    expect(pack).toContain(
+      "A retrieved non-denial assertion about the question target is the affirmative side",
+    );
     expect(pack).not.toContain("latest supported value as current");
   });
 
@@ -269,6 +659,50 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("lead with the affirmative claim");
   });
 
+  it("keeps contradiction evidence focused on the minimal target pair", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Have I written Flask routes or handled HTTP requests?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 24,
+          orderKey: 1,
+          content:
+            "I have never written any Flask routes or handled HTTP requests in this project.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 58,
+          orderKey: 2,
+          content:
+            "I implemented a basic homepage route with Flask for the project.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 62,
+          orderKey: 3,
+          content:
+            "I later tested POST /transactions with a 201 status and improved CRUD error handling.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    const guide = pack.slice(
+      pack.indexOf("Contradiction evidence guide:"),
+      pack.indexOf("Use the contradiction evidence guide above"),
+    );
+    expect(guide).toContain("Minimal contradiction pair");
+    expect(guide).toContain("never written any Flask routes");
+    expect(guide).toContain("homepage route with Flask");
+    expect(guide).toContain("ignore adjacent implementation details");
+    expect(guide).not.toContain("POST /transactions");
+    expect(guide).not.toContain("CRUD error handling");
+  });
+
   it("adds multi-session facet framing for cross-session reasoning", () => {
     const pack = buildAnswerEvidencePack({
       question: "How did my publishing plan evolve?",
@@ -296,6 +730,321 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("Do not answer from only the latest entry");
   });
 
+  it("adds abstention calibration for adjacent but insufficient evidence", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "Could you provide details about the onboarding modules I need to complete?",
+      questionType: "abstention",
+      turns: [
+        {
+          sourceId: 268,
+          orderKey: 268,
+          content:
+            "I need to finish all onboarding modules by April 25, and I've set a schedule to meet this deadline.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Abstention calibration:");
+    expect(pack).toContain("Answer that the provided chat does not contain the requested detail");
+    expect(pack).toContain("Adjacent facts are insufficient");
+    expect(pack).toContain("deadline or status is not module details");
+    expect(pack).toContain("Evidence for absence check:");
+    expect(pack).not.toContain("the latest entry is the current value");
+  });
+
+  it("warns that event attendance or success is not enough for atmosphere abstention questions", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "What was the atmosphere like during the February 20 book club discussion?",
+      questionType: "abstention",
+      turns: [
+        {
+          sourceId: 222,
+          orderKey: 222,
+          content:
+            "I hosted a book club discussion on The Poppy War with Kelly on February 20, and we had 12 attendees and it was a great success.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    expect(pack).toContain("attendance or success is not atmosphere");
+    expect(pack).toContain("Only answer with a substantive value when a source states the requested attribute");
+  });
+
+  it("adds preference constraints for preference-following questions", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "I'm adding login, income tracking, and basic analytics to my Flask app. What libraries or tools should I use?",
+      questionType: "preference_following",
+      turns: [
+        {
+          sourceId: 34,
+          orderKey: 34,
+          content:
+            "I prefer lightweight libraries with minimal dependencies and want to avoid unnecessary complexity.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 108,
+          orderKey: 108,
+          content:
+            "A complex option would add a distributed task queue, dashboards, Elasticsearch, and several monitoring agents.",
+          role: "assistant",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Preference-following:");
+    expect(pack).toContain("Preference constraints:");
+    expect(pack).toContain("lightweight libraries");
+    expect(pack).toContain("minimal dependencies");
+    expect(pack).toContain("avoid unnecessary complexity");
+    expect(pack).toContain("Supporting evidence for the requested answer:");
+    expect(pack).toContain("Flask app");
+    expect(pack).toContain(
+      "Do not let noisy adjacent tool suggestions override the user's stated preference",
+    );
+    expect(pack).not.toContain("the latest entry is the current value");
+  });
+
+  it("keeps preference support topic-matched instead of dumping noisy turns", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "How can I track the status and results of each step in my deployment workflow?",
+      questionType: "preference_following",
+      turns: [
+        {
+          sourceId: 182,
+          orderKey: 182,
+          content:
+            "I prefer automated deployments over manual ones, and I want to reduce human error in my CI/CD pipeline.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 184,
+          orderKey: 184,
+          content:
+            "How do I monitor the progress of each job in the GitHub Actions workflow?",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 20,
+          orderKey: 20,
+          content:
+            "I made a grocery list for the weekend and need to buy coffee.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
+    });
+
+    const support = pack.slice(
+      pack.indexOf("Supporting evidence for the requested answer:"),
+    );
+    expect(support).toContain("GitHub Actions workflow");
+    expect(support).toContain("automated deployments");
+    expect(support).not.toContain("grocery list");
+  });
+
+  it("adds a source-ordered summary coverage checklist", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "Can you give me a comprehensive summary of how my plans for studying abroad developed over time?",
+      questionType: "summarization",
+      turns: [
+        {
+          sourceId: 8,
+          orderKey: 8,
+          content:
+            "I'm trying to finish my personal statement by April 20, 2024, and I want to explain how Tanya has supported my producer career goals.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 77,
+          orderKey: 77,
+          content:
+            "I accepted a part-time role starting June 1 while studying, and now I'm weighing a Canadian study visa against staying in Montserrat.",
+          role: "user",
+          timeAnchor: "Jun",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Summary coverage checklist:");
+    expect(pack).toContain("#8 user themes:");
+    expect(pack).toContain("personal statement by April 20, 2024");
+    expect(pack).toContain("Tanya has supported my producer career goals");
+    expect(pack).toContain("dates: April 20, 2024");
+    expect(pack).toContain("#77 user themes:");
+    expect(pack).toContain("part-time role starting June 1");
+    expect(pack).toContain("Canadian study visa");
+    expect(pack.indexOf("Summary coverage checklist:")).toBeLessThan(
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+  });
+
+  it("compresses assistant guidance for summaries without using generic openings as checklist themes", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Can you summarize my visa interview preparation?",
+      questionType: "summarization",
+      turns: [
+        {
+          sourceId: 131,
+          orderKey: 131,
+          content:
+            "Can you help me prepare for my Canadian visa interview on May 10?",
+          role: "user",
+          timeAnchor: "May",
+        },
+        {
+          sourceId: 132,
+          orderKey: 132,
+          content: [
+            "Absolutely, I'd be happy to help you prepare for the interview.",
+            "",
+            "### Preparation Steps",
+            "1. Gather required documents and funding evidence.",
+            "2. Practice answers about the institution and study plan.",
+            "3. Prepare to explain ties to Montserrat.",
+          ].join("\n"),
+          role: "assistant",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    const checklist = pack.slice(
+      pack.indexOf("Summary coverage checklist:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(checklist).toContain("#131 user themes:");
+    expect(checklist).toContain("Canadian visa interview on May 10");
+    expect(checklist).toContain("#132 assistant guidance:");
+    expect(checklist).toContain("Preparation Steps");
+    expect(checklist).toContain("Gather required documents");
+    expect(checklist).toContain("Practice answers");
+    expect(checklist).not.toContain("Absolutely, I'd be happy");
+  });
+
+  it("adds a required source coverage audit for summaries with late topic shifts", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "Can you summarize how my professional and personal planning evolved?",
+      questionType: "summarization",
+      turns: [
+        {
+          sourceId: 58,
+          orderKey: 58,
+          content:
+            "I declined a meeting with Stephen so I could focus on a startup offer.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 110,
+          orderKey: 110,
+          content:
+            "I agreed to limit work trips to three per quarter to respect relationship boundaries.",
+          role: "user",
+          timeAnchor: "Jun",
+        },
+        {
+          sourceId: 258,
+          orderKey: 258,
+          content:
+            "My belief in free will affects my motivation, and I want to track decisions through daily journaling.",
+          role: "user",
+          timeAnchor: "Sep",
+        },
+      ],
+    });
+
+    const checklist = pack.slice(
+      pack.indexOf("Summary coverage checklist:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(checklist).toContain(
+      "Required source coverage: cover every listed source id",
+    );
+    expect(checklist).toContain("#58, #110, #258");
+    expect(checklist).toContain("Do not stop after the first coherent narrative arc");
+    expect(checklist).toContain("late-stage themes");
+    expect(checklist).toContain("free will affects my motivation");
+    expect(checklist).toContain("daily journaling");
+  });
+
+  it("adds value-bearing summary anchors that can appear after the normal cue cap", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Can you summarize how my study-abroad finances evolved?",
+      questionType: "summarization",
+      turns: [
+        {
+          sourceId: 205,
+          orderKey: 205,
+          content: [
+            "I finalized the personal statement structure.",
+            "I reviewed Tanya's support and interview practice.",
+            "I compared staying in Montserrat with applying for Canada.",
+            "I prepared visa interview documents and practice answers.",
+            "Later I integrated a freelance contract into my budget and balanced income against expenses and savings for my first months abroad.",
+          ].join(" "),
+          role: "user",
+          timeAnchor: "Aug",
+        },
+      ],
+    });
+
+    const checklist = pack.slice(
+      pack.indexOf("Summary coverage checklist:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    const firstTurnChecklist = checklist.slice(checklist.indexOf("#205 user themes:"));
+    expect(firstTurnChecklist).not.toContain("freelance contract");
+    expect(checklist).toContain("Value-bearing summary anchors:");
+    expect(checklist).toContain("freelance contract");
+    expect(checklist).toContain("income against expenses and savings");
+  });
+
+  it("adds legal and meeting value anchors from assistant guidance", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Can you summarize how my estate planning evolved?",
+      questionType: "summarization",
+      turns: [
+        {
+          sourceId: 179,
+          orderKey: 179,
+          content: [
+            "Sure, here is a balanced way to handle the executor question.",
+            "Start by explaining why Douglas is a strong fit.",
+            "You can mention Kevin's legal background as a possible co-executor option.",
+            "Then organize a family meeting to discuss executor roles openly and reach consensus.",
+            "After that, define Douglas's executor duties, provide resources, and set conflict-resolution mechanisms.",
+          ].join(" "),
+          role: "assistant",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const checklist = pack.slice(
+      pack.indexOf("Summary coverage checklist:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(checklist).toContain("family meeting");
+    expect(checklist).toContain("executor duties");
+    expect(checklist).toContain("conflict-resolution mechanisms");
+  });
+
   it("adds standing/latest constraint framing for instruction questions", () => {
     const pack = buildAnswerEvidencePack({
       question: "What should the answer include?",
@@ -321,9 +1070,137 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("standing instruction");
     expect(pack).toContain("latest companion");
     expect(pack).toContain("Ignore retrieved turns that do not constrain the requested response");
-    expect(pack).toContain("answer with response requirements");
-    expect(pack).toContain("do not just fulfill the underlying request");
-    expect(pack).toContain("Return a requirements sentence such as: Response should include");
+    expect(pack).toContain("Apply these constraints to the answer");
+    expect(pack).toContain("answer the underlying request");
+    expect(pack).toContain("If the user asks what the response should include");
+  });
+
+  it("keeps instruction constraints separate from topic-matched supporting evidence", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Which libraries are used in this project?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "I want to deploy the project on Friday.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "I use Flask-Login 0.6.2, Flask 2.3.1, and SQLite 3.39 as project dependencies.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 3,
+          orderKey: 3,
+          content: "Always include version numbers when I ask about libraries.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Instruction constraints:");
+    expect(pack).toContain("[t=Mar | #3 | user] Always include version numbers");
+    expect(pack).toContain("Supporting evidence for the requested answer:");
+    expect(pack).toContain("Flask-Login 0.6.2");
+    expect(pack).toContain("Flask 2.3.1");
+    expect(pack).toContain("SQLite 3.39");
+    expect(pack).not.toContain("deploy the project on Friday");
+  });
+
+  it("adds concrete answer-content cues for instruction questions", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Which libraries and versions should the response include?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "Always include the library names and versions.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "The project uses Flask-Login 0.6.2, Flask 2.3.1, and SQLite 3.39.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("Do not only restate the instruction");
+    expect(cueSection).toContain("Flask-Login 0.6.2");
+    expect(cueSection).toContain("Flask 2.3.1");
+    expect(cueSection).toContain("SQLite 3.39");
+  });
+
+  it("surfaces named tools as concrete instruction answer content", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What should the response include when suggesting writing aids?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 100,
+          orderKey: 100,
+          content:
+            "Always include the tool names when discussing writing aids or software: Microsoft Word, Grammarly, Hemingway Editor, Google Calendar, Trello, Evernote, and Mendeley.",
+          role: "user",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("named tools/examples");
+    expect(cueSection).toContain("Microsoft Word");
+    expect(cueSection).toContain("Grammarly");
+    expect(cueSection).toContain("Hemingway Editor");
+    expect(cueSection).toContain("Mendeley");
+  });
+
+  it("does not fall back to all noisy turns for instruction questions without an explicit constraint", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "How can I organize multiple points in my CV?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "I negotiated two remote workdays per week.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "My CV has three accomplishments that I need to organize.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Instruction constraints:");
+    expect(pack).toContain("(no direct standing instruction found)");
+    expect(pack).toContain("Supporting evidence for the requested answer:");
+    expect(pack).toContain("My CV has three accomplishments");
+    expect(pack).not.toContain("remote workdays");
   });
 
   it("handles empty evidence", () => {

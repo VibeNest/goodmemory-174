@@ -8,6 +8,7 @@ export type Phase63BeamPrepareSource = "huggingface" | "github-raw";
 export interface Phase63BeamPrepareOptions {
   dataset: string;
   githubApiRoot?: string;
+  githubConcurrency?: number;
   githubRawRoot?: string;
   length: number;
   offset: number;
@@ -64,6 +65,7 @@ const DEFAULT_OFFSET = 0;
 const DEFAULT_OUTPUT_ROOT = "/private/tmp/BEAM";
 const DEFAULT_SOURCE: Phase63BeamPrepareSource = "huggingface";
 const DEFAULT_SPLIT: Phase63BeamDatasetSplit = "100K";
+const DEFAULT_GITHUB_CONCURRENCY = 6;
 
 const GITHUB_RAW_JSON_FILES = {
   chat: "chat.json",
@@ -97,6 +99,20 @@ function parsePositiveInteger(value: string | undefined, flagName: string): numb
   return parsed;
 }
 
+function parseOptionalPositiveInteger(
+  value: string | undefined,
+  flagName: string,
+): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${flagName} must be a positive integer`);
+  }
+  return parsed;
+}
+
 function parseSplit(value: string | undefined): Phase63BeamDatasetSplit {
   if (!value) {
     return DEFAULT_SPLIT;
@@ -121,11 +137,16 @@ export function parsePhase63BeamPrepareCliOptions(
   argv: readonly string[],
 ): Phase63BeamPrepareOptions {
   const githubApiRoot = resolveCliFlagValue(argv, "--github-api-root");
+  const githubConcurrency = parseOptionalPositiveInteger(
+    resolveCliFlagValue(argv, "--github-concurrency"),
+    "--github-concurrency",
+  );
   const githubRawRoot = resolveCliFlagValue(argv, "--github-raw-root");
   const source = parseSource(resolveCliFlagValue(argv, "--source"));
   return {
     dataset: resolveCliFlagValue(argv, "--dataset") ?? DEFAULT_DATASET,
     ...(githubApiRoot ? { githubApiRoot } : {}),
+    ...(githubConcurrency ? { githubConcurrency } : {}),
     ...(githubRawRoot ? { githubRawRoot } : {}),
     length: parsePositiveInteger(resolveCliFlagValue(argv, "--length"), "--length"),
     offset: parsePositiveInteger(resolveCliFlagValue(argv, "--offset"), "--offset"),
@@ -302,6 +323,29 @@ function selectGithubConversationIds(
     .map((entry) => entry.name)
     .sort((left, right) => Number(left) - Number(right))
     .slice(options.offset, options.offset + options.length);
+}
+
+async function mapWithConcurrency<TInput, TOutput>(
+  items: readonly TInput[],
+  limit: number,
+  mapper: (item: TInput) => Promise<TOutput>,
+): Promise<TOutput[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(limit, items.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        results[currentIndex] = await mapper(items[currentIndex]!);
+      }
+    }),
+  );
+  return results;
 }
 
 function readGithubChat(value: unknown, conversationId: string): unknown[] {
@@ -491,17 +535,19 @@ async function prepareGithubRawRows(input: {
   const rowsEndpoint = buildPhase63BeamGithubIndexUrl(input.options);
   const entries = readGithubContentsEntries(await input.requestJson(rowsEndpoint));
   const conversationIds = selectGithubConversationIds(entries, input.options);
-  const rows: unknown[] = [];
-  for (const conversationId of conversationIds) {
-    rows.push(
-      await readGithubRawRow({
+  const githubConcurrency =
+    input.options.githubConcurrency ?? DEFAULT_GITHUB_CONCURRENCY;
+  const rows = await mapWithConcurrency(
+    conversationIds,
+    githubConcurrency,
+    (conversationId) =>
+      readGithubRawRow({
         conversationId,
         options: input.options,
         requestJson: input.requestJson,
         requestText: input.requestText,
       }),
-    );
-  }
+  );
   const totalRows = entries.filter(
     (entry) => entry.type === "dir" && /^\d+$/u.test(entry.name),
   ).length;

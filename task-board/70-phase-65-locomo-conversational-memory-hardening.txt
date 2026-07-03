@@ -14,21 +14,17 @@ representative full-conversation-1 live run measured the real remaining
 bottleneck as BASE RETRIEVAL, not answer organization (see P65-T005 below).
 This is adapter / live-path / prep complete, NOT LoCoMo performance closure.
 
-[RETRIEVAL RESEARCH PAUSED — FIRM BOUNDARY] Phase 65 LoCoMo retrieval research is
-paused at a firm boundary. Representative conv-1 raw retrieval shows 0.069 recall
-and 0.92 zero-retrieval. Dialog windows, rules-light query expansion, and LLM
-turn-captioning were each tested as eval-only probes (see "Base-Retrieval
-Research" below). None materially moved exact gold-turn recall; captioning's best
-variant (local-window-2) reached only 0.0779 recall with zero-retrieval still
-~0.92. The result rules out answer-pack tuning, multiHop bridging, positional
-widening, handcrafted query expansion, and caption enrichment under the current
-lexical/rules retrieval substrate. Conclusion: LoCoMo requires real
-semantic/embedding retrieval that ranks by meaning, not surface lexical overlap.
-The local hashed lexical embedding adapter is deliberately NOT probed — it is
-another lexical/tie-break proxy and would pollute (not advance) this conclusion.
-Reopen only when a neural embedding endpoint or equivalent semantic retrieval
-backend is available; the next legal entry is P65-R003 "Neural semantic retrieval
-probe for LoCoMo" whose prerequisite is a real embedding endpoint.
+[RETRIEVAL RESEARCH BOUNDARY UPDATED] Phase 65 LoCoMo retrieval research is no
+longer blocked on finding an embedding endpoint. Representative conv-1 raw
+retrieval showed 0.069 recall and 0.92 zero-retrieval, then dialog windows,
+rules-light query expansion, and LLM turn-captioning were each tested as
+eval-only probes (see "Base-Retrieval Research" below). None materially moved
+exact gold-turn recall; captioning's best variant (local-window-2) reached only
+0.0779 recall with zero-retrieval still ~0.92. P65-R003 then proved a real
+neural endpoint alone ties BM25, so the current open lever is candidate-pool
+admission via an opt-in semantic union, followed by strict noise budgeting and
+BEAM safety checks. The local hashed lexical embedding adapter remains forbidden
+for semantic claims because it is another lexical/tie-break proxy.
 
 [P65-R003 RESOLVED 2026-06-27, NEGATIVE — commit bf7373f; banked here 2026-07-02]
 The prerequisite was met (OpenRouter /v1/embeddings, text-embedding-3-small,
@@ -55,6 +51,245 @@ write-time conversational extraction) converge near the same ~45% probe
 ceiling. The reopened lane is therefore SEMANTIC CANDIDATE GENERATION (an
 opt-in union admission source into fact selection), not an embedding-endpoint
 hunt. Do NOT re-run endpoint probes expecting a win.
+
+[P65-R004 WIP 2026-07-02 — semantic candidate-generation union plumbing + first external evidence]
+Current local code now has opt-in semantic candidate-generation infrastructure:
+`retrieval.semanticCandidates` flows into `createRecallEngine`, vector top-K fact
+hits can be force-admitted under hybrid recall with topK / maxAdditions /
+minSimilarity controls, traces and hits attribute those facts as
+`semantic_union`, and `eval:phase-65-smoke` exposes the runner flag
+`--semantic-candidates` with matching budget flags plus `--provider-embedding`
+for a real GOODMEMORY_EMBEDDING_* source. This is deliberately OFF by default:
+`tests/unit/recall.factSelection.semanticUnion.test.ts`,
+`tests/unit/recall.semantic-union-engine.test.ts`,
+`tests/unit/createGoodMemory.semantic-candidates.test.ts`, and
+`tests/unit/run-phase-65.locomo-smoke.test.ts` cover the plumbing, provider flag,
+and env isolation. First external-root evidence is now in. Same-root BM25
+baseline `locomo-bm25-conv1-current`: evidence-turn recall 0.379, 71/199 fully
+retrieved, evidence-zero share 0.593, average noise 4.11, `executionFailures: 0`.
+Provider semantic-candidate sweep at topK 16:
+  - maxAdditions 1 (`locomo-semantic-candidates-provider-conv1-top16-add1-current`):
+    recall 0.524, 97/199 fully retrieved, evidence-zero 0.432, avg noise 4.93.
+  - maxAdditions 2 (`locomo-semantic-candidates-provider-conv1-top16-add2-current`):
+    recall 0.569, 104/199 fully retrieved, evidence-zero 0.382, avg noise 5.86.
+  - maxAdditions 4 (`locomo-semantic-candidates-provider-conv1-top16-add4-current`):
+    recall 0.615, 114/199 fully retrieved, evidence-zero 0.337, avg noise 7.79.
+  - maxAdditions 8 (`locomo-semantic-candidates-provider-conv1-current`):
+    recall 0.678, 125/199 fully retrieved, evidence-zero 0.271, avg noise 11.64.
+Current bounded-noise point is maxAdditions 4 (below the earlier ~2x noise bar).
+Its full conv-1 live-answer validation
+`locomo-semantic-candidates-provider-conv1-top16-add4-live-pack-current`
+now scores 97/199 answer accuracy (0.487), `executionFailures: 0`, up from the
+representative raw live-pack `locomo-live-pack-full` at 4/199 (0.020). Per
+category: single_hop 0.557, multi_hop 0.250, temporal 0.703, open_domain 0.077,
+adversarial 0.489. BEAM safety also passed:
+`run-phase63-beam-100k-recall-diagnostic-rules-semantic-union-safety-current`
+matched `run-phase63-beam-100k-recall-diagnostic-rules-prelive-current` at
+`caseDeltaCount: 0`.
+
+[P65-R005 WIP 2026-07-02 — remaining-conversation generalization]
+Full-root prep succeeded via `prepare:phase-65-locomo -- --output-root
+/private/tmp/LOCOMO-full --max-conversations 0 --max-questions-per-case 0`
+(10 conversations, 1986 questions, 5882 turns, no vendoring). A monolithic
+all-question BM25 run over that root did not produce a report after an extended
+local run and was interrupted; use sharded per-conversation evidence instead.
+First held-out shard is conv-30 (`/private/tmp/LOCOMO-conv30`, 105 questions,
+369 turns):
+  - `locomo-conv30-bm25-current`: evidence-turn recall 0.202, 20/105 fully
+    retrieved, evidence-zero 0.781, average noise 3.65, `executionFailures: 0`.
+  - `locomo-conv30-semantic-provider-top16-add4-current`: recall 0.582, 59/105
+    fully retrieved, evidence-zero 0.400, average noise 7.15,
+    `executionFailures: 0`.
+  - `locomo-conv30-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 67/105 (0.638), `executionFailures: 0`; category accuracy single_hop
+    0.432, multi_hop 0.455, temporal 0.846, adversarial 0.875.
+The runner now supports direct full-root sharding via repeated/comma-separated
+`--case-id` plus targeted QA-category slices via repeated/comma-separated
+`--category`, and records selected `caseIds` / `questionCategories` in the
+report / CLI summary. Second held-out retrieval shard is conv-41 directly from
+`/private/tmp/LOCOMO-full`
+(193 questions):
+  - `locomo-conv41-bm25-current`: evidence-turn recall 0.114, 20/193 fully
+    retrieved, evidence-zero 0.876, average noise 3.82, `executionFailures: 0`.
+  - `locomo-conv41-semantic-provider-top16-add4-current`: recall 0.533,
+    97/193 fully retrieved, evidence-zero 0.430, average noise 7.16,
+    `executionFailures: 0`; category recall single_hop 0.581, multi_hop 0.332,
+    temporal 0.648, open_domain 0.000, adversarial 0.610.
+  - `locomo-conv41-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 95/193 (0.492), `executionFailures: 0`; category accuracy
+    single_hop 0.488, multi_hop 0.387, temporal 0.481, open_domain 0.250,
+    adversarial 0.634.
+Third held-out shard is conv-42 directly from `/private/tmp/LOCOMO-full`
+(260 questions):
+  - `locomo-conv42-bm25-current`: evidence-turn recall 0.369, 89/260 fully
+    retrieved, evidence-zero 0.600, average noise 4.32, `executionFailures: 0`.
+  - `locomo-conv42-semantic-provider-top16-add4-current`: recall 0.568,
+    139/260 fully retrieved, evidence-zero 0.385, average noise 8.06,
+    `executionFailures: 0`; category recall single_hop 0.668, multi_hop 0.233,
+    temporal 0.625, open_domain 0.182, adversarial 0.623.
+  - `locomo-conv42-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 106/260 (0.408), `executionFailures: 0`; category accuracy
+    single_hop 0.505, multi_hop 0.243, temporal 0.175, open_domain 0.000,
+    adversarial 0.557.
+Fourth held-out shard is conv-44 directly from `/private/tmp/LOCOMO-full`
+(158 questions):
+  - `locomo-conv44-bm25-current`: evidence-turn recall 0.400, 57/158 fully
+    retrieved, evidence-zero 0.544, average noise 4.25, `executionFailures: 0`.
+  - `locomo-conv44-semantic-provider-top16-add4-current`: recall 0.633,
+    92/158 fully retrieved, evidence-zero 0.297, average noise 7.87,
+    `executionFailures: 0`; category recall single_hop 0.855, multi_hop 0.359,
+    temporal 0.563, open_domain 0.250, adversarial 0.600.
+  - `locomo-conv44-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 85/158 (0.538), `executionFailures: 0`; category accuracy
+    single_hop 0.677, multi_hop 0.433, temporal 0.458, open_domain 0.143,
+    adversarial 0.514.
+Conv-44 minSimilarity sweep at topK16/maxAdditions4:
+  - no threshold (`locomo-conv44-semantic-provider-top16-add4-current`):
+    recall 0.633, 92/158 fully retrieved, evidence-zero 0.297, avg noise 7.87.
+  - 0.3 (`locomo-conv44-semantic-provider-top16-add4-minsim030-current`):
+    recall 0.633, 92/158 fully retrieved, evidence-zero 0.297, avg noise 7.85.
+  - 0.4 (`locomo-conv44-semantic-provider-top16-add4-minsim040-current`):
+    recall 0.603, 87/158 fully retrieved, evidence-zero 0.329, avg noise 7.42.
+  - 0.5 (`locomo-conv44-semantic-provider-top16-add4-minsim050-current`):
+    recall 0.495, 70/158 fully retrieved, evidence-zero 0.443, avg noise 5.20.
+Conclusion: minSimilarity alone is not a clean defaultable noise fix on this
+shard; low thresholds barely move noise, while useful noise reductions lose too
+much evidence.
+Targeted category-filter proof on the same shard:
+  - `locomo-conv44-adversarial-semantic-provider-top16-add4-current`
+    (`--category adversarial`): 35 adversarial questions, evidence-turn recall
+    0.600, 21/35 fully retrieved, noise 269, `executionFailures: 0`,
+    `questionCategories=["adversarial"]`.
+Full-root adversarial/no-answer slice (all 446 adversarial questions across 10
+conversations, `--category adversarial`):
+  - `locomo-adversarial-semantic-provider-top16-add4-current`: evidence-turn
+    recall 0.592, 260/446 fully retrieved, noise 3421,
+    `executionFailures: 0`, `questionCategories=["adversarial"]`.
+  - `locomo-adversarial-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 240/446 (0.538), `executionFailures: 0`; per-case correct counts:
+    conv-26 21/47, conv-30 20/24, conv-41 27/41, conv-42 35/61,
+    conv-43 33/64, conv-44 18/35, conv-47 17/40, conv-48 23/48,
+    conv-49 21/40, conv-50 25/46.
+This confirms adversarial/no-answer handling is measured at full-root scope but
+still not closed; many failures are answer-policy failures even when gold
+evidence is retrieved.
+Full-root single_hop slice (all 841 single-hop questions across 10
+conversations, `--category single_hop`):
+  - `locomo-single-hop-semantic-provider-top16-add4-current`: evidence-turn
+    recall 0.676, 558/841 fully retrieved, noise 6343,
+    `executionFailures: 0`, `questionCategories=["single_hop"]`.
+  - `locomo-single-hop-semantic-provider-top16-add4-live-pack-current`: resumed
+    live validation after 11 checkpointed missing rows; answer accuracy 457/841
+    (0.543), `executionFailures: 0`; per-case correct counts: conv-26 37/70,
+    conv-30 19/44, conv-41 39/86, conv-42 57/111, conv-43 60/107,
+    conv-44 45/62, conv-47 55/83, conv-48 66/118, conv-49 39/73,
+    conv-50 40/87.
+This closes the full-root category matrix at topK16/maxAdditions4. It is still
+not performance closure: single_hop has the strongest broad recall after
+temporal/conv-44, but only 457/841 answers pass and noise is high.
+Full-root open_domain blocker slice (all 96 open-domain questions across 9
+conversations, `--category open_domain`):
+  - `locomo-open-domain-semantic-provider-top16-add4-current`: evidence-turn
+    recall 0.276, 19/96 fully retrieved, noise 696, `executionFailures: 0`,
+    `questionCategories=["open_domain"]`.
+  - `locomo-open-domain-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 22/96 (0.229), `executionFailures: 0`; per-case correct counts:
+    conv-26 2/13, conv-41 2/8, conv-42 0/11, conv-43 2/14, conv-44 1/7,
+    conv-47 5/13, conv-48 4/10, conv-49 4/13, conv-50 2/7.
+This confirms open_domain is a full-root category blocker, not just a
+conv-42/44 artifact.
+Full-root multi_hop blocker slice (all 282 multi-hop questions across 10
+conversations, `--category multi_hop`):
+  - `locomo-multihop-semantic-provider-top16-add4-current`: evidence-turn
+    recall 0.326, 37/282 fully retrieved, noise 2204, `executionFailures: 0`,
+    `questionCategories=["multi_hop"]`.
+  - `locomo-multihop-semantic-provider-top16-add4-live-pack-current`: answer
+    accuracy 86/282 (0.305), `executionFailures: 0`; per-case correct counts:
+    conv-26 5/32, conv-30 5/11, conv-41 12/31, conv-42 9/37, conv-43 11/31,
+    conv-44 10/30, conv-47 9/20, conv-48 7/21, conv-49 7/37, conv-50 11/32.
+This confirms multi_hop is also a full-root category blocker; only 37/282
+multi-hop questions have all gold evidence turns retrieved.
+Full-root temporal answer-side slice (all 321 temporal questions across 10
+conversations, `--category temporal`):
+  - `locomo-temporal-semantic-provider-top16-add4-current`: evidence-turn
+    recall 0.678, 207/321 fully retrieved, noise 2571,
+    `executionFailures: 0`, `questionCategories=["temporal"]`.
+  - `locomo-temporal-semantic-provider-top16-add4-live-pack-current`: resumed
+    live validation after one checkpointed missing row; answer accuracy 178/321
+    (0.555), `executionFailures: 0`; per-case correct counts: conv-26 25/37,
+    conv-30 22/26, conv-41 15/27, conv-42 8/40, conv-43 17/26,
+    conv-44 11/24, conv-47 21/34, conv-48 27/42, conv-49 17/33,
+    conv-50 15/32.
+This confirms temporal is less retrieval-starved than open_domain/multi_hop, but
+still answer-side weak on hard shards such as conv-42 and conv-44.
+Adversarial scorer repair (current worktree): external LoCoMo adversarial gold
+often uses `No information available`, while the live prompt asks the model to
+say `I do not know` when context lacks support. `scoreLocomoAnswer` now treats
+explicit abstention aliases as correct for that gold while still rejecting the
+tempting answer, and `--resume` re-scores checkpointed live answers with the
+current scorer. This is why the four live reports above improved without a new
+model run.
+
+This is NOT LoCoMo performance closure or a public claim: it is now
+five-conversation live evidence plus four held-out retrieval comparisons, a
+full-root five-category matrix, an assembled category summary, and a category-gap
+diagnostic showing that candidate admission matters. The assembled artifact
+`locomo-category-matrix-top16-add4-live-pack-current/category-summary.json`
+covers 1986 questions at 983/1986 live accuracy (0.4949647533), weighted
+evidence recall 0.5884050761, 1081/1986 fully retrieved, noise 15235, and
+`executionFailures: 0`. The gap artifact
+`locomo-category-gap-analysis-top16-add4-live-pack-current/category-gap-analysis.json`
+splits the 1003 wrong answers into 647 missing-evidence wrong rows and 356
+full-recall-but-noisy wrong rows, with 0 clean full-recall wrong rows. Quality
+remains open: full-root single_hop is only
+457/841 live accuracy despite 558/841 fully retrieved, full-root open_domain is
+only 22/96 live accuracy, full-root multi_hop is only 86/282 live accuracy with
+37/282 fully retrieved, full-root temporal is only 178/321 live accuracy despite
+207/321 fully retrieved, and full-root adversarial/no-answer is only 240/446
+live accuracy despite 260/446 fully retrieved.
+Follow-up retrieval-only probes found that adding the existing deterministic
+`--decompose --multihop` stack to open_domain barely moved recall
+(0.2763991013 -> 0.2822990939, 19/96 -> 20/96 fully retrieved) and raised noise
+(696 -> 858). Widening semantic admission to topK32/maxAdditions8 moved the
+missing-evidence categories but also raised noise: open_domain reached
+0.3536560458 recall with 26/96 fully retrieved and noise 1050, while multi_hop
+reached 0.3972616166 recall with 48/282 fully retrieved and noise 3237. Next
+required evidence: adaptive candidate-admission work for open_domain/multi_hop
+plus noise and answer-policy controls for adversarial/single_hop/temporal before
+any default promotion.
+The first relative-score floor probe (`--semantic-candidate-min-relative-score
+0.8`) trims widened-admission noise while preserving part of the gain:
+topK32/maxAdditions8/rel0.8 measured open_domain at 0.3432393791 recall, 25/96
+fully retrieved, noise 936, and multi_hop at 0.3767491208 recall, 42/282 fully
+retrieved, noise 2939. This is still retrieval-only repair-routing evidence,
+not default-promotion evidence.
+The budget-delta analyzer makes the cost visible against topK16/maxAdditions4:
+open_domain gains +0.0668402778 recall and +6 fully retrieved for +240 noise
+turns (0.0278501157 recall per 100 added noise turns), while multi_hop gains
++0.0503726407 recall and +5 fully retrieved for +735 noise turns
+(0.0068534205 per 100 added noise turns).
+First rel0.8 live-answer validation completed for open_domain:
+`locomo-open-domain-semantic-provider-top32-add8-rel08-live-pack-current`
+covered all 96 open-domain questions with `--live --evidence-pack`,
+topK32/maxAdditions8/rel0.8, and `executionFailures: 0`. It kept the retrieval
+gain (0.3432393791 recall, 25/96 fully retrieved, noise 936) but stayed at
+22/96 answer accuracy (0.2291666667), identical to the topK16/maxAdditions4
+live baseline. The new gap analysis moved wrong rows from 66 missing-evidence /
+8 full-recall-noisy to 59 missing-evidence / 15 full-recall-noisy. Conclusion:
+wider admission plus rel0.8 is useful routing evidence, but is a negative
+default-promotion result; next work needs better targeted candidate admission
+and answer-policy/noise controls before spending similar live budget on
+multi_hop.
+Follow-up live-delta diagnostic:
+`locomo-open-domain-top16-add4-vs-top32-add8-rel08-live-delta-current`
+compares the topK16/maxAdditions4 and topK32/maxAdditions8/rel0.8 live reports
+question-by-question. Net answer delta is 0: 3 improved, 3 regressed, 19 stayed
+correct, and 71 stayed wrong. Retrieval transitions still moved in the desired
+direction (+6 fully retrieved, `partial->full` 3, `zero->full` 3, `zero->partial`
+4), but added 240 noise turns. Nine retrieval gains did not convert into correct
+answers, and all three regressions are noisy full-recall regressions. This
+narrows the next move: avoid plain budget widening; combine targeted admission
+with answer-context/noise filtering.
 
 Phase 64 MemoryAgentBench remains the active hardening leg; its real live-answer
 path exists behind `--live`, but no accepted external-root live closure exists.
@@ -134,6 +369,35 @@ Tasks
   load + rejection, retrieval scoring, summary, scope, dia_id collection, full
   synthetic run, live-answer mode + adversarial bait). Full unit suite + tsc
   pass (CLI suite-level SIGTERM flake passes in isolation).
+
+[DONE] P65-T004a Category summary assembler.
+  `summarize:phase-65-locomo-categories` reads repeated/comma-separated
+  `--report` smoke-report paths, rejects failed, duplicate, or incomplete
+  one-category shards, and writes a weighted all-category
+  `category-summary.json`. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts.
+
+[DONE] P65-T004b Category gap analyzer.
+  `analyze:phase-65-locomo-category-gaps` reads one or more smoke reports and
+  separates wrong answers into missing-evidence, full-recall noisy, and
+  full-recall clean buckets, with per-category retrieval buckets and top noisy
+  wrong rows. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004c Candidate-admission budget probes.
+  Retrieval-only provider-backed external-root probes showed
+  `--decompose --multihop` does not materially fix open_domain missing evidence,
+  while topK32/maxAdditions8 improves open_domain and multi_hop retrieval at a
+  clear noise cost. The opt-in relative floor
+  `--semantic-candidate-min-relative-score 0.8` trims that noise while preserving
+  part of the gain. Treat these as repair-routing evidence, not default-promotion
+  evidence.
+
+[DONE] P65-T004d Candidate-budget delta analyzer.
+  `analyze:phase-65-locomo-budget-delta` compares two smoke reports and reports
+  recall delta, fully-retrieved delta, added noise, and recall gained per 100
+  added noise turns. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).
