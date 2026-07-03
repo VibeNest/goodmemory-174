@@ -77,9 +77,27 @@ Tasks
   blocked) and touches the BEAM answer-pack code lane (owned by the BEAM
   workstream) — do not start until that lane is collision-calm or reassigned.
 
-[BLOCKED] P67-E LoCoMo neural semantic retrieval probe (P65-R003). Reopen only
-  when a real neural embedding endpoint is available. Do not run local hashed
-  embedding. See board 70.
+[SUPERSEDED] P67-E LoCoMo neural semantic retrieval probe (P65-R003). Resolved
+  NEGATIVE 2026-06-27 (bf7373f: neural == BM25) and superseded by the semantic
+  candidate-generation UNION lane (P65-R004/R005, board 70) which broke the
+  additive ceiling. See board 70 for the union evidence trail.
+
+[DONE 2026-07-02] P67-E2 LongMemEval HYBRID-profile judge-free measurement.
+  Full 500 rerun of the goodmemory-hybrid profile (provider embedding additive +
+  assisted extraction + Postgres; shard-resumable across a machine reboot;
+  run-p67e-longmemeval-hybrid-current): judge-free deterministic subset
+  0.722 (361/500), executionFailures 0; with-judge diagnostic 0.890.
+  VERDICT: hybrid TIES the embedding-free rules-only public claim (0.720,
+  360/500) at +1 question — the paid stack does not beat rules-only on the
+  judge-free metric (LongMemEval evidence-session recall is already ~0.95, so
+  the remaining gap is answer-side, not retrieval-side). Per the standing
+  decision this does NOT add a second README row; it is banked as internal
+  evidence that the public rules-only row UNDERSTATES nothing. Command:
+  GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai bun run eval:phase-62-full500
+  -- --benchmark-root ~/.goodmemory-longmemeval --profile goodmemory-hybrid
+  --shard-concurrency 4 --run-id run-p67e-longmemeval-hybrid-current
+  --resume-existing-shards -> eval:phase-62-deterministic-subset --
+  --report-path <runDir>/report.json --claim-profile goodmemory-hybrid.
 
 
 Acceptance Criteria
