@@ -24,10 +24,10 @@
   },
   "coverage": {
     "complete": true,
-    "note": "fitted evidence-chat recall 0.9621 vs generalization floor 0.6822; baseline 0.56 is the internal no-pack ablation, not an external reference"
+    "note": "fitted evidence-chat recall 0.9621 vs generalization floor 0.6822; baseline 0.56 is the internal no-pack ablation, not an external reference. P5 general-lever recall matrix 2026-07-04 (all 148 registered narrow gates disabled, 355 evidence cases, committed recall diagnostic + createMemory seam): rules-only floor 0.68220 (reproduces banked 0.6822 bit-exactly); hybrid-hash 0.64533; hybrid-hash+bm25Ranking 0.64533 (identical - BM25 is a no-op on BEAM recall); union16 (provider embedding text-embedding-3-small + retrieval.semanticCandidates topK 16, per-text 16k-char prefix embedding) 0.85293; bm25+union16 0.85293 (identical). Semantic candidate-generation UNION lifts the generalization floor +17.1pt with a general, shipped opt-in mechanism (run ids run-p5-beam-levers-* and run-p5-beam-hybrid-hash-baseline)."
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "Pipeline/gate evidence only. Blocked: same-model judge (gpt-5.5 answer + gpt-5.5 judge); fitted-vs-generalization recall gap (0.9621 vs 0.6822); below the 0.75+ improvement target; license/commit/package-version unverified. P67-D must raise answer accuracy to >=0.75 with an independent judge and always report fitted AND generalization recall."
+    "reason": "Pipeline/gate evidence only. Blocked: same-model judge (gpt-5.5 answer + gpt-5.5 judge); fitted-vs-generalization recall gap (0.9621 vs 0.6822 rules-only; 0.8529 with the opt-in union16 profile); below the 0.75+ improvement target; license/commit/package-version unverified. P67-D must raise answer accuracy to >=0.75 with an independent judge and always report fitted AND generalization recall. INDEPENDENT JUDGE VERIFIED FEASIBLE 2026-07-04: google/gemini-3.5-flash via OpenRouter passes the exact BEAM judge path (resolveLiveModelConfig(GOODMEMORY_JUDGE) + requestOpenAICompatibleObject strict JSON schema, 2/2 sanity verdicts) - the same-model blocker is resolvable per-run by env override, no code change; first-choice anthropic/claude-3.5-haiku has no endpoint on this account."
   }
 }
