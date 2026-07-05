@@ -172,6 +172,7 @@ function validateRecallDiagnosticReport(input: {
 function validateLiveClosureReport(input: {
   expectedTotalCases: number;
   profile: BeamProfile;
+  recallReportPath: string;
   report: Phase63BeamLiveSliceReport;
   scale: BeamCase["scale"];
 }): void {
@@ -195,8 +196,29 @@ function validateLiveClosureReport(input: {
       `Phase 63 BEAM live report covers ${input.report.summary.totalCases} cases; expected ${input.expectedTotalCases}`,
     );
   }
+  if (input.report.cases.length !== input.expectedTotalCases) {
+    throw new Error(
+      `Phase 63 BEAM live report contains ${input.report.cases.length} case rows; expected ${input.expectedTotalCases}`,
+    );
+  }
   if (input.report.summary.executionFailures !== 0) {
     throw new Error("Phase 63 BEAM live report must have zero execution failures");
+  }
+  if (input.report.selection) {
+    const selection = input.report.selection;
+    const isAllCasesSelection =
+      selection.caseSelection === "all-cases" &&
+      selection.answerGapBuckets === null &&
+      selection.answerGapReportPath === null &&
+      selection.answerGapSourceCoverageStatuses === null &&
+      selection.caseIds === null &&
+      selection.limit === null &&
+      selection.recallReportPath === input.recallReportPath;
+    if (!isAllCasesSelection) {
+      throw new Error(
+        "Phase 63 BEAM closure requires an all-cases live report selection.",
+      );
+    }
   }
 }
 
@@ -271,6 +293,7 @@ export async function runPhase63BeamLiveClosure(
   validateLiveClosureReport({
     expectedTotalCases,
     profile,
+    recallReportPath: options.recallReportPath,
     report: liveReport,
     scale,
   });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { LocomoCase } from "../../src/eval/locomo";
+import { assertLocomoReportQuestionCountMatchesCases } from "../../scripts/locomo-report-compatibility";
 import {
   buildLocomoPrompt,
   buildLocomoRecalledContext,
@@ -76,6 +77,8 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         questionIdFile: undefined,
         questionIds: undefined,
         questionCategories: undefined,
+        repairJobDiagnoses: undefined,
+        repairJobRetrievalBuckets: undefined,
         rerank: false,
         resume: false,
         runId: "run-locomo",
@@ -134,6 +137,23 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]).questionIdFile,
     ).toBe("/tmp/candidate-admission-slice.json");
 
+    const repairJobSelection = parseLocomoSmokeCliOptions([
+      "bun",
+      "run",
+      "scripts/run-phase-65-locomo-smoke.ts",
+      "--question-id-file",
+      "near-miss-label-analysis.json",
+      "--repair-job-diagnosis",
+      "rationale-bearing-gold-answer, balanced-partial-overlap",
+      "--repair-job-retrieval-bucket",
+      "full",
+    ]);
+    expect(repairJobSelection.repairJobDiagnoses).toEqual([
+      "rationale-bearing-gold-answer",
+      "balanced-partial-overlap",
+    ]);
+    expect(repairJobSelection.repairJobRetrievalBuckets).toEqual(["full"]);
+
     expect(() =>
       parseLocomoSmokeCliOptions([
         "bun",
@@ -155,6 +175,42 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "locomo-run",
       ]),
     ).toThrow("--question-id-file requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--repair-job-diagnosis",
+        "rationale-bearing-gold-answer",
+      ]),
+    ).toThrow("--repair-job-diagnosis requires --question-id-file.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id-file",
+        "near-miss-label-analysis.json",
+        "--repair-job-diagnosis",
+        "typo",
+      ]),
+    ).toThrow(
+      "--repair-job-diagnosis must be one of: balanced-partial-overlap, numeric-or-frequency-format, over-specified-answer, rationale-bearing-gold-answer, under-specified-answer, zero-token-overlap.",
+    );
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id-file",
+        "near-miss-label-analysis.json",
+        "--repair-job-retrieval-bucket",
+        "missing",
+      ]),
+    ).toThrow("--repair-job-retrieval-bucket must be one of: full, partial, zero.");
 
     expect(() =>
       parseLocomoSmokeCliOptions([
@@ -736,6 +792,58 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(() =>
       parseLocomoQuestionIdsFile(JSON.stringify({ repairJobs: [] }), "empty.json"),
     ).toThrow("did not contain questionIds");
+  });
+
+  it("filters manifest repair jobs by diagnosis and retrieval bucket", () => {
+    const manifest = JSON.stringify({
+      questionIds: ["conv-26:q64", "conv-42:q60", "conv-26:q22", "conv-26:q30"],
+      overall: {
+        selectedQuestionCount: 4,
+      },
+      repairJobs: [
+        {
+          diagnosis: "rationale-bearing-gold-answer",
+          questionCount: 3,
+          questionIds: ["conv-26:q64", "conv-42:q60", "conv-26:q22"],
+          retrievalBucket: "full",
+        },
+        {
+          diagnosis: "balanced-partial-overlap",
+          questionCount: 1,
+          questionIds: ["conv-26:q30"],
+          retrievalBucket: "full",
+        },
+        {
+          diagnosis: "rationale-bearing-gold-answer",
+          questionCount: 1,
+          questionIds: ["conv-15:q12"],
+          retrievalBucket: "partial",
+        },
+      ],
+    });
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        manifest,
+        "near-miss-label-analysis.json",
+        {
+          preferManifestJobKeys: ["repairJobs"],
+          repairJobDiagnoses: ["rationale-bearing-gold-answer"],
+          repairJobRetrievalBuckets: ["full"],
+        },
+      ),
+    ).toEqual(["conv-26:q64", "conv-42:q60", "conv-26:q22"]);
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        manifest,
+        "near-miss-label-analysis.json",
+        {
+          preferManifestJobKeys: ["repairJobs"],
+          repairJobRetrievalBuckets: ["full"],
+        },
+      ),
+    ).toEqual(["conv-26:q64", "conv-42:q60", "conv-26:q22", "conv-26:q30"]);
   });
 
   it("rejects malformed manifest selections before targeted smoke replay", () => {
@@ -1875,6 +1983,8 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         benchmarkRoot: "/tmp/LOCOMO",
         outputDir: "/tmp/out",
         questionIdFile: "/tmp/candidate-admission-slice.json",
+        repairJobDiagnoses: ["rationale-bearing-gold-answer"],
+        repairJobRetrievalBuckets: ["full"],
         runId: "question-id-file-run",
       },
       {
@@ -1887,10 +1997,12 @@ describe("phase-65 LoCoMo smoke adapter", () => {
             return JSON.stringify({
               repairJobs: [
                 {
+                  diagnosis: "rationale-bearing-gold-answer",
                   questionIds: [
                     externalCase.questions[0]!.questionId,
                     externalTemporalCase.questions[0]!.questionId,
                   ],
+                  retrievalBucket: "full",
                 },
               ],
             });
@@ -1904,11 +2016,38 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       externalCase.questions[0]!.questionId,
       externalTemporalCase.questions[0]!.questionId,
     ]);
+    expect(fileFilteredReport.questionSelection).toEqual({
+      explicitQuestionIds: null,
+      questionIdFile: "/tmp/candidate-admission-slice.json",
+      repairJobDiagnoses: ["rationale-bearing-gold-answer"],
+      repairJobRetrievalBuckets: ["full"],
+    });
     expect(fileFilteredReport.questionCount).toBe(2);
     expect(fileFilteredReport.caseIds).toEqual([
       "external-single-hop",
       "external-temporal",
     ]);
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: "/tmp/out/question-id-file-run/smoke-report.json",
+        report: fileFilteredReport,
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: "/tmp/out/question-id-file-run/smoke-report.json",
+        report: {
+          ...fileFilteredReport,
+          questionSelection: {
+            ...fileFilteredReport.questionSelection!,
+            repairJobDiagnoses: ["typo"],
+          },
+        },
+      }),
+    ).toThrow(
+      "questionSelection.repairJobDiagnoses contains unknown diagnosis typo",
+    );
 
     await expect(
       loadLocomoCases({

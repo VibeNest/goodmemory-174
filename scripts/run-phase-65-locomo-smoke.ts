@@ -94,6 +94,46 @@ const UPSTREAM_LICENSE = "CC BY-NC 4.0";
 const LOCOMO_QA_CATEGORY_SET: ReadonlySet<string> = new Set(
   LOCOMO_QA_CATEGORIES,
 );
+const LOCOMO_REPAIR_JOB_DIAGNOSES = [
+  "balanced-partial-overlap",
+  "numeric-or-frequency-format",
+  "over-specified-answer",
+  "rationale-bearing-gold-answer",
+  "under-specified-answer",
+  "zero-token-overlap",
+] as const;
+type LocomoRepairJobDiagnosis = (typeof LOCOMO_REPAIR_JOB_DIAGNOSES)[number];
+const LOCOMO_REPAIR_JOB_DIAGNOSIS_SET: ReadonlySet<string> = new Set(
+  LOCOMO_REPAIR_JOB_DIAGNOSES,
+);
+const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS = [
+  "full",
+  "partial",
+  "zero",
+] as const;
+type LocomoRepairJobRetrievalBucket =
+  (typeof LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS)[number];
+const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET: ReadonlySet<string> = new Set(
+  LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS,
+);
+
+function isLocomoRepairJobDiagnosis(
+  value: unknown,
+): value is LocomoRepairJobDiagnosis {
+  return (
+    typeof value === "string" && LOCOMO_REPAIR_JOB_DIAGNOSIS_SET.has(value)
+  );
+}
+
+function isLocomoRepairJobRetrievalBucket(
+  value: unknown,
+): value is LocomoRepairJobRetrievalBucket {
+  return (
+    typeof value === "string" &&
+    LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET.has(value)
+  );
+}
+
 // The smoke slice exercises GoodMemory's rules-only retrieval path only; a live
 // generator profile is added later.
 const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
@@ -113,6 +153,8 @@ export interface LocomoSmokeCliOptions {
   questionIds?: string[];
   questionIdFile?: string;
   questionCategories?: LocomoQaCategory[];
+  repairJobDiagnoses?: LocomoRepairJobDiagnosis[];
+  repairJobRetrievalBuckets?: LocomoRepairJobRetrievalBucket[];
   // Opt-in: rank retrieval with the Okapi BM25 lexical leg (recall under the
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
@@ -430,6 +472,14 @@ export interface LocomoSmokeReport {
   // LoCoMo categories are included.
   questionCategories: LocomoQaCategory[] | null;
   questionIds?: string[] | null;
+  // Present on targeted smoke/live runs: the explicit ids, manifest, and
+  // optional repair-job filters that selected the questionIds header.
+  questionSelection?: {
+    explicitQuestionIds: string[] | null;
+    questionIdFile: string | null;
+    repairJobDiagnoses: string[] | null;
+    repairJobRetrievalBuckets: string[] | null;
+  };
   // Present on report-level reanswer runs: the manifest and optional job-bucket
   // filter that selected the replayed rows.
   reanswerSelection?: {
@@ -527,6 +577,14 @@ export function parseLocomoSmokeCliOptions(
     questionIdFile: resolveCliFlagValueStrict(argv, "--question-id-file"),
     questionIds: parseStringListFlag(argv, "--question-id"),
     questionCategories: parseLocomoCategoryListFlag(argv, "--category"),
+    repairJobDiagnoses: parseLocomoRepairJobDiagnosisListFlag(
+      argv,
+      "--repair-job-diagnosis",
+    ),
+    repairJobRetrievalBuckets: parseLocomoRepairJobRetrievalBucketListFlag(
+      argv,
+      "--repair-job-retrieval-bucket",
+    ),
     conversationalExtraction: hasCliFlagStrict(
       argv,
       "--conversational-extraction",
@@ -555,6 +613,7 @@ export function parseLocomoSmokeCliOptions(
   assertSemanticCandidateTuningRequiresAdmission(parsed);
   assertAnswerPolicyFlagsRequireLive(parsed);
   assertAnswerContextFlagsRequireLive(parsed);
+  assertRepairJobFiltersRequireQuestionIdFile(parsed);
   return parsed;
 }
 
@@ -597,6 +656,64 @@ function parseLocomoCategoryListFlag(
     seen.add(category);
   }
   return categories;
+}
+
+function parseLocomoRepairJobDiagnosisListFlag(
+  argv: readonly string[],
+  flagName: string,
+): LocomoRepairJobDiagnosis[] | undefined {
+  const values = parseUniqueStringListFlag(argv, flagName);
+  if (values === undefined) {
+    return undefined;
+  }
+  const diagnoses: LocomoRepairJobDiagnosis[] = [];
+  for (const value of values) {
+    if (!isLocomoRepairJobDiagnosis(value)) {
+      throw new Error(
+        `${flagName} must be one of: ${LOCOMO_REPAIR_JOB_DIAGNOSES.join(", ")}.`,
+      );
+    }
+    diagnoses.push(value);
+  }
+  return diagnoses;
+}
+
+function parseLocomoRepairJobRetrievalBucketListFlag(
+  argv: readonly string[],
+  flagName: string,
+): LocomoRepairJobRetrievalBucket[] | undefined {
+  const values = parseUniqueStringListFlag(argv, flagName);
+  if (values === undefined) {
+    return undefined;
+  }
+  const buckets: LocomoRepairJobRetrievalBucket[] = [];
+  for (const value of values) {
+    if (!isLocomoRepairJobRetrievalBucket(value)) {
+      throw new Error(
+        `${flagName} must be one of: ` +
+          `${LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS.join(", ")}.`,
+      );
+    }
+    buckets.push(value);
+  }
+  return buckets;
+}
+
+function assertRepairJobFiltersRequireQuestionIdFile(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "questionIdFile" | "repairJobDiagnoses" | "repairJobRetrievalBuckets"
+  >,
+): void {
+  if (options.questionIdFile !== undefined) {
+    return;
+  }
+  if (options.repairJobDiagnoses !== undefined) {
+    throw new Error("--repair-job-diagnosis requires --question-id-file.");
+  }
+  if (options.repairJobRetrievalBuckets !== undefined) {
+    throw new Error("--repair-job-retrieval-bucket requires --question-id-file.");
+  }
 }
 
 function parseUniqueStringListFlag(
@@ -730,6 +847,12 @@ function assertManifestCategoryName(input: {
 }
 
 type LocomoQuestionIdManifestJobKey = "repairJobs" | "reanswerJobs";
+
+interface LocomoQuestionIdManifestOptions {
+  preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
+  repairJobDiagnoses?: readonly LocomoRepairJobDiagnosis[];
+  repairJobRetrievalBuckets?: readonly LocomoRepairJobRetrievalBucket[];
+}
 
 function manifestQuestionIds(input: {
   allowMissing?: boolean;
@@ -956,10 +1079,98 @@ function assertReanswerJobManifestMetadata(input: {
   }
 }
 
+function assertRepairJobManifestMetadata(input: {
+  job: Record<string, unknown>;
+  sourcePath: string;
+}): void {
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "diagnosis") &&
+    typeof input.job.diagnosis !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        "diagnosis must be a string.",
+    );
+  }
+  if (
+    typeof input.job.diagnosis === "string" &&
+    !LOCOMO_REPAIR_JOB_DIAGNOSIS_SET.has(input.job.diagnosis)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        `diagnosis ${input.job.diagnosis} is not recognized.`,
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "retrievalBucket") &&
+    typeof input.job.retrievalBucket !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        "retrievalBucket must be a string.",
+    );
+  }
+  if (
+    typeof input.job.retrievalBucket === "string" &&
+    !LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET.has(input.job.retrievalBucket)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        `retrievalBucket ${input.job.retrievalBucket} is not recognized.`,
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "category") &&
+    typeof input.job.category !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        "category must be a string.",
+    );
+  }
+  if (
+    typeof input.job.category === "string" &&
+    !LOCOMO_QA_CATEGORY_SET.has(input.job.category)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} repairJobs ` +
+        `category ${input.job.category} is not recognized.`,
+    );
+  }
+}
+
+function repairJobMatchesManifestFilters(
+  job: Record<string, unknown>,
+  options: Pick<
+    LocomoQuestionIdManifestOptions,
+    "repairJobDiagnoses" | "repairJobRetrievalBuckets"
+  >,
+): boolean {
+  if (
+    options.repairJobDiagnoses !== undefined &&
+    (!isLocomoRepairJobDiagnosis(job.diagnosis) ||
+      !options.repairJobDiagnoses.includes(job.diagnosis))
+  ) {
+    return false;
+  }
+  if (
+    options.repairJobRetrievalBuckets !== undefined &&
+    (!isLocomoRepairJobRetrievalBucket(job.retrievalBucket) ||
+      !options.repairJobRetrievalBuckets.includes(job.retrievalBucket))
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function collectManifestJobQuestionIds(
   value: Record<string, unknown>,
   jobKeys: readonly LocomoQuestionIdManifestJobKey[],
   sourcePath: string,
+  options: Pick<
+    LocomoQuestionIdManifestOptions,
+    "repairJobDiagnoses" | "repairJobRetrievalBuckets"
+  > = {},
 ): string[] {
   const questionIds: string[] = [];
   for (const key of jobKeys) {
@@ -983,6 +1194,12 @@ function collectManifestJobQuestionIds(
             `${index} must be an object.`,
         );
       }
+      if (key === "repairJobs") {
+        assertRepairJobManifestMetadata({
+          job,
+          sourcePath,
+        });
+      }
       if (key === "reanswerJobs") {
         assertReanswerJobManifestMetadata({
           job,
@@ -1003,6 +1220,12 @@ function collectManifestJobQuestionIds(
         }
         seenForKey.add(questionId);
       }
+      if (
+        key === "repairJobs" &&
+        !repairJobMatchesManifestFilters(job, options)
+      ) {
+        continue;
+      }
       appendUniqueQuestionIds(questionIds, jobQuestionIds);
     }
   }
@@ -1015,6 +1238,18 @@ function hasManifestJobKey(
 ): boolean {
   return jobKeys.some((key) =>
     Object.prototype.hasOwnProperty.call(value, key),
+  );
+}
+
+function hasRepairJobManifestFilters(
+  options: Pick<
+    LocomoQuestionIdManifestOptions,
+    "repairJobDiagnoses" | "repairJobRetrievalBuckets"
+  >,
+): boolean {
+  return (
+    options.repairJobDiagnoses !== undefined ||
+    options.repairJobRetrievalBuckets !== undefined
   );
 }
 
@@ -1130,23 +1365,25 @@ function hasNonEmptyManifestSelectionHeader(
 function collectQuestionIdsFromManifest(
   value: unknown,
   sourcePath: string,
-  options: {
-    preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
-  } = {},
+  options: LocomoQuestionIdManifestOptions = {},
 ): string[] {
   if (!isRecord(value)) {
     return [];
   }
   assertManifestOverallShape(value, sourcePath);
-  if (options.preferManifestJobKeys !== undefined) {
+  const preferManifestJobKeys =
+    options.preferManifestJobKeys ??
+    (hasRepairJobManifestFilters(options) ? (["repairJobs"] as const) : undefined);
+  if (preferManifestJobKeys !== undefined) {
     const preferredQuestionIds = collectManifestJobQuestionIds(
       value,
-      options.preferManifestJobKeys,
+      preferManifestJobKeys,
       sourcePath,
+      options,
     );
     const preferredManifestJobKeyPresent = hasManifestJobKey(
       value,
-      options.preferManifestJobKeys,
+      preferManifestJobKeys,
     );
     const hasNonEmptySelectionHeader =
       preferredQuestionIds.length > 0 || preferredManifestJobKeyPresent
@@ -1160,7 +1397,7 @@ function collectQuestionIdsFromManifest(
     ) {
       assertManifestSelectedQuestionCount({
         count: value.overall.selectedQuestionCount,
-        label: `preferred ${options.preferManifestJobKeys.join("/")} questionIds`,
+        label: `preferred ${preferManifestJobKeys.join("/")} questionIds`,
         questionIds: preferredQuestionIds,
         sourcePath,
       });
@@ -1189,6 +1426,7 @@ function collectQuestionIdsFromManifest(
     value,
     ["repairJobs", "reanswerJobs"],
     sourcePath,
+    options,
   );
   const hasRepairOrReanswerJobKey = hasManifestJobKey(value, [
     "repairJobs",
@@ -1286,9 +1524,7 @@ function collectQuestionIdsFromManifest(
 export function parseLocomoQuestionIdsFile(
   contents: string,
   sourcePath: string,
-  options: {
-    preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
-  } = {},
+  options: LocomoQuestionIdManifestOptions = {},
 ): string[] {
   const trimmed = contents.trim();
   if (trimmed.length === 0) {
@@ -1351,6 +1587,8 @@ export async function resolveLocomoQuestionIds(input: {
   preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
   questionIdFile?: string;
   questionIdFileContents?: string;
+  repairJobDiagnoses?: readonly LocomoRepairJobDiagnosis[];
+  repairJobRetrievalBuckets?: readonly LocomoRepairJobRetrievalBucket[];
   readFile: (path: string) => Promise<string>;
 }): Promise<string[] | undefined> {
   const questionIds: string[] = [];
@@ -1367,7 +1605,11 @@ export async function resolveLocomoQuestionIds(input: {
     const parsedQuestionIds = parseLocomoQuestionIdsFile(
       questionIdFileContents,
       input.questionIdFile,
-      { preferManifestJobKeys: input.preferManifestJobKeys },
+      {
+        preferManifestJobKeys: input.preferManifestJobKeys,
+        repairJobDiagnoses: input.repairJobDiagnoses,
+        repairJobRetrievalBuckets: input.repairJobRetrievalBuckets,
+      },
     );
     const explicitQuestionIdSet = new Set(explicitQuestionIds);
     for (const questionId of parsedQuestionIds) {
@@ -1916,6 +2158,11 @@ export function buildLocomoSystemPrompt(input: {
   strictNoEvidenceAbstention?: boolean;
 }): string {
   const instructions = [LOCOMO_ANSWER_SYSTEM];
+  if (input.questionCategory === "multi_hop") {
+    instructions.push(
+      "For multi-hop questions, compose the final answer from every required evidence link; return the requested final entity, count, relationship, or attribute, and do not stop at the first matching clue or quote a partial chain.",
+    );
+  }
   if (
     input.allowCommonsenseResolution &&
     (input.questionCategory === undefined ||
@@ -2400,6 +2647,31 @@ function locomoSemanticCandidateConfig(
   };
 }
 
+function buildLocomoQuestionSelection(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    | "questionIdFile"
+    | "questionIds"
+    | "repairJobDiagnoses"
+    | "repairJobRetrievalBuckets"
+  >,
+): LocomoSmokeReport["questionSelection"] | undefined {
+  if (
+    options.questionIds === undefined &&
+    options.questionIdFile === undefined &&
+    options.repairJobDiagnoses === undefined &&
+    options.repairJobRetrievalBuckets === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    explicitQuestionIds: options.questionIds ?? null,
+    questionIdFile: options.questionIdFile ?? null,
+    repairJobDiagnoses: options.repairJobDiagnoses ?? null,
+    repairJobRetrievalBuckets: options.repairJobRetrievalBuckets ?? null,
+  };
+}
+
 function publicModelConfig(prefix: string): Record<string, string | null> {
   return {
     baseURL: process.env[`${prefix}_BASE_URL`] ?? null,
@@ -2723,7 +2995,14 @@ export async function runLocomoSmoke(
   const appendFileImpl = dependencies.appendFile ?? appendFile;
   const questionIds = await resolveLocomoQuestionIds({
     explicitQuestionIds: options.questionIds,
+    preferManifestJobKeys:
+      options.repairJobDiagnoses !== undefined ||
+      options.repairJobRetrievalBuckets !== undefined
+        ? ["repairJobs"]
+        : undefined,
     questionIdFile: options.questionIdFile,
+    repairJobDiagnoses: options.repairJobDiagnoses,
+    repairJobRetrievalBuckets: options.repairJobRetrievalBuckets,
     readFile: readFileImpl,
   });
   const resolvedOptions: LocomoSmokeCliOptions = {
@@ -3082,6 +3361,7 @@ export async function runLocomoSmoke(
     questionCount: results.length,
     questionCategories: resolvedOptions.questionCategories ?? null,
     questionIds: resolvedOptions.questionIds ?? null,
+    questionSelection: buildLocomoQuestionSelection(options),
     resume: options.resume ?? false,
     runDirectory,
     runId,

@@ -176,6 +176,25 @@ const LOCOMO_SMOKE_REPORT_WRITERS = [
 
 const LOCOMO_DIA_ID_PATTERN = /^D\d+:\d+$/u;
 const LOCOMO_EXPECTED_PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
+const LOCOMO_REPAIR_JOB_DIAGNOSES = [
+  "balanced-partial-overlap",
+  "numeric-or-frequency-format",
+  "over-specified-answer",
+  "rationale-bearing-gold-answer",
+  "under-specified-answer",
+  "zero-token-overlap",
+] as const;
+const LOCOMO_REPAIR_JOB_DIAGNOSIS_SET: ReadonlySet<string> = new Set(
+  LOCOMO_REPAIR_JOB_DIAGNOSES,
+);
+const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS = [
+  "full",
+  "partial",
+  "zero",
+] as const;
+const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET: ReadonlySet<string> = new Set(
+  LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS,
+);
 
 function normalizedMetadataValue(
   report: LocomoSmokeReport,
@@ -1286,6 +1305,83 @@ function assertOptionalReanswerSelectionField(input: {
   }
 }
 
+function assertOptionalQuestionSelectionField(input: {
+  path: string;
+  runId: string;
+  value: unknown;
+}): void {
+  if (input.value === undefined) {
+    return;
+  }
+  if (!isRecord(input.value)) {
+    throw new Error(
+      `Report ${input.path} (${input.runId}) questionSelection must be an object.`,
+    );
+  }
+  assertNullableNonEmptyUniqueStringArrayField({
+    field: "questionSelection.explicitQuestionIds",
+    path: input.path,
+    runId: input.runId,
+    value: input.value.explicitQuestionIds,
+  });
+  assertNullableNonEmptyStringField({
+    field: "questionSelection.questionIdFile",
+    path: input.path,
+    runId: input.runId,
+    value: input.value.questionIdFile,
+  });
+  assertNoEdgeWhitespaceStringField({
+    field: "questionSelection.questionIdFile",
+    path: input.path,
+    runId: input.runId,
+    value: input.value.questionIdFile,
+  });
+  assertNullableNonEmptyUniqueStringArrayField({
+    field: "questionSelection.repairJobDiagnoses",
+    path: input.path,
+    runId: input.runId,
+    value: input.value.repairJobDiagnoses,
+  });
+  if (Array.isArray(input.value.repairJobDiagnoses)) {
+    const unknownDiagnosis = input.value.repairJobDiagnoses.find(
+      (diagnosis) => !LOCOMO_REPAIR_JOB_DIAGNOSIS_SET.has(diagnosis),
+    );
+    if (unknownDiagnosis !== undefined) {
+      throw new Error(
+        `Report ${input.path} (${input.runId}) questionSelection.` +
+          `repairJobDiagnoses contains unknown diagnosis ${unknownDiagnosis}.`,
+      );
+    }
+  }
+  assertNullableNonEmptyUniqueStringArrayField({
+    field: "questionSelection.repairJobRetrievalBuckets",
+    path: input.path,
+    runId: input.runId,
+    value: input.value.repairJobRetrievalBuckets,
+  });
+  if (Array.isArray(input.value.repairJobRetrievalBuckets)) {
+    const unknownBucket = input.value.repairJobRetrievalBuckets.find(
+      (bucket) => !LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET.has(bucket),
+    );
+    if (unknownBucket !== undefined) {
+      throw new Error(
+        `Report ${input.path} (${input.runId}) questionSelection.` +
+          `repairJobRetrievalBuckets contains unknown bucket ${unknownBucket}.`,
+      );
+    }
+  }
+  if (
+    (Array.isArray(input.value.repairJobDiagnoses) ||
+      Array.isArray(input.value.repairJobRetrievalBuckets)) &&
+    input.value.questionIdFile === null
+  ) {
+    throw new Error(
+      `Report ${input.path} (${input.runId}) questionSelection.` +
+        "questionIdFile is required when repair job filters are set.",
+    );
+  }
+}
+
 function isLocomoQaCategory(value: string): value is LocomoQaCategory {
   return LOCOMO_QA_CATEGORIES.includes(value as LocomoQaCategory);
 }
@@ -1375,6 +1471,44 @@ function sameStringSet(left: readonly string[], right: readonly string[]): boole
   }
   const expected = new Set(left);
   return right.every((value) => expected.has(value));
+}
+
+function assertQuestionSelectionMatchesReport(input: LocomoReportInput): void {
+  const selection = input.report.questionSelection;
+  if (selection === undefined) {
+    return;
+  }
+  if (input.report.questionIds === undefined || input.report.questionIds === null) {
+    throw new Error(
+      `Report ${input.path} (${input.report.runId}) questionIds is ` +
+        "required when questionSelection is present.",
+    );
+  }
+  const selectedQuestionIds = new Set(input.report.questionIds);
+  for (const questionId of selection.explicitQuestionIds ?? []) {
+    if (!selectedQuestionIds.has(questionId)) {
+      throw new Error(
+        `Report ${input.path} (${input.report.runId}) questionSelection.` +
+          `explicitQuestionIds contains ${questionId}, which is not present ` +
+          "in report questionIds.",
+      );
+    }
+  }
+  if (
+    selection.questionIdFile === null &&
+    selection.repairJobDiagnoses === null &&
+    selection.repairJobRetrievalBuckets === null &&
+    !sameStringSet(selection.explicitQuestionIds ?? [], input.report.questionIds)
+  ) {
+    throw new Error(
+      `Report ${input.path} (${input.report.runId}) questionSelection.` +
+        `explicitQuestionIds ${JSON.stringify(
+          selection.explicitQuestionIds,
+        )} do not match report questionIds ` +
+        `${JSON.stringify(input.report.questionIds)} without manifest or ` +
+        "repair-job filters.",
+    );
+  }
 }
 
 function expectedNoiseTurnIds(
@@ -1989,6 +2123,7 @@ export function assertLocomoReportQuestionCountMatchesCases(
     questionCategories?: unknown;
     questionCount?: unknown;
     questionIds?: unknown;
+    questionSelection?: unknown;
     reanswerSelection?: unknown;
     resume?: unknown;
     runDirectory?: unknown;
@@ -2143,6 +2278,11 @@ export function assertLocomoReportQuestionCountMatchesCases(
     path: input.path,
     runId,
     value: rawReport.reanswerSelection,
+  });
+  assertOptionalQuestionSelectionField({
+    path: input.path,
+    runId,
+    value: rawReport.questionSelection,
   });
   assertArrayField({
     field: "cases",
@@ -2592,6 +2732,7 @@ export function assertLocomoReportQuestionCountMatchesCases(
   assertReanswerSourceReportAnswerContextIsReplayable(input);
   assertReanswerSourceRetrievalConfigMatchesReport(input);
   assertReanswerSelectedScopeHasQuestionIdsHeader(input);
+  assertQuestionSelectionMatchesReport(input);
   assertUpstreamAnswerMetricCategoriesMatchCases(input);
 
   const actualCaseIds = uniqueStrings(

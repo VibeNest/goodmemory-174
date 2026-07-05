@@ -102,7 +102,11 @@ Current Task Queue
    as `--recall-report`, `--run-id`, `--output-dir`, `--profile`, and
    `--benchmark-root` must also stay single-valued before report generation,
    and `--run-id` must be a single path segment so live evidence directories
-   stay under the intended output tree.
+   stay under the intended output tree. New focused live-slice reports should
+   persist optional `selection` metadata for explicit case ids, case-selection
+   mode, recall report path, answer-gap report path, answer-gap buckets,
+   source-coverage filters, and limit so answer-gap slice evidence is auditable
+   without relying on run-id naming conventions.
 11. Keep recall diagnostic source/report selectors strict: diagnostic scalar
    flags such as `--benchmark-root`, `--limit`, `--output-dir`, `--run-id`, and
    `--scale` must stay single-valued while diagnostic `--profile` remains
@@ -148,6 +152,8 @@ Acceptance Checks
   or the wrong answer-gap queue.
 - Duplicate live-slice / live-closure scalar source and output flags must fail
   fast before report generation.
+- Focused live-slice reports should preserve the answer-gap / case-selection
+  inputs that selected their cases.
 - Answer-gap analyzer and ablation output report paths must fail fast when they
   would overwrite the input live report, and answer-gap output paths must also
   fail fast before overwriting a benchmark source file under `--benchmark-root`.

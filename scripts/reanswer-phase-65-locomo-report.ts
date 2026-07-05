@@ -1013,6 +1013,26 @@ function selectedQuestionCategories(input: {
   return categories.length === 0 ? null : categories;
 }
 
+function assertSelectedResultsMatchReanswerCategories(input: {
+  reanswerJobCategories?: readonly LocomoQaCategory[];
+  results: readonly LocomoSmokeReport["cases"][number][];
+}): void {
+  if (input.reanswerJobCategories === undefined) {
+    return;
+  }
+  const allowedCategories = new Set(input.reanswerJobCategories);
+  for (const result of input.results) {
+    if (allowedCategories.has(result.category)) {
+      continue;
+    }
+    throw new Error(
+      `LoCoMo reanswer selected source row ${result.questionId} ` +
+        `category ${result.category} does not match reanswer category ` +
+        `filter ${input.reanswerJobCategories.join(", ")}.`,
+    );
+  }
+}
+
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -1199,6 +1219,10 @@ export async function runLocomoReportReanswer(
     questionIds,
     sourceReport: rawReport,
   });
+  assertSelectedResultsMatchReanswerCategories({
+    reanswerJobCategories: options.reanswerJobCategories,
+    results: selected,
+  });
   const benchmarkRoot = rawReport.externalRoot ?? undefined;
   const { cases } = await loadLocomoCases({
     benchmarkRoot,
@@ -1216,6 +1240,14 @@ export async function runLocomoReportReanswer(
     questionIds === undefined || questionIds.length === 0
       ? rawReport.questionIds ?? null
       : questionIds;
+  const reanswerSelectionExplicitQuestionIds =
+    options.questionIds !== undefined
+      ? [...options.questionIds]
+      : options.questionIdFile === undefined &&
+          !reanswerJobFiltersRequested &&
+          Array.isArray(reportQuestionIds)
+        ? [...reportQuestionIds]
+        : null;
   const answerGenerator =
     deps.answerGenerator ??
     createLocomoLiveAnswerGenerator({
@@ -1310,8 +1342,7 @@ export async function runLocomoReportReanswer(
     questionCount: results.length,
     questionIds: reportQuestionIds,
     reanswerSelection: {
-      explicitQuestionIds:
-        options.questionIds === undefined ? null : [...options.questionIds],
+      explicitQuestionIds: reanswerSelectionExplicitQuestionIds,
       questionIdFile: options.questionIdFile ?? null,
       reanswerJobBuckets:
         options.reanswerJobBuckets === undefined

@@ -1375,6 +1375,50 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
     });
   });
 
+  it("rejects category-filtered jobs whose source rows use another category", async () => {
+    await expect(
+      runLocomoReportReanswer(
+        {
+          allowCommonsenseResolution: false,
+          outputDir: "/reports/out",
+          questionIdFile: "/reports/answer-policy-slice.json",
+          reanswerJobCategories: ["open_domain"],
+          runId: "reanswer-job-source-category-mismatch",
+          sourceReportPath: "/reports/source/smoke-report.json",
+          strictNoEvidenceAbstention: false,
+        },
+        {
+          answerGenerator: async () => "No information available",
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === "/reports/source/smoke-report.json") {
+              return JSON.stringify(sourceReport());
+            }
+            if (path === "/reports/answer-policy-slice.json") {
+              return JSON.stringify({
+                reanswerJobs: [
+                  {
+                    category: "open_domain",
+                    questionIds: ["conv-test:q1"],
+                    sourceReportPath: "/reports/source/smoke-report.json",
+                    sourceRunId: "source-report",
+                  },
+                ],
+              });
+            }
+            if (path === "/tmp/LOCOMO/cases.json") {
+              return JSON.stringify({ cases: [testCase] });
+            }
+            throw new Error(`unexpected read: ${path}`);
+          },
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow(
+      "selected source row conv-test:q1 category adversarial does not match reanswer category filter open_domain",
+    );
+  });
+
   it("rejects a manifest whose reanswer jobs target a different source run", async () => {
     await expect(
       runLocomoReportReanswer(
@@ -3459,5 +3503,45 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
 
     expect(report.questionCount).toBe(2);
     expect(report.questionIds).toBeNull();
+  });
+
+  it("records inherited source question ids as explicit replay lineage", async () => {
+    const targetedSource: LocomoSmokeReport = {
+      ...sourceReport(),
+      questionIds: ["conv-test:q1", "conv-test:q2"],
+    };
+
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: false,
+        outputDir: "/reports/out",
+        runId: "reanswer-targeted-source-all",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async ({ question }) =>
+          question.category === "adversarial" ? "I do not know" : "Connecticut",
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(targetedSource);
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.questionIds).toEqual(["conv-test:q1", "conv-test:q2"]);
+    expect(report.reanswerSelection).toEqual({
+      explicitQuestionIds: ["conv-test:q1", "conv-test:q2"],
+      questionIdFile: null,
+      reanswerJobBuckets: null,
+      reanswerJobCategories: null,
+    });
   });
 });

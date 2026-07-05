@@ -121,13 +121,37 @@ function buildRecallReport(profile: BeamProfile = "goodmemory-rules-only"): stri
   });
 }
 
+function buildLiveCases(
+  totalCases: number,
+): Phase63BeamLiveSliceReport["cases"] {
+  return Array.from({ length: totalCases }, (_, index) => ({
+    answerScore: {
+      correct: index < 2,
+      method: index < 2 ? "exact" : "mismatch",
+      reasoning: "fixture",
+    },
+    answerable: true,
+    conversationId: "beam-live-closure",
+    correct: index < 2,
+    evidenceChatIds: [1],
+    evidenceChatRecall: index === 0 ? 1 : 0.5,
+    expectedAnswer: `expected-${index}`,
+    hypothesis: `actual-${index}`,
+    memoryContextChars: 42,
+    questionId: `beam-live-q${index + 1}`,
+    questionType: index === 1 ? "preference_following" : "information_extraction",
+    retrievedChatIds: [1],
+  }));
+}
+
 function buildLiveReport(
   totalCases = 3,
   profile: BeamProfile = "goodmemory-rules-only",
+  selection?: Phase63BeamLiveSliceReport["selection"],
 ): Phase63BeamLiveSliceReport {
   return {
     benchmarkRoot: "/tmp/BEAM",
-    cases: [],
+    cases: buildLiveCases(totalCases),
     generatedAt: "2026-06-15T20:30:00.000Z",
     generatedBy: "scripts/run-phase-63-beam-live-slice.ts",
     mode: "live-answer-slice",
@@ -137,6 +161,7 @@ function buildLiveReport(
     recallReportPath: "/tmp/recall.json",
     runDirectory: "/tmp/out/run-closure",
     runId: "run-closure",
+    ...(selection === undefined ? {} : { selection }),
     source: {
       benchmark: "BEAM",
       license: "cc-by-sa-4.0 dataset; paper external",
@@ -452,6 +477,68 @@ describe("phase-63 BEAM live closure runner", () => {
         },
       ),
     ).rejects.toThrow("Phase 63 BEAM live report covers 2 cases; expected 3");
+  });
+
+  it("rejects live reports whose case rows do not cover the reported closure total", async () => {
+    await expect(
+      runPhase63BeamLiveClosure(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          outputDir: "/tmp/out",
+          recallReportPath: "/tmp/recall.json",
+          runId: "run-closure",
+        },
+        {
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === "/tmp/recall.json") {
+              return buildRecallReport();
+            }
+            return JSON.stringify(buildBeamRows());
+          },
+          runLiveSlice: async () => ({
+            ...buildLiveReport(3),
+            cases: buildLiveCases(2),
+          }),
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow("Phase 63 BEAM live report contains 2 case rows; expected 3");
+  });
+
+  it("rejects focused live-slice selection metadata as closure evidence", async () => {
+    await expect(
+      runPhase63BeamLiveClosure(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          outputDir: "/tmp/out",
+          recallReportPath: "/tmp/recall.json",
+          runId: "run-closure",
+        },
+        {
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === "/tmp/recall.json") {
+              return buildRecallReport();
+            }
+            return JSON.stringify(buildBeamRows());
+          },
+          runLiveSlice: async () =>
+            buildLiveReport(3, "goodmemory-rules-only", {
+              answerGapBuckets: ["summarization"],
+              answerGapReportPath: "/tmp/answer-gap.json",
+              answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
+              caseIds: null,
+              caseSelection: null,
+              limit: null,
+              recallReportPath: "/tmp/recall.json",
+            }),
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow(
+      "Phase 63 BEAM closure requires an all-cases live report selection",
+    );
   });
 });
 

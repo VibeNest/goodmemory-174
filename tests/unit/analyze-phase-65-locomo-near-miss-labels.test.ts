@@ -259,6 +259,16 @@ function locomoCasesJson(): string {
             adversarialAnswer: null,
             category: "multi_hop",
             evidenceTurnIds: ["D1:1"],
+            goldAnswer:
+              "A Nintendo Switch, since Xenoblade 2 is made for this console",
+            matchMode: deriveLocomoMatchMode("multi_hop"),
+            question: "What console does Nate own?",
+            questionId: "q-rationale-only",
+          },
+          {
+            adversarialAnswer: null,
+            category: "multi_hop",
+            evidenceTurnIds: ["D1:1"],
             goldAnswer: "two times this month",
             matchMode: deriveLocomoMatchMode("multi_hop"),
             question: "How many times did it happen?",
@@ -299,6 +309,11 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
         questionId: "q-under",
       }),
       question({
+        answer: "Nintendo Switch",
+        gold: "A Nintendo Switch, since Xenoblade 2 is made for this console",
+        questionId: "q-rationale-only",
+      }),
+      question({
         answer: "2 times total",
         gold: "two times this month",
         questionId: "q-numeric",
@@ -326,31 +341,62 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     expect(analysis.sourceReports).toEqual([
       {
         path: CANDIDATE_REPORT_PATH,
-        questionCount: 3,
+        questionCount: 4,
         runId: "candidate-live",
       },
     ]);
-    expect(analysis.overall.nearMissCount).toBe(3);
+    expect(analysis.overall.nearMissCount).toBe(4);
     expect(analysis.overall.diagnosisCounts["under-specified-answer"]).toBe(1);
     expect(analysis.overall.diagnosisCounts["numeric-or-frequency-format"]).toBe(
       1,
     );
     expect(analysis.overall.diagnosisCounts["over-specified-answer"]).toBe(1);
-    expect(analysis.overall.fullRecallCount).toBe(2);
+    expect(analysis.overall.diagnosisCounts["rationale-bearing-gold-answer"]).toBe(
+      1,
+    );
+    expect(analysis.overall.fullRecallCount).toBe(3);
     expect(analysis.overall.partialRecallCount).toBe(1);
     expect(analysis.overall.questionIds).toEqual([
       "q-under",
+      "q-rationale-only",
       "q-numeric",
       "q-over",
     ]);
-    expect(analysis.questionIds).toEqual(["q-under", "q-numeric", "q-over"]);
-    expect(analysis.categories.multi_hop?.nearMissCount).toBe(3);
+    expect(analysis.questionIds).toEqual([
+      "q-under",
+      "q-rationale-only",
+      "q-numeric",
+      "q-over",
+    ]);
+    expect(analysis.categories.multi_hop?.nearMissCount).toBe(4);
     expect(analysis.categories.multi_hop?.questionIds).toEqual([
       "q-under",
+      "q-rationale-only",
       "q-numeric",
       "q-over",
     ]);
     expect(analysis.repairJobs).toEqual([
+      {
+        category: "multi_hop",
+        diagnosis: "numeric-or-frequency-format",
+        questionCount: 1,
+        questionIds: ["q-numeric"],
+        retrievalBucket: "full",
+      },
+      {
+        category: "multi_hop",
+        diagnosis: "over-specified-answer",
+        questionCount: 1,
+        questionIds: ["q-over"],
+        retrievalBucket: "full",
+      },
+      {
+        category: "multi_hop",
+        diagnosis: "rationale-bearing-gold-answer",
+        questionCount: 1,
+        questionIds: ["q-rationale-only"],
+        retrievalBucket: "full",
+      },
       {
         category: "multi_hop",
         diagnosis: "under-specified-answer",
@@ -361,6 +407,7 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     ]);
     expect(analysis.rows.map((row) => row.diagnosis)).toEqual([
       "under-specified-answer",
+      "rationale-bearing-gold-answer",
       "numeric-or-frequency-format",
       "over-specified-answer",
     ]);
@@ -371,8 +418,18 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       "nintendo",
       "oled",
     ]);
-    expect(analysis.rows[1]?.tokenOverlap.overlapTokens).toEqual(["times"]);
-    expect(analysis.rows[2]?.tokenOverlap.extraGeneratedTokens).toEqual([
+    expect(analysis.rows[1]?.tokenOverlap.missingGoldTokens).toEqual([
+      "2",
+      "console",
+      "for",
+      "is",
+      "made",
+      "since",
+      "this",
+      "xenoblade",
+    ]);
+    expect(analysis.rows[2]?.tokenOverlap.overlapTokens).toEqual(["times"]);
+    expect(analysis.rows[3]?.tokenOverlap.extraGeneratedTokens).toEqual([
       "best",
       "buy",
       "console",

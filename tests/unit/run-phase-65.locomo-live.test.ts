@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildLocomoEvidencePackContext,
+  buildLocomoSystemPrompt,
   runLocomoSmoke,
 } from "../../scripts/run-phase-65-locomo-smoke";
 import { buildLocomoSmokeCases } from "../../src/eval/locomo";
@@ -53,6 +54,23 @@ describe("LoCoMo live answer evidence-pack wiring", () => {
       testCase: adversarialCase,
     });
     expect(adversarialPack).toContain("Abstention calibration");
+  });
+
+  it("adds a multi-hop answer-synthesis guard only for multi-hop questions", () => {
+    const multiHopPrompt = buildLocomoSystemPrompt({
+      questionCategory: "multi_hop",
+    });
+    expect(multiHopPrompt).toContain("For multi-hop questions");
+    expect(multiHopPrompt).toContain(
+      "do not stop at the first matching clue",
+    );
+
+    const singleHopPrompt = buildLocomoSystemPrompt({
+      questionCategory: "single_hop",
+    });
+    expect(singleHopPrompt).not.toContain(
+      "do not stop at the first matching clue",
+    );
   });
 
   it("routes the answer context through the pack when evidencePack is set", async () => {

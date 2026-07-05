@@ -278,7 +278,12 @@ read: `--answer-gap-bucket`, `--answer-gap-source-coverage-status`, and
 `--case-id` reject missing/flag-as-value, empty, whitespace-padded, duplicate,
 or unknown answer-gap bucket/status values. This keeps focused BEAM live slices
 from silently running the wrong answer-gap queue or matching no cases because of
-a CLI typo. `analyze:phase-63-recall-diagnostic` now rejects output paths that
+a CLI typo. New live-slice reports also persist optional `selection` metadata
+for explicit case ids, case-selection mode, recall report path, answer-gap
+report path, answer-gap buckets, source-coverage filters, and limit, so focused
+answer-gap evidence can be audited without relying on run-id naming conventions.
+This is metadata hardening only, not a BEAM score or closure change.
+`analyze:phase-63-recall-diagnostic` now rejects output paths that
 would overwrite either its analyzed report or baseline report before reading
 inputs, and rejects output paths that would overwrite a BEAM source file under
 `--benchmark-root` before reading benchmark rows. This keeps recall/noise

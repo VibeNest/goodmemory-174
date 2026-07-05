@@ -73,11 +73,14 @@ const NUMERIC_OR_FREQUENCY_TOKENS = new Set([
   "time",
   "times",
 ]);
+const RATIONALE_GOLD_PATTERN =
+  /\b(?:because|due to|given|since)\b|[;:]/iu;
 
 export type LocomoNearMissDiagnosis =
   | "balanced-partial-overlap"
   | "numeric-or-frequency-format"
   | "over-specified-answer"
+  | "rationale-bearing-gold-answer"
   | "under-specified-answer"
   | "zero-token-overlap";
 
@@ -146,7 +149,7 @@ interface LocomoNearMissRepairJob {
   diagnosis: LocomoNearMissDiagnosis;
   questionCount: number;
   questionIds: string[];
-  retrievalBucket: "partial" | "zero";
+  retrievalBucket: "full" | "partial" | "zero";
 }
 
 export interface LocomoNearMissLabelAnalysis {
@@ -262,6 +265,7 @@ function emptyDiagnosisCounts(): Record<LocomoNearMissDiagnosis, number> {
     "balanced-partial-overlap": 0,
     "numeric-or-frequency-format": 0,
     "over-specified-answer": 0,
+    "rationale-bearing-gold-answer": 0,
     "under-specified-answer": 0,
     "zero-token-overlap": 0,
   };
@@ -380,23 +384,57 @@ function hasNumericOrFrequencySignal(overlap: TokenOverlap): boolean {
     ...overlap.extraGeneratedTokens,
     ...overlap.missingGoldTokens,
     ...overlap.overlapTokens,
-  ].some(
-    (token) => NUMERIC_OR_FREQUENCY_TOKENS.has(token) || /^\d+$/u.test(token),
+  ].some((token) => isNumericOrFrequencyToken(token));
+}
+
+function isNumericOrFrequencyToken(token: string): boolean {
+  return NUMERIC_OR_FREQUENCY_TOKENS.has(token) || /^\d+$/u.test(token);
+}
+
+function hasOnlyNumericOrFrequencyMissingTokens(overlap: TokenOverlap): boolean {
+  return (
+    overlap.missingGoldTokens.length > 0 &&
+    overlap.missingGoldTokens.every((token) => isNumericOrFrequencyToken(token))
   );
 }
 
-function diagnoseNearMiss(overlap: TokenOverlap): LocomoNearMissDiagnosis {
+function hasRationaleBearingGoldAnswer(goldAnswer: string): boolean {
+  return RATIONALE_GOLD_PATTERN.test(goldAnswer);
+}
+
+function isSubsetAnswerMissingGoldRationale(input: {
+  goldAnswer: string;
+  overlap: TokenOverlap;
+}): boolean {
+  return (
+    input.overlap.extraGeneratedTokens.length === 0 &&
+    input.overlap.precision >= HIGH_TOKEN_OVERLAP_RATIO &&
+    input.overlap.recall < HIGH_TOKEN_OVERLAP_RATIO &&
+    !hasOnlyNumericOrFrequencyMissingTokens(input.overlap) &&
+    hasRationaleBearingGoldAnswer(input.goldAnswer)
+  );
+}
+
+function diagnoseNearMiss(input: {
+  goldAnswer: string;
+  overlap: TokenOverlap;
+}): LocomoNearMissDiagnosis {
+  const { overlap } = input;
   if (overlap.overlapTokenCount === 0) {
     return "zero-token-overlap";
   }
-  if (hasNumericOrFrequencySignal(overlap)) {
-    return "numeric-or-frequency-format";
+  if (isSubsetAnswerMissingGoldRationale(input)) {
+    return "rationale-bearing-gold-answer";
   }
   if (
     overlap.precision >= HIGH_TOKEN_OVERLAP_RATIO &&
-    overlap.recall < HIGH_TOKEN_OVERLAP_RATIO
+    overlap.recall < HIGH_TOKEN_OVERLAP_RATIO &&
+    !hasOnlyNumericOrFrequencyMissingTokens(overlap)
   ) {
     return "under-specified-answer";
+  }
+  if (hasNumericOrFrequencySignal(overlap)) {
+    return "numeric-or-frequency-format";
   }
   if (
     overlap.recall >= HIGH_TOKEN_OVERLAP_RATIO &&
@@ -536,7 +574,10 @@ function buildNearMissRow(input: {
     candidateNoiseTurnIds: [...input.candidateQuestion.noiseTurnIds],
     candidateRetrievedTurnIds: [...input.candidateQuestion.retrievedTurnIds],
     computedAnswerTokenF1,
-    diagnosis: diagnoseNearMiss(overlap),
+    diagnosis: diagnoseNearMiss({
+      goldAnswer: input.benchmarkQuestion.goldAnswer,
+      overlap,
+    }),
     generatedAnswer,
     goldAnswer: input.benchmarkQuestion.goldAnswer,
     question: input.benchmarkQuestion.question,
@@ -584,9 +625,9 @@ function summarizeAccumulator(
 
 function nearMissRepairBucket(
   row: LocomoNearMissLabelRow,
-): LocomoNearMissRepairJob["retrievalBucket"] | null {
+): LocomoNearMissRepairJob["retrievalBucket"] {
   if (row.candidateGoldEvidenceFullyRetrieved) {
-    return null;
+    return "full";
   }
   return row.candidateEvidenceRecall <= 0 ? "zero" : "partial";
 }
@@ -597,9 +638,6 @@ function buildRepairJobs(
   const jobs = new Map<string, LocomoNearMissRepairJob>();
   for (const row of rows) {
     const retrievalBucket = nearMissRepairBucket(row);
-    if (retrievalBucket === null) {
-      continue;
-    }
     const key = `${row.category}::${row.diagnosis}::${retrievalBucket}`;
     let job = jobs.get(key);
     if (!job) {

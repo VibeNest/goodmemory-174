@@ -97,6 +97,9 @@ Next
   focused repair: validate source-report lineage, isolate one bucket/category at
   a time, rerun the paired live/reanswer comparison, and record answer changes
   with the live-delta tooling.
+- Keep category-filtered replay strict: every source-report row selected by a
+  `--reanswer-job-category` manifest job must itself have a matching QA
+  category, or the replay should fail before loading the benchmark root.
 - Treat open_domain commonsense/strict-no-evidence probes as opt-in evidence
   until broader category validation proves they do not regress single_hop,
   multi_hop, temporal, or adversarial slices.
@@ -105,6 +108,37 @@ Next
   framing, and `adversarial` contexts should use the shared `abstention`
   framing. This is deterministic answer-context hardening until a focused live
   slice proves whether it changes scores.
+- Keep multi_hop answer synthesis explicit: category-scoped live/reanswer
+  prompts should compose across all required evidence links and avoid returning
+  a first clue or partial chain as the final answer. The focused three-row
+  noisy-full-recall replay has run and retained the existing 1/3 narrow win, but
+  did not add score movement beyond the frequency-contract replay. The two
+  remaining synthesis near-misses are now classified as balanced partial-overlap
+  full-recall candidate rows; default retrieval can consume the artifact but
+  still retrieves 0/2, so this remains answer-synthesis / label-compatibility
+  queue evidence rather than default promotion.
+- For open_domain full-recall wrong rows, treat gold-evidence-only replay as a
+  diagnostic, not a fix: the current 13-row strict source scored 3/13, normal
+  reanswer fell to 1/13, and gold-evidence-only rose only to 4/13 with one
+  regression. The residual 4 token-F1 near misses are now classified as 3
+  rationale-bearing gold-answer rows, 0 under-specified, 0
+  numeric/frequency-format, and 1 balanced partial-overlap; the analyzer keeps
+  short answers whose tokens are a subset of a longer rationale-bearing gold
+  answer in a separate label-compatibility bucket. The near-miss artifact now
+  emits full-recall `repairJobs` for the 3-row rationale-bearing bucket and the
+  1-row balanced bucket, and `eval:phase-65-smoke` can filter those jobs by
+  `--repair-job-diagnosis` and `--repair-job-retrieval-bucket`. The
+  rationale-bearing/full loader proof selected the intended 3 rows with
+  `executionFailures: 0`, while default retrieval found 0/3 evidence recall
+  and 9 noise turns; the broader 4-row loader still finds only 1/4 fully.
+  Targeted smoke reports now persist `questionSelection` lineage for the
+  manifest path and repair-job filters, and shared report validation rejects
+  malformed present lineage, so follow-up repair evidence no longer depends on
+  run-id naming conventions to explain how the selected `questionIds` were
+  produced.
+  This points to noise/context organization, rationale-bearing gold label work,
+  default-retrieval gaps, and live-repeatability risk, not a defaultable
+  answer-policy change.
 - Coordinate any shared recall-routing change with the BEAM workstream and
   verify a BEAM rules-only recall diagnostic spot-check (`caseDeltaCount: 0`)
   before treating it as safe cross-benchmark evidence.
