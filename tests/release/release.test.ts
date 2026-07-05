@@ -830,6 +830,9 @@ describe("release metadata and docs", () => {
     );
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");
+    expect(pkg.scripts?.["eval:official-rescore"]).toBe(
+      "bun run scripts/rescore-official-protocols.ts",
+    );
     expect(pkg.scripts?.["eval:phase-17"]).toBe("bun run scripts/run-phase-17-eval.ts");
     expect(pkg.scripts?.["eval:live"]).toBe("bun run scripts/run-eval.ts --mode=live");
     expect(pkg.scripts?.["eval:live-memory"]).toBe(
@@ -2617,7 +2620,13 @@ describe("release metadata and docs", () => {
       "README-promoted public rows are LongMemEval",
     );
     expect(currentStatus).toContain(
+      "BEAM (official-protocol 0.802 vs public reference 0.49",
+    );
+    expect(currentStatus).toContain(
       "LoCoMo (P4 full-10 opt-in union/extraction profile 0.6198 vs no-memory 0.2276",
+    );
+    expect(currentStatus).not.toContain(
+      "Full ImplicitMemBench and BEAM reports are internal research evidence until explicitly promoted.",
     );
     expect(currentStatus).toContain(
       "LoCoMo (Phase 65) has a README-promoted P4 full-10 opt-in profile",
@@ -2954,6 +2963,13 @@ describe("release metadata and docs", () => {
       ),
       "utf8",
     );
+    const phase67Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt",
+      ),
+      "utf8",
+    );
 
     expect(taskBoard.split("\n").length).toBeLessThanOrEqual(140);
     expect(taskBoard).toContain("eval:live-memory");
@@ -2991,6 +3007,27 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
     expect(taskBoard).toContain("Current Sequential benchmark-hardening entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
     expect(taskBoard).toContain("Public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");
+    expect(phase67Board).toContain(
+      "Current verdict after BEAM/LoCoMo promotion (2026-07-05):",
+    );
+    expect(phase67Board).toContain(
+      "BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable",
+    );
+    expect(phase67Board).not.toContain(
+      "BEAM, and LoCoMo remain internal / blocked evidence rather than public claims.",
+    );
+    expect(phase67Board).toContain(
+      "P67-D BEAM public-claim re-anchor",
+    );
+    expect(phase67Board).toContain(
+      "official protocol + above the public reference + full disclosures",
+    );
+    expect(phase67Board).not.toContain(
+      "P67-D BEAM answer-gap improvement to >=0.75",
+    );
+    expect(phase67Board).not.toContain(
+      "No additional MemoryAgentBench scope or LoCoMo README row promotion until the",
+    );
     expect(taskBoard).toContain(
       "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
     );

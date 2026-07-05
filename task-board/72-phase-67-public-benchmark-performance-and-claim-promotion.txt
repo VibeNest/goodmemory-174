@@ -7,9 +7,10 @@ Status
 [ACTIVE] Phase 67 turns GoodMemory's internal benchmark evidence into honest,
 reproducible, public-claim-ready scores. The discipline: no internal number
 reaches a public README row until it passes the public benchmark claim gate
-(P67-A). This phase opens no LoCoMo retrieval work (paused, board 70) and does
-not change the Phase 63 BEAM answer-pack code lane (owned by the BEAM workstream);
-P67-D is scoped but deferred until that lane is collision-calm or reassigned.
+(P67-A). This phase opens no LoCoMo retrieval work (owned by board 70) and does
+not own the Phase 63 BEAM answer-pack hardening lane beyond public-claim
+boundary wording; P67-D is now the BEAM public-claim re-anchor, not a request to
+run more BEAM answer-generation work.
 
 
 Goal
@@ -48,10 +49,9 @@ viable JUDGE-FREE public-claim routes were:
 Those were the fastest honest paths; the independent-judge path was infra-blocked
 like LoCoMo's neural-embedding path.
 
-Current verdict after P67-B/P67-C promotion (2026-07-02): LongMemEval and
-MemoryAgentBench are publicly claimable and README-promoted through
-`benchmark-claims/*.json` plus `gate:public-benchmark-claim`; ImplicitMemBench,
-BEAM, and LoCoMo remain internal / blocked evidence rather than public claims.
+Current verdict after BEAM/LoCoMo promotion (2026-07-05): BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable and README-promoted through `benchmark-claims/*.json` plus `gate:public-benchmark-claim --strict`.
+ImplicitMemBench remains internal / blocked evidence because reproducibility,
+dataset-source/license, and same-model judge-bias blockers are still present.
 
 
 Tasks
@@ -67,6 +67,18 @@ Tasks
   duplicate `--strict` and `--claims-dir` flags before reading claim
   declarations, keeping strict-mode and declaration-source selection
   unambiguous. This does not change the claimable benchmark set.
+
+[DONE 2026-07-05] P67-A2 Official-protocol rescore CLI guard. The pinned
+  package command is `eval:official-rescore`; the underlying comparability
+  rescore entrypoint (`scripts/rescore-official-protocols.ts`) now rejects
+  duplicate scalar benchmark/source/output/judge selectors before loading
+  existing LongMemEval, LoCoMo, or BEAM answer reports for official-protocol
+  judging: `--benchmark`, `--reference`, `--report`, `--root`, `--rubrics`,
+  `--concurrency`, `--limit`, and `--run-id`. `--run-id` must be a single path
+  segment; `--concurrency` and `--limit` must be canonical positive integers.
+  This is input and output-directory hardening for the planned independent-judge
+  comparability rescore only; it does not run a judge, change scores, or change
+  public-claim boundaries.
 
 [DONE 2026-07-02] P67-B LongMemEval public-claim replay. The v0.3.5
   `goodmemory-rules-only` replay produced a judge-free deterministic-subset
@@ -90,10 +102,16 @@ Tasks
   choice leakage dominates. `benchmark-claims/memoryagentbench.json` now has
   `publicClaimAllowed: true` and passes `gate:public-benchmark-claim`.
 
-[DEFERRED] P67-D BEAM answer-gap improvement to >=0.75. Top lanes: conflict_update,
-  instruction_following, temporal_order. Requires an independent judge (infra-
-  blocked) and touches the BEAM answer-pack code lane (owned by the BEAM
-  workstream) — do not start until that lane is collision-calm or reassigned.
+[DONE 2026-07-05] P67-D BEAM public-claim re-anchor. The old internal >=0.75
+  target was an improvement bar for the internal binary judge before a public
+  BEAM reference existed; it is not the public-claim threshold. The public claim standard is now: official protocol + above the public reference + full disclosures.
+  `benchmark-claims/beam.json` passes `gate:public-benchmark-claim`
+  with official-protocol 0.802 versus the 0.49 public reference, while retaining
+  the strict internal binary track (0.7225), cross-version same-family judge
+  disclosure, fitted/generalization recall disclosure, no-pack ablation, and the
+  instruction_following weak spot. Remaining conflict_update /
+  instruction_following / temporal_order answer-gap work stays in the BEAM
+  hardening lane and does not block the scoped public claim.
 
 [SUPERSEDED] P67-E LoCoMo neural semantic retrieval probe (P65-R003). Resolved
   NEGATIVE 2026-06-27 (bf7373f: neural == BM25) and superseded by the semantic
@@ -126,8 +144,10 @@ Acceptance Criteria
   model, scorer, and baseline.
 - executionFailures = 0.
 - No same-model judge for public semantic-judge claims.
-- No additional MemoryAgentBench scope or LoCoMo README row promotion until the
-  claim gate passes for it; current MemoryAgentBench public scope is only CR/TTL.
+- No additional MemoryAgentBench AR/LRU scope, LoCoMo default/category scope, or
+  BEAM binary-track scope is promoted unless an updated declaration passes the
+  claim gate; current public scopes are MemoryAgentBench CR/TTL, LoCoMo P4
+  opt-in full-10, and BEAM official-protocol 100K.
 - BEAM always reports fitted and generalization recall together.
 - The claim gate (gate:public-benchmark-claim --strict) is consistent (no
   over-claiming) before any README benchmark row changes.

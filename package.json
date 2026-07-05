@@ -104,6 +104,7 @@
     "example:reference-product": "bun run examples/reference-chat-product/backend.ts smoke",
     "eval:smoke": "bun run scripts/run-eval.ts --mode=smoke",
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
+    "eval:official-rescore": "bun run scripts/rescore-official-protocols.ts",
     "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",
     "eval:phase-17": "bun run scripts/run-phase-17-eval.ts",
     "eval:phase-17-live-memory": "bun run scripts/run-phase-17-live-memory.ts",

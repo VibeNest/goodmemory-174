@@ -22,8 +22,25 @@
  */
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  parseCliPositiveIntegerFlagStrict,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+
+export type OfficialRescoreBenchmark = "beam" | "locomo" | "longmemeval";
+
+export interface OfficialRescoreCliOptions {
+  benchmark: OfficialRescoreBenchmark;
+  concurrency: number;
+  limit?: number;
+  referencePath?: string;
+  reportPath?: string;
+  rootPath?: string;
+  rubricsPath?: string;
+  runId: string;
+}
 
 interface JudgeCase {
   category: string;
@@ -39,6 +56,44 @@ interface JudgeVerdict {
 }
 
 const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
+
+function parseOfficialRescoreBenchmark(
+  value: string | undefined,
+): OfficialRescoreBenchmark {
+  if (value === "beam" || value === "locomo" || value === "longmemeval") {
+    return value;
+  }
+  throw new Error("--benchmark must be longmemeval, locomo, or beam.");
+}
+
+export function parseOfficialRescoreCliOptions(
+  argv: readonly string[],
+): OfficialRescoreCliOptions {
+  const benchmark = parseOfficialRescoreBenchmark(
+    resolveCliFlagValueStrict(argv, "--benchmark"),
+  );
+  const concurrency =
+    parseCliPositiveIntegerFlagStrict(argv, "--concurrency") ?? 4;
+  const limit = parseCliPositiveIntegerFlagStrict(argv, "--limit");
+  const referencePath = resolveCliFlagValueStrict(argv, "--reference");
+  const reportPath = resolveCliFlagValueStrict(argv, "--report");
+  const rootPath = resolveCliFlagValueStrict(argv, "--root");
+  const rubricsPath = resolveCliFlagValueStrict(argv, "--rubrics");
+  const runId =
+    resolveCliPathSegmentFlagValueStrict(argv, "--run-id") ??
+    `rescore-${benchmark}-official-judge`;
+
+  return {
+    benchmark,
+    concurrency,
+    ...(limit === undefined ? {} : { limit }),
+    ...(referencePath === undefined ? {} : { referencePath }),
+    ...(reportPath === undefined ? {} : { reportPath }),
+    ...(rootPath === undefined ? {} : { rootPath }),
+    ...(rubricsPath === undefined ? {} : { rubricsPath }),
+    runId,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // LongMemEval official prompts (evaluate_qa.py get_anscheck_prompt, verbatim)
@@ -553,16 +608,8 @@ async function runBeamRubricRescore(input: {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const argv = Bun.argv;
-  const benchmark = resolveCliFlagValue(argv, "--benchmark");
-  if (!benchmark || !["longmemeval", "locomo", "beam"].includes(benchmark)) {
-    throw new Error("--benchmark must be longmemeval, locomo, or beam");
-  }
-  const runId =
-    resolveCliFlagValue(argv, "--run-id") ?? `rescore-${benchmark}-official-judge`;
-  const concurrency = Number(resolveCliFlagValue(argv, "--concurrency") ?? "4");
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
+  const options = parseOfficialRescoreCliOptions(Bun.argv);
+  const { benchmark, concurrency, limit, runId } = options;
 
   const outputDir = join(
     repoRoot,
@@ -582,10 +629,10 @@ async function main(): Promise<void> {
   if (benchmark === "longmemeval") {
     const { abstentionIds, cases: loaded } = await loadLongmemevalCases({
       referencePath:
-        resolveCliFlagValue(argv, "--reference") ??
+        options.referencePath ??
         `${process.env.HOME}/.goodmemory-longmemeval/longmemeval_s.json`,
       reportPath:
-        resolveCliFlagValue(argv, "--report") ??
+        options.reportPath ??
         join(
           repoRoot,
           "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json",
@@ -600,13 +647,12 @@ async function main(): Promise<void> {
   } else if (benchmark === "locomo") {
     cases = await loadLocomoCases({
       reportPath:
-        resolveCliFlagValue(argv, "--report") ??
+        options.reportPath ??
         join(
           repoRoot,
           "reports/eval/research/phase-65/locomo/run-p4-full10-union16-ext-live/union-live-report.json",
         ),
-      rootPath:
-        resolveCliFlagValue(argv, "--root") ?? "/private/tmp/LOCOMO-full10/cases.json",
+      rootPath: options.rootPath ?? "/private/tmp/LOCOMO-full10/cases.json",
     });
     judgePrompt = (c) => ({
       maxTokens: 300,
@@ -623,13 +669,13 @@ async function main(): Promise<void> {
       outputDir,
       progressPath,
       reportPath:
-        resolveCliFlagValue(argv, "--report") ??
+        options.reportPath ??
         join(
           repoRoot,
           "reports/eval/research/phase-63/beam/run-p5-beam-closure-rules-abstfmt-gpt54judge/live-slice-report.json",
         ),
       rubricsPath:
-        resolveCliFlagValue(argv, "--rubrics") ??
+        options.rubricsPath ??
         `${process.env.HOME}/.goodmemory-beam/rubrics-by-question-id.json`,
       runId,
     });
@@ -732,4 +778,6 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(summary, null, 2));
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

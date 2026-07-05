@@ -494,6 +494,61 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     ]);
   });
 
+  it("routes parenthetical gold rationales to the rationale-bearing queue", () => {
+    const cases = [
+      question({
+        answer: "Nintendo Switch",
+        gold: "Nintendo Switch (the console Nate plays Xenoblade 2 on)",
+        questionId: "q-parenthetical-rationale",
+      }),
+    ];
+    const candidate = candidateReport(cases);
+    const analysis = analyzeLocomoNearMissLabels({
+      benchmarkCases: [
+        {
+          caseId: "locomo-conv-1",
+          questions: [
+            {
+              adversarialAnswer: null,
+              category: "multi_hop",
+              evidenceTurnIds: ["D1:1"],
+              goldAnswer: "Nintendo Switch (the console Nate plays Xenoblade 2 on)",
+              matchMode: deriveLocomoMatchMode("multi_hop"),
+              question: "What console does Nate own?",
+              questionId: "q-parenthetical-rationale",
+            },
+          ],
+          sourceConversation: "conversation-1",
+          speakers: ["Jordan", "Riley"],
+          turns: [
+            {
+              content: "Jordan discussed a Nintendo Switch.",
+              diaId: "D1:1",
+              speaker: "Jordan",
+            },
+          ],
+        },
+      ],
+      candidate,
+      candidatePath: CANDIDATE_REPORT_PATH,
+      generatedAt: "2026-07-04T02:45:00.000Z",
+      liveDelta: liveDelta(cases.map(nearMissDelta)),
+      liveDeltaPath: LIVE_DELTA_PATH,
+      runId: "near-miss-label-analysis",
+    });
+
+    expect(analysis.rows[0]?.diagnosis).toBe("rationale-bearing-gold-answer");
+    expect(analysis.repairJobs).toEqual([
+      {
+        category: "multi_hop",
+        diagnosis: "rationale-bearing-gold-answer",
+        questionCount: 1,
+        questionIds: ["q-parenthetical-rationale"],
+        retrievalBucket: "full",
+      },
+    ]);
+  });
+
   it("loads the candidate report and benchmark source from live-delta provenance", async () => {
     const cases = [
       question({

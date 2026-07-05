@@ -2913,10 +2913,11 @@ Tasks
   gives generated answers whose tokens are all present in a longer gold
   rationale their own label-compatibility bucket; this keeps `conv-42:q60`
   (`Nintendo Switch`) from being misrouted as a numeric-format or generic
-  under-specified repair. The classifier now also treats appositive
-  explanatory gold answers (for example, a short answer followed by a comma and
-  article/relative explanatory phrase) as rationale-bearing label work instead
-  of generic under-specification. The artifact now emits full-recall `repairJobs`: a
+  under-specified repair. The classifier now also treats appositive or
+  parenthetical explanatory gold answers (for example, a short answer followed
+  by a comma or parenthetical article/relative explanatory phrase) as
+  rationale-bearing label work instead of generic under-specification. The
+  artifact now emits full-recall `repairJobs`: a
   3-row rationale-bearing-gold-answer job (`conv-26:q64`, `conv-42:q60`,
   `conv-26:q22`) and a 1-row balanced-partial-overlap job (`conv-26:q30`).
   File-loader proof
