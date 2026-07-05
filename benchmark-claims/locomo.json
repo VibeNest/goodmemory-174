@@ -24,7 +24,7 @@
   },
   "coverage": {
     "complete": true,
-    "note": "full public LoCoMo-10: 10 conversations, 1986 questions (single_hop 841, multi_hop 282, temporal 321, open_domain 96, adversarial 446); per-category accuracy 0.683/0.436/0.679/0.281/0.648, evidence recall overall 0.769"
+    "note": "full public LoCoMo-10: 10 conversations, 1986 questions (single_hop 841, multi_hop 282, temporal 321, open_domain 96, adversarial 446); per-category token-F1 accuracy 0.683/0.436/0.679/0.281/0.648, evidence recall overall 0.769. COMPARABLE-PROTOCOL TRACK 2026-07-05 (rescore of the SAME stored answers, no regeneration; scripts/rescore-official-protocols.ts, run rescore-locomo-official-judge): under the industry-comparable LLM-judge protocol (mem0ai/memory-benchmarks LoCoMo judge, no-evidence variant, categories 1-4 = the 1540-question non-adversarial convention), judged by gpt-5.4 (cross-version, same family as the gpt-5.5 answerer), J-accuracy 0.837 (1289/1540, judgeFailures 0); per category: temporal 0.882, single_hop 0.863, multi_hop 0.840, open_domain 0.448. Published references on that same judge-protocol scale: Memori 81.95, Zep 79.09, LangMem 78.05, Mem0 62.47. The deterministic token-F1 0.6117 (non-adversarial) remains the strict lower bound; the +22.5pt gap between the tracks is judge leniency (partial credit, paraphrase families, 14-day date tolerance), not answer changes."
   },
   "claimBoundary": {
     "publicClaimAllowed": true,
