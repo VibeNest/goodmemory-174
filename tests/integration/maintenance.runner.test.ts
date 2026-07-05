@@ -208,6 +208,7 @@ describe("maintenance runner", () => {
 
     const all = await runner.run(scope);
     expect(all.jobs.map((job) => job.name)).toEqual([
+      "ttlExpiry",
       "dedupe",
       "contradiction",
       "consolidation",

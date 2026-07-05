@@ -746,6 +746,11 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
     async run(
       scope: MemoryScope,
       jobs: MaintenanceJobName[] = [
+        // ttlExpiry runs first so later jobs (and the embedding rebuild) only
+        // see facts that are still valid; it is a no-op for facts without
+        // validUntil/expiresAt. qualityRepair stays opt-in: it demotes on
+        // heuristics, while ttlExpiry only honors an explicit per-fact TTL.
+        "ttlExpiry",
         "dedupe",
         "contradiction",
         "consolidation",

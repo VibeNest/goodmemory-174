@@ -9,8 +9,9 @@ import { createFactMemory, type FactMemory } from "../../src/domain/records";
 
 // The ttlExpiry maintenance job demotes facts whose validity window closed or TTL
 // elapsed to "inactive", so recall (which only surfaces active facts) stops
-// returning them. It is opt-in (not in the default maintenance job set) and a
-// no-op for facts without validUntil/expiresAt.
+// returning them. It runs in the default maintenance job set — recall does not
+// check expiry at read time, so a default run must honor an explicitly set
+// validUntil/expiresAt — and it is a no-op for facts without those fields.
 describe("ttlExpiry maintenance job", () => {
   const scope = { userId: "u-1", workspaceId: "workspace-a" };
 
@@ -78,6 +79,26 @@ describe("ttlExpiry maintenance job", () => {
     expect(ids).toContain("fresh");
 
     const persisted = (await documentStore.get("facts", "expired")) as
+      | FactMemory
+      | undefined;
+    expect(persisted?.lifecycle).toBe("inactive");
+    expect(persisted?.demotionReason).toBe("ttl_expired");
+  });
+
+  it("demotes expired facts in the default maintenance job set", async () => {
+    const { documentStore, makeFact, memory } = buildMemory();
+    await documentStore.set(
+      "facts",
+      "expired-default",
+      makeFact("expired-default", "alpha topic old deadline", {
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      }),
+    );
+
+    // No explicit jobs: the default set must honor the fact's own TTL.
+    await memory.runMaintenance({ scope });
+
+    const persisted = (await documentStore.get("facts", "expired-default")) as
       | FactMemory
       | undefined;
     expect(persisted?.lifecycle).toBe("inactive");
