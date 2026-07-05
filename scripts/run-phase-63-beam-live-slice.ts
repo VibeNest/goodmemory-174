@@ -238,6 +238,15 @@ export interface Phase63BeamLiveSliceReport {
   recallReportPath?: string;
   runDirectory: string;
   runId: string;
+  selection?: {
+    answerGapBuckets: readonly string[] | null;
+    answerGapReportPath: string | null;
+    answerGapSourceCoverageStatuses: readonly string[] | null;
+    caseIds: readonly string[] | null;
+    caseSelection: Phase63BeamLiveCaseSelection | null;
+    limit: number | null;
+    recallReportPath: string | null;
+  };
   source: {
     benchmark: "BEAM";
     license: "cc-by-sa-4.0 dataset; paper external";
@@ -1561,6 +1570,33 @@ function summarizeLiveCases(input: {
   };
 }
 
+function buildPhase63BeamLiveSliceSelection(
+  options: Pick<
+    Phase63BeamLiveSliceCliOptions,
+    | "answerGapBuckets"
+    | "answerGapReportPath"
+    | "answerGapSourceCoverageStatuses"
+    | "caseIds"
+    | "caseSelection"
+    | "limit"
+    | "recallReportPath"
+  >,
+): Phase63BeamLiveSliceReport["selection"] {
+  return {
+    answerGapBuckets:
+      options.answerGapBuckets === undefined ? null : [...options.answerGapBuckets],
+    answerGapReportPath: options.answerGapReportPath ?? null,
+    answerGapSourceCoverageStatuses:
+      options.answerGapSourceCoverageStatuses === undefined
+        ? null
+        : [...options.answerGapSourceCoverageStatuses],
+    caseIds: options.caseIds === undefined ? null : [...options.caseIds],
+    caseSelection: options.caseSelection ?? null,
+    limit: options.limit ?? null,
+    recallReportPath: options.recallReportPath ?? null,
+  };
+}
+
 function buildExecutionFailure(input: {
   conversationId: string;
   error: unknown;
@@ -1944,6 +1980,7 @@ export async function runPhase63BeamLiveSlice(
     ...(options.recallReportPath ? { recallReportPath: options.recallReportPath } : {}),
     runDirectory,
     runId,
+    selection: buildPhase63BeamLiveSliceSelection(options),
     source: {
       benchmark: "BEAM",
       license: "cc-by-sa-4.0 dataset; paper external",

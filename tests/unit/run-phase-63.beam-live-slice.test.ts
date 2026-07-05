@@ -575,6 +575,15 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
       "beam-live-q2",
     ]);
+    expect(report.selection).toEqual({
+      answerGapBuckets: ["preference_following"],
+      answerGapReportPath: "/tmp/answer-gap.json",
+      answerGapSourceCoverageStatuses: null,
+      caseIds: null,
+      caseSelection: null,
+      limit: null,
+      recallReportPath: null,
+    });
     expect(report.summary.caseCountsByQuestionType).toEqual({
       preference_following: 1,
     });
@@ -635,6 +644,15 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
       "beam-live-q2",
     ]);
+    expect(report.selection).toEqual({
+      answerGapBuckets: ["preference_following"],
+      answerGapReportPath: "/tmp/answer-gap.json",
+      answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
+      caseIds: null,
+      caseSelection: null,
+      limit: null,
+      recallReportPath: null,
+    });
   });
 
   it("rejects answer-gap filters that match no live cases instead of falling back to the default slice", async () => {
