@@ -21,6 +21,7 @@ import {
   assertLocomoReportHasCompleteLiveAnswers,
   assertLocomoReportHasNoExecutionFailures,
   assertLocomoReportInputsHaveDistinctPaths,
+  assertLocomoReportInputsHaveDistinctRunIds,
   assertLocomoReportMetadataCompatible,
   assertLocomoReportQuestionCountMatchesCases,
   LOCOMO_LIVE_DELTA_INVARIANT_METADATA_FIELDS,
@@ -243,10 +244,25 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     secondFlag: "--candidate-report",
     secondValue: candidateReportPath,
   });
+  const outputPath = resolveCliFlagValueStrict(argv, "--output-path");
+  if (outputPath) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--baseline-report",
+      secondValue: baselineReportPath,
+    });
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--candidate-report",
+      secondValue: candidateReportPath,
+    });
+  }
   return {
     baselineReportPath,
     candidateReportPath,
-    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    outputPath,
     runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
 }
@@ -767,6 +783,7 @@ function validateCompatibleReports(input: {
 }): void {
   const { baseline, candidate } = input;
   assertLocomoReportInputsHaveDistinctPaths(input);
+  assertLocomoReportInputsHaveDistinctRunIds(input);
   if (baseline.report.mode !== "live-answer") {
     throw new Error(
       `Baseline report ${baseline.path} must be a live-answer report.`,

@@ -23,13 +23,20 @@ CLI Evidence Guard (2026-07-04)
 -------------------------------
 
 LongMemEval eval/full500/summary/retry entrypoints reject duplicate boolean
-mode flags before report generation or batch planning: `--all-cases`,
+mode flags and duplicate scalar source/output/run/budget selectors before report
+generation or batch planning. Covered booleans include `--all-cases`,
 `--continue-on-execution-failure`, `--resume-existing-shards`,
 `--allow-duplicate-case-coverage`, `--dry-run`, and
-`--resume-existing-batches` cannot be specified more than once. This protects
-accepted and public-claim source evidence from repeated-switch ambiguity; it
-does not change the 0.720 judge-free public claim or the older with-judge
-internal checkpoint.
+`--resume-existing-batches`. Covered scalar selectors include `--benchmark-root`,
+`--mode`, `--limit`, `--max-concurrency`, `--offset`, `--output-dir`,
+`--run-id`, `--case-concurrency`, `--shard-concurrency`, `--shard-size`,
+`--shards`, `--expected-total-cases`, `--batch-concurrency`,
+`--batch-delay-ms`, `--chunk-size`, `--max-batches`, `--merged-run-id`, and
+`--retry-run-id`; repeated multi-value selectors such as `--profile`,
+`--case-id`, `--question-type`, `--shard-run-id`, and `--source-run-id` remain
+repeatable. This protects accepted and public-claim source evidence from
+repeated-switch ambiguity; it does not change the 0.720 judge-free public claim
+or the older with-judge internal checkpoint.
 
 
 Driver

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
 import {
   runPhase62LongMemEval,
   type Phase62EvalDependencies,
@@ -96,28 +96,31 @@ export function parsePhase62Full500Options(
   argv: readonly string[],
 ): Phase62Full500Options {
   return {
-    benchmarkRoot: resolveCliFlagValue(argv, "--benchmark-root"),
+    benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
     caseConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--case-concurrency"),
+      resolveCliFlagValueStrict(argv, "--case-concurrency"),
       "--case-concurrency",
     ),
     continueOnExecutionFailure: parseBooleanFlag(
       argv,
       "--continue-on-execution-failure",
     ),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     resumeExistingShards: parseBooleanFlag(argv, "--resume-existing-shards"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
     shardConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--shard-concurrency"),
+      resolveCliFlagValueStrict(argv, "--shard-concurrency"),
       "--shard-concurrency",
     ),
     shardSize: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--shard-size"),
+      resolveCliFlagValueStrict(argv, "--shard-size"),
       "--shard-size",
     ),
-    shards: parsePositiveInteger(resolveCliFlagValue(argv, "--shards"), "--shards"),
+    shards: parsePositiveInteger(
+      resolveCliFlagValueStrict(argv, "--shards"),
+      "--shards",
+    ),
   };
 }
 

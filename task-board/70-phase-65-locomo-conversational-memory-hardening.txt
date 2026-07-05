@@ -4,15 +4,20 @@ Phase 65: LoCoMo Very-Long-Term Conversational-Memory Hardening
 Status
 ------
 
-[BRING-UP DONE] Phase 65 LoCoMo is the fourth and final leg of the Sequential
+[ACTIVE, PARTIAL] Phase 65 LoCoMo is the fourth and final leg of the Sequential
 Benchmark Hardening Plan (LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo).
 Bring-up T001-T004 is complete and on main: source intake, contract + synthetic
-smoke fixtures, smoke adapter, and tests, all green. P65-T005 is now COMPLETE:
+smoke fixtures, smoke adapter, and tests, all green. P65-T005 is complete:
 the live answer generator + evidence-pack path are wired (commit 3f9cf5e) and a
-reproducible non-vendored external-root prep landed (commit ed08dd9). A
-representative full-conversation-1 live run measured the real remaining
-bottleneck as BASE RETRIEVAL, not answer organization (see P65-T005 below).
-This is adapter / live-path / prep complete, NOT LoCoMo performance closure.
+reproducible non-vendored external-root prep landed (commit ed08dd9). The P4
+full-10 opt-in union/extraction profile is publicly claimable through
+`benchmark-claims/locomo.json` and is README-promoted, but this board still owns
+the active default-profile / category-quality hardening lane. A representative
+full-conversation-1 live run
+measured the early remaining bottleneck as BASE RETRIEVAL, not answer
+organization (see P65-T005 below). Later P4 claimability does not make the
+older adapter/live-path/prep evidence a default-profile promotion or broad
+category closure.
 
 [RETRIEVAL RESEARCH BOUNDARY UPDATED] Phase 65 LoCoMo retrieval research is no
 longer blocked on finding an embedding endpoint. Representative conv-1 raw
@@ -661,14 +666,18 @@ Tasks
 [DONE] P65-T004d Candidate-budget delta analyzer.
   `analyze:phase-65-locomo-budget-delta` compares two smoke reports and reports
   recall delta, fully-retrieved delta, added noise, and recall gained per 100
-  added noise turns. Unit coverage lives in
+  added noise turns. It now rejects same-`runId` baseline/candidate report
+  pairs and explicit output paths that would overwrite either input report
+  before writing derived evidence. Unit coverage lives in
   tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
 
 [DONE] P65-T004e Candidate-admission slice selector.
   `analyze:phase-65-locomo-candidate-admission-slice` compares paired baseline
   and candidate smoke reports at question granularity, emits deterministic
   repair queues, and preserves turn-id-level evidence/noise deltas for targeted
-  admission work. Unit coverage lives in
+  admission work. It now rejects same-`runId` baseline/candidate report pairs
+  and explicit output paths that would overwrite either input report before
+  emitting repair manifests. Unit coverage lives in
   tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
 
 [DONE] P65-T004f Manifest-driven targeted rerun input.
@@ -738,6 +747,9 @@ Tasks
   answer-context-mode changes, or residual live-answer drift when none of those
   observable drivers changed. This keeps multi_hop/temporal manifest replays and
   gold-evidence-only comparisons from being over-attributed to prompt policy.
+  It now rejects same-`runId` baseline/candidate report pairs before writing
+  paired-delta lineage, and rejects explicit output paths that would overwrite
+  either input report.
   Unit coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
 
 [DONE] P65-T004m Live-delta reanswer queues.
@@ -2587,6 +2599,50 @@ Tasks
   integrity hardening only; it does not change LoCoMo retrieval, answer scores,
   default status, or public-claim boundaries. Unit coverage lives in
   tests/unit/run-phase-65.locomo-probe-cli.test.ts.
+
+[DONE] P65-T004gj Near-miss label output/source path guard.
+  `analyze:phase-65-locomo-near-miss-labels` now rejects output paths that
+  resolve to its input live-delta report before reading any report, and rejects
+  output paths that resolve to the live-delta `candidateReport.path` before
+  reading that candidate source report. This prevents token-F1 near-miss label
+  diagnostics from overwriting source evidence while preserving the existing
+  live-delta/candidate provenance join. This is CLI evidence integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
+
+[DONE] P65-T004gk Multi-report post-processor output/source path guard.
+  `summarize:phase-65-locomo-categories`,
+  `analyze:phase-65-locomo-category-gaps`, and
+  `analyze:phase-65-locomo-answer-policy-slice` now reject output paths that
+  resolve to any input `--report` before reading reports. This prevents
+  category matrices, gap diagnostics, and answer-policy manifests from
+  overwriting source smoke reports while preserving the existing duplicate
+  report-list guard. This is CLI evidence integrity hardening only; it does not
+  change LoCoMo retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts,
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, and
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004gl Retrieval-gap output/source path guard.
+  `analyze:phase-65-locomo-retrieval-gap` now rejects output paths that resolve
+  to either its input smoke report or resolved cases file before reading inputs.
+  This prevents retrieval-gap diagnostics from overwriting source smoke reports
+  or external-root cases while preserving the existing report/cases join
+  validation. This is CLI evidence integrity hardening only; it does not change
+  LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
+  Unit coverage lives in tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
+
+[DONE] P65-T004gm Captioned-root source/output root guard.
+  `prepare:phase-65-locomo-captioned` now rejects output roots that resolve to
+  the input source root before reading source cases. This prevents captioned-root
+  fixture prep from overwriting the normalized external LoCoMo root while
+  preserving the existing leakage boundary: the captioner sees dialog turns only,
+  never questions, gold answers, or evidence labels. This is fixture-prep evidence
+  integrity hardening only; it does not change LoCoMo retrieval, answer scores,
+  default status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/prepare-phase-65.locomo-captioned-root.test.ts.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

@@ -56,6 +56,30 @@ describe("run-phase-62 full-500 runner", () => {
     }
   });
 
+  it("rejects duplicate scalar source and output flags before running full-500 shards", () => {
+    for (const flag of [
+      "--benchmark-root",
+      "--case-concurrency",
+      "--output-dir",
+      "--run-id",
+      "--shard-concurrency",
+      "--shard-size",
+      "--shards",
+    ]) {
+      expect(() =>
+        parsePhase62Full500Options([
+          "bun",
+          "run",
+          "scripts/run-phase-62-full500.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("builds ten fixed-size shard options by offset", () => {
     expect(
       buildPhase62Full500ShardOptions({

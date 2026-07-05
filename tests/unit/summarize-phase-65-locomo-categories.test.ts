@@ -559,6 +559,29 @@ describe("phase-65 LoCoMo category summarizer", () => {
     );
   });
 
+  it("rejects output paths that overwrite a source report before reading summary inputs", async () => {
+    await expect(
+      runLocomoCategorySummary(
+        [
+          "bun",
+          "run",
+          "scripts/summarize-phase-65-locomo-categories.ts",
+          "--report",
+          "/reports/single_hop/smoke-report.json",
+          "--output-path",
+          "/reports/single_hop/../single_hop/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report must refer to different paths",
+    );
+  });
+
   it("rejects missing string flag values before reading summary inputs", async () => {
     const noReads = {
       readFile: async (_path: string): Promise<string> => {

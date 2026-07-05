@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { assertDistinctCliPathValues, resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import type {
   Phase63RecallDiagnosticBucketSummary,
@@ -351,6 +351,20 @@ export async function runPhase64ReadinessAnalysis(
     );
   }
 
+  const root = resolveRepoRootFromScriptUrl(import.meta.url);
+  const outputPath = options.outputPath ??
+    join(
+      options.outputDir ?? resolvePhase64PrepOutputDir(root),
+      options.runId ?? PHASE64_READINESS_RUN_ID,
+      "phase-64-readiness.json",
+    );
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--phase63-analysis-path",
+    secondValue: phase63AnalysisPath,
+  });
+
   const analysis = JSON.parse(
     await readFileImpl(phase63AnalysisPath),
   ) as Phase63RecallDiagnosticWorkbenchAnalysis;
@@ -359,13 +373,6 @@ export async function runPhase64ReadinessAnalysis(
     generatedAt: now().toISOString(),
     runId: options.runId,
   });
-  const root = resolveRepoRootFromScriptUrl(import.meta.url);
-  const outputPath = options.outputPath ??
-    join(
-      options.outputDir ?? resolvePhase64PrepOutputDir(root),
-      report.runId,
-      "phase-64-readiness.json",
-    );
 
   await mkdirImpl(dirname(outputPath), { recursive: true });
   await writeFileImpl(outputPath, `${JSON.stringify(report, null, 2)}\n`);

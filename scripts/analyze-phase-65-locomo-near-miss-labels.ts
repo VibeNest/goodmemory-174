@@ -19,7 +19,10 @@ import type {
   LocomoLiveDeltaAnalysis,
   LocomoLiveQuestionDelta,
 } from "./analyze-phase-65-locomo-live-delta";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   assertLocomoReportHasCompleteLiveAnswers,
   assertLocomoReportHasNoExecutionFailures,
@@ -238,6 +241,19 @@ function defaultOutputPath(liveDeltaPath: string, runId: string): string {
     runId,
     LOCOMO_NEAR_MISS_LABEL_ANALYSIS_FILE_NAME,
   );
+}
+
+function assertOutputPathDoesNotOverwriteSource(input: {
+  outputPath: string;
+  sourceFlag: string;
+  sourcePath: string;
+}): void {
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: input.outputPath,
+    secondFlag: input.sourceFlag,
+    secondValue: input.sourcePath,
+  });
 }
 
 function emptyDiagnosisCounts(): Record<LocomoNearMissDiagnosis, number> {
@@ -721,11 +737,21 @@ export async function runLocomoNearMissLabelAnalysis(
   const runId = options.runId ?? "locomo-near-miss-label-analysis-current";
   const outputPath =
     options.outputPath ?? defaultOutputPath(options.liveDeltaPath, runId);
+  assertOutputPathDoesNotOverwriteSource({
+    outputPath,
+    sourceFlag: "--live-delta",
+    sourcePath: options.liveDeltaPath,
+  });
 
   const liveDeltaParsed = JSON.parse(
     await readFileImpl(options.liveDeltaPath),
   ) as unknown;
   assertLiveDeltaAnalysis(liveDeltaParsed, options.liveDeltaPath);
+  assertOutputPathDoesNotOverwriteSource({
+    outputPath,
+    sourceFlag: "live-delta candidateReport.path",
+    sourcePath: liveDeltaParsed.candidateReport.path,
+  });
 
   const candidateParsed = JSON.parse(
     await readFileImpl(liveDeltaParsed.candidateReport.path),

@@ -27,6 +27,22 @@ export function assertLocomoReportInputsHaveDistinctPaths(input: {
   );
 }
 
+export function assertLocomoReportInputsHaveDistinctRunIds(input: {
+  baseline: LocomoReportInput;
+  candidate: LocomoReportInput;
+}): void {
+  const baselineRunId = input.baseline.report.runId;
+  const candidateRunId = input.candidate.report.runId;
+  if (baselineRunId !== candidateRunId) {
+    return;
+  }
+
+  throw new Error(
+    "baseline and candidate reports must use different runIds; " +
+      `both declare ${candidateRunId}.`,
+  );
+}
+
 export function assertLocomoReportInputsHaveUniquePaths(
   reports: readonly LocomoReportInput[],
 ): void {

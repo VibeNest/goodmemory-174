@@ -379,6 +379,52 @@ describe("phase-65 LoCoMo candidate-admission selector", () => {
     ).toThrow("baseline and candidate reports must refer to different paths");
   });
 
+  it("rejects candidate-admission comparisons that reuse the same run id", () => {
+    const baseline = report({
+      cases: [
+        question({
+          category: "open_domain",
+          evidenceRecall: 0,
+          goldEvidenceFullyRetrieved: false,
+          missingEvidenceTurnIds: ["D1:1"],
+          questionId: "q1",
+          retrievedTurnIds: [],
+        }),
+      ],
+      maxAdditions: 4,
+      runId: "shared-candidate-admission-run",
+      topK: 16,
+    });
+    const candidate = report({
+      cases: [
+        question({
+          category: "open_domain",
+          evidenceRecall: 1,
+          goldEvidenceFullyRetrieved: true,
+          questionId: "q1",
+          retrievedTurnIds: ["D1:1"],
+        }),
+      ],
+      maxAdditions: 8,
+      runId: "shared-candidate-admission-run",
+      topK: 32,
+    });
+
+    expect(() =>
+      selectLocomoCandidateAdmissionSlice({
+        baseline: {
+          path: "/reports/baseline/smoke-report.json",
+          report: baseline,
+        },
+        candidate: {
+          path: "/reports/candidate/smoke-report.json",
+          report: candidate,
+        },
+        perBucket: 1,
+      }),
+    ).toThrow("baseline and candidate reports must use different runIds");
+  });
+
   it("parses report flags and writes a candidate-admission artifact", async () => {
     const baselinePath = "/reports/baseline/smoke-report.json";
     const candidatePath = "/reports/candidate/smoke-report.json";
@@ -524,6 +570,31 @@ describe("phase-65 LoCoMo candidate-admission selector", () => {
       ),
     ).rejects.toThrow(
       "--baseline-report and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that would overwrite input reports before reading inputs", async () => {
+    await expect(
+      runLocomoCandidateAdmissionSliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-candidate-admission-slice.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/smoke-report.json",
+          "--output-path",
+          "/reports/candidate/../candidate/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --candidate-report must refer to different paths",
     );
   });
 

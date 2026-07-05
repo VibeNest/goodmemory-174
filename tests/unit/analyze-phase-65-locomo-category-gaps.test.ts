@@ -3767,6 +3767,29 @@ describe("phase-65 LoCoMo category gap analyzer", () => {
     );
   });
 
+  it("rejects output paths that overwrite a source report before reading gap inputs", async () => {
+    await expect(
+      runLocomoCategoryGapAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-category-gaps.ts",
+          "--report",
+          "/reports/single_hop/smoke-report.json",
+          "--output-path",
+          "/reports/single_hop/../single_hop/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report must refer to different paths",
+    );
+  });
+
   it("rejects missing string flag values before reading gap inputs", async () => {
     const noReads = {
       readFile: async (_path: string): Promise<string> => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   LONGMEMEVAL_DETERMINISTIC_METHODS,
+  parseDeterministicSubsetCliOptions,
   renderDeterministicSubsetMarkdown,
   summarizeLongMemEvalDeterministicSubset,
   summarizeProfileDeterministicSubset,
@@ -86,6 +87,28 @@ function makeReport(
 }
 
 describe("LongMemEval deterministic-subset analyzer", () => {
+  it("rejects duplicate scalar claim analyzer flags before reading reports", () => {
+    for (const flag of [
+      "--baseline-profile",
+      "--claim-profile",
+      "--output-dir",
+      "--report-path",
+      "--run-id",
+    ]) {
+      expect(() =>
+        parseDeterministicSubsetCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-deterministic-subset.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("excludes semantic_judge from the deterministic methods", () => {
     expect(LONGMEMEVAL_DETERMINISTIC_METHODS).not.toContain("semantic_judge");
     expect(LONGMEMEVAL_DETERMINISTIC_METHODS).not.toContain("mismatch");

@@ -1004,6 +1004,9 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.["eval:phase-63-recall-diagnostic"]).toBe(
       "bun run scripts/run-phase-63-beam-recall-diagnostic.ts",
     );
+    expect(pkg.scripts?.["eval:phase-63-general-levers"]).toBe(
+      "bun run scripts/measure-beam-general-levers.ts",
+    );
     expect(pkg.scripts?.["eval:phase-40-cross-consumer"]).toBe(
       "bun run scripts/run-phase-40-cross-consumer-smoke.ts",
     );
@@ -1286,6 +1289,11 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory inspect");
     expect(readme).toContain("goodmemory setup");
     expect(readme).toContain("goodmemory status");
+    expect(readme).toContain("| LoCoMo (full 10 conversations) | answer accuracy");
+    expect(readme).toContain("**0.6198** overall (1986 questions)");
+    expect(readme).toContain("The LoCoMo claim is scored by deterministic token-F1");
+    expect(readme).toContain("CC BY-NC 4.0 (non-commercial scope)");
+    expect(readme).not.toContain("| LoCoMo | representative conv-1 live run 0.020");
     expect(readme).toContain("## Choose Your Integration Path");
     expect(readme).toContain("GoodMemory has three primary product entry points");
     expect(readme).toContain("They are not the only APIs");
@@ -1460,6 +1468,11 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(zhReadme).toContain("goodmemory setup");
     expect(zhReadme).toContain("goodmemory status");
+    expect(zhReadme).toContain("| LoCoMo（完整 10 会话） | 回答准确率");
+    expect(zhReadme).toContain("**0.6198** 整体（1986 题）");
+    expect(zhReadme).toContain("LoCoMo 声明以确定性 token-F1 评分");
+    expect(zhReadme).toContain("CC BY-NC 4.0（非商用范围）");
+    expect(zhReadme).not.toContain("| LoCoMo | 代表性 conv-1 live 运行 0.020");
     expect(zhReadme).toContain("## 选择你的接入路径");
     expect(zhReadme).toContain("GoodMemory 有三类主要产品入口");
     expect(zhReadme).toContain("它不是只有这些 API");
@@ -2597,6 +2610,19 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("task-board/00-README.txt");
     expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
     expect(currentStatus).toContain(
+      "README-promoted public rows are LongMemEval",
+    );
+    expect(currentStatus).toContain(
+      "LoCoMo (P4 full-10 opt-in union/extraction profile 0.6198 vs no-memory 0.2276",
+    );
+    expect(currentStatus).toContain(
+      "LoCoMo (Phase 65) has a README-promoted P4 full-10 opt-in profile",
+    );
+    expect(currentStatus).toContain(
+      "The broader active hardening lane is still not default-profile promotion or category-quality closure.",
+    );
+    expect(currentStatus).not.toContain("it is not yet promoted to README");
+    expect(currentStatus).toContain(
       "docs/archive/quality-gates/GoodMemory-Phase-29-Quality-Gate.md",
     );
     expect(currentStatus).toContain(
@@ -2913,12 +2939,31 @@ describe("release metadata and docs", () => {
       join(import.meta.dir, "../../task-board/00-README.txt"),
       "utf8",
     );
+    const phase63Board = await readFile(
+      join(import.meta.dir, "../../task-board/68-phase-63-beam-scale-and-noise-hardening.txt"),
+      "utf8",
+    );
+    const phase63Breakdown = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt",
+      ),
+      "utf8",
+    );
 
     expect(taskBoard.split("\n").length).toBeLessThanOrEqual(140);
     expect(taskBoard).toContain("eval:live-memory");
     expect(taskBoard).toContain("auto-storage live memory");
     expect(taskBoard).toContain("eval:live-provider-memory");
     expect(taskBoard).toContain("reports/eval/live-memory/phase-*");
+    expect(taskBoard).toContain("eval:phase-63-general-levers");
+    expect(taskBoard).toContain("measures generalization rather than fitted recall");
+    expect(phase63Board).toContain("eval:phase-63-general-levers");
+    expect(phase63Board).toContain("generalization floor, not the fitted");
+    expect(phase63Board).toContain("--keep-gates");
+    expect(phase63Breakdown).toContain("eval:phase-63-general-levers");
+    expect(phase63Breakdown).toContain("generalization floor, not the fitted");
+    expect(phase63Breakdown).toContain("--keep-gates");
     expect(taskBoard).toContain("docs/README.md");
     expect(taskBoard).toContain("docs/GoodMemory-PRD.md");
     expect(taskBoard).toContain("65-phase-60-implicitmembench-overall-priming-protocol.txt");
@@ -2937,7 +2982,8 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
     expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
     expect(taskBoard).toContain("promoted public claim scoped only to CR 0.959 and TTL 0.767");
-    expect(taskBoard).toContain("Phase 65 LoCoMo is banked as retrieval-boundary evidence");
+    expect(taskBoard).toContain("Phase 65 LoCoMo has a README-promoted P4 full-10 opt-in union/extraction profile");
+    expect(taskBoard).toContain("but the active hardening lane is still open for default-profile promotion");
     expect(taskBoard).toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
     expect(taskBoard).toContain("Current Sequential benchmark-hardening entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
     expect(taskBoard).toContain("Public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");

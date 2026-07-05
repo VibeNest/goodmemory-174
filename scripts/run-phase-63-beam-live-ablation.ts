@@ -2,7 +2,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BeamCase, BeamChatTurn, BeamProfile } from "../src/eval/beam";
 import { normalizeBeamProfileList } from "../src/eval/beam";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
@@ -336,6 +339,15 @@ export async function runPhase63BeamLiveAblation(
   const runId = options.runId ?? `run-phase63-beam-ablation-${mode}-current`;
   const outputDir = options.outputDir ?? resolvePhase63OutputDir(root);
   const runDirectory = join(outputDir, runId);
+  const outputPath = join(runDirectory, "ablation-report.json");
+  if (options.liveReportPath) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--live-report",
+      secondValue: options.liveReportPath,
+    });
+  }
 
   const rows = await readPhase63BeamRows({
     benchmarkRoot,
@@ -495,7 +507,7 @@ export async function runPhase63BeamLiveAblation(
 
   await mkdirImpl(runDirectory, { recursive: true });
   await writeFileImpl(
-    join(runDirectory, "ablation-report.json"),
+    outputPath,
     `${JSON.stringify(report, null, 2)}\n`,
   );
   return report;

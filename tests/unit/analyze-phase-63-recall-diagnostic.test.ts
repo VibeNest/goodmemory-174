@@ -266,6 +266,43 @@ describe("analyze phase-63 recall diagnostic", () => {
     }
   });
 
+  it("rejects output paths that overwrite the analyzed report before reading inputs", async () => {
+    await expect(
+      runPhase63RecallDiagnosticAnalysis(
+        {
+          outputPath: "/tmp/after/recall-diagnostic.json",
+          reportPath: "/tmp/after/recall-diagnostic.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read recall report");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report-path must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that overwrite the baseline report before reading inputs", async () => {
+    await expect(
+      runPhase63RecallDiagnosticAnalysis(
+        {
+          baselineReportPath: "/tmp/before/recall-diagnostic.json",
+          outputPath: "/tmp/before/recall-diagnostic.json",
+          reportPath: "/tmp/after/recall-diagnostic.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read recall reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --baseline-report-path must refer to different paths",
+    );
+  });
+
   it("summarizes bucket failures and deltas from recall diagnostic reports", () => {
     const baselineReport = buildReport({
       cases: [

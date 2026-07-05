@@ -28,6 +28,10 @@ Accepted Evidence
   `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`,
   evidence-chat recall 0.9620612564274538, missed 20/355,
   wrong-recall/noise 167/400, zero-recall 0.
+- General-lever recall remeasure:
+  `eval:phase-63-general-levers` disables registered narrow gates by default
+  and measures the BEAM generalization floor, not the fitted retained-recall
+  path; use `--keep-gates` only for an explicit fitted-path comparison.
 - Latest accepted measured full-run checkpoint:
   `run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current`,
   278/400 answer accuracy (0.695), wrong-answer 122/400,
@@ -81,7 +85,17 @@ Current Task Queue
    `--scale` must stay single-valued while diagnostic `--profile` remains
    repeatable; analyzer scalar flags such as `--report-path`,
    `--baseline-report-path`, `--benchmark-root`, `--output-path`, `--run-id`,
-   and `--source-turn-limit` must fail fast when duplicated.
+   and `--source-turn-limit` must fail fast when duplicated. Analyzer output
+   paths must also stay distinct from both the analyzed report and baseline
+   report before any input is read.
+10. Keep the initial BEAM report analyzer output distinct from its source report:
+    `analyze:phase-63-beam` must reject an output path that resolves to
+    `--report-path` before reading the source report.
+11. Keep answer-gap and ablation output reports distinct from source live
+    reports: `scripts/analyze-phase-63-live-answer-gap.ts` and
+    `scripts/run-phase-63-beam-live-ablation.ts` must reject any output report
+    path that resolves to `--live-report` before reading benchmark or live
+    sources.
 
 Acceptance Checks
 -----------------
@@ -95,6 +109,8 @@ Acceptance Checks
   or the wrong answer-gap queue.
 - Duplicate live-slice / live-closure scalar source and output flags must fail
   fast before report generation.
+- Answer-gap analyzer and ablation output report paths must fail fast when they
+  would overwrite the input live report.
 - Documentation-only changes require `git diff --check`.
 - Future evidence-pack code changes require focused unit tests, `bun run
   typecheck`, and `git diff --check`.
@@ -104,6 +120,10 @@ Acceptance Checks
 - Recall diagnostic runner and analyzer CLI changes require focused parser
   coverage in `tests/unit/run-phase-63.beam-recall-diagnostic.test.ts` and
   `tests/unit/analyze-phase-63-recall-diagnostic.test.ts`.
+- Recall diagnostic analyzer output report paths must fail fast when they would
+  overwrite either source recall report.
+- Initial BEAM report analyzer output paths must fail fast when they would
+  overwrite the source report.
 - Future live measured runs require a full 400-case run, a same-profile zero-failure
   recall diagnostic, `executionFailures: 0`, and an accepted closure gate.
 
@@ -114,6 +134,7 @@ Commands
 bun test tests/unit/answer-evidence-pack.test.ts tests/unit/run-phase-63.beam-live-slice.test.ts tests/unit/analyze-phase-63-live-answer-gap.test.ts tests/unit/run-phase-63.beam-live-ablation.test.ts --timeout 60000
 bun run typecheck
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
+bun run eval:phase-63-general-levers -- --benchmark-root /private/tmp/BEAM --arm <floor|bm25|union16|bm25-union16> --output-dir <reports-dir> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
 bun run scripts/analyze-phase-63-live-answer-gap.ts --benchmark-root /private/tmp/BEAM --live-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current/live-slice-report.json --run-id run-phase63-beam-live-answer-gap-answer-hardening-current
 bun run scripts/run-phase-63-beam-live-ablation.ts --benchmark-root /private/tmp/BEAM --live-report <live-slice-report.json> --mode <gold-evidence-only|retrieved-hit-only|retrieved-raw-uncompressed|full-context|gold-evidence-pack|retrieved-evidence-pack> --run-id <run-id>

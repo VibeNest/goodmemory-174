@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   LONGMEMEVAL_FULL_DATA_FILES,
@@ -256,17 +256,17 @@ export function parsePhase62CliOptions(
   return {
     allCases: parseFlagPresence(argv, "--all-cases"),
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_LONGMEMEVAL_ROOT,
     caseIds: parseRepeatedFlag(argv, "--case-id"),
-    limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
-    maxConcurrency: parseLimit(resolveCliFlagValue(argv, "--max-concurrency")),
-    mode: parseMode(resolveCliFlagValue(argv, "--mode")),
-    offset: parseOffset(resolveCliFlagValue(argv, "--offset")),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
+    maxConcurrency: parseLimit(resolveCliFlagValueStrict(argv, "--max-concurrency")),
+    mode: parseMode(resolveCliFlagValueStrict(argv, "--mode")),
+    offset: parseOffset(resolveCliFlagValueStrict(argv, "--offset")),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     questionTypes: parseRepeatedFlag(argv, "--question-type"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
 }
 

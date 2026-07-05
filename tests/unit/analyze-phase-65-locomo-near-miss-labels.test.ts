@@ -429,4 +429,59 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     expect(result.analysis.overall.nearMissCount).toBe(1);
     expect(JSON.parse(writes.get(result.outputPath) ?? "{}").rows).toHaveLength(1);
   });
+
+  it("rejects output paths that overwrite the live-delta input before reading reports", async () => {
+    await expect(
+      runLocomoNearMissLabelAnalysis(
+        [
+          "bun",
+          "analyze",
+          "--live-delta",
+          LIVE_DELTA_PATH,
+          "--output-path",
+          "/reports/phase-65/locomo/delta/../delta/live-delta.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --live-delta must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that overwrite the candidate source report before reading it", async () => {
+    const cases = [
+      question({
+        answer: "Switch",
+        gold: "Nintendo Switch OLED console",
+        questionId: "q-under",
+      }),
+    ];
+
+    await expect(
+      runLocomoNearMissLabelAnalysis(
+        [
+          "bun",
+          "analyze",
+          "--live-delta",
+          LIVE_DELTA_PATH,
+          "--output-path",
+          CANDIDATE_REPORT_PATH,
+        ],
+        {
+          readFile: async (path) => {
+            if (path === LIVE_DELTA_PATH) {
+              return JSON.stringify(liveDelta(cases.map(nearMissDelta)));
+            }
+            throw new Error(`should not read ${path}`);
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and live-delta candidateReport.path must refer to different paths",
+    );
+  });
 });

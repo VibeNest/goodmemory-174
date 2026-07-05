@@ -105,6 +105,33 @@ describe("run-phase-62 full-500 failure retries", () => {
     }
   });
 
+  it("rejects duplicate scalar retry flags before planning batches", () => {
+    for (const flag of [
+      "--batch-concurrency",
+      "--batch-delay-ms",
+      "--benchmark-root",
+      "--case-concurrency",
+      "--chunk-size",
+      "--expected-total-cases",
+      "--max-batches",
+      "--merged-run-id",
+      "--output-dir",
+      "--retry-run-id",
+    ]) {
+      expect(() =>
+        parsePhase62Full500RetryFailureOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-full500-retry-failures.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("discovers existing retry batch run ids in batch order", () => {
     expect(
       discoverExistingRetryBatchRunIds({

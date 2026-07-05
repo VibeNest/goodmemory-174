@@ -11,7 +11,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parseLocomoSession, tokenizeLocomoAnswer } from "../src/eval/locomo";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   assertLocomoReportHasNoExecutionFailures,
   assertLocomoReportQuestionCountMatchesCases,
@@ -306,6 +309,19 @@ function assertLocomoSmokeReport(
   }
 }
 
+function assertOutputPathDoesNotOverwriteInput(input: {
+  outputPath: string;
+  sourceFlag: string;
+  sourcePath: string;
+}): void {
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: input.outputPath,
+    secondFlag: input.sourceFlag,
+    secondValue: input.sourcePath,
+  });
+}
+
 export async function runLocomoRetrievalGapAnalysis(
   argv: readonly string[],
   deps: {
@@ -332,6 +348,16 @@ export async function runLocomoRetrievalGapAnalysis(
   const outputPath =
     resolveCliFlagValueStrict(argv, "--output-path") ??
     join(dirname(reportPath), LOCOMO_RETRIEVAL_GAP_FILE_NAME);
+  assertOutputPathDoesNotOverwriteInput({
+    outputPath,
+    sourceFlag: "--report",
+    sourcePath: reportPath,
+  });
+  assertOutputPathDoesNotOverwriteInput({
+    outputPath,
+    sourceFlag: "--cases",
+    sourcePath: casesPath,
+  });
 
   const report = JSON.parse(await readFileImpl(reportPath)) as unknown;
   assertLocomoSmokeReport(report, reportPath);

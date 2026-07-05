@@ -168,6 +168,11 @@ Workstreams
     Use `--resume-existing-batches` when a retry is interrupted before a
     merged report is emitted; completed `*-batch-NNN` reports are folded back
     into the next run automatically.
+    The eval/full500/summary/retry parsers now reject duplicate scalar
+    source/output/run/budget selectors before reading source reports or planning
+    shard/retry work; repeated multi-value selectors such as `--profile`,
+    `--case-id`, `--question-type`, `--shard-run-id`, and `--source-run-id`
+    remain repeatable.
     The current canonical clean merged live retry state is
     `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`:
     all four profiles cover all 500 cases with `executionFailures: 0`.

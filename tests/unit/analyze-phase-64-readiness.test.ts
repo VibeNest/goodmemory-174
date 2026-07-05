@@ -221,4 +221,24 @@ describe("analyze phase-64 readiness", () => {
       },
     });
   });
+
+  it("rejects output paths that overwrite the Phase 63 analysis before reading it", async () => {
+    await expect(
+      runPhase64ReadinessAnalysis(
+        {
+          outputPath: "/tmp/phase63/recall-diagnostic-analysis.json",
+          phase63AnalysisPath:
+            "/tmp/phase63/../phase63/recall-diagnostic-analysis.json",
+          runId: "prep",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read Phase 63 analysis");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --phase63-analysis-path must refer to different paths",
+    );
+  });
 });

@@ -192,6 +192,30 @@ describe("run-phase-62 LongMemEval script", () => {
     ).toThrow("--all-cases cannot be specified more than once.");
   });
 
+  it("rejects duplicate scalar phase-62 eval flags before running", () => {
+    for (const flag of [
+      "--benchmark-root",
+      "--limit",
+      "--max-concurrency",
+      "--mode",
+      "--offset",
+      "--output-dir",
+      "--run-id",
+    ]) {
+      expect(() =>
+        parsePhase62CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-eval.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("keeps the type-balanced manifest aligned with the four-profile run contract", async () => {
     const manifest = await readFile(TYPE_BALANCED_MANIFEST_PATH, "utf8");
     const command = manifest.match(/bun run eval:phase-62[^\n]+/u)?.[0];

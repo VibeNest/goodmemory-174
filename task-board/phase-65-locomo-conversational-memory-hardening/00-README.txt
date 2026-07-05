@@ -4,14 +4,20 @@ Phase 65 Breakdown: LoCoMo Very-Long-Term Conversational-Memory Hardening
 Status
 ------
 
-[BRING-UP DONE] Phase 65 LoCoMo is the fourth leg of the Sequential Benchmark
+[ACTIVE, PARTIAL] Phase 65 LoCoMo is the fourth leg of the Sequential Benchmark
 Hardening Plan and the last in the sequence (LongMemEval -> BEAM ->
-MemoryAgentBench -> LoCoMo). Bring-up T001-T004 is complete and on main; the
-live LLM answer/judge layer is deferred (the LLM call has not been restored).
+MemoryAgentBench -> LoCoMo). Bring-up T001-T004 is complete; the external-root
+live-answer/category path, candidate-admission probes, answer-policy slices, and
+manifest-driven reanswer tooling are now banked as internal hardening evidence.
+The separate P4 full-10 opt-in union/extraction profile is publicly claimable
+through `benchmark-claims/locomo.json` and is README-promoted, but this active
+Phase 65 lane remains open for default-profile promotion and broader
+category-quality hardening.
 
-Phase 64 MemoryAgentBench remains the active hardening leg (its real live-answer
-path exists behind `--live`, but no accepted external-root live closure exists).
-Phase 63 BEAM live closure is deferred per the user.
+Current active work is targeted candidate admission plus multi_hop/noise
+answer-policy repair. Phase 63 BEAM remains partial under its own answer-gap
+workstream, and Phase 64 MemoryAgentBench is closed for the scoped public CR/TTL
+claim.
 
 
 What LoCoMo Is
@@ -84,14 +90,16 @@ real misses) await external-root data and the live answer layer.
 Next
 ----
 
-- P65-T005 (deferred): wire a real LLM answer generator (deferred — LLM call not
-  restored), then prepare an external root (GOODMEMORY_LOCOMO_ROOT/cases.json,
-  normalized from upstream, NOT vendored) and run the rules-only retrieval slice
-  for genuine multi-hop / temporal / adversarial pressure. Apply the same
-  changed-case-comparison discipline used for BEAM/MAB: one named miss family,
-  one focused regression, one scoped repair, rerun + compare, no dataset-specific
-  keyword branches as a first fix.
-- Coordinate with the concurrent BEAM workstream on any shared recall-routing
-  change (see the concurrent-agent shared-repo hazard note): use --only pathspec
-  commits and verify a BEAM recall-diagnostic spot-check before relying on any
-  cross-cutting recall change.
+- Continue from the current full-root category matrix and gap analysis. The
+  open work is category quality, missing-evidence repair, and noisy full-recall
+  answer-policy repair, not adapter bring-up.
+- Use the current candidate-admission manifests and reanswer job queues for
+  focused repair: validate source-report lineage, isolate one bucket/category at
+  a time, rerun the paired live/reanswer comparison, and record answer changes
+  with the live-delta tooling.
+- Treat open_domain commonsense/strict-no-evidence probes as opt-in evidence
+  until broader category validation proves they do not regress single_hop,
+  multi_hop, temporal, or adversarial slices.
+- Coordinate any shared recall-routing change with the BEAM workstream and
+  verify a BEAM rules-only recall diagnostic spot-check (`caseDeltaCount: 0`)
+  before treating it as safe cross-benchmark evidence.

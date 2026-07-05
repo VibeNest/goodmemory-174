@@ -1,6 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
@@ -614,6 +617,12 @@ export async function analyzePhase63LiveAnswerGap(
   const outputDir = options.outputDir ?? resolvePhase63OutputDir(root);
   const outputPath =
     options.outputPath ?? join(outputDir, runId, "live-answer-gap-analysis.json");
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--live-report",
+    secondValue: options.liveReportPath,
+  });
 
   const liveReport = JSON.parse(
     await readFileImpl(options.liveReportPath),

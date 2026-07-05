@@ -12,11 +12,12 @@ import {
   resolveCliFlagValueStrict,
 } from "./cli-options";
 import {
-  LOCOMO_STABLE_EXPERIMENT_METADATA_FIELDS,
   assertLocomoReportHasNoExecutionFailures,
   assertLocomoReportInputsHaveDistinctPaths,
+  assertLocomoReportInputsHaveDistinctRunIds,
   assertLocomoReportMetadataCompatible,
   assertLocomoReportQuestionCountMatchesCases,
+  LOCOMO_STABLE_EXPERIMENT_METADATA_FIELDS,
 } from "./locomo-report-compatibility";
 import type {
   LocomoQuestionRetrieval,
@@ -167,10 +168,25 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     secondFlag: "--candidate-report",
     secondValue: candidateReportPath,
   });
+  const outputPath = resolveCliFlagValueStrict(argv, "--output-path");
+  if (outputPath) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--baseline-report",
+      secondValue: baselineReportPath,
+    });
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--candidate-report",
+      secondValue: candidateReportPath,
+    });
+  }
   return {
     baselineReportPath,
     candidateReportPath,
-    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    outputPath,
     perBucket: parsePositiveIntegerFlag(argv, "--per-bucket", DEFAULT_PER_BUCKET),
     runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
@@ -473,6 +489,7 @@ function validateCompatibleReports(input: {
   candidate: ReportInput;
 }): void {
   assertLocomoReportInputsHaveDistinctPaths(input);
+  assertLocomoReportInputsHaveDistinctRunIds(input);
   assertLocomoReportMetadataCompatible({
     candidate: input.candidate,
     fields: LOCOMO_STABLE_EXPERIMENT_METADATA_FIELDS,

@@ -481,6 +481,12 @@ reports/eval/research/phase-64/mab/run-phase64-mab-smoke-current/smoke-report.js
 CLI Evidence Guard (2026-07-04)
 -------------------------------
 
+`analyze:phase-64-readiness` rejects output paths that resolve to the input
+`--phase63-analysis-path` before reading the Phase 63 analysis file. This keeps
+the derived preparation report from overwriting its source diagnostic analysis;
+it does not change accepted Phase 64 closure evidence or the P67-C public-claim
+boundary.
+
 `eval:phase-64-smoke` rejects duplicate boolean mode flags and scalar
 source/output selectors before report generation: `--evidence-pack`, `--live`,
 `--no-memory`, `--resume`, `--benchmark-root`, `--limit`, `--output-dir`, and

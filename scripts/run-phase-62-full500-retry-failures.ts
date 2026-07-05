@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
 import { runPhase62LongMemEval } from "./run-phase-62-eval";
 import type { Phase62EvalDependencies } from "./run-phase-62-eval";
 import {
@@ -146,20 +146,20 @@ export function parsePhase62Full500RetryFailureOptions(
 ): Phase62Full500RetryFailureOptions {
   return {
     batchConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--batch-concurrency"),
+      resolveCliFlagValueStrict(argv, "--batch-concurrency"),
       "--batch-concurrency",
     ),
     batchDelayMs: parseNonNegativeInteger(
-      resolveCliFlagValue(argv, "--batch-delay-ms"),
+      resolveCliFlagValueStrict(argv, "--batch-delay-ms"),
       "--batch-delay-ms",
     ),
-    benchmarkRoot: resolveCliFlagValue(argv, "--benchmark-root"),
+    benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
     caseConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--case-concurrency"),
+      resolveCliFlagValueStrict(argv, "--case-concurrency"),
       "--case-concurrency",
     ),
     chunkSize: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--chunk-size"),
+      resolveCliFlagValueStrict(argv, "--chunk-size"),
       "--chunk-size",
     ),
     continueOnExecutionFailure: parseBooleanFlag(
@@ -168,19 +168,19 @@ export function parsePhase62Full500RetryFailureOptions(
     ),
     dryRun: parseBooleanFlag(argv, "--dry-run"),
     expectedTotalCases: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--expected-total-cases"),
+      resolveCliFlagValueStrict(argv, "--expected-total-cases"),
       "--expected-total-cases",
     ),
     excludeCaseIds: parseCaseExclusionFlags(argv),
     maxBatches: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--max-batches"),
+      resolveCliFlagValueStrict(argv, "--max-batches"),
       "--max-batches",
     ),
-    mergedRunId: resolveCliFlagValue(argv, "--merged-run-id"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    mergedRunId: resolveCliFlagValueStrict(argv, "--merged-run-id"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     resumeExistingBatches: parseBooleanFlag(argv, "--resume-existing-batches"),
-    retryRunId: resolveCliFlagValue(argv, "--retry-run-id"),
+    retryRunId: resolveCliFlagValueStrict(argv, "--retry-run-id"),
     sourceRunIds: parseRepeatedFlag(argv, "--source-run-id"),
   };
 }

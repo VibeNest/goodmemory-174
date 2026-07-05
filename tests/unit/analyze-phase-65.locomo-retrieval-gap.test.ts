@@ -243,4 +243,54 @@ describe("LoCoMo retrieval-gap analyzer", () => {
       ),
     ).rejects.toThrow("--output-path requires a value.");
   });
+
+  it("rejects output paths that overwrite the source report before reading inputs", async () => {
+    await expect(
+      runLocomoRetrievalGapAnalysis(
+        [
+          "bun",
+          "run",
+          "analyze:phase-65-locomo-retrieval-gap",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--cases",
+          "/tmp/LOCOMO/cases.json",
+          "--output-path",
+          "/reports/source/../source/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that overwrite the cases source before reading inputs", async () => {
+    await expect(
+      runLocomoRetrievalGapAnalysis(
+        [
+          "bun",
+          "run",
+          "analyze:phase-65-locomo-retrieval-gap",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--cases",
+          "/tmp/LOCOMO/cases.json",
+          "--output-path",
+          "/tmp/LOCOMO/../LOCOMO/cases.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --cases must refer to different paths",
+    );
+  });
 });

@@ -86,6 +86,9 @@ Readiness Analyzer
 
 `scripts/analyze-phase-64-readiness.ts` consumes a Phase 63
 `recall-diagnostic-analysis.json` file and writes a Phase 64 preparation report.
+It rejects an output path that resolves to the input `--phase63-analysis-path`
+before reading the Phase 63 analysis, so the derived prep report cannot overwrite
+the source diagnostic analysis.
 The report groups residual Phase 63 risk into:
 
 - `conflict_update_resolution`

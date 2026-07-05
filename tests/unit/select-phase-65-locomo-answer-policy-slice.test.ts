@@ -538,6 +538,29 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     );
   });
 
+  it("rejects output paths that overwrite a source report before reading source reports", async () => {
+    await expect(
+      runLocomoAnswerPolicySliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--output-path",
+          "/reports/source/../source/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report must refer to different paths",
+    );
+  });
+
   it("rejects missing string flag values before reading source reports", async () => {
     const noReads = {
       readFile: async (_path: string): Promise<string> => {

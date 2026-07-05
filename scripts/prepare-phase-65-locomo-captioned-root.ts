@@ -42,7 +42,10 @@ import {
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { resolveLiveModelConfig } from "./run-eval";
 
 export const CAPTION_MODES = ["turn-only", "local-window-2"] as const;
@@ -412,6 +415,12 @@ export async function prepareCaptionedRoot(input: {
     input.mkdir ?? ((path: string, options: { recursive: boolean }) => mkdir(path, options));
   const appendFileImpl =
     input.appendFile ?? ((path: string, data: string) => appendFile(path, data));
+  assertDistinctCliPathValues({
+    firstFlag: "--output-root",
+    firstValue: input.outputRoot,
+    secondFlag: "--source-root",
+    secondValue: input.sourceRoot,
+  });
 
   const cases = await loadSourceCases({ readFile: readFileImpl, sourceRoot: input.sourceRoot });
   await mkdirImpl(input.outputRoot, { recursive: true });

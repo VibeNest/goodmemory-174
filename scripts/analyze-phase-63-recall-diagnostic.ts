@@ -1,6 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { inferPhase63BeamCaseCategory } from "./analyze-phase-63-beam-report";
 import {
   flattenPhase63BeamCases,
@@ -726,7 +729,6 @@ export async function runPhase63RecallDiagnosticAnalysis(
       root,
       runId: options.runId,
     });
-  const report = JSON.parse(await readFileImpl(reportPath)) as BeamReport;
   const baselineReportPath =
     options.baselineReportPath ??
     (options.baselineRunId
@@ -736,6 +738,24 @@ export async function runPhase63RecallDiagnosticAnalysis(
         runId: options.baselineRunId,
       })
       : undefined);
+  const outputPath =
+    options.outputPath ?? join(dirname(reportPath), "recall-diagnostic-analysis.json");
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--report-path",
+    secondValue: reportPath,
+  });
+  if (baselineReportPath) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: outputPath,
+      secondFlag: "--baseline-report-path",
+      secondValue: baselineReportPath,
+    });
+  }
+
+  const report = JSON.parse(await readFileImpl(reportPath)) as BeamReport;
   const baselineReport = baselineReportPath
     ? JSON.parse(await readFileImpl(baselineReportPath)) as BeamReport
     : undefined;
@@ -768,9 +788,6 @@ export async function runPhase63RecallDiagnosticAnalysis(
     sourceContextWarning,
     sourceTurnLimit: options.sourceTurnLimit,
   });
-  const outputPath =
-    options.outputPath ?? join(dirname(reportPath), "recall-diagnostic-analysis.json");
-
   await writeFileImpl(outputPath, `${JSON.stringify(analysis, null, 2)}\n`);
   return {
     analysis,

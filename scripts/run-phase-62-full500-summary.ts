@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
 import {
   resolvePhase62OutputDir,
   resolvePhase62RepoRoot,
@@ -83,14 +83,17 @@ export function parsePhase62Full500SummaryOptions(
       "--allow-duplicate-case-coverage",
     ),
     expectedTotalCases: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--expected-total-cases"),
+      resolveCliFlagValueStrict(argv, "--expected-total-cases"),
       "--expected-total-cases",
     ),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
     shardRunIds: parseRepeatedFlag(argv, "--shard-run-id"),
-    shards: parsePositiveInteger(resolveCliFlagValue(argv, "--shards"), "--shards"),
+    shards: parsePositiveInteger(
+      resolveCliFlagValueStrict(argv, "--shards"),
+      "--shards",
+    ),
   };
 }
 

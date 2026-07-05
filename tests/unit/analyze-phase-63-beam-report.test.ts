@@ -211,4 +211,22 @@ describe("analyze phase-63 BEAM report", () => {
     expect(result.outputPath).toBe("/tmp/out/run/miss-case-analysis.json");
     expect(writes.has("/tmp/out/run/miss-case-analysis.json")).toBe(true);
   });
+
+  it("rejects output paths that overwrite the source report before reading it", async () => {
+    await expect(
+      runPhase63BeamReportAnalysis(
+        {
+          outputPath: "/tmp/out/run/report.json",
+          reportPath: "/tmp/out/run/report.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read source report");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report-path must refer to different paths",
+    );
+  });
 });

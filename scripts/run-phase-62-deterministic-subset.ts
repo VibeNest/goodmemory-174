@@ -16,9 +16,9 @@
  * It consumes the merged `report.json` produced by `eval:phase-62-full500-summary`
  * (a full LongMemEvalReport that retains per-case `answerScore.method`).
  */
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import {
   resolvePhase62OutputDir,
   resolvePhase62RepoRoot,
@@ -250,7 +250,7 @@ export function renderDeterministicSubsetMarkdown(
   return `${lines.join("\n")}\n`;
 }
 
-interface DeterministicSubsetCliOptions {
+export interface DeterministicSubsetCliOptions {
   reportPath?: string;
   runId?: string;
   outputDir?: string;
@@ -273,19 +273,19 @@ function parseProfileFlag(
   return value as LongMemEvalProfile;
 }
 
-function parseCliOptions(
+export function parseDeterministicSubsetCliOptions(
   argv: readonly string[],
 ): DeterministicSubsetCliOptions {
   return {
-    reportPath: resolveCliFlagValue(argv, "--report-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    reportPath: resolveCliFlagValueStrict(argv, "--report-path"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     claimProfile: parseProfileFlag(
-      resolveCliFlagValue(argv, "--claim-profile"),
+      resolveCliFlagValueStrict(argv, "--claim-profile"),
       "--claim-profile",
     ),
     baselineProfile: parseProfileFlag(
-      resolveCliFlagValue(argv, "--baseline-profile"),
+      resolveCliFlagValueStrict(argv, "--baseline-profile"),
       "--baseline-profile",
     ),
   };
@@ -306,7 +306,7 @@ function resolveReportPath(options: DeterministicSubsetCliOptions): string {
 }
 
 async function runCli(argv: readonly string[]): Promise<void> {
-  const options = parseCliOptions(argv);
+  const options = parseDeterministicSubsetCliOptions(argv);
   const reportPath = resolveReportPath(options);
   const raw = await readFile(reportPath, "utf8");
   const report = JSON.parse(raw) as LongMemEvalReport;

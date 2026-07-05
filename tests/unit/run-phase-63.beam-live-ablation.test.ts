@@ -217,6 +217,27 @@ describe("phase-63 BEAM live ablation runner", () => {
     ).rejects.toThrow("requires --live-report");
   });
 
+  it("rejects an output report path that would overwrite the live report before reading inputs", async () => {
+    await expect(
+      runPhase63BeamLiveAblation(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          liveReportPath: "/tmp/out/run-abl/ablation-report.json",
+          mode: "retrieved-hit-only",
+          outputDir: "/tmp/out",
+          runId: "run-abl",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read benchmark or live report");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --live-report must refer to different paths",
+    );
+  });
+
   it("runs the gold-evidence-only ablation end to end", async () => {
     const written: Record<string, string> = {};
     const report = await runPhase63BeamLiveAblation(

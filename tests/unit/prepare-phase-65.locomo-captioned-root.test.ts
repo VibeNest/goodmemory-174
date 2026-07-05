@@ -253,6 +253,25 @@ describe("LoCoMo captioned-case builder", () => {
 });
 
 describe("LoCoMo captioned-root IO wrapper", () => {
+  it("rejects an output root that would overwrite the source root before reading cases", async () => {
+    await expect(
+      prepareCaptionedRoot({
+        captioner: async () => ["caption"],
+        concurrency: 1,
+        mode: "turn-only",
+        modelLabel: "openai:test-model",
+        outputRoot: "/tmp/LOCOMO/../LOCOMO",
+        readFile: async () => {
+          throw new Error("should not read source cases");
+        },
+        sourceRoot: "/tmp/LOCOMO",
+        windowRadius: 2,
+      }),
+    ).rejects.toThrow(
+      "--output-root and --source-root must refer to different paths",
+    );
+  });
+
   it("writes captioned cases + audit metadata and reuses a resumable cache", async () => {
     const files = new Map<string, string>();
     files.set(

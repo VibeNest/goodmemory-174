@@ -76,6 +76,11 @@ Tasks
   score. `benchmark-claims/longmemeval.json` now has `publicClaimAllowed: true`
   and passes `gate:public-benchmark-claim`; the old with-judge LongMemEval
   number remains internal diagnostic evidence only.
+  CLI guard update (2026-07-04): `eval:phase-62-deterministic-subset` rejects
+  duplicate `--report-path`, `--run-id`, `--output-dir`, `--claim-profile`, and
+  `--baseline-profile` values before resolving the source report, keeping the
+  judge-free helper's source/output/profile selection unambiguous. This does
+  not change the 0.720 public claim.
 
 [DONE 2026-06-25] P67-C MemoryAgentBench task-specific answer harness. The
   deterministic, judge-free task-specific harness completed the four-competency

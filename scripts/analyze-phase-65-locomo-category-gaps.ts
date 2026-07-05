@@ -7,7 +7,10 @@ import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   LOCOMO_CATEGORY_GAP_METADATA_FIELDS,
   assertLocomoReportHasNoExecutionFailures,
@@ -336,6 +339,20 @@ function defaultOutputPath(reportPaths: readonly string[], runId: string): strin
   );
 }
 
+function assertOutputPathDoesNotOverwriteReports(input: {
+  outputPath: string;
+  reportPaths: readonly string[];
+}): void {
+  for (const reportPath of input.reportPaths) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: input.outputPath,
+      secondFlag: "--report",
+      secondValue: reportPath,
+    });
+  }
+}
+
 export function analyzeLocomoCategoryGaps(input: {
   generatedAt?: string;
   outputPath?: string;
@@ -431,6 +448,10 @@ export async function runLocomoCategoryGapAnalysis(
   const runId = options.runId ?? "locomo-category-gap-analysis-current";
   const outputPath =
     options.outputPath ?? defaultOutputPath(options.reportPaths, runId);
+  assertOutputPathDoesNotOverwriteReports({
+    outputPath,
+    reportPaths: options.reportPaths,
+  });
 
   const reports: ReportInput[] = [];
   for (const path of options.reportPaths) {

@@ -49,6 +49,10 @@ Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-submission
   to 1 while shedding three noise chats and adding no negative deltas.
 - boundary: this is scenario-fitted recall evidence. The README-level dual
   metric keeps the fitted 0.9621 separate from the generalization floor 0.6822.
+- General-lever recall remeasure is routed through
+  `eval:phase-63-general-levers`. By default it disables registered narrow gates
+  and measures the BEAM generalization floor, not the fitted scenario-retained
+  path; use `--keep-gates` only when explicitly remeasuring the fitted path.
 
 Latest Accepted Measured Full-Run Checkpoint
 --------------------------------------------
@@ -227,13 +231,24 @@ read: `--answer-gap-bucket`, `--answer-gap-source-coverage-status`, and
 `--case-id` reject missing/flag-as-value, empty, whitespace-padded, duplicate,
 or unknown answer-gap bucket/status values. This keeps focused BEAM live slices
 from silently running the wrong answer-gap queue or matching no cases because of
-a CLI typo. `eval:phase-63-live-slice` and `eval:phase-63-live-closure` also
+a CLI typo. `analyze:phase-63-recall-diagnostic` now rejects output paths that
+would overwrite either its analyzed report or baseline report before reading
+inputs, keeping recall/noise workbench evidence from destroying source reports.
+`analyze:phase-63-beam` also rejects output paths that would overwrite its source
+`--report-path` before reading inputs, keeping early miss-case analysis evidence
+from destroying the source BEAM report.
+`eval:phase-63-live-slice` and `eval:phase-63-live-closure` also
 reject duplicate `--evidence-pack` and `--resume` mode switches plus duplicate
 scalar source/output selectors where supported (`--answer-gap-report`,
 `--benchmark-root`, `--case-selection`, `--limit`, `--output-dir`, `--profile`,
 `--recall-report`, `--run-id`, `--scale`) before report generation, keeping
 answer-context mode, source report, benchmark root, output location, run id, and
-checkpoint/resume semantics unambiguous. For summarization, the corrected
+checkpoint/resume semantics unambiguous. `scripts/analyze-phase-63-live-answer-gap.ts`
+and `scripts/run-phase-63-beam-live-ablation.ts` also reject output report paths
+that would overwrite the input `--live-report` before reading benchmark or
+live-report sources. This keeps answer-gap and ablation routing evidence from
+destroying the source live report without changing BEAM scores, recall, or
+closure boundaries. For summarization, the corrected
 filtered answer-pack candidate set
 is only `12:summarization:1` and `14:summarization:2`; `18:summarization:1` and
 `18:summarization:2` are correctly classified as `no-declared-source-ids`. The
@@ -260,6 +275,7 @@ Commands
 ```text
 bun run prepare:phase-63-beam -- --output-root /private/tmp/BEAM --split 100K --length 100 --source github-raw --github-concurrency 8
 bun run eval:phase-63-recall-diagnostic -- --benchmark-root /private/tmp/BEAM --profile <goodmemory-rules-only|goodmemory-hybrid> --run-id <run-id>
+bun run eval:phase-63-general-levers -- --benchmark-root /private/tmp/BEAM --arm <floor|bm25|union16|bm25-union16> --output-dir <reports-dir> --run-id <run-id>
 bun run analyze:phase-63-recall-diagnostic -- --report-path <report> --baseline-report-path <baseline> --benchmark-root /private/tmp/BEAM
 bun run scripts/analyze-phase-63-live-answer-gap.ts --benchmark-root /private/tmp/BEAM --live-report reports/eval/research/phase-63/beam/run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current/live-slice-report.json --run-id run-phase63-beam-live-answer-gap-answer-hardening-current
 bun run scripts/run-phase-63-beam-live-ablation.ts --benchmark-root /private/tmp/BEAM --live-report <live-slice-report.json> --mode <gold-evidence-only|retrieved-hit-only|retrieved-raw-uncompressed|full-context|gold-evidence-pack|retrieved-evidence-pack> --run-id <run-id>

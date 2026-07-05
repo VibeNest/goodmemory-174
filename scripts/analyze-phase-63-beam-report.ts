@@ -1,6 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValue,
+} from "./cli-options";
 import { resolvePhase63OutputDir, resolvePhase63RepoRoot } from "./run-phase-63-shared";
 import type {
   BeamCaseResult,
@@ -348,6 +351,12 @@ export async function runPhase63BeamReportAnalysis(
   const reportPath = options.reportPath ?? resolveDefaultReportPath(root, options.runId);
   const outputPath =
     options.outputPath ?? join(dirname(reportPath), "miss-case-analysis.json");
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--report-path",
+    secondValue: reportPath,
+  });
   const report = JSON.parse(await readFileImpl(reportPath)) as BeamReport;
   const analysis = analyzePhase63BeamReport(report, {
     generatedAt: now().toISOString(),

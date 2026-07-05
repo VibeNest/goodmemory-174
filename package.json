@@ -201,6 +201,7 @@
     "eval:phase-63-live-closure": "bun run scripts/run-phase-63-beam-live-closure.ts",
     "eval:phase-63-live-slice": "bun run scripts/run-phase-63-beam-live-slice.ts",
     "eval:phase-63-recall-diagnostic": "bun run scripts/run-phase-63-beam-recall-diagnostic.ts",
+    "eval:phase-63-general-levers": "bun run scripts/measure-beam-general-levers.ts",
     "eval:phase-64-smoke": "bun run scripts/run-phase-64-memory-agent-bench-smoke.ts",
     "eval:phase-65-smoke": "bun run scripts/run-phase-65-locomo-smoke.ts",
     "gate:phase-18": "bun run scripts/run-phase-18-gate.ts",

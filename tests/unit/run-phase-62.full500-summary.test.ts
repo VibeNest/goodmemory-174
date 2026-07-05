@@ -108,6 +108,27 @@ describe("run-phase-62 full-500 summary", () => {
     ).toThrow("--allow-duplicate-case-coverage cannot be specified more than once.");
   });
 
+  it("rejects duplicate scalar summary flags before reading shard reports", () => {
+    for (const flag of [
+      "--expected-total-cases",
+      "--output-dir",
+      "--run-id",
+      "--shards",
+    ]) {
+      expect(() =>
+        parsePhase62Full500SummaryOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-full500-summary.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("aggregates shard reports into a canonical full report", async () => {
     const outputDir = "/tmp/phase62-full500-summary-test";
     const shardRunIds = [

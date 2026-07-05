@@ -7,7 +7,10 @@ import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   assertLocomoReportCategorySummariesMatchCases,
   assertLocomoReportHasNoQuestionIdFilter,
@@ -229,6 +232,20 @@ function defaultOutputPath(reportPaths: readonly string[], runId: string): strin
   return join(dirname(reportPaths[0] ?? "."), "..", runId, LOCOMO_CATEGORY_SUMMARY_FILE_NAME);
 }
 
+function assertOutputPathDoesNotOverwriteReports(input: {
+  outputPath: string;
+  reportPaths: readonly string[];
+}): void {
+  for (const reportPath of input.reportPaths) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: input.outputPath,
+      secondFlag: "--report",
+      secondValue: reportPath,
+    });
+  }
+}
+
 export function summarizeLocomoCategoryReports(input: {
   generatedAt?: string;
   outputPath?: string;
@@ -365,6 +382,10 @@ export async function runLocomoCategorySummary(
   const runId = options.runId ?? "locomo-category-summary-current";
   const outputPath =
     options.outputPath ?? defaultOutputPath(options.reportPaths, runId);
+  assertOutputPathDoesNotOverwriteReports({
+    outputPath,
+    reportPaths: options.reportPaths,
+  });
 
   const reports: LocomoCategoryReportInput[] = [];
   for (const path of options.reportPaths) {

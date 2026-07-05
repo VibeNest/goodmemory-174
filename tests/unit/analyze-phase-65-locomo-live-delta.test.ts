@@ -660,6 +660,50 @@ describe("phase-65 LoCoMo live delta analyzer", () => {
     ).toThrow("baseline and candidate reports must refer to different paths");
   });
 
+  it("rejects paired reports that reuse the same run id", () => {
+    const baseline = report({
+      maxAdditions: 4,
+      runId: "shared-live-run",
+      topK: 16,
+      cases: [
+        question({
+          answerCorrect: false,
+          category: "open_domain",
+          evidenceRecall: 0,
+          goldEvidenceFullyRetrieved: false,
+          questionId: "q1",
+        }),
+      ],
+    });
+    const candidate = report({
+      maxAdditions: 8,
+      runId: "shared-live-run",
+      topK: 32,
+      cases: [
+        question({
+          answerCorrect: true,
+          category: "open_domain",
+          evidenceRecall: 1,
+          goldEvidenceFullyRetrieved: true,
+          questionId: "q1",
+        }),
+      ],
+    });
+
+    expect(() =>
+      analyzeLocomoLiveDelta({
+        baseline: {
+          path: "/reports/baseline/smoke-report.json",
+          report: baseline,
+        },
+        candidate: {
+          path: "/reports/candidate/smoke-report.json",
+          report: candidate,
+        },
+      }),
+    ).toThrow("baseline and candidate reports must use different runIds");
+  });
+
   it("rejects zero-failure live reports with unscored answer rows", () => {
     const baselineQuestion = question({
       answerCorrect: false,
@@ -1537,6 +1581,31 @@ describe("phase-65 LoCoMo live delta analyzer", () => {
       ),
     ).rejects.toThrow(
       "--baseline-report and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that would overwrite input reports before reading inputs", async () => {
+    await expect(
+      runLocomoLiveDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-live-delta.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/smoke-report.json",
+          "--output-path",
+          "/reports/candidate/../candidate/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --candidate-report must refer to different paths",
     );
   });
 

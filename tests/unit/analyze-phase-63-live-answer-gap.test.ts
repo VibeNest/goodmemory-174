@@ -67,6 +67,24 @@ describe("phase-63 live answer-gap analyzer", () => {
     }
   });
 
+  it("rejects an output path that would overwrite the live report before reading it", async () => {
+    await expect(
+      analyzePhase63LiveAnswerGap(
+        {
+          liveReportPath: "/tmp/beam-live-report.json",
+          outputPath: "/tmp/beam-live-report.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read live report");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --live-report must refer to different paths",
+    );
+  });
+
   it("counts unique noise chats excluding evidence", () => {
     expect(
       uniqueNoiseChatCount({
