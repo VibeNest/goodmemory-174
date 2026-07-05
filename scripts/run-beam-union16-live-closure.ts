@@ -162,12 +162,16 @@ async function main(): Promise<void> {
     throw new Error("narrow gates must stay ON for closure runs (product behavior)");
   }
   const judgeModel = process.env.GOODMEMORY_JUDGE_MODEL ?? "";
-  if (!judgeModel.includes("gemini")) {
+  const answerModel = process.env.GOODMEMORY_EVAL_MODEL ?? "";
+  if (!judgeModel || judgeModel === answerModel) {
     throw new Error(
-      `GOODMEMORY_JUDGE_MODEL must be the independent gemini judge, got "${judgeModel}"`,
+      `GOODMEMORY_JUDGE_MODEL must be set to a model different from the answer model (answer "${answerModel}", judge "${judgeModel}") - a same-model judge is the blocker this runner exists to avoid`,
     );
   }
-  console.log(`independent judge: ${judgeModel} | evidencePack: ${evidencePack} | run: ${runId}`);
+  const sameFamily = judgeModel.startsWith("gpt") === answerModel.startsWith("gpt");
+  console.log(
+    `judge: ${judgeModel} (${sameFamily ? "SAME family as answer model - cross-version only, disclose in the declaration" : "cross-family"}) | evidencePack: ${evidencePack} | run: ${runId}`,
+  );
 
   const recallReportPath = join(OUTPUT_DIR, recallRunId, "recall-diagnostic.json");
   if (!(await Bun.file(recallReportPath).exists())) {
