@@ -44,6 +44,10 @@ export function buildRememberEventTrace(
   };
 }
 
+// The score is an ephemeral accept/reject signal against SCORE_THRESHOLD; it is
+// NOT persisted onto the stored record. A written fact's `confidence` comes from
+// the extractor's candidate (default 1 when unset), so stored confidence must
+// not be read as extraction confidence.
 function scoreCandidate(candidate: MemoryCandidate): number {
   if (candidate.kindHint === "noise") {
     return 0;

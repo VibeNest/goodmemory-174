@@ -359,6 +359,8 @@ export function createFactMemory(
     content: input.content,
     tags: input.tags,
     attributes: input.attributes,
+    // Full trust unless the writer says otherwise; the remember classifier's
+    // accept/reject score is ephemeral and never lands here.
     confidence: input.confidence ?? 1,
     importance: input.importance ?? 1,
     source: input.source,

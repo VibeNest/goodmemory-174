@@ -1,3 +1,7 @@
+// Write-time provenance: an EvidenceRecord links a stored memory back to the
+// excerpt that justified writing it (citation/audit trail). Not to be confused
+// with src/answer/evidencePack.ts, which is the answer-time module that shapes
+// already-retrieved turns into an LLM-facing context pack.
 import type { MemorySource } from "../domain/provenance";
 
 export const EVIDENCE_COLLECTION = "evidence";

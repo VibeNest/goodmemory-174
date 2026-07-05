@@ -37,6 +37,12 @@ export interface MemoryRepositoriesConfig {
   vectorStore?: VectorStore;
 }
 
+// All `add` methods persist by id with overwrite (upsert) semantics — they are
+// backed by DocumentStore.set, not an append. Maintenance depends on this:
+// dedupe/ttlExpiry demote a record by re-adding its superseded copy under the
+// same id. `upsert` is used where the type is a per-scope singleton or keyed
+// value; `add` where callers usually mint a fresh id — but a reused id always
+// replaces the stored record either way.
 export interface MemoryRepositories {
   profiles: {
     upsert(profile: UserProfile): Promise<void>;

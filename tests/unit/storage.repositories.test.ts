@@ -63,6 +63,37 @@ describe("memory repositories", () => {
     expect(await repositories.facts.listByUser("u-1")).toHaveLength(1);
   });
 
+  it("overwrites the existing record when add reuses an id (upsert semantics)", async () => {
+    const repositories = createMemoryRepositories({
+      documentStore: createInMemoryDocumentStore(),
+      sessionStore: createInMemorySessionStore(),
+    });
+
+    // Maintenance depends on this: ttlExpiry/dedupe demote a fact by re-adding
+    // its superseded copy under the same id, so add must overwrite, not append.
+    const original = createFactMemory({
+      id: "f-1",
+      userId: "u-1",
+      category: "project",
+      content: "Robot workflow remains open.",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+    });
+    await repositories.facts.add(original);
+    await repositories.facts.add(
+      createFactMemory({
+        ...original,
+        lifecycle: "inactive",
+        isActive: false,
+        demotionReason: "ttl_expired",
+      }),
+    );
+
+    const facts = await repositories.facts.listByUser("u-1");
+    expect(facts).toHaveLength(1);
+    expect(facts[0]?.lifecycle).toBe("inactive");
+    expect(facts[0]?.demotionReason).toBe("ttl_expired");
+  });
+
   it("satisfies narrow internal ports for subsystem assembly", async () => {
     const repositories = createMemoryRepositories({
       documentStore: createInMemoryDocumentStore(),

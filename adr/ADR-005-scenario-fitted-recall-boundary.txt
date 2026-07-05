@@ -69,8 +69,10 @@ Decision
 3. Pruning is evidence-gated. Gates are removed based on audit verdicts (dead,
    or case_fitted that the team decides to drop), never on guesswork. Pruning
    requires the BEAM benchmark dataset to be present so the audit can run; see
-   the Local SQLite / benchmark notes for dataset provenance (BEAM is CC BY-NC
-   4.0 and is NOT vendored into the repo).
+   the Local SQLite / benchmark notes for dataset provenance (BEAM is CC BY-SA
+   4.0 — verified upstream 2026-07-05, see benchmark-claims/beam.json; an
+   earlier draft of this ADR misstated it as CC BY-NC — and is NOT vendored
+   into the repo).
 
 4. No silent growth. The scenario-rule set should not grow without going through
    (2). A follow-up guard (a file-count freeze on
