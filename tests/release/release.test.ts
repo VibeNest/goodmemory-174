@@ -1289,8 +1289,11 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory inspect");
     expect(readme).toContain("goodmemory setup");
     expect(readme).toContain("goodmemory status");
-    expect(readme).toContain("| LoCoMo (full 10 conversations) | answer accuracy");
-    expect(readme).toContain("**0.6198** overall (1986 questions)");
+    expect(readme).toContain(
+      "| LoCoMo (full 10 conversations) | strict: deterministic token-F1",
+    );
+    expect(readme).toContain("strict **0.6117** (942/1540)");
+    expect(readme).toContain("judge-protocol **0.837** (1289/1540)");
     expect(readme).toContain("The LoCoMo claim is scored by deterministic token-F1");
     expect(readme).toContain("CC BY-NC 4.0 (non-commercial scope)");
     expect(readme).not.toContain("| LoCoMo | representative conv-1 live run 0.020");
@@ -1468,8 +1471,9 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(zhReadme).toContain("goodmemory setup");
     expect(zhReadme).toContain("goodmemory status");
-    expect(zhReadme).toContain("| LoCoMo（完整 10 会话） | 回答准确率");
-    expect(zhReadme).toContain("**0.6198** 整体（1986 题）");
+    expect(zhReadme).toContain("| LoCoMo（完整 10 会话） | 严格轨：确定性 token-F1");
+    expect(zhReadme).toContain("严格 **0.6117**（942/1540）");
+    expect(zhReadme).toContain("判官协议 **0.837**（1289/1540）");
     expect(zhReadme).toContain("LoCoMo 声明以确定性 token-F1 评分");
     expect(zhReadme).toContain("CC BY-NC 4.0（非商用范围）");
     expect(zhReadme).not.toContain("| LoCoMo | 代表性 conv-1 live 运行 0.020");
