@@ -4,6 +4,7 @@ import type {
   GoodMemory,
   GoodMemoryConfig,
 } from "../api/contracts";
+import type { HostKind } from "../domain/hostTypes";
 import { normalizeScope, type MemoryScope } from "../domain/scope";
 import { resolveWorkspaceId } from "../host/managedFiles";
 import {
@@ -53,6 +54,13 @@ export interface InstalledHostResolvedContext {
   writeback: InstalledHostWritebackConfig;
   workspaceRoot: string;
 }
+
+// Same runtime shape with the host label widened to HostKind, so the MCP
+// server's standalone mode (host "generic") can share the memory/progressive
+// plumbing. Installed contexts assign cleanly (InstalledHostKind ⊂ HostKind).
+export type HostMemoryRuntimeContext = Omit<InstalledHostResolvedContext, "host"> & {
+  host: HostKind;
+};
 
 export type InstalledHostContextResolution =
   | {
@@ -172,7 +180,7 @@ function createGlobalWorkspaceConfig(workspaceRoot: string): WorkspaceHostOptInC
 }
 
 export function createInstalledHostMemory(
-  context: InstalledHostResolvedContext,
+  context: HostMemoryRuntimeContext,
   dependencies: InstalledHostContextDependencies = {},
 ): GoodMemory {
   const adapters = buildInstalledHostProviderAdapters(context.providers);

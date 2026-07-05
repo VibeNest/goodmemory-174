@@ -1,6 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { join, resolve } from "node:path";
-import { resolveMcpServeOptions } from "../../src/install/standaloneMcpContext";
+import { mkdtempSync, existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { DEFAULT_INSTALLED_HOST_WRITEBACK } from "../../src/install/hostConfigValidation";
+import {
+  ensureStandaloneStorageReady,
+  resolveMcpServeOptions,
+  resolveStandaloneMcpContext,
+} from "../../src/install/standaloneMcpContext";
 
 // The MCP serve entrypoints (bin scripts/goodmemory-mcp.ts and CLI
 // `goodmemory mcp serve`) share one option resolver. Installed mode keeps the
@@ -275,6 +282,116 @@ describe("resolveMcpServeOptions", () => {
       allowWrite: false,
       host: "claude",
       mode: "installed",
+    });
+  });
+});
+
+// resolveStandaloneMcpContext synthesizes the same context shape the installed
+// resolver produces, so createInstalledHostMemory and every MCP tool handler
+// can consume it unchanged. It is pure and synchronous: no config files, no
+// filesystem, so standalone per-call context loading cannot fail.
+describe("resolveStandaloneMcpContext", () => {
+  const baseConfig = {
+    storage: { provider: "sqlite" as const, url: "/tmp/gm/standalone.sqlite" },
+    userId: "u-1",
+  };
+
+  it("synthesizes the installed-context shape with standalone defaults", () => {
+    const context = resolveStandaloneMcpContext(baseConfig, { cwd: "/tmp/project-a" });
+
+    expect(context.activationMode).toBe("global");
+    expect(context.contextMode).toBe("fragment");
+    expect(context.debug).toBe(false);
+    expect(context.host).toBe("generic");
+    expect(context.maxTokens).toBe(256);
+    expect(context.providers).toBeUndefined();
+    expect(context.retrievalProfile).toBe("coding_agent");
+    expect(context.storage).toEqual(baseConfig.storage);
+    expect(context.writeback).toEqual(DEFAULT_INSTALLED_HOST_WRITEBACK);
+    expect(context.workspaceRoot).toBe(resolve("/tmp/project-a"));
+    // agentId must stay undefined by default: a defined agentId is a hard
+    // scope filter, and standalone reads should see records written by any
+    // installed host (claude/codex) in the same store.
+    expect(context.scope).toEqual({
+      agentId: undefined,
+      sessionId: undefined,
+      tenantId: undefined,
+      userId: "u-1",
+      workspaceId: basename(resolve("/tmp/project-a")),
+    });
+  });
+
+  it("prefers explicit config scope fields over derivation", () => {
+    const context = resolveStandaloneMcpContext(
+      {
+        ...baseConfig,
+        agentId: "agent-x",
+        maxTokens: 128,
+        retrievalProfile: "general_chat",
+        sessionId: "s-config",
+        workspaceId: "workspace-a",
+      },
+      { cwd: "/tmp/project-b" },
+    );
+
+    expect(context.scope.workspaceId).toBe("workspace-a");
+    expect(context.scope.agentId).toBe("agent-x");
+    expect(context.scope.sessionId).toBe("s-config");
+    expect(context.maxTokens).toBe(128);
+    expect(context.retrievalProfile).toBe("general_chat");
+  });
+
+  it("lets per-call arguments override config values", () => {
+    const context = resolveStandaloneMcpContext(
+      {
+        ...baseConfig,
+        maxTokens: 128,
+        retrievalProfile: "general_chat",
+        sessionId: "s-config",
+      },
+      {
+        cwd: "/tmp/project-c",
+        maxTokens: 64,
+        retrievalProfile: "coding_agent",
+        sessionId: "s-call",
+      },
+    );
+
+    expect(context.maxTokens).toBe(64);
+    expect(context.retrievalProfile).toBe("coding_agent");
+    expect(context.scope.sessionId).toBe("s-call");
+  });
+
+  it("defaults workspaceRoot to the current directory", () => {
+    const context = resolveStandaloneMcpContext(baseConfig);
+    expect(context.workspaceRoot).toBe(resolve("."));
+    expect(context.scope.workspaceId).toBe(basename(resolve(".")));
+  });
+});
+
+describe("ensureStandaloneStorageReady", () => {
+  it("creates the sqlite parent directory", () => {
+    const root = mkdtempSync(join(tmpdir(), "gm-standalone-"));
+    const url = join(root, "nested", "deep", "standalone.sqlite");
+    try {
+      ensureStandaloneStorageReady({
+        storage: { provider: "sqlite", url },
+        userId: "u-1",
+      });
+      expect(existsSync(dirname(url))).toBe(true);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+  });
+
+  it("is a no-op for memory and postgres storage", () => {
+    ensureStandaloneStorageReady({
+      storage: { provider: "memory" },
+      userId: "u-1",
+    });
+    ensureStandaloneStorageReady({
+      storage: { provider: "postgres", url: "postgres://localhost:5432/gm" },
+      userId: "u-1",
     });
   });
 });

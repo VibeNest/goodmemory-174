@@ -1,5 +1,15 @@
-import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import type { GoodMemoryConfig } from "../api/contracts";
+import { normalizeScope } from "../domain/scope";
+import { resolveWorkspaceId } from "../host/managedFiles";
+import {
+  DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
+  DEFAULT_INSTALLED_HOST_MAX_TOKENS,
+  DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
+  DEFAULT_INSTALLED_HOST_WRITEBACK,
+} from "./hostConfigValidation";
+import type { HostMemoryRuntimeContext } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import { resolveInstallRoot } from "./hostRuntimeConfig";
 
@@ -171,6 +181,61 @@ function resolveStandaloneStorage(
       url: url ?? join(resolveInstallRoot(env.GOODMEMORY_HOME), "standalone.sqlite"),
     },
   };
+}
+
+// The runtime context shape shared by installed and standalone MCP serving.
+// Structurally identical to InstalledHostResolvedContext except the host label
+// widens to HostKind so standalone can use the existing "generic" host.
+export type McpRuntimeContext = HostMemoryRuntimeContext;
+
+export interface StandaloneMcpPerCallInput {
+  cwd?: string;
+  maxTokens?: number;
+  retrievalProfile?: "coding_agent" | "general_chat";
+  sessionId?: string;
+}
+
+// Synthesizes the installed-context shape from standalone config + per-call
+// tool arguments. Pure and synchronous (no config files, no filesystem), so
+// standalone per-call context loading cannot fail. scope.agentId stays
+// undefined unless explicitly configured: a defined agentId is a hard scope
+// filter, and standalone reads should see records written by any installed
+// host sharing the store.
+export function resolveStandaloneMcpContext(
+  config: StandaloneMcpConfig,
+  perCall: StandaloneMcpPerCallInput = {},
+): McpRuntimeContext {
+  const workspaceRoot = resolve(perCall.cwd ?? ".");
+
+  return {
+    activationMode: "global",
+    contextMode: DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
+    debug: false,
+    host: "generic",
+    maxTokens:
+      perCall.maxTokens ?? config.maxTokens ?? DEFAULT_INSTALLED_HOST_MAX_TOKENS,
+    retrievalProfile:
+      perCall.retrievalProfile ??
+      config.retrievalProfile ??
+      DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
+    scope: normalizeScope({
+      agentId: config.agentId,
+      sessionId: perCall.sessionId ?? config.sessionId,
+      userId: config.userId,
+      workspaceId: resolveWorkspaceId(workspaceRoot, config.workspaceId),
+    }),
+    storage: config.storage,
+    writeback: DEFAULT_INSTALLED_HOST_WRITEBACK,
+    workspaceRoot,
+  };
+}
+
+// Serve-startup hook: the context resolver stays pure, so directory creation
+// for the default sqlite location happens once here instead.
+export function ensureStandaloneStorageReady(config: StandaloneMcpConfig): void {
+  if (config.storage.provider === "sqlite" && config.storage.url) {
+    mkdirSync(dirname(config.storage.url), { recursive: true });
+  }
 }
 
 // Mirrors the flag conventions of src/cli.ts parseArgs: `--flag value` pairs,

@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { HostKind } from "../domain/hostTypes";
 import type {
+  HostMemoryRuntimeContext,
   InstalledHostContextDependencies,
-  InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import { createInstalledHostMemory } from "./hostExecutionContext";
-import type { InstalledHostKind } from "./hostInstall";
 import { resolveInstallRoot } from "./hostRuntimeConfig";
 import {
   buildProgressiveScopeDigest,
@@ -35,7 +35,7 @@ interface ProgressiveRecordCacheFile {
 }
 
 export async function createInstalledHostProgressiveRecallService(input: {
-  context: InstalledHostResolvedContext;
+  context: HostMemoryRuntimeContext;
   dependencies?: InstalledHostContextDependencies;
   homeRoot?: string;
 }): Promise<ProgressiveRecallService> {
@@ -49,7 +49,7 @@ export async function createInstalledHostProgressiveRecallService(input: {
 }
 
 export async function resolveInstalledHostProgressiveScopeDigest(input: {
-  context: InstalledHostResolvedContext;
+  context: HostMemoryRuntimeContext;
   homeRoot?: string;
 }): Promise<string> {
   return buildProgressiveScopeDigest({
@@ -60,7 +60,7 @@ export async function resolveInstalledHostProgressiveScopeDigest(input: {
 
 export async function writeInstalledHostProgressiveRecordCache(input: {
   homeRoot?: string;
-  host: InstalledHostKind;
+  host: HostKind;
   now?: Date;
   records: ProgressiveRecordDetail[];
   scopeDigest: string;
@@ -92,7 +92,7 @@ export async function writeInstalledHostProgressiveRecordCache(input: {
 
 export async function readInstalledHostProgressiveRecordCache(input: {
   homeRoot?: string;
-  host: InstalledHostKind;
+  host: HostKind;
   now?: Date;
   recordRefs: string[];
   scopeDigest: string;
@@ -123,7 +123,7 @@ export async function readInstalledHostProgressiveRecordCache(input: {
 
 async function readOrCreateProgressiveScopeDigestSecret(input: {
   homeRoot?: string;
-  host: InstalledHostKind;
+  host: HostKind;
 }): Promise<string> {
   const installRoot = resolveInstallRoot(input.homeRoot);
   const secretPath = join(
@@ -157,7 +157,7 @@ async function readOrCreateProgressiveScopeDigestSecret(input: {
 }
 
 async function resolveInstalledHostProgressiveScopeDigestSecret(input: {
-  context: InstalledHostResolvedContext;
+  context: HostMemoryRuntimeContext;
   homeRoot?: string;
 }): Promise<string> {
   const localSecret = await readOrCreateProgressiveScopeDigestSecret({
@@ -172,7 +172,7 @@ async function resolveInstalledHostProgressiveScopeDigestSecret(input: {
 }
 
 function buildProgressiveScopeDigestSecret(input: {
-  context: InstalledHostResolvedContext;
+  context: HostMemoryRuntimeContext;
   localSecret: string;
 }): string {
   return createHash("sha256")
@@ -190,7 +190,7 @@ function buildProgressiveScopeDigestSecret(input: {
 
 async function readProgressiveRecordCacheFile(input: {
   homeRoot?: string;
-  host: InstalledHostKind;
+  host: HostKind;
 }): Promise<ProgressiveRecordCacheFile> {
   try {
     const parsed = JSON.parse(
@@ -211,7 +211,7 @@ async function readProgressiveRecordCacheFile(input: {
 async function writeProgressiveRecordCacheFile(
   input: {
     homeRoot?: string;
-    host: InstalledHostKind;
+    host: HostKind;
   },
   ledger: ProgressiveRecordCacheFile,
 ): Promise<void> {
@@ -230,7 +230,7 @@ async function writeProgressiveRecordCacheFile(
 
 function progressiveRecordCachePath(input: {
   homeRoot?: string;
-  host: InstalledHostKind;
+  host: HostKind;
 }): string {
   return join(
     resolveInstallRoot(input.homeRoot),
