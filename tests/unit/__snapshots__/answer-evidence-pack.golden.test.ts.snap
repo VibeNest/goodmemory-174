@@ -1,0 +1,211 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`answer evidence pack golden outputs locks the abstention pack output 1`] = `
+"Abstention calibration: this question asks for a specific detail that may be absent. Answer from retrieved evidence only when a source directly states that requested detail; adjacent facts about the same entity, date, project, event, or preference are not enough.
+
+Answer shape: Answer that the provided chat does not contain the requested detail when no retrieved source directly states it. If partial adjacent facts are present, name the gap briefly instead of filling it from implication. Only answer with a substantive value when a source states the requested attribute, rationale, module detail, discussion/decision, technique, atmosphere, or background detail.
+
+Abstention target check:
+Question target: Which deployment window did I approve for the rollout?
+Required directness: the evidence must explicitly state the requested detail, not merely mention a neighboring entity, event, date, plan, deadline, tool, or preference.
+Adjacent facts are insufficient: a deadline or status is not module details; attendance or success is not atmosphere; a meeting title/time is not what was discussed or decided; a scheduled session/time block is not specific techniques; implementation details are not personal background unless framed as the user's background or prior projects; a tool choice is not the rationale unless the reason is stated.
+If the retrieved evidence is only adjacent, answer that the provided chat does not contain information related to the requested detail.
+
+Evidence for absence check:
+
+- [t=2024-03-01 | #11 | user] I set up the staging cluster with three nodes.
+- [t=2024-03-02 | #12 | user] The rollback checklist lives in the operations wiki."
+`;
+
+exports[`answer evidence pack golden outputs locks the contradiction pack output 1`] = `
+"Contradiction resolution: do not resolve the question by choosing one side. If the evidence contains both a denial/no/never/not-yet statement and an affirmative, attempted, integrated, fixed, implemented, or completed statement about the same target, report the contradiction and ask for clarification.
+
+Answer shape: Do not answer yes or no first, and do not collapse the answer to the denial just because it appears later. Begin by saying: I notice you've mentioned contradictory information about this. Then name both sides from the evidence—lead with the affirmative claim (what the user said they did, have, or completed), then state the conflicting denial—and ask for clarification.
+
+Contradiction evidence guide:
+Minimal contradiction pair (use these exact sides first; ignore adjacent implementation details unless the question explicitly asks for them):
+Denial/no side:
+- [#21] I have never integrated Flask-Login or managed user sessions in this project.
+Affirmative/done side:
+- [#22] I integrated Flask-Login v0.6.2 for session management and it works well.
+Potential denial/no side:
+- [#21] I have never integrated Flask-Login or managed user sessions in this project.
+Potential affirmative/done side (assertions that are not denials):
+- [#22] I integrated Flask-Login v0.6.2 for session management and it works well.
+A retrieved non-denial assertion about the question target is the affirmative side even when it describes planning, registration, attendance, collaboration, invitation, ordering, use, meeting, a recommendation, or a feeling rather than a completed action.
+Use the user's question target to phrase both sides; avoid substituting adjacent implementation details as the contradiction target.
+
+Use the contradiction evidence guide above as the source evidence; do not mine adjacent implementation details as the answer."
+`;
+
+exports[`answer evidence pack golden outputs locks the conflict-update pack output 1`] = `
+"Current-value resolution: compare entries in source order. Earlier entries are history when a later entry updates the same fact; answer with the latest supported value as current. Only report a conflict when entries cannot be reconciled as an update.
+
+Answer shape: Do not answer only yes or no when the evidence contains both a denial/never statement and an affirmative/done statement. Instead, state that the evidence is contradictory, name both sides using the evidence, and ask for or indicate clarification. When entries are simple updates rather than true contradictions, answer with the latest supported value.
+
+Current-value ledger:
+Latest/current candidate: [t=2024-03-03 | #33] Core module coverage is a separate 85%.
+Earlier history superseded by that latest candidate:
+1. [t=2024-03-01 | #31] Test coverage for the API module is 62% today.
+2. [t=2024-03-02 | #32] After the new suite landed, API module coverage rose to 78%.
+Use exact values, dates, amounts, names, and status terms from the latest/current candidate when answering the current-value question.
+
+Evidence (source-ordered, earliest first):
+
+- [t=2024-03-01 | #31 | user] Test coverage for the API module is 62% today.
+- [t=2024-03-02 | #32 | user] After the new suite landed, API module coverage rose to 78%.
+- [t=2024-03-03 | #33 | user] Core module coverage is a separate 85%.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the count pack output 1`] = `
+"This question asks for a count or total. Enumerate the value-bearing facts in the evidence, then compute the answer from them; do not restate a superseded earlier count unless the question asks for history.
+
+Answer shape: Count only distinct requested items that match the question's target category. Do not count individual role names as separate security features; count role-based access control as one capability. For security-capability counts, count mechanisms rather than individual role labels, examples, dates, tools, API limits, retries, or helper details unless the question asks for those concerns. When the question asks for concerns, count distinct user-raised problems separately; retry behavior, rapid calls, dependency risk, and uptime/stability can be separate concerns when stated separately. For API concern counts, group rapid or consecutive calls under rate-limit handling, but count retry or backoff after a limit is hit as a separate concern when stated separately. Group follow-up turns only when they restate the same requested item rather than raising a distinct concern. Show the final count and name the counted items; if the evidence gives an interval, compute only from the two endpoint facts. For date/time intervals, choose the two event dates named by the question's endpoint phrases, not unrelated intermediate dates. Use start dates when the question asks between starts; use completion/end dates only when the question names completion/end. Treat duration labels such as 30-day or two-week as period lengths or labels, not endpoint dates by themselves.
+
+Date/quantity ledger for counting:
+Candidate endpoints and quantities (source-ordered):
+- [t=2024-03-01 | #41 | user] dates: (none); duration labels (not endpoint dates by themselves): (none); other numeric quantities: 10 triangle classification problems
+quantity contexts: "I completed 10 triangle classification problems on Monday."
+- [t=2024-03-02 | #42 | user] dates: (none); duration labels (not endpoint dates by themselves): (none); other numeric quantities: 5 more classification problems
+quantity contexts: "I completed 5 more classification problems on Wednesday."
+Interval guidance: Choose the two event dates named by the question's endpoint phrases, not unrelated intermediate dates.
+Use start dates when the question asks between starts; use completion/end dates only when the question names completion/end.
+When a fact gives a date range such as from A to B, keep A as the period start and B as the period end before deciding which endpoint the question asks for.
+Do not use a duration label such as 15-day or two-week as an interval endpoint date.
+
+Value-bearing facts for counting:
+
+1. [t=2024-03-01 | #41 | user] I completed 10 triangle classification problems on Monday.
+2. [t=2024-03-02 | #42 | user] I completed 5 more classification problems on Wednesday.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the instruction pack output 1`] = `
+"Instruction-following constraints: identify the standing instruction, then the latest companion instruction or refinement if present. Apply these constraints to the answer; do not treat the instruction text as the whole answer by itself.
+
+Answer shape: For instruction-following questions, answer the underlying request using the supporting evidence while satisfying the instruction constraints. If the user asks what the response should include, describe the required response contents; otherwise provide the concrete requested values or content in the required format. Apply the standing instruction first, then the latest companion constraint or refinement if present. Ignore retrieved turns that do not constrain the requested response. Use supporting evidence only when it answers the requested question; do not let unrelated retrieved turns override the instruction.
+
+Instruction constraints:
+
+- [t=2024-03-01 | #51 | user] Always mention version numbers when you list my dependencies.
+- [t=2024-03-02 | #52 | user] Also include the license for each library.
+
+Supporting evidence for the requested answer:
+
+- [t=2024-03-03 | #53 | user] I installed Flask 2.3.1 and SQLite 3.39 last week.
+
+Concrete answer-content cues:
+Do not only restate the instruction; include the concrete values below when they answer the user's requested response contents.
+versioned names/values: Flask 2.3.1, SQLite 3.39
+named tools/examples: Also
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the multi-session pack output 1`] = `
+"Multi-session reasoning: preserve source-order progression across sessions, connect each value-bearing facet, and synthesize how the facts relate instead of answering from one isolated turn.
+
+Answer shape: Synthesize across all listed facets and preserve how the situation evolved. Do not answer from only the latest entry when earlier facets are necessary. Name the main facets before drawing the final conclusion.
+
+Cross-session facets:
+
+1. [t=2024-03-01 | #61 | user] I started with an outline and a modest B- target.
+2. [t=2024-03-02 | #62 | user] Later I hired an editor and moved the deadline to June.
+3. [t=2024-03-03 | #63 | user] Finally I submitted the manuscript to two journals.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the order pack output 1`] = `
+"This question asks for an order or sequence. Build the answer from the source-order timeline below, with one concrete milestone per step. Do not reorder evidence by topical similarity.
+
+Answer shape: Return a numbered list when the question asks for ordered items. Phrase each item as the aspect or topic the user brought up, with concrete cues from the evidence; avoid copying raw code/config snippets as the whole item. Prefer one milestone per source entry before splitting any entry; when more items are requested than source entries, split later multi-topic entries before splitting earlier setup/foundation entries. Keep paired tasks joined by the same sprint/focus phrase as one milestone; split separate paragraphs or follow-up requests before splitting paired tasks. When a source turn starts with a broad problem label and then gives a concrete implementation/action, use the concrete implementation/action for the milestone. For multi-topic development entries, prefer high-level user-stated aspects over low-level code fields, library settings, worker-class suggestions, or validation details. If one source entry contains deployment/configuration plus testing or performance themes, split those high-level themes before extracting implementation details. If one source entry contains multiple distinct requested aspects, split it only enough to satisfy the requested item count.
+
+Question-target timeline anchors (source-ordered, noise-aware):
+
+Use these source-ordered anchors first when retrieved timeline entries include adjacent project noise; use the full timeline only to fill missing requested items.
+- [t=2024-03-03 | #73 | user] target terms: the; cues: 1) Last I added the analytics dashboard with monthly charts.
+
+Milestone cue candidates (source-ordered, code blocks removed):
+
+- #71 cues: 1) First I set up user authentication with hashed passwords.
+- #72 cues: 1) Then I implemented transaction creation with error handling.
+- #73 cues: 1) Last I added the analytics dashboard with monthly charts.
+
+Timeline evidence:
+
+1. [t=2024-03-01 | #71 | user] First I set up user authentication with hashed passwords.
+2. [t=2024-03-02 | #72 | user] Then I implemented transaction creation with error handling.
+3. [t=2024-03-03 | #73 | user] Last I added the analytics dashboard with monthly charts.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the preference pack output 1`] = `
+"Preference-following: identify the user's stated preference or style constraint, then answer the requested task while satisfying that constraint. Treat the preference as a response requirement, not as optional background.
+
+Answer shape: State the recommendation or answer in a way that explicitly follows the user's stated preference. Do not let noisy adjacent tool suggestions override the user's stated preference. When the preference is about simplicity, automation, step-by-step detail, morning routines, or direct portfolio links, make that constraint visible in the final answer. If the requested task has little support beyond the preference itself, still answer the task from the question while honoring the preference.
+
+Preference constraints:
+
+- [t=2024-03-01 | #81 | user] I prefer terse rollback notes with one line per step.
+
+Supporting evidence for the requested answer:
+
+- Requested task: How should rollback notes be written for my team?
+- [t=2024-03-01 | #81 | user] I prefer terse rollback notes with one line per step.
+- [t=2024-03-02 | #82 | user] Theo owns the rollback checklist for the release train."
+`;
+
+exports[`answer evidence pack golden outputs locks the summary pack output 1`] = `
+"This question asks for a summary. Cover all value-bearing themes present in the evidence, keep source-order chronology when it matters, and do not introduce themes absent from the evidence.
+
+Summary coverage checklist:
+Use these source-ordered cues as coverage anchors before writing prose. Make user-stated facts, dates, quantities, preferences, and decisions the backbone; include assistant guidance only when it records advice, options, or steps that answer the user's summarized workflow.
+Required source coverage: cover every listed source id before ending the summary: #91, #92, #93.
+Do not stop after the first coherent narrative arc; if later source ids shift to values, finances, legal steps, meetings, tools, metrics, or logistics, include those as late-stage themes rather than dropping them.
+If several adjacent source ids repeat the same theme, merge them briefly but still preserve the later theme and any concrete dates, quantities, people, tools, or decisions.
+Value-bearing summary anchors:
+(no extra value-bearing anchors detected; use the source coverage checklist)
+- #91 user themes: 1) I began with a basic JavaScript app calling the OpenWeather API.
+- #92 user themes: 1) Next I added city autocomplete with a 300ms debounce.
+- #93 user themes: 1) Then I cached responses in localStorage with a 10 minute expiry.
+  quantities: 10 minute expiry
+
+Evidence (source-ordered, earliest first):
+
+- [t=2024-03-01 | #91 | user] I began with a basic JavaScript app calling the OpenWeather API.
+- [t=2024-03-02 | #92 | user] Next I added city autocomplete with a 300ms debounce.
+- [t=2024-03-03 | #93 | user] Then I cached responses in localStorage with a 10 minute expiry.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the general pack output 1`] = `
+"Evidence (source-ordered, earliest first):
+
+- [t=2024-03-01 | #101 | assistant] Theo owns the rollback checklist.
+- [t=2024-03-02 | #102 | user] Mira prefers terse rollback notes.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the duplicate-source-ids-and-unsorted-turns pack output 1`] = `
+"Evidence (source-ordered, earliest first):
+
+- [t=2024-03-01 | #111 | user] Theo owns the rollback checklist.
+- [t=2024-03-02 | #112 | user] Mira prefers terse rollback notes.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the empty-turns pack output 1`] = `
+"Evidence (source-ordered, earliest first):
+
+(no evidence)
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
