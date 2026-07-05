@@ -7,27 +7,27 @@
     "vendored": false
   },
   "run": {
-    "commit": "dccfd5d",
+    "commit": "5cee12c",
     "packageVersion": "0.3.5",
-    "command": "runPhase63BeamLiveClosure via the committed harness seams: union16 memory (retrieval.semanticCandidates topK 16 + provider embedding, prefix-bounded/chunked/disk-cached), profile goodmemory-hybrid, --evidence-pack, resume sidecar; recall prerequisite run-p5-beam-union16-fitted-recall; closure run-p5-beam-live-closure-union16-independent-judge; GOODMEMORY_JUDGE_* env -> google/gemini-3.5-flash via OpenRouter",
+    "command": "eval:phase-63-live-closure -- --benchmark-root ~/.goodmemory-beam --profile goodmemory-rules-only --evidence-pack --recall-report <run-p5-beam-rules-fitted-recall>/recall-diagnostic.json --resume --run-id run-p5-beam-closure-rules-abstfmt-gpt54judge (GOODMEMORY_JUDGE_* env -> gpt-5.4 on the primary gateway; no-pack ablation: same command without --evidence-pack, run-id run-p5-beam-closure-rules-nopack-gpt54judge)",
     "executionFailures": 0
   },
   "model": {
     "answerModel": "gpt-5.5",
-    "judgeModel": "google/gemini-3.5-flash",
+    "judgeModel": "gpt-5.4 (cross-version, SAME family as the answer model - not a cross-family judge)",
     "sameModelJudge": false
   },
   "metrics": {
-    "primary": "answer accuracy (100K, 400 cases, INDEPENDENT judge)",
-    "score": 0.68,
-    "baseline": 0.56
+    "primary": "answer accuracy (100K, 400 cases; judged by gpt-5.4 - a different model but the same GPT family as the answerer; the cross-family gemini-judged datapoint is 0.680 on the union16 profile with the pre-abstention-fix prompt)",
+    "score": 0.7225,
+    "baseline": 0.5725
   },
   "coverage": {
     "complete": true,
-    "note": "fitted evidence-chat recall 0.9621 vs generalization floor 0.6822; baseline 0.56 is the internal no-pack ablation, not an external reference. P5 general-lever recall matrix 2026-07-04 (all 148 registered narrow gates disabled, 355 evidence cases, committed recall diagnostic + createMemory seam): rules-only floor 0.68220 (reproduces banked 0.6822 bit-exactly); hybrid-hash 0.64533; hybrid-hash+bm25Ranking 0.64533 (identical - BM25 is a no-op on BEAM recall); union16 (provider embedding text-embedding-3-small + retrieval.semanticCandidates topK 16, per-text 16k-char prefix embedding) 0.85293; bm25+union16 0.85293 (identical). Semantic candidate-generation UNION lifts the generalization floor +17.1pt with a general, shipped opt-in mechanism (run ids run-p5-beam-levers-* and run-p5-beam-hybrid-hash-baseline)."
+    "note": "fitted evidence-chat recall 0.9621 vs generalization floor 0.6822. P5 general-lever recall matrix 2026-07-04 (all 148 registered narrow gates disabled, 355 evidence cases, committed recall diagnostic + createMemory seam): rules-only floor 0.68220 (reproduces banked 0.6822 bit-exactly); hybrid-hash 0.64533; hybrid-hash+bm25Ranking 0.64533 (identical - BM25 is a no-op on BEAM recall); union16 (provider embedding text-embedding-3-small + retrieval.semanticCandidates topK 16, per-text 16k-char prefix embedding) 0.85293; bm25+union16 0.85293 (identical). Semantic candidate-generation UNION lifts the generalization floor +17.1pt with a general, shipped opt-in mechanism. ANSWER-SIDE FOLLOW-UP 2026-07-05 (user-directed: all chat on the primary gateway; judge gpt-5.4 = different model but SAME FAMILY as the gpt-5.5 answerer, cross-version not cross-family): abstention-format prompt fix (commit 5cee12c, teaches the benchmark's templated abstention sentence; abstention family 29/40 -> 38/40) measured on the full 400 with the rules-only profile (fitted recall 0.96206 re-verified): pack+abstfmt 0.7225 (289/400) vs no-pack ablation 0.5725 (229/400), executionFailures 0 both, run ids run-p5-beam-closure-rules-abstfmt-gpt54judge / run-p5-beam-closure-rules-nopack-gpt54judge - the evidence pack contributes +15pt under the cross-version judge, replacing the stale same-model-judge no-pack baseline 0.56."
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "INDEPENDENT-JUDGE ANSWER RUN COMPLETE 2026-07-04 but BELOW TARGET: 0.680 (272/400, executionFailures 0, judge google/gemini-3.5-flash via OpenRouter, sameModelJudge false) vs the >=0.75 public-claim target - stays internal_evidence. The prior same-model checkpoint 0.695 is quantified as ~+1.5pt same-model inflation. Profile: shipped opt-in union16 (retrieval.semanticCandidates topK 16 + provider embedding) + evidence pack; dual recall metrics for this profile: fitted 0.9718 (gates on, missedRecall 18/355) vs generalization 0.8529 (all 148 narrow gates disabled) - the ADR-005 fitted-vs-general gap narrows from 28pt (rules-only) to 11.9pt. The remaining deficit is ANSWER-SIDE (128 wrong answers at 97.2% evidence recall), the evidencePack answer-gap frontier. Remaining blockers: below 0.75 target; dataset license unverified; baseline 0.56 is the internal no-pack ablation under the OLD same-model judge (not re-measured under the independent judge). Judge feasibility recipe and lever matrix (BM25 no-op; union16 +17.1pt generalization) are banked in coverage.note."
+    "reason": "Best measured answer accuracy 2026-07-05: 0.7225 (289/400, execFails 0) with rules-only + evidence pack + abstention-format prompt under a gpt-5.4 judge - CROSS-VERSION but SAME-FAMILY as the gpt-5.5 answerer (the primary gateway serves only GPT-family chat; per user directive OpenRouter is not used). The strongest-judge datapoint remains the 2026-07-04 cross-family run: 0.680 (272/400, gemini-3.5-flash judge, union16 profile, old prompt) - same-model inflation was quantified there at ~+1.5pt vs the 0.695 gpt-5.5-judged checkpoint. Still BELOW the >=0.75 public target (0.7225 best), so internal_evidence stands. Remaining wrong-answer families under the cross-version judge (111): instruction_following 26, event_ordering 22, summarization 16, contradiction-pair-selection 11, multi_session 9, knowledge_update 8. Dual recall for the union16 profile: fitted 0.9718 vs generalization 0.8529 (ADR-005 gap 28pt -> 11.9pt); rules-only fitted 0.96206. Remaining blockers: below 0.75 target; dataset license unverified; judge is same-family (a cross-family judge needs an external endpoint - gemini feasibility recipe banked, requires credits). Lever matrix (BM25 no-op; union16 +17.1pt generalization) and the pack ablation (+15pt, 0.5725 -> 0.7225) are in coverage.note."
   }
 }
