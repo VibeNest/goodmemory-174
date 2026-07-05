@@ -28,7 +28,10 @@ import {
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { resolveLiveModelConfig } from "./run-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
@@ -65,6 +68,20 @@ const UNION_LIVE_ANSWER_SYSTEM =
 
 const LIVE_REQUEST_TIMEOUT_MS = 120000;
 
+export interface LocomoUnionLiveCliOptions {
+  benchmarkRoot?: string;
+  concurrency: number;
+  limit?: number;
+  maxAdditions?: number;
+  minSimilarity?: number;
+  noMemory: boolean;
+  outputDir: string;
+  resume: boolean;
+  runId: string;
+  topK: number;
+  withExtraction: boolean;
+}
+
 function createUnionLiveAnswerGenerator(): LocomoAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
   return async (input) => {
@@ -83,16 +100,91 @@ function createUnionLiveAnswerGenerator(): LocomoAnswerGenerator {
   };
 }
 
-function parseNumberFlag(argv: readonly string[], flag: string): number | undefined {
-  const raw = resolveCliFlagValue(argv, flag);
+function resolveNumericFlagValue(
+  argv: readonly string[],
+  flag: string,
+): string | undefined {
+  return resolveCliFlagValueStrict(argv, flag);
+}
+
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flag: string,
+): number | undefined {
+  const raw = resolveNumericFlagValue(argv, flag);
   if (raw === undefined) {
     return undefined;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  return value;
+}
+
+function parseNonNegativeIntegerFlag(
+  argv: readonly string[],
+  flag: string,
+): number | undefined {
+  const raw = resolveNumericFlagValue(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^(0|[1-9]\d*)$/.test(raw)) {
+    throw new Error(`${flag} must be a non-negative integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flag} must be a non-negative integer.`);
+  }
+  return value;
+}
+
+function parseNonNegativeNumberFlag(
+  argv: readonly string[],
+  flag: string,
+): number | undefined {
+  const raw = resolveNumericFlagValue(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^(0|[1-9]\d*)(\.\d+)?$/.test(raw)) {
+    throw new Error(`${flag} must be a non-negative number.`);
   }
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${flag} must be a non-negative number.`);
   }
   return value;
+}
+
+export function parseLocomoUnionLiveCliOptions(
+  argv: readonly string[],
+  repoRoot: string,
+): LocomoUnionLiveCliOptions {
+  const topK = parsePositiveIntegerFlag(argv, "--union-topk") ?? 16;
+  return {
+    benchmarkRoot:
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      process.env.GOODMEMORY_LOCOMO_ROOT,
+    concurrency: parsePositiveIntegerFlag(argv, "--concurrency") ?? 1,
+    limit: parsePositiveIntegerFlag(argv, "--limit"),
+    maxAdditions: parseNonNegativeIntegerFlag(argv, "--max-additions"),
+    minSimilarity: parseNonNegativeNumberFlag(argv, "--min-similarity"),
+    noMemory: hasCliFlagStrict(argv, "--no-memory"),
+    outputDir:
+      resolveCliFlagValueStrict(argv, "--output-dir") ??
+      join(repoRoot, "reports", "eval", "research", "phase-65", "locomo"),
+    resume: hasCliFlagStrict(argv, "--resume"),
+    runId:
+      resolveCliFlagValueStrict(argv, "--run-id") ??
+      `run-locomo-union${topK}-live`,
+    topK,
+    withExtraction: hasCliFlagStrict(argv, "--with-extraction"),
+  };
 }
 
 function buildUnionMemory(union: {
@@ -130,28 +222,19 @@ async function main(): Promise<void> {
   }
   const argv = Bun.argv;
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
-  const benchmarkRoot =
-    resolveCliFlagValue(argv, "--benchmark-root") ?? process.env.GOODMEMORY_LOCOMO_ROOT;
-  const topK = parseNumberFlag(argv, "--union-topk") ?? 16;
-  const maxAdditions = parseNumberFlag(argv, "--max-additions");
-  const minSimilarity = parseNumberFlag(argv, "--min-similarity");
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
-  const resume = argv.includes("--resume");
-  const withExtraction = argv.includes("--with-extraction");
-  // Per-question LLM concurrency (recall + answer are independent across
-  // questions once a case is seeded; the JSONL checkpoint is key-based so
-  // completion order does not matter). Seeding/extraction stays sequential.
-  const concurrencyRaw = parseNumberFlag(argv, "--concurrency");
-  const concurrency = Math.max(1, Math.floor(concurrencyRaw ?? 1));
-  // Gate-required ablation: answer every question with NO memory context (no
-  // seeding, no recall). With the abstention-format instruction the honest
-  // baseline is abstention on unanswerable probes and near-zero elsewhere.
-  const noMemory = argv.includes("--no-memory");
-  const runId = resolveCliFlagValue(argv, "--run-id") ?? `run-locomo-union${topK}-live`;
-  const outputDir =
-    resolveCliFlagValue(argv, "--output-dir") ??
-    join(repoRoot, "reports", "eval", "research", "phase-65", "locomo");
+  const {
+    benchmarkRoot,
+    concurrency,
+    limit,
+    maxAdditions,
+    minSimilarity,
+    noMemory,
+    outputDir,
+    resume,
+    runId,
+    topK,
+    withExtraction,
+  } = parseLocomoUnionLiveCliOptions(argv, repoRoot);
   const runDirectory = join(outputDir, runId);
   const progressPath = join(runDirectory, "live-progress.jsonl");
 

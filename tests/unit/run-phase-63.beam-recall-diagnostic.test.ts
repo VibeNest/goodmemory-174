@@ -15414,6 +15414,28 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     });
   });
 
+  it("rejects duplicate scalar cli selectors before running diagnostics", () => {
+    for (const flagName of [
+      "--benchmark-root",
+      "--limit",
+      "--output-dir",
+      "--run-id",
+      "--scale",
+    ]) {
+      expect(() =>
+        parsePhase63BeamRecallDiagnosticCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-recall-diagnostic.ts",
+          flagName,
+          flagName === "--scale" ? "100K" : "first",
+          flagName,
+          flagName === "--scale" ? "500K" : "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
   it("seeds BEAM chat turns into GoodMemory and scores retrieved chat ids", async () => {
     const writes = new Map<string, string>();
     const report = await runPhase63BeamRecallDiagnostic(

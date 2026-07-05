@@ -4,10 +4,13 @@ Phase 64 Breakdown: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[CLOSED — INTERNAL EVIDENCE] Phase 64 is closed as the accepted zero-failure
-AR+CR live closure (CR 0.959, AR 0.67, executionFailures 0) plus the TTL/LRU
-answer-format boundary; internal small-slice evidence, not a public claim. Phase
-63 BEAM remains paused (rules-only retrieval recall 0.9621). Current active lane:
+[CLOSED — INTERNAL EVIDENCE; P67-C PUBLIC CLAIM SUPERSEDES THE README BOUNDARY]
+Phase 64 is closed as the accepted zero-failure AR+CR live closure (CR 0.959,
+AR 0.67, executionFailures 0) plus the TTL/LRU answer-format boundary. At Phase
+64 closure this was internal small-slice evidence, not a public claim; P67-C
+later promoted only CR 0.959 / TTL 0.767 through
+`benchmark-claims/memoryagentbench.json`, with AR/LRU excluded. Phase 63 BEAM
+remains paused (rules-only retrieval recall 0.9621). Current active lane:
 v0.3 release readiness / public-surface hardening (Phase 66).
 
 Progress: P64-T001/T002 done (source intake + synthetic smoke contract). P64-T003
@@ -70,6 +73,12 @@ Preparation Rules
 - Carry Phase 63 noise and knowledge_update risks into the first Phase 64 gate.
 - Require changed-case comparisons before keeping any selector repair.
 - Do not add dataset-specific keyword branches as the first response to misses.
+- `prepare:phase-64-mab` rejects duplicate `--merge` and duplicate scalar
+  source/output/budget selectors before external-root writes; this is fixture-prep
+  integrity only, not a new score or claim.
+- `eval:phase-64-smoke` rejects duplicate mode switches and scalar source/output
+  selectors before report generation; this protects smoke/live evidence inputs
+  only, not the accepted closure score or P67-C public claim.
 
 
 Readiness Analyzer
@@ -101,8 +110,8 @@ reports/eval/research/phase-64/memoryagentbench-prep/<run-id>/phase-64-readiness
 First Adapter Requirements
 --------------------------
 
-When Phase 64 becomes active, the first adapter should report these fields from
-the smoke run:
+During Phase 64 bring-up, the first adapter was required to report these fields
+from the smoke run:
 
 - `phase`, `benchmark`, `mode`, `runId`, `generatedAt`
 - upstream source, license, and external root

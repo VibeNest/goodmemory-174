@@ -2925,15 +2925,22 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("66-phase-61-priming-abstraction-and-contamination-safe-output.txt");
     expect(taskBoard).toContain("67-phase-62-longmemeval-sequential-hardening.txt");
     expect(taskBoard).toContain("68-phase-63-beam-scale-and-noise-hardening.txt");
+    expect(taskBoard).toContain("69-phase-64-memoryagentbench-agent-memory-hardening.txt");
+    expect(taskBoard).toContain("70-phase-65-locomo-conversational-memory-hardening.txt");
+    expect(taskBoard).toContain("71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt");
+    expect(taskBoard).toContain("72-phase-67-public-benchmark-performance-and-claim-promotion.txt");
     expect(taskBoard).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
     expect(taskBoard).toContain("run-phase61-full300-20260505T170001Z/overall-summary.json");
     expect(taskBoard).toContain("213.26 / 300 = 71.09%");
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("Phase 64 MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
+    expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
+    expect(taskBoard).toContain("promoted public claim scoped only to CR 0.959 and TTL 0.767");
     expect(taskBoard).toContain("Phase 65 LoCoMo is banked as retrieval-boundary evidence");
-    expect(taskBoard).toContain("Current active lane: v0.3 release readiness / public-surface hardening (Phase 66)");
+    expect(taskBoard).toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
+    expect(taskBoard).toContain("Current Sequential benchmark-hardening entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
+    expect(taskBoard).toContain("Public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");
     expect(taskBoard).toContain(
       "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
     );

@@ -42,7 +42,7 @@ import {
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import { resolveLiveModelConfig } from "./run-eval";
 
 export const CAPTION_MODES = ["turn-only", "local-window-2"] as const;
@@ -384,6 +384,14 @@ export interface PrepareCaptionedRootResult {
   turnCount: number;
 }
 
+export interface LocomoCaptionedRootCliOptions {
+  concurrency: number;
+  mode: CaptionMode;
+  outputRoot: string;
+  sourceRoot: string;
+  windowRadius: number;
+}
+
 export async function prepareCaptionedRoot(input: {
   appendFile?: (path: string, data: string) => Promise<unknown>;
   captioner: Captioner;
@@ -511,34 +519,51 @@ function parseMode(raw: string | undefined): CaptionMode {
   throw new Error(`--mode must be one of ${CAPTION_MODES.join(", ")} (got ${mode}).`);
 }
 
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
+function parsePositiveIntegerValue(
+  raw: string | undefined,
+  flagName: string,
+  fallback: number,
+): number {
   if (raw === undefined) {
     return fallback;
   }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
   const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error(`Expected a positive integer, got ${raw}`);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flagName} must be a positive integer.`);
   }
   return value;
 }
 
-if (import.meta.main) {
-  const argv = Bun.argv;
-  const mode = parseMode(resolveCliFlagValue(argv, "--mode"));
+export function parseLocomoCaptionedRootCliOptions(
+  argv: readonly string[],
+): LocomoCaptionedRootCliOptions {
+  const mode = parseMode(resolveCliFlagValueStrict(argv, "--mode"));
   const sourceRoot =
-    resolveCliFlagValue(argv, "--source-root") ??
+    resolveCliFlagValueStrict(argv, "--source-root") ??
     process.env.GOODMEMORY_LOCOMO_ROOT ??
     DEFAULT_SOURCE_ROOT;
-  const outputRoot = resolveCliFlagValue(argv, "--output-root") ?? DEFAULT_OUTPUT_ROOT;
-  const windowRadius = parsePositiveInt(
-    resolveCliFlagValue(argv, "--window-radius"),
+  const outputRoot =
+    resolveCliFlagValueStrict(argv, "--output-root") ?? DEFAULT_OUTPUT_ROOT;
+  const windowRadius = parsePositiveIntegerValue(
+    resolveCliFlagValueStrict(argv, "--window-radius"),
+    "--window-radius",
     DEFAULT_WINDOW_RADIUS,
   );
-  const concurrency = parsePositiveInt(
-    resolveCliFlagValue(argv, "--concurrency") ??
+  const concurrency = parsePositiveIntegerValue(
+    resolveCliFlagValueStrict(argv, "--concurrency") ??
       process.env.GOODMEMORY_EVAL_MAX_CONCURRENCY,
+    "--concurrency",
     DEFAULT_CONCURRENCY,
   );
+  return { concurrency, mode, outputRoot, sourceRoot, windowRadius };
+}
+
+if (import.meta.main) {
+  const { concurrency, mode, outputRoot, sourceRoot, windowRadius } =
+    parseLocomoCaptionedRootCliOptions(Bun.argv);
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
   const result = await prepareCaptionedRoot({
     captioner: createLiveCaptioner(),

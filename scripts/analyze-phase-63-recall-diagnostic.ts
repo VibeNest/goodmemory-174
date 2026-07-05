@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import { inferPhase63BeamCaseCategory } from "./analyze-phase-63-beam-report";
 import {
   flattenPhase63BeamCases,
@@ -694,17 +694,18 @@ function resolveDefaultReportPath(input: {
 export function parsePhase63RecallDiagnosticAnalysisCliOptions(
   argv: readonly string[],
 ): Phase63RecallDiagnosticAnalysisOptions {
+  const profile = resolveCliFlagValueStrict(argv, "--profile") as BeamProfile | undefined;
   return {
-    baselineReportPath: resolveCliFlagValue(argv, "--baseline-report-path"),
-    baselineRunId: resolveCliFlagValue(argv, "--baseline-run-id"),
-    benchmarkRoot: resolveCliFlagValue(argv, "--benchmark-root"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
-    profile: resolveCliFlagValue(argv, "--profile") as BeamProfile | undefined,
-    reportPath: resolveCliFlagValue(argv, "--report-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    baselineReportPath: resolveCliFlagValueStrict(argv, "--baseline-report-path"),
+    baselineRunId: resolveCliFlagValueStrict(argv, "--baseline-run-id"),
+    benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    profile,
+    reportPath: resolveCliFlagValueStrict(argv, "--report-path"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
     sourceTurnLimit: parseSourceTurnLimit(
-      resolveCliFlagValue(argv, "--source-turn-limit"),
+      resolveCliFlagValueStrict(argv, "--source-turn-limit"),
     ),
   };
 }

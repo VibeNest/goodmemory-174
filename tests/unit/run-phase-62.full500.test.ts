@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildPhase62Full500ShardOptions,
+  parsePhase62Full500Options,
   runPhase62Full500LongMemEval,
 } from "../../scripts/run-phase-62-full500";
 import {
@@ -38,6 +39,23 @@ function buildReport(input: {
 }
 
 describe("run-phase-62 full-500 runner", () => {
+  it("rejects duplicate boolean mode flags before running full-500 shards", () => {
+    for (const flag of [
+      "--continue-on-execution-failure",
+      "--resume-existing-shards",
+    ]) {
+      expect(() =>
+        parsePhase62Full500Options([
+          "bun",
+          "run",
+          "scripts/run-phase-62-full500.ts",
+          flag,
+          flag,
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("builds ten fixed-size shard options by offset", () => {
     expect(
       buildPhase62Full500ShardOptions({

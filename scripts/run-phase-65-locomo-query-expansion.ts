@@ -13,7 +13,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { LocomoQuestion } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   buildLocomoScope,
@@ -78,6 +78,25 @@ export function buildQueryExpansionProbes(question: string): string[] {
     }
   }
   return probes;
+}
+
+export interface LocomoQueryExpansionCliOptions {
+  benchmarkRoot: string;
+  runId: string;
+}
+
+export function parseLocomoQueryExpansionCliOptions(
+  argv: readonly string[],
+): LocomoQueryExpansionCliOptions {
+  const runId =
+    resolveCliFlagValueStrict(argv, "--run-id") ?? "locomo-query-expansion";
+  const benchmarkRoot =
+    resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+    process.env.GOODMEMORY_LOCOMO_ROOT;
+  if (!benchmarkRoot) {
+    throw new Error("--benchmark-root or GOODMEMORY_LOCOMO_ROOT is required.");
+  }
+  return { benchmarkRoot, runId };
 }
 
 interface Bucket {
@@ -191,12 +210,7 @@ export async function runLocomoQueryExpansion(input: {
 }
 
 if (import.meta.main) {
-  const benchmarkRoot =
-    resolveCliFlagValue(Bun.argv, "--benchmark-root") ?? process.env.GOODMEMORY_LOCOMO_ROOT;
-  if (!benchmarkRoot) {
-    throw new Error("--benchmark-root or GOODMEMORY_LOCOMO_ROOT is required.");
-  }
-  const runId = resolveCliFlagValue(Bun.argv, "--run-id") ?? "locomo-query-expansion";
+  const { benchmarkRoot, runId } = parseLocomoQueryExpansionCliOptions(Bun.argv);
   const result = await runLocomoQueryExpansion({ benchmarkRoot });
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputPath = join(

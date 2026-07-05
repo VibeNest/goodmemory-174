@@ -268,6 +268,80 @@ open_domain gains +0.0668402778 recall and +6 fully retrieved for +240 noise
 turns (0.0278501157 recall per 100 added noise turns), while multi_hop gains
 +0.0503726407 recall and +5 fully retrieved for +735 noise turns
 (0.0068534205 per 100 added noise turns).
+Question-level candidate-admission selector:
+`analyze:phase-65-locomo-candidate-admission-slice` compares paired smoke
+reports and writes deterministic repair manifests with four primary buckets:
+candidate-full-retrieval-gain, partial-gain-still-missing,
+stubborn-missing-evidence, and noisy-full-recall-wrong. The rel0.8
+retrieval-only manifests now give concrete repair queues instead of only
+category averages:
+  - `locomo-open-domain-candidate-admission-slice-rel08-current`: 22 selected
+    questions (6 full-retrieval gains, 6 partial gains still missing, 10
+    stubborn missing; 65 stubborn-missing rows available).
+  - `locomo-multihop-candidate-admission-slice-rel08-current`: 28 selected
+    questions (8 full-retrieval gains, 10 partial gains still missing, 10
+    stubborn missing; 197 stubborn-missing rows available).
+The live-aware open_domain manifest
+`locomo-open-domain-live-candidate-admission-slice-rel08-current` selects 32
+questions and exposes the answer/noise side of the same comparison, including 15
+available noisy full-recall wrong rows and 10 selected. These manifests are
+repair queues, not default-promotion evidence. Noise-isolation `reanswerJobs`
+now include every selected candidate-side full-recall noisy wrong row, including
+rows whose primary repair bucket is a retrieval-gain bucket. The Phase 65 runner
+now accepts `--question-id-file` and can consume these manifests directly;
+retrieval-only file-loader smokes
+`locomo-open-domain-candidate-admission-file-loader-smoke-current` and
+`locomo-multihop-candidate-admission-file-loader-smoke-current` loaded the
+22-question open_domain manifest and 28-question multi_hop manifest respectively,
+both with `executionFailures: 0`; the multi_hop manifest replay measured
+0.4702380952 evidence recall, 8/28 fully retrieved, and 282 noise turns.
+After repairing upstream legacy QA evidence ids in the external root, the same
+28-question multi_hop manifest now has valid same-scope live evidence:
+topK16/maxAdditions4 baseline
+`locomo-multihop-candidate-admission-top16-add4-live-evidence-normalized-current`
+scored 6/28 (0.2142857143), average evidence recall 0.1833333333, 0 fully
+retrieved, noise 220, `executionFailures: 0`; topK32/maxAdditions8/rel0.8
+`locomo-multihop-candidate-admission-rel08-live-evidence-normalized-current`
+scored 10/28 (0.3571428571), average evidence recall 0.4753401361, 8 fully
+retrieved, noise 281, `executionFailures: 0`. Same-scope live-delta
+`locomo-multihop-top16-add4-vs-candidate-admission-rel08-live-delta-evidence-normalized-current`
+shows +4 net correct answers (5 improved, 1 regressed), +0.2920068027 evidence
+recall, +8 fully retrieved, and +61 noise turns. This is positive targeted
+admission evidence plus a remaining answer/noise queue, not a defaultable
+LoCoMo setting.
+The normalized live-delta also exported a three-row `noisyFullRecallWrong`
+multi_hop replay queue. Before the answer-contract repair, normal-context and
+gold-evidence-only reanswers both scored 0/3, so simply stripping retrieved
+noise did not fix the rows. The live prompt now tells the model to answer
+count/frequency questions in the requested frequency form (`twice` instead of a
+bare `2` for how-many-times questions). With that generic prompt contract,
+`locomo-multihop-noisy-full-recall-reanswer-frequency-normal-current` recovered
+1/3 at the same retrieval/noise metrics, and
+`locomo-multihop-noisy-full-recall-reanswer-frequency-gold-only-current` also
+scored 1/3. Delta
+`locomo-multihop-noisy-full-recall-frequency-normal-vs-gold-only-delta-current`
+shows 0 net answer change from gold-only context: 1 same-correct and 2
+same-wrong. This is a narrow answer-contract win and a routing signal toward
+multi_hop answer-synthesis / label-compatibility work rather than plain noise
+stripping.
+The same normalized live-delta also exported a five-row
+`topUnconvertedRetrievalGains` multi_hop replay queue. These are all
+partial-recall gains, not fully retrieved rows. Normal replay over the rel0.8
+candidate source report
+`locomo-multihop-top-unconverted-reanswer-normal-current` scored 1/5 with
+average evidence recall 0.5, 0 fully retrieved, 56 noise turns, and
+`executionFailures: 0`; `--gold-evidence-only-context`
+`locomo-multihop-top-unconverted-reanswer-gold-only-current` scored 0/5 with
+the same retrieval metrics. Delta
+`locomo-multihop-top-unconverted-normal-vs-gold-only-delta-current` shows -1 net
+from gold-only context: 0 improvements, 1 regression, 4 same-wrong, and all
+five rows staying `partial->partial`. The only normal-context correct row
+(`conv-49:q56`) is a token-F1 label-compatibility edge where the gold expects
+new-phone/navigation-app malfunction wording. Conclusion: for this selected
+partial-gain queue, stripping retrieved noise is not the lever; next work needs
+additional candidate admission to recover the missing half of the evidence, plus
+careful label-compatibility review where partial answers sit near the LoCoMo F1
+boundary.
 First rel0.8 live-answer validation completed for open_domain:
 `locomo-open-domain-semantic-provider-top32-add8-rel08-live-pack-current`
 covered all 96 open-domain questions with `--live --evidence-pack`,
@@ -290,6 +364,197 @@ direction (+6 fully retrieved, `partial->full` 3, `zero->full` 3, `zero->partial
 answers, and all three regressions are noisy full-recall regressions. This
 narrows the next move: avoid plain budget widening; combine targeted admission
 with answer-context/noise filtering.
+Open_domain unconverted-gain replay refresh:
+The old full-root rel0.8 live report cannot be used as a new reanswer source
+because it predates required `answerContextMode` lineage; the later commonsense
+source also exposes a malformed legacy evidence id in an unrelated row under the
+current stricter compatibility guard. To avoid weakening those guards, the nine
+`topUnconvertedRetrievalGains` ids from
+`locomo-open-domain-top16-add4-vs-top32-add8-rel08-live-delta-current` were
+rerun as a current targeted source report:
+`locomo-open-domain-top-unconverted-rel08-source-current`, using
+topK32/maxAdditions8/rel0.8 with live evidence-pack answers. It scored 0/9,
+average evidence recall 0.6851851852, 4 fully retrieved, 90 noise turns, and
+`executionFailures: 0`. Gold-evidence-only replay
+`locomo-open-domain-top-unconverted-reanswer-gold-only-current` scored 1/9 with
+identical retrieval metrics; delta
+`locomo-open-domain-top-unconverted-normal-vs-gold-only-delta-current` shows +1,
+0 regressions, 8 same-wrong, 4 `full->full`, and 5 `partial->partial` rows. The
+one recovered row is `conv-43:q8` (`Under Armour`), a full-recall context/noise
+sensitivity case. A same-source `--allow-commonsense-resolution` replay,
+`locomo-open-domain-top-unconverted-reanswer-commonsense-current`, stayed at
+0/9; delta
+`locomo-open-domain-top-unconverted-normal-vs-commonsense-delta-current` shows
+0 improvements, 0 regressions, 9 same-wrong, and
+`effectiveAnswerPolicyChangedCount: 9`. The first failure mode was prompt
+inconsistency: the system allowed open_domain commonsense, while the user prompt
+still said to answer using only the dialog context. The current prompt keeps the
+commonsense policy scoped to open_domain, aligns the user prompt with the system
+policy, and asks for the requested type directly (full console, company, place,
+style, or category rather than only a manufacturer, topic, or clue). With that
+generic bridge contract,
+`locomo-open-domain-top-unconverted-reanswer-commonsense-bridge-current` scored
+1/9 with `executionFailures: 0`; delta
+`locomo-open-domain-top-unconverted-normal-vs-commonsense-bridge-delta-current`
+shows +1, 0 regressions, 8 same-wrong, and
+`effectiveAnswerPolicyChangedAnswerChangeCount: 1`. The recovered row is
+`conv-43:q70` (Star Wars filming locations). A follow-up grounding-phrase prompt
+variant was explicitly rejected:
+`locomo-open-domain-top-unconverted-reanswer-commonsense-bridge-grounded-current`
+fell back to 0/9 by producing verbose answers that missed LoCoMo token-F1, such
+as `Under Armour -- the gear brand John wanted to work with.` Remaining
+full-recall wrong examples include `conv-42:q60` (Nintendo Switch, semantically
+bridged but token-F1 misses because the gold includes the Xenoblade rationale),
+`conv-43:q8` (Under Armour), and `conv-43:q51` (Hatha Yoga); partial rows such as
+`conv-42:q68`, `conv-43:q53`, `conv-44:q52`, and `conv-49:q43` still lack at
+least one gold turn. Conclusion: this selected open_domain unconverted queue has
+a narrow answer-contract win, but it is not cleared by plain noise stripping or
+commonsense prompting; next work needs more targeted admission for partial rows
+and better answer/context organization plus label-compatibility review for fully
+retrieved open-world facts.
+Opt-in commonsense answer-policy probe:
+`locomo-open-domain-rel08-commonsense-live-current` reran the same full-root
+open_domain topK32/maxAdditions8/rel0.8 live-answer slice with
+`--allow-commonsense-resolution`. Retrieval/noise were unchanged
+(0.3432393791 recall, 25/96 fully retrieved, noise 936) and
+`executionFailures: 0`; answer accuracy improved from 22/96 to 27/96
+(0.28125). The live-delta artifact
+`locomo-open-domain-rel08-vs-commonsense-live-delta-current` reports +5 net
+answers: 7 improved, 2 regressed, 20 stayed correct, 67 stayed wrong, 0
+retrieval delta, and 1 noisy full-recall regression. The gap artifact
+`locomo-open-domain-rel08-commonsense-live-current/category-gap-analysis.json`
+still leaves 57 missing-evidence wrong rows and 12 full-recall-noisy wrong
+rows. Conclusion: common-world-knowledge resolution is a plausible
+open_domain answer-policy lever, but it is NOT defaultable until
+adversarial/no-answer and broader category safety prove it does not trade
+abstention correctness for hallucinated answers.
+Targeted adversarial/no-answer safety replay:
+`eval:phase-65-reanswer-report` reuses retrieved turn ids from an existing
+LoCoMo smoke report and only reruns answer generation/scoring, avoiding a fresh
+provider-embedding retrieval pass. The first safety slice selected 15
+baseline-correct adversarial rows from
+`locomo-adversarial-semantic-provider-top16-add4-live-pack-current`, mixed
+across zero/partial/full evidence recall. No-commonsense replay
+`locomo-adversarial-commonsense-safety-reanswer-baseline-current` scored 14/15,
+`executionFailures: 0`; commonsense replay
+`locomo-adversarial-commonsense-safety-reanswer-current` scored 15/15,
+`executionFailures: 0`. Delta artifact
+`locomo-adversarial-commonsense-safety-reanswer-delta-current/live-delta.json`
+shows 1 improvement, 0 regressions, 14 same-correct, 0 same-wrong, and no
+retrieval/noise delta. Gap artifact
+`locomo-adversarial-commonsense-safety-reanswer-current/category-gap-analysis.json`
+has 0 wrong rows. Conclusion: this is useful narrow safety evidence for the
+commonsense prompt guard, but it is still not full adversarial/no-answer safety
+or default-promotion evidence.
+Broader adversarial/no-answer safety replay:
+`locomo-adversarial-commonsense-safety-reanswer-broad60-baseline-current` and
+`locomo-adversarial-commonsense-safety-reanswer-broad60-current` replayed the
+same 60 adversarial rows from the original topK16/maxAdditions4 live report:
+20 high-noise zero-recall baseline-correct abstentions, all 5 partial-recall
+baseline-correct abstentions, 20 high-noise full-recall baseline-correct
+abstentions, and 15 high-noise baseline-wrong rows. Both no-commonsense and
+commonsense reports scored 46/60 (0.7666666667), with `executionFailures: 0`.
+Delta artifact
+`locomo-adversarial-commonsense-safety-reanswer-broad60-delta-current/live-delta.json`
+shows 1 improvement, 1 regression, 45 same-correct, 13 same-wrong, no
+retrieval/noise delta, and no noisy full-recall regression. The improvement is
+`conv-26:q153`, a zero-recall row where commonsense changed the answer from the
+tempting adoption answer to abstention. The regression is `conv-26:q181`, also
+zero recall with 9 noise turns, where commonsense changed abstention to the
+concrete answer `a plate`. Candidate gap analysis stays at 13
+missing-evidence wrong rows and 1 full-recall-noisy wrong row. Conclusion: this
+is broader safety evidence, but it is a negative default-promotion result; the
+prompt guard needs stricter no-evidence abstention behavior and cross-category
+safety validation before any default/public claim.
+Category-scoped strict no-evidence abstention guard:
+The live-answer runner and replay tool now expose
+`--strict-no-evidence-abstention`, an opt-in prompt guard that tells the model
+to give a concrete answer on adversarial/no-answer pressure only when the
+retrieved dialog directly states the requested relationship. The guard is
+category-scoped to adversarial questions so open_domain commonsense resolution
+does not receive the stricter abstention instruction. Replaying the same
+60-row adversarial slice with commonsense plus the strict guard wrote
+`locomo-adversarial-commonsense-strict-safety-reanswer-broad60-current`: 48/60
+(0.8), `executionFailures: 0`, same retrieval/noise. Delta artifacts
+`locomo-adversarial-commonsense-strict-vs-baseline-broad60-delta-current/live-delta.json`
+and
+`locomo-adversarial-commonsense-strict-vs-nonstrict-broad60-delta-current/live-delta.json`
+both show 2 improvements, 0 regressions, 46 same-correct, 12 same-wrong, no
+retrieval/noise delta, and no noisy full-recall regression. The strict guard
+restores the earlier zero-recall regression `conv-26:q181` to abstention and
+also repairs `conv-43:q210`; the gap artifact drops missing-evidence wrong rows
+from 13 to 11 and leaves 1 full-recall-noisy wrong row. Conclusion: this is
+positive adversarial safety hardening, not default promotion.
+Open_domain cross-category validation:
+`locomo-open-domain-rel08-commonsense-strict-live-current` reanswered the 96-row
+open_domain topK32/maxAdditions8/rel0.8 slice with both
+`--allow-commonsense-resolution` and the category-scoped strict guard. It scored
+26/96 (0.2708333333), `executionFailures: 0`, with identical retrieval/noise
+(0.3432393791 recall, 25/96 fully retrieved, noise 936). Compared with
+non-strict commonsense, delta
+`locomo-open-domain-commonsense-strict-vs-nonstrict-live-delta-current/live-delta.json`
+shows -1 net: 1 improvement, 2 regressions, 25 same-correct, 68 same-wrong, and
+2 noisy full-recall regressions. Compared with the non-commonsense rel0.8
+baseline, delta
+`locomo-open-domain-rel08-vs-commonsense-strict-live-delta-current/live-delta.json`
+still shows +4 net: 6 improvements, 2 regressions, 20 same-correct, 68
+same-wrong. The strict open_domain gap artifact has 57 missing-evidence wrong
+rows and 13 full-recall-noisy wrong rows. Conclusion: the category-scoped guard
+preserves most of the open_domain commonsense gain while improving adversarial
+safety, but it is still not defaultable because open_domain keeps small
+regressions and large missing-evidence/noise buckets.
+Cross-category answer-policy risk slice:
+`analyze:phase-65-locomo-answer-policy-slice` now selects reproducible
+answer-policy replay rows from existing live category reports instead of relying
+on hand-picked question ids. The current manifest
+`locomo-cross-category-answer-policy-slice-current/answer-policy-slice.json`
+uses `perBucket=5` across single_hop, multi_hop, and temporal: for each
+category it selects baseline-correct high-noise rows, wrong full-recall-noisy
+rows, and wrong missing-evidence rows, for 45 total selected questions. The
+first live replay ran the single_hop job. Baseline
+`locomo-single-hop-answer-policy-slice-baseline-current` scored 6/15,
+`executionFailures: 0`; global commonsense+strict
+`locomo-single-hop-answer-policy-slice-commonsense-strict-current` scored 5/15,
+`executionFailures: 0`. Delta
+`locomo-single-hop-answer-policy-slice-commonsense-strict-delta-current/live-delta.json`
+shows -1 net: 0 improvements, 1 regression, 5 same-correct, 9 same-wrong, no
+retrieval/noise delta, and 1 noisy full-recall regression. Conclusion: global
+commonsense is unsafe outside open_domain. The live-answer system prompt now
+scopes commonsense resolution to open_domain questions while keeping strict
+no-evidence abstention scoped to adversarial/no-answer questions. Rerunning the
+same single_hop slice as
+`locomo-single-hop-answer-policy-slice-open-domain-scoped-current` scored 6/15,
+`executionFailures: 0`, and delta
+`locomo-single-hop-answer-policy-slice-open-domain-scoped-delta-current/live-delta.json`
+shows 0 improvements, 0 regressions, 6 same-correct, 9 same-wrong, no
+retrieval/noise delta, 0 noisy full-recall regressions, and
+`effectiveAnswerPolicyChangedCount: 0`. The remaining manifest jobs are now run
+as well. `locomo-multihop-answer-policy-slice-baseline-current`
+scored 6/15 and `locomo-multihop-answer-policy-slice-open-domain-scoped-current`
+scored 5/15, both `executionFailures: 0`; delta
+`locomo-multihop-answer-policy-slice-open-domain-scoped-delta-current/live-delta.json`
+shows 1 improvement, 2 regressions, 4 same-correct, 8 same-wrong, no
+retrieval/noise delta, 1 noisy full-recall regression,
+`effectiveAnswerPolicyChangedCount: 0`, and 2 unchanged-policy regressions.
+Temporal needed the new reanswer retry wrapper after the first baseline attempt
+left one execution failure; the zero-failure rerun
+`locomo-temporal-answer-policy-slice-baseline-current`
+scored 6/15 and `locomo-temporal-answer-policy-slice-open-domain-scoped-current`
+also scored 6/15, both `executionFailures: 0`; delta
+`locomo-temporal-answer-policy-slice-open-domain-scoped-delta-current/live-delta.json`
+shows 1 improvement, 1 regression, 5 same-correct, 8 same-wrong, no
+retrieval/noise delta, 1 noisy full-recall regression,
+`effectiveAnswerPolicyChangedCount: 0`, and 1 unchanged-policy regression.
+Conclusion: scoped commonsense fixed the single_hop regression, but the
+multi_hop/temporal answer changes happened with unchanged effective scoped prompt
+policy, so they are live-repeatability and validation-risk signals rather than
+proof that the scoped answer-policy instruction caused those regressions. LoCoMo
+still needs targeted candidate admission plus broader category validation before
+any default/public claim.
+Reanswer replay now also retains hard-failed selected rows with null answer
+fields after all retry attempts fail, while incrementing `executionFailures`.
+This keeps manifest-driven replay reports from silently shrinking their selected
+question set when a provider outage survives retries.
 
 Phase 64 MemoryAgentBench remains the active hardening leg; its real live-answer
 path exists behind `--live`, but no accepted external-root live closure exists.
@@ -398,6 +663,1930 @@ Tasks
   recall delta, fully-retrieved delta, added noise, and recall gained per 100
   added noise turns. Unit coverage lives in
   tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004e Candidate-admission slice selector.
+  `analyze:phase-65-locomo-candidate-admission-slice` compares paired baseline
+  and candidate smoke reports at question granularity, emits deterministic
+  repair queues, and preserves turn-id-level evidence/noise deltas for targeted
+  admission work. Unit coverage lives in
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
+
+[DONE] P65-T004f Manifest-driven targeted rerun input.
+  `eval:phase-65-smoke` and `eval:phase-65-reanswer-report` now accept
+  `--question-id-file` for plain text, `questionIds`, `repairJobs`,
+  `reanswerJobs`, and category-level manifest JSON, so candidate-admission and
+  answer-policy slices can feed targeted retrieval, live, or reanswer reruns
+  without manual question-id copying. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004g Gold-evidence-only reanswer diagnostic.
+  `eval:phase-65-reanswer-report --gold-evidence-only-context` keeps the source
+  report's retrieved/noise metrics intact but packs only retrieved gold evidence
+  turns into the answer context. This is a gold-label diagnostic for isolating
+  noisy-context answer failures; it is not a default retrieval or answer policy.
+  Unit coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004h Answer-context-mode delta attribution.
+  `analyze:phase-65-locomo-live-delta` now records
+  `answerContextModeChangedCount` and regression counts separately from
+  effective prompt-policy changes. This keeps gold-evidence-only noise-isolation
+  comparisons from being misread as answer-policy or retrieval evidence. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004i Noise-isolation reanswer queues.
+  Candidate-admission manifests now emit `reanswerJobs` for selected
+  candidate-side full-recall noisy wrong rows, including rows whose primary
+  repair bucket is a retrieval-gain bucket, separate from broader retrieval
+  `repairJobs`. `eval:phase-65-reanswer-report` prefers file-local
+  `reanswerJobs` when present, so `--gold-evidence-only-context` can replay the
+  answer-side noise subset without accidentally pulling missing-evidence repair
+  queues. Those jobs take precedence over top-level
+  `questionIds`, broader `repairJobs`, and category fallbacks in reanswer-mode
+  manifest loading, while explicit CLI `--question-id` values remain additive.
+  Unit coverage lives in
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts,
+  tests/unit/run-phase-65.locomo-smoke.test.ts, and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004j Reanswer source-run guard.
+  Candidate-admission `reanswerJobs` now carry source run metadata, and
+  `eval:phase-65-reanswer-report` rejects a manifest whose `sourceRunId` does
+  not match the supplied `--source-report` before loading the benchmark root.
+  Every `reanswerJobs` source run must match; mixed-source manifests,
+  matching-run-id but wrong-source-path manifests, and manifest-internal
+  candidateReport/job provenance conflicts are rejected instead of being
+  partially accepted. This keeps manifest-driven answer-policy and
+  gold-evidence-only replay from producing evidence against the wrong
+  retrieved/noise context. Unit coverage lives in
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004k Reanswer report source lineage.
+  Reanswer-generated LoCoMo smoke reports now persist a `sourceReport` lineage
+  object with the source path, run id, generated timestamp, and answer-context
+  mode, plus the source retrieval config (`bm25Ranking` and semantic-candidate
+  settings). This makes manifest-driven answer-policy and gold-evidence-only
+  replay artifacts auditable without relying on run-id naming conventions or a
+  still-present source artifact. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004l Live-delta answer-change attribution.
+  `analyze:phase-65-locomo-live-delta` now adds per-question
+  `answerChangeAttribution` objects and summary counts for answer changes that
+  overlap retrieval-metric changes, effective prompt-policy changes,
+  answer-context-mode changes, or residual live-answer drift when none of those
+  observable drivers changed. This keeps multi_hop/temporal manifest replays and
+  gold-evidence-only comparisons from being over-attributed to prompt policy.
+  Unit coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004m Live-delta reanswer queues.
+  `analyze:phase-65-locomo-live-delta` now emits candidate-sourced
+  `reanswerJobs` for top answer regressions, answer improvements, unconverted
+  retrieval gains, and residual live-answer changes, split by bucket/category
+  with selected category metadata on each job. This lets
+  `eval:phase-65-reanswer-report --question-id-file <live-delta.json>` validate
+  delta rows without manual question-id copying or source-report guessing.
+  Follow-up replay can also pass `--reanswer-job-bucket` plus
+  `--reanswer-job-category` to isolate one queue/category instead of merging
+  regressions, improvements, residual changes, and unconverted retrieval gains
+  into one run. These are follow-up validation queues, not default-promotion
+  evidence. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004n Mixed-source reanswer manifest rejection.
+  `eval:phase-65-reanswer-report` now rejects a `reanswerJobs` manifest if any
+  listed source run differs from the supplied source report. This closes the
+  provenance hole where a concatenated answer-policy/live-delta manifest could
+  contain one matching job and another job from a different retrieved/noise
+  context. Unit coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004o Reanswer hard-failure row retention.
+  `eval:phase-65-reanswer-report` now preserves selected source rows when all
+  answer-generation retry attempts fail, clearing the replay answer fields to
+  null and incrementing `executionFailures` instead of dropping the row from the
+  report. This prevents manifest replay evidence from silently under-counting
+  selected questions after a provider outage. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004p Reanswer source-report path guard.
+  `eval:phase-65-reanswer-report` now validates manifest `sourceReportPath`
+  metadata, after path normalization, in addition to `sourceRunId`. A manifest
+  with the same run id but a different source report path is rejected before
+  loading the benchmark root, preventing replay evidence from being generated
+  against a different retrieved/noise report that reused the same run id. Unit
+  coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004q Reanswer manifest-internal provenance conflict guard.
+  `eval:phase-65-reanswer-report` now validates both job-level
+  `sourceRunId`/`sourceReportPath` and top-level `candidateReport` /
+  selected `sourceReports` provenance when a reanswer manifest carries them. A
+  manifest whose selected job metadata matches `--source-report` but whose
+  top-level `candidateReport` or selected `sourceReports` provenance points at
+  another source is rejected before loading the benchmark root, so malformed
+  live-delta, answer-policy, or candidate-admission manifests cannot mask
+  conflicting provenance. Category-
+  filtered answer-policy replay can still ignore unrelated top-level
+  `sourceReports` from other categories. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004r Reanswer job-bucket/category replay filter.
+  `eval:phase-65-reanswer-report` now accepts `--reanswer-job-bucket` and
+  `--reanswer-job-category` for manifest-driven replay. When a live-delta or
+  candidate-admission manifest carries multiple `reanswerJobs`, the runner can
+  replay only a named queue such as `answerRegressions`,
+  `topUnconvertedRetrievalGains`, or `noisyFullRecallWrong`, optionally narrowed
+  to one QA category, while preserving the same source-run/path provenance
+  guards over the selected jobs. Category-only replay also supports answer-policy
+  slice manifests whose `reanswerJobs` are intentionally bucketless but carry
+  `category` metadata, even when the manifest records source reports for other
+  categories.
+  Generated reanswer reports also persist `reanswerSelection` metadata with
+  explicit question ids, the manifest path, selected buckets, and selected
+  categories. This prevents follow-up evidence for one repair lane/category from
+  being mixed with another lane's rows or losing its selection lineage after
+  artifact generation. Unit
+  coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004s Answer-policy source-aware reanswer jobs.
+  `analyze:phase-65-locomo-answer-policy-slice` now preserves source report
+  provenance on each selected question and splits same-category `reanswerJobs`
+  by `sourceReportPath` / `sourceRunId`. This prevents a sharded same-category
+  answer-policy manifest from assigning all selected question ids to the first
+  report in that category and later replaying rows against the wrong retrieved
+  context. Unit coverage lives in
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004t Filtered reanswer source narrowing.
+  When `--reanswer-job-bucket` or `--reanswer-job-category` is present,
+  `eval:phase-65-reanswer-report` now narrows matching `reanswerJobs` to the
+  supplied `--source-report` run/path. This lets a same-category multi-source
+  answer-policy manifest be replayed source-by-source without treating other
+  source reports for that category as selected jobs. Unfiltered manifest replay
+  still rejects mixed-source `reanswerJobs`; this is a filtered replay
+  convenience, not a weakening of full-manifest provenance guards. Unit coverage
+  lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004u Single-source reanswer manifest sourceReports lineage.
+  `analyze:phase-65-locomo-live-delta` and
+  `analyze:phase-65-locomo-candidate-admission-slice` now emit top-level
+  `sourceReports` entries for their candidate/source report, matching the
+  answer-policy slice manifest shape while preserving the existing
+  `candidateReport` compatibility field. This makes reanswer artifact lineage
+  auditable through one common schema for both single-source and multi-source
+  manifests. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts and
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
+
+[DONE] P65-T004v Preferred reanswer manifest queue strictness.
+  `eval:phase-65-reanswer-report` and reanswer-mode manifest loading no longer
+  fall back to top-level `questionIds`, `repairJobs`, or category fallbacks when
+  a preferred `reanswerJobs` key is present but empty. An explicitly empty
+  reanswer queue now fails fast instead of silently replaying broader
+  missing-evidence or repair queues. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004w Reanswer job question-count integrity guard.
+  `eval:phase-65-reanswer-report` now rejects selected `reanswerJobs` whose
+  `questionIds` are not a string array, whose `questionCount` is invalid, does
+  not match the number of `questionIds`, or repeats a question id across
+  selected jobs before loading benchmark cases or generating replay evidence.
+  This prevents a malformed manifest from claiming a larger or smaller replay
+  slice than the rows actually reanswered. The Phase 65 smoke runner's
+  question-id manifest loader applies the same per-job and per-category
+  string-id, `questionCount`, and duplicate-id guard for targeted
+  `repairJobs` / `reanswerJobs` retrieval smokes and category selections; it
+  also rejects manifests whose `overall.selectedQuestionCount` disagrees with
+  the category selections. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts and
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004x Category aggregate source question-count lineage.
+  `summarize:phase-65-locomo-categories` and
+  `analyze:phase-65-locomo-category-gaps` now include per-source
+  `questionCount` in their `sourceReports` lineage. This makes assembled
+  category matrices and gap diagnostics auditable against their input shard
+  sizes without relying only on the aggregate totals. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004y Smoke-report cases/questionCount integrity guard.
+  Phase 65 JSON post-processors and reanswer replay paths now reject reports
+  whose top-level `questionCount` does not match `cases.length` before
+  computing deltas, selections, summaries, gap artifacts, or replay evidence.
+  The retrieval-gap analyzer also rejects smoke reports that cannot be fully
+  joined to the supplied LoCoMo cases root by case id, question id, and gold
+  evidence turn id.
+  This prevents source lineage from claiming one slice size while the analysis
+  actually processes another. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts,
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts, and
+  tests/unit/summarize-phase-65-locomo-categories.test.ts, with focused
+  regressions across live-delta, answer-policy, candidate-admission, gap,
+  retrieval-gap, budget-delta, category-summary, and reanswer tests.
+
+[DONE] P65-T004z Targeted smoke external-root question-id uniqueness guard.
+  `eval:phase-65-smoke` now rejects targeted `--question-id` /
+  `--question-id-file` loads when a requested question id matches multiple
+  questions in the selected external LoCoMo root. This prevents malformed or
+  mixed roots from silently expanding a candidate-admission or reanswer slice
+  beyond the manifest's intended rows. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004aa Smoke-report selection-header/cases integrity guard.
+  Shared Phase 65 smoke-report validation now rejects reports whose `caseIds`,
+  targeted `questionIds`, duplicate question identities, or category-filter
+  headers do not match the actual `cases[]` rows. This prevents downstream
+  category summaries, gap analyses, budget deltas, live deltas, retrieval-gap
+  diagnostics, selectors, and reanswer replays from accepting lineage headers
+  that describe a different slice than the rows being analyzed. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ab Smoke-report category-summary/cases integrity guard.
+  Phase 65 category-matrix assembly and candidate-budget delta analysis now
+  reject smoke reports whose `categories[]` aggregate metrics do not match the
+  actual `cases[]` rows for question count, answered count, answer accuracy,
+  evidence recall, fully retrieved count, noise turns, or multi-hop readiness.
+  This keeps summary/delta artifacts from ranking repair budgets using stale or
+  hand-edited category aggregates. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004ac Smoke-report case-count integrity guard.
+  Shared Phase 65 smoke-report validation now rejects reports whose `caseCount`
+  does not match `caseIds.length`, after `caseIds` has already been checked
+  against the actual `cases[]` rows. This prevents downstream manifests and
+  summaries from carrying a case-scale header that describes a different shard
+  than the one analyzed. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ad Live-answer scored-row integrity guard.
+  Live-delta analysis and answer-policy slice selection now reject zero-failure
+  live-answer reports whose rows are still missing `generatedAnswer` or
+  `answerCorrect`. This prevents answer-side repair queues and live deltas from
+  treating unscored rows as real answer transitions. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts and
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004ae Smoke-report mode/evaluation integrity guard.
+  Shared Phase 65 smoke-report validation now rejects reports whose `mode` and
+  `answerEvaluation` disagree (`retrieval-only` must remain
+  `deferred-to-live-mode`, while `live-answer` must be `scored`). This prevents
+  downstream diagnostics from treating retrieval-only artifacts as scored live
+  evidence, or vice versa. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004af Smoke-report row retrieval-field integrity guard.
+  Shared Phase 65 smoke-report validation now rejects reports whose benchmark
+  identity is not `locomo`, whose phase is not `phase-65`, whose
+  `mode` or `answerEvaluation` is outside the supported LoCoMo report modes,
+  whose `executionFailures` is not a non-negative integer, whose
+  `questionCategories` contain unknown or repeated categories, and rows whose
+  retrieval-only report carries scored answer fields, whose category is outside
+  the known LoCoMo QA categories, whose
+  `evidenceTurnIds` or `retrievedTurnIds` repeat a turn id, whose
+  `noiseTurnCount` disagrees with `noiseTurnIds.length`, whose `noiseTurnIds`
+  do not match the non-evidence turns derived from `retrievedTurnIds` and
+  `evidenceTurnIds`, whose `missingEvidenceTurnIds` do not match the
+  unretrieved gold evidence turns, whose `evidenceRecall` does not match the
+  derived gold-evidence hit ratio, or whose `goldEvidenceFullyRetrieved` flag
+  disagrees with that derived missing-evidence set.
+  This prevents gap analyses, budget deltas, selectors, and reanswer routing
+  from ranking repair lanes using stale row-level retrieval/noise fields. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ag Filtered reanswer job source-provenance guard.
+  `eval:phase-65-reanswer-report` now rejects selected `reanswerJobs` that are
+  being replayed through `--reanswer-job-bucket` or `--reanswer-job-category`
+  when the selected job lacks both `sourceRunId` and `sourceReportPath`. This
+  prevents category/bucket-filtered replay from accepting legacy queue entries
+  whose rows cannot be tied back to the supplied `--source-report` before
+  loading benchmark cases or generating evidence. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004ah Explicit reanswer question-id uniqueness guard.
+  `eval:phase-65-reanswer-report` now rejects duplicate explicit
+  `--question-id` selections before reading the source report or generating a
+  replay artifact. This prevents filtered or direct replay from silently
+  de-duplicating the actual rows while leaving a duplicated `questionIds` header
+  in the generated evidence. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004ai Targeted question-id file uniqueness guard.
+  The shared Phase 65 targeted question-id loader now rejects duplicate ids in
+  top-level JSON arrays, top-level `questionIds`, plain-text id files, and
+  explicit CLI selections before targeted smoke or replay resolution. Job and
+  category queues keep their existing stricter per-queue duplicate checks. This
+  prevents targeted evidence from silently shrinking a malformed explicit slice
+  through de-duplication. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004aj Selector numeric-flag strictness guard.
+  `analyze:phase-65-locomo-answer-policy-slice` and
+  `analyze:phase-65-locomo-candidate-admission-slice` now parse `--per-bucket`
+  strictly as a positive integer instead of accepting partially numeric strings
+  such as `2x`. This prevents malformed selector invocations from silently
+  producing repair manifests with an unintended bucket size. Unit coverage
+  lives in tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts and
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
+
+[DONE] P65-T004ak Embedding-free comparison limit guard.
+  `run-phase-65-locomo-embedding-free-comparison.ts` now parses `--limit`
+  through a testable CLI options path and rejects missing, non-integer, or
+  non-positive values. This prevents the gateway-free BM25 / deterministic-stack
+  comparison from silently running with an unintended question scope. Unit
+  coverage lives in tests/unit/run-phase-65.locomo-embedding-free-comparison.test.ts.
+
+[DONE] P65-T004al Smoke numeric-flag strictness guard.
+  `eval:phase-65-smoke` now rejects missing numeric flag values and strictly
+  parses `--limit`, `--semantic-candidate-top-k`,
+  `--semantic-candidate-max-additions`, `--semantic-candidate-min-similarity`,
+  and `--semantic-candidate-min-relative-score` instead of accepting alternate
+  numeric forms such as scientific notation. This prevents targeted smoke,
+  candidate-admission, and noise-budget evidence from silently running with an
+  unintended question scope or retrieval budget. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004am External-root prep scope guard.
+  `prepare:phase-65-locomo` now parses `--max-conversations` and
+  `--max-questions-per-case` through a testable CLI options path, accepts `0`
+  only as the explicit all-items sentinel, and rejects missing values,
+  non-integer strings, negative values, and alternate numeric forms such as
+  scientific notation. This prevents LoCoMo external-root prep from silently
+  producing a different conversation/question slice than the later evidence
+  assumes. Unit coverage lives in tests/unit/prepare-phase-65-locomo-data.test.ts.
+
+[DONE] P65-T004an Union-live measurement budget guard.
+  `measure-locomo-union-live.ts` now parses its live-measurement scope and
+  budget flags through a testable CLI options path. `--union-topk`,
+  `--limit`, and `--concurrency` are strict positive integers,
+  `--max-additions` is a strict non-negative integer, and
+  `--min-similarity` is a strict non-negative decimal value; missing numeric
+  flag values and alternate numeric forms are rejected before any live run can
+  start. This prevents union-candidate live evidence from silently using an
+  unintended question scope, admission budget, or per-question concurrency.
+  Unit coverage lives in tests/unit/measure-locomo-union-live.test.ts.
+
+[DONE] P65-T004ao Neural/lever measurement scope guard.
+  `measure-locomo-neural.ts` and `measure-locomo-levers.ts` now parse their
+  `--limit` and `--arms` flags through testable CLI options paths. Limits are
+  strict positive integers, arm filters reject missing values, unknown labels,
+  and duplicates, and malformed inputs fail before producing retrieval or
+  lever-comparison tables. This prevents Phase 65 measurement evidence from
+  silently shrinking, emptying, or retargeting its intended arm set. Unit
+  coverage lives in tests/unit/measure-locomo-neural.test.ts and
+  tests/unit/measure-locomo-levers.test.ts.
+
+[DONE] P65-T004ap Report-list empty-entry guard.
+  `summarize:phase-65-locomo-categories` and
+  `analyze:phase-65-locomo-category-gaps`, and
+  `analyze:phase-65-locomo-answer-policy-slice` now reject empty comma-list
+  entries in repeated `--report` flags instead of silently dropping them. This
+  keeps category-matrix, category-gap, and answer-policy slice evidence from
+  assembling a shortened report set when a malformed report list contains `,,`,
+  a leading comma, or a trailing comma. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, plus
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004aq Targeted CLI list empty-entry guard.
+  `eval:phase-65-smoke` now rejects empty comma-list entries in `--case-id`,
+  `--question-id`, and `--category`, and `eval:phase-65-reanswer-report` now
+  rejects empty entries in `--question-id`, `--reanswer-job-bucket`, and
+  `--reanswer-job-category`. This prevents malformed targeted reruns or replay
+  commands from silently shrinking a selected question list, or from turning an
+  empty category filter into an unfiltered broader run. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004ar Question-id file empty-entry guard.
+  Phase 65 question-id file parsing now rejects empty comma entries in plain
+  text files and empty/blank string ids in JSON arrays, top-level
+  `questionIds`, category selections, repair jobs, and reanswer jobs.
+  `eval:phase-65-reanswer-report` also rejects empty string ids in filtered
+  `reanswerJobs` before selecting rows. This prevents malformed manifest or
+  text-file targeted evidence from silently dropping an intended id, selecting
+  an impossible empty id, or shrinking a replay queue. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004as Targeted string-flag value guard.
+  `eval:phase-65-smoke` now parses `--benchmark-root`, `--question-id-file`,
+  `--output-dir`, and `--run-id` through a strict optional string-flag resolver,
+  and `eval:phase-65-reanswer-report` does the same for `--source-report`,
+  `--question-id-file`, `--output-dir`, and `--run-id`. Bare string flags now
+  fail immediately instead of silently falling back to an environment root,
+  default run id, default output path, or whole-report replay scope. Unit
+  coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004at Post-processor string-flag value guard.
+  Phase 65 JSON post-processors now parse report/root/cases, output-path, and
+  run-id string flags through the strict optional string-flag resolver where
+  applicable. This covers budget delta, live delta, category gaps, category
+  summary, answer-policy slices, candidate-admission slices, and retrieval-gap
+  analysis, preventing bare string flags from silently falling back to default
+  run ids, output paths, report paths, or cases roots. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts,
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts,
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts,
+  tests/unit/summarize-phase-65-locomo-categories.test.ts,
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts,
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts, and
+  tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
+
+[DONE] P65-T004au Selector numeric-flag missing-value guard.
+  `analyze:phase-65-locomo-answer-policy-slice` and
+  `analyze:phase-65-locomo-candidate-admission-slice` now reject a bare
+  `--per-bucket` flag before reading source reports instead of treating it as
+  absent and silently falling back to the default selector budget. This keeps
+  answer-policy and candidate-admission repair manifests from being generated
+  with an unintended bucket size when a malformed command drops the value. Unit
+  coverage lives in
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts and
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
+
+[DONE] P65-T004av Prep/measurement string-flag value guard.
+  `prepare:phase-65-locomo`, `measure-locomo-neural.ts`,
+  `measure-locomo-levers.ts`, and `measure-locomo-union-live.ts` now reject
+  bare string flags for benchmark roots, source files/URLs, output roots/dirs,
+  and run ids instead of falling back to environment or default paths. This
+  prevents prep and measurement evidence from being generated against the wrong
+  external root or written under an unintended report location when a malformed
+  command drops a value. Unit coverage lives in
+  tests/unit/prepare-phase-65-locomo-data.test.ts,
+  tests/unit/measure-locomo-neural.test.ts,
+  tests/unit/measure-locomo-levers.test.ts, and
+  tests/unit/measure-locomo-union-live.test.ts.
+
+[DONE] P65-T004aw Embedding-free comparison string-flag value guard.
+  `run-phase-65-locomo-embedding-free-comparison.ts` now rejects bare
+  `--benchmark-root` and `--output-dir` flags instead of falling back to the
+  environment root or undefined output routing. This keeps gateway-free
+  deterministic comparison evidence from accidentally running against the wrong
+  root or writing under an unintended report location when a malformed command
+  drops a value. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-embedding-free-comparison.test.ts.
+
+[DONE] P65-T004ax Captioned-root prep CLI guard.
+  `prepare:phase-65-locomo-captioned` now routes through a testable CLI parser,
+  rejects bare `--mode`, `--source-root`, `--output-root`,
+  `--window-radius`, and `--concurrency` flags, and strictly validates positive
+  integer window/concurrency values. This keeps the eval-only captioned-root
+  preparation path from silently writing or reading the wrong external root, or
+  from accepting alternate numeric forms in captioning budget knobs. Unit
+  coverage lives in tests/unit/prepare-phase-65.locomo-captioned-root.test.ts.
+
+[DONE] P65-T004ay Smoke scope-filter duplicate guard.
+  `eval:phase-65-smoke` now rejects duplicate `--case-id` and `--category`
+  values across comma-separated and repeated flags instead of silently keeping
+  duplicated cases or de-duplicating categories. This keeps targeted sharded and
+  category smoke evidence from claiming an ambiguous scope when a malformed
+  command repeats a selector. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004az Strict scalar CLI duplicate guard.
+  Shared strict scalar flag parsing now rejects duplicate flags such as
+  `--source-report a --source-report b` instead of silently using the first
+  value. This keeps Phase 65 report/replay/analyzer commands from generating
+  evidence with ambiguous source, output, or run-id selectors while preserving
+  repeated list flags that use their own parsers. Unit coverage lives in
+  tests/unit/cli-options.test.ts plus the Phase 65 CLI parser suites.
+
+[DONE] P65-T004ba Budget scalar CLI duplicate guard.
+  Package-exposed Phase 65 prep, smoke, and measurement budget flags now route
+  their scalar numeric/arm parsers through the same strict single-value path.
+  Duplicate flags such as `--limit 10 --limit 20`, repeated `--arms`, or
+  repeated external-root prep caps now fail before report generation instead of
+  silently using the first value. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts,
+  tests/unit/measure-locomo-neural.test.ts, and
+  tests/unit/prepare-phase-65-locomo-data.test.ts.
+
+[DONE] P65-T004bb Reanswer filter duplicate guard.
+  `eval:phase-65-reanswer-report` now rejects duplicate
+  `--reanswer-job-bucket` and `--reanswer-job-category` values across
+  comma-separated and repeated flags. This keeps bucket/category-filtered replay
+  evidence from silently de-duplicating malformed scope filters before selecting
+  rows from a manifest. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bc Reanswer explicit/job overlap guard.
+  Bucket/category-filtered `eval:phase-65-reanswer-report` runs now reject
+  explicit `--question-id` values that overlap the selected manifest
+  `reanswerJobs` instead of silently de-duplicating the combined replay scope.
+  This keeps additive explicit IDs useful without allowing a malformed command to
+  hide duplicated scope in the generated `reanswerSelection` evidence. Unit
+  coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bd Shared question-id file overlap guard.
+  The shared Phase 65 question-id resolver now rejects explicit `--question-id`
+  values that overlap `--question-id-file` selections before targeted smoke or
+  unfiltered reanswer replay runs. This keeps manifest-driven evidence additive
+  only when the CLI and file scopes are genuinely disjoint, instead of silently
+  de-duplicating malformed scope. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004be Multi-report duplicate path guard.
+  Phase 65 multi-report tools now reject duplicate normalized `--report` paths
+  before reading source reports, and their exported analyzer helpers reject
+  duplicate normalized report input paths before assembly/selection. This covers
+  category summary assembly, category-gap analysis, and answer-policy slice
+  selection, keeping repeated or path-equivalent shard mistakes from relying on
+  later overlap checks or duplicate reads to fail. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts,
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, and
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004bf Paired-report self-comparison guard.
+  Phase 65 paired-report analyzers now reject path-equivalent baseline/candidate
+  report pairs at both the CLI entrypoint and exported analyzer-helper layer.
+  This covers budget-delta analysis, candidate-admission slice selection, and
+  live-delta analysis, preventing self-comparison artifacts from looking like
+  valid no-op deltas or repair manifests. Unit coverage lives in
+  tests/unit/cli-options.test.ts,
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts,
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts, and
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004bg Live-delta noisy full-recall reanswer queue.
+  `analyze:phase-65-locomo-live-delta` now also exposes
+  `topNoisyFullRecallWrong` and emits `noisyFullRecallWrong` reanswer jobs for
+  candidate-side rows that already retrieved all gold evidence but still answer
+  incorrectly with noise present. Reanswer jobs are assigned by priority and keep
+  question ids unique across buckets, so an unfiltered
+  `eval:phase-65-reanswer-report --question-id-file <live-delta.json>` replay is
+  consumable while bucket-filtered `--gold-evidence-only-context` runs can target
+  the noisy full-recall subset directly. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004bh Reanswer ambiguous source question guard.
+  `eval:phase-65-reanswer-report` now rejects targeted source reports where a
+  selected question id matches rows from more than one case before loading the
+  benchmark root or generating replay answers. This aligns reanswer replay with
+  the Phase 65 smoke runner's targeted question-id guard and prevents manifest
+  replay evidence from silently answering multiple conversations for one queued
+  question id. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bi Smoke-report category-filter overstatement guard.
+  Shared Phase 65 smoke-report validation now rejects reports whose
+  `questionCategories` header declares categories that do not appear in
+  `cases[]`, after still rejecting unknown, duplicated, or undeclared row
+  categories. This prevents sharded/category evidence from overstating the
+  category scope actually analyzed by a downstream summary, gap, delta, selector,
+  or replay. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004bj Runner category-filter partial-miss guard.
+  `eval:phase-65-smoke` now rejects `--category` selections where only some
+  requested categories match the selected external root, instead of generating a
+  report whose `questionCategories` header is wider than the actual `cases[]`.
+  This catches malformed category-slice runs at source, before downstream
+  smoke-report validation has to reject the generated artifact. Unit coverage
+  lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004bk Targeted manifest non-object entry guard.
+  Shared Phase 65 question-id manifest parsing now rejects malformed
+  `repairJobs`, `reanswerJobs`, and `categories` containers plus non-object
+  entries instead of silently skipping them and running a narrower targeted
+  smoke/reanswer scope. This keeps malformed repair manifests from losing queued
+  rows before evidence generation. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004bl Filtered reanswer non-object job guard.
+  `eval:phase-65-reanswer-report` now rejects non-object `reanswerJobs` entries
+  before bucket/category/source-filtered replay selection, instead of filtering
+  them out and continuing with the remaining valid jobs. This keeps
+  gold-evidence-only and answer-policy/noise-isolation evidence from silently
+  narrowing a malformed manifest after source-report validation. Unit coverage
+  lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bm Reanswer sourceReports shape guard.
+  `eval:phase-65-reanswer-report` now rejects manifest `sourceReports` lineage
+  that is present but not an array, and rejects non-object `sourceReports`
+  entries before source-report provenance matching. The provenance parser now
+  only skips non-JSON question-id files; strict manifest-shape errors propagate
+  before replay can load the benchmark root. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bn Reanswer lineage field-type guard.
+  `eval:phase-65-reanswer-report` now rejects malformed `candidateReport`
+  lineage when the key is present but not an object, and rejects non-string
+  `candidateReport.runId`, `candidateReport.path`, `sourceReports[].runId`,
+  and `sourceReports[].path` fields. This prevents malformed lineage metadata
+  from being treated as absent provenance before answer-policy or
+  gold-evidence-only replay. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bo Reanswer job source-provenance field-type guard.
+  `eval:phase-65-reanswer-report` now rejects `reanswerJobs[]` entries whose
+  `sourceRunId` or `sourceReportPath` key is present but not a string, before
+  any bucket/category/source filtering. This prevents malformed job-level
+  provenance from being treated as missing metadata in unfiltered or filtered
+  replay evidence. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bp Reanswer job selection-metadata field-type guard.
+  `eval:phase-65-reanswer-report` now rejects `reanswerJobs[]` entries whose
+  `bucket`, `category`, or `categories` selection metadata has the wrong shape,
+  including non-string array entries. The guard runs before bucket/category/source
+  filtering, so malformed queue metadata cannot silently drop rows from targeted
+  answer-policy or noise-isolation replay evidence. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bq Reanswer job selection-metadata allowed-value guard.
+  `eval:phase-65-reanswer-report` now rejects `reanswerJobs[]` entries whose
+  `bucket`, `category`, or `categories` selection metadata uses an unknown value,
+  before bucket/category/source filtering. This prevents typoed queue names or
+  QA categories from being treated as ordinary non-matches and silently dropping
+  rows from targeted answer-policy or noise-isolation replay evidence. Unit
+  coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004br Shared reanswer job manifest selection-metadata guard.
+  The shared LoCoMo question-id manifest parser now rejects `reanswerJobs[]`
+  entries whose `bucket`, `category`, or `categories` selection metadata has
+  the wrong shape or uses an unknown value before collecting targeted
+  `questionIds`. The parser uses the same bucket contract as
+  `eval:phase-65-reanswer-report`, preventing file-loader smoke or unfiltered
+  manifest replay from accepting typoed queue/category metadata while still
+  consuming queued rows. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004bs Shared reanswer job source-provenance field-type guard.
+  The shared LoCoMo question-id manifest parser now rejects `reanswerJobs[]`
+  entries whose `sourceRunId` or `sourceReportPath` key is present but not a
+  string before collecting targeted `questionIds`. This keeps targeted
+  smoke/file-loader evidence from accepting malformed source provenance while
+  still consuming queued rows. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004bt Reanswer job source-provenance empty-value guard.
+  `eval:phase-65-reanswer-report` and the shared LoCoMo question-id manifest
+  parser now reject `reanswerJobs[]` entries whose `sourceRunId` or
+  `sourceReportPath` value is empty or whitespace-only before source filtering
+  or targeted question-id collection. This prevents blank provenance from being
+  treated as an ordinary source non-match and silently dropping malformed replay
+  rows when another valid job remains. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts and
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004bu Reanswer report-lineage empty-value guard.
+  `eval:phase-65-reanswer-report` now rejects top-level
+  `candidateReport.runId`, `candidateReport.path`, `sourceReports[].runId`, and
+  `sourceReports[].path` values that are empty or whitespace-only before
+  manifest source-lineage matching. This prevents blank lineage from surfacing
+  as an opaque source mismatch or being treated like absent audit metadata.
+  Unit coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004bv Shared smoke-report run-id guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose top-level `runId` is not a string or is empty/whitespace-only
+  before derived analyzers can emit report lineage or `reanswerJobs` provenance.
+  This keeps live-delta and other JSON post-processors from producing replay
+  manifests with malformed source run ids. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004bw Shared smoke-report selection-header shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed `caseIds`, `questionIds`, and `questionCategories` headers before
+  derived analyzers compare scopes, aggregate reports, or emit replay manifests.
+  `caseIds` must be a non-empty-string array, `questionIds` may be absent/null
+  or a non-empty-string array, and `questionCategories` must be null or a
+  non-empty-string array. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004bx Shared smoke-report count-header type guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed `questionCount` and `caseCount` headers before comparing them with
+  `cases.length` / `caseIds.length` or deriving aggregate evidence. Both fields
+  must be non-negative integers, so malformed JSON headers fail with explicit
+  count-header errors instead of misleading count-mismatch messages. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004by Shared smoke-report core-array shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed top-level `cases` and `categories` containers before deriving
+  question counts, row identities, category summaries, or replay queues. This
+  prevents malformed JSON reports from surfacing as misleading count mismatches
+  or category-summary errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004bz Shared smoke-report core-entry shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed `cases[]` and `categories[]` entries before row identity,
+  row-retrieval, category-summary, or replay-queue derivation. Entries must be
+  JSON objects, so malformed array contents fail with explicit shape errors
+  instead of TypeErrors or misleading aggregate mismatches. Unit coverage lives
+  in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ca Shared smoke-report row retrieval-array shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed row-level `evidenceTurnIds`, `retrievedTurnIds`,
+  `missingEvidenceTurnIds`, and `noiseTurnIds` before deriving missing evidence,
+  noise turns, evidence recall, or fully-retrieved flags. These fields must be
+  non-empty-string arrays, so malformed row retrieval data fails with explicit
+  shape errors instead of duplicate-character checks or later TypeErrors. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cb Shared smoke-report row scalar shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed row-level identity, score, count, and answer scalar fields before
+  deriving row identities, retrieval metrics, category summaries, or replay
+  queues. `caseId`, `questionId`, and `category` must be non-empty strings,
+  `evidenceRecall` must be finite, `noiseTurnCount` must be a non-negative
+  integer, `goldEvidenceFullyRetrieved` must be boolean, and answer fields must
+  be boolean/string or null. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cc Shared smoke-report category-summary scalar shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed category-summary identity, score, count, and readiness scalar
+  fields before comparing summaries against `cases[]` or deriving
+  budget/category artifacts. `category` must be a non-empty string,
+  `answerAccuracy` must be finite or null, `averageEvidenceRecall` must be
+  finite, `crossSessionChainReady` must be boolean or null, and summary count
+  fields must be non-negative integers. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004cd Shared smoke-report retrieval-config metadata shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed report-level retrieval config metadata before compatibility checks
+  or budget/live-delta artifacts can preserve invalid config values.
+  `semanticCandidateEmbeddingSource` must be `none`, `provider`, or
+  `smoke-hash`; `semanticCandidates` must be an object with boolean `enabled`,
+  nullable positive `topK`, nullable non-negative `maxAdditions`, nullable
+  non-negative `minSimilarity`, and nullable unit-interval `minRelativeScore`.
+  The same guard also validates benchmark/root/profile/BM25/ingest metadata
+  shape before downstream analyzers compare reports. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004ce Shared smoke-report replay-lineage metadata shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed optional `sourceReport` and `reanswerSelection` metadata before
+  category-gap, budget, live-delta, or replay follow-up artifacts can preserve
+  invalid replay provenance. `sourceReport` must carry non-empty run/path/time
+  lineage plus a valid retrieval config, while `reanswerSelection` must carry
+  null or well-formed question-id, manifest-path, job-bucket, and category
+  filters. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cf Shared smoke-report provenance/policy metadata shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed report-level provenance and policy metadata before category-gap,
+  budget, live-delta, summary, or replay follow-up artifacts can preserve
+  invalid run lineage or policy flags. `generatedAt`, `generatedBy`, `license`,
+  `runDirectory`, and `upstreamSource` must be non-empty strings, `resume` and
+  optional answer-policy flags must be booleans, `answerContextMode` must be
+  present and supported, and `upstreamAnswerMetricByCategory` must be an object
+  keyed by known LoCoMo categories with non-empty string metrics. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cg Shared smoke-report execution-failure header shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  malformed `executionFailures` headers before summary assembly, category-gap,
+  budget, live-delta, retrieval-gap, candidate-admission, or reanswer follow-up
+  paths can coerce invalid failure counts into clean artifacts. The header must
+  be a non-negative integer; separate no-failure checks still reject valid
+  positive counts where a downstream artifact requires zero failures. Unit
+  coverage lives in tests/unit/summarize-phase-65-locomo-categories.test.ts.
+
+[DONE] P65-T004ch Shared smoke-report external-root provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects an
+  empty string `externalRoot` before category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer follow-up artifacts can carry
+  ambiguous source-root lineage. `externalRoot` remains nullable for synthetic
+  smoke reports, but any present string must be non-empty. Unit coverage lives
+  in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ci Shared smoke-report profile-lineage uniqueness guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  duplicate `profilesCompared` entries before category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer follow-up
+  artifacts can preserve ambiguous profile lineage. Profile entries must remain
+  non-empty strings, and the profile list must be unique. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cj Shared smoke-report non-empty profile-lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects an
+  empty `profilesCompared` list before downstream category-gap, summary,
+  budget, live-delta, retrieval-gap, candidate-admission, or reanswer artifacts
+  can omit the profile lineage entirely. `profilesCompared` must be a non-empty
+  unique array of non-empty strings. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ck Shared reanswerSelection duplicate metadata guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  duplicate `reanswerSelection` explicit question ids, job buckets, or job
+  categories before category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can preserve ambiguous
+  replay-selection lineage. Null selection fields remain valid when that filter
+  was not used. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cl Shared caseIds header uniqueness guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  duplicate top-level `caseIds` entries before downstream category-gap, summary,
+  budget, live-delta, retrieval-gap, candidate-admission, or reanswer artifacts
+  can preserve ambiguous case-scope lineage. `caseIds` may still be empty for an
+  empty synthetic report, but any present case id string must be unique. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cm Shared row derived retrieval-id uniqueness guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  duplicate row-level `missingEvidenceTurnIds` or `noiseTurnIds` before
+  downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can preserve ambiguous derived
+  retrieval/noise lineage. Evidence and retrieved turn ids were already unique;
+  this extends the same explicit guard to the derived arrays instead of relying
+  on later mismatch errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cn Shared live-answer row answer-field integrity guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  empty `generatedAnswer` strings and live-answer rows whose `answerCorrect` and
+  `generatedAnswer` fields are only partially present. Fully unscored hard
+  failure rows can still carry both fields as null until the execution-failure
+  guard rejects unfinished reports, but scored rows must preserve a non-empty
+  generated answer alongside the score. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004co Shared row evidence-recall unit-interval guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  row-level `evidenceRecall` values outside the unit interval before
+  downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can preserve impossible recall
+  metrics. Valid rows must keep `evidenceRecall` as a finite number from 0
+  through 1, then the existing derived-recall check verifies it against the
+  retrieved and missing evidence ids. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cp Shared category-summary metric unit-interval guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  category-summary `answerAccuracy` and `averageEvidenceRecall` values outside
+  the unit interval before downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts can
+  preserve impossible aggregate metrics. Type errors still fail as malformed
+  finite-number fields, while valid numeric summary metrics must be between 0
+  and 1 before the existing cases[] comparison verifies their derivation. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004cq Shared report timestamp provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  non-ISO `generatedAt` values on both the report and nested `sourceReport`
+  lineage before downstream category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer artifacts can preserve
+  malformed evidence timestamps. Type and empty-string errors still fail as
+  malformed non-empty string fields, while valid provenance timestamps must
+  match the report writer's ISO timestamp shape. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cr Shared report writer provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose top-level `generatedBy` does not come from the canonical smoke
+  runner or reanswer runner before downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts can
+  preserve hand-written or wrong-runner evidence. Empty writer values still fail
+  as malformed non-empty string fields; non-empty writer values must match a
+  supported LoCoMo report writer. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cs Shared benchmark-source/external-root provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose `benchmarkSource` does not match the `externalRoot` cases file,
+  and still requires synthetic reports to use the `synthetic-smoke` source with
+  no external root. This prevents downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts from
+  preserving source-root lineage that cannot have been emitted by the canonical
+  runner. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ct Shared upstream source/license provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose `license` or `upstreamSource` do not match the canonical
+  LoCoMo source and CC BY-NC 4.0 license before downstream category-gap,
+  summary, budget, live-delta, retrieval-gap, candidate-admission, or reanswer
+  artifacts can preserve unsupported benchmark provenance. Type and empty
+  string errors still fail as malformed non-empty string fields. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cu Shared upstream answer-metric provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  `upstreamAnswerMetricByCategory` entries whose metric does not match the
+  canonical LoCoMo category scoring mode before downstream category-gap,
+  summary, budget, live-delta, retrieval-gap, candidate-admission, or reanswer
+  artifacts can preserve unsupported answer-metric lineage. Answerable
+  categories must use `f1_token_overlap`, while adversarial must use
+  `adversarial_abstention`; type and empty-string errors still fail as
+  malformed non-empty string fields. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cv Shared upstream answer-metric category coverage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose `upstreamAnswerMetricByCategory` category keys do not exactly
+  match the categories present in `cases[]`. The canonical runner derives this
+  lineage from selected cases, so downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts can no
+  longer preserve missing or extra answer-metric category provenance. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cw Shared answer-context provenance guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports that omit report-level `answerContextMode` before downstream
+  category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can fall back to legacy or
+  unrecorded answer-context attribution. Canonical smoke and reanswer writers
+  always persist this field; source-report lineage remains nullable for older
+  replay inputs. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cx Shared gold-evidence answer-context lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports that claim `gold-evidence-only-pack` unless they were generated by
+  the reanswer report writer and carry `sourceReport` lineage. The canonical
+  smoke runner cannot produce gold-label answer contexts, so downstream
+  category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can no longer misattribute a
+  regular smoke report as gold-evidence-only noise-isolation evidence. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cy Shared reanswer-writer context-lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports claiming the reanswer writer unless they carry `sourceReport`
+  lineage and use one of the canonical reanswer answer contexts
+  (`evidence-pack` or `gold-evidence-only-pack`). The canonical reanswer runner
+  never emits raw-turn or recalled-record answer contexts, so downstream
+  category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can no longer treat malformed
+  replay reports as auditable answer-policy or noise-isolation evidence. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004cz Shared writer/replay-lineage ownership guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports generated by the canonical smoke runner if they carry replay-only
+  `sourceReport` or `reanswerSelection` lineage. The canonical smoke runner
+  writes retrieval/live smoke artifacts, while replay lineage belongs to the
+  reanswer writer; downstream category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer artifacts can no longer treat
+  a smoke report as replay evidence just because it carries injected lineage
+  fields. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004da Shared reanswer-selection lineage requirement.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports claiming the reanswer writer unless they carry `reanswerSelection`
+  lineage in addition to `sourceReport`. The canonical reanswer runner always
+  records explicit question ids, manifest path, bucket filters, and category
+  filters as nullable selection metadata, so downstream category-gap, summary,
+  budget, live-delta, retrieval-gap, candidate-admission, or reanswer artifacts
+  can no longer preserve replay evidence without selection provenance. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004db Shared explicit replay selection-to-cases guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection.explicitQuestionIds` include an id
+  that is absent from the report `cases[]`. This keeps explicit CLI replay
+  provenance from overstating which rows were actually reanswered before
+  downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts preserve the selection metadata.
+  Unit coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dc Shared reanswer filter manifest-lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection` declares job bucket or category
+  filters without preserving the `questionIdFile` manifest path. This keeps
+  downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts from carrying unauditable replay
+  filter provenance. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dca Shared reanswer question-id manifest-lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports that carry top-level `questionIds` without either
+  `reanswerSelection.explicitQuestionIds` or a preserved
+  `reanswerSelection.questionIdFile`. This keeps manifest-only replay evidence
+  from being preserved with selected rows but no auditable manifest path.
+  Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dcb Shared reanswer unused-manifest guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports that preserve `reanswerSelection.questionIdFile` without
+  selected `questionIds`, explicit question ids, or job bucket/category
+  filters. This keeps downstream category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer artifacts from treating an
+  unused manifest path as auditable replay-selection lineage. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dcc Shared reanswer selected-scope header guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports that declare explicit question ids or job bucket/category
+  filters without preserving a top-level `questionIds` header for the actual
+  selected rows. This keeps narrowed replay evidence from looking like
+  whole-source replay before downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts compare
+  scopes. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dd Shared reanswer category-filter-to-cases guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection.reanswerJobCategories` exclude the
+  actual categories of non-explicitly requested rows in `cases[]`. Explicit CLI
+  `--question-id` rows remain additive, so a category-filtered manifest replay
+  can still include separately requested ids without making the manifest filter
+  provenance ambiguous. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004de Shared reanswer source self-lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `sourceReport.runId` or normalized `sourceReport.path`
+  points back to the report itself. This prevents downstream category-gap,
+  summary, budget, live-delta, retrieval-gap, candidate-admission, or reanswer
+  artifacts from preserving self-referential replay provenance as if it were an
+  auditable source report. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004df Shared reanswer source retrieval-config guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `sourceReport.retrievalConfig` conflicts with the
+  report's inherited top-level retrieval metadata (`bm25Ranking`,
+  `semanticCandidateEmbeddingSource`, or `semanticCandidates`). This keeps
+  downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts from carrying contradictory source
+  retrieval provenance. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dg Shared reanswer source timestamp-order guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `sourceReport.generatedAt` is later than the report's
+  own `generatedAt`. This keeps downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts from
+  preserving future-dated source lineage as if it were an auditable replay
+  input. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dga Shared reanswer source strict timestamp-order guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now also rejects
+  reanswer reports whose `sourceReport.generatedAt` is equal to the report's
+  own `generatedAt`. A replay source must be generated earlier than the replay
+  artifact, so same-time lineage is treated as ambiguous flattened provenance
+  instead of auditable source/report ordering. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dh Shared reanswer source answer-context guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `sourceReport.answerContextMode` is
+  `gold-evidence-only-pack`, and the reanswer runner rejects source reports
+  that are already gold-evidence-only replay artifacts before generating nested
+  replay lineage. This prevents downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts from
+  treating a noise-isolation replay artifact as the original replay source
+  lineage. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dha Shared reanswer source answer-context lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `sourceReport.answerContextMode` is null. The
+  canonical reanswer runner preserves the source report answer-context mode,
+  so downstream category-gap, summary, budget, live-delta, retrieval-gap,
+  candidate-admission, or reanswer artifacts can audit whether replay evidence
+  came from normal answer context or a noise-isolation context. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004di Shared reanswer question-id-file self-reference guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection.questionIdFile` resolves to the
+  report path itself, and the reanswer runner rejects a `--question-id-file`
+  that resolves to the output `smoke-report.json` before reading the manifest.
+  This prevents downstream category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer artifacts from preserving a
+  replay report that claims it selected its own rows from itself. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dj Shared reanswer source-as-question-id-file guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection.questionIdFile` resolves to the
+  nested `sourceReport.path`, and the reanswer runner rejects a
+  `--question-id-file` that resolves to `--source-report` before parsing it as
+  a manifest. This prevents downstream category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer artifacts from
+  treating the retrieval source report itself as the replay selection manifest.
+  Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dk Reanswer output/source path guard.
+  The reanswer runner now rejects output `smoke-report.json` paths that resolve
+  to `--source-report` before loading replay selection or writing output.
+  Shared compatibility already rejects generated reports whose
+  `sourceReport.path` resolves to the report path, and this generation-side
+  guard prevents clobbering the retrieval source report before that invalid
+  artifact can be written. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dl Reanswer explicit selection non-empty guard.
+  The reanswer runner now rejects programmatic empty `questionIds` arrays before
+  they can fall back to whole-source replay while recording
+  `explicitQuestionIds: []`. Shared compatibility also rejects empty
+  reanswer-selection arrays for explicit question ids, job buckets, and
+  categories, so downstream category-gap, summary, budget, live-delta,
+  retrieval-gap, candidate-admission, or reanswer artifacts cannot preserve an
+  empty selector as auditable replay provenance. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004dm Reanswer output/source run-id guard.
+  The reanswer runner now rejects an output `runId` that matches the source
+  report `runId` before loading replay selection or writing output. Shared
+  compatibility already rejects generated reports whose `sourceReport.runId`
+  matches the report `runId`, and this generation-side guard prevents writing
+  that invalid self-lineage artifact in the first place. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dn Reanswer source-writer guard.
+  The reanswer runner now rejects source reports that were themselves generated
+  by the canonical reanswer runner before loading replay selection or writing
+  output. This prevents second-order reanswer runs from flattening replay
+  lineage and presenting a prior replay artifact as if it were the original
+  retrieval source report. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dna Reanswer forbidden-source precompatibility guard.
+  The reanswer runner now rejects gold-evidence-only and reanswer-generated
+  source reports immediately after the lightweight source-report shape parse,
+  before running full shared smoke-report compatibility validation. This keeps
+  malformed nested replay lineage from hiding the source-class rejection and
+  prevents the generation path from trying to validate or flatten forbidden
+  replay artifacts. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004do Reanswer empty-answer failure guard.
+  The reanswer runner now treats empty or whitespace-only generated answers as
+  failed answer-generation attempts. After retries are exhausted, the selected
+  row is retained with null answer fields and `executionFailures` increments
+  instead of writing an invalid scored replay row with a blank generated answer.
+  Unit coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dp Reanswer incomplete-live-source guard.
+  The reanswer runner still accepts retrieval-only source reports, but now
+  rejects source reports that claim `live-answer` / scored output while carrying
+  missing scored answer fields despite zero `executionFailures`. This prevents
+  replay evidence from being generated from an internally inconsistent live
+  source artifact that downstream live-delta and answer-policy tools would
+  reject. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dpa Reanswer source execution-failure priority guard.
+  The reanswer runner now rejects source reports with non-zero
+  `executionFailures` before checking scored live-answer completeness. This
+  keeps the primary failed-source rejection from being hidden by row-level null
+  answer fields in partially failed source artifacts. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dq Reanswer output run-id shape guard.
+  The reanswer runner now rejects blank or whitespace-only output `runId`
+  values before resolving output paths, loading the benchmark root, or writing
+  replay evidence. This aligns generation-side behavior with shared smoke-report
+  validation, which requires report run ids to be non-empty. Unit coverage lives
+  in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dr Reanswer source/report timestamp-order guard.
+  The reanswer runner now rejects source reports whose `generatedAt` timestamp
+  is later than the reanswer report timestamp before resolving output paths,
+  loading the benchmark root, or writing replay evidence. The generated report
+  also reuses a single captured timestamp, keeping replay/source lineage aligned
+  with shared compatibility validation. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dra Reanswer source/report strict timestamp-order guard.
+  The reanswer runner now also rejects source reports whose `generatedAt`
+  timestamp is equal to the reanswer report timestamp before resolving output
+  paths, loading the benchmark root, or writing replay evidence. This keeps the
+  generation path aligned with shared compatibility validation, where a replay
+  source must be generated earlier than the replay artifact. Unit coverage lives
+  in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004ds Reanswer selected-job provenance guard.
+  Any selected manifest `reanswerJobs` entry must now declare `sourceRunId` or
+  `sourceReportPath`, even when the replay uses the file-local `reanswerJobs`
+  queue without bucket/category filters. This prevents unfiltered manifest
+  replay from loading the benchmark root and writing replay evidence against
+  jobs that cannot be tied back to a source retrieval report. Unit coverage
+  lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dt Reanswer job-local duplicate question guard.
+  Selected manifest `reanswerJobs` entries now reject duplicate `questionIds`
+  inside the same job before cross-job de-duplication or replay selection. This
+  keeps malformed per-job manifests from being reported as cross-job collisions
+  and prevents silent collapse in bucket/category filtered replay. Unit coverage
+  lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004du Manifest question-id whitespace guard.
+  Targeted smoke and reanswer manifest parsing now rejects JSON manifest
+  `questionIds` with leading or trailing whitespace before selection, source
+  lookup, or overlap checks. This keeps malformed ids from surfacing later as
+  misleading missing-question errors and aligns manifest behavior with CLI
+  comma-list trimming. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dv Reanswer job source-provenance whitespace guard.
+  Targeted smoke and reanswer manifest parsing now rejects `reanswerJobs`
+  `sourceRunId` / `sourceReportPath` values with leading or trailing whitespace
+  before source filtering or manifest/source matching. This keeps malformed
+  provenance from surfacing later as a missing filtered job or wrong-source
+  mismatch. Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts
+  and tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dw Reanswer report-lineage whitespace guard.
+  `eval:phase-65-reanswer-report` now rejects top-level
+  `candidateReport.runId`, `candidateReport.path`, `sourceReports[].runId`, and
+  `sourceReports[].path` values with leading or trailing whitespace before
+  manifest source-lineage matching. This prevents padded lineage from surfacing
+  later as opaque source-run or source-path mismatches. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dx Reanswer explicit question-id whitespace guard.
+  `eval:phase-65-reanswer-report` now rejects programmatic explicit
+  `questionIds` with leading or trailing whitespace before reading the source
+  report. This keeps malformed additive replay scopes from surfacing later as
+  missing source-report question ids. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dy Reanswer output run-id whitespace guard.
+  `eval:phase-65-reanswer-report` now rejects output `runId` values with
+  leading or trailing whitespace before resolving output directories or writing
+  replay evidence. This keeps generated smoke-report `runId` and filesystem
+  lineage canonical instead of preserving padded report identities. Unit
+  coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004dz Shared smoke-report run-id whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  top-level report `runId` values with leading or trailing whitespace before
+  derived analyzers emit report lineage or `reanswerJobs` provenance. This
+  keeps live-delta `sourceReports` and other downstream artifacts from carrying
+  padded source run ids. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004ea Shared reanswer source-report lineage whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  nested reanswer `sourceReport.runId` and `sourceReport.path` values with
+  leading or trailing whitespace before category-gap, summary, budget,
+  live-delta, retrieval-gap, candidate-admission, or reanswer analyzers consume
+  replay lineage. This keeps nested replay provenance canonical instead of
+  preserving padded source identities. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eb Shared smoke-report string-array whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  string-array entries with leading or trailing whitespace before selection
+  headers or row retrieval arrays reach downstream comparison and aggregation
+  logic. This keeps malformed `caseIds`, `questionIds`, `questionCategories`,
+  and retrieval-id arrays from surfacing later as opaque mismatch errors. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004ec Shared smoke-report row-identity whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  row `caseId` and `questionId` values with leading or trailing whitespace
+  before selection-header matching or question-delta joins. This keeps
+  malformed `cases[]` identities from surfacing later as opaque `caseIds` or
+  question identity mismatch errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004ed Shared smoke-report run-directory whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  `runDirectory` values with leading or trailing whitespace before category-gap
+  or other downstream analyzers preserve report provenance. This keeps padded
+  report output-directory lineage from flowing into derived evidence artifacts.
+  Unit coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ee Shared smoke-report benchmark-source whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  `benchmarkSource` and `externalRoot` values with leading or trailing
+  whitespace before source/root path compatibility checks. This keeps padded
+  benchmark provenance from surfacing later as opaque external-root mismatch
+  errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ef Shared reanswer manifest-path whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  `reanswerSelection.questionIdFile` values with leading or trailing whitespace
+  before replay-selection lineage or self/source manifest checks. This keeps
+  padded reanswer manifest provenance from flowing into derived analysis
+  artifacts. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eg Shared smoke-report row-category whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects row
+  `category` values with leading or trailing whitespace before category enum
+  checks, category-gap aggregation, or matrix assembly. This keeps malformed
+  row category metadata from surfacing later as opaque unknown-category errors.
+  Unit coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eh Shared smoke-report timestamp whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  top-level `generatedAt` and nested `sourceReport.generatedAt` values with
+  leading or trailing whitespace before ISO parsing, replay source timestamp
+  ordering, or derived analyzer lineage. This keeps padded timestamp provenance
+  from surfacing later as generic ISO timestamp errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ei Shared exact-provenance whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded exact provenance values before writer/source/license
+  allow-list checks or upstream answer-metric comparisons. This covers
+  `generatedBy`, `license`, `upstreamSource`, and
+  `upstreamAnswerMetricByCategory.*`, keeping padded canonical metadata from
+  surfacing later as opaque unsupported-writer, unsupported-source, or metric
+  mismatch errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ej Shared answer-context-mode whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded top-level `answerContextMode` and nested
+  `sourceReport.answerContextMode` values before enum support checks, replay
+  writer compatibility checks, or answer-context delta attribution. This keeps
+  padded canonical answer-context lineage from surfacing later as opaque
+  unsupported-mode errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ek Shared semantic embedding-source whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded top-level `semanticCandidateEmbeddingSource` and nested
+  `sourceReport.retrievalConfig.semanticCandidateEmbeddingSource` values before
+  enum support checks, retrieval-config compatibility checks, or derived
+  analyzer lineage. This keeps padded embedding-source provenance from
+  surfacing later as opaque unsupported-source or retrieval-config mismatch
+  errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004el Shared report identity/mode whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded `benchmark`, `phase`, `mode`, `ingestMode`, and
+  `answerEvaluation` values before benchmark/phase identity checks, supported
+  mode checks, or mode/evaluation pairing checks. This keeps padded canonical
+  report identity and mode metadata from surfacing later as opaque mismatch
+  errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004em Shared category-summary category whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded `categories[]` summary `category` values before category
+  enum checks, category-summary comparisons, budget-delta analysis, or matrix
+  assembly. This keeps padded category-summary metadata from surfacing later as
+  opaque unknown-category or summary-mismatch errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004en Shared generated-answer whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded live-answer row `generatedAnswer` values before category-gap
+  aggregation, live-delta comparison, or replay-derived analyzer export. This
+  keeps padded answer text from flowing into downstream answer diagnostics as if
+  it were canonical model output. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eo Shared upstream metric category-key whitespace guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  whitespace-padded `upstreamAnswerMetricByCategory` category keys before
+  category allow-list checks or coverage comparisons against `cases[]`
+  categories. This keeps padded metric coverage keys from surfacing later as
+  opaque unknown-category or missing/extra-category errors. Unit coverage lives
+  in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ep Shared semantic embedding-source shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  non-string or empty `semanticCandidateEmbeddingSource` values before enum
+  support checks, retrieval-config compatibility checks, or derived analyzer
+  lineage. This keeps malformed embedding-source metadata from surfacing later
+  as opaque unsupported-source errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eq Shared answer-context-mode shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  non-string or empty top-level `answerContextMode` and nested
+  `sourceReport.answerContextMode` values before enum support checks, replay
+  writer compatibility checks, or answer-context delta attribution. This keeps
+  malformed answer-context lineage from surfacing later as opaque
+  unsupported-mode errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004er Shared report identity/mode shape guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  non-string or empty `benchmark`, `phase`, `mode`, `ingestMode`, and
+  `answerEvaluation` values before benchmark/phase identity checks, supported
+  mode checks, or mode/evaluation pairing checks. This keeps malformed canonical
+  report identity and mode metadata from surfacing later as opaque mismatch or
+  unsupported-mode errors. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004es Shared optional selection-header non-empty guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  empty `questionIds` and `questionCategories` arrays before selection-header
+  matching against `cases[]`. This keeps malformed targeted replay or
+  category-filter headers from surfacing later as opaque mismatch errors. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004et Shared caseIds header non-empty guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  empty `caseIds` arrays before `caseCount` or `cases[]` header matching. This
+  keeps malformed mandatory case-scope provenance from surfacing later as an
+  opaque count mismatch. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004eu Semantic-candidate/BM25 mode guard.
+  `eval:phase-65-smoke` now rejects `--semantic-candidates` combined with
+  `--bm25` before memory construction or report generation. BM25 remains the
+  embedding-free lexical leg, while semantic candidate admission requires an
+  embedding-backed recall branch; this prevents contradictory retrieval-config
+  metadata such as semantic candidates enabled with embedding source `none`.
+  Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004ev Shared semantic-candidate/source consistency guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports whose `semanticCandidates.enabled` is true while
+  `semanticCandidateEmbeddingSource` is `none`, including nested
+  `sourceReport.retrievalConfig` lineage. This keeps imported or hand-edited
+  reports from claiming semantic-candidate admission without an embedding
+  source before analyzer attribution or replay lineage checks. Unit coverage
+  lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ew Semantic-candidate inactive-budget guard.
+  `eval:phase-65-smoke` now rejects semantic-candidate tuning flags such as
+  `--semantic-candidate-top-k` unless `--semantic-candidates` is enabled, and
+  shared smoke-report compatibility validation rejects non-null
+  `semanticCandidates` tuning fields when `semanticCandidates.enabled` is false,
+  including nested `sourceReport.retrievalConfig` lineage. This prevents
+  inactive candidate-admission budgets from being serialized or imported as
+  retrieval-config signal before analyzer attribution. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ex Answer-policy live-mode guard.
+  `eval:phase-65-smoke` now rejects live-answer policy flags
+  `--allow-commonsense-resolution` and `--strict-no-evidence-abstention` unless
+  `--live` is enabled, and shared smoke-report compatibility validation rejects
+  retrieval-only reports that carry those live-only policy flags. This keeps
+  answer-policy attribution from being polluted by retrieval-only runs whose
+  policy flags could not have affected generated answers. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ey Answer-context live-mode guard.
+  `eval:phase-65-smoke` now rejects live-answer context flags
+  `--answer-from-recalled` and `--evidence-pack` unless `--live` is enabled,
+  and shared smoke-report compatibility validation rejects retrieval-only reports
+  whose `answerContextMode` is anything other than `raw-turns`. This prevents
+  retrieval-only diagnostics from carrying answer-context shaping metadata that
+  could not have affected generated answers or live-delta attribution. Unit
+  coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ez Shared zero-failure live-answer completeness guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  live-answer reports with `executionFailures: 0` when any row is missing scored
+  answer fields. Failed live reports may still retain failed rows with null
+  answer fields, but zero-failure reports can no longer be imported as complete
+  evidence while silently carrying unanswered rows into category-gap or derived
+  diagnostics. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004fa Shared row turn-id syntax guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects row
+  `evidenceTurnIds`, `retrievedTurnIds`, `missingEvidenceTurnIds`, and
+  `noiseTurnIds` entries that are not canonical LoCoMo `dia_id` values of the
+  form `D<session>:<turn>`. This keeps imported or hand-edited reports from
+  passing retrieval/noise math with placeholder turn ids that cannot be joined
+  back to LoCoMo dialog evidence. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, with related
+  analyzer fixtures updated to use canonical synthetic `dia_id` values.
+  The external-root prep now canonicalizes upstream legacy
+  `D:<session>:<turn>` ids to `D<session>:<turn>` for dialog turns and QA
+  `evidence`, drops malformed evidence ids, and de-duplicates canonicalized
+  evidence ids before writing `cases.json`. Regenerating
+  `/private/tmp/LOCOMO-full/cases.json` produced 10 cases, 1986 questions, and
+  5882 turns with no remaining `D:<session>:<turn>` evidence ids. Unit coverage
+  lives in tests/unit/prepare-phase-65-locomo-data.test.ts.
+
+[DONE] P65-T004fb Shared profile lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  `profilesCompared` values that differ from the canonical
+  `["goodmemory-rules-only"]` lineage written by the Phase 65 smoke and
+  reanswer reports. This prevents imported or hand-edited reports from mixing
+  unrelated benchmark profiles into single-report diagnostics or paired analyzer
+  comparisons under the same LoCoMo evidence lane. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004fc Shared present category-summary metrics guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  any present `categories[]` summary whose aggregate metrics disagree with
+  `cases[]`, while still allowing lightweight diagnostics that omit category
+  summaries entirely and full smoke shards that carry zero-count summaries for
+  absent categories. This prevents imported or hand-edited reports from
+  preserving stale category-summary aggregates. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004fd Shared explicit-only reanswer lineage guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reanswer reports whose `reanswerSelection.explicitQuestionIds` do not match
+  top-level `questionIds` when no manifest path or reanswer job filters are
+  present. Explicit ids can still be additive with manifest-backed jobs, but
+  explicit-only replay artifacts can no longer carry unexplained extra selected
+  rows. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004fe Shared BM25 embedding-source guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  reports that set `bm25Ranking: true` while claiming a
+  `semanticCandidateEmbeddingSource` other than `none`. This keeps imported or
+  hand-edited BM25 evidence in the embedding-free lexical lane instead of
+  mislabeling it as provider- or smoke-hash-backed semantic admission evidence.
+  Unit coverage lives in tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004ff Row answer token-F1 evidence contract.
+  New Phase 65 LoCoMo smoke/reanswer rows persist optional `answerTokenF1`, the
+  raw generated-answer-vs-gold token-F1 used underneath the boolean pass
+  threshold. Retrieval-only and hard-failed live rows write null, older reports
+  may omit the field, and shared smoke-report compatibility validation rejects
+  present values outside [0, 1]. Live-delta side records now preserve this value
+  for baseline/candidate answers and exports `answerTokenF1NearMiss` reanswer
+  jobs for non-adversarial wrong rows whose candidate token-F1 is above zero but
+  below the pass threshold. The live-delta CLI also backfills omitted
+  `answerTokenF1` values in memory from the report benchmark source/external root
+  before writing derived artifacts, so compatible older live reports that
+  already carry required answer-context lineage can produce near-miss queues
+  without rerunning answer generation or rewriting source reports. Older reports
+  that also lack required compatibility metadata, such as `answerContextMode`,
+  still fail fast instead of being silently inferred.
+  Answer-contract and label-compatibility queues can now identify and replay
+  near-miss token-F1 failures without manually rejoining generated answers to
+  the external root. This does not change correctness scoring or LoCoMo closure
+  status. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts plus bucket parsing in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004fg Backfilled token-F1 near-miss artifact.
+  The refreshed live-delta artifact
+  `locomo-multihop-candidate-admission-rel08-token-f1-delta-current/live-delta.json`
+  was generated from the normalized 28-row multi_hop candidate-admission
+  source reports, both of which had required answer-context lineage but omitted
+  `answerTokenF1`. The run preserved the existing +4 net answer result
+  (5 improvements, 1 regression, 10/28 candidate correct, 8 fully retrieved)
+  and added 10 diagnostic `answerTokenF1NearMisses`. The exported
+  `answerTokenF1NearMiss` replay job carries 8 unique ids after the higher
+  priority `noisyFullRecallWrong` bucket claims overlapping full-recall noisy
+  rows. This proves the near-miss route on real Phase 65 artifacts without
+  rerunning answer generation. It is label-compatibility / answer-contract
+  routing evidence, not LoCoMo closure.
+
+[DONE] P65-T004fh Near-miss reanswer replay evidence.
+  `eval:phase-65-reanswer-report` now persists `answerTokenF1` on reanswer rows,
+  matching the smoke/live writer and keeping replay artifacts usable for raw
+  token-F1 diagnostics. The normal-context replay
+  `locomo-multihop-answer-token-f1-near-miss-reanswer-current` consumed the
+  `answerTokenF1NearMiss` bucket from
+  `locomo-multihop-candidate-admission-rel08-token-f1-delta-current/live-delta.json`
+  against the rel0.8 candidate source report. It reanswered 8 questions with
+  `executionFailures: 0` and scored 0/8; average token-F1 was 0.2515 versus
+  0.2621 in the source near-miss queue. This is negative evidence for plain
+  reanswering as a recovery lever and keeps the bucket routed toward evidence
+  admission, answer/context organization, or label-compatibility review. Unit
+  coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004fi Reanswer subset live-delta comparison.
+  `analyze:phase-65-locomo-live-delta` now supports comparing a full source
+  live report against a reanswer-generated subset report when the candidate
+  report's `sourceReport` lineage matches the baseline report path and run id.
+  The analyzer builds a baseline view scoped to the candidate question keys,
+  recomputes category summaries for that view, and then applies the normal
+  strict metadata and answer-row validation. Ordinary non-lineage report pairs
+  still require identical scope. The generated artifact
+  `locomo-multihop-answer-token-f1-near-miss-reanswer-delta-current/live-delta.json`
+  compares the rel0.8 source report to the 8-row near-miss replay: 0
+  improvements, 0 regressions, 8 same-wrong, no retrieval/noise delta, and 7
+  rows still exported as `answerTokenF1NearMiss`. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004fj Near-miss label analysis.
+  `analyze:phase-65-locomo-near-miss-labels` now reads a live-delta artifact,
+  follows its candidate report provenance, joins selected `answerTokenF1NearMiss`
+  rows back to the report's benchmark source, and writes
+  `near-miss-label-analysis.json` with generated answer, gold answer, token
+  overlap, missing/extra tokens, retrieved/missing/noise turn ids, retrieval
+  state, and a deterministic diagnosis (`balanced-partial-overlap`,
+  `numeric-or-frequency-format`, `over-specified-answer`,
+  `under-specified-answer`, or `zero-token-overlap`). The artifact also carries
+  top-level/category `questionIds` plus `repairJobs` grouped by category,
+  diagnosis, and partial/zero retrieval bucket so the existing
+  `--question-id-file` loader can consume it directly. New artifacts also carry
+  the candidate report in top-level `sourceReports` lineage, matching the
+  common Phase 65 manifest audit shape.
+  The real artifact
+  `locomo-multihop-answer-token-f1-near-miss-label-analysis-current/near-miss-label-analysis.json`
+  analyzed the 7 rows still queued by the near-miss reanswer delta: average
+  replay token-F1 0.2874722639, 5 balanced partial overlaps, 1 over-specified
+  answer, 1 under-specified answer, 0 numeric/frequency-format rows, 0
+  full-recall rows, 5 partial-recall rows, and 2 zero-recall rows. It emits four
+  repair jobs: three balanced partial-overlap rows, one over-specified partial
+  row, one under-specified partial row, and two balanced zero-recall rows. The
+  retrieval-only loader proof
+  `locomo-multihop-near-miss-label-file-loader-smoke-current` consumed the
+  artifact as a 7-question multi_hop selection with `executionFailures: 0`;
+  default retrieval found 0/7 fully retrieved, average evidence recall 0, and
+  31 noise turns, so this is queue/loader proof rather than retrieval recovery.
+  This routes the queue toward missing-evidence admission plus
+  label-compatibility / answer-contract review rather than another plain
+  reanswer. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
+
+[DONE] P65-T004fk Provider embedding timeout/resume guard.
+  `eval:phase-65-smoke` now accepts `--provider-embedding-timeout-ms` for
+  per-request embedding timeouts and `--provider-embedding-run-timeout-ms` for
+  a whole-run provider watchdog, with env fallbacks
+  `GOODMEMORY_LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS` and
+  `GOODMEMORY_LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS` honored only when
+  `--provider-embedding` is active. New reports persist the selected timeout
+  metadata while older reports may omit it, and progress fingerprints include
+  the watchdog settings so resumed provider runs cannot mix timeout boundaries.
+  Provider-backed retrieval-only runs now also checkpoint completed question
+  rows to `live-progress.jsonl` and can `--resume`, matching the live-answer
+  path instead of treating provider retrieval as cheap deterministic replay.
+  The targeted 7-question near-miss rel0.8 provider retry
+  `locomo-multihop-near-miss-label-rel08-retrieval-timeout-current` was run
+  with 5s embedding requests and a 60s run watchdog; it exited cleanly with
+  `LocomoProviderEmbeddingRunTimeoutError` while starting `locomo-conv-42`
+  instead of staying silent. The follow-up resume-capable run
+  `locomo-multihop-near-miss-label-rel08-retrieval-resume-current` wrote the
+  progress config header but no completed question rows before the same
+  watchdog boundary. The explicit 1ms watchdog proof
+  `locomo-multihop-near-miss-label-rel08-retrieval-timeout-partial-current`
+  produced a partial smoke report with all 7 selected multi_hop rows retained,
+  `executionFailures: 7`, average evidence recall 0, and zero retrieved turns.
+  This is operational hardening and timeout-accounting evidence only, not
+  retrieval recovery or default promotion evidence. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fl Smoke failure-row retention.
+  `eval:phase-65-smoke` now retains failed selected rows in the final report for
+  non-timeout seed, recall, and answer-generation failures instead of only
+  incrementing `executionFailures` and shortening `cases[]`. Seed/recall
+  failures write empty-retrieval rows with all gold evidence marked missing;
+  answer-generation failures keep the retrieved/noise metrics and clear answer
+  fields. Failed rows are deliberately not appended to `live-progress.jsonl`,
+  so `--resume` retries them rather than treating failure as completed work.
+  Provider run-watchdog failures also finish as nonzero-failure reports instead
+  of throwing before report generation, preserving selected-scope accounting
+  while still leaving completed-question checkpointing reserved for successful
+  rows.
+  This makes nonzero-failure reports auditable by selected scope while preserving
+  the existing source-execution boundary: reports with `executionFailures > 0`
+  still cannot be reused as clean source evidence. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fm Near-miss label sourceReports lineage.
+  `analyze:phase-65-locomo-near-miss-labels` now writes top-level
+  `sourceReports` with the candidate report path, run id, and question count.
+  This keeps near-miss label artifacts aligned with live-delta and
+  candidate-admission manifests, so the generated `repairJobs` can be audited
+  against their source report without relying on run-id naming conventions.
+  This is provenance hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage lives
+  in tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
+
+[DONE] P65-T004fn Manifest top-level/category selected-scope guard.
+  Targeted `--question-id-file` JSON parsing now rejects manifests whose
+  top-level `questionIds` and category-level `questionIds` are both present but
+  disagree. The previous behavior silently unioned both lists, which could widen
+  a near-miss label or category-bearing repair queue beyond the artifact's
+  selected scope. This is manifest integrity hardening only; it does not change
+  LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
+  Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fo Manifest top-level selected-count guard.
+  Targeted `--question-id-file` JSON parsing now validates
+  `overall.selectedQuestionCount` against top-level `questionIds` when both are
+  present, even if the manifest has no category object. This keeps repair
+  artifacts from claiming a selected scope that differs from the ids actually
+  loaded by targeted smoke/reanswer runs. This is manifest integrity hardening
+  only; it does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fp Manifest job selected-count guard.
+  Targeted `--question-id-file` JSON parsing now validates
+  `overall.selectedQuestionCount` against repair/reanswer job `questionIds`
+  when a manifest has job queues but no top-level/category selection header.
+  This keeps jobs-only repair artifacts from claiming a selected scope that
+  differs from the ids actually loaded by targeted smoke/reanswer runs. This is
+  manifest integrity hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage
+  lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fq Preferred job selected-count guard.
+  Preferred reanswer-mode `--question-id-file` parsing now validates
+  `overall.selectedQuestionCount` against selected `reanswerJobs` when a
+  manifest has no broader top-level/category selection header. Broader
+  answer-policy and live-delta manifests remain compatible because their
+  `overall` count can describe the full artifact selection while preferred
+  replay intentionally consumes only the job queue. This is manifest integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fr Preferred job empty-header selected-count guard.
+  Preferred reanswer-mode `--question-id-file` parsing now treats empty
+  top-level/category question-id headers as absent for the selected-count guard.
+  A jobs-only preferred replay can no longer bypass
+  `overall.selectedQuestionCount` validation by carrying `questionIds: []` next
+  to selected `reanswerJobs`. This is manifest integrity hardening only; it
+  does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fs Preferred job broad-header shape guard.
+  Preferred reanswer-mode `--question-id-file` parsing now validates
+  top-level/category selection-header shape before applying file-local
+  `reanswerJobs` precedence. A malformed broad header such as whitespace-padded
+  top-level `questionIds` can no longer be ignored just because the preferred
+  reanswer queue is otherwise valid. This is manifest integrity hardening only;
+  it does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004ft Preferred empty-job broad-header shape guard.
+  Preferred reanswer-mode `--question-id-file` parsing now validates
+  top-level/category selection-header shape before returning an explicitly empty
+  preferred `reanswerJobs` queue. A malformed broad header can no longer be
+  hidden behind the intended strict no-fallback behavior for empty preferred
+  queues. This is manifest integrity hardening only; it does not change LoCoMo
+  retrieval, answer scores, default status, or public-claim boundaries. Unit
+  coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fu Preferred job selected-scope equality guard.
+  Preferred reanswer-mode `--question-id-file` parsing now rejects manifests
+  whose top-level `questionIds` and category-level `questionIds` disagree before
+  applying file-local `reanswerJobs` precedence. Valid preferred reanswer
+  manifests can still ignore broader repair/top-level queues, but internally
+  inconsistent selection headers no longer pass just because the preferred
+  reanswer queue is selected. This is manifest integrity hardening only; it does
+  not change LoCoMo retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fv Preferred job selected-count header guard.
+  Preferred reanswer-mode `--question-id-file` parsing now validates
+  `overall.selectedQuestionCount` against top-level/category selection headers
+  before applying file-local `reanswerJobs` precedence. A manifest can no longer
+  carry a valid preferred reanswer queue while hiding a broader selected-count
+  mismatch in the artifact header. This is manifest integrity hardening only; it
+  does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fw Preferred empty-job selected-count guard.
+  Preferred reanswer-mode `--question-id-file` parsing now validates
+  `overall.selectedQuestionCount` against the preferred `reanswerJobs` selection
+  even when that queue is explicitly empty and no broader selection header is
+  present. A malformed empty preferred manifest now fails on the selected-count
+  mismatch before the generic empty-selection error. This is manifest integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fx Jobs-only selected-count header precedence.
+  Targeted `--question-id-file` parsing now applies the repair/reanswer
+  jobs-only `overall.selectedQuestionCount` guard only when no non-empty
+  top-level/category selection header exists. Category-only manifests can carry
+  repair queues whose size differs from the selected category scope without
+  being rejected by the jobs-only guard. This keeps the selected-count contract
+  tied to the manifest's declared selected scope while preserving jobs-only
+  validation for true jobs-only artifacts. This is manifest integrity hardening
+  only; it does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fy Empty jobs-only selected-count guard.
+  Targeted `--question-id-file` parsing now validates
+  `overall.selectedQuestionCount` against repair/reanswer job `questionIds`
+  even when the manifest explicitly carries empty `repairJobs` / `reanswerJobs`
+  queues and has no broader selection header. A malformed empty jobs-only
+  manifest now fails on the selected-count mismatch before the generic
+  empty-selection error. This is manifest integrity hardening only; it does not
+  change LoCoMo retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fz Manifest overall shape guard.
+  Targeted `--question-id-file` parsing now rejects manifests whose `overall`
+  container is present but not an object before loading any selected
+  `questionIds`. A malformed `overall` header can no longer be silently treated
+  as absent while a top-level, category, or job selection still replays. This is
+  manifest integrity hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage
+  lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004ga Reanswer job category consistency guard.
+  Targeted `--question-id-file` parsing and `eval:phase-65-reanswer-report`
+  manifest filtering now reject `reanswerJobs` whose scalar `category`
+  disagrees with the `categories` list on the same job. A malformed replay job
+  can no longer match one category through `category` while advertising a
+  different category list for filtered replay. This is manifest integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gb Reanswer job extra-category guard.
+  The same `reanswerJobs` category/category-list guard now requires exact
+  singleton equivalence when both fields are present: `categories` must contain
+  only the scalar `category`. A malformed replay job can no longer use
+  `category` for one slice while adding extra category-list values that make the
+  same job match other filtered reanswer runs. This is manifest integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gc Reanswer sourceReports duplicate-lineage guard.
+  `eval:phase-65-reanswer-report` now rejects duplicate selected
+  `sourceReports` lineage entries before loading the benchmark root. Exact
+  duplicate runId/path pairs can no longer be silently collapsed while making
+  manifest provenance look like multiple source rows. The guard is scoped to
+  sourceReports that match selected reanswer jobs, so category-filtered replay
+  still ignores unrelated lineage from other categories. This is manifest
+  integrity hardening only; it does not change LoCoMo retrieval, answer scores,
+  default status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gd Reanswer report-lineage identity guard.
+  `eval:phase-65-reanswer-report` now rejects manifest `candidateReport`
+  objects and `sourceReports` entries that do not declare either a run id or a
+  report path. Empty lineage objects can no longer be silently ignored or treated
+  as auditable source evidence before replay. This is manifest integrity
+  hardening only; it does not change LoCoMo retrieval, answer scores, default
+  status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004ge Reanswer questionCategories output-scope guard.
+  `eval:phase-65-reanswer-report` now rebuilds inherited `questionCategories`
+  headers from the actual replayed rows when the source report was
+  category-scoped or a category job filter is used. A selected replay can no
+  longer inherit a broader source category header that its own compatibility
+  checks would reject. This is report lineage / selection-scope hardening only;
+  it does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gf Manifest category header guard.
+  Targeted `--question-id-file` JSON parsing now rejects top-level
+  `categories` keys outside the five normalized LoCoMo QA categories before
+  collecting category `questionIds` or applying preferred `reanswerJobs`
+  precedence. A typoed category bucket can no longer be consumed as a valid
+  targeted smoke/reanswer scope. This is manifest integrity hardening only; it
+  does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004gg Reanswer job category-list duplicate guard.
+  Targeted `--question-id-file` JSON parsing and
+  `eval:phase-65-reanswer-report` manifest filtering now reject duplicate
+  values in a `reanswerJobs.categories` list before collecting targeted rows or
+  applying bucket/category/source filters. A replay job can no longer advertise
+  repeated category metadata while still being accepted as an auditable
+  manifest row. This is manifest integrity hardening only; it does not change
+  LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
+  Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gh Duplicate boolean mode flag guard.
+  Shared CLI parsing now rejects repeated boolean mode switches in
+  `eval:phase-65-smoke`, `eval:phase-65-reanswer-report`, and the Phase 65
+  measurement CLIs before report generation. This covers
+  retrieval/live/resume/policy/context switches such as `--live`,
+  `--semantic-candidates`, `--gold-evidence-only-context`,
+  `--allow-commonsense-resolution`, `--no-memory`, and `--with-extraction`, so
+  malformed evidence commands cannot be silently normalized by
+  `argv.includes(...)`. This is CLI evidence integrity hardening only; it does
+  not change LoCoMo retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts,
+  tests/unit/reanswer-phase-65-locomo-report.test.ts,
+  tests/unit/measure-locomo-levers.test.ts, and
+  tests/unit/measure-locomo-union-live.test.ts.
+
+[DONE] P65-T004gi Retrieval-probe scalar flag guard.
+  The eval-only `run-phase-65-locomo-window-retrieval.ts` and
+  `run-phase-65-locomo-query-expansion.ts` probes now reject duplicate scalar
+  source/run/window selectors before writing comparison reports. This covers
+  `--benchmark-root`, `--run-id`, and `--window-radius`; `--window-radius` must
+  also be a positive integer. These probes carry negative retrieval-boundary
+  evidence for dialog windows and rules-light query expansion, so malformed CLI
+  input should fail before producing comparison artifacts. This is CLI evidence
+  integrity hardening only; it does not change LoCoMo retrieval, answer scores,
+  default status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-probe-cli.test.ts.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

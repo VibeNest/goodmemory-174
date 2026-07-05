@@ -8,6 +8,7 @@ import type {
   LocomoCategoryRetrievalSummary,
   LocomoSmokeReport,
 } from "../../scripts/run-phase-65-locomo-smoke";
+import { deriveLocomoMatchMode } from "../../src/eval/locomo";
 import type { LocomoQaCategory } from "../../src/eval/locomo";
 
 function summary(input: {
@@ -53,21 +54,37 @@ function report(input: {
   const questionIds =
     input.questionIds ??
     Array.from({ length: input.questionCount }, (_value, index) => `q${index + 1}`);
-  const cases: LocomoSmokeReport["cases"] = questionIds.map((questionId) => ({
-    answerCorrect: null,
-    caseId,
-    category: input.category,
-    evidenceRecall: input.recall,
-    evidenceTurnIds: ["D1:1"],
-    generatedAnswer: null,
-    goldEvidenceFullyRetrieved: true,
-    missingEvidenceTurnIds: [],
-    noiseTurnCount: 0,
-    noiseTurnIds: [],
-    questionId,
-    retrievedTurnIds: ["D1:1"],
-  }));
+  const baseNoiseTurnCount = Math.floor(
+    input.noiseTurnTotal / input.questionCount,
+  );
+  const extraNoiseTurnCount = input.noiseTurnTotal % input.questionCount;
+  const cases: LocomoSmokeReport["cases"] = questionIds.map(
+    (questionId, index) => {
+      const fullyRetrieved = index < input.fullyRetrievedCount;
+      const noiseTurnCount =
+        baseNoiseTurnCount + (index < extraNoiseTurnCount ? 1 : 0);
+      const noiseTurnIds = Array.from(
+        { length: noiseTurnCount },
+        (_value, noiseIndex) => `D9:${index * 100 + noiseIndex + 1}`,
+      );
+      return {
+        answerCorrect: null,
+        caseId,
+        category: input.category,
+        evidenceRecall: fullyRetrieved ? 1 : 0,
+        evidenceTurnIds: fullyRetrieved ? ["D1:1"] : ["D1:2"],
+        generatedAnswer: null,
+        goldEvidenceFullyRetrieved: fullyRetrieved,
+        missingEvidenceTurnIds: fullyRetrieved ? [] : ["D1:2"],
+        noiseTurnCount,
+        noiseTurnIds,
+        questionId,
+        retrievedTurnIds: fullyRetrieved ? ["D1:1", ...noiseTurnIds] : noiseTurnIds,
+      };
+    },
+  );
   return {
+    answerContextMode: "raw-turns",
     answerEvaluation: "deferred-to-live-mode",
     benchmark: "locomo",
     benchmarkSource: input.benchmarkSource ?? "/private/tmp/LOCOMO-full/cases.json",
@@ -106,7 +123,9 @@ function report(input: {
       minSimilarity: null,
       topK: input.topK,
     },
-    upstreamAnswerMetricByCategory: {},
+    upstreamAnswerMetricByCategory: {
+      [input.category]: deriveLocomoMatchMode(input.category),
+    },
     upstreamSource: "https://github.com/snap-research/locomo",
   };
 }
@@ -118,11 +137,11 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
         path: "/reports/open-domain-top16/smoke-report.json",
         report: report({
           category: "open_domain",
-          fullyRetrievedCount: 19,
+          fullyRetrievedCount: 48,
           maxAdditions: 4,
           noiseTurnTotal: 696,
           questionCount: 96,
-          recall: 0.2763991013,
+          recall: 0.5,
           runId: "open-domain-top16-add4",
           topK: 16,
         }),
@@ -131,12 +150,12 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
         path: "/reports/open-domain-top32-rel08/smoke-report.json",
         report: report({
           category: "open_domain",
-          fullyRetrievedCount: 25,
+          fullyRetrievedCount: 60,
           maxAdditions: 8,
           minRelativeScore: 0.8,
           noiseTurnTotal: 936,
           questionCount: 96,
-          recall: 0.3432393791,
+          recall: 0.625,
           runId: "open-domain-top32-add8-rel08",
           topK: 32,
         }),
@@ -151,16 +170,16 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
     expect(analysis.comparisons[0]).toMatchObject({
       addedNoiseTurnTotal: 240,
       category: "open_domain",
-      fullyRetrievedDelta: 6,
+      fullyRetrievedDelta: 12,
       questionCount: 96,
     });
     expect(analysis.comparisons[0]?.averageEvidenceRecallDelta).toBeCloseTo(
-      0.0668402778,
+      0.125,
       10,
     );
     expect(
       analysis.comparisons[0]?.recallDeltaPer100AddedNoiseTurns,
-    ).toBeCloseTo(0.02785011575, 10);
+    ).toBeCloseTo(0.052083333333333336, 10);
   });
 
   it("rejects reports with different source roots, retrieval stacks, or question identities", () => {
@@ -190,7 +209,7 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
             noiseTurnTotal: 12,
             questionCount: 2,
             questionIds: ["q1", "q2"],
-            recall: 0.6,
+            recall: 0.5,
             runId: "open-domain-other-root",
             topK: 32,
           }),
@@ -211,7 +230,7 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
             noiseTurnTotal: 12,
             questionCount: 2,
             questionIds: ["q1", "q2"],
-            recall: 0.6,
+            recall: 0.5,
             runId: "open-domain-bm25",
             topK: 32,
           }),
@@ -231,13 +250,432 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
             noiseTurnTotal: 12,
             questionCount: 2,
             questionIds: ["q1", "q3"],
-            recall: 0.6,
+            recall: 0.5,
             runId: "open-domain-different-questions",
             topK: 32,
           }),
         },
       }),
     ).toThrow("question identity");
+  });
+
+  it("rejects direct self-comparison report inputs with path-equivalent lineage", () => {
+    const baseline = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 4,
+      noiseTurnTotal: 10,
+      questionCount: 2,
+      recall: 0.5,
+      runId: "open-domain-baseline",
+      topK: 16,
+    });
+    const candidate = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 8,
+      noiseTurnTotal: 12,
+      questionCount: 2,
+      recall: 0.5,
+      runId: "open-domain-candidate",
+      topK: 32,
+    });
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/open-domain/smoke-report.json",
+          report: baseline,
+        },
+        candidate: {
+          path: "/reports/open-domain/../open-domain/smoke-report.json",
+          report: candidate,
+        },
+      }),
+    ).toThrow("baseline and candidate reports must refer to different paths");
+  });
+
+  it("rejects reports whose questionCount does not match cases length", () => {
+    const baseline = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 4,
+      noiseTurnTotal: 10,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-baseline",
+      topK: 16,
+    });
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            cases: baseline.cases.slice(0, 1),
+          },
+        },
+        candidate: {
+          path: "/reports/candidate.json",
+          report: report({
+            category: "open_domain",
+            fullyRetrievedCount: 1,
+            maxAdditions: 8,
+            noiseTurnTotal: 12,
+            questionCount: 2,
+            questionIds: ["q1", "q2"],
+            recall: 0.5,
+            runId: "open-domain-candidate",
+            topK: 32,
+          }),
+        },
+      }),
+    ).toThrow("questionCount 2 does not match cases length 1");
+  });
+
+  it("rejects reports whose category summaries do not match cases", () => {
+    const baseline = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 4,
+      noiseTurnTotal: 10,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-baseline",
+      topK: 16,
+    });
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                noiseTurnTotal: 9,
+              },
+            ],
+          },
+        },
+        candidate: {
+          path: "/reports/candidate.json",
+          report: report({
+            category: "open_domain",
+            fullyRetrievedCount: 1,
+            maxAdditions: 8,
+            noiseTurnTotal: 12,
+            questionCount: 2,
+            questionIds: ["q1", "q2"],
+            recall: 0.5,
+            runId: "open-domain-candidate",
+            topK: 32,
+          }),
+        },
+      }),
+    ).toThrow("category open_domain noiseTurnTotal 9 does not match cases[] 10");
+  });
+
+  it("rejects malformed category summary scalar fields before comparing cases", () => {
+    const baseline = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 4,
+      noiseTurnTotal: 10,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-baseline",
+      topK: 16,
+    });
+    const candidate = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 8,
+      noiseTurnTotal: 12,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-candidate",
+      topK: 32,
+    });
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                category:
+                  "open_domain " as unknown as
+                    LocomoSmokeReport["categories"][number]["category"],
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category summary at index 0 category must not have leading or trailing whitespace",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                averageEvidenceRecall: "0.5" as unknown as number,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain averageEvidenceRecall must be a finite number",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                averageEvidenceRecall: -0.25,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain averageEvidenceRecall must be a finite number between 0 and 1",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                answeredCount: 0.5,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain answeredCount 0.5 is not a non-negative integer",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                fullyRetrievedCount: "1" as unknown as number,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain fullyRetrievedCount 1 is not a non-negative integer",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                answerAccuracy: "0" as unknown as number,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain answerAccuracy must be a finite number or null",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                answerAccuracy: 1.5,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain answerAccuracy must be a finite number between 0 and 1 or null",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            categories: [
+              {
+                ...baseline.categories[0]!,
+                crossSessionChainReady: "false" as unknown as boolean,
+              },
+            ],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "category open_domain crossSessionChainReady must be a boolean or null",
+    );
+  });
+
+  it("rejects malformed retrieval-config metadata before emitting budget deltas", () => {
+    const baseline = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 4,
+      noiseTurnTotal: 10,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-baseline",
+      topK: 16,
+    });
+    const candidate = report({
+      category: "open_domain",
+      fullyRetrievedCount: 1,
+      maxAdditions: 8,
+      noiseTurnTotal: 12,
+      questionCount: 2,
+      questionIds: ["q1", "q2"],
+      recall: 0.5,
+      runId: "open-domain-candidate",
+      topK: 32,
+    });
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            semanticCandidates: "top16" as unknown as LocomoSmokeReport["semanticCandidates"],
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow("semanticCandidates must be an object");
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            semanticCandidates: {
+              ...baseline.semanticCandidates,
+              enabled: "true" as unknown as boolean,
+            },
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow("semanticCandidates.enabled must be a boolean");
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            semanticCandidates: {
+              ...baseline.semanticCandidates,
+              topK: 0,
+            },
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow("semanticCandidates.topK 0 is not a positive integer or null");
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            semanticCandidates: {
+              ...baseline.semanticCandidates,
+              minRelativeScore: 1.2,
+            },
+          },
+        },
+        candidate: { path: "/reports/candidate.json", report: candidate },
+      }),
+    ).toThrow(
+      "semanticCandidates.minRelativeScore must be a finite number between 0 and 1 or null",
+    );
+
+    expect(() =>
+      analyzeLocomoBudgetDelta({
+        baseline: {
+          path: "/reports/baseline.json",
+          report: {
+            ...baseline,
+            semanticCandidateEmbeddingSource:
+              "provider-ish" as unknown as LocomoSmokeReport["semanticCandidateEmbeddingSource"],
+          },
+        },
+        candidate: {
+          path: "/reports/candidate.json",
+          report: {
+            ...candidate,
+            semanticCandidateEmbeddingSource:
+              "provider-ish" as unknown as LocomoSmokeReport["semanticCandidateEmbeddingSource"],
+          },
+        },
+      }),
+    ).toThrow(
+      'semanticCandidateEmbeddingSource "provider-ish" is not supported',
+    );
   });
 
   it("parses report flags and writes a JSON artifact", async () => {
@@ -253,7 +691,7 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
             maxAdditions: 4,
             noiseTurnTotal: 2204,
             questionCount: 282,
-            recall: 0.3263764801,
+            recall: 37 / 282,
             runId: "multi-hop-top16-add4",
             topK: 16,
           }),
@@ -269,7 +707,7 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
             minRelativeScore: 0.8,
             noiseTurnTotal: 2939,
             questionCount: 282,
-            recall: 0.3767491208,
+            recall: 42 / 282,
             runId: "multi-hop-top32-add8-rel08",
             topK: 32,
           }),
@@ -316,5 +754,68 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
       comparisons: [{ category: "multi_hop", fullyRetrievedDelta: 5 }],
       runId: "locomo-budget-delta-multi-hop",
     });
+  });
+
+  it("rejects path-equivalent baseline and candidate reports before reading inputs", async () => {
+    await expect(
+      runLocomoBudgetDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-budget-delta.ts",
+          "--baseline-report",
+          "/reports/open-domain/smoke-report.json",
+          "--candidate-report",
+          "/reports/open-domain/../open-domain/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--baseline-report and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects missing string flag values before reading reports", async () => {
+    const noReads = {
+      readFile: async (_path: string): Promise<string> => {
+        throw new Error("should not read reports");
+      },
+    };
+
+    await expect(
+      runLocomoBudgetDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-budget-delta.ts",
+          "--baseline-report",
+          "--candidate-report",
+          "/reports/candidate.json",
+        ],
+        noReads,
+      ),
+    ).rejects.toThrow("--baseline-report requires a value.");
+
+    await expect(
+      runLocomoBudgetDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-budget-delta.ts",
+          "--baseline-report",
+          "/reports/baseline.json",
+          "--candidate-report",
+          "/reports/candidate.json",
+          "--output-path",
+          "--run-id",
+          "locomo-budget-delta",
+        ],
+        noReads,
+      ),
+    ).rejects.toThrow("--output-path requires a value.");
   });
 });

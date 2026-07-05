@@ -2,12 +2,20 @@
 // five Phase 65 one-category smoke reports; it does not run retrieval or live
 // answer generation.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertLocomoReportCategorySummariesMatchCases,
+  assertLocomoReportHasNoQuestionIdFilter,
+  assertLocomoReportInputsHaveUniquePaths,
+  assertLocomoReportMetadataCompatible,
+  assertLocomoReportQuestionCountMatchesCases,
+  LOCOMO_CATEGORY_SHARD_METADATA_FIELDS,
+} from "./locomo-report-compatibility";
 import type {
   LocomoCategoryRetrievalSummary,
   LocomoSmokeReport,
@@ -75,6 +83,7 @@ export interface LocomoCategorySummaryReport {
   sourceReports: Array<{
     category: LocomoQaCategory;
     path: string;
+    questionCount: number;
     runId: string;
   }>;
 }
@@ -84,6 +93,7 @@ function parseStringListFlag(
   flagName: string,
 ): string[] {
   const values: string[] = [];
+  const seen = new Set<string>();
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] !== flagName) {
       continue;
@@ -92,11 +102,18 @@ function parseStringListFlag(
     if (!raw || raw.startsWith("--")) {
       throw new Error(`${flagName} requires a value.`);
     }
-    for (const value of raw.split(",")) {
+    const parts = raw.split(",");
+    for (const value of parts) {
       const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        values.push(trimmed);
+      if (trimmed.length === 0) {
+        throw new Error(`${flagName} contains an empty value.`);
       }
+      const normalizedPath = resolve(trimmed);
+      if (seen.has(normalizedPath)) {
+        throw new Error(`${flagName} contains duplicate value ${trimmed}.`);
+      }
+      seen.add(normalizedPath);
+      values.push(trimmed);
     }
   }
   return values;
@@ -112,9 +129,9 @@ export function parseLocomoCategorySummaryCliOptions(
     );
   }
   return {
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
     reportPaths,
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -137,86 +154,25 @@ function assertSmokeReport(
   }
 }
 
-function assertSameJsonField(
-  fieldName: string,
-  firstValue: unknown,
-  nextValue: unknown,
-  path: string,
-): void {
-  if (JSON.stringify(nextValue) !== JSON.stringify(firstValue)) {
-    throw new Error(
-      `Report ${path} has incompatible ${fieldName}: ` +
-        `${JSON.stringify(nextValue)}; expected ${JSON.stringify(firstValue)}.`,
-    );
-  }
-}
-
 function assertCompatibleReport(
   first: LocomoSmokeReport,
   next: LocomoSmokeReport,
   path: string,
 ): void {
-  if (next.mode !== first.mode) {
-    throw new Error(
-      `Report ${path} has mode ${next.mode}; expected ${first.mode}.`,
-    );
-  }
-  if (next.answerEvaluation !== first.answerEvaluation) {
-    throw new Error(
-      `Report ${path} has answerEvaluation ${next.answerEvaluation}; ` +
-        `expected ${first.answerEvaluation}.`,
-    );
-  }
-  assertSameJsonField(
-    "benchmarkSource",
-    first.benchmarkSource,
-    next.benchmarkSource,
-    path,
-  );
-  assertSameJsonField("externalRoot", first.externalRoot, next.externalRoot, path);
-  assertSameJsonField("caseIds", first.caseIds, next.caseIds, path);
-  assertSameJsonField(
-    "profilesCompared",
-    first.profilesCompared,
-    next.profilesCompared,
-    path,
-  );
-  assertSameJsonField("bm25Ranking", first.bm25Ranking, next.bm25Ranking, path);
-  assertSameJsonField("ingestMode", first.ingestMode, next.ingestMode, path);
-  assertSameJsonField(
-    "answerContextMode",
-    first.answerContextMode ?? "legacy-unrecorded",
-    next.answerContextMode ?? "legacy-unrecorded",
-    path,
-  );
-  assertSameJsonField(
-    "allowCommonsenseResolution",
-    first.allowCommonsenseResolution ?? false,
-    next.allowCommonsenseResolution ?? false,
-    path,
-  );
-  if (
-    next.semanticCandidateEmbeddingSource !==
-    first.semanticCandidateEmbeddingSource
-  ) {
-    throw new Error(
-      `Report ${path} has semanticCandidateEmbeddingSource ` +
-        `${next.semanticCandidateEmbeddingSource}; expected ` +
-        `${first.semanticCandidateEmbeddingSource}.`,
-    );
-  }
-  if (
-    JSON.stringify(next.semanticCandidates) !==
-    JSON.stringify(first.semanticCandidates)
-  ) {
-    throw new Error(`Report ${path} has incompatible semanticCandidates config.`);
-  }
+  assertLocomoReportMetadataCompatible({
+    candidate: { path, report: next },
+    fields: LOCOMO_CATEGORY_SHARD_METADATA_FIELDS,
+    reference: { path: "first report", report: first },
+  });
 }
 
 function findShardCategory(
   input: LocomoCategoryReportInput,
 ): LocomoCategoryRetrievalSummary {
   const { path, report } = input;
+  assertLocomoReportHasNoQuestionIdFilter(input);
+  assertLocomoReportQuestionCountMatchesCases(input);
+  assertLocomoReportCategorySummariesMatchCases(input);
   if (report.executionFailures > 0) {
     throw new Error(
       `Report ${path} (${report.runId}) has ${report.executionFailures} ` +
@@ -284,6 +240,7 @@ export function summarizeLocomoCategoryReports(input: {
   if (input.reports.length === 0) {
     throw new Error("LoCoMo category summary requires at least one report.");
   }
+  assertLocomoReportInputsHaveUniquePaths(input.reports);
   const first = input.reports[0].report;
   for (const { path, report } of input.reports) {
     assertCompatibleReport(first, report, path);
@@ -335,6 +292,7 @@ export function summarizeLocomoCategoryReports(input: {
     sourceReports.push({
       category: shard.category,
       path: reportInput.path,
+      questionCount: shard.questionCount,
       runId: reportInput.report.runId,
     });
   }

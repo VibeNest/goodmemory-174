@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   buildPhase62FailureRetryBatches,
   discoverExistingRetryBatchRunIds,
+  parsePhase62Full500RetryFailureOptions,
   runPhase62Full500FailureRetries,
 } from "../../scripts/run-phase-62-full500-retry-failures";
 import type {
@@ -86,6 +87,24 @@ function buildReport(input: {
 }
 
 describe("run-phase-62 full-500 failure retries", () => {
+  it("rejects duplicate boolean retry mode flags before planning batches", () => {
+    for (const flag of [
+      "--continue-on-execution-failure",
+      "--dry-run",
+      "--resume-existing-batches",
+    ]) {
+      expect(() =>
+        parsePhase62Full500RetryFailureOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-full500-retry-failures.ts",
+          flag,
+          flag,
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("discovers existing retry batch run ids in batch order", () => {
     expect(
       discoverExistingRetryBatchRunIds({

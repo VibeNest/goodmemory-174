@@ -27,7 +27,10 @@ import {
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { createProviderTextGenerator } from "../src/eval/provider-harness";
 import { resolveLiveModelConfig } from "./run-eval";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
 import type { EvidenceTurn } from "../src/answer/evidencePack";
 import {
@@ -62,6 +65,24 @@ export const PHASE63_BEAM_LIVE_SLICE_PROGRESS_FILE_NAME =
 const GENERATED_BY = "scripts/run-phase-63-beam-live-slice.ts";
 const SOURCE_ORDER_CONTEXT_LIMIT = 40;
 const SOURCE_ORDER_CONTEXT_REQUESTED_ITEM_MAX_LIMIT = 10;
+const ANSWER_GAP_BUCKETS = [
+  "aggregate_count",
+  "temporal_order",
+  "conflict_update",
+  "instruction_following",
+  "preference_following",
+  "multi_session_reasoning",
+  "summarization",
+  "abstention",
+  "judge_or_expected_answer",
+  "other",
+] as const;
+const ANSWER_GAP_SOURCE_COVERAGE_STATUSES = [
+  "not-audited",
+  "covered-or-no-warning",
+  "expected-cues-outside-source",
+  "no-declared-source-ids",
+] as const;
 const ORDERED_EVIDENCE_FOUNDATION_PATTERN =
   /\b(?:core\s+(?:app\s+)?functionality|initializ(?:e|ed|ing)|local\s+dev|port\s+\d+|setup|setting\s+up|want\s+to\s+(?:build|implement))\b/iu;
 const ORDERED_EVIDENCE_TRANSACTION_PATTERN =
@@ -269,15 +290,36 @@ function parseScale(value: string | undefined): BeamCase["scale"] | undefined {
 function parseRepeatedFlag(
   argv: readonly string[],
   flagName: string,
+  options: { allowedValues?: readonly string[] } = {},
 ): string[] | undefined {
   const values: string[] = [];
+  const seen = new Set<string>();
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === flagName) {
       const value = argv[index + 1];
-      if (!value) {
-        throw new Error(`${flagName} requires a value`);
+      if (!value || value.startsWith("--")) {
+        throw new Error(`${flagName} requires a value.`);
       }
+      if (value.trim().length === 0) {
+        throw new Error(`${flagName} must not be empty.`);
+      }
+      if (value.trim() !== value) {
+        throw new Error(`${flagName} must not have leading or trailing whitespace.`);
+      }
+      if (
+        options.allowedValues !== undefined &&
+        !options.allowedValues.includes(value)
+      ) {
+        throw new Error(
+          `${flagName} must be one of: ${options.allowedValues.join(", ")}.`,
+        );
+      }
+      if (seen.has(value)) {
+        throw new Error(`${flagName} contains duplicate value ${value}.`);
+      }
+      seen.add(value);
       values.push(value);
+      index += 1;
     }
   }
   return values.length === 0 ? undefined : values;
@@ -322,27 +364,30 @@ export function parsePhase63BeamLiveSliceCliOptions(
   argv: readonly string[],
 ): Phase63BeamLiveSliceCliOptions {
   return {
-    answerGapBuckets: parseRepeatedFlag(argv, "--answer-gap-bucket"),
-    answerGapReportPath: resolveCliFlagValue(argv, "--answer-gap-report"),
+    answerGapBuckets: parseRepeatedFlag(argv, "--answer-gap-bucket", {
+      allowedValues: ANSWER_GAP_BUCKETS,
+    }),
+    answerGapReportPath: resolveCliFlagValueStrict(argv, "--answer-gap-report"),
     answerGapSourceCoverageStatuses: parseRepeatedFlag(
       argv,
       "--answer-gap-source-coverage-status",
+      { allowedValues: ANSWER_GAP_SOURCE_COVERAGE_STATUSES },
     ),
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
     caseSelection: parseCaseSelection(
-      resolveCliFlagValue(argv, "--case-selection"),
+      resolveCliFlagValueStrict(argv, "--case-selection"),
     ),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
-    evidencePack: argv.includes("--evidence-pack"),
-    limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
-    recallReportPath: resolveCliFlagValue(argv, "--recall-report"),
-    resume: argv.includes("--resume"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
+    limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
+    recallReportPath: resolveCliFlagValueStrict(argv, "--recall-report"),
+    resume: hasCliFlagStrict(argv, "--resume"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

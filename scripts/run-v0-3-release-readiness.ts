@@ -23,7 +23,10 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 const RELEASE_VERSION = "0.3";
@@ -100,6 +103,17 @@ export interface ReleaseReadinessOptions {
   skipBuild?: boolean;
   skipTests?: boolean;
   strict?: boolean;
+}
+
+export function parseReleaseReadinessCliOptions(
+  argv: readonly string[],
+): ReleaseReadinessOptions {
+  return {
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    skipBuild: hasCliFlagStrict(argv, "--skip-build"),
+    skipTests: hasCliFlagStrict(argv, "--skip-tests"),
+    strict: hasCliFlagStrict(argv, "--strict"),
+  };
 }
 
 export interface ReleaseReadinessReport {
@@ -456,12 +470,7 @@ export function renderSummary(report: ReleaseReadinessReport): string {
 }
 
 if (import.meta.main) {
-  const options: ReleaseReadinessOptions = {
-    outputDir: resolveCliFlagValue(Bun.argv, "--output-dir"),
-    skipBuild: Bun.argv.includes("--skip-build"),
-    skipTests: Bun.argv.includes("--skip-tests"),
-    strict: Bun.argv.includes("--strict"),
-  };
+  const options = parseReleaseReadinessCliOptions(Bun.argv);
   const report = await runReleaseReadiness(options);
   process.stdout.write(renderSummary(report));
   if (options.strict && !report.allRequiredPassed) {

@@ -230,6 +230,54 @@ describe("phase-63 BEAM live closure runner", () => {
     });
   });
 
+  it("rejects duplicate live closure mode flags before report generation", () => {
+    expect(() =>
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--evidence-pack",
+        "--evidence-pack",
+      ]),
+    ).toThrow("--evidence-pack cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--resume",
+        "--resume",
+      ]),
+    ).toThrow("--resume cannot be specified more than once.");
+  });
+
+  it("rejects duplicate live closure scalar source and output flags before report generation", () => {
+    expect(() =>
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--recall-report",
+        "/tmp/recall-a.json",
+        "--recall-report",
+        "/tmp/recall-b.json",
+      ]),
+    ).toThrow("--recall-report cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--run-id",
+        "run-a",
+        "--run-id",
+        "run-b",
+      ]),
+    ).toThrow("--run-id cannot be specified more than once.");
+  });
+
   it("accepts the hybrid live closure profile", () => {
     expect(
       parsePhase63BeamLiveClosureCliOptions([

@@ -3,17 +3,22 @@ import { join } from "node:path";
 import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { LocomoCase } from "../../src/eval/locomo";
 import {
-  buildLocomoSystemPrompt,
+  buildLocomoPrompt,
   buildLocomoRecalledContext,
   buildLocomoScope,
+  buildLocomoSystemPrompt,
   collectLocomoRetrievedTurnIds,
   createLocomoSmokeMemory,
   locomoFactTurnOverlap,
   otherLocomoSpeaker,
   resolveSpeakerCoref,
   loadLocomoCases,
+  LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV,
+  LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
   parseLocomoSmokeCliOptions,
+  parseLocomoQuestionIdsFile,
+  resolveLocomoQuestionIds,
   runLocomoSmoke,
   scoreLocomoRetrieval,
   seedLocomoCase,
@@ -63,20 +68,24 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       limit: 2,
       live: false,
       multiHop: false,
-      outputDir: "/tmp/out",
-      providerEmbedding: false,
-      questionIds: undefined,
-      questionCategories: undefined,
-      rerank: false,
-      resume: false,
-      runId: "run-locomo",
-      semanticCandidateMaxAdditions: undefined,
-      semanticCandidateMinSimilarity: undefined,
-      semanticCandidateMinRelativeScore: undefined,
-      semanticCandidates: false,
-      semanticCandidateTopK: undefined,
-      smartFusion: false,
-    });
+        outputDir: "/tmp/out",
+        providerEmbedding: false,
+        providerEmbeddingRunTimeoutMs: undefined,
+        providerEmbeddingTimeoutMs: undefined,
+        questionIdFile: undefined,
+        questionIds: undefined,
+        questionCategories: undefined,
+        rerank: false,
+        resume: false,
+        runId: "run-locomo",
+        semanticCandidateMaxAdditions: undefined,
+        semanticCandidateMinSimilarity: undefined,
+        semanticCandidateMinRelativeScore: undefined,
+        semanticCandidates: false,
+        semanticCandidateTopK: undefined,
+        smartFusion: false,
+        strictNoEvidenceAbstention: false,
+      });
 
     expect(
       parseLocomoSmokeCliOptions([
@@ -119,9 +128,129 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "bun",
         "run",
         "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id-file",
+        "/tmp/candidate-admission-slice.json",
+      ]).questionIdFile,
+    ).toBe("/tmp/candidate-admission-slice.json");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--benchmark-root",
+        "--run-id",
+        "locomo-run",
+      ]),
+    ).toThrow("--benchmark-root requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id-file",
+        "--run-id",
+        "locomo-run",
+      ]),
+    ).toThrow("--question-id-file requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--output-dir",
+        "--run-id",
+        "locomo-run",
+      ]),
+    ).toThrow("--output-dir requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--run-id",
+        "--bm25",
+      ]),
+    ).toThrow("--run-id requires a value.");
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--live",
         "--allow-commonsense-resolution",
       ]).allowCommonsenseResolution,
     ).toBe(true);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--allow-commonsense-resolution",
+      ]),
+    ).toThrow("--allow-commonsense-resolution requires --live");
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--live",
+        "--strict-no-evidence-abstention",
+      ]).strictNoEvidenceAbstention,
+    ).toBe(true);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--strict-no-evidence-abstention",
+      ]),
+    ).toThrow("--strict-no-evidence-abstention requires --live");
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--live",
+        "--answer-from-recalled",
+      ]).answerFromRecalled,
+    ).toBe(true);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--answer-from-recalled",
+      ]),
+    ).toThrow("--answer-from-recalled requires --live");
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--live",
+        "--evidence-pack",
+      ]).evidencePack,
+    ).toBe(true);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--evidence-pack",
+      ]),
+    ).toThrow("--evidence-pack requires --live");
 
     expect(
       parseLocomoSmokeCliOptions([
@@ -164,6 +293,122 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "bun",
         "run",
         "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding",
+        "--provider-embedding-run-timeout-ms",
+        "60000",
+      ]).providerEmbeddingRunTimeoutMs,
+    ).toBe(60000);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding-run-timeout-ms",
+        "60000",
+      ]),
+    ).toThrow("--provider-embedding-run-timeout-ms requires --provider-embedding");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding",
+        "--provider-embedding-run-timeout-ms",
+        "0",
+      ]),
+    ).toThrow("--provider-embedding-run-timeout-ms must be a positive integer");
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding",
+        "--provider-embedding-timeout-ms",
+        "12000",
+      ]).providerEmbeddingTimeoutMs,
+    ).toBe(12000);
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding-timeout-ms",
+        "12000",
+      ]),
+    ).toThrow("--provider-embedding-timeout-ms requires --provider-embedding");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-embedding",
+        "--provider-embedding-timeout-ms",
+        "0",
+      ]),
+    ).toThrow("--provider-embedding-timeout-ms must be a positive integer");
+
+    const timeoutSnapshot =
+      process.env[LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV];
+    const runTimeoutSnapshot =
+      process.env[LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV];
+    process.env[LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV] = "9000";
+    process.env[LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV] = "70000";
+    try {
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+        ]).providerEmbeddingTimeoutMs,
+      ).toBeUndefined();
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+        ]).providerEmbeddingRunTimeoutMs,
+      ).toBeUndefined();
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+          "--provider-embedding",
+        ]).providerEmbeddingTimeoutMs,
+      ).toBe(9000);
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+          "--provider-embedding",
+        ]).providerEmbeddingRunTimeoutMs,
+      ).toBe(70000);
+    } finally {
+      if (timeoutSnapshot === undefined) {
+        delete process.env[LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV];
+      } else {
+        process.env[LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV] =
+          timeoutSnapshot;
+      }
+      if (runTimeoutSnapshot === undefined) {
+        delete process.env[LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV];
+      } else {
+        process.env[LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV] =
+          runTimeoutSnapshot;
+      }
+    }
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
         "--semantic-candidates",
         "--semantic-candidate-top-k",
         "8",
@@ -187,10 +432,72 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "bun",
         "run",
         "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-top-k",
+        "8",
+      ]),
+    ).toThrow("--semantic-candidate-top-k requires --semantic-candidates");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
         "--limit",
         "0",
       ]),
     ).toThrow("--limit must be a positive integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--limit",
+        "1e2",
+      ]),
+    ).toThrow("--limit must be a positive integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--limit",
+        "--bm25",
+      ]),
+    ).toThrow("--limit requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--limit",
+        "10",
+        "--limit",
+        "20",
+      ]),
+    ).toThrow("--limit cannot be specified more than once.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-top-k",
+        "1e2",
+      ]),
+    ).toThrow("--semantic-candidate-top-k must be a positive integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-top-k",
+        "--semantic-candidates",
+      ]),
+    ).toThrow("--semantic-candidate-top-k requires a value.");
 
     expect(() =>
       parseLocomoSmokeCliOptions([
@@ -207,10 +514,114 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "bun",
         "run",
         "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-max-additions",
+        "1e2",
+      ]),
+    ).toThrow("--semantic-candidate-max-additions must be a non-negative integer.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-min-similarity",
+        "8e-1",
+      ]),
+    ).toThrow("--semantic-candidate-min-similarity must be a non-negative number.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidate-min-relative-score",
+        "8e-1",
+      ]),
+    ).toThrow(
+      "--semantic-candidate-min-relative-score must be greater than 0 and at most 1.",
+    );
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--case-id",
+        "locomo-conv-30,locomo-conv-30",
+      ]),
+    ).toThrow("--case-id contains duplicate value locomo-conv-30.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--category",
+        "single_hop",
+        "--category",
+        "single_hop",
+      ]),
+    ).toThrow("--category contains duplicate value single_hop.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--live",
+        "--live",
+      ]),
+    ).toThrow("--live cannot be specified more than once.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--semantic-candidates",
+        "--semantic-candidates",
+      ]),
+    ).toThrow("--semantic-candidates cannot be specified more than once.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
         "--case-id",
         "--bm25",
       ]),
     ).toThrow("--case-id requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--case-id",
+        "locomo-conv-30,,locomo-conv-41",
+      ]),
+    ).toThrow("--case-id contains an empty value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--question-id",
+        "conv-42:q60,",
+      ]),
+    ).toThrow("--question-id contains an empty value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--category",
+        ",",
+      ]),
+    ).toThrow("--category contains an empty value.");
 
     expect(() =>
       parseLocomoSmokeCliOptions([
@@ -233,6 +644,885 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "--bm25",
       ]),
     ).toThrow("--category requires a value.");
+  });
+
+  it("parses question-id files from text and Phase 65 manifest JSON", () => {
+    expect(
+      parseLocomoQuestionIdsFile("conv-42:q60\nconv-43:q32, conv-48:q75", "ids.txt"),
+    ).toEqual(["conv-42:q60", "conv-43:q32", "conv-48:q75"]);
+
+    expect(() =>
+      parseLocomoQuestionIdsFile("conv-42:q60,,conv-43:q32", "ids.txt"),
+    ).toThrow("text list contains empty question id entry");
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: { questionIds: ["conv-42:q60", "conv-43:q32"] },
+          },
+          repairJobs: [
+            {
+              questionIds: ["conv-42:q60", "conv-48:q75"],
+            },
+          ],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-50:q7"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toEqual(["conv-42:q60", "conv-48:q75", "conv-50:q7", "conv-43:q32"]);
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(JSON.stringify({ repairJobs: [] }), "empty.json"),
+    ).toThrow("did not contain questionIds");
+  });
+
+  it("rejects malformed manifest selections before targeted smoke replay", () => {
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify(["conv-42:q60", 42]),
+        "ids.json",
+      ),
+    ).toThrow("JSON array questionIds contains non-string value at index 1");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify(["conv-42:q60", ""]),
+        "ids.json",
+      ),
+    ).toThrow("JSON array questionIds contains empty string at index 1");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify(["conv-42:q60 "]),
+        "ids.json",
+      ),
+    ).toThrow(
+      "JSON array questionIds contains leading or trailing whitespace at index 0",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify(["conv-42:q60", "conv-42:q60"]),
+        "ids.json",
+      ),
+    ).toThrow("JSON array has duplicate question id conv-42:q60");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: ["conv-42:q60", "conv-42:q60"],
+        }),
+        "ids.json",
+      ),
+    ).toThrow("top-level has duplicate question id conv-42:q60");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: ["conv-42:q60", " "],
+        }),
+        "ids.json",
+      ),
+    ).toThrow("top-level questionIds contains empty string at index 1");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile("conv-42:q60\nconv-42:q60", "ids.txt"),
+    ).toThrow("text list has duplicate question id conv-42:q60");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60", 42],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("repairJobs questionIds contains non-string value at index 1");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: ["conv-40:q1"],
+          repairJobs: {
+            questionIds: ["conv-42:q60"],
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("repairJobs must be an array");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: ["conv-40:q1"],
+          reanswerJobs: {
+            questionIds: ["conv-42:q60"],
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("reanswerJobs must be an array");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [null],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("repairJobs entry at index 0 must be an object");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: ["conv-42:q60"],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("reanswerJobs entry at index 0 must be an object");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 2,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("repairJobs questionCount 2 does not match 1 questionIds");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 2,
+              questionIds: ["conv-42:q60", "conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("repairJobs has duplicate question id conv-42:q60");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 1,
+              questionIds: [" conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "repairJobs questionIds contains leading or trailing whitespace at index 0",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "repairJobs selected duplicate question id conv-42:q60 across jobs",
+    );
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          repairJobs: [
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+          reanswerJobs: [
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toEqual(["conv-42:q60"]);
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 2,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("category questionCount 2 does not match 1 questionIds");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+          questionIds: ["conv-40:q1"],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("categories must be an object");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: null,
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("category open_domain must be an object");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            typo_category: {
+              questionIds: ["conv-42:q60"],
+            },
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("category typo_category is not recognized");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            typo_category: {
+              questionIds: ["conv-99:q1"],
+            },
+          },
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow("category typo_category is not recognized");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: [],
+          questionIds: ["conv-42:q60"],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("overall must be an object");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 2,
+              questionIds: ["conv-42:q60", "conv-42:q60"],
+            },
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow("category has duplicate question id conv-42:q60");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            multi_hop: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+            open_domain: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "categories selected duplicate question id conv-42:q60 across categories",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+          overall: {
+            selectedQuestionCount: 2,
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 category questionIds",
+    );
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+          overall: {
+            selectedQuestionCount: 1,
+          },
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toEqual(["conv-42:q60"]);
+
+    expect(
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+          overall: {
+            selectedQuestionCount: 1,
+          },
+          repairJobs: [
+            {
+              questionIds: ["conv-42:q60", "conv-43:q32"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toEqual(["conv-42:q60", "conv-43:q32"]);
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          },
+          questionIds: ["conv-43:q32"],
+        }),
+        "near-miss-label-analysis.json",
+      ),
+    ).toThrow(
+      "top-level questionIds do not match category questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 2,
+          },
+          questionIds: ["conv-42:q60"],
+        }),
+        "near-miss-label-analysis.json",
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 top-level questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 2,
+          },
+          repairJobs: [
+            {
+              questionCount: 1,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 repair/reanswer questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 1,
+          },
+          repairJobs: [],
+        }),
+        "candidate-admission-slice.json",
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 1 does not match 0 repair/reanswer questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 2,
+          },
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 preferred reanswerJobs questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 2,
+          },
+          questionIds: [],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 preferred reanswerJobs questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: [" conv-99:q1"],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "top-level questionIds contains leading or trailing whitespace at index 0",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          questionIds: [" conv-99:q1"],
+          reanswerJobs: [],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "top-level questionIds contains leading or trailing whitespace at index 0",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionIds: ["conv-43:q32"],
+            },
+          },
+          questionIds: ["conv-99:q1"],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "top-level questionIds do not match category questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          categories: {
+            open_domain: {
+              questionIds: ["conv-99:q1"],
+            },
+          },
+          overall: {
+            selectedQuestionCount: 2,
+          },
+          questionIds: ["conv-99:q1"],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 2 does not match 1 top-level questionIds",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          overall: {
+            selectedQuestionCount: 1,
+          },
+          reanswerJobs: [],
+        }),
+        "live-delta.json",
+        { preferManifestJobKeys: ["reanswerJobs"] },
+      ),
+    ).toThrow(
+      "overall.selectedQuestionCount 1 does not match 0 preferred reanswerJobs questionIds",
+    );
+  });
+
+  it("rejects malformed reanswer job selection metadata before targeted smoke replay", () => {
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              bucket: 42,
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs bucket must be a string");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              bucket: "typoBucket",
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs bucket typoBucket is not recognized");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              categories: ["open_domain", 42],
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs categories contains non-string value at index 1",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              categories: ["open_domain", "typo_category"],
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs categories value typo_category at index 1 is not recognized",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              categories: ["open_domain", "open_domain"],
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs categories contains duplicate value open_domain");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              categories: ["adversarial"],
+              category: "open_domain",
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs category open_domain does not match categories [adversarial]",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              categories: ["open_domain", "adversarial"],
+              category: "open_domain",
+              questionIds: ["conv-42:q60"],
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs category open_domain does not match categories [open_domain, adversarial]",
+    );
+  });
+
+  it("rejects malformed reanswer job source provenance before targeted smoke replay", () => {
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceRunId: 42,
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs sourceRunId must be a string");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceReportPath: 42,
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs sourceReportPath must be a string");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceRunId: "",
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs sourceRunId must not be empty");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceRunId: " source-report",
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs sourceRunId must not have leading or trailing whitespace",
+    );
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceReportPath: " ",
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow("reanswerJobs sourceReportPath must not be empty");
+
+    expect(() =>
+      parseLocomoQuestionIdsFile(
+        JSON.stringify({
+          reanswerJobs: [
+            {
+              questionIds: ["conv-42:q60"],
+              sourceReportPath: "/reports/source/smoke-report.json ",
+            },
+          ],
+        }),
+        "live-delta.json",
+      ),
+    ).toThrow(
+      "reanswerJobs sourceReportPath must not have leading or trailing whitespace",
+    );
+  });
+
+  it("can prefer manifest reanswer jobs without pulling repair queues", async () => {
+    const questionIds = await resolveLocomoQuestionIds({
+      explicitQuestionIds: ["conv-42:q60"],
+      preferManifestJobKeys: ["reanswerJobs"],
+      questionIdFile: "candidate-admission-slice.json",
+      readFile: async () =>
+        JSON.stringify({
+          questionIds: ["conv-99:q1"],
+          categories: {
+            open_domain: { questionIds: ["conv-99:q1"] },
+          },
+          repairJobs: [
+            {
+              questionIds: ["conv-43:q32"],
+            },
+          ],
+          reanswerJobs: [
+            {
+              questionIds: ["conv-48:q75"],
+            },
+          ],
+        }),
+    });
+
+    expect(questionIds).toEqual(["conv-42:q60", "conv-48:q75"]);
+  });
+
+  it("rejects explicit question ids that overlap question-id-file selections", async () => {
+    await expect(
+      resolveLocomoQuestionIds({
+        explicitQuestionIds: ["conv-42:q60"],
+        preferManifestJobKeys: ["reanswerJobs"],
+        questionIdFile: "candidate-admission-slice.json",
+        readFile: async () =>
+          JSON.stringify({
+            reanswerJobs: [
+              {
+                questionIds: ["conv-48:q75", "conv-42:q60"],
+              },
+            ],
+          }),
+      }),
+    ).rejects.toThrow(
+      "explicit question ids overlap question-id-file question id conv-42:q60",
+    );
+  });
+
+  it("does not fall back to broader queues when preferred manifest jobs are empty", async () => {
+    await expect(
+      resolveLocomoQuestionIds({
+        preferManifestJobKeys: ["reanswerJobs"],
+        questionIdFile: "candidate-admission-slice.json",
+        readFile: async () =>
+          JSON.stringify({
+            questionIds: ["conv-99:q1"],
+            categories: {
+              open_domain: { questionIds: ["conv-99:q1"] },
+            },
+            repairJobs: [
+              {
+                questionIds: ["conv-43:q32"],
+              },
+            ],
+            reanswerJobs: [],
+          }),
+      }),
+    ).rejects.toThrow("did not contain questionIds");
+  });
+
+  it("rejects duplicate explicit question ids before targeted smoke resolution", async () => {
+    await expect(
+      resolveLocomoQuestionIds({
+        explicitQuestionIds: ["conv-42:q60", "conv-42:q60"],
+        readFile: async () => {
+          throw new Error("question-id file should not be read");
+        },
+      }),
+    ).rejects.toThrow(
+      "explicit question ids has duplicate question id conv-42:q60",
+    );
   });
 
   it("requires provider embedding mode before the LoCoMo semantic run can claim real embedding evidence", () => {
@@ -282,6 +1572,45 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     });
   });
 
+  it("uses the bounded provider embedding adapter when a timeout is configured", () => {
+    const memory = createLocomoSmokeMemory({
+      providerEmbedding: true,
+      providerEmbeddingConfig: {
+        apiKey: "test-key",
+        baseURL: "https://example.invalid/v1",
+        model: "text-embedding-3-small",
+        provider: "openai",
+      },
+      providerEmbeddingTimeoutMs: 2500,
+      semanticCandidates: true,
+    });
+
+    expect(inspectGoodMemoryRuntime(memory)).toMatchObject({
+      embeddingEnabled: true,
+    });
+
+    expect(() =>
+      createLocomoSmokeMemory({
+        providerEmbeddingTimeoutMs: 2500,
+      }),
+    ).toThrow("--provider-embedding-timeout-ms requires --provider-embedding");
+  });
+
+  it("rejects semantic candidate generation under BM25-only retrieval", () => {
+    expect(() =>
+      createLocomoSmokeMemory({
+        bm25: true,
+        semanticCandidates: true,
+      }),
+    ).toThrow("--semantic-candidates cannot be combined with --bm25");
+
+    expect(() =>
+      createLocomoSmokeMemory({
+        semanticCandidateTopK: 8,
+      }),
+    ).toThrow("--semantic-candidate-top-k requires --semantic-candidates");
+  });
+
   it("keeps retrieval-only smoke isolated from unrelated assisted-extractor env", async () => {
     const snapshot = {
       GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY:
@@ -322,6 +1651,68 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         }
       }
     }
+  });
+
+  it("records the bounded provider embedding timeout in smoke reports", async () => {
+    const report = await runLocomoSmoke(
+      {
+        outputDir: "/tmp/locomo-out",
+        providerEmbedding: true,
+        providerEmbeddingRunTimeoutMs: 60_000,
+        providerEmbeddingTimeoutMs: 2500,
+        runId: "run-locomo-provider-timeout",
+        semanticCandidates: true,
+      },
+      {
+        appendFile: async () => undefined,
+        createMemory: () =>
+          createLocomoSmokeMemory({
+            semanticCandidates: true,
+          }),
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.providerEmbeddingRunTimeoutMs).toBe(60_000);
+    expect(report.providerEmbeddingTimeoutMs).toBe(2500);
+    expect(report.semanticCandidateEmbeddingSource).toBe("provider");
+  });
+
+  it("retains failed rows when the provider run-level watchdog expires", async () => {
+    const appended: string[] = [];
+    let nowCallCount = 0;
+
+    const report = await runLocomoSmoke(
+      {
+        outputDir: "/tmp/locomo-out",
+        providerEmbedding: true,
+        providerEmbeddingRunTimeoutMs: 10,
+        runId: "run-locomo-provider-watchdog",
+      },
+      {
+        appendFile: async (_path, data) => {
+          appended.push(data);
+        },
+        createMemory: () => {
+          throw new Error("provider watchdog should fire before seeding");
+        },
+        mkdir: async () => undefined,
+        nowMs: () => {
+          nowCallCount += 1;
+          return nowCallCount === 1 ? 0 : 10;
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(appended).toEqual([]);
+    expect(report.executionFailures).toBe(report.questionCount);
+    expect(report.cases.length).toBe(report.questionCount);
+    expect(report.cases.every((entry) => entry.retrievedTurnIds.length === 0)).toBe(
+      true,
+    );
+    expect(report.semanticCandidateEmbeddingSource).toBe("provider");
   });
 
   it("loads synthetic cases by default and normalized cases from an external root", async () => {
@@ -422,6 +1813,46 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       },
     ]);
 
+    const fileFilteredReport = await runLocomoSmoke(
+      {
+        benchmarkRoot: "/tmp/LOCOMO",
+        outputDir: "/tmp/out",
+        questionIdFile: "/tmp/candidate-admission-slice.json",
+        runId: "question-id-file-run",
+      },
+      {
+        mkdir: async () => undefined,
+        readFile: async (path: string) => {
+          if (path === join("/tmp/LOCOMO", "cases.json")) {
+            return JSON.stringify({ cases: [externalCase, externalTemporalCase] });
+          }
+          if (path === "/tmp/candidate-admission-slice.json") {
+            return JSON.stringify({
+              repairJobs: [
+                {
+                  questionIds: [
+                    externalCase.questions[0]!.questionId,
+                    externalTemporalCase.questions[0]!.questionId,
+                  ],
+                },
+              ],
+            });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+    expect(fileFilteredReport.questionIds).toEqual([
+      externalCase.questions[0]!.questionId,
+      externalTemporalCase.questions[0]!.questionId,
+    ]);
+    expect(fileFilteredReport.questionCount).toBe(2);
+    expect(fileFilteredReport.caseIds).toEqual([
+      "external-single-hop",
+      "external-temporal",
+    ]);
+
     await expect(
       loadLocomoCases({
         benchmarkRoot: "/tmp/LOCOMO",
@@ -430,6 +1861,16 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       }),
     ).rejects.toThrow(
       "LoCoMo category filter matched no questions in /tmp/LOCOMO/cases.json: adversarial",
+    );
+
+    await expect(
+      loadLocomoCases({
+        benchmarkRoot: "/tmp/LOCOMO",
+        questionCategories: ["temporal", "adversarial"],
+        readFile: readExternalCases,
+      }),
+    ).rejects.toThrow(
+      "LoCoMo category id(s) not found in /tmp/LOCOMO/cases.json: adversarial",
     );
 
     await expect(
@@ -451,6 +1892,30 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     ).rejects.toThrow(
       "LoCoMo question id(s) not found in /tmp/LOCOMO/cases.json: missing-question",
     );
+
+    const duplicateQuestionCase: LocomoCase = {
+      ...externalCase,
+      caseId: "external-duplicate-question",
+      sourceConversation: "external-conversation-duplicate",
+      questions: [
+        {
+          ...externalCase.questions[0]!,
+          question: "What code did Caroline mention again?",
+        },
+      ],
+    };
+    await expect(
+      loadLocomoCases({
+        benchmarkRoot: "/tmp/LOCOMO",
+        questionIds: [externalCase.questions[0]!.questionId],
+        readFile: async () =>
+          JSON.stringify({ cases: [externalCase, duplicateQuestionCase] }),
+      }),
+    ).rejects.toThrow(
+      "LoCoMo question id external-single-hop:1 matched multiple questions " +
+        "in /tmp/LOCOMO/cases.json: external-single-hop and " +
+        "external-duplicate-question.",
+    );
   });
 
   it("keeps commonsense resolution explicit in the live-answer system prompt", () => {
@@ -460,6 +1925,132 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(
       buildLocomoSystemPrompt({ allowCommonsenseResolution: true }),
     ).toContain("general world knowledge");
+    expect(
+      buildLocomoSystemPrompt({
+        allowCommonsenseResolution: true,
+        questionCategory: "open_domain",
+      }),
+    ).toContain("general world knowledge");
+    expect(
+      buildLocomoSystemPrompt({
+        allowCommonsenseResolution: true,
+        questionCategory: "single_hop",
+      }),
+    ).not.toContain("general world knowledge");
+    expect(
+      buildLocomoSystemPrompt({
+        allowCommonsenseResolution: true,
+        questionCategory: "open_domain",
+      }),
+    ).toContain("full console, company, place, style, or category name");
+  });
+
+  it("keeps commonsense resolution aligned across system and user prompts", () => {
+    expect(
+      buildLocomoPrompt({
+        memoryContext: "Nate is playing Xenoblade.",
+        question: "What console does Nate own?",
+      }),
+    ).toContain("using only the dialog context");
+    expect(
+      buildLocomoPrompt({
+        allowCommonsenseResolution: true,
+        memoryContext: "Nate is playing Xenoblade.",
+        question: "What console does Nate own?",
+      }),
+    ).toContain("bridge those dialog-supported entities");
+    expect(
+      buildLocomoPrompt({
+        allowCommonsenseResolution: true,
+        memoryContext: "Nate is playing Xenoblade.",
+        question: "What console does Nate own?",
+      }),
+    ).not.toContain("using only the dialog context");
+  });
+
+  it("keeps strict no-evidence abstention explicit in the live-answer system prompt", () => {
+    expect(buildLocomoSystemPrompt({})).not.toContain(
+      "directly states the requested relationship",
+    );
+    expect(
+      buildLocomoSystemPrompt({
+        questionCategory: "adversarial",
+        strictNoEvidenceAbstention: true,
+      }),
+    ).toContain("directly states the requested relationship");
+    expect(
+      buildLocomoSystemPrompt({
+        questionCategory: "open_domain",
+        strictNoEvidenceAbstention: true,
+      }),
+    ).not.toContain("directly states the requested relationship");
+  });
+
+  it("keeps count-frequency answer formatting explicit in the live-answer system prompt", () => {
+    const prompt = buildLocomoSystemPrompt({});
+    expect(prompt).toContain("count or frequency questions");
+    expect(prompt).toContain("twice");
+    expect(prompt).toContain("bare \"2\"");
+  });
+
+  it("rejects answer-policy flags on retrieval-only smoke runs", async () => {
+    await expect(
+      runLocomoSmoke(
+        {
+          allowCommonsenseResolution: true,
+          outputDir: "/tmp/locomo-out",
+          runId: "run-retrieval-only-answer-policy",
+        },
+        {
+          mkdir: async () => undefined,
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("--allow-commonsense-resolution requires --live");
+
+    await expect(
+      runLocomoSmoke(
+        {
+          outputDir: "/tmp/locomo-out",
+          runId: "run-retrieval-only-strict-policy",
+          strictNoEvidenceAbstention: true,
+        },
+        {
+          mkdir: async () => undefined,
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("--strict-no-evidence-abstention requires --live");
+  });
+
+  it("rejects answer-context flags on retrieval-only smoke runs", async () => {
+    await expect(
+      runLocomoSmoke(
+        {
+          answerFromRecalled: true,
+          outputDir: "/tmp/locomo-out",
+          runId: "run-retrieval-only-answer-from-recalled",
+        },
+        {
+          mkdir: async () => undefined,
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("--answer-from-recalled requires --live");
+
+    await expect(
+      runLocomoSmoke(
+        {
+          evidencePack: true,
+          outputDir: "/tmp/locomo-out",
+          runId: "run-retrieval-only-evidence-pack",
+        },
+        {
+          mkdir: async () => undefined,
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("--evidence-pack requires --live");
   });
 
   it("rejects an external root whose payload is not a normalized case array", async () => {
@@ -597,6 +2188,9 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     ]);
     expect(report.questionCount).toBe(5);
     expect(report.questionCategories).toBeNull();
+    expect(report.cases.every((entry) => entry.answerTokenF1 === null)).toBe(
+      true,
+    );
 
     // Provenance/contract header fields.
     expect(report.phase).toBe("phase-65");
@@ -719,6 +2313,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       (entry) => entry.category === "single_hop",
     );
     expect(single?.answerCorrect).toBe(true);
+    expect(single?.answerTokenF1).toBe(1);
     expect(single?.generatedAnswer).toBe("Pepper");
 
     // A generator that takes the adversarial bait ("Yes") fails adversarial only.
@@ -1233,6 +2828,158 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     );
     expect(appended).toEqual([]);
     expect(writes.length).toBe(1);
+  });
+
+  it("checkpoints provider-backed retrieval-only runs and resumes without reseeding completed cases", async () => {
+    const providerRunId = "run-locomo-provider-retrieval-resume";
+    const providerProgressPath = join(
+      outputDir,
+      providerRunId,
+      "live-progress.jsonl",
+    );
+    const lines: string[] = [];
+    let progressSeed = "";
+    const report = await runLocomoSmoke(
+      {
+        outputDir,
+        providerEmbedding: true,
+        runId: providerRunId,
+      },
+      {
+        appendFile: async (_path, data) => {
+          lines.push(data);
+        },
+        createMemory: () => createLocomoSmokeMemory(),
+        mkdir: async () => undefined,
+        writeFile: (async (path: string, data: string) => {
+          if (path === providerProgressPath) {
+            progressSeed = data;
+          }
+        }) as never,
+      },
+    );
+
+    expect(report.mode).toBe("retrieval-only");
+    expect(report.semanticCandidateEmbeddingSource).toBe("provider");
+    expect(lines.length).toBe(report.questionCount);
+    expect(progressSeed).toContain("locomo-progress-config");
+
+    let memoryCreations = 0;
+    const resumed = await runLocomoSmoke(
+      {
+        outputDir,
+        providerEmbedding: true,
+        resume: true,
+        runId: providerRunId,
+      },
+      {
+        appendFile: async () => undefined,
+        createMemory: () => {
+          memoryCreations += 1;
+          throw new Error("fully-checkpointed provider case must skip seeding");
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === providerProgressPath) {
+            return `${progressSeed}${lines.join("")}`;
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(memoryCreations).toBe(0);
+    expect(resumed.resume).toBe(true);
+    expect(resumed.mode).toBe("retrieval-only");
+    expect(resumed.executionFailures).toBe(0);
+    expect(resumed.questionCount).toBe(report.questionCount);
+    expect(resumed.cases.map((entry) => entry.questionId).sort()).toEqual(
+      report.cases.map((entry) => entry.questionId).sort(),
+    );
+  });
+
+  it("retains failed seed rows in the report without checkpointing them", async () => {
+    const failedRunId = "run-locomo-seed-failure-retention";
+    const failedProgressPath = join(outputDir, failedRunId, "live-progress.jsonl");
+    const appended: string[] = [];
+    let progressSeed = "";
+    const extractor: MemoryExtractor = {
+      async extract() {
+        throw new Error("synthetic extraction failure");
+      },
+    };
+
+    const report = await runLocomoSmoke(
+      {
+        conversationalExtraction: true,
+        outputDir,
+        runId: failedRunId,
+      },
+      {
+        appendFile: async (_path, data) => {
+          appended.push(data);
+        },
+        conversationalExtractor: extractor,
+        mkdir: async () => undefined,
+        writeFile: (async (path: string, data: string) => {
+          if (path === failedProgressPath) {
+            progressSeed = data;
+          }
+        }) as never,
+      },
+    );
+
+    expect(progressSeed).toContain("locomo-progress-config");
+    expect(appended).toEqual([]);
+    expect(report.executionFailures).toBe(report.questionCount);
+    expect(report.cases.length).toBe(report.questionCount);
+    expect(report.cases.every((entry) => entry.generatedAnswer === null)).toBe(
+      true,
+    );
+    expect(report.cases.every((entry) => entry.retrievedTurnIds.length === 0)).toBe(
+      true,
+    );
+  });
+
+  it("retains failed answer rows with retrieval metrics without checkpointing them", async () => {
+    const failedRunId = "run-locomo-answer-failure-retention";
+    const failedProgressPath = join(outputDir, failedRunId, "live-progress.jsonl");
+    const appended: string[] = [];
+    let progressSeed = "";
+
+    const report = await runLocomoSmoke(
+      {
+        outputDir,
+        runId: failedRunId,
+      },
+      {
+        answerGenerator: async () => {
+          throw new Error("synthetic answer failure");
+        },
+        appendFile: async (_path, data) => {
+          appended.push(data);
+        },
+        mkdir: async () => undefined,
+        writeFile: (async (path: string, data: string) => {
+          if (path === failedProgressPath) {
+            progressSeed = data;
+          }
+        }) as never,
+      },
+    );
+
+    expect(progressSeed).toContain("locomo-progress-config");
+    expect(appended).toEqual([]);
+    expect(report.executionFailures).toBe(report.questionCount);
+    expect(report.cases.length).toBe(report.questionCount);
+    expect(report.cases.some((entry) => entry.retrievedTurnIds.length > 0)).toBe(
+      true,
+    );
+    expect(report.cases.every((entry) => entry.generatedAnswer === null)).toBe(
+      true,
+    );
+    expect(report.cases.every((entry) => entry.answerCorrect === null)).toBe(true);
   });
 
   it("checkpoints one line per completed question and replays them on --resume without reseeding", async () => {

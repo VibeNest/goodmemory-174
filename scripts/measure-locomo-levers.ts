@@ -10,12 +10,23 @@ import {
   type LocomoSmokeCliOptions,
   type LocomoSmokeReport,
 } from "./run-phase-65-locomo-smoke";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 
 type ArmOptions = Pick<
   LocomoSmokeCliOptions,
   "bm25" | "decompose" | "multiHop" | "rerank" | "conversationalExtraction"
 >;
+
+export interface LocomoLeversCliOptions {
+  armLabels?: string[];
+  benchmarkRoot?: string;
+  limit?: number;
+  live: boolean;
+  outputDir?: string;
+}
 
 const ARMS: ReadonlyArray<{ label: string; options: ArmOptions }> = [
   { label: "jaccard-baseline", options: {} },
@@ -54,21 +65,75 @@ function answerAccuracy(report: LocomoSmokeReport): number | null {
   return correct / answered.length;
 }
 
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flag: string,
+): number | undefined {
+  const raw = resolveCliFlagValueStrict(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  return value;
+}
+
+function parseArmLabelsFlag(
+  argv: readonly string[],
+  flag: string,
+): string[] | undefined {
+  const raw = resolveCliFlagValueStrict(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const labels = raw
+    .split(",")
+    .map((label) => label.trim())
+    .filter((label) => label.length > 0);
+  if (labels.length === 0) {
+    throw new Error(`${flag} requires at least one arm label.`);
+  }
+  const validLabels = new Set(ARMS.map((arm) => arm.label));
+  const seen = new Set<string>();
+  for (const label of labels) {
+    if (!validLabels.has(label)) {
+      throw new Error(
+        `${flag} contains unknown arm '${label}'. Valid arms: ${ARMS.map((arm) => arm.label).join(", ")}.`,
+      );
+    }
+    if (seen.has(label)) {
+      throw new Error(`${flag} contains duplicate arm '${label}'.`);
+    }
+    seen.add(label);
+  }
+  return labels;
+}
+
+export function parseLocomoLeversCliOptions(
+  argv: readonly string[],
+): LocomoLeversCliOptions {
+  return {
+    armLabels: parseArmLabelsFlag(argv, "--arms"),
+    benchmarkRoot:
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      process.env.GOODMEMORY_LOCOMO_ROOT,
+    limit: parsePositiveIntegerFlag(argv, "--limit"),
+    live: hasCliFlagStrict(argv, "--live"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+  };
+}
+
 async function main(): Promise<void> {
-  const argv = Bun.argv;
-  const benchmarkRoot =
-    resolveCliFlagValue(argv, "--benchmark-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT;
-  const outputDir = resolveCliFlagValue(argv, "--output-dir");
-  const live = argv.includes("--live");
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
+  const { armLabels, benchmarkRoot, limit, live, outputDir } =
+    parseLocomoLeversCliOptions(Bun.argv);
   // Live answer A/B (deterministic F1, no judge) is bounded to the key arms.
   const liveArms = ["jaccard-baseline", "bm25", "bm25+decompose"];
-  const armsFilterRaw = resolveCliFlagValue(argv, "--arms");
-  const armsFilter = armsFilterRaw
-    ? armsFilterRaw.split(",").map((label) => label.trim())
-    : null;
+  const armsFilter = armLabels ?? null;
   // An explicit --arms list selects from ALL arms; otherwise --live narrows to
   // the key answer-A/B arms, and the default runs every arm.
   const arms = armsFilter

@@ -4,12 +4,15 @@ Phase 64: MemoryAgentBench Agent-Memory Hardening
 Status
 ------
 
-[CLOSED — INTERNAL EVIDENCE] Phase 64 MemoryAgentBench is closed as an accepted
-internal AR+CR zero-failure live closure (CR 0.959, AR 0.67, executionFailures 0,
-reproducible external root via prepare:phase-64-mab) plus a recorded TTL/LRU
-answer-format boundary. This is internal small-slice evidence (two competencies,
+[CLOSED — INTERNAL EVIDENCE; P67-C PUBLIC CLAIM SUPERSEDES THE README BOUNDARY]
+Phase 64 MemoryAgentBench is closed as an accepted internal AR+CR zero-failure
+live closure (CR 0.959, AR 0.67, executionFailures 0, reproducible external root
+via prepare:phase-64-mab) plus a recorded TTL/LRU answer-format boundary. At
+Phase 64 closure this was internal small-slice evidence (two competencies,
 single gpt-5.5 model, deterministic upstream match-mode scoring, no LLM judge),
-NOT a public benchmark claim; the MAB README row stays blank. Phase 63 BEAM
+not a public benchmark claim. P67-C later added the task-specific four-competency
+harness plus no-memory ablation and promoted only CR 0.959 / TTL 0.767 through
+`benchmark-claims/memoryagentbench.json`; AR/LRU remain excluded. Phase 63 BEAM
 remains PAUSED (rules-only retrieval recall 0.9621; answer-gap hardening owned by
 the BEAM workstream; resume plan in
 task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt). Current active
@@ -95,7 +98,8 @@ Tasks
   gold needs a dedicated classification harness, not the general live path).
   General recall-robustness fix shipped on the way (zero-retrieval lexical
   fallback, commit 5612446, BEAM caseDeltaCount 0). Internal small-slice
-  evidence, not a public claim. Full investigation log retained below.
+  evidence at Phase 64 closure; P67-C later owns the scoped public CR/TTL claim.
+  Full investigation log retained below.
   FINDING (2026-06-15): the first candidate "miss" (CR stale selection) is NOT a
   retrieval bug. GoodMemory supersession (src/remember/handlers.ts ~405-415)
   intentionally retires only explicit-over-INFERRED facts; an explicit-over-
@@ -201,7 +205,9 @@ Tasks
   "France") recur across dozens of documents, so substring-derived evidence would
   be trivially noisy (the same invalid-signal class as the earlier AR window bug).
   --max-questions caps the slice (0 = all); --merge replaces only this competency's
-  cases in an existing cases.json while retaining others; default overwrites.
+  cases in an existing cases.json while retaining others; default overwrites. CLI
+  guard update (2026-07-04): duplicate --merge and duplicate scalar source/output/
+  budget selectors now fail before fetching upstream rows or writing cases.json.
   TTL/LRU/CR normalizers throw a clear not-implemented error (tracked follow-ups).
   Additive only (new script + test + alias; zero src/ change -> zero BEAM blast
   radius); full unit suite green (2089 pass / 0 fail, tsc clean).
@@ -471,6 +477,17 @@ Reading:
 
 Report (gitignored research evidence):
 reports/eval/research/phase-64/mab/run-phase64-mab-smoke-current/smoke-report.json
+
+CLI Evidence Guard (2026-07-04)
+-------------------------------
+
+`eval:phase-64-smoke` rejects duplicate boolean mode flags and scalar
+source/output selectors before report generation: `--evidence-pack`, `--live`,
+`--no-memory`, `--resume`, `--benchmark-root`, `--limit`, `--output-dir`, and
+`--run-id` cannot be specified more than once. This keeps retrieval/live/no-memory
+mode, source root, output location, run id, slice size, and checkpoint evidence
+unambiguous; it does not change accepted Phase 64 closure evidence or the P67-C
+public-claim boundary.
 
 
 Current Prep Boundary

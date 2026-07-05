@@ -8,6 +8,7 @@ import {
   type CaptionerInput,
   enrichTurnContent,
   parseCaptionsFromModel,
+  parseLocomoCaptionedRootCliOptions,
   prepareCaptionedRoot,
 } from "../../scripts/prepare-phase-65-locomo-captioned-root";
 
@@ -41,6 +42,92 @@ const SAMPLE_CASE: LocomoCase = {
     { content: "Max kept me up all night", diaId: "D1:3", speaker: "Bob" },
   ],
 };
+
+describe("LoCoMo captioned-root CLI", () => {
+  it("parses explicit captioned-root scope and budget flags", () => {
+    expect(
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--mode",
+        "local-window-2",
+        "--source-root",
+        "/src",
+        "--output-root",
+        "/out",
+        "--window-radius",
+        "3",
+        "--concurrency",
+        "2",
+      ]),
+    ).toEqual({
+      concurrency: 2,
+      mode: "local-window-2",
+      outputRoot: "/out",
+      sourceRoot: "/src",
+      windowRadius: 3,
+    });
+  });
+
+  it("rejects missing string flag values before falling back to defaults", () => {
+    expect(() =>
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--mode",
+        "--source-root",
+        "/src",
+      ]),
+    ).toThrow("--mode requires a value.");
+
+    expect(() =>
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--source-root",
+        "--output-root",
+        "/out",
+      ]),
+    ).toThrow("--source-root requires a value.");
+
+    expect(() =>
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--output-root",
+        "--window-radius",
+        "2",
+      ]),
+    ).toThrow("--output-root requires a value.");
+  });
+
+  it("strictly validates captioned-root numeric flags", () => {
+    expect(() =>
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--window-radius",
+        "1e2",
+      ]),
+    ).toThrow("--window-radius must be a positive integer.");
+
+    expect(() =>
+      parseLocomoCaptionedRootCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        "--concurrency",
+        "--mode",
+        "turn-only",
+      ]),
+    ).toThrow("--concurrency requires a value.");
+  });
+});
 
 describe("LoCoMo caption parsing", () => {
   it("extracts captions from fenced JSON and caps/dedupes/normalizes", () => {

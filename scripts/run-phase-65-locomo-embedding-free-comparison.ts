@@ -14,7 +14,7 @@ import {
   type LocomoSmokeCliOptions,
   type LocomoSmokeReport,
 } from "./run-phase-65-locomo-smoke";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 
 export interface EmbeddingFreeComparisonArm {
   label: string;
@@ -39,6 +39,42 @@ export interface EmbeddingFreeComparisonRow {
   overallEvidenceRecall: number;
   executionFailures: number;
   questionCount: number;
+}
+
+export interface EmbeddingFreeComparisonCliOptions {
+  benchmarkRoot?: string;
+  limit?: number;
+  outputDir?: string;
+}
+
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flagName: string,
+): number | undefined {
+  const raw = resolveCliFlagValueStrict(argv, flagName);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  return value;
+}
+
+export function parseEmbeddingFreeComparisonCliOptions(
+  argv: readonly string[],
+): EmbeddingFreeComparisonCliOptions {
+  return {
+    benchmarkRoot:
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      process.env.GOODMEMORY_LOCOMO_ROOT,
+    limit: parsePositiveIntegerFlag(argv, "--limit"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+  };
 }
 
 export function buildEmbeddingFreeComparisonRow(
@@ -96,15 +132,9 @@ export async function runEmbeddingFreeComparison(
 }
 
 async function main(): Promise<void> {
-  const argv = Bun.argv;
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const rows = await runEmbeddingFreeComparison({
-    benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_LOCOMO_ROOT,
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    limit: limitRaw === undefined ? undefined : Number(limitRaw),
-  });
+  const rows = await runEmbeddingFreeComparison(
+    parseEmbeddingFreeComparisonCliOptions(Bun.argv),
+  );
   console.log(renderEmbeddingFreeComparison(rows));
 }
 

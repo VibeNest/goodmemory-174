@@ -15,7 +15,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { GoodMemory } from "../src/api/contracts";
 import type { LocomoCase, LocomoQuestion } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   buildLocomoScope,
@@ -146,6 +146,46 @@ function recallOf(gold: readonly string[], retrieved: Set<string>): number {
   return gold.filter((id) => retrieved.has(id)).length / gold.length;
 }
 
+export interface LocomoWindowRetrievalCliOptions {
+  benchmarkRoot: string;
+  radius: number;
+  runId: string;
+}
+
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flagName: string,
+  defaultValue: number,
+): number {
+  const raw = resolveCliFlagValueStrict(argv, flagName);
+  if (raw === undefined) {
+    return defaultValue;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
+  return value;
+}
+
+export function parseLocomoWindowRetrievalCliOptions(
+  argv: readonly string[],
+): LocomoWindowRetrievalCliOptions {
+  const radius = parsePositiveIntegerFlag(argv, "--window-radius", 2);
+  const runId =
+    resolveCliFlagValueStrict(argv, "--run-id") ?? "locomo-window-retrieval";
+  const benchmarkRoot =
+    resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+    process.env.GOODMEMORY_LOCOMO_ROOT;
+  if (!benchmarkRoot) {
+    throw new Error("--benchmark-root or GOODMEMORY_LOCOMO_ROOT is required.");
+  }
+  return { benchmarkRoot, radius, runId };
+}
+
 export async function runLocomoWindowRetrieval(input: {
   benchmarkRoot: string;
   radius: number;
@@ -246,14 +286,8 @@ export async function runLocomoWindowRetrieval(input: {
 }
 
 if (import.meta.main) {
-  const benchmarkRoot =
-    resolveCliFlagValue(Bun.argv, "--benchmark-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT;
-  if (!benchmarkRoot) {
-    throw new Error("--benchmark-root or GOODMEMORY_LOCOMO_ROOT is required.");
-  }
-  const radius = Number(resolveCliFlagValue(Bun.argv, "--window-radius") ?? "2");
-  const runId = resolveCliFlagValue(Bun.argv, "--run-id") ?? "locomo-window-retrieval";
+  const { benchmarkRoot, radius, runId } =
+    parseLocomoWindowRetrievalCliOptions(Bun.argv);
   const result = await runLocomoWindowRetrieval({ benchmarkRoot, radius });
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const outputPath = join(

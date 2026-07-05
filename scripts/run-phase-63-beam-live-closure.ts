@@ -2,7 +2,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BeamCase, BeamProfile, BeamReport } from "../src/eval/beam";
 import { normalizeBeamProfileList } from "../src/eval/beam";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
@@ -110,15 +113,15 @@ export function parsePhase63BeamLiveClosureCliOptions(
 ): Phase63BeamLiveClosureCliOptions {
   return {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
-    evidencePack: argv.includes("--evidence-pack"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
-    recallReportPath: resolveCliFlagValue(argv, "--recall-report"),
-    resume: argv.includes("--resume"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
+    recallReportPath: resolveCliFlagValueStrict(argv, "--recall-report"),
+    resume: hasCliFlagStrict(argv, "--resume"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

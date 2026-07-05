@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
@@ -798,13 +798,13 @@ export function parsePhase63AnswerGapCliOptions(
 ): Phase63AnswerGapOptions {
   return {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
-    liveReportPath: resolveCliFlagValue(argv, "--live-report"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    liveReportPath: resolveCliFlagValueStrict(argv, "--live-report"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

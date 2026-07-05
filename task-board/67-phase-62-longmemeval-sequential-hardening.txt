@@ -14,8 +14,22 @@ current-code close checkpoint is
 `run-phase62-longmemeval-full500-current-after-remaining-personal-hybrid-retry-r1-merged-20260517T161058Z`:
 `goodmemory-hybrid` reaches 454/500 with evidence-session recall 0.9590 and
 `executionFailures: 0`, exceeding the latest accepted full-context reference at
-451/500. BEAM is no longer blocked by the LongMemEval quality gap, but final
-public reporting remains deferred until all four planned benchmarks complete.
+451/500. BEAM is no longer blocked by the LongMemEval quality gap. At Phase 62
+closure this was internal hardening evidence only; P67-B later promoted a
+separate judge-free deterministic-subset LongMemEval public claim (0.720 vs
+no-memory 0.068) through `benchmark-claims/longmemeval.json`.
+
+CLI Evidence Guard (2026-07-04)
+-------------------------------
+
+LongMemEval eval/full500/summary/retry entrypoints reject duplicate boolean
+mode flags before report generation or batch planning: `--all-cases`,
+`--continue-on-execution-failure`, `--resume-existing-shards`,
+`--allow-duplicate-case-coverage`, `--dry-run`, and
+`--resume-existing-batches` cannot be specified more than once. This protects
+accepted and public-claim source evidence from repeated-switch ambiguity; it
+does not change the 0.720 judge-free public claim or the older with-judge
+internal checkpoint.
 
 
 Driver
@@ -55,7 +69,9 @@ Out Of Scope
 
 - final public benchmark report
 - BEAM, MemoryAgentBench, or LoCoMo adapters
-- README-level claim that GoodMemory is already strong on LongMemEval
+- README-level LongMemEval claim from the Phase 62 with-judge/hybrid checkpoint
+  itself; the later P67-B public claim is a separate judge-free deterministic
+  subset with its own declaration and gate.
 - vendoring full LongMemEval data
 - benchmark-specific runtime hacks
 - public API or public config widening
@@ -725,7 +741,8 @@ Tasks
   `run-phase62-longmemeval-full500-current-after-temporal-answer-session-retry-r2-resumed-merged-20260515T001000Z`
   at 451/500. This closes the LongMemEval internal quality gap for the
   sequential hardening plan. It does not create a README-level public
-  leaderboard claim.
+  leaderboard claim by itself; the later P67-B public claim uses a separate
+  judge-free deterministic subset and no-memory baseline.
 - Residual miss intake for later generic hardening:
   the remaining 46 wrong cases are concentrated in temporal reasoning (17),
   multi-session (11), single-session assistant (9), single-session preference
@@ -733,8 +750,10 @@ Tasks
   synthesis failures rather than raw retrieval failures.
 - Boundary:
   Phase 62 LongMemEval is accepted as internal research hardening evidence.
-  Move next to Phase 63 BEAM setup; keep final/public reporting deferred until
-  LongMemEval, BEAM, MemoryAgentBench, and LoCoMo are all complete.
+  Move next to Phase 63 BEAM setup. Public reporting for this benchmark is no
+  longer based on the with-judge 0.908 checkpoint; it is governed by P67-B's
+  judge-free deterministic-subset declaration and the public benchmark claim
+  gate.
 
 
 Commands

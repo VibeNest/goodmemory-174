@@ -35,6 +35,7 @@ import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import { createLexicalCoverageReranker } from "../src/recall/reranker";
 import {
   buildLocomoSmokeCases,
+  locomoTokenF1,
   LOCOMO_QA_CATEGORIES,
   parseLocomoSession,
   scoreLocomoAnswer,
@@ -43,17 +44,27 @@ import {
   type LocomoQuestion,
   type LocomoTurn,
 } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
+import { LOCOMO_REANSWER_JOB_BUCKET_SET } from "./locomo-reanswer-contracts";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   requestOpenAICompatibleText,
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
-import { resolveLiveModelConfig } from "./run-eval";
+import {
+  resolveLiveModelConfig,
+  resolveProviderBackedModelConfig,
+} from "./run-eval";
 import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
 import type { EvidenceTurn } from "../src/answer/evidencePack";
-import { createProviderConversationalMemoryExtractor } from "../src/provider/layer";
+import {
+  createProviderConversationalMemoryExtractor,
+  createProviderEmbeddingAdapter,
+} from "../src/provider/layer";
 import type { MemoryExtractor } from "../src/remember/candidates";
 
 export const LOCOMO_SMOKE_RUN_ID = "run-phase65-locomo-smoke-current";
@@ -69,6 +80,10 @@ export const LOCOMO_LIVE_PROGRESS_FILE_NAME = "live-progress.jsonl";
 // without --resume.
 export const LOCOMO_EXTRACTION_CACHE_FILE_NAME = "extraction-cache.jsonl";
 export const LOCOMO_ROOT_ENV = "GOODMEMORY_LOCOMO_ROOT";
+export const LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV =
+  "GOODMEMORY_LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS";
+export const LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV =
+  "GOODMEMORY_LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS";
 const LOCOMO_PROGRESS_CONFIG_KIND = "locomo-progress-config";
 const GENERATED_BY = "scripts/run-phase-65-locomo-smoke.ts";
 const EXTERNAL_CASES_FILE_NAME = "cases.json";
@@ -84,12 +99,17 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 export interface LocomoSmokeCliOptions {
   // Opt-in live-answer policy probe: LoCoMo open-domain questions sometimes
   // require resolving common world facts from dialog evidence (for example a
-  // city -> state). Defaults off so adversarial/no-answer behavior stays
-  // conservative unless a run explicitly tests this answer policy.
+  // city -> state). Defaults off so direct-recall and adversarial/no-answer
+  // behavior stay conservative unless a run explicitly tests this answer policy.
   allowCommonsenseResolution?: boolean;
+  // Opt-in live-answer policy probe: for adversarial/no-answer questions, require
+  // a directly supported relationship in the retrieved dialog before producing a
+  // concrete answer. Defaults off so historical live reports remain comparable.
+  strictNoEvidenceAbstention?: boolean;
   benchmarkRoot?: string;
   caseIds?: string[];
   questionIds?: string[];
+  questionIdFile?: string;
   questionCategories?: LocomoQaCategory[];
   // Opt-in: rank retrieval with the Okapi BM25 lexical leg (recall under the
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
@@ -111,6 +131,14 @@ export interface LocomoSmokeCliOptions {
   // smoke runs intentionally use the deterministic smoke embedding adapter and
   // remain plumbing proof only.
   providerEmbedding?: boolean;
+  // Optional request timeout for provider-backed embedding calls. Defaults to the
+  // shared provider timeout when omitted; the CLI env override is only honored
+  // when --provider-embedding is active so deterministic smokes stay isolated.
+  providerEmbeddingTimeoutMs?: number;
+  // Optional whole-run watchdog for provider-backed retrieval-only experiments.
+  // This is separate from the per-request timeout because LoCoMo seeding can
+  // involve many bounded embedding calls before the command prints a report.
+  providerEmbeddingRunTimeoutMs?: number;
   // Opt-in semantic candidate-generation union: force-admit vector top-K facts
   // into selection under hybrid recall. This is benchmark-probe plumbing only;
   // the result is meaningful only when the embedding source is meaningful.
@@ -143,6 +171,136 @@ export interface LocomoSmokeCliOptions {
   runId?: string;
 }
 
+function semanticCandidateTuningFlagWithoutAdmission(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    | "semanticCandidateMaxAdditions"
+    | "semanticCandidateMinRelativeScore"
+    | "semanticCandidateMinSimilarity"
+    | "semanticCandidates"
+    | "semanticCandidateTopK"
+  >,
+): string | null {
+  if (options.semanticCandidates === true) {
+    return null;
+  }
+  if (options.semanticCandidateTopK !== undefined) {
+    return "--semantic-candidate-top-k";
+  }
+  if (options.semanticCandidateMaxAdditions !== undefined) {
+    return "--semantic-candidate-max-additions";
+  }
+  if (options.semanticCandidateMinSimilarity !== undefined) {
+    return "--semantic-candidate-min-similarity";
+  }
+  if (options.semanticCandidateMinRelativeScore !== undefined) {
+    return "--semantic-candidate-min-relative-score";
+  }
+  return null;
+}
+
+function assertSemanticCandidateTuningRequiresAdmission(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    | "semanticCandidateMaxAdditions"
+    | "semanticCandidateMinRelativeScore"
+    | "semanticCandidateMinSimilarity"
+    | "semanticCandidates"
+    | "semanticCandidateTopK"
+  >,
+): void {
+  const flagName = semanticCandidateTuningFlagWithoutAdmission(options);
+  if (flagName === null) {
+    return;
+  }
+  throw new Error(`${flagName} requires --semantic-candidates.`);
+}
+
+function assertProviderEmbeddingTimeoutsRequireProvider(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    | "providerEmbedding"
+    | "providerEmbeddingRunTimeoutMs"
+    | "providerEmbeddingTimeoutMs"
+  >,
+): void {
+  if (options.providerEmbedding === true) {
+    return;
+  }
+  if (options.providerEmbeddingTimeoutMs !== undefined) {
+    throw new Error(
+      "--provider-embedding-timeout-ms requires --provider-embedding.",
+    );
+  }
+  if (options.providerEmbeddingRunTimeoutMs !== undefined) {
+    throw new Error(
+      "--provider-embedding-run-timeout-ms requires --provider-embedding.",
+    );
+  }
+}
+
+function answerPolicyFlagWithoutLive(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "allowCommonsenseResolution" | "live" | "strictNoEvidenceAbstention"
+  >,
+): string | null {
+  if (options.live === true) {
+    return null;
+  }
+  if (options.allowCommonsenseResolution === true) {
+    return "--allow-commonsense-resolution";
+  }
+  if (options.strictNoEvidenceAbstention === true) {
+    return "--strict-no-evidence-abstention";
+  }
+  return null;
+}
+
+function assertAnswerPolicyFlagsRequireLive(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "allowCommonsenseResolution" | "live" | "strictNoEvidenceAbstention"
+  >,
+): void {
+  const flagName = answerPolicyFlagWithoutLive(options);
+  if (flagName === null) {
+    return;
+  }
+  throw new Error(`${flagName} requires --live.`);
+}
+
+function answerContextFlagWithoutLive(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "answerFromRecalled" | "evidencePack" | "live"
+  >,
+): string | null {
+  if (options.live === true) {
+    return null;
+  }
+  if (options.answerFromRecalled === true) {
+    return "--answer-from-recalled";
+  }
+  if (options.evidencePack === true) {
+    return "--evidence-pack";
+  }
+  return null;
+}
+
+function assertAnswerContextFlagsRequireLive(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "answerFromRecalled" | "evidencePack" | "live"
+  >,
+): void {
+  const flagName = answerContextFlagWithoutLive(options);
+  if (flagName === null) {
+    return;
+  }
+  throw new Error(`${flagName} requires --live.`);
+}
+
 // Live-answer seam (mirrors the BEAM live-slice / Phase 64 generator). Given the
 // retrieved context, produce a candidate answer. Correctness is then scored
 // DETERMINISTICALLY by the upstream match mode (token-F1 / adversarial
@@ -170,8 +328,23 @@ export interface LocomoSmokeDependencies {
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
   now?: () => Date;
+  nowMs?: () => number;
   readFile?: (path: string) => Promise<string>;
   writeFile?: typeof writeFile;
+}
+
+class LocomoProviderEmbeddingRunTimeoutError extends Error {
+  constructor(timeoutMs: number, stage: string) {
+    super(
+      `LoCoMo provider embedding run timeout after ${timeoutMs}ms while ${stage}.`,
+    );
+    this.name = "LocomoProviderEmbeddingRunTimeoutError";
+  }
+}
+
+interface LocomoProviderEmbeddingRunDeadline {
+  deadlineMs: number;
+  timeoutMs: number;
 }
 
 // Per-question result. Retrieval fields are always populated; answer fields are
@@ -180,6 +353,9 @@ export interface LocomoQuestionRetrieval {
   // null in retrieval-only mode; true/false once an answer is generated and
   // scored by the upstream match mode.
   answerCorrect: boolean | null;
+  // Raw token-F1 between the generated answer and gold answer. Older reports may
+  // omit this field; new retrieval-only and failed live rows write null.
+  answerTokenF1?: number | null;
   caseId: string;
   category: LocomoQaCategory;
   evidenceRecall: number;
@@ -211,11 +387,13 @@ export interface LocomoCategoryRetrievalSummary {
 
 export type LocomoAnswerContextMode =
   | "evidence-pack"
+  | "gold-evidence-only-pack"
   | "raw-turns"
   | "recalled-records";
 
 export interface LocomoSmokeReport {
   allowCommonsenseResolution?: boolean;
+  strictNoEvidenceAbstention?: boolean;
   answerContextMode?: LocomoAnswerContextMode;
   answerEvaluation: "deferred-to-live-mode" | "scored";
   benchmark: "locomo";
@@ -243,11 +421,21 @@ export interface LocomoSmokeReport {
   mode: "retrieval-only" | "live-answer";
   phase: "phase-65";
   profilesCompared: string[];
+  providerEmbeddingRunTimeoutMs?: number | null;
+  providerEmbeddingTimeoutMs?: number | null;
   questionCount: number;
   // Selected question categories after --category filtering, or null when all
   // LoCoMo categories are included.
   questionCategories: LocomoQaCategory[] | null;
   questionIds?: string[] | null;
+  // Present on report-level reanswer runs: the manifest and optional job-bucket
+  // filter that selected the replayed rows.
+  reanswerSelection?: {
+    explicitQuestionIds: string[] | null;
+    questionIdFile: string | null;
+    reanswerJobBuckets: string[] | null;
+    reanswerJobCategories: LocomoQaCategory[] | null;
+  };
   // Whether this report was assembled with --resume (some results replayed from
   // the per-question checkpoint rather than recomputed).
   resume: boolean;
@@ -261,6 +449,25 @@ export interface LocomoSmokeReport {
     minSimilarity: number | null;
     topK: number | null;
   };
+  // Present on report-level reanswer runs that reuse retrieved turns from a
+  // previous report instead of rerunning retrieval.
+  sourceReport?: {
+    answerContextMode: LocomoAnswerContextMode | null;
+    generatedAt: string;
+    path: string;
+    retrievalConfig: {
+      bm25Ranking: boolean;
+      semanticCandidateEmbeddingSource: "none" | "provider" | "smoke-hash";
+      semanticCandidates: {
+        enabled: boolean;
+        maxAdditions: number | null;
+        minRelativeScore: number | null;
+        minSimilarity: number | null;
+        topK: number | null;
+      };
+    };
+    runId: string;
+  };
   // The answer/task metric upstream scores each category with, surfaced so a
   // later live mode applies the matching deterministic check.
   upstreamAnswerMetricByCategory: Partial<Record<LocomoQaCategory, string>>;
@@ -270,11 +477,20 @@ export interface LocomoSmokeReport {
 export function parseLocomoSmokeCliOptions(
   argv: readonly string[],
 ): LocomoSmokeCliOptions {
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
-  if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
-    throw new Error("--limit must be a positive integer.");
-  }
+  const limit = parsePositiveIntegerFlag(argv, "--limit");
+  const providerEmbedding = hasCliFlagStrict(argv, "--provider-embedding");
+  const providerEmbeddingTimeoutMs =
+    parsePositiveIntegerFlag(argv, "--provider-embedding-timeout-ms") ??
+    (providerEmbedding
+      ? parsePositiveIntegerEnv(LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV)
+      : undefined);
+  const providerEmbeddingRunTimeoutMs =
+    parsePositiveIntegerFlag(argv, "--provider-embedding-run-timeout-ms") ??
+    (providerEmbedding
+      ? parsePositiveIntegerEnv(
+          LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV,
+        )
+      : undefined);
   const semanticCandidateTopK = parsePositiveIntegerFlag(
     argv,
     "--semantic-candidate-top-k",
@@ -291,35 +507,68 @@ export function parseLocomoSmokeCliOptions(
     argv,
     "--semantic-candidate-min-relative-score",
   );
-  return {
+  const parsed = {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env[LOCOMO_ROOT_ENV],
-    allowCommonsenseResolution: argv.includes("--allow-commonsense-resolution"),
-    answerFromRecalled: argv.includes("--answer-from-recalled"),
-    bm25: argv.includes("--bm25"),
-    caseIds: parseStringListFlag(argv, "--case-id"),
+    allowCommonsenseResolution: hasCliFlagStrict(
+      argv,
+      "--allow-commonsense-resolution",
+    ),
+    strictNoEvidenceAbstention: hasCliFlagStrict(
+      argv,
+      "--strict-no-evidence-abstention",
+    ),
+    answerFromRecalled: hasCliFlagStrict(argv, "--answer-from-recalled"),
+    bm25: hasCliFlagStrict(argv, "--bm25"),
+    caseIds: parseUniqueStringListFlag(argv, "--case-id"),
+    questionIdFile: resolveCliFlagValueStrict(argv, "--question-id-file"),
     questionIds: parseStringListFlag(argv, "--question-id"),
     questionCategories: parseLocomoCategoryListFlag(argv, "--category"),
-    conversationalExtraction: argv.includes("--conversational-extraction"),
-    corefNormalize: argv.includes("--coref-normalize"),
-    decompose: argv.includes("--decompose"),
-    evidencePack: argv.includes("--evidence-pack"),
-    multiHop: argv.includes("--multihop"),
-    providerEmbedding: argv.includes("--provider-embedding"),
-    rerank: argv.includes("--rerank"),
+    conversationalExtraction: hasCliFlagStrict(
+      argv,
+      "--conversational-extraction",
+    ),
+    corefNormalize: hasCliFlagStrict(argv, "--coref-normalize"),
+    decompose: hasCliFlagStrict(argv, "--decompose"),
+    evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
+    multiHop: hasCliFlagStrict(argv, "--multihop"),
+    providerEmbedding,
+    providerEmbeddingRunTimeoutMs,
+    providerEmbeddingTimeoutMs,
+    rerank: hasCliFlagStrict(argv, "--rerank"),
     semanticCandidateMaxAdditions,
     semanticCandidateMinRelativeScore,
     semanticCandidateMinSimilarity,
-    semanticCandidates: argv.includes("--semantic-candidates"),
+    semanticCandidates: hasCliFlagStrict(argv, "--semantic-candidates"),
     semanticCandidateTopK,
-    smartFusion: argv.includes("--smart-fusion"),
+    smartFusion: hasCliFlagStrict(argv, "--smart-fusion"),
     limit,
-    live: argv.includes("--live"),
-    resume: argv.includes("--resume"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    live: hasCliFlagStrict(argv, "--live"),
+    resume: hasCliFlagStrict(argv, "--resume"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
+  assertProviderEmbeddingTimeoutsRequireProvider(parsed);
+  assertSemanticCandidateTuningRequiresAdmission(parsed);
+  assertAnswerPolicyFlagsRequireLive(parsed);
+  assertAnswerContextFlagsRequireLive(parsed);
+  return parsed;
+}
+
+function parsePositiveIntegerEnv(envName: string): number | undefined {
+  const raw = process.env[envName]?.trim();
+  if (!raw) {
+    return undefined;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${envName} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${envName} must be a positive integer.`);
+  }
+  return value;
 }
 
 function parseLocomoCategoryListFlag(
@@ -339,12 +588,31 @@ function parseLocomoCategoryListFlag(
       );
     }
     const category = value as LocomoQaCategory;
-    if (!seen.has(category)) {
-      categories.push(category);
-      seen.add(category);
+    if (seen.has(category)) {
+      throw new Error(`${flagName} contains duplicate value ${category}.`);
     }
+    categories.push(category);
+    seen.add(category);
   }
   return categories;
+}
+
+function parseUniqueStringListFlag(
+  argv: readonly string[],
+  flagName: string,
+): string[] | undefined {
+  const values = parseStringListFlag(argv, flagName);
+  if (values === undefined) {
+    return undefined;
+  }
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) {
+      throw new Error(`${flagName} contains duplicate value ${value}.`);
+    }
+    seen.add(value);
+  }
+  return values;
 }
 
 function parseStringListFlag(
@@ -360,26 +628,776 @@ function parseStringListFlag(
     if (!raw || raw.startsWith("--")) {
       throw new Error(`${flagName} requires a value.`);
     }
-    for (const value of raw.split(",")) {
+    const parts = raw.split(",");
+    for (const value of parts) {
       const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        values.push(trimmed);
+      if (trimmed.length === 0) {
+        throw new Error(`${flagName} contains an empty value.`);
       }
+      values.push(trimmed);
     }
   }
   return values.length === 0 ? undefined : values;
+}
+
+function appendUniqueQuestionIds(target: string[], questionIds: string[]): void {
+  const seen = new Set(target);
+  for (const questionId of questionIds) {
+    if (seen.has(questionId)) {
+      continue;
+    }
+    seen.add(questionId);
+    target.push(questionId);
+  }
+}
+
+function assertSameQuestionIdSet(input: {
+  left: readonly string[];
+  leftLabel: string;
+  right: readonly string[];
+  rightLabel: string;
+  sourcePath: string;
+}): void {
+  const left = new Set(input.left);
+  const right = new Set(input.right);
+  const missingFromRight = input.left.filter((questionId) => !right.has(questionId));
+  const missingFromLeft = input.right.filter((questionId) => !left.has(questionId));
+  if (missingFromRight.length === 0 && missingFromLeft.length === 0) {
+    return;
+  }
+  throw new Error(
+    `LoCoMo question id file ${input.sourcePath} ${input.leftLabel} ` +
+      `do not match ${input.rightLabel}: ` +
+      `missing from ${input.rightLabel} [${missingFromRight.join(", ")}], ` +
+      `missing from ${input.leftLabel} [${missingFromLeft.join(", ")}].`,
+  );
+}
+
+function assertManifestSelectedQuestionCount(input: {
+  count: unknown;
+  label: string;
+  questionIds: readonly string[];
+  sourcePath: string;
+}): void {
+  if (
+    typeof input.count !== "number" ||
+    !Number.isInteger(input.count) ||
+    input.count < 0
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} has invalid ` +
+        `overall.selectedQuestionCount ${String(input.count)}.`,
+    );
+  }
+  if (input.count !== input.questionIds.length) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} ` +
+        `overall.selectedQuestionCount ${input.count} does not match ` +
+        `${input.questionIds.length} ${input.label}.`,
+    );
+  }
+}
+
+function assertUniqueQuestionIds(input: {
+  label: string;
+  questionIds: readonly string[];
+  sourcePath: string;
+}): void {
+  const seen = new Set<string>();
+  for (const questionId of input.questionIds) {
+    if (seen.has(questionId)) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+          `has duplicate question id ${questionId}.`,
+      );
+    }
+    seen.add(questionId);
+  }
+}
+
+function assertManifestCategoryName(input: {
+  categoryName: string;
+  sourcePath: string;
+}): void {
+  if (!LOCOMO_QA_CATEGORY_SET.has(input.categoryName)) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} category ` +
+        `${input.categoryName} is not recognized.`,
+    );
+  }
+}
+
+type LocomoQuestionIdManifestJobKey = "repairJobs" | "reanswerJobs";
+
+function manifestQuestionIds(input: {
+  allowMissing?: boolean;
+  label: string;
+  sourcePath: string;
+  value: unknown;
+}): string[] {
+  if (input.value === undefined && input.allowMissing === true) {
+    return [];
+  }
+  if (!Array.isArray(input.value)) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+        "questionIds must be an array.",
+    );
+  }
+  const questionIds: string[] = [];
+  for (const [index, questionId] of input.value.entries()) {
+    if (typeof questionId !== "string") {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+          `questionIds contains non-string value at index ${index}.`,
+      );
+    }
+    const trimmedQuestionId = questionId.trim();
+    if (trimmedQuestionId.length === 0) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+          `questionIds contains empty string at index ${index}.`,
+      );
+    }
+    if (trimmedQuestionId !== questionId) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+          "questionIds contains leading or trailing whitespace at index " +
+          `${index}.`,
+      );
+    }
+    questionIds.push(questionId);
+  }
+  return questionIds;
+}
+
+function manifestSelectionQuestionIds(input: {
+  label: string;
+  selection: Record<string, unknown>;
+  sourcePath: string;
+}): string[] {
+  const questionIds = manifestQuestionIds({
+    label: input.label,
+    sourcePath: input.sourcePath,
+    value: input.selection.questionIds,
+  });
+  if (input.selection.questionCount !== undefined) {
+    if (
+      typeof input.selection.questionCount !== "number" ||
+      !Number.isInteger(input.selection.questionCount) ||
+      input.selection.questionCount < 0
+    ) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} has invalid ` +
+          `${input.label} questionCount ${String(input.selection.questionCount)}.`,
+      );
+    }
+    if (input.selection.questionCount !== questionIds.length) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} ` +
+          `questionCount ${input.selection.questionCount} does not match ` +
+          `${questionIds.length} questionIds.`,
+      );
+    }
+  }
+  const seen = new Set<string>();
+  for (const questionId of questionIds) {
+    if (seen.has(questionId)) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} ${input.label} has ` +
+          `duplicate question id ${questionId}.`,
+      );
+    }
+    seen.add(questionId);
+  }
+  return questionIds;
+}
+
+function assertReanswerJobManifestMetadata(input: {
+  job: Record<string, unknown>;
+  sourcePath: string;
+}): void {
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "sourceRunId") &&
+    typeof input.job.sourceRunId !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceRunId must be a string.",
+    );
+  }
+  if (
+    typeof input.job.sourceRunId === "string" &&
+    input.job.sourceRunId.trim().length === 0
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceRunId must not be empty.",
+    );
+  }
+  if (
+    typeof input.job.sourceRunId === "string" &&
+    input.job.sourceRunId.trim() !== input.job.sourceRunId
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceRunId must not have leading or trailing whitespace.",
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "sourceReportPath") &&
+    typeof input.job.sourceReportPath !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceReportPath must be a string.",
+    );
+  }
+  if (
+    typeof input.job.sourceReportPath === "string" &&
+    input.job.sourceReportPath.trim().length === 0
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceReportPath must not be empty.",
+    );
+  }
+  if (
+    typeof input.job.sourceReportPath === "string" &&
+    input.job.sourceReportPath.trim() !== input.job.sourceReportPath
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "sourceReportPath must not have leading or trailing whitespace.",
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "bucket") &&
+    typeof input.job.bucket !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "bucket must be a string.",
+    );
+  }
+  if (
+    typeof input.job.bucket === "string" &&
+    !LOCOMO_REANSWER_JOB_BUCKET_SET.has(input.job.bucket)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        `bucket ${input.job.bucket} is not recognized.`,
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "category") &&
+    typeof input.job.category !== "string"
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "category must be a string.",
+    );
+  }
+  if (
+    typeof input.job.category === "string" &&
+    !LOCOMO_QA_CATEGORY_SET.has(input.job.category)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        `category ${input.job.category} is not recognized.`,
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(input.job, "categories") &&
+    !Array.isArray(input.job.categories)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        "categories must be an array.",
+    );
+  }
+  if (!Array.isArray(input.job.categories)) {
+    return;
+  }
+  const seenCategories = new Set<string>();
+  for (const [index, category] of input.job.categories.entries()) {
+    if (typeof category !== "string") {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+          `categories contains non-string value at index ${index}.`,
+      );
+    }
+    if (!LOCOMO_QA_CATEGORY_SET.has(category)) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+          `categories value ${category} at index ${index} is not recognized.`,
+      );
+    }
+    if (seenCategories.has(category)) {
+      throw new Error(
+        `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+          `categories contains duplicate value ${category}.`,
+      );
+    }
+    seenCategories.add(category);
+  }
+  if (
+    typeof input.job.category === "string" &&
+    (input.job.categories.length !== 1 ||
+      input.job.categories[0] !== input.job.category)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${input.sourcePath} reanswerJobs ` +
+        `category ${input.job.category} does not match categories ` +
+        `[${input.job.categories.join(", ")}].`,
+    );
+  }
+}
+
+function collectManifestJobQuestionIds(
+  value: Record<string, unknown>,
+  jobKeys: readonly LocomoQuestionIdManifestJobKey[],
+  sourcePath: string,
+): string[] {
+  const questionIds: string[] = [];
+  for (const key of jobKeys) {
+    const jobs = value[key];
+    if (
+      Object.prototype.hasOwnProperty.call(value, key) &&
+      !Array.isArray(jobs)
+    ) {
+      throw new Error(
+        `LoCoMo question id file ${sourcePath} ${key} must be an array.`,
+      );
+    }
+    if (!Array.isArray(jobs)) {
+      continue;
+    }
+    const seenForKey = new Set<string>();
+    for (const [index, job] of jobs.entries()) {
+      if (!isRecord(job)) {
+        throw new Error(
+          `LoCoMo question id file ${sourcePath} ${key} entry at index ` +
+            `${index} must be an object.`,
+        );
+      }
+      if (key === "reanswerJobs") {
+        assertReanswerJobManifestMetadata({
+          job,
+          sourcePath,
+        });
+      }
+      const jobQuestionIds = manifestSelectionQuestionIds({
+        label: key,
+        selection: job,
+        sourcePath,
+      });
+      for (const questionId of jobQuestionIds) {
+        if (seenForKey.has(questionId)) {
+          throw new Error(
+            `LoCoMo question id file ${sourcePath} ${key} selected ` +
+              `duplicate question id ${questionId} across jobs.`,
+          );
+        }
+        seenForKey.add(questionId);
+      }
+      appendUniqueQuestionIds(questionIds, jobQuestionIds);
+    }
+  }
+  return questionIds;
+}
+
+function hasManifestJobKey(
+  value: Record<string, unknown>,
+  jobKeys: readonly LocomoQuestionIdManifestJobKey[],
+): boolean {
+  return jobKeys.some((key) =>
+    Object.prototype.hasOwnProperty.call(value, key),
+  );
+}
+
+function assertManifestOverallShape(
+  value: Record<string, unknown>,
+  sourcePath: string,
+): void {
+  if (
+    Object.prototype.hasOwnProperty.call(value, "overall") &&
+    !isRecord(value.overall)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${sourcePath} overall must be an object.`,
+    );
+  }
+}
+
+function hasNonEmptyManifestSelectionHeader(
+  value: Record<string, unknown>,
+  sourcePath: string,
+): boolean {
+  const topLevelQuestionIds = manifestQuestionIds({
+    allowMissing: true,
+    label: "top-level",
+    sourcePath,
+    value: value.questionIds,
+  });
+  assertUniqueQuestionIds({
+    label: "top-level",
+    questionIds: topLevelQuestionIds,
+    sourcePath,
+  });
+  let hasNonEmptyHeader = topLevelQuestionIds.length > 0;
+  if (
+    Object.prototype.hasOwnProperty.call(value, "categories") &&
+    !isRecord(value.categories)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${sourcePath} categories must be an object.`,
+    );
+  }
+  if (!isRecord(value.categories)) {
+    return hasNonEmptyHeader;
+  }
+  const seenForCategories = new Set<string>();
+  const selectedCategoryQuestionIds: string[] = [];
+  for (const [categoryName, category] of Object.entries(value.categories)) {
+    assertManifestCategoryName({ categoryName, sourcePath });
+    if (!isRecord(category)) {
+      throw new Error(
+        `LoCoMo question id file ${sourcePath} category ${categoryName} ` +
+          "must be an object.",
+      );
+    }
+    const categoryQuestionIds = manifestSelectionQuestionIds({
+      label: "category",
+      selection: category,
+      sourcePath,
+    });
+    for (const questionId of categoryQuestionIds) {
+      if (seenForCategories.has(questionId)) {
+        throw new Error(
+          `LoCoMo question id file ${sourcePath} categories selected ` +
+            `duplicate question id ${questionId} across categories.`,
+        );
+      }
+      seenForCategories.add(questionId);
+    }
+    appendUniqueQuestionIds(selectedCategoryQuestionIds, categoryQuestionIds);
+    if (categoryQuestionIds.length > 0) {
+      hasNonEmptyHeader = true;
+    }
+  }
+  if (
+    topLevelQuestionIds.length > 0 &&
+    selectedCategoryQuestionIds.length > 0
+  ) {
+    assertSameQuestionIdSet({
+      left: topLevelQuestionIds,
+      leftLabel: "top-level questionIds",
+      right: selectedCategoryQuestionIds,
+      rightLabel: "category questionIds",
+      sourcePath,
+    });
+  }
+  if (
+    topLevelQuestionIds.length > 0 &&
+    isRecord(value.overall) &&
+    value.overall.selectedQuestionCount !== undefined
+  ) {
+    assertManifestSelectedQuestionCount({
+      count: value.overall.selectedQuestionCount,
+      label: "top-level questionIds",
+      questionIds: topLevelQuestionIds,
+      sourcePath,
+    });
+  }
+  if (
+    selectedCategoryQuestionIds.length > 0 &&
+    isRecord(value.overall) &&
+    value.overall.selectedQuestionCount !== undefined
+  ) {
+    assertManifestSelectedQuestionCount({
+      count: value.overall.selectedQuestionCount,
+      label: "category questionIds",
+      questionIds: selectedCategoryQuestionIds,
+      sourcePath,
+    });
+  }
+  return hasNonEmptyHeader;
+}
+
+function collectQuestionIdsFromManifest(
+  value: unknown,
+  sourcePath: string,
+  options: {
+    preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
+  } = {},
+): string[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+  assertManifestOverallShape(value, sourcePath);
+  if (options.preferManifestJobKeys !== undefined) {
+    const preferredQuestionIds = collectManifestJobQuestionIds(
+      value,
+      options.preferManifestJobKeys,
+      sourcePath,
+    );
+    const preferredManifestJobKeyPresent = hasManifestJobKey(
+      value,
+      options.preferManifestJobKeys,
+    );
+    const hasNonEmptySelectionHeader =
+      preferredQuestionIds.length > 0 || preferredManifestJobKeyPresent
+        ? hasNonEmptyManifestSelectionHeader(value, sourcePath)
+        : false;
+    if (
+      preferredManifestJobKeyPresent &&
+      !hasNonEmptySelectionHeader &&
+      isRecord(value.overall) &&
+      value.overall.selectedQuestionCount !== undefined
+    ) {
+      assertManifestSelectedQuestionCount({
+        count: value.overall.selectedQuestionCount,
+        label: `preferred ${options.preferManifestJobKeys.join("/")} questionIds`,
+        questionIds: preferredQuestionIds,
+        sourcePath,
+      });
+    }
+    if (
+      preferredQuestionIds.length > 0 ||
+      preferredManifestJobKeyPresent
+    ) {
+      return preferredQuestionIds;
+    }
+  }
+  const questionIds: string[] = [];
+  const topLevelQuestionIds = manifestQuestionIds({
+      allowMissing: true,
+      label: "top-level",
+      sourcePath,
+      value: value.questionIds,
+  });
+  assertUniqueQuestionIds({
+    label: "top-level",
+    questionIds: topLevelQuestionIds,
+    sourcePath,
+  });
+  appendUniqueQuestionIds(questionIds, topLevelQuestionIds);
+  const jobQuestionIds = collectManifestJobQuestionIds(
+    value,
+    ["repairJobs", "reanswerJobs"],
+    sourcePath,
+  );
+  const hasRepairOrReanswerJobKey = hasManifestJobKey(value, [
+    "repairJobs",
+    "reanswerJobs",
+  ]);
+  appendUniqueQuestionIds(questionIds, jobQuestionIds);
+  const hasNonEmptySelectionHeaderForJobCount =
+    topLevelQuestionIds.length > 0 ||
+    hasNonEmptyManifestSelectionHeader(value, sourcePath);
+  if (
+    topLevelQuestionIds.length > 0 &&
+    isRecord(value.overall) &&
+    value.overall.selectedQuestionCount !== undefined
+  ) {
+    assertManifestSelectedQuestionCount({
+      count: value.overall.selectedQuestionCount,
+      label: "top-level questionIds",
+      questionIds: topLevelQuestionIds,
+      sourcePath,
+    });
+  }
+  if (
+    !hasNonEmptySelectionHeaderForJobCount &&
+    hasRepairOrReanswerJobKey &&
+    isRecord(value.overall) &&
+    value.overall.selectedQuestionCount !== undefined
+  ) {
+    assertManifestSelectedQuestionCount({
+      count: value.overall.selectedQuestionCount,
+      label: "repair/reanswer questionIds",
+      questionIds: jobQuestionIds,
+      sourcePath,
+    });
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(value, "categories") &&
+    !isRecord(value.categories)
+  ) {
+    throw new Error(
+      `LoCoMo question id file ${sourcePath} categories must be an object.`,
+    );
+  }
+  if (isRecord(value.categories)) {
+    const seenForCategories = new Set<string>();
+    const categoryQuestionIds: string[] = [];
+    for (const [categoryName, category] of Object.entries(value.categories)) {
+      assertManifestCategoryName({ categoryName, sourcePath });
+      if (!isRecord(category)) {
+        throw new Error(
+          `LoCoMo question id file ${sourcePath} category ${categoryName} ` +
+            "must be an object.",
+        );
+      }
+      const selectedCategoryQuestionIds = manifestSelectionQuestionIds({
+        label: "category",
+        selection: category,
+        sourcePath,
+      });
+      for (const questionId of selectedCategoryQuestionIds) {
+        if (seenForCategories.has(questionId)) {
+          throw new Error(
+            `LoCoMo question id file ${sourcePath} categories selected ` +
+              `duplicate question id ${questionId} across categories.`,
+          );
+        }
+        seenForCategories.add(questionId);
+      }
+      appendUniqueQuestionIds(categoryQuestionIds, selectedCategoryQuestionIds);
+      appendUniqueQuestionIds(questionIds, selectedCategoryQuestionIds);
+    }
+    if (
+      isRecord(value.overall) &&
+      value.overall.selectedQuestionCount !== undefined
+    ) {
+      assertManifestSelectedQuestionCount({
+        count: value.overall.selectedQuestionCount,
+        label: "category questionIds",
+        questionIds: categoryQuestionIds,
+        sourcePath,
+      });
+    }
+    if (topLevelQuestionIds.length > 0 && categoryQuestionIds.length > 0) {
+      assertSameQuestionIdSet({
+        left: topLevelQuestionIds,
+        leftLabel: "top-level questionIds",
+        right: categoryQuestionIds,
+        rightLabel: "category questionIds",
+        sourcePath,
+      });
+    }
+  }
+  return questionIds;
+}
+
+export function parseLocomoQuestionIdsFile(
+  contents: string,
+  sourcePath: string,
+  options: {
+    preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
+  } = {},
+): string[] {
+  const trimmed = contents.trim();
+  if (trimmed.length === 0) {
+    throw new Error(`LoCoMo question id file ${sourcePath} is empty.`);
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    const questionIds = Array.isArray(parsed)
+      ? manifestQuestionIds({
+          label: "JSON array",
+          sourcePath,
+          value: parsed,
+        })
+      : collectQuestionIdsFromManifest(parsed, sourcePath, options);
+    if (Array.isArray(parsed)) {
+      assertUniqueQuestionIds({
+        label: "JSON array",
+        questionIds,
+        sourcePath,
+      });
+    }
+    if (questionIds.length === 0) {
+      throw new Error(
+        `LoCoMo question id file ${sourcePath} JSON did not contain questionIds.`,
+      );
+    }
+    return questionIds;
+  } catch (error: unknown) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      throw error;
+    }
+  }
+  const questionIds = trimmed
+    .split(",")
+    .flatMap((segment) => {
+      const segmentText = segment.trim();
+      if (segmentText.length === 0) {
+        throw new Error(
+          `LoCoMo question id file ${sourcePath} text list contains ` +
+            "empty question id entry.",
+        );
+      }
+      return segmentText.split(/\s+/u);
+    });
+  if (questionIds.length === 0) {
+    throw new Error(
+      `LoCoMo question id file ${sourcePath} did not contain question ids.`,
+    );
+  }
+  assertUniqueQuestionIds({
+    label: "text list",
+    questionIds,
+    sourcePath,
+  });
+  return questionIds;
+}
+
+export async function resolveLocomoQuestionIds(input: {
+  explicitQuestionIds?: readonly string[];
+  preferManifestJobKeys?: readonly LocomoQuestionIdManifestJobKey[];
+  questionIdFile?: string;
+  questionIdFileContents?: string;
+  readFile: (path: string) => Promise<string>;
+}): Promise<string[] | undefined> {
+  const questionIds: string[] = [];
+  const explicitQuestionIds = [...(input.explicitQuestionIds ?? [])];
+  assertUniqueQuestionIds({
+    label: "explicit question ids",
+    questionIds: explicitQuestionIds,
+    sourcePath: "CLI",
+  });
+  appendUniqueQuestionIds(questionIds, explicitQuestionIds);
+  if (input.questionIdFile) {
+    const questionIdFileContents =
+      input.questionIdFileContents ?? (await input.readFile(input.questionIdFile));
+    const parsedQuestionIds = parseLocomoQuestionIdsFile(
+      questionIdFileContents,
+      input.questionIdFile,
+      { preferManifestJobKeys: input.preferManifestJobKeys },
+    );
+    const explicitQuestionIdSet = new Set(explicitQuestionIds);
+    for (const questionId of parsedQuestionIds) {
+      if (explicitQuestionIdSet.has(questionId)) {
+        throw new Error(
+          `LoCoMo question id file ${input.questionIdFile} explicit ` +
+            "question ids overlap question-id-file question id " +
+            `${questionId}.`,
+        );
+      }
+    }
+    appendUniqueQuestionIds(
+      questionIds,
+      parsedQuestionIds,
+    );
+  }
+  return questionIds.length === 0 ? undefined : questionIds;
 }
 
 function parsePositiveIntegerFlag(
   argv: readonly string[],
   flagName: string,
 ): number | undefined {
-  const raw = resolveCliFlagValue(argv, flagName);
+  const raw = resolveNumericFlagValue(argv, flagName);
   if (raw === undefined) {
     return undefined;
   }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flagName} must be a positive integer.`);
+  }
   const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) {
+  if (!Number.isSafeInteger(value)) {
     throw new Error(`${flagName} must be a positive integer.`);
   }
   return value;
@@ -389,12 +1407,15 @@ function parseNonNegativeIntegerFlag(
   argv: readonly string[],
   flagName: string,
 ): number | undefined {
-  const raw = resolveCliFlagValue(argv, flagName);
+  const raw = resolveNumericFlagValue(argv, flagName);
   if (raw === undefined) {
     return undefined;
   }
+  if (!/^(0|[1-9]\d*)$/.test(raw)) {
+    throw new Error(`${flagName} must be a non-negative integer.`);
+  }
   const value = Number(raw);
-  if (!Number.isInteger(value) || value < 0) {
+  if (!Number.isSafeInteger(value)) {
     throw new Error(`${flagName} must be a non-negative integer.`);
   }
   return value;
@@ -404,9 +1425,12 @@ function parseNonNegativeNumberFlag(
   argv: readonly string[],
   flagName: string,
 ): number | undefined {
-  const raw = resolveCliFlagValue(argv, flagName);
+  const raw = resolveNumericFlagValue(argv, flagName);
   if (raw === undefined) {
     return undefined;
+  }
+  if (!/^(0|[1-9]\d*)(\.\d+)?$/.test(raw)) {
+    throw new Error(`${flagName} must be a non-negative number.`);
   }
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) {
@@ -419,15 +1443,25 @@ function parseUnitIntervalFlag(
   argv: readonly string[],
   flagName: string,
 ): number | undefined {
-  const raw = resolveCliFlagValue(argv, flagName);
+  const raw = resolveNumericFlagValue(argv, flagName);
   if (raw === undefined) {
     return undefined;
+  }
+  if (!/^(0|[1-9]\d*)(\.\d+)?$/.test(raw)) {
+    throw new Error(`${flagName} must be greater than 0 and at most 1.`);
   }
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0 || value > 1) {
     throw new Error(`${flagName} must be greater than 0 and at most 1.`);
   }
   return value;
+}
+
+function resolveNumericFlagValue(
+  argv: readonly string[],
+  flagName: string,
+): string | undefined {
+  return resolveCliFlagValueStrict(argv, flagName);
 }
 
 export function buildLocomoScope(input: {
@@ -759,6 +1793,7 @@ export function scoreLocomoRetrieval(input: {
 
   return {
     answerCorrect: null,
+    answerTokenF1: null,
     caseId: input.testCase.caseId,
     category: question.category,
     evidenceRecall,
@@ -858,29 +1893,48 @@ export function buildLocomoRecalledContext(input: {
 }
 
 const LOCOMO_ANSWER_SYSTEM =
-  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). Output only the final answer with no explanation.";
+  "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct; if the answer is not present in the context, say you do not know rather than guessing. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). For count or frequency questions, answer in the requested frequency form when possible, such as \"twice\" instead of a bare \"2\" for how-many-times questions. Output only the final answer with no explanation.";
 
 export function buildLocomoSystemPrompt(input: {
   allowCommonsenseResolution?: boolean;
+  questionCategory?: LocomoQaCategory;
+  strictNoEvidenceAbstention?: boolean;
 }): string {
-  if (!input.allowCommonsenseResolution) {
-    return LOCOMO_ANSWER_SYSTEM;
+  const instructions = [LOCOMO_ANSWER_SYSTEM];
+  if (
+    input.allowCommonsenseResolution &&
+    (input.questionCategory === undefined ||
+      input.questionCategory === "open_domain")
+  ) {
+    instructions.push(
+      "When the dialog explicitly provides the underlying entity, activity, or place, you may use common general world knowledge to resolve it to the concise requested form. Answer the requested type directly, such as the full console, company, place, style, or category name, rather than only a manufacturer, topic, or clue.",
+    );
   }
-  return [
-    LOCOMO_ANSWER_SYSTEM,
-    "When the dialog explicitly provides the underlying entity or place, you may use common general world knowledge to resolve that entity or place to the concise requested form.",
-  ].join(" ");
+  if (
+    input.strictNoEvidenceAbstention &&
+    (input.questionCategory === undefined ||
+      input.questionCategory === "adversarial")
+  ) {
+    instructions.push(
+      "For no-answer or adversarial questions, give a concrete answer only when the dialog directly states the requested relationship; if the retrieved dialog merely mentions nearby objects, people, places, or topics, answer exactly \"I do not know\".",
+    );
+  }
+  return instructions.join(" ");
 }
 
 export function buildLocomoPrompt(input: {
+  allowCommonsenseResolution?: boolean;
   memoryContext: string;
   question: string;
 }): string {
+  const answerInstruction = input.allowCommonsenseResolution
+    ? "Answer concisely using the dialog context above as the source of entities and relationships; if the system permits commonsense resolution, use only common knowledge needed to bridge those dialog-supported entities to the requested answer type. Return only the answer."
+    : "Answer concisely using only the dialog context above. Return only the answer.";
   return [
     "Dialog context:",
     input.memoryContext.trim().length > 0 ? input.memoryContext : "(none)",
     `Question:\n${input.question}`,
-    "Answer concisely using only the dialog context above. Return only the answer.",
+    answerInstruction,
   ].join("\n\n");
 }
 
@@ -890,18 +1944,24 @@ const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120000;
 // downstream, so no judge).
 export function createLocomoLiveAnswerGenerator(input: {
   allowCommonsenseResolution?: boolean;
+  strictNoEvidenceAbstention?: boolean;
 } = {}): LocomoAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
-  const system = buildLocomoSystemPrompt({
-    allowCommonsenseResolution: input.allowCommonsenseResolution,
-  });
-  return async (input) => {
+  return async (answerInput) => {
+    const system = buildLocomoSystemPrompt({
+      allowCommonsenseResolution: input.allowCommonsenseResolution,
+      questionCategory: answerInput.question.category,
+      strictNoEvidenceAbstention: input.strictNoEvidenceAbstention,
+    });
     const raw = await withAISDKRetries(() =>
       requestOpenAICompatibleText({
         model,
         prompt: buildLocomoPrompt({
-          memoryContext: input.memoryContext,
-          question: input.question.question,
+          allowCommonsenseResolution:
+            input.allowCommonsenseResolution &&
+            answerInput.question.category === "open_domain",
+          memoryContext: answerInput.memoryContext,
+          question: answerInput.question.question,
         }),
         system,
         timeoutMs: LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
@@ -1001,6 +2061,7 @@ export function createLocomoSmokeMemory(
     bm25?: boolean;
     providerEmbedding?: boolean;
     providerEmbeddingConfig?: GoodMemoryEmbeddingProviderConfig;
+    providerEmbeddingTimeoutMs?: number;
     rerank?: boolean;
     semanticCandidates?: boolean;
     semanticCandidateMaxAdditions?: number;
@@ -1009,6 +2070,8 @@ export function createLocomoSmokeMemory(
     semanticCandidateTopK?: number;
   } = {},
 ): GoodMemory {
+  assertProviderEmbeddingTimeoutsRequireProvider(options);
+  assertSemanticCandidateTuningRequiresAdmission(options);
   // Deterministic id and clock seams keep repeated smoke runs reproducible:
   // ranking tie-breaks fall back to fact-id and timestamp comparisons.
   let idCounter = 0;
@@ -1026,7 +2089,25 @@ export function createLocomoSmokeMemory(
       "--provider-embedding cannot be combined with --bm25; hybrid recall uses the embedding branch before the BM25 fallback.",
     );
   }
-  if (!options.bm25 && !options.providerEmbedding) {
+  if (options.semanticCandidates && options.bm25) {
+    throw new Error(
+      "--semantic-candidates cannot be combined with --bm25; semantic candidate admission requires an embedding-backed recall branch.",
+    );
+  }
+  if (options.providerEmbedding && options.providerEmbeddingTimeoutMs !== undefined) {
+    const model = options.providerEmbeddingConfig
+      ? {
+          apiKey: options.providerEmbeddingConfig.apiKey,
+          baseURL: options.providerEmbeddingConfig.baseURL,
+          model: options.providerEmbeddingConfig.model,
+          provider: options.providerEmbeddingConfig.provider,
+        }
+      : resolveProviderBackedModelConfig("GOODMEMORY_EMBEDDING");
+    adapters.embeddingAdapter = createProviderEmbeddingAdapter({
+      model,
+      requestTimeoutMs: options.providerEmbeddingTimeoutMs,
+    });
+  } else if (!options.bm25 && !options.providerEmbedding) {
     adapters.embeddingAdapter = createSmokeEmbeddingAdapter();
   }
   if (options.rerank) {
@@ -1056,7 +2137,8 @@ export function createLocomoSmokeMemory(
   const memory = createGoodMemory({
     ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
     ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
-    ...(options.providerEmbeddingConfig
+    ...(options.providerEmbeddingConfig &&
+    options.providerEmbeddingTimeoutMs === undefined
       ? {
           providers: {
             embedding: options.providerEmbeddingConfig,
@@ -1166,6 +2248,20 @@ export async function loadLocomoCases(input: {
           input.questionCategories.join(", "),
       );
     }
+    const found = new Set(
+      cases.flatMap((testCase) =>
+        testCase.questions.map((question) => question.category),
+      ),
+    );
+    const missing = input.questionCategories.filter(
+      (category) => !found.has(category),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `LoCoMo category id(s) not found in ${benchmarkSource}: ` +
+          missing.join(", "),
+      );
+    }
   }
   if (input.questionIds && input.questionIds.length > 0) {
     const requested = new Set(input.questionIds);
@@ -1182,6 +2278,20 @@ export async function loadLocomoCases(input: {
         testCase.questions.map((question) => question.questionId),
       ),
     );
+    const selectedQuestionCaseById = new Map<string, string>();
+    for (const testCase of cases) {
+      for (const question of testCase.questions) {
+        const firstCaseId = selectedQuestionCaseById.get(question.questionId);
+        if (firstCaseId !== undefined) {
+          throw new Error(
+            `LoCoMo question id ${question.questionId} matched multiple ` +
+              `questions in ${benchmarkSource}: ${firstCaseId} and ` +
+              `${testCase.caseId}.`,
+          );
+        }
+        selectedQuestionCaseById.set(question.questionId, testCase.caseId);
+      }
+    }
     const missing = input.questionIds.filter(
       (questionId) => !found.has(questionId),
     );
@@ -1203,6 +2313,7 @@ export function locomoQuestionKey(caseId: string, questionId: string): string {
 
 interface LocomoProgressConfig {
   allowCommonsenseResolution: boolean;
+  strictNoEvidenceAbstention: boolean;
   answerContextMode: LocomoAnswerContextMode;
   benchmarkSource: string;
   bm25Ranking: boolean;
@@ -1219,6 +2330,8 @@ interface LocomoProgressConfig {
   };
   multiHop: boolean;
   providerEmbedding: boolean;
+  providerEmbeddingRunTimeoutMs: number | null;
+  providerEmbeddingTimeoutMs: number | null;
   questionCategories: LocomoQaCategory[] | null;
   questionIds: string[] | null;
   questions: Array<{
@@ -1293,6 +2406,8 @@ function buildLocomoProgressConfig(input: {
 }): LocomoProgressConfig {
   return {
     allowCommonsenseResolution: input.options.allowCommonsenseResolution ?? false,
+    strictNoEvidenceAbstention:
+      input.options.strictNoEvidenceAbstention ?? false,
     answerContextMode: input.answerContextMode,
     benchmarkSource: input.benchmarkSource,
     bm25Ranking: input.options.bm25 ?? false,
@@ -1311,6 +2426,9 @@ function buildLocomoProgressConfig(input: {
     },
     multiHop: input.options.multiHop ?? false,
     providerEmbedding: input.options.providerEmbedding ?? false,
+    providerEmbeddingRunTimeoutMs:
+      input.options.providerEmbeddingRunTimeoutMs ?? null,
+    providerEmbeddingTimeoutMs: input.options.providerEmbeddingTimeoutMs ?? null,
     questionCategories: input.options.questionCategories ?? null,
     questionIds: input.options.questionIds ?? null,
     questions: input.cases.flatMap((testCase) =>
@@ -1429,6 +2547,7 @@ function rescoreCompletedLocomoResult(
       goldAnswer: question.goldAnswer,
       matchMode: question.matchMode,
     }),
+    answerTokenF1: locomoTokenF1(result.generatedAnswer, question.goldAnswer),
   };
 }
 
@@ -1493,22 +2612,74 @@ export function parseLocomoExtractionCacheLines(
   return cache;
 }
 
+function createLocomoProviderEmbeddingRunDeadline(input: {
+  nowMs: () => number;
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "providerEmbedding" | "providerEmbeddingRunTimeoutMs"
+  >;
+}): LocomoProviderEmbeddingRunDeadline | null {
+  if (
+    input.options.providerEmbedding !== true ||
+    input.options.providerEmbeddingRunTimeoutMs === undefined
+  ) {
+    return null;
+  }
+  return {
+    deadlineMs: input.nowMs() + input.options.providerEmbeddingRunTimeoutMs,
+    timeoutMs: input.options.providerEmbeddingRunTimeoutMs,
+  };
+}
+
+function assertLocomoProviderEmbeddingRunDeadline(input: {
+  deadline: LocomoProviderEmbeddingRunDeadline | null;
+  nowMs: () => number;
+  stage: string;
+}): void {
+  if (input.deadline === null) {
+    return;
+  }
+  if (input.nowMs() >= input.deadline.deadlineMs) {
+    throw new LocomoProviderEmbeddingRunTimeoutError(
+      input.deadline.timeoutMs,
+      input.stage,
+    );
+  }
+}
+
 export async function runLocomoSmoke(
   options: LocomoSmokeCliOptions = {},
   dependencies: LocomoSmokeDependencies = {},
 ): Promise<LocomoSmokeReport> {
+  assertSemanticCandidateTuningRequiresAdmission(options);
+  assertProviderEmbeddingTimeoutsRequireProvider(options);
+  const liveAnswerRequested =
+    options.live === true || dependencies.answerGenerator !== undefined;
+  const answerFlagOptions = {
+    ...options,
+    live: liveAnswerRequested,
+  };
+  assertAnswerPolicyFlagsRequireLive(answerFlagOptions);
+  assertAnswerContextFlagsRequireLive(answerFlagOptions);
+  if (options.semanticCandidates && options.bm25) {
+    throw new Error(
+      "--semantic-candidates cannot be combined with --bm25; semantic candidate admission requires an embedding-backed recall branch.",
+    );
+  }
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const readFileImpl =
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = dependencies.writeFile ?? writeFile;
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
+  const nowMs = dependencies.nowMs ?? (() => Date.now());
   const createMemory =
     dependencies.createMemory ??
     (() =>
       createLocomoSmokeMemory({
         bm25: options.bm25,
         providerEmbedding: options.providerEmbedding,
+        providerEmbeddingTimeoutMs: options.providerEmbeddingTimeoutMs,
         rerank: options.rerank,
         semanticCandidateMaxAdditions: options.semanticCandidateMaxAdditions,
         semanticCandidateMinRelativeScore:
@@ -1535,13 +2706,32 @@ export async function runLocomoSmoke(
   const runDirectory = join(outputDir, runId);
 
   const appendFileImpl = dependencies.appendFile ?? appendFile;
+  const questionIds = await resolveLocomoQuestionIds({
+    explicitQuestionIds: options.questionIds,
+    questionIdFile: options.questionIdFile,
+    readFile: readFileImpl,
+  });
+  const resolvedOptions: LocomoSmokeCliOptions = {
+    ...options,
+    questionIds,
+  };
+  const providerEmbeddingRunDeadline = createLocomoProviderEmbeddingRunDeadline({
+    nowMs,
+    options: resolvedOptions,
+  });
+  const assertProviderRunDeadline = (stage: string): void =>
+    assertLocomoProviderEmbeddingRunDeadline({
+      deadline: providerEmbeddingRunDeadline,
+      nowMs,
+      stage,
+    });
 
   const { benchmarkSource, cases } = await loadLocomoCases({
-    benchmarkRoot: options.benchmarkRoot,
-    caseIds: options.caseIds,
-    limit: options.limit,
-    questionIds: options.questionIds,
-    questionCategories: options.questionCategories,
+    benchmarkRoot: resolvedOptions.benchmarkRoot,
+    caseIds: resolvedOptions.caseIds,
+    limit: resolvedOptions.limit,
+    questionIds: resolvedOptions.questionIds,
+    questionCategories: resolvedOptions.questionCategories,
     readFile: readFileImpl,
   });
 
@@ -1550,6 +2740,7 @@ export async function runLocomoSmoke(
     (options.live
       ? createLocomoLiveAnswerGenerator({
           allowCommonsenseResolution: options.allowCommonsenseResolution,
+          strictNoEvidenceAbstention: options.strictNoEvidenceAbstention,
         })
       : undefined);
   const liveAnswer = answerGenerator !== undefined;
@@ -1561,7 +2752,7 @@ export async function runLocomoSmoke(
       benchmarkSource,
       cases,
       liveAnswer,
-      options,
+      options: resolvedOptions,
       recallStrategy,
       runId,
       semanticCandidateEmbeddingSource,
@@ -1572,12 +2763,14 @@ export async function runLocomoSmoke(
   // The run directory exists from the start so the per-question checkpoint and
   // the extraction cache can be appended to during the run, not only at the end.
   await mkdirImpl(runDirectory, { recursive: true });
-  // Checkpointing exists to survive gateway outages, so it is active only for
-  // the expensive model-backed modes (live answers and/or LLM extraction);
-  // deterministic retrieval-only runs are cheap to recompute and stay
-  // byte-identical to the pre-checkpoint runner (no extra file writes).
+  // Checkpointing exists to survive gateway/provider outages, so it is active
+  // for expensive model-backed modes: live answers, LLM extraction, and
+  // provider-backed retrieval. Deterministic retrieval-only runs are cheap to
+  // recompute and stay byte-identical to the pre-checkpoint runner.
   const checkpointing =
-    answerGenerator !== undefined || options.conversationalExtraction === true;
+    answerGenerator !== undefined ||
+    options.conversationalExtraction === true ||
+    options.providerEmbedding === true;
   const progressPath = join(runDirectory, LOCOMO_LIVE_PROGRESS_FILE_NAME);
   const completed = new Map<string, LocomoQuestionRetrieval>();
   if (checkpointing && options.resume) {
@@ -1639,32 +2832,81 @@ export async function runLocomoSmoke(
     : undefined;
 
   const results: LocomoQuestionRetrieval[] = [];
+  const recordedQuestionKeys = new Set<string>();
   let executionFailures = 0;
   let checkpointWriteFailures = 0;
-  for (const testCase of cases) {
+  const pushResult = (result: LocomoQuestionRetrieval): void => {
+    results.push(result);
+    recordedQuestionKeys.add(
+      locomoQuestionKey(result.caseId, result.questionId),
+    );
+  };
+  const recordFailedResult = (
+    testCase: LocomoCase,
+    question: LocomoQuestion,
+  ): void => {
+    pushResult(
+      scoreLocomoRetrieval({
+        question,
+        retrievedTurnIds: [],
+        testCase,
+      }),
+    );
+  };
+  const replayCompletedForCase = (testCase: LocomoCase): void => {
+    for (const question of testCase.questions) {
+      const key = locomoQuestionKey(testCase.caseId, question.questionId);
+      if (recordedQuestionKeys.has(key)) {
+        continue;
+      }
+      const cached = completed.get(key);
+      if (cached) {
+        pushResult(rescoreCompletedLocomoResult(cached, question));
+      }
+    }
+  };
+  const recordProviderTimeoutRemainder = (startCaseIndex: number): void => {
+    for (const remainingCase of cases.slice(startCaseIndex)) {
+      replayCompletedForCase(remainingCase);
+      for (const question of remainingCase.questions) {
+        const key = locomoQuestionKey(
+          remainingCase.caseId,
+          question.questionId,
+        );
+        if (recordedQuestionKeys.has(key)) {
+          continue;
+        }
+        executionFailures += 1;
+        recordFailedResult(remainingCase, question);
+      }
+    }
+  };
+  let providerTimedOut = false;
+  for (const [caseIndex, testCase] of cases.entries()) {
+    try {
+      assertProviderRunDeadline(`starting case ${testCase.caseId}`);
+    } catch (error) {
+      if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
+        recordProviderTimeoutRemainder(caseIndex);
+        providerTimedOut = true;
+        break;
+      }
+      throw error;
+    }
     const pendingQuestions = testCase.questions.filter(
       (question) =>
         !completed.has(locomoQuestionKey(testCase.caseId, question.questionId)),
     );
-    const replayCompleted = (): void => {
-      for (const question of testCase.questions) {
-        const cached = completed.get(
-          locomoQuestionKey(testCase.caseId, question.questionId),
-        );
-        if (cached) {
-          results.push(rescoreCompletedLocomoResult(cached, question));
-        }
-      }
-    };
     if (pendingQuestions.length === 0) {
       // Everything in this case is checkpointed: skip seeding (and therefore
       // extraction) entirely.
-      replayCompleted();
+      replayCompletedForCase(testCase);
       continue;
     }
     const memory = createMemory();
     const scope = buildLocomoScope({ caseId: testCase.caseId, runId });
     try {
+      assertProviderRunDeadline(`seeding case ${testCase.caseId}`);
       // Always seed the raw dialogue turns. Conversational extraction is
       // ADDITIVE, never destructive: per arXiv 2605.12978 (lossy LLM rewriting
       // degrades utility), normalized atomic facts are stored ALONGSIDE the raw
@@ -1679,6 +2921,9 @@ export async function runLocomoSmoke(
         testCase,
       });
       if (conversationalExtractor) {
+        assertProviderRunDeadline(
+          `conversational extraction for case ${testCase.caseId}`,
+        );
         await seedLocomoCaseConversational({
           extractor: conversationalExtractor,
           memory,
@@ -1687,14 +2932,23 @@ export async function runLocomoSmoke(
           testCase,
         });
       }
-    } catch {
+      assertProviderRunDeadline(`seeding case ${testCase.caseId}`);
+    } catch (error) {
+      if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
+        recordProviderTimeoutRemainder(caseIndex);
+        providerTimedOut = true;
+        break;
+      }
       executionFailures += pendingQuestions.length;
-      replayCompleted();
+      replayCompletedForCase(testCase);
+      for (const question of pendingQuestions) {
+        recordFailedResult(testCase, question);
+      }
       continue;
     }
-    replayCompleted();
+    replayCompletedForCase(testCase);
     const recordResult = async (result: LocomoQuestionRetrieval): Promise<void> => {
-      results.push(result);
+      pushResult(result);
       if (!checkpointing) {
         return;
       }
@@ -1707,7 +2961,11 @@ export async function runLocomoSmoke(
       }
     };
     for (const question of pendingQuestions) {
+      let retrieval: LocomoQuestionRetrieval | null = null;
       try {
+        assertProviderRunDeadline(
+          `recalling ${testCase.caseId}/${question.questionId}`,
+        );
         const recall = await memory.recall({
           query: question.question,
           scope,
@@ -1715,8 +2973,11 @@ export async function runLocomoSmoke(
           decompose: options.decompose,
           multiHop: options.multiHop,
         });
+        assertProviderRunDeadline(
+          `recalling ${testCase.caseId}/${question.questionId}`,
+        );
         const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
-        const retrieval = scoreLocomoRetrieval({
+        retrieval = scoreLocomoRetrieval({
           question,
           retrievedTurnIds,
           testCase,
@@ -1747,14 +3008,28 @@ export async function runLocomoSmoke(
               goldAnswer: question.goldAnswer,
               matchMode: question.matchMode,
             }),
+            answerTokenF1: locomoTokenF1(generatedAnswer, question.goldAnswer),
             generatedAnswer,
           });
         } else {
           await recordResult(retrieval);
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
+          recordProviderTimeoutRemainder(caseIndex);
+          providerTimedOut = true;
+          break;
+        }
         executionFailures += 1;
+        if (retrieval) {
+          pushResult(retrieval);
+        } else {
+          recordFailedResult(testCase, question);
+        }
       }
+    }
+    if (providerTimedOut) {
+      break;
     }
   }
   if (checkpointWriteFailures > 0) {
@@ -1765,6 +3040,7 @@ export async function runLocomoSmoke(
   }
   const report: LocomoSmokeReport = {
     allowCommonsenseResolution: options.allowCommonsenseResolution ?? false,
+    strictNoEvidenceAbstention: options.strictNoEvidenceAbstention ?? false,
     answerContextMode,
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
     benchmark: "locomo",
@@ -1785,9 +3061,12 @@ export async function runLocomoSmoke(
     mode: liveAnswer ? "live-answer" : "retrieval-only",
     phase: "phase-65",
     profilesCompared: [...PROFILES_COMPARED],
+    providerEmbeddingRunTimeoutMs:
+      resolvedOptions.providerEmbeddingRunTimeoutMs ?? null,
+    providerEmbeddingTimeoutMs: resolvedOptions.providerEmbeddingTimeoutMs ?? null,
     questionCount: results.length,
-    questionCategories: options.questionCategories ?? null,
-    questionIds: options.questionIds ?? null,
+    questionCategories: resolvedOptions.questionCategories ?? null,
+    questionIds: resolvedOptions.questionIds ?? null,
     resume: options.resume ?? false,
     runDirectory,
     runId,
@@ -1810,6 +3089,8 @@ function buildCliSummary(report: LocomoSmokeReport): {
   caseIds: string[];
   categories: LocomoCategoryRetrievalSummary[];
   executionFailures: number;
+  providerEmbeddingRunTimeoutMs: number | null;
+  providerEmbeddingTimeoutMs: number | null;
   questionCount: number;
   questionCategories: LocomoSmokeReport["questionCategories"];
   reportPath: string;
@@ -1822,6 +3103,9 @@ function buildCliSummary(report: LocomoSmokeReport): {
     caseIds: report.caseIds,
     categories: report.categories,
     executionFailures: report.executionFailures,
+    providerEmbeddingRunTimeoutMs:
+      report.providerEmbeddingRunTimeoutMs ?? null,
+    providerEmbeddingTimeoutMs: report.providerEmbeddingTimeoutMs ?? null,
     questionCount: report.questionCount,
     questionCategories: report.questionCategories,
     reportPath: join(report.runDirectory, LOCOMO_SMOKE_REPORT_FILE_NAME),

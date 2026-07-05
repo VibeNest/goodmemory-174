@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
 import {
   resolvePhase62OutputDir,
   resolvePhase62RepoRoot,
@@ -39,7 +39,7 @@ export interface Phase62Full500SummaryDependencies {
 }
 
 function parseBooleanFlag(argv: readonly string[], flagName: string): boolean {
-  return argv.includes(flagName);
+  return hasCliFlagStrict(argv, flagName);
 }
 
 function parsePositiveInteger(
@@ -74,7 +74,7 @@ function parseRepeatedFlag(
   return values.length === 0 ? undefined : values;
 }
 
-function parsePhase62Full500SummaryOptions(
+export function parsePhase62Full500SummaryOptions(
   argv: readonly string[],
 ): Phase62Full500SummaryOptions {
   return {

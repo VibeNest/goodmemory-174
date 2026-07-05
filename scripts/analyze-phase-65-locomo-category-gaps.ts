@@ -2,12 +2,19 @@
 // smoke reports; it separates retrieval-missing failures from full-recall answer
 // failures and high-noise full-recall rows.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  LOCOMO_CATEGORY_GAP_METADATA_FIELDS,
+  assertLocomoReportHasNoExecutionFailures,
+  assertLocomoReportInputsHaveUniquePaths,
+  assertLocomoReportMetadataCompatible,
+  assertLocomoReportQuestionCountMatchesCases,
+} from "./locomo-report-compatibility";
 import type {
   LocomoQuestionRetrieval,
   LocomoSmokeReport,
@@ -87,6 +94,7 @@ export interface LocomoCategoryGapAnalysis {
   runId: string;
   sourceReports: Array<{
     path: string;
+    questionCount: number;
     runId: string;
   }>;
 }
@@ -118,6 +126,7 @@ function parseStringListFlag(
   flagName: string,
 ): string[] {
   const values: string[] = [];
+  const seen = new Set<string>();
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] !== flagName) {
       continue;
@@ -126,11 +135,18 @@ function parseStringListFlag(
     if (!raw || raw.startsWith("--")) {
       throw new Error(`${flagName} requires a value.`);
     }
-    for (const value of raw.split(",")) {
+    const parts = raw.split(",");
+    for (const value of parts) {
       const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        values.push(trimmed);
+      if (trimmed.length === 0) {
+        throw new Error(`${flagName} contains an empty value.`);
       }
+      const normalizedPath = resolve(trimmed);
+      if (seen.has(normalizedPath)) {
+        throw new Error(`${flagName} contains duplicate value ${trimmed}.`);
+      }
+      seen.add(normalizedPath);
+      values.push(trimmed);
     }
   }
   return values;
@@ -144,9 +160,9 @@ function parseCliOptions(argv: readonly string[]): GapCliOptions {
     );
   }
   return {
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
     reportPaths,
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -329,30 +345,37 @@ export function analyzeLocomoCategoryGaps(input: {
   if (input.reports.length === 0) {
     throw new Error("LoCoMo category-gap analysis requires at least one report.");
   }
+  assertLocomoReportInputsHaveUniquePaths(input.reports);
   const first = input.reports[0].report;
   const overall = emptyAccumulator();
   const categories = new Map<LocomoQaCategory, GapAccumulator>();
+  const seenQuestionKeys = new Map<string, string>();
   const sourceReports: LocomoCategoryGapAnalysis["sourceReports"] = [];
 
   for (const { path, report } of input.reports) {
-    if (report.mode !== first.mode) {
-      throw new Error(`Report ${path} has mode ${report.mode}; expected ${first.mode}.`);
-    }
-    if (report.answerEvaluation !== first.answerEvaluation) {
-      throw new Error(
-        `Report ${path} has answerEvaluation ${report.answerEvaluation}; ` +
-          `expected ${first.answerEvaluation}.`,
-      );
-    }
-    if (report.executionFailures > 0) {
-      throw new Error(
-        `Report ${path} (${report.runId}) has ${report.executionFailures} ` +
-          "execution failure(s); rerun or resume before analyzing.",
-      );
-    }
+    assertLocomoReportMetadataCompatible({
+      candidate: { path, report },
+      fields: LOCOMO_CATEGORY_GAP_METADATA_FIELDS,
+      reference: input.reports[0],
+    });
+    assertLocomoReportHasNoExecutionFailures({ path, report });
+    assertLocomoReportQuestionCountMatchesCases({ path, report });
 
-    sourceReports.push({ path, runId: report.runId });
+    sourceReports.push({
+      path,
+      questionCount: report.questionCount,
+      runId: report.runId,
+    });
     for (const question of report.cases) {
+      const questionKey = `${question.caseId}::${question.questionId}`;
+      const duplicatePath = seenQuestionKeys.get(questionKey);
+      if (duplicatePath) {
+        throw new Error(
+          `LoCoMo category-gap analysis received duplicate question ` +
+            `${questionKey} in ${path}; first seen in ${duplicatePath}.`,
+        );
+      }
+      seenQuestionKeys.set(questionKey, path);
       addQuestion(overall, question, {
         reportPath: path,
         runId: report.runId,

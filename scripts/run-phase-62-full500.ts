@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
 import {
   runPhase62LongMemEval,
   type Phase62EvalDependencies,
@@ -72,7 +72,7 @@ function parsePositiveInteger(
 }
 
 function parseBooleanFlag(argv: readonly string[], flagName: string): boolean {
-  return argv.includes(flagName);
+  return hasCliFlagStrict(argv, flagName);
 }
 
 function parseRepeatedFlag(
@@ -92,7 +92,7 @@ function parseRepeatedFlag(
   return values.length === 0 ? undefined : values;
 }
 
-function parsePhase62Full500Options(
+export function parsePhase62Full500Options(
   argv: readonly string[],
 ): Phase62Full500Options {
   return {

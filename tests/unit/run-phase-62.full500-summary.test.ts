@@ -1,8 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
-  runPhase62Full500Summary,
   PHASE62_FULL500_CANONICAL_RUN_ID,
+  parsePhase62Full500SummaryOptions,
+  runPhase62Full500Summary,
 } from "../../scripts/run-phase-62-full500-summary";
 import {
   LONGMEMEVAL_PROFILES,
@@ -95,6 +96,18 @@ function buildShardReport(input: {
 }
 
 describe("run-phase-62 full-500 summary", () => {
+  it("rejects duplicate boolean summary flags before reading shard reports", () => {
+    expect(() =>
+      parsePhase62Full500SummaryOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-full500-summary.ts",
+        "--allow-duplicate-case-coverage",
+        "--allow-duplicate-case-coverage",
+      ]),
+    ).toThrow("--allow-duplicate-case-coverage cannot be specified more than once.");
+  });
+
   it("aggregates shard reports into a canonical full report", async () => {
     const outputDir = "/tmp/phase62-full500-summary-test";
     const shardRunIds = [

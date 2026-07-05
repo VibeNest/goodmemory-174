@@ -163,6 +163,30 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     });
   });
 
+  it("rejects duplicate CLI mode and output flags before preparation", () => {
+    expect(() =>
+      parsePhase64MabPrepareCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+        "--merge",
+        "--merge",
+      ]),
+    ).toThrow("--merge cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase64MabPrepareCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+        "--output-root",
+        "/tmp/MAB-a",
+        "--output-root",
+        "/tmp/MAB-b",
+      ]),
+    ).toThrow("--output-root cannot be specified more than once.");
+  });
+
   it("defaults AR to the eventqa_full row (offset 5), all questions, no merge", () => {
     expect(
       parsePhase64MabPrepareCliOptions([

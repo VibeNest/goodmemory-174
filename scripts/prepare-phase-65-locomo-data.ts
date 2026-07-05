@@ -16,25 +16,82 @@ import {
   type LocomoQuestion,
   type LocomoTurn,
 } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 
 const UPSTREAM_URL =
   "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json";
 const ADVERSARIAL_ABSTENTION_GOLD = "No information available";
+const CANONICAL_LOCOMO_DIA_ID_PATTERN = /^D(\d+):(\d+)$/u;
+const LEGACY_LOCOMO_DIA_ID_PATTERN = /^D:(\d+):(\d+)$/u;
+
+export interface LocomoPrepNormalizeOptions {
+  maxConversations: number;
+  maxQuestionsPerCase: number;
+}
+
+export interface LocomoPrepCliOptions extends LocomoPrepNormalizeOptions {
+  outputRoot: string;
+  sourceFile?: string;
+  sourceUrl: string;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function parsePositiveIntFlag(raw: string | undefined, fallback: number): number {
+function parseNonNegativeIntegerFlag(
+  argv: readonly string[],
+  flagName: string,
+  fallback: number,
+): number {
+  const raw = resolveCliFlagValueStrict(argv, flagName);
   if (raw === undefined) {
     return fallback;
   }
+  if (!/^(0|[1-9]\d*)$/.test(raw)) {
+    throw new Error(`${flagName} must be a non-negative integer.`);
+  }
   const value = Number(raw);
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`Expected a non-negative integer, got ${raw}`);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flagName} must be a non-negative integer.`);
   }
   return value;
+}
+
+export function parseLocomoPrepCliOptions(
+  argv: readonly string[],
+): LocomoPrepCliOptions {
+  return {
+    maxConversations: parseNonNegativeIntegerFlag(
+      argv,
+      "--max-conversations",
+      1,
+    ),
+    maxQuestionsPerCase: parseNonNegativeIntegerFlag(
+      argv,
+      "--max-questions-per-case",
+      40,
+    ),
+    outputRoot:
+      resolveCliFlagValueStrict(argv, "--output-root") ??
+      process.env.GOODMEMORY_LOCOMO_ROOT ??
+      "/private/tmp/LOCOMO",
+    sourceFile: resolveCliFlagValueStrict(argv, "--source-file"),
+    sourceUrl: resolveCliFlagValueStrict(argv, "--source-url") ?? UPSTREAM_URL,
+  };
+}
+
+export function normalizeLocomoDiaId(value: string): string | null {
+  const trimmed = value.trim();
+  const canonical = CANONICAL_LOCOMO_DIA_ID_PATTERN.exec(trimmed);
+  if (canonical !== null) {
+    return `D${canonical[1]}:${canonical[2]}`;
+  }
+  const legacy = LEGACY_LOCOMO_DIA_ID_PATTERN.exec(trimmed);
+  if (legacy !== null) {
+    return `D${legacy[1]}:${legacy[2]}`;
+  }
+  return null;
 }
 
 function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
@@ -60,21 +117,45 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
       if (!isRecord(entry)) {
         continue;
       }
-      const diaId = entry.dia_id;
+      const rawDiaId = entry.dia_id;
       const speaker = entry.speaker;
       const content = entry.text;
       if (
-        typeof diaId !== "string" ||
+        typeof rawDiaId !== "string" ||
         typeof speaker !== "string" ||
         typeof content !== "string" ||
         content.trim().length === 0
       ) {
         continue;
       }
+      const diaId = normalizeLocomoDiaId(rawDiaId);
+      if (diaId === null) {
+        continue;
+      }
       turns.push(date === undefined ? { content, diaId, speaker } : { content, date, diaId, speaker });
     }
   }
   return turns;
+}
+
+function normalizeEvidenceTurnIds(evidence: unknown): string[] {
+  if (!Array.isArray(evidence)) {
+    return [];
+  }
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const value of evidence) {
+    if (typeof value !== "string") {
+      continue;
+    }
+    const diaId = normalizeLocomoDiaId(value);
+    if (diaId === null || seen.has(diaId)) {
+      continue;
+    }
+    seen.add(diaId);
+    ids.push(diaId);
+  }
+  return ids;
 }
 
 function normalizeQuestions(
@@ -92,9 +173,7 @@ function normalizeQuestions(
     }
     const category = normalizeLocomoCategoryCode(entry.category);
     const adversarial = category === "adversarial";
-    const evidenceTurnIds = Array.isArray(entry.evidence)
-      ? entry.evidence.filter((id): id is string => typeof id === "string")
-      : [];
+    const evidenceTurnIds = normalizeEvidenceTurnIds(entry.evidence);
     const goldAnswer = adversarial
       ? ADVERSARIAL_ABSTENTION_GOLD
       : entry.answer === undefined || entry.answer === null
@@ -122,27 +201,10 @@ function normalizeQuestions(
   return questions;
 }
 
-async function main(): Promise<void> {
-  const argv = Bun.argv;
-  const outputRoot =
-    resolveCliFlagValue(argv, "--output-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT ??
-    "/private/tmp/LOCOMO";
-  const sourceFile = resolveCliFlagValue(argv, "--source-file");
-  const sourceUrl = resolveCliFlagValue(argv, "--source-url") ?? UPSTREAM_URL;
-  const maxConversations = parsePositiveIntFlag(
-    resolveCliFlagValue(argv, "--max-conversations"),
-    1,
-  );
-  const maxQuestionsPerCase = parsePositiveIntFlag(
-    resolveCliFlagValue(argv, "--max-questions-per-case"),
-    40,
-  );
-
-  const raw = sourceFile
-    ? await readFile(sourceFile, "utf8")
-    : await (await fetch(sourceUrl)).text();
-  const parsed = JSON.parse(raw) as unknown;
+export function normalizeLocomoPrepCases(
+  parsed: unknown,
+  { maxConversations, maxQuestionsPerCase }: LocomoPrepNormalizeOptions,
+): LocomoCase[] {
   if (!Array.isArray(parsed)) {
     throw new Error("Upstream locomo10.json must be a JSON array of conversations.");
   }
@@ -176,6 +238,26 @@ async function main(): Promise<void> {
       turns,
     });
   }
+  return cases;
+}
+
+async function main(): Promise<void> {
+  const {
+    maxConversations,
+    maxQuestionsPerCase,
+    outputRoot,
+    sourceFile,
+    sourceUrl,
+  } = parseLocomoPrepCliOptions(Bun.argv);
+
+  const raw = sourceFile
+    ? await readFile(sourceFile, "utf8")
+    : await (await fetch(sourceUrl)).text();
+  const parsed = JSON.parse(raw) as unknown;
+  const cases = normalizeLocomoPrepCases(parsed, {
+    maxConversations,
+    maxQuestionsPerCase,
+  });
 
   await mkdir(outputRoot, { recursive: true });
   await writeFile(
@@ -199,7 +281,9 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
-});
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

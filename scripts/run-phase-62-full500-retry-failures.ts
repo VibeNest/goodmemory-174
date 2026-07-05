@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
 import { runPhase62LongMemEval } from "./run-phase-62-eval";
 import type { Phase62EvalDependencies } from "./run-phase-62-eval";
 import {
@@ -83,7 +83,7 @@ export interface Phase62Full500RetryFailureResult {
 }
 
 function parseBooleanFlag(argv: readonly string[], flagName: string): boolean {
-  return argv.includes(flagName);
+  return hasCliFlagStrict(argv, flagName);
 }
 
 function parsePositiveInteger(
@@ -141,7 +141,7 @@ function parseCaseExclusionFlags(argv: readonly string[]): string[] | undefined 
   return values.length === 0 ? undefined : values;
 }
 
-function parsePhase62Full500RetryFailureOptions(
+export function parsePhase62Full500RetryFailureOptions(
   argv: readonly string[],
 ): Phase62Full500RetryFailureOptions {
   return {

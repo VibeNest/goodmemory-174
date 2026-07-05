@@ -100,6 +100,22 @@ Answer-Gap Evidence And Tooling
   ablations. Existing artifacts show `retrieved-evidence-pack` at 0.6625 and
   `full-context` at 0.195 with many failures, so dumping the whole conversation
   into the model is not a viable fix.
+- Answer-gap and ablation CLIs reject duplicate scalar source/output/mode
+  selectors before reading live reports or writing derived evidence:
+  `--benchmark-root`, `--live-report`, `--output-dir`, `--output-path` where
+  supported, `--mode`, `--profile`, `--limit`, `--run-id`, and `--scale`. This
+  is evidence-input hardening only; it does not change BEAM scores, recall,
+  checkpoint status, or public-claim boundaries.
+- Recall diagnostic and recall-analysis CLIs reject duplicate scalar
+  source/report/output/run selectors before running diagnostics or comparing
+  reports. The diagnostic runner keeps repeated `--profile` support while
+  making `--benchmark-root`, `--limit`, `--output-dir`, `--run-id`, and
+  `--scale` single-valued; the analyzer makes `--baseline-report-path`,
+  `--baseline-run-id`, `--benchmark-root`, `--output-dir`, `--output-path`,
+  `--profile`, `--report-path`, `--run-id`, and `--source-turn-limit`
+  single-valued. This is recall/noise evidence-input hardening only; it does
+  not change BEAM scores, recall, checkpoint status, or public-claim
+  boundaries.
 
 Current Failure Surface
 -----------------------
@@ -206,7 +222,19 @@ the temporal/count warning buckets are heuristic inspection queues before
 calling those lanes purely answer-pack failures. The live-slice runner now
 supports `--answer-gap-source-coverage-status covered-or-no-warning`; use it for
 answer-pack-only focused slices so source metadata mismatches do not dilute the
-measurement. For summarization, the corrected filtered answer-pack candidate set
+measurement. Repeated live-slice selectors are now validated before files are
+read: `--answer-gap-bucket`, `--answer-gap-source-coverage-status`, and
+`--case-id` reject missing/flag-as-value, empty, whitespace-padded, duplicate,
+or unknown answer-gap bucket/status values. This keeps focused BEAM live slices
+from silently running the wrong answer-gap queue or matching no cases because of
+a CLI typo. `eval:phase-63-live-slice` and `eval:phase-63-live-closure` also
+reject duplicate `--evidence-pack` and `--resume` mode switches plus duplicate
+scalar source/output selectors where supported (`--answer-gap-report`,
+`--benchmark-root`, `--case-selection`, `--limit`, `--output-dir`, `--profile`,
+`--recall-report`, `--run-id`, `--scale`) before report generation, keeping
+answer-context mode, source report, benchmark root, output location, run id, and
+checkpoint/resume semantics unambiguous. For summarization, the corrected
+filtered answer-pack candidate set
 is only `12:summarization:1` and `14:summarization:2`; `18:summarization:1` and
 `18:summarization:2` are correctly classified as `no-declared-source-ids`. The
 corrected filtered live slice

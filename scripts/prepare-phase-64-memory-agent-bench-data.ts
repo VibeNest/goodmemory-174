@@ -48,7 +48,10 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { normalizeMemoryAgentBenchAnswer } from "../src/eval/memoryAgentBench";
 import type {
   MemoryAgentBenchCase,
@@ -189,25 +192,33 @@ function parseMaxQuestions(value: string | undefined): number | null {
 export function parsePhase64MabPrepareCliOptions(
   argv: readonly string[],
 ): Phase64MabPrepareOptions {
-  const competency = parseCompetency(resolveCliFlagValue(argv, "--competency"));
+  const competency = parseCompetency(
+    resolveCliFlagValueStrict(argv, "--competency"),
+  );
   return {
     competency,
-    dataset: resolveCliFlagValue(argv, "--dataset") ?? MEMORY_AGENT_BENCH_DATASET,
-    maxChunks: parseMaxQuestions(resolveCliFlagValue(argv, "--max-chunks")),
+    dataset:
+      resolveCliFlagValueStrict(argv, "--dataset") ??
+      MEMORY_AGENT_BENCH_DATASET,
+    maxChunks: parseMaxQuestions(
+      resolveCliFlagValueStrict(argv, "--max-chunks"),
+    ),
     maxEvidenceFacts: parseNonNegativeInteger(
-      resolveCliFlagValue(argv, "--max-evidence-facts"),
+      resolveCliFlagValueStrict(argv, "--max-evidence-facts"),
       DEFAULT_MAX_EVIDENCE_FACTS,
       "--max-evidence-facts",
     ),
-    maxQuestions: parseMaxQuestions(resolveCliFlagValue(argv, "--max-questions")),
-    merge: argv.includes("--merge"),
+    maxQuestions: parseMaxQuestions(
+      resolveCliFlagValueStrict(argv, "--max-questions"),
+    ),
+    merge: hasCliFlagStrict(argv, "--merge"),
     offset: parseNonNegativeInteger(
-      resolveCliFlagValue(argv, "--offset"),
+      resolveCliFlagValueStrict(argv, "--offset"),
       DEFAULT_OFFSET_BY_COMPETENCY[competency],
       "--offset",
     ),
     outputRoot:
-      resolveCliFlagValue(argv, "--output-root") ??
+      resolveCliFlagValueStrict(argv, "--output-root") ??
       process.env.GOODMEMORY_MAB_ROOT ??
       DEFAULT_OUTPUT_ROOT,
   };

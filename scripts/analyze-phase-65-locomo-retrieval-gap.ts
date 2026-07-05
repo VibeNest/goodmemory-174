@@ -11,7 +11,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parseLocomoSession, tokenizeLocomoAnswer } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertLocomoReportHasNoExecutionFailures,
+  assertLocomoReportQuestionCountMatchesCases,
+} from "./locomo-report-compatibility";
+import type { LocomoSmokeReport } from "./run-phase-65-locomo-smoke";
 
 export const LOCOMO_RETRIEVAL_GAP_FILE_NAME = "retrieval-gap-analysis.json";
 
@@ -76,6 +81,10 @@ function mean(values: number[]): number {
 
 function round(value: number): number {
   return Number(value.toFixed(4));
+}
+
+function reportQuestionKey(result: ReportQuestion): string {
+  return `${result.caseId}:${result.questionId}`;
 }
 
 interface CategoryAccumulator {
@@ -168,10 +177,13 @@ export function analyzeLocomoRetrievalGap(input: {
     turnIndexByCase.set(testCase.caseId, byId);
     orderedTurnsByCase.set(testCase.caseId, ordered);
   }
-  const questionTextById = new Map<string, string>();
+  const questionTextByCaseAndId = new Map<string, string>();
   for (const testCase of input.cases) {
     for (const question of testCase.questions) {
-      questionTextById.set(question.questionId, question.question);
+      questionTextByCaseAndId.set(
+        `${testCase.caseId}:${question.questionId}`,
+        question.question,
+      );
     }
   }
 
@@ -205,9 +217,18 @@ export function analyzeLocomoRetrievalGap(input: {
 
     const turnById = turnIndexByCase.get(result.caseId);
     const orderedTurns = orderedTurnsByCase.get(result.caseId);
-    const questionText = questionTextById.get(result.questionId);
-    if (!turnById || !orderedTurns || questionText === undefined) {
-      continue;
+    const questionKey = reportQuestionKey(result);
+    if (!turnById || !orderedTurns) {
+      throw new Error(
+        `Report question ${questionKey} references case ${result.caseId} ` +
+          "that is not present in the LoCoMo cases file.",
+      );
+    }
+    const questionText = questionTextByCaseAndId.get(questionKey);
+    if (questionText === undefined) {
+      throw new Error(
+        `Report question ${questionKey} is not present in the LoCoMo cases file.`,
+      );
     }
     const qTokens = tokenSet(questionText);
     const retrievedSet = new Set(result.retrievedTurnIds);
@@ -216,7 +237,10 @@ export function analyzeLocomoRetrievalGap(input: {
     for (const goldId of result.evidenceTurnIds) {
       const turn = turnById.get(goldId);
       if (!turn) {
-        continue;
+        throw new Error(
+          `Report question ${questionKey} references evidence turn ` +
+            `${goldId} that is not present in case ${result.caseId}.`,
+        );
       }
       const overlap = questionOverlap(qTokens, turn.tokens);
       goldOverlaps.push(overlap);
@@ -267,6 +291,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function assertLocomoSmokeReport(
+  report: unknown,
+  path: string,
+): asserts report is LocomoSmokeReport {
+  if (!isRecord(report)) {
+    throw new Error(`Report ${path} must be a JSON object.`);
+  }
+  if (report.phase !== "phase-65" || report.benchmark !== "locomo") {
+    throw new Error(`Report ${path} is not a Phase 65 LoCoMo smoke report.`);
+  }
+  if (!Array.isArray(report.cases)) {
+    throw new Error(`Report ${path} must include cases[].`);
+  }
+}
+
 export async function runLocomoRetrievalGapAnalysis(
   argv: readonly string[],
   deps: {
@@ -279,22 +318,26 @@ export async function runLocomoRetrievalGapAnalysis(
   const writeFileImpl = deps.writeFile ?? writeFile;
   const mkdirImpl = deps.mkdir ?? mkdir;
 
-  const reportPath = resolveCliFlagValue(argv, "--report");
+  const reportPath = resolveCliFlagValueStrict(argv, "--report");
   if (!reportPath) {
     throw new Error("LoCoMo retrieval-gap analysis requires --report <smoke-report.json>.");
   }
-  const benchmarkRoot = resolveCliFlagValue(argv, "--benchmark-root");
+  const benchmarkRoot = resolveCliFlagValueStrict(argv, "--benchmark-root");
   const casesPath =
-    resolveCliFlagValue(argv, "--cases") ??
+    resolveCliFlagValueStrict(argv, "--cases") ??
     (benchmarkRoot ? join(benchmarkRoot, "cases.json") : undefined);
   if (!casesPath) {
     throw new Error("LoCoMo retrieval-gap analysis requires --cases or --benchmark-root.");
   }
+  const outputPath =
+    resolveCliFlagValueStrict(argv, "--output-path") ??
+    join(dirname(reportPath), LOCOMO_RETRIEVAL_GAP_FILE_NAME);
 
-  const report = JSON.parse(await readFileImpl(reportPath)) as {
-    cases: ReportQuestion[];
-    runId?: string;
-  };
+  const report = JSON.parse(await readFileImpl(reportPath)) as unknown;
+  assertLocomoSmokeReport(report, reportPath);
+  const reportInput = { path: reportPath, report };
+  assertLocomoReportHasNoExecutionFailures(reportInput);
+  assertLocomoReportQuestionCountMatchesCases(reportInput);
   const parsedCases = JSON.parse(await readFileImpl(casesPath)) as unknown;
   const rawCases = isRecord(parsedCases) ? parsedCases.cases : parsedCases;
   if (!Array.isArray(rawCases)) {
@@ -303,9 +346,6 @@ export async function runLocomoRetrievalGapAnalysis(
   const cases = rawCases as NormalizedCase[];
 
   const analysis = analyzeLocomoRetrievalGap({ cases, report });
-  const outputPath =
-    resolveCliFlagValue(argv, "--output-path") ??
-    join(dirname(reportPath), LOCOMO_RETRIEVAL_GAP_FILE_NAME);
   await mkdirImpl(dirname(outputPath), { recursive: true });
   await writeFileImpl(outputPath, `${JSON.stringify(analysis, null, 2)}\n`);
   return { analysis, outputPath };

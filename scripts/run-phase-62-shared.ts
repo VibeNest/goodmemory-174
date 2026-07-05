@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { hasCliFlagStrict, resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   LONGMEMEVAL_FULL_DATA_FILES,
@@ -247,7 +247,7 @@ function parseFlagPresence(
   argv: readonly string[],
   flagName: string,
 ): boolean | undefined {
-  return argv.includes(flagName) ? true : undefined;
+  return hasCliFlagStrict(argv, flagName) ? true : undefined;
 }
 
 export function parsePhase62CliOptions(

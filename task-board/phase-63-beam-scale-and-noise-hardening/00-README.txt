@@ -70,6 +70,18 @@ Current Task Queue
 6. Return to recall selection only for missing-evidence families.
 7. Validate answer-time gains against Phase 64 MemoryAgentBench CR before
    treating any BEAM gain as general.
+8. Keep focused live-slice selectors strict: repeated `--answer-gap-bucket`,
+   `--answer-gap-source-coverage-status`, and `--case-id` values must be
+   present, unique, canonical, and validated before reading answer-gap or
+   benchmark files. Live-slice and live-closure scalar source/output flags such
+   as `--recall-report`, `--run-id`, `--output-dir`, `--profile`, and
+   `--benchmark-root` must also stay single-valued before report generation.
+9. Keep recall diagnostic source/report selectors strict: diagnostic scalar
+   flags such as `--benchmark-root`, `--limit`, `--output-dir`, `--run-id`, and
+   `--scale` must stay single-valued while diagnostic `--profile` remains
+   repeatable; analyzer scalar flags such as `--report-path`,
+   `--baseline-report-path`, `--benchmark-root`, `--output-path`, `--run-id`,
+   and `--source-turn-limit` must fail fast when duplicated.
 
 Acceptance Checks
 -----------------
@@ -79,9 +91,19 @@ Acceptance Checks
 - Do not count a small live slice, a single retained recall repair, or one
   answer-gap improvement as closure.
 - Do not add BEAM expected-answer-specific rules to the answer evidence pack.
+- Focused live-slice selector typos must fail fast instead of matching no cases
+  or the wrong answer-gap queue.
+- Duplicate live-slice / live-closure scalar source and output flags must fail
+  fast before report generation.
 - Documentation-only changes require `git diff --check`.
 - Future evidence-pack code changes require focused unit tests, `bun run
   typecheck`, and `git diff --check`.
+- Answer-gap analyzer and ablation CLI changes require focused parser coverage
+  in `tests/unit/analyze-phase-63-live-answer-gap.test.ts` and
+  `tests/unit/run-phase-63.beam-live-ablation.test.ts`.
+- Recall diagnostic runner and analyzer CLI changes require focused parser
+  coverage in `tests/unit/run-phase-63.beam-recall-diagnostic.test.ts` and
+  `tests/unit/analyze-phase-63-recall-diagnostic.test.ts`.
 - Future live measured runs require a full 400-case run, a same-profile zero-failure
   recall diagnostic, `executionFailures: 0`, and an accepted closure gate.
 

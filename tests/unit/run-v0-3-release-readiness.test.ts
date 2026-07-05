@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  parseReleaseReadinessCliOptions,
   renderSummary,
   type ReleaseReadinessReport,
 } from "../../scripts/run-v0-3-release-readiness";
@@ -45,6 +46,50 @@ function report(overrides: Partial<ReleaseReadinessReport> = {}): ReleaseReadine
 }
 
 describe("v0.3 release-readiness summary", () => {
+  it("rejects duplicate CLI mode and output flags before running checks", () => {
+    expect(() =>
+      parseReleaseReadinessCliOptions([
+        "bun",
+        "run",
+        "scripts/run-v0-3-release-readiness.ts",
+        "--skip-build",
+        "--skip-build",
+      ]),
+    ).toThrow("--skip-build cannot be specified more than once.");
+
+    expect(() =>
+      parseReleaseReadinessCliOptions([
+        "bun",
+        "run",
+        "scripts/run-v0-3-release-readiness.ts",
+        "--skip-tests",
+        "--skip-tests",
+      ]),
+    ).toThrow("--skip-tests cannot be specified more than once.");
+
+    expect(() =>
+      parseReleaseReadinessCliOptions([
+        "bun",
+        "run",
+        "scripts/run-v0-3-release-readiness.ts",
+        "--strict",
+        "--strict",
+      ]),
+    ).toThrow("--strict cannot be specified more than once.");
+
+    expect(() =>
+      parseReleaseReadinessCliOptions([
+        "bun",
+        "run",
+        "scripts/run-v0-3-release-readiness.ts",
+        "--output-dir",
+        "/tmp/release-a",
+        "--output-dir",
+        "/tmp/release-b",
+      ]),
+    ).toThrow("--output-dir cannot be specified more than once.");
+  });
+
   it("renders a markdown table with one row per check and escapes pipes", () => {
     const markdown = renderSummary(report());
     expect(markdown).toContain("# v0.3 Release Readiness");

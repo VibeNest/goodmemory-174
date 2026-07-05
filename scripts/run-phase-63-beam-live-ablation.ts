@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BeamCase, BeamChatTurn, BeamProfile } from "../src/eval/beam";
 import { normalizeBeamProfileList } from "../src/eval/beam";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
@@ -175,15 +175,15 @@ export function parsePhase63AblationCliOptions(
 ): Phase63AblationCliOptions {
   return {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       process.env.GOODMEMORY_BEAM_ROOT,
-    limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
-    liveReportPath: resolveCliFlagValue(argv, "--live-report"),
-    mode: parseMode(resolveCliFlagValue(argv, "--mode")),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    profile: parseProfile(resolveCliFlagValue(argv, "--profile")),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
+    liveReportPath: resolveCliFlagValueStrict(argv, "--live-report"),
+    mode: parseMode(resolveCliFlagValueStrict(argv, "--mode")),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

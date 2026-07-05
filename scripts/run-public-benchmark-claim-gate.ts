@@ -12,7 +12,10 @@
 //   bun run scripts/run-public-benchmark-claim-gate.ts -- [--strict]
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export const CLAIM_STATUSES = [
@@ -257,6 +260,20 @@ export interface ClaimGateReport {
   summary: { consistent: number; overClaiming: number; publicClaimable: number; total: number };
 }
 
+export interface PublicBenchmarkClaimGateCliOptions {
+  claimsDir?: string;
+  strict: boolean;
+}
+
+export function parsePublicBenchmarkClaimGateCliOptions(
+  argv: readonly string[],
+): PublicBenchmarkClaimGateCliOptions {
+  return {
+    claimsDir: resolveCliFlagValueStrict(argv, "--claims-dir"),
+    strict: hasCliFlagStrict(argv, "--strict"),
+  };
+}
+
 export function buildClaimGateReport(
   declarations: Array<{ file: string; value: unknown }>,
   now: string,
@@ -435,13 +452,13 @@ export function renderClaimGateSummary(report: ClaimGateReport): string {
 }
 
 if (import.meta.main) {
-  const strict = Bun.argv.includes("--strict");
+  const options = parsePublicBenchmarkClaimGateCliOptions(Bun.argv);
   const report = await runPublicBenchmarkClaimGate({
-    claimsDir: resolveCliFlagValue(Bun.argv, "--claims-dir"),
+    claimsDir: options.claimsDir,
   });
   process.stdout.write(renderClaimGateSummary(report));
   if (
-    strict &&
+    options.strict &&
     (!report.allConsistent || report.summary.overClaiming > 0 || !report.readmeConsistent)
   ) {
     process.exitCode = 1;

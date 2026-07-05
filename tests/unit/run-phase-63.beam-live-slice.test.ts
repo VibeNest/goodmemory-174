@@ -162,6 +162,121 @@ describe("phase-63 BEAM live slice runner", () => {
     });
   });
 
+  it("rejects malformed repeated live-slice selector flags before replay selection", () => {
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--answer-gap-bucket",
+        "--run-id",
+        "run-beam-live",
+      ]),
+    ).toThrow("--answer-gap-bucket requires a value.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--answer-gap-bucket",
+        "summarization",
+        "--answer-gap-bucket",
+        "summarization",
+      ]),
+    ).toThrow("--answer-gap-bucket contains duplicate value summarization.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--answer-gap-bucket",
+        "summary",
+      ]),
+    ).toThrow("--answer-gap-bucket must be one of:");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--answer-gap-source-coverage-status",
+        "covered",
+      ]),
+    ).toThrow("--answer-gap-source-coverage-status must be one of:");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--case-id",
+        "beam-live-q1",
+        "--case-id",
+        "beam-live-q1",
+      ]),
+    ).toThrow("--case-id contains duplicate value beam-live-q1.");
+  });
+
+  it("rejects duplicate live-slice mode flags before report generation", () => {
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--evidence-pack",
+        "--evidence-pack",
+      ]),
+    ).toThrow("--evidence-pack cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--resume",
+        "--resume",
+      ]),
+    ).toThrow("--resume cannot be specified more than once.");
+  });
+
+  it("rejects duplicate live-slice scalar source and output flags before report generation", () => {
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--recall-report",
+        "/tmp/recall-a.json",
+        "--recall-report",
+        "/tmp/recall-b.json",
+      ]),
+    ).toThrow("--recall-report cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--run-id",
+        "run-a",
+        "--run-id",
+        "run-b",
+      ]),
+    ).toThrow("--run-id cannot be specified more than once.");
+  });
+
   it("accepts the hybrid live profile", () => {
     expect(
       parsePhase63BeamLiveSliceCliOptions([

@@ -73,6 +73,36 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     ).toThrow("--limit must be a positive integer.");
   });
 
+  it("rejects duplicate smoke mode flags before report generation", () => {
+    for (const flag of ["--evidence-pack", "--live", "--no-memory", "--resume"]) {
+      expect(() =>
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+          flag,
+          flag,
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects duplicate smoke scalar source and output flags before report generation", () => {
+    for (const flag of ["--benchmark-root", "--limit", "--output-dir", "--run-id"]) {
+      expect(() =>
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+          flag,
+          flag === "--limit" ? "2" : "first",
+          flag,
+          flag === "--limit" ? "3" : "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
   it("loads synthetic cases by default and normalized cases from an external root", async () => {
     const synthetic = await loadMemoryAgentBenchCases({
       readFile: async () => {

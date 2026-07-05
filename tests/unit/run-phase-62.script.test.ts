@@ -180,6 +180,18 @@ describe("run-phase-62 LongMemEval script", () => {
     });
   });
 
+  it("rejects duplicate all-cases mode flags before running phase-62 eval", () => {
+    expect(() =>
+      parsePhase62CliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-eval.ts",
+        "--all-cases",
+        "--all-cases",
+      ]),
+    ).toThrow("--all-cases cannot be specified more than once.");
+  });
+
   it("keeps the type-balanced manifest aligned with the four-profile run contract", async () => {
     const manifest = await readFile(TYPE_BALANCED_MANIFEST_PATH, "utf8");
     const command = manifest.match(/bun run eval:phase-62[^\n]+/u)?.[0];

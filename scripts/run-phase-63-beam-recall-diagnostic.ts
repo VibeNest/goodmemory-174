@@ -16,7 +16,7 @@ import {
   type BeamReport,
   type BeamRow,
 } from "../src/eval/beam";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,
@@ -98,12 +98,12 @@ export function parsePhase63BeamRecallDiagnosticCliOptions(
   argv: readonly string[],
 ): Phase63BeamRecallDiagnosticCliOptions {
   return {
-    benchmarkRoot: resolveCliFlagValue(argv, "--benchmark-root"),
-    limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
+    limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

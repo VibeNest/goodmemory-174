@@ -13,7 +13,7 @@
 import { readFile } from "node:fs/promises";
 import { createGoodMemory, type GoodMemory } from "../src";
 import { createProviderEmbeddingAdapter } from "../src/provider/layer";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
 import {
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
@@ -35,6 +35,12 @@ interface Arm {
   // — force-admits the vector top-K past the lexical admission gates. Only
   // meaningful with a real embedding source (arm.neural).
   union?: { topK?: number; maxAdditions?: number; minSimilarity?: number };
+}
+
+export interface LocomoNeuralCliOptions {
+  armLabels?: string[];
+  benchmarkRoot?: string;
+  limit?: number;
 }
 
 const ARMS: readonly Arm[] = [
@@ -61,6 +67,67 @@ const constantEmbeddingAdapter = {
     return texts.map(() => [...CONSTANT_VECTOR]);
   },
 };
+
+function parsePositiveIntegerFlag(
+  argv: readonly string[],
+  flag: string,
+): number | undefined {
+  const raw = resolveCliFlagValueStrict(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${flag} must be a positive integer.`);
+  }
+  return value;
+}
+
+function parseArmLabelsFlag(
+  argv: readonly string[],
+  flag: string,
+): string[] | undefined {
+  const raw = resolveCliFlagValueStrict(argv, flag);
+  if (raw === undefined) {
+    return undefined;
+  }
+  const labels = raw
+    .split(",")
+    .map((label) => label.trim())
+    .filter((label) => label.length > 0);
+  if (labels.length === 0) {
+    throw new Error(`${flag} requires at least one arm label.`);
+  }
+  const validLabels = new Set(ARMS.map((arm) => arm.label));
+  const seen = new Set<string>();
+  for (const label of labels) {
+    if (!validLabels.has(label)) {
+      throw new Error(
+        `${flag} contains unknown arm '${label}'. Valid arms: ${ARMS.map((arm) => arm.label).join(", ")}.`,
+      );
+    }
+    if (seen.has(label)) {
+      throw new Error(`${flag} contains duplicate arm '${label}'.`);
+    }
+    seen.add(label);
+  }
+  return labels;
+}
+
+export function parseLocomoNeuralCliOptions(
+  argv: readonly string[],
+): LocomoNeuralCliOptions {
+  return {
+    armLabels: parseArmLabelsFlag(argv, "--arms"),
+    benchmarkRoot:
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      process.env.GOODMEMORY_LOCOMO_ROOT,
+    limit: parsePositiveIntegerFlag(argv, "--limit"),
+  };
+}
 
 function buildMemory(arm: Arm): GoodMemory {
   let idCounter = 0;
@@ -107,16 +174,8 @@ async function main(): Promise<void> {
   if (!process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER) {
     process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
   }
-  const argv = Bun.argv;
-  const benchmarkRoot =
-    resolveCliFlagValue(argv, "--benchmark-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT;
-  const limitRaw = resolveCliFlagValue(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
-  const armsFilterRaw = resolveCliFlagValue(argv, "--arms");
-  const armsFilter = armsFilterRaw
-    ? new Set(armsFilterRaw.split(",").map((label) => label.trim()))
-    : null;
+  const { armLabels, benchmarkRoot, limit } = parseLocomoNeuralCliOptions(Bun.argv);
+  const armsFilter = armLabels ? new Set(armLabels) : null;
   const arms = armsFilter
     ? ARMS.filter((arm) => armsFilter.has(arm.label))
     : ARMS;

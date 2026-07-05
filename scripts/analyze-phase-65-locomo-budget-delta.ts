@@ -7,7 +7,19 @@ import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
+import {
+  assertLocomoCategoryQuestionIdentities,
+  assertLocomoReportInputsHaveDistinctPaths,
+  assertLocomoReportCategorySummariesMatchCases,
+  assertLocomoReportHasNoExecutionFailures,
+  assertLocomoReportMetadataCompatible,
+  assertLocomoReportQuestionCountMatchesCases,
+  LOCOMO_STABLE_EXPERIMENT_METADATA_FIELDS,
+} from "./locomo-report-compatibility";
 import type {
   LocomoCategoryRetrievalSummary,
   LocomoSmokeReport,
@@ -67,19 +79,25 @@ export interface LocomoBudgetDeltaAnalysis {
 }
 
 function parseCliOptions(argv: readonly string[]): CliOptions {
-  const baselineReportPath = resolveCliFlagValue(argv, "--baseline-report");
-  const candidateReportPath = resolveCliFlagValue(argv, "--candidate-report");
+  const baselineReportPath = resolveCliFlagValueStrict(argv, "--baseline-report");
+  const candidateReportPath = resolveCliFlagValueStrict(argv, "--candidate-report");
   if (!baselineReportPath) {
     throw new Error("LoCoMo budget-delta analysis requires --baseline-report.");
   }
   if (!candidateReportPath) {
     throw new Error("LoCoMo budget-delta analysis requires --candidate-report.");
   }
+  assertDistinctCliPathValues({
+    firstFlag: "--baseline-report",
+    firstValue: baselineReportPath,
+    secondFlag: "--candidate-report",
+    secondValue: candidateReportPath,
+  });
   return {
     baselineReportPath,
     candidateReportPath,
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    runId: resolveCliFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -102,91 +120,23 @@ function assertSmokeReport(
   }
 }
 
-function assertSameJsonField(
-  fieldName: string,
-  baselineValue: unknown,
-  candidateValue: unknown,
-): void {
-  if (JSON.stringify(candidateValue) !== JSON.stringify(baselineValue)) {
-    throw new Error(
-      `Report ${fieldName} mismatch: baseline=${JSON.stringify(baselineValue)}, ` +
-        `candidate=${JSON.stringify(candidateValue)}.`,
-    );
-  }
-}
-
 function validateCompatibleReports(input: {
   baseline: ReportInput;
   candidate: ReportInput;
 }): void {
   const { baseline, candidate } = input;
-  if (baseline.report.mode !== candidate.report.mode) {
-    throw new Error(
-      `Report mode mismatch: baseline=${baseline.report.mode}, ` +
-        `candidate=${candidate.report.mode}.`,
-    );
-  }
-  assertSameJsonField(
-    "answerEvaluation",
-    baseline.report.answerEvaluation,
-    candidate.report.answerEvaluation,
-  );
-  assertSameJsonField(
-    "benchmarkSource",
-    baseline.report.benchmarkSource,
-    candidate.report.benchmarkSource,
-  );
-  assertSameJsonField(
-    "externalRoot",
-    baseline.report.externalRoot,
-    candidate.report.externalRoot,
-  );
-  assertSameJsonField("caseIds", baseline.report.caseIds, candidate.report.caseIds);
-  assertSameJsonField(
-    "questionCategories",
-    baseline.report.questionCategories,
-    candidate.report.questionCategories,
-  );
-  assertSameJsonField(
-    "profilesCompared",
-    baseline.report.profilesCompared,
-    candidate.report.profilesCompared,
-  );
-  assertSameJsonField(
-    "bm25Ranking",
-    baseline.report.bm25Ranking,
-    candidate.report.bm25Ranking,
-  );
-  assertSameJsonField(
-    "ingestMode",
-    baseline.report.ingestMode,
-    candidate.report.ingestMode,
-  );
-  assertSameJsonField(
-    "answerContextMode",
-    baseline.report.answerContextMode ?? "legacy-unrecorded",
-    candidate.report.answerContextMode ?? "legacy-unrecorded",
-  );
-  assertSameJsonField(
-    "allowCommonsenseResolution",
-    baseline.report.allowCommonsenseResolution ?? false,
-    candidate.report.allowCommonsenseResolution ?? false,
-  );
-  assertSameJsonField(
-    "semanticCandidateEmbeddingSource",
-    baseline.report.semanticCandidateEmbeddingSource,
-    candidate.report.semanticCandidateEmbeddingSource,
-  );
-  if (baseline.report.executionFailures > 0) {
-    throw new Error(
-      `Baseline report ${baseline.path} has ${baseline.report.executionFailures} execution failure(s).`,
-    );
-  }
-  if (candidate.report.executionFailures > 0) {
-    throw new Error(
-      `Candidate report ${candidate.path} has ${candidate.report.executionFailures} execution failure(s).`,
-    );
-  }
+  assertLocomoReportInputsHaveDistinctPaths(input);
+  assertLocomoReportMetadataCompatible({
+    candidate,
+    fields: LOCOMO_STABLE_EXPERIMENT_METADATA_FIELDS,
+    reference: baseline,
+  });
+  assertLocomoReportHasNoExecutionFailures(baseline);
+  assertLocomoReportHasNoExecutionFailures(candidate);
+  assertLocomoReportQuestionCountMatchesCases(baseline);
+  assertLocomoReportQuestionCountMatchesCases(candidate);
+  assertLocomoReportCategorySummariesMatchCases(baseline);
+  assertLocomoReportCategorySummariesMatchCases(candidate);
 }
 
 function categoryMap(
@@ -211,45 +161,6 @@ function side(
   };
 }
 
-function questionIdentitiesForCategory(
-  report: LocomoSmokeReport,
-  category: LocomoQaCategory,
-): string[] {
-  return report.cases
-    .filter((result) => result.category === category)
-    .map((result) => `${result.caseId}::${result.questionId}`);
-}
-
-function assertSameQuestionIdentity(input: {
-  baseline: ReportInput;
-  baselineSummary: LocomoCategoryRetrievalSummary;
-  candidate: ReportInput;
-  candidateSummary: LocomoCategoryRetrievalSummary;
-}): void {
-  const baselineIdentities = questionIdentitiesForCategory(
-    input.baseline.report,
-    input.baselineSummary.category,
-  );
-  const candidateIdentities = questionIdentitiesForCategory(
-    input.candidate.report,
-    input.candidateSummary.category,
-  );
-  if (
-    baselineIdentities.length !== input.baselineSummary.questionCount ||
-    candidateIdentities.length !== input.candidateSummary.questionCount
-  ) {
-    throw new Error(
-      `Category ${input.baselineSummary.category} question identity cannot be ` +
-        "validated because cases[] does not match the category questionCount.",
-    );
-  }
-  if (JSON.stringify(candidateIdentities) !== JSON.stringify(baselineIdentities)) {
-    throw new Error(
-      `Category ${input.baselineSummary.category} question identity mismatch.`,
-    );
-  }
-}
-
 function compareCategory(input: {
   baseline: ReportInput;
   baselineSummary: LocomoCategoryRetrievalSummary;
@@ -264,7 +175,7 @@ function compareCategory(input: {
       `candidate=${candidateSummary.questionCount}.`,
     );
   }
-  assertSameQuestionIdentity(input);
+  assertLocomoCategoryQuestionIdentities(input);
   const averageEvidenceRecallDelta =
     candidateSummary.averageEvidenceRecall -
     baselineSummary.averageEvidenceRecall;

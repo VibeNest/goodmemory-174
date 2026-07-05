@@ -143,6 +143,31 @@ describe("phase-63 BEAM live ablation runner", () => {
     ).toThrow("--scale must be 100K, 500K, 1M, 10M, or unknown");
   });
 
+  it("rejects duplicate scalar CLI selectors before running ablations", () => {
+    for (const flagName of [
+      "--benchmark-root",
+      "--limit",
+      "--live-report",
+      "--mode",
+      "--output-dir",
+      "--profile",
+      "--run-id",
+      "--scale",
+    ]) {
+      expect(() =>
+        parsePhase63AblationCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-ablation.ts",
+          flagName,
+          flagName === "--mode" ? "gold-evidence-only" : "first",
+          flagName,
+          flagName === "--mode" ? "full-context" : "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
   it("selects chat ids per ablation mode", () => {
     const shared = {
       allChatIds: [1, 2, 3, 4],

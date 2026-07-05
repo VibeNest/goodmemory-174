@@ -6,6 +6,7 @@ import {
   collectClaimNotes,
   evaluateClaimBoundary,
   extractPublicClaimsTableRows,
+  parsePublicBenchmarkClaimGateCliOptions,
   README_CLAIMS_TABLE_END,
   README_CLAIMS_TABLE_START,
   validateClaimReport,
@@ -70,6 +71,30 @@ describe("claim report schema validation", () => {
 });
 
 describe("claim gate report", () => {
+  it("rejects duplicate CLI mode and source flags before claim evaluation", () => {
+    expect(() =>
+      parsePublicBenchmarkClaimGateCliOptions([
+        "bun",
+        "run",
+        "scripts/run-public-benchmark-claim-gate.ts",
+        "--strict",
+        "--strict",
+      ]),
+    ).toThrow("--strict cannot be specified more than once.");
+
+    expect(() =>
+      parsePublicBenchmarkClaimGateCliOptions([
+        "bun",
+        "run",
+        "scripts/run-public-benchmark-claim-gate.ts",
+        "--claims-dir",
+        "/tmp/claims-a",
+        "--claims-dir",
+        "/tmp/claims-b",
+      ]),
+    ).toThrow("--claims-dir cannot be specified more than once.");
+  });
+
   it("flags over-claiming (declared public when rules forbid)", () => {
     const overClaim = cleanReport({
       benchmark: "OverClaimer",

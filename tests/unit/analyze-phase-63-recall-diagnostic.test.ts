@@ -240,6 +240,32 @@ describe("analyze phase-63 recall diagnostic", () => {
     });
   });
 
+  it("rejects duplicate scalar cli selectors before comparing reports", () => {
+    for (const flagName of [
+      "--baseline-report-path",
+      "--baseline-run-id",
+      "--benchmark-root",
+      "--output-dir",
+      "--output-path",
+      "--profile",
+      "--report-path",
+      "--run-id",
+      "--source-turn-limit",
+    ]) {
+      expect(() =>
+        parsePhase63RecallDiagnosticAnalysisCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-recall-diagnostic.ts",
+          flagName,
+          flagName === "--source-turn-limit" ? "2" : "first",
+          flagName,
+          flagName === "--source-turn-limit" ? "3" : "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
   it("summarizes bucket failures and deltas from recall diagnostic reports", () => {
     const baselineReport = buildReport({
       cases: [

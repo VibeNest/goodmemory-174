@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildEmbeddingFreeComparisonRow,
   EMBEDDING_FREE_COMPARISON_ARMS,
+  parseEmbeddingFreeComparisonCliOptions,
   renderEmbeddingFreeComparison,
   runEmbeddingFreeComparison,
 } from "../../scripts/run-phase-65-locomo-embedding-free-comparison";
@@ -60,6 +61,90 @@ describe("embedding-free LoCoMo comparison runner", () => {
       },
     ]);
     expect(md).toContain("| bm25 | 35.2% | 0 | 120 |");
+  });
+
+  it("parses comparison CLI scope with strict positive limit validation", () => {
+    expect(
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--benchmark-root",
+        "/tmp/LOCOMO",
+        "--output-dir",
+        "/tmp/out",
+        "--limit",
+        "10",
+      ]),
+    ).toEqual({
+      benchmarkRoot: "/tmp/LOCOMO",
+      limit: 10,
+      outputDir: "/tmp/out",
+    });
+
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--limit",
+        "10x",
+      ]),
+    ).toThrow("--limit must be a positive integer.");
+
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--limit",
+        "1e2",
+      ]),
+    ).toThrow("--limit must be a positive integer.");
+
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--limit",
+      ]),
+    ).toThrow("--limit requires a value.");
+
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--limit",
+        "--output-dir",
+        "/tmp/out",
+      ]),
+    ).toThrow("--limit requires a value.");
+  });
+
+  it("rejects missing string flag values before falling back to defaults", () => {
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--benchmark-root",
+        "--output-dir",
+        "/tmp/out",
+      ]),
+    ).toThrow("--benchmark-root requires a value.");
+
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--output-dir",
+        "--limit",
+        "10",
+      ]),
+    ).toThrow("--output-dir requires a value.");
   });
 
   it("runs every deterministic arm on the synthetic smoke (gateway-free, in-memory)", async () => {

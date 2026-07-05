@@ -44,6 +44,29 @@ describe("phase-63 live answer-gap analyzer", () => {
     ).toThrow("--scale must be 100K, 500K, 1M, 10M, or unknown");
   });
 
+  it("rejects duplicate scalar CLI selectors before reading answer-gap inputs", () => {
+    for (const flagName of [
+      "--benchmark-root",
+      "--live-report",
+      "--output-dir",
+      "--output-path",
+      "--run-id",
+      "--scale",
+    ]) {
+      expect(() =>
+        parsePhase63AnswerGapCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-live-answer-gap.ts",
+          flagName,
+          flagName === "--scale" ? "100K" : "first",
+          flagName,
+          flagName === "--scale" ? "500K" : "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
   it("counts unique noise chats excluding evidence", () => {
     expect(
       uniqueNoiseChatCount({
