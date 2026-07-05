@@ -247,7 +247,9 @@ function buildAnswerShapeGuidance(input: {
     return [
       "Answer shape: Do not answer yes or no first, and do not collapse the answer to the denial just because it appears later.",
       "Begin by saying: I notice you've mentioned contradictory information about this.",
+      "Required contradiction answer components: state that the evidence is contradictory, name the affirmative side, name the denial side, and ask which statement is correct.",
       "Then name both sides from the evidence—lead with the affirmative claim (what the user said they did, have, or completed), then state the conflicting denial—and ask for clarification.",
+      "A response that reports only the denial side, only the affirmative side, or No answer is incomplete when both sides are present in the guide.",
     ].join(" ");
   }
   return undefined;

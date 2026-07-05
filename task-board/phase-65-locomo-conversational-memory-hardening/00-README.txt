@@ -124,8 +124,9 @@ Next
   rationale-bearing gold-answer rows, 0 under-specified, 0
   numeric/frequency-format, and 1 balanced partial-overlap; the analyzer keeps
   short answers whose tokens are a subset of a longer rationale-bearing gold
-  answer in a separate label-compatibility bucket. The near-miss artifact now
-  emits full-recall `repairJobs` for the 3-row rationale-bearing bucket and the
+  answer, including appositive explanatory gold answers, in a separate
+  label-compatibility bucket. The near-miss artifact now emits full-recall
+  `repairJobs` for the 3-row rationale-bearing bucket and the
   1-row balanced bucket, and `eval:phase-65-smoke` can filter those jobs by
   `--repair-job-diagnosis` and `--repair-job-retrieval-bucket`. The
   rationale-bearing/full loader proof selected the intended 3 rows with

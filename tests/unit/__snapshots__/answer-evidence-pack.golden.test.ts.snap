@@ -20,7 +20,7 @@ Evidence for absence check:
 exports[`answer evidence pack golden outputs locks the contradiction pack output 1`] = `
 "Contradiction resolution: do not resolve the question by choosing one side. If the evidence contains both a denial/no/never/not-yet statement and an affirmative, attempted, integrated, fixed, implemented, or completed statement about the same target, report the contradiction and ask for clarification.
 
-Answer shape: Do not answer yes or no first, and do not collapse the answer to the denial just because it appears later. Begin by saying: I notice you've mentioned contradictory information about this. Then name both sides from the evidence—lead with the affirmative claim (what the user said they did, have, or completed), then state the conflicting denial—and ask for clarification.
+Answer shape: Do not answer yes or no first, and do not collapse the answer to the denial just because it appears later. Begin by saying: I notice you've mentioned contradictory information about this. Required contradiction answer components: state that the evidence is contradictory, name the affirmative side, name the denial side, and ask which statement is correct. Then name both sides from the evidence—lead with the affirmative claim (what the user said they did, have, or completed), then state the conflicting denial—and ask for clarification. A response that reports only the denial side, only the affirmative side, or No answer is incomplete when both sides are present in the guide.
 
 Contradiction evidence guide:
 Minimal contradiction pair (lead with the affirmative side, then name the denial; ignore adjacent implementation details unless the question explicitly asks for them):
@@ -32,7 +32,10 @@ Potential affirmative/done side (assertions that are not denials):
 - [#22] I integrated Flask-Login v0.6.2 for session management and it works well.
 Potential denial/no side:
 - [#21] I have never integrated Flask-Login or managed user sessions in this project.
+Required answer components: say the evidence is contradictory, name the affirmative side, name the denial side, and ask which statement is correct.
+A one-sided denial-only or affirmative-only answer is incomplete when both sides are detected above.
 A retrieved non-denial assertion about the question target is the affirmative side even when it describes planning, registration, attendance, collaboration, invitation, ordering, use, meeting, a recommendation, or a feeling rather than a completed action.
+Preserve weak affirmative wording such as recommended, registered, planned, invited, scheduled, or goal when naming that side; do not upgrade registration to attendance, a recommendation to reading/use, or a goal to completion.
 Do not collapse to the denial just because the denial appears later or uses stronger wording; report both sides and ask for clarification.
 Use the user's question target to phrase both sides; avoid substituting adjacent implementation details as the contradiction target.
 
@@ -79,6 +82,27 @@ Value-bearing facts for counting:
 
 1. [t=2024-03-01 | #41 | user] I completed 10 triangle classification problems on Monday.
 2. [t=2024-03-02 | #42 | user] I completed 5 more classification problems on Wednesday.
+
+When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
+`;
+
+exports[`answer evidence pack golden outputs locks the extraction pack output 1`] = `
+"Information extraction: identify every source-backed field, deadline, step, or attribute requested by the question. Preserve all required sub-items from the same source turn instead of summarizing only the first few.
+
+Answer shape: Return the requested fields or steps directly, with every source-backed required item represented once. For deadlines, dates, ages, institutions, and similar fields, keep the label attached to the value so no requested field is left as No answer. For preparation plans or problem-solution contexts, include concrete before/during/after actions when they are stated in the evidence. Avoid adding extra names, meeting labels, platforms, or personal identifiers unless the question asks for them or the source-backed answer would otherwise be ambiguous.
+
+Information extraction coverage:
+Question target: Which deadlines did I mention for the applications?
+Coverage rule: cover each source-backed detail that answers the question, including later clauses in the same source turn; do not compress away required sub-items.
+Do not answer No answer for a requested field when any listed source turn supplies a candidate value.
+Do not add names, labels, or personal identifiers unless the question asks for them or they are necessary to disambiguate the requested field.
+Source-backed detail cues:
+- [t=2024-03-01 | #45 | user] detail cues: 1) The university application is due April 30, 2024; 2) the scholarship deadline is May 15, 2024; 3) the visa application is due June 1, 2024.
+  dates: April 30, 2024; May 15, 2024; June 1, 2024
+
+Evidence (source-ordered, earliest first):
+
+- [t=2024-03-01 | #45 | user] The university application is due April 30, 2024, the scholarship deadline is May 15, 2024, and the visa application is due June 1, 2024.
 
 When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
 `;
@@ -208,27 +232,6 @@ exports[`answer evidence pack golden outputs locks the empty-turns pack output 1
 "Evidence (source-ordered, earliest first):
 
 (no evidence)
-
-When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
-`;
-
-exports[`answer evidence pack golden outputs locks the extraction pack output 1`] = `
-"Information extraction: identify every source-backed field, deadline, step, or attribute requested by the question. Preserve all required sub-items from the same source turn instead of summarizing only the first few.
-
-Answer shape: Return the requested fields or steps directly, with every source-backed required item represented once. For deadlines, dates, ages, institutions, and similar fields, keep the label attached to the value so no requested field is left as No answer. For preparation plans or problem-solution contexts, include concrete before/during/after actions when they are stated in the evidence. Avoid adding extra names, meeting labels, platforms, or personal identifiers unless the question asks for them or the source-backed answer would otherwise be ambiguous.
-
-Information extraction coverage:
-Question target: Which deadlines did I mention for the applications?
-Coverage rule: cover each source-backed detail that answers the question, including later clauses in the same source turn; do not compress away required sub-items.
-Do not answer No answer for a requested field when any listed source turn supplies a candidate value.
-Do not add names, labels, or personal identifiers unless the question asks for them or they are necessary to disambiguate the requested field.
-Source-backed detail cues:
-- [t=2024-03-01 | #45 | user] detail cues: 1) The university application is due April 30, 2024; 2) the scholarship deadline is May 15, 2024; 3) the visa application is due June 1, 2024.
-  dates: April 30, 2024; May 15, 2024; June 1, 2024
-
-Evidence (source-ordered, earliest first):
-
-- [t=2024-03-01 | #45 | user] The university application is due April 30, 2024, the scholarship deadline is May 15, 2024, and the visa application is due June 1, 2024.
 
 When a fact changed across these entries, the latest entry is the current value; only call entries conflicting when they cannot be reconciled as an update."
 `;

@@ -856,6 +856,56 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(orderingPacked).toContain("Do not reorder evidence by topical similarity");
   });
 
+  it("routes temporal count live prompts through calendar interval candidates", () => {
+    const testCase = {
+      answer: "38 days",
+      answerable: true,
+      chat: [
+        [
+          {
+            content:
+              "I started my 30-day editing challenge on April 2, 2024.",
+            id: 88,
+            index: "88",
+            questionType: "temporal_reasoning",
+            role: "user",
+            timeAnchor: "April-2-2024",
+          },
+          {
+            content:
+              "The 15-day clarity editing challenge ran from May 10, 2024 to May 25, 2024.",
+            id: 218,
+            index: "218",
+            questionType: "temporal_reasoning",
+            role: "user",
+            timeAnchor: "May-10-2024",
+          },
+        ],
+      ],
+      conversationId: "beam-live-calendar-count-pack",
+      evidenceChatIds: [88, 218],
+      question:
+        "How many days passed between when I started my 30-day editing challenge and when I started the 15-day clarity editing challenge?",
+      questionId: "beam-live-calendar-count-pack-q1",
+      questionType: "temporal_reasoning",
+      scale: "100K" as const,
+    };
+
+    const packed = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "",
+      retrievedChatIds: [218, 88],
+      testCase,
+    });
+
+    expect(packed).toContain("Calendar interval candidates:");
+    expect(packed).toContain("April 2, 2024 -> May 10, 2024 = 38 days");
+    expect(packed).toContain("May 10, 2024 -> May 25, 2024 = 15 days");
+    expect(packed).toContain(
+      "Use the interval whose endpoint labels match the question wording",
+    );
+  });
+
   it("adds companion assistant evidence only for synthesis-style evidence packs", () => {
     const testCase = {
       answer: "Use feedback and revise consistently.",
@@ -936,6 +986,515 @@ describe("phase-63 BEAM live slice runner", () => {
     );
   });
 
+  it("repairs no-answer instruction outputs from response requirement cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include code examples formatted with syntax highlighting.",
+        "Concrete answer-content cues:",
+        "format/style requirements: syntax highlighting",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What should the response include when I ask for implementation help?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should include code examples formatted with syntax highlighting.",
+    );
+  });
+
+  it("keeps no-answer instruction outputs when no guide cue exists", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always answer carefully.",
+        "Supporting evidence for the requested answer:",
+        "(no evidence)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "What should the response include?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe("No answer.");
+  });
+
+  it("repairs generic instruction response-content answers from guide cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The response should be clear and helpful.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include code examples formatted with syntax highlighting and bullet points.",
+        "Concrete answer-content cues:",
+        "format/style requirements: syntax highlighting, bullet points",
+        "named tools/examples: Flask-Login, SQLite",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What should the response include when I ask for implementation help?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should include code examples formatted with syntax highlighting, the list presented using bullet points, and specific names: Flask-Login, SQLite.",
+    );
+  });
+
+  it("repairs instruction answers from response-content and format cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include a clear confirmation of the exact salary figure and present dates using MM/DD/YYYY.",
+        "Concrete answer-content cues:",
+        "response-content requirements: clear confirmation of the exact stated value",
+        "numeric values/amounts: $82,500",
+        "format/style requirements: MM/DD/YYYY",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What should the response include for salary and date formatting?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should include clear confirmation of the exact stated value, numeric values or amounts: $82,500, and format/style requirements: MM/DD/YYYY.",
+    );
+  });
+
+  it("keeps instruction response-content answers that already include a guide cue", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The response should include syntax highlighting.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include code examples formatted with syntax highlighting.",
+        "Concrete answer-content cues:",
+        "format/style requirements: syntax highlighting",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What should the response include when I ask for implementation help?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe("The response should include syntax highlighting.");
+  });
+
+  it("keeps generic instruction answers for normal task questions", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "Use concise examples.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include code examples formatted with syntax highlighting.",
+        "Concrete answer-content cues:",
+        "format/style requirements: syntax highlighting",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "How should I implement login?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe("Use concise examples.");
+  });
+
+  it("repairs no-answer preference outputs from response requirements", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Preference constraints:",
+        "- [t=Apr | #41 | user] I prefer portfolio links directly in the cover letter text instead of separate attachments.",
+        "Preference response requirements:",
+        "- Make the stated preference visible in the answer; do not only answer the base task.",
+        "- embed links directly in the response",
+        "- avoid separate attachments",
+        "Supporting evidence for the requested answer:",
+        "- Requested task: How should I include my portfolio links in the cover letter?",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "How should I include my portfolio links in the cover letter?",
+        questionType: "preference_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should embed links directly in the response and avoid separate attachments.",
+    );
+  });
+
+  it("keeps no-answer preference outputs without concrete requirements", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Preference constraints:",
+        "(no explicit preference found in retrieved evidence; infer only from the user's current question wording)",
+        "Preference response requirements:",
+        "- Make the stated preference visible in the answer; do not only answer the base task.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "What should I do?",
+        questionType: "preference_following",
+      }),
+    });
+
+    expect(answer).toBe("No answer.");
+  });
+
+  it("repairs no-answer extraction outputs from source-backed detail cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Information extraction coverage:",
+        "Question target: Where did I meet Stephen and how long had I been with him?",
+        "Source-backed detail cues:",
+        "- [t=Mar | #12 | user] detail cues: 1) I had been with Stephen for 5 years; 2) I met him at the Montserrat Film Festival in 2018",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Where did I meet Stephen and how long had I been with him?",
+        questionType: "information_extraction",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Source-backed details: I had been with Stephen for 5 years; I met him at the Montserrat Film Festival in 2018.",
+    );
+  });
+
+  it("keeps no-answer extraction outputs when no detail cue exists", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Information extraction coverage:",
+        "Question target: Which meeting details did I mention?",
+        "Source-backed detail cues:",
+        "- [t=Mar | #12 | user] detail cues: (no clause cues extracted; inspect the source turn directly)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Which meeting details did I mention?",
+        questionType: "information_extraction",
+      }),
+    });
+
+    expect(answer).toBe("No answer.");
+  });
+
+  it("repairs no-answer summarization outputs from source-backed checklist cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Summary coverage checklist:",
+        "Use these source-ordered cues as coverage anchors before writing prose.",
+        "- #41 user themes: 1) I finalized the probate filing deadline; 2) I scheduled the family meeting",
+        "- #42 assistant guidance: 1) Prepare executor duty notes; 2) bring attorney questions",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Can you summarize my estate planning workflow?",
+        questionType: "summarization",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Summary: I finalized the probate filing deadline; I scheduled the family meeting; Prepare executor duty notes; bring attorney questions.",
+    );
+  });
+
+  it("keeps no-answer summarization outputs when the checklist has no cue", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "No answer.",
+      memoryContext: [
+        "Summary coverage checklist:",
+        "- #41 user themes: (no high-level cues extracted; inspect the evidence turn)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Can you summarize my workflow?",
+        questionType: "summarization",
+      }),
+    });
+
+    expect(answer).toBe("No answer.");
+  });
+
+  it("keeps existing summarization outputs instead of rewriting from the checklist", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "You finalized the probate filing deadline and scheduled the family meeting.",
+      memoryContext: [
+        "Summary coverage checklist:",
+        "- #41 user themes: 1) I finalized the probate filing deadline; 2) I scheduled the family meeting",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Can you summarize my estate planning workflow?",
+        questionType: "summarization",
+      }),
+    });
+
+    expect(answer).toBe(
+      "You finalized the probate filing deadline and scheduled the family meeting.",
+    );
+  });
+
+  it("rewrites stale current-value answers from source-backed update cues", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The webinar is scheduled for March 20.",
+      memoryContext: [
+        "Current-value ledger:",
+        "Latest/current candidate: [t=Feb | #2] The webinar was rescheduled from March 20 to March 27 to accommodate additional guest speakers.",
+        "Priority current-value cues:",
+        "updated target values: March 27",
+        "as-of/reference values: (none detected)",
+        "superseded/source values: March 20",
+        "all date/time/quantity mentions in latest/current candidate: March 20, March 27",
+        "Prefer updated target values when the question asks the current schedule, deadline, amount, or count.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "When is my webinar scheduled now?",
+        questionType: "knowledge_update",
+      }),
+    });
+
+    expect(answer).toBe("The current value is March 27.");
+  });
+
+  it("keeps current-value answers that already contain the updated cue", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The webinar is now scheduled for March 27.",
+      memoryContext: [
+        "Current-value ledger:",
+        "Latest/current candidate: [t=Feb | #2] The webinar was rescheduled from March 20 to March 27.",
+        "Priority current-value cues:",
+        "updated target values: March 27",
+        "superseded/source values: March 20",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "When is my webinar scheduled now?",
+        questionType: "knowledge_update",
+      }),
+    });
+
+    expect(answer).toBe("The webinar is now scheduled for March 27.");
+  });
+
+  it("keeps current-value answers when the guide has no superseded cue", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The current API coverage is 78%.",
+      memoryContext: [
+        "Current-value ledger:",
+        "Latest/current candidate: [t=Feb | #32] After the new suite landed, API module coverage rose to 78%.",
+        "Priority current-value cues:",
+        "updated target values: 78%",
+        "superseded/source values: (none detected)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "What is the current test coverage for the API module?",
+        questionType: "knowledge_update",
+      }),
+    });
+
+    expect(answer).toBe("The current API coverage is 78%.");
+  });
+
+  it("rewrites unordered temporal answers from source-ordered target anchors", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "You mentioned the API setup and deployment work.",
+      memoryContext: [
+        "This question asks for an order or sequence.",
+        "Answer shape: Return exactly 2 numbered items.",
+        "Question-target timeline anchors (source-ordered, noise-aware):",
+        "Use these source-ordered anchors first when retrieved timeline entries include adjacent project noise; use the full timeline only to fill missing requested items.",
+        "- [t=Jan | #4 | user] target terms: api; cues: 1) I initialized the Flask API and defined transaction endpoints",
+        "- [t=Feb | #12 | user] target terms: deploy; cues: 1) I deployed the app to Render and configured Gunicorn",
+        "Milestone cue candidates (source-ordered, code blocks removed):",
+        "- #4 cues: 1) I initialized the Flask API and defined transaction endpoints",
+        "- #12 cues: 1) I deployed the app to Render and configured Gunicorn",
+        "Timeline evidence:",
+        "1. [t=Jan | #4 | user] I initialized the Flask API and defined transaction endpoints.",
+        "2. [t=Feb | #12 | user] I deployed the app to Render and configured Gunicorn.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "Can you list the order in which I brought up the app work? Mention ONLY two items.",
+        questionType: "event_ordering",
+      }),
+    });
+
+    expect(answer).toBe(
+      [
+        "1. I initialized the Flask API and defined transaction endpoints",
+        "2. I deployed the app to Render and configured Gunicorn",
+      ].join("\n"),
+    );
+  });
+
+  it("keeps explicit temporal ordering answers", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "First, I initialized the Flask API; then I deployed it to Render.",
+      memoryContext: [
+        "Question-target timeline anchors (source-ordered, noise-aware):",
+        "- [t=Jan | #4 | user] target terms: api; cues: 1) I initialized the Flask API",
+        "- [t=Feb | #12 | user] target terms: deploy; cues: 1) I deployed the app to Render",
+        "Timeline evidence:",
+        "1. [t=Jan | #4 | user] I initialized the Flask API.",
+        "2. [t=Feb | #12 | user] I deployed the app to Render.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "What order did I mention the app work in?",
+        questionType: "event_ordering",
+      }),
+    });
+
+    expect(answer).toBe(
+      "First, I initialized the Flask API; then I deployed it to Render.",
+    );
+  });
+
+  it("keeps unordered temporal answers when there are not enough anchors", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "You mentioned deployment work.",
+      memoryContext: [
+        "Question-target timeline anchors (source-ordered, noise-aware):",
+        "- [t=Feb | #12 | user] target terms: deploy; cues: 1) I deployed the app to Render",
+        "Timeline evidence:",
+        "1. [t=Feb | #12 | user] I deployed the app to Render.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "What order did I mention the app work in?",
+        questionType: "event_ordering",
+      }),
+    });
+
+    expect(answer).toBe("You mentioned deployment work.");
+  });
+
+  it("rewrites single-candidate calendar interval answers", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "It was 15 days.",
+      memoryContext: [
+        "Date/quantity ledger for counting:",
+        "Calendar interval candidates:",
+        "- April 2, 2024 -> May 10, 2024 = 38 days (#88 to #218)",
+        "Use the interval whose endpoint labels match the question wording; do not use a duration label as an endpoint.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "How many days passed between when I started editing and when I started the clarity challenge?",
+        questionType: "temporal_reasoning",
+      }),
+    });
+
+    expect(answer).toBe("38 days.");
+  });
+
+  it("keeps calendar interval answers that already contain the candidate", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "38 days passed between the two starts.",
+      memoryContext: [
+        "Date/quantity ledger for counting:",
+        "Calendar interval candidates:",
+        "- April 2, 2024 -> May 10, 2024 = 38 days (#88 to #218)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "How many days passed between the two starts?",
+        questionType: "temporal_reasoning",
+      }),
+    });
+
+    expect(answer).toBe("38 days passed between the two starts.");
+  });
+
+  it("keeps calendar interval answers when multiple candidates need endpoint selection", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "It was 15 days.",
+      memoryContext: [
+        "Date/quantity ledger for counting:",
+        "Calendar interval candidates:",
+        "- April 2, 2024 -> May 10, 2024 = 38 days (#88 to #218)",
+        "- May 10, 2024 -> May 25, 2024 = 15 days (#218 to #218)",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "How many days passed between when I started editing and when I started the clarity challenge?",
+        questionType: "temporal_reasoning",
+      }),
+    });
+
+    expect(answer).toBe("It was 15 days.");
+  });
+
+  it("rewrites adjacent-only abstention answers for module detail questions", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "You need to finish all onboarding modules by April 25 and set a schedule to meet the deadline.",
+      memoryContext: [
+        "Abstention target check:",
+        "Question target: Could you provide details about the onboarding modules I need to complete?",
+        "Adjacent facts are insufficient: a deadline or status is not module details.",
+        "If the retrieved evidence is only adjacent, answer that the provided chat does not contain information related to the requested detail.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "Could you provide details about the onboarding modules I need to complete?",
+        questionType: "abstention",
+      }),
+    });
+
+    expect(answer).toBe(
+      "The provided chat does not contain the requested module details.",
+    );
+  });
+
+  it("rewrites adjacent-only abstention answers for atmosphere questions", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "You hosted the book club discussion on February 20, had 12 attendees, and it was a great success.",
+      memoryContext: [
+        "Abstention target check:",
+        "Question target: What was the atmosphere like during the February 20 book club discussion?",
+        "Adjacent facts are insufficient: attendance or success is not atmosphere.",
+        "If the retrieved evidence is only adjacent, answer that the provided chat does not contain information related to the requested detail.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What was the atmosphere like during the February 20 book club discussion?",
+        questionType: "abstention",
+      }),
+    });
+
+    expect(answer).toBe(
+      "The provided chat does not contain the requested atmosphere details.",
+    );
+  });
+
+  it("keeps direct abstention answers instead of rewriting them as adjacent-only", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "The atmosphere was relaxed and collaborative, with the group trading practical examples.",
+      memoryContext: [
+        "Abstention target check:",
+        "Question target: What was the atmosphere like during the February 20 book club discussion?",
+        "Adjacent facts are insufficient: attendance or success is not atmosphere.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What was the atmosphere like during the February 20 book club discussion?",
+        questionType: "abstention",
+      }),
+    });
+
+    expect(answer).toBe(
+      "The atmosphere was relaxed and collaborative, with the group trading practical examples.",
+    );
+  });
+
   it("normalizes role/security count answers to the value-bearing features", () => {
     const answer = applyPhase63BeamAnswerOperationGuardrails({
       hypothesis:
@@ -976,6 +1535,65 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(answer).toBe(
       "I notice you've mentioned contradictory information about this. You said you have never integrated Flask-Login or managed user sessions in this project, but you also mentioned that Flask-Login v0.6.2 was integrated for session management replacing manual session handling. Could you clarify which is correct?",
     );
+  });
+
+  it("repairs one-sided contradiction answers from the evidence guide", () => {
+    const testCase = {
+      answer:
+        "I notice you've mentioned contradictory information about this. You said you have downloaded Zotero, but you also mentioned never using citation management software.",
+      answerable: true,
+      chat: [
+        [
+          {
+            content: "I downloaded Zotero to manage my references.",
+            id: 38,
+            index: "38",
+            questionType: "contradiction_resolution",
+            role: "user",
+            timeAnchor: "Mar",
+          },
+          {
+            content:
+              "I have never used any citation management software, including Zotero.",
+            id: 52,
+            index: "52",
+            questionType: "contradiction_resolution",
+            role: "user",
+            timeAnchor: "Apr",
+          },
+        ],
+      ],
+      conversationId: "beam-live-contradiction-guide-repair",
+      evidenceChatIds: [38, 52],
+      question: "Have I downloaded Zotero to manage my references?",
+      questionId: "beam-live-contradiction-guide-repair-q1",
+      questionType: "contradiction_resolution",
+      scale: "100K" as const,
+    };
+    const memoryContext = buildPhase63BeamAnswerMemoryContext({
+      evidencePack: true,
+      memoryContext: "",
+      retrievedChatIds: [52, 38],
+      testCase,
+    });
+
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "You said you’ve never used any citation management software, including Zotero.",
+      memoryContext,
+      testCase,
+    });
+
+    expect(answer).toContain(
+      "I notice you've mentioned contradictory information about this.",
+    );
+    expect(answer).toContain(
+      '"I downloaded Zotero to manage my references."',
+    );
+    expect(answer).toContain(
+      '"I have never used any citation management software, including Zotero."',
+    );
+    expect(answer).toContain("Could you clarify which is correct?");
   });
 
   it("prunes noisy source-ordered retrieved turns to the requested ordered evidence count", () => {

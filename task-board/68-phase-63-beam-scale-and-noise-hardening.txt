@@ -220,29 +220,46 @@ checkpoint as BEAM performance closure.
 Current local pre-live hardening in this worktree targets the analyzer's top
 answer-time lanes: conflict/update current-value ledgers with target
 date/time/quantity cues from the latest candidate plus sibling-entity metric
-filtering, contradiction minimal-pair extraction that suppresses adjacent
-implementation noise, leads with affirmative evidence, and recognizes
-same-turn strong `did not` / `didn't` denial clauses, instruction
+filtering, conservative current-value stale-answer rewrite from updated/
+superseded target cues, contradiction minimal-pair extraction that suppresses
+adjacent implementation noise, leads with affirmative evidence, and recognizes
+same-turn strong `did not` / `didn't` denial clauses while preserving weak
+affirmative wording such as registered/recommended/planned/invited without
+upgrading it to completion, plus one-sided contradiction answer guardrails that
+rewrite denial-only or affirmative-only outputs into both-sides-plus-
+clarification answers, instruction
 constraint/support separation with bounded topic-matched evidence plus concrete
 answer-content cues that filter companion openers out of named tools/examples
-and surface concrete date values plus date/format requirements, and
+and surface concrete date, amount, percentage, date/format requirements,
+explicit response-content requirements, and comma-preserved numeric values, and
+conservative instruction no-answer repair from explicit response-requirement
+cues, and conservative generic instruction response-content repair from guide
+cues, and
 temporal-order milestone cues with code-block stripping plus question-target
 timeline anchors that keep source order while filtering generic order/action
-words and suppressing adjacent project noise, plus aggregate/date count ledgers
-that separate endpoint dates, duration
-labels, numeric quantities, and compound word-number quantities, plus
+words and suppressing adjacent project noise, plus conservative unordered
+temporal-answer rewrite from source-ordered target anchors, plus aggregate/date
+count ledgers that separate endpoint dates, duration
+labels, source-backed calendar interval candidates, numeric quantities, and
+compound word-number quantities, plus conservative single-candidate calendar-
+interval answer rewrite, plus
 source-ordered summary coverage checklists for user themes and
-assistant guidance, plus value-bearing summary anchors, plus required summary
-source-coverage audits for late topic shifts, plus analyzer-level
+assistant guidance, plus value-bearing summary anchors, plus conservative
+summary no-answer repair from source-backed checklist cues, plus required
+summary source-coverage audits for late topic shifts, plus analyzer-level
 source-coverage warnings for expected cues found outside declared source chats,
 plus abstention target checks that reject adjacent-but-insufficient evidence,
+plus adjacent-only abstention rewrites for module-detail and atmosphere
+questions,
 plus topic-specific missing-context abstention wording in focused live prompts,
 plus preference response-requirement cues that make lightweight/minimal-
 dependency, automation, step-by-step, direct-link, morning, and
-practical/logical constraints visible before answer support, plus
+practical/logical constraints visible before answer support, plus conservative
+preference no-answer repair from explicit response requirements, plus
 information-extraction coverage cues that preserve source-backed fields,
 deadlines, preparation steps, and required sub-items without adding
-unrequested identifiers. This is deterministic, unit-, and golden-verified
+unrequested identifiers, plus conservative extraction no-answer repair from
+source-backed detail cues. This is deterministic, unit-, and golden-verified
 only; it is not a
 new accepted BEAM checkpoint until a focused live slice and any later full live
 measured run prove it.

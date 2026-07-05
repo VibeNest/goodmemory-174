@@ -269,6 +269,41 @@ describe("answer evidence pack", () => {
     expect(count).toContain(
       "Choose the two event dates named by the question's endpoint phrases, not unrelated intermediate dates.",
     );
+    expect(count).toContain("Calendar interval candidates:");
+    expect(count).toContain("March 15, 2024 -> April 5, 2024 = 21 days");
+  });
+
+  it("computes calendar interval candidates from source-backed dates", () => {
+    const count = buildAnswerEvidencePack({
+      question:
+        "How many days passed between when I started my 30-day editing challenge and when I started the 15-day clarity editing challenge?",
+      questionType: "temporal_reasoning",
+      turns: [
+        {
+          sourceId: 88,
+          orderKey: 88,
+          content:
+            "I started my 30-day editing challenge on April 2, 2024.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 218,
+          orderKey: 218,
+          content:
+            "The 15-day clarity editing challenge ran from May 10, 2024 to May 25, 2024.",
+          role: "user",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    expect(count).toContain("Calendar interval candidates:");
+    expect(count).toContain("April 2, 2024 -> May 10, 2024 = 38 days");
+    expect(count).toContain("May 10, 2024 -> May 25, 2024 = 15 days");
+    expect(count).toContain(
+      "Use the interval whose endpoint labels match the question wording",
+    );
   });
 
   it("surfaces numeric quantity candidates for non-date counts", () => {
@@ -789,6 +824,13 @@ describe("answer evidence pack", () => {
     expect(affirmativeSection).toContain("downloaded Zotero");
     expect(affirmativeSection).not.toContain("(not directly detected");
     expect(pack).toContain("lead with the affirmative claim");
+    expect(pack).toContain("Required contradiction answer components");
+    expect(pack).toContain(
+      "A one-sided denial-only or affirmative-only answer is incomplete",
+    );
+    expect(pack).toContain(
+      "reports only the denial side, only the affirmative side, or No answer is incomplete",
+    );
   });
 
   it("keeps contradiction evidence focused on the minimal target pair", () => {
@@ -858,6 +900,43 @@ describe("answer evidence pack", () => {
     expect(guide).toContain("did not attend the patent webinar");
     expect(guide).toContain("later attended the USPTO patent webinar");
     expect(guide).not.toContain("(not directly detected");
+  });
+
+  it("keeps weak affirmative contradiction actions from being upgraded to completion", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Have I attended any patent-related webinars or workshops?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 91,
+          orderKey: 1,
+          content:
+            "I registered for a patent law webinar on April 5, 2024, so I can learn about filing steps.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 92,
+          orderKey: 2,
+          content:
+            "I have never attended any patent-related webinars or workshops.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const guide = pack.slice(
+      pack.indexOf("Contradiction evidence guide:"),
+      pack.indexOf("Use the contradiction evidence guide above"),
+    );
+    expect(guide).toContain("registered for a patent law webinar");
+    expect(guide).toContain(
+      "Preserve weak affirmative wording such as recommended, registered, planned, invited, scheduled, or goal",
+    );
+    expect(guide).toContain(
+      "do not upgrade registration to attendance, a recommendation to reading/use, or a goal to completion",
+    );
   });
 
   it("adds multi-session facet framing for cross-session reasoning", () => {
@@ -1486,6 +1565,114 @@ describe("answer evidence pack", () => {
     );
     expect(cueSection).toContain("date values: May 18, 2024");
     expect(cueSection).toContain("format/style requirements: MM/DD/YYYY");
+  });
+
+  it("surfaces numeric amounts and percentages for instruction answers", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What should the answer include for my salary and editing progress?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content:
+            "Always include the exact salary figure and percentage improvements rather than vague ranges.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "The offer salary is $82,500, and my editing progress improved by 20% after the clarity challenge.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("numeric values/amounts: $82,500, 20%");
+    expect(cueSection).toContain(
+      "include the concrete values below when they answer the user's requested response contents",
+    );
+  });
+
+  it("surfaces explicit response-content requirements for instruction answers", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "What should the response include for the salary and method explanation?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content:
+            "Always include a clear confirmation of the exact salary figure, and explain more than one method while comparing their approaches or advantages.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "The offer salary is $82,500, and the two triangle-area methods are base-times-height and Heron's formula.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain(
+      "response-content requirements: clear confirmation of the exact stated value",
+    );
+    expect(cueSection).toContain(
+      "more than one method with comparison of approaches or advantages",
+    );
+    expect(cueSection).toContain("numeric values/amounts: $82,500");
+  });
+
+  it("surfaces itemized budget amounts for instruction answers", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What should the response include for my event budget?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content:
+            "Whenever I ask about event budgets, include itemized costs, specific amounts, and a detailed breakdown.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content:
+            "The budget line items are venue $500, catering $1,200, permits $75, and decorations $150.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("format/style requirements: itemized costs");
+    expect(cueSection).toContain("specific amounts");
+    expect(cueSection).toContain("detailed breakdown");
+    expect(cueSection).toContain(
+      "numeric values/amounts: $500, $1,200, $75, $150",
+    );
   });
 
   it("does not fall back to all noisy turns for instruction questions without an explicit constraint", () => {

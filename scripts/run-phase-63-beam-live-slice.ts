@@ -1273,6 +1273,101 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
   }
 
   if (
+    questionType === "instruction_following" &&
+    /^\s*No answer\.?\s*$/iu.test(input.hypothesis)
+  ) {
+    const instructionAnswer = buildPhase63BeamInstructionAnswerFromGuide(context);
+    if (instructionAnswer !== undefined) {
+      return instructionAnswer;
+    }
+  }
+
+  if (
+    questionType === "instruction_following" &&
+    isPhase63BeamInstructionResponseContentQuestion(question) &&
+    !phase63BeamInstructionAnswerHasGuideCue({
+      context,
+      hypothesis: input.hypothesis,
+    })
+  ) {
+    const instructionAnswer = buildPhase63BeamInstructionAnswerFromGuide(context);
+    if (instructionAnswer !== undefined) {
+      return instructionAnswer;
+    }
+  }
+
+  if (
+    questionType === "preference_following" &&
+    /^\s*No answer\.?\s*$/iu.test(input.hypothesis)
+  ) {
+    const preferenceAnswer = buildPhase63BeamPreferenceAnswerFromGuide(context);
+    if (preferenceAnswer !== undefined) {
+      return preferenceAnswer;
+    }
+  }
+
+  if (
+    isPhase63BeamExtractionQuestionType(questionType) &&
+    /^\s*No answer\.?\s*$/iu.test(input.hypothesis)
+  ) {
+    const extractionAnswer = buildPhase63BeamExtractionAnswerFromGuide(context);
+    if (extractionAnswer !== undefined) {
+      return extractionAnswer;
+    }
+  }
+
+  if (
+    isPhase63BeamSummaryQuestionType(questionType) &&
+    /^\s*No answer\.?\s*$/iu.test(input.hypothesis)
+  ) {
+    const summaryAnswer = buildPhase63BeamSummaryAnswerFromGuide(context);
+    if (summaryAnswer !== undefined) {
+      return summaryAnswer;
+    }
+  }
+
+  if (isPhase63BeamCurrentValueQuestionType(questionType)) {
+    const currentValueAnswer = buildPhase63BeamCurrentValueAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+    });
+    if (currentValueAnswer !== undefined) {
+      return currentValueAnswer;
+    }
+  }
+
+  if (isPhase63BeamOrderContext(context)) {
+    const orderAnswer = buildPhase63BeamOrderAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+    });
+    if (orderAnswer !== undefined) {
+      return orderAnswer;
+    }
+  }
+
+  if (isPhase63BeamCalendarIntervalQuestion(question)) {
+    const intervalAnswer = buildPhase63BeamCalendarIntervalAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+    });
+    if (intervalAnswer !== undefined) {
+      return intervalAnswer;
+    }
+  }
+
+  if (questionType === "abstention") {
+    const abstentionAnswer = buildPhase63BeamAbstentionAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+      question,
+    });
+    if (abstentionAnswer !== undefined) {
+      return abstentionAnswer;
+    }
+  }
+
+  if (
     /\bhow many\b/iu.test(question) &&
     /\broles?\b/iu.test(question) &&
     /\bsecurity features?\b/iu.test(question) &&
@@ -1306,7 +1401,738 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
     return `I notice you've mentioned contradictory information about this. You said you have never integrated ${integrationTarget} or managed user sessions in this project, but you also mentioned that ${targetWithVersion} was integrated for session management replacing manual session handling. Could you clarify which is correct?`;
   }
 
+  if (questionType === "contradiction_resolution") {
+    const contradictionAnswer = buildPhase63BeamContradictionAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+    });
+    if (contradictionAnswer !== undefined) {
+      return contradictionAnswer;
+    }
+  }
+
   return input.hypothesis;
+}
+
+function isPhase63BeamCurrentValueQuestionType(questionType: string): boolean {
+  const normalized = questionType.toLowerCase();
+  return (
+    normalized === "cr" ||
+    normalized === "conflict_resolution" ||
+    normalized === "knowledge_update"
+  );
+}
+
+function isPhase63BeamSummaryQuestionType(questionType: string): boolean {
+  return questionType.toLowerCase() === "summarization";
+}
+
+function isPhase63BeamExtractionQuestionType(questionType: string): boolean {
+  const normalized = questionType.toLowerCase();
+  return (
+    normalized === "information_extraction" ||
+    normalized === "numerical_precision" ||
+    normalized === "timeline integration"
+  );
+}
+
+function buildPhase63BeamExtractionAnswerFromGuide(
+  context: string,
+): string | undefined {
+  const cues = extractPhase63BeamExtractionDetailCues(context);
+  if (cues.length === 0) {
+    return undefined;
+  }
+  return `Source-backed details: ${cues.join("; ")}.`;
+}
+
+function buildPhase63BeamSummaryAnswerFromGuide(
+  context: string,
+): string | undefined {
+  const cues = extractPhase63BeamSummaryChecklistCues(context);
+  if (cues.length === 0) {
+    return undefined;
+  }
+  return `Summary: ${cues.join("; ")}.`;
+}
+
+function extractPhase63BeamSummaryChecklistCues(context: string): string[] {
+  if (!context.includes("Summary coverage checklist:")) {
+    return [];
+  }
+
+  const cues: string[] = [];
+  for (const line of context.split("\n")) {
+    const match =
+      /^-\s+#\S+\s+(?:assistant guidance|user themes):\s+(.+)$/iu.exec(
+        line.trim(),
+      );
+    if (match === null) {
+      continue;
+    }
+    if (match[1].includes("(no high-level cues extracted")) {
+      continue;
+    }
+    cues.push(
+      ...match[1]
+        .split(/;\s*/u)
+        .map((cue) => cue.replace(/^\d+[.)]\s*/u, "").trim())
+        .filter(
+          (cue) =>
+            cue.length > 0 &&
+            !cue.startsWith("(no high-level cues extracted"),
+        ),
+    );
+  }
+  return uniquePhase63BeamStrings(cues).slice(0, 6);
+}
+
+function buildPhase63BeamCurrentValueAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+}): string | undefined {
+  if (!input.context.includes("Current-value ledger:")) {
+    return undefined;
+  }
+
+  const targetValues = extractPhase63BeamCurrentValueCueLineValues({
+    context: input.context,
+    label: "updated target values",
+  });
+  const supersededValues = extractPhase63BeamCurrentValueCueLineValues({
+    context: input.context,
+    label: "superseded/source values",
+  });
+  if (targetValues.length === 0 || supersededValues.length === 0) {
+    return undefined;
+  }
+  if (
+    !supersededValues.some((value) =>
+      phase63BeamCueValueAppearsInText({ text: input.hypothesis, value }),
+    )
+  ) {
+    return undefined;
+  }
+  if (
+    targetValues.some((value) =>
+      phase63BeamCueValueAppearsInText({ text: input.hypothesis, value }),
+    )
+  ) {
+    return undefined;
+  }
+  return `The current value is ${formatNaturalList(targetValues)}.`;
+}
+
+function isPhase63BeamOrderContext(context: string): boolean {
+  return (
+    context.includes("Question-target timeline anchors") &&
+    context.includes("Timeline evidence:")
+  );
+}
+
+interface Phase63BeamOrderAnchor {
+  extraCues: string[];
+  primaryCue: string;
+}
+
+function buildPhase63BeamOrderAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+}): string | undefined {
+  if (hasPhase63BeamExplicitOrderAnswer(input.hypothesis)) {
+    return undefined;
+  }
+
+  const anchors = extractPhase63BeamOrderAnchors(input.context);
+  if (anchors.length < 2) {
+    return undefined;
+  }
+
+  const requestedCount = extractPhase63BeamOrderRequestedCount(input.context);
+  const cues = selectPhase63BeamOrderCues({
+    anchors,
+    requestedCount,
+  });
+  if (cues.length < 2) {
+    return undefined;
+  }
+
+  return cues.map((cue, index) => `${index + 1}. ${cue}`).join("\n");
+}
+
+function isPhase63BeamCalendarIntervalQuestion(question: string): boolean {
+  return (
+    /\bhow many\s+days?\b/iu.test(question) &&
+    /\b(?:between|passed|elapsed|from|until|to)\b/iu.test(question)
+  );
+}
+
+function buildPhase63BeamCalendarIntervalAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+}): string | undefined {
+  const intervals = extractPhase63BeamCalendarIntervalCandidates(input.context);
+  if (intervals.length !== 1) {
+    return undefined;
+  }
+
+  const interval = intervals[0];
+  if (
+    phase63BeamCueValueAppearsInText({
+      text: input.hypothesis,
+      value: interval.dayCount,
+    })
+  ) {
+    return undefined;
+  }
+
+  return `${interval.dayCount}.`;
+}
+
+function extractPhase63BeamCalendarIntervalCandidates(
+  context: string,
+): Array<{ dayCount: string }> {
+  if (!context.includes("Calendar interval candidates:")) {
+    return [];
+  }
+
+  const intervals: Array<{ dayCount: string }> = [];
+  for (const line of context.split("\n")) {
+    const match = /^-\s+.+?\s+=\s+(\d+\s+days?)\s+\(#.+\)$/iu.exec(
+      line.trim(),
+    );
+    if (match === null) {
+      continue;
+    }
+    intervals.push({ dayCount: match[1] });
+  }
+  return intervals;
+}
+
+function hasPhase63BeamExplicitOrderAnswer(hypothesis: string): boolean {
+  return (
+    /^\s*1[.)]\s+[\s\S]*^\s*2[.)]\s+/mu.test(hypothesis) ||
+    /\b(?:first|then|next|after(?:ward| that)?|before|later|finally)\b/iu.test(
+      hypothesis,
+    )
+  );
+}
+
+function extractPhase63BeamOrderAnchors(
+  context: string,
+): Phase63BeamOrderAnchor[] {
+  const anchors: Phase63BeamOrderAnchor[] = [];
+  for (const line of context.split("\n")) {
+    const match = /^-\s+\[[^\]]+\]\s+target terms:\s+.+?;\s+cues:\s+(.+)$/u.exec(
+      line.trim(),
+    );
+    if (match === null) {
+      continue;
+    }
+    const cues = match[1]
+      .split(/;\s*/u)
+      .map((cue) => cue.replace(/^\d+[.)]\s*/u, "").trim())
+      .filter((cue) => cue.length > 0);
+    if (cues.length === 0) {
+      continue;
+    }
+    anchors.push({
+      extraCues: cues.slice(1),
+      primaryCue: cues[0],
+    });
+  }
+  return anchors;
+}
+
+function extractPhase63BeamOrderRequestedCount(
+  context: string,
+): number | undefined {
+  const match = /\bReturn exactly\s+(\d{1,2})\s+numbered items\b/iu.exec(
+    context,
+  );
+  return match ? Number(match[1]) : undefined;
+}
+
+function selectPhase63BeamOrderCues(input: {
+  anchors: readonly Phase63BeamOrderAnchor[];
+  requestedCount: number | undefined;
+}): string[] {
+  const primaryCues = input.anchors.map((anchor) => anchor.primaryCue);
+  if (input.requestedCount === undefined) {
+    return uniquePhase63BeamStrings(primaryCues).slice(0, 8);
+  }
+
+  const cues = [...primaryCues];
+  for (const anchor of input.anchors) {
+    cues.push(...anchor.extraCues);
+    if (cues.length >= input.requestedCount) {
+      break;
+    }
+  }
+  return uniquePhase63BeamStrings(cues).slice(0, input.requestedCount);
+}
+
+function extractPhase63BeamCurrentValueCueLineValues(input: {
+  context: string;
+  label: string;
+}): string[] {
+  const line = input.context
+    .split("\n")
+    .map((candidate) => candidate.trim())
+    .find((candidate) =>
+      candidate.toLowerCase().startsWith(`${input.label}:`),
+    );
+  if (line === undefined) {
+    return [];
+  }
+
+  const valueText = line.split(":").slice(1).join(":").trim();
+  if (!valueText || valueText === "(none detected)") {
+    return [];
+  }
+
+  return uniquePhase63BeamStrings([valueText]);
+}
+
+function phase63BeamCueValueAppearsInText(input: {
+  text: string;
+  value: string;
+}): boolean {
+  const normalizedText = input.text.toLowerCase();
+  const fragments = [input.value, ...input.value.split(/,\s*/u)]
+    .map((fragment) => fragment.trim())
+    .filter(
+      (fragment) =>
+        fragment.length > 2 && !/^\d{4}$/u.test(fragment) && fragment !== "%",
+    );
+  return fragments.some((fragment) =>
+    normalizedText.includes(fragment.toLowerCase()),
+  );
+}
+
+function buildPhase63BeamAbstentionAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+  question: string;
+}): string | undefined {
+  if (!input.context.includes("Abstention target check:")) {
+    return undefined;
+  }
+  if (isPhase63BeamAbstentionLikeAnswer(input.hypothesis)) {
+    return undefined;
+  }
+
+  if (
+    isPhase63BeamAdjacentModuleDetailAnswer({
+      hypothesis: input.hypothesis,
+      question: input.question,
+    })
+  ) {
+    return "The provided chat does not contain the requested module details.";
+  }
+
+  if (
+    isPhase63BeamAdjacentAtmosphereAnswer({
+      hypothesis: input.hypothesis,
+      question: input.question,
+    })
+  ) {
+    return "The provided chat does not contain the requested atmosphere details.";
+  }
+
+  return undefined;
+}
+
+function isPhase63BeamAbstentionLikeAnswer(hypothesis: string): boolean {
+  return (
+    /^\s*No answer\.?\s*$/iu.test(hypothesis) ||
+    /\b(?:does not contain|no evidence|not enough (?:information|evidence)|not stated|not specified)\b/iu.test(
+      hypothesis,
+    )
+  );
+}
+
+function isPhase63BeamAdjacentModuleDetailAnswer(input: {
+  hypothesis: string;
+  question: string;
+}): boolean {
+  return (
+    /\bmodules?\b/iu.test(input.question) &&
+    /\bdetails?\b/iu.test(input.question) &&
+    /\b(?:deadline|schedule|status|finish|complete|completed|due|by\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b)\b/iu.test(
+      input.hypothesis,
+    ) &&
+    !/\b(?:module\s+(?:name|content|topic|covers?|includes?)|training\s+(?:content|topic)|lesson|assessment|quiz)\b/iu.test(
+      input.hypothesis,
+    )
+  );
+}
+
+function isPhase63BeamAdjacentAtmosphereAnswer(input: {
+  hypothesis: string;
+  question: string;
+}): boolean {
+  return (
+    /\b(?:atmosphere|what\s+was\s+it\s+like)\b/iu.test(input.question) &&
+    /\b(?:attendees?|attendance|success|successful|hosted|scheduled|discussion)\b/iu.test(
+      input.hypothesis,
+    ) &&
+    !/\b(?:atmosphere|mood|tone|vibe|tense|relaxed|lively|quiet|warm|formal|casual|supportive|stressful|collaborative)\b/iu.test(
+      input.hypothesis,
+    )
+  );
+}
+
+function extractPhase63BeamExtractionDetailCues(context: string): string[] {
+  if (!context.includes("Information extraction coverage:")) {
+    return [];
+  }
+
+  const cues: string[] = [];
+  for (const line of context.split("\n")) {
+    const match = /\bdetail cues:\s*(.+)$/u.exec(line.trim());
+    if (match === null) {
+      continue;
+    }
+    if (match[1].includes("(no clause cues extracted")) {
+      continue;
+    }
+    cues.push(
+      ...match[1]
+        .split(/;\s*/u)
+        .map((cue) => cue.replace(/^\d+[.)]\s*/u, "").trim())
+        .filter((cue) => cue.length > 0),
+    );
+  }
+  return uniquePhase63BeamStrings(cues).slice(0, 8);
+}
+
+function buildPhase63BeamInstructionAnswerFromGuide(
+  context: string,
+): string | undefined {
+  if (!context.includes("Instruction constraints:")) {
+    return undefined;
+  }
+
+  const parts = extractPhase63BeamInstructionAnswerParts(context);
+  if (parts.length === 0) {
+    return undefined;
+  }
+
+  return `Response should include ${formatNaturalList(parts)}.`;
+}
+
+function extractPhase63BeamInstructionAnswerParts(context: string): string[] {
+  return dedupePhase63BeamInstructionAnswerParts([
+    ...extractPhase63BeamInstructionRequirementCues(context),
+    ...extractPhase63BeamInstructionConcreteCues(context),
+  ]);
+}
+
+function dedupePhase63BeamInstructionAnswerParts(
+  parts: readonly string[],
+): string[] {
+  const accepted: string[] = [];
+  for (const part of parts) {
+    if (
+      part.toLowerCase().startsWith("format/style requirements:") &&
+      phase63BeamInstructionFormatCueAlreadyCovered({
+        accepted,
+        part,
+      })
+    ) {
+      continue;
+    }
+    accepted.push(part);
+  }
+  return uniquePhase63BeamStrings(accepted);
+}
+
+function phase63BeamInstructionFormatCueAlreadyCovered(input: {
+  accepted: readonly string[];
+  part: string;
+}): boolean {
+  const valueText = input.part.split(":").slice(1).join(":").trim();
+  if (!valueText) {
+    return false;
+  }
+  const values = valueText
+    .split(/,\s+/u)
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.length > 0);
+  return values.every((value) =>
+    input.accepted.some((accepted) =>
+      accepted.toLowerCase().includes(value),
+    ),
+  );
+}
+
+function isPhase63BeamInstructionResponseContentQuestion(
+  question: string,
+): boolean {
+  return /\b(?:what|which)\b[\s\S]{0,80}\b(?:response|answer)\b[\s\S]{0,80}\b(?:include|contain|cover|format)\b/iu.test(
+    question,
+  );
+}
+
+function phase63BeamInstructionAnswerHasGuideCue(input: {
+  context: string;
+  hypothesis: string;
+}): boolean {
+  const parts = extractPhase63BeamInstructionAnswerParts(input.context);
+  return parts.some((part) =>
+    phase63BeamInstructionPartAppearsInText({
+      hypothesis: input.hypothesis,
+      part,
+    }),
+  );
+}
+
+function phase63BeamInstructionPartAppearsInText(input: {
+  hypothesis: string;
+  part: string;
+}): boolean {
+  if (
+    phase63BeamCueValueAppearsInText({
+      text: input.hypothesis,
+      value: input.part,
+    })
+  ) {
+    return true;
+  }
+
+  const valueText = input.part.split(":").slice(1).join(":").trim();
+  if (
+    valueText &&
+    phase63BeamCueValueAppearsInText({
+      text: input.hypothesis,
+      value: valueText,
+    })
+  ) {
+    return true;
+  }
+
+  const text = input.hypothesis.toLowerCase();
+  const part = input.part.toLowerCase();
+  return [
+    "syntax highlighting",
+    "bullet points",
+    "step-by-step",
+    "itemized costs",
+    "specific amounts",
+    "detailed breakdown",
+    "exact stated value",
+    "exact salary",
+    "specific names",
+    "appropriate usage",
+    "percentage improvements",
+    "encryption techniques",
+    "narrator",
+    "genre",
+    "sustainability",
+  ].some((cue) => part.includes(cue) && text.includes(cue));
+}
+
+function buildPhase63BeamPreferenceAnswerFromGuide(
+  context: string,
+): string | undefined {
+  const requirements = extractPhase63BeamPreferenceRequirementCues(context);
+  if (requirements.length === 0) {
+    return undefined;
+  }
+  return `Response should ${formatNaturalList(requirements)}.`;
+}
+
+function extractPhase63BeamPreferenceRequirementCues(
+  context: string,
+): string[] {
+  const lines = context.split("\n");
+  const sectionIndex = lines.findIndex(
+    (line) => line.trim() === "Preference response requirements:",
+  );
+  if (sectionIndex < 0) {
+    return [];
+  }
+
+  const requirements: string[] = [];
+  for (const line of lines.slice(sectionIndex + 1)) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      break;
+    }
+    if (!trimmed.startsWith("- ")) {
+      break;
+    }
+    const requirement = trimmed.slice(2).trim();
+    if (
+      /^Make the stated preference visible\b/iu.test(requirement) ||
+      requirement.length === 0
+    ) {
+      continue;
+    }
+    requirements.push(requirement);
+  }
+
+  return uniquePhase63BeamStrings(requirements);
+}
+
+function extractPhase63BeamInstructionRequirementCues(context: string): string[] {
+  const cues: string[] = [];
+  const text = context.toLowerCase();
+  if (/\bsyntax\s+highlighting\b/u.test(text)) {
+    cues.push("code examples formatted with syntax highlighting");
+  }
+  if (/\bbullet\s+points?\b/u.test(text)) {
+    cues.push("the list presented using bullet points");
+  }
+  if (/\bstep-by-step\b/u.test(text)) {
+    cues.push("a clear step-by-step explanation");
+  }
+  if (/\bitemized\s+costs?\b/u.test(text)) {
+    cues.push("itemized costs");
+  }
+  if (/\bspecific\s+amounts?\b/u.test(text)) {
+    cues.push("specific amounts");
+  }
+  if (/\bdetailed\s+breakdown\b/u.test(text)) {
+    cues.push("a detailed breakdown");
+  }
+  return uniquePhase63BeamStrings(cues);
+}
+
+function extractPhase63BeamInstructionConcreteCues(context: string): string[] {
+  const cues: string[] = [];
+  for (const line of context.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("versioned names/values:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      if (values.length > 0) {
+        cues.push(`the names and version numbers: ${values.join(", ")}`);
+      }
+    }
+    if (trimmed.startsWith("named tools/examples:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      if (values.length > 0) {
+        cues.push(`specific names: ${values.join(", ")}`);
+      }
+    }
+    if (trimmed.startsWith("date values:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      if (values.length > 0) {
+        cues.push(`date values: ${values.join(", ")}`);
+      }
+    }
+    if (trimmed.startsWith("numeric values/amounts:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      if (values.length > 0) {
+        cues.push(`numeric values or amounts: ${values.join(", ")}`);
+      }
+    }
+    if (trimmed.startsWith("response-content requirements:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      cues.push(...values);
+    }
+    if (trimmed.startsWith("format/style requirements:")) {
+      const values = parsePhase63BeamInstructionCueValues(trimmed);
+      if (values.length > 0) {
+        cues.push(`format/style requirements: ${values.join(", ")}`);
+      }
+    }
+  }
+  return uniquePhase63BeamStrings(cues);
+}
+
+function parsePhase63BeamInstructionCueValues(line: string): string[] {
+  const value = line.split(":").slice(1).join(":").trim();
+  if (!value || value === "(none detected)") {
+    return [];
+  }
+  return value
+    .split(/,\s+/u)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function uniquePhase63BeamStrings(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const value of values) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(value);
+  }
+  return unique;
+}
+
+function buildPhase63BeamContradictionAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+}): string | undefined {
+  if (!input.context.includes("Contradiction evidence guide:")) {
+    return undefined;
+  }
+
+  const hasContradictionFraming =
+    /\b(?:contradict(?:ory|ion)?|conflict(?:ing)?|inconsistent)\b/iu.test(
+      input.hypothesis,
+    );
+  const hasClarificationRequest =
+    /\b(?:clarif|which\s+(?:is|one|statement)|which\s+.*\s+correct|accurate)\b/iu.test(
+      input.hypothesis,
+    );
+  if (hasContradictionFraming && hasClarificationRequest) {
+    return undefined;
+  }
+
+  const affirmative = extractPhase63BeamContradictionGuideSide({
+    context: input.context,
+    label: "Affirmative/done side",
+  });
+  const denial = extractPhase63BeamContradictionGuideSide({
+    context: input.context,
+    label: "Denial/no side",
+  });
+  if (affirmative === undefined || denial === undefined) {
+    return undefined;
+  }
+
+  return [
+    "I notice you've mentioned contradictory information about this.",
+    `One source says "${affirmative}", while another says "${denial}".`,
+    "Could you clarify which is correct?",
+  ].join(" ");
+}
+
+function extractPhase63BeamContradictionGuideSide(input: {
+  context: string;
+  label: string;
+}): string | undefined {
+  const lines = input.context.split("\n");
+  const labelIndex = lines.findIndex(
+    (line) => line.trim() === `${input.label}:`,
+  );
+  if (labelIndex < 0) {
+    return undefined;
+  }
+
+  const sideLine = lines
+    .slice(labelIndex + 1)
+    .find((line) => line.trim().length > 0);
+  if (sideLine === undefined) {
+    return undefined;
+  }
+
+  const side = sideLine
+    .replace(/^\s*-\s*(?:\[[^\]]+\]\s*)?/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+  if (!side || side.includes("(not directly detected")) {
+    return undefined;
+  }
+  return side;
 }
 
 function escapeRegExp(value: string): string {

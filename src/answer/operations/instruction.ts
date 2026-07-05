@@ -27,6 +27,9 @@ const INSTRUCTION_CONCRETE_VALUE_QUESTION_PATTERN =
 const INSTRUCTION_NAMED_ITEM_PATTERN =
   /\b[A-Z][A-Za-z0-9.+_-]*(?:\s+[A-Z][A-Za-z0-9.+_-]*){0,3}\b/gu;
 
+const INSTRUCTION_NUMERIC_VALUE_PATTERN =
+  /\$\d+(?:,\d{3})*(?:\.\d+)?\b|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+(?:\.\d+)?%|\b\d+(?:\.\d+)?\s*(?:percent|percentage points?)\b/gu;
+
 const INSTRUCTION_NAMED_ITEM_STOP_WORDS = new Set([
   "Additionally",
   "Also",
@@ -53,6 +56,7 @@ const INSTRUCTION_NAMED_ITEM_STOP_WORDS = new Set([
   "Plus",
   "September",
   "The",
+  "Whenever",
   "YYYY",
   "Year",
 ]);
@@ -68,6 +72,57 @@ const INSTRUCTION_FORMAT_CUE_PATTERNS = [
   /\bitemized\s+costs?\b/giu,
   /\bspecific\s+amounts?\b/giu,
   /\bdetailed\s+breakdown\b/giu,
+];
+
+const INSTRUCTION_RESPONSE_CONTENT_REQUIREMENT_PATTERNS = [
+  {
+    cue: "clear confirmation of the exact stated value",
+    pattern:
+      /\b(?:clear\s+confirmation|confirm(?:ation)?|confirm)\b[\s\S]{0,80}\b(?:exact|specific)\s+(?:salary\s+)?(?:figure|value|amount|number)\b|\b(?:exact|specific)\s+(?:salary\s+)?(?:figure|value|amount|number)\b[\s\S]{0,80}\b(?:clear|confirm|confirmation)\b/iu,
+  },
+  {
+    cue: "more than one method with comparison of approaches or advantages",
+    pattern:
+      /\b(?:more than one|multiple|several)\s+(?:methods?|approaches?|ways?)\b[\s\S]{0,120}\b(?:compar(?:e|ing|ison)|approaches?|advantages?)\b|\bcompar(?:e|ing|ison)\b[\s\S]{0,120}\b(?:methods?|approaches?|ways?|advantages?)\b/iu,
+  },
+  {
+    cue: "a clear sequential explanation of the calculation process",
+    pattern:
+      /\b(?:clear|sequential|step-by-step)\b[\s\S]{0,80}\b(?:calculation|process|steps?)\b/iu,
+  },
+  {
+    cue: "a specific example illustrating the concept",
+    pattern: /\b(?:specific|concrete)\s+examples?\b/iu,
+  },
+  {
+    cue: "specific names rather than general descriptions",
+    pattern:
+      /\bspecific\s+names?\b|\bnames?\b[\s\S]{0,80}\brather than general\b/iu,
+  },
+  {
+    cue: "appropriate usage details",
+    pattern: /\bappropriate\s+usage\b|\bhow\s+to\s+use\b/iu,
+  },
+  {
+    cue: "percentage improvements",
+    pattern: /\bpercentage\s+improvements?\b/iu,
+  },
+  {
+    cue: "encryption techniques and how they secure data",
+    pattern: /\bencryption\s+techniques?\b/iu,
+  },
+  {
+    cue: "performer or narrator details",
+    pattern: /\b(?:performers?|narrators?)\b/iu,
+  },
+  {
+    cue: "genre details for each recommended item",
+    pattern: /\bgenre\s+(?:details?|descriptions?|explanations?)\b/iu,
+  },
+  {
+    cue: "sustainability aspects",
+    pattern: /\bsustainability\s+aspects?\b|\bsustainability\s+features?\b/iu,
+  },
 ];
 
 const INSTRUCTION_SUPPORT_STOP_WORDS = new Set([
@@ -304,6 +359,14 @@ function extractInstructionDateValues(content: string): string[] {
   );
 }
 
+function extractInstructionNumericValues(content: string): string[] {
+  return uniquePreservingOrder(
+    [...content.matchAll(INSTRUCTION_NUMERIC_VALUE_PATTERN)].map(
+      (match) => match[0],
+    ),
+  );
+}
+
 function extractInstructionFormatCues(content: string): string[] {
   return uniquePreservingOrder(
     INSTRUCTION_FORMAT_CUE_PATTERNS.flatMap((pattern) =>
@@ -311,6 +374,14 @@ function extractInstructionFormatCues(content: string): string[] {
         match[0].replace(/\s+/gu, " ").trim(),
       ),
     ),
+  );
+}
+
+function extractInstructionResponseContentRequirements(content: string): string[] {
+  return uniquePreservingOrder(
+    INSTRUCTION_RESPONSE_CONTENT_REQUIREMENT_PATTERNS.filter(({ pattern }) =>
+      pattern.test(content),
+    ).map(({ cue }) => cue),
   );
 }
 
@@ -333,14 +404,24 @@ export function formatInstructionConcreteAnswerCues(input: {
   const dateValues = uniquePreservingOrder(
     turns.flatMap((turn) => extractInstructionDateValues(turn.content)),
   );
+  const numericValues = uniquePreservingOrder(
+    turns.flatMap((turn) => extractInstructionNumericValues(turn.content)),
+  );
   const formatCues = uniquePreservingOrder(
     turns.flatMap((turn) => extractInstructionFormatCues(turn.content)),
+  );
+  const responseContentRequirements = uniquePreservingOrder(
+    turns.flatMap((turn) =>
+      extractInstructionResponseContentRequirements(turn.content),
+    ),
   );
   if (
     versionedValues.length === 0 &&
     namedItems.length === 0 &&
     dateValues.length === 0 &&
-    formatCues.length === 0
+    numericValues.length === 0 &&
+    formatCues.length === 0 &&
+    responseContentRequirements.length === 0
   ) {
     return undefined;
   }
@@ -354,8 +435,16 @@ export function formatInstructionConcreteAnswerCues(input: {
       ? `named tools/examples: ${namedItems.join(", ")}`
       : "named tools/examples: (none detected)",
   ];
+  if (responseContentRequirements.length > 0) {
+    lines.push(
+      `response-content requirements: ${responseContentRequirements.join(", ")}`,
+    );
+  }
   if (dateValues.length > 0) {
     lines.push(`date values: ${dateValues.join(", ")}`);
+  }
+  if (numericValues.length > 0) {
+    lines.push(`numeric values/amounts: ${numericValues.join(", ")}`);
   }
   if (formatCues.length > 0) {
     lines.push(`format/style requirements: ${formatCues.join(", ")}`);

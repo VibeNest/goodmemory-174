@@ -74,7 +74,7 @@ const NUMERIC_OR_FREQUENCY_TOKENS = new Set([
   "times",
 ]);
 const RATIONALE_GOLD_PATTERN =
-  /\b(?:because|due to|given|since)\b|[;:]/iu;
+  /\b(?:because|due to|given|since)\b|[;:]|,\s+(?:a|an|the|that|which|who|where|when)\b/iu;
 
 export type LocomoNearMissDiagnosis =
   | "balanced-partial-overlap"

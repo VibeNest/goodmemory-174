@@ -120,7 +120,10 @@ export function buildContradictionEvidenceGuide(
     formatClause(affirmative),
     "Potential denial/no side:",
     formatClause(denial),
+    "Required answer components: say the evidence is contradictory, name the affirmative side, name the denial side, and ask which statement is correct.",
+    "A one-sided denial-only or affirmative-only answer is incomplete when both sides are detected above.",
     "A retrieved non-denial assertion about the question target is the affirmative side even when it describes planning, registration, attendance, collaboration, invitation, ordering, use, meeting, a recommendation, or a feeling rather than a completed action.",
+    "Preserve weak affirmative wording such as recommended, registered, planned, invited, scheduled, or goal when naming that side; do not upgrade registration to attendance, a recommendation to reading/use, or a goal to completion.",
     "Do not collapse to the denial just because the denial appears later or uses stronger wording; report both sides and ask for clarification.",
     "Use the user's question target to phrase both sides; avoid substituting adjacent implementation details as the contradiction target.",
   ].join("\n");

@@ -4,6 +4,37 @@ import type { EvidenceTurn } from "../evidenceShared";
 import { stripFencedCodeBlocks } from "../evidenceShared";
 
 const COUNT_MAX_OTHER_QUANTITIES_PER_TURN = 6;
+const COUNT_MAX_CALENDAR_DATE_POINTS = 6;
+const COUNT_MAX_CALENDAR_INTERVALS = 15;
+const COUNT_DEFAULT_YEAR = 2024;
+const COUNT_MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const COUNT_MONTH_INDEX_BY_NAME: Record<string, number> = {
+  apr: 3,
+  april: 3,
+  aug: 7,
+  august: 7,
+  dec: 11,
+  december: 11,
+  feb: 1,
+  february: 1,
+  jan: 0,
+  january: 0,
+  jul: 6,
+  july: 6,
+  jun: 5,
+  june: 5,
+  mar: 2,
+  march: 2,
+  may: 4,
+  nov: 10,
+  november: 10,
+  oct: 9,
+  october: 9,
+  sep: 8,
+  sept: 8,
+  september: 8,
+};
 
 export const COUNT_DATE_PATTERN =
   /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:-\d{1,2})?(?:,\s*\d{4})?\b|\b\d{4}-\d{2}-\d{2}\b/giu;
@@ -38,6 +69,25 @@ interface CountCandidate {
   snippet: string;
   start: number;
   value: string;
+}
+
+interface CountParsedDate {
+  day: number;
+  hasExplicitYear: boolean;
+  monthIndex: number;
+  year: number;
+}
+
+interface CountDatePoint {
+  label: string;
+  ordinal: number;
+  sourceId: EvidenceTurn["sourceId"];
+}
+
+interface CountDateIntervalCandidate {
+  days: number;
+  from: CountDatePoint;
+  to: CountDatePoint;
 }
 
 function cleanCountText(content: string): string {
@@ -124,6 +174,178 @@ function rangesOverlap(
   right: Pick<CountCandidate, "end" | "start">,
 ): boolean {
   return left.start < right.end && right.start < left.end;
+}
+
+function datePartsToOrdinal(input: {
+  day: number;
+  monthIndex: number;
+  year: number;
+}): number | undefined {
+  const timestamp = Date.UTC(input.year, input.monthIndex, input.day);
+  const date = new Date(timestamp);
+  if (
+    date.getUTCFullYear() !== input.year ||
+    date.getUTCMonth() !== input.monthIndex ||
+    date.getUTCDate() !== input.day
+  ) {
+    return undefined;
+  }
+  return Math.floor(timestamp / COUNT_MS_PER_DAY);
+}
+
+function extractCountFallbackYear(timeAnchor: string): number | undefined {
+  const year = /\b(\d{4})\b/u.exec(timeAnchor);
+  if (year === null) {
+    return undefined;
+  }
+  return Number(year[1]);
+}
+
+function parseCountDateValue(input: {
+  fallbackYear: number;
+  value: string;
+}): CountParsedDate | undefined {
+  const { fallbackYear, value } = input;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+  if (iso !== null) {
+    return {
+      day: Number(iso[3]),
+      hasExplicitYear: true,
+      monthIndex: Number(iso[2]) - 1,
+      year: Number(iso[1]),
+    };
+  }
+
+  const monthDate =
+    /^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:-\d{1,2})?(?:,\s*(\d{4}))?$/iu.exec(
+      value,
+    );
+  if (monthDate === null) {
+    return undefined;
+  }
+
+  const monthIndex =
+    COUNT_MONTH_INDEX_BY_NAME[monthDate[1].toLowerCase()];
+  if (monthIndex === undefined) {
+    return undefined;
+  }
+  return {
+    day: Number(monthDate[2]),
+    hasExplicitYear: monthDate[3] !== undefined,
+    monthIndex,
+    year: Number(monthDate[3] ?? fallbackYear),
+  };
+}
+
+function collectCountDatePoints(
+  ordered: readonly EvidenceTurn[],
+): CountDatePoint[] {
+  const points: CountDatePoint[] = [];
+  let previousOrdinal: number | undefined;
+
+  for (const turn of ordered) {
+    const candidates = extractCountTurnCandidates(turn);
+    const fallbackYear =
+      extractCountFallbackYear(turn.timeAnchor) ?? COUNT_DEFAULT_YEAR;
+    for (const candidate of candidates.dates) {
+      const parsed = parseCountDateValue({
+        fallbackYear,
+        value: candidate.value,
+      });
+      if (parsed === undefined) {
+        continue;
+      }
+
+      let year = parsed.year;
+      let ordinal: number | undefined = datePartsToOrdinal({
+        day: parsed.day,
+        monthIndex: parsed.monthIndex,
+        year,
+      });
+      if (ordinal === undefined) {
+        continue;
+      }
+
+      if (!parsed.hasExplicitYear && previousOrdinal !== undefined) {
+        while (ordinal < previousOrdinal) {
+          year += 1;
+          const adjusted = datePartsToOrdinal({
+            day: parsed.day,
+            monthIndex: parsed.monthIndex,
+            year,
+          });
+          if (adjusted === undefined) {
+            ordinal = undefined;
+            break;
+          }
+          ordinal = adjusted;
+        }
+      }
+      if (ordinal === undefined) {
+        continue;
+      }
+
+      points.push({
+        label: candidate.value,
+        ordinal,
+        sourceId: turn.sourceId,
+      });
+      previousOrdinal = ordinal;
+    }
+  }
+
+  return points;
+}
+
+function buildCountCalendarIntervals(
+  ordered: readonly EvidenceTurn[],
+): CountDateIntervalCandidate[] {
+  const points = collectCountDatePoints(ordered).slice(
+    0,
+    COUNT_MAX_CALENDAR_DATE_POINTS,
+  );
+  const intervals: CountDateIntervalCandidate[] = [];
+
+  for (let fromIndex = 0; fromIndex < points.length; fromIndex += 1) {
+    for (let toIndex = fromIndex + 1; toIndex < points.length; toIndex += 1) {
+      const from = points[fromIndex];
+      const to = points[toIndex];
+      intervals.push({
+        days: Math.abs(to.ordinal - from.ordinal),
+        from,
+        to,
+      });
+      if (intervals.length >= COUNT_MAX_CALENDAR_INTERVALS) {
+        return intervals;
+      }
+    }
+  }
+
+  return intervals;
+}
+
+function formatCountCalendarDayCount(days: number): string {
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
+function formatCountCalendarIntervals(
+  ordered: readonly EvidenceTurn[],
+): string[] {
+  const intervals = buildCountCalendarIntervals(ordered);
+  if (intervals.length === 0) {
+    return [];
+  }
+
+  return [
+    "Calendar interval candidates:",
+    ...intervals.map(
+      (interval) =>
+        `- ${interval.from.label} -> ${interval.to.label} = ${formatCountCalendarDayCount(
+          interval.days,
+        )} (#${interval.from.sourceId} to #${interval.to.sourceId})`,
+    ),
+    "Use the interval whose endpoint labels match the question wording; do not use a duration label as an endpoint.",
+  ];
 }
 
 export function extractCountTurnCandidates(turn: EvidenceTurn): {
@@ -214,6 +436,7 @@ export function formatCountCandidateLedger(ordered: readonly EvidenceTurn[]): st
     "Date/quantity ledger for counting:",
     "Candidate endpoints and quantities (source-ordered):",
     ...lines,
+    ...formatCountCalendarIntervals(ordered),
     "Interval guidance: Choose the two event dates named by the question's endpoint phrases, not unrelated intermediate dates.",
     "Use start dates when the question asks between starts; use completion/end dates only when the question names completion/end.",
     "When a fact gives a date range such as from A to B, keep A as the period start and B as the period end before deciding which endpoint the question asks for.",

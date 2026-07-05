@@ -80,8 +80,9 @@ Current Task Queue
    multi-session facet framing, instruction standing/latest constraint framing,
    and current-value framing for update/conflict/CR questions that avoids
    yes/no-only contradiction answers. Local pre-live instruction cue hardening
-   now also surfaces concrete date values plus date/format requirements instead
-   of treating date-format tokens as named tools, and contradiction cue
+   now also surfaces concrete date, amount, percentage, and date/format
+   requirements instead of treating date-format tokens as named tools, and
+   contradiction cue
    hardening now leads with the affirmative side before the denial side.
    Preference-following pre-live hardening now also emits explicit response
    requirements for lightweight/minimal-dependency, automation, step-by-step,
@@ -92,6 +93,9 @@ Current Task Queue
    latest hard-slice was
    10/12 and the
    full run improved to 278/400, but this is still not performance closure.
+   Local pre-live contradiction wording now also preserves weak affirmative
+   actions such as registered/recommended/planned/invited instead of upgrading
+   them to completion.
 5. Revisit instruction_following 27 through noise budgeting because the latest
    analyzer still shows full-recall-noisy failures after the instruction
    constraint framing.
@@ -164,10 +168,40 @@ Acceptance Checks
   the target entity's latest value.
 - Instruction concrete answer-content cues should not list companion openers
   such as `Also` or `Additionally` as named tools/examples.
+- Instruction concrete answer-content cues should surface explicit response
+  requirements such as exact values or method comparisons, and should preserve
+  comma-formatted numeric values such as `$82,500`.
+- Instruction no-answer guardrails should repair only when explicit response
+  requirement or concrete-answer cues are present in the evidence pack.
 - Contradiction answer packs should preserve both sides of same-turn
   strong-denial contradictions, including `did not` / `didn't` clauses.
+- Contradiction answer guardrails should repair denial-only or affirmative-only
+  outputs by naming both detected sides and asking which statement is correct.
+- Current-value guardrails should rewrite stale answers only when the evidence
+  guide has both updated and superseded target cues and the answer still uses
+  the superseded cue.
+- Instruction response-content guardrails should repair generic answers only
+  when the question asks what the response/answer should contain and the
+  current answer lacks every guide cue; format/style cues already covered by
+  stronger requirement cues should not be duplicated.
+- Temporal-order guardrails should rewrite only unordered answers from at
+  least two source-ordered target anchors, leaving explicit ordering answers
+  and single-anchor cases unchanged.
 - Count ledgers should preserve compound word-number quantities such as
   `twenty-one survey responses` instead of extracting only the trailing word.
+- Count ledgers should surface source-backed calendar interval candidates for
+  date-difference questions without treating duration labels as endpoints.
+- Calendar interval guardrails should rewrite only when exactly one interval
+  candidate exists, leaving multiple-candidate endpoint selection to the model.
+- Summary no-answer guardrails should repair only from source-backed checklist
+  cues, leaving absent-cue cases and existing summaries unchanged.
+- Preference no-answer guardrails should repair only from concrete response
+  requirements, not from the generic "make preference visible" instruction.
+- Extraction no-answer guardrails should repair only from source-backed detail
+  cues, leaving absent-detail cases as no-answer.
+- Abstention guardrails should rewrite adjacent-only module-detail and
+  atmosphere answers to missing-context wording without overriding direct
+  answers.
 - Focused live-slice selector typos must fail fast instead of matching no cases
   or the wrong answer-gap queue.
 - Duplicate live-slice / live-closure scalar source and output flags must fail
