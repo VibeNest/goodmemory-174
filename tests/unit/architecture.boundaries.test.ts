@@ -18,6 +18,7 @@ const CORE_CONTRACT_FILES = new Set([
   "evolution/contracts.ts",
   "storage/contracts.ts",
 ]);
+const ANSWER_MODULE_MAX_LINES = 550;
 const RECALL_SELECTION_MAX_LINES = 300;
 const RECALL_SELECTOR_MAX_LINES = 900;
 const RECALL_FACT_SELECTION_MAX_LINES = 350;
@@ -471,6 +472,22 @@ describe("architecture boundaries", () => {
     expect(source).not.toContain("input.memory.recall");
     expect(source).not.toContain("input.memory.buildContext");
     expect(source).not.toContain("input.memory.remember");
+  });
+
+  it("keeps answer evidence modules bounded after the evidencePack split", async () => {
+    // The evidence pack accreted to ~1900 lines before the 2026-07-05 split
+    // into per-operation modules; this cap stops the next monolith. The pack's
+    // prompt strings are measured benchmark behavior, so growth belongs in a
+    // new operation module, not a bigger file.
+    const answerFiles = await collectTypeScriptFiles(join(SRC_ROOT, "answer"));
+    const oversized: Array<{ file: string; lines: number }> = [];
+    for (const file of answerFiles) {
+      const lines = (await readFile(file, "utf8")).split("\n").length;
+      if (lines > ANSWER_MODULE_MAX_LINES) {
+        oversized.push({ file: toSourceRelativePath(file), lines });
+      }
+    }
+    expect(oversized).toEqual([]);
   });
 
   it("keeps recall selection split into orchestration plus bounded selector modules", async () => {

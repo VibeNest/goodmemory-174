@@ -219,22 +219,31 @@ checkpoint as BEAM performance closure.
 
 Current local pre-live hardening in this worktree targets the analyzer's top
 answer-time lanes: conflict/update current-value ledgers with target
-date/time/quantity cues from the latest candidate, contradiction minimal-pair
-extraction that suppresses adjacent implementation noise, instruction
+date/time/quantity cues from the latest candidate plus sibling-entity metric
+filtering, contradiction minimal-pair extraction that suppresses adjacent
+implementation noise, leads with affirmative evidence, and recognizes
+same-turn strong `did not` / `didn't` denial clauses, instruction
 constraint/support separation with bounded topic-matched evidence plus concrete
-answer-content cues for versioned dependencies and named tools, and
+answer-content cues that filter companion openers out of named tools/examples
+and surface concrete date values plus date/format requirements, and
 temporal-order milestone cues with code-block stripping plus question-target
-timeline anchors that keep source order while suppressing adjacent project
-noise, plus aggregate/date count ledgers that separate endpoint dates, duration
-labels, and numeric
-quantities, plus source-ordered summary coverage checklists for user themes and
+timeline anchors that keep source order while filtering generic order/action
+words and suppressing adjacent project noise, plus aggregate/date count ledgers
+that separate endpoint dates, duration
+labels, numeric quantities, and compound word-number quantities, plus
+source-ordered summary coverage checklists for user themes and
 assistant guidance, plus value-bearing summary anchors, plus required summary
 source-coverage audits for late topic shifts, plus analyzer-level
 source-coverage warnings for expected cues found outside declared source chats,
 plus abstention target checks that reject adjacent-but-insufficient evidence,
 plus topic-specific missing-context abstention wording in focused live prompts,
-plus preference-following constraint packs that treat user preferences as
-response requirements. This is deterministic and unit-verified only; it is not a
+plus preference response-requirement cues that make lightweight/minimal-
+dependency, automation, step-by-step, direct-link, morning, and
+practical/logical constraints visible before answer support, plus
+information-extraction coverage cues that preserve source-backed fields,
+deadlines, preparation steps, and required sub-items without adding
+unrequested identifiers. This is deterministic, unit-, and golden-verified
+only; it is not a
 new accepted BEAM checkpoint until a focused live slice and any later full live
 measured run prove it.
 
@@ -302,7 +311,12 @@ scalar source/output selectors where supported (`--answer-gap-report`,
 `--recall-report`, `--run-id`, `--scale`) before report generation, and require
 `--run-id` to be a single path segment, keeping answer-context mode, source
 report, benchmark root, output location, run id, live evidence directory, and
-checkpoint/resume semantics unambiguous. `scripts/analyze-phase-63-live-answer-gap.ts`
+checkpoint/resume semantics unambiguous. `gate:phase-63-beam-closure` also
+rejects closure summaries whose `profilesCompared` does not contain exactly the
+closure `profile`, whose `correctCases + wrongAnswerCases` does not equal
+`totalCases`, or whose `answerAccuracy` does not equal
+`correctCases / totalCases`, keeping internally inconsistent closure artifacts
+out of accepted gate evidence. `scripts/analyze-phase-63-live-answer-gap.ts`
 and `scripts/run-phase-63-beam-live-ablation.ts` also reject output report paths
 that would overwrite the input `--live-report` before reading benchmark or
 live-report sources, and the answer-gap analyzer rejects explicit output paths

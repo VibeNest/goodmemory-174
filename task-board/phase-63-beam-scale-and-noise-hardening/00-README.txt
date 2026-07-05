@@ -75,10 +75,22 @@ Current Task Queue
    failures.
 4. Live-measured answer-pack hardening has landed: optional question-type-aware
    operation routing, explicit timeline evidence, order requested-count/topic
-   answer-shape guidance, value-bearing count tables, summary framing,
+   answer-shape guidance, target-anchor filtering for generic order/action
+   words, value-bearing count tables, summary framing,
    multi-session facet framing, instruction standing/latest constraint framing,
    and current-value framing for update/conflict/CR questions that avoids
-   yes/no-only contradiction answers. The latest hard-slice was 10/12 and the
+   yes/no-only contradiction answers. Local pre-live instruction cue hardening
+   now also surfaces concrete date values plus date/format requirements instead
+   of treating date-format tokens as named tools, and contradiction cue
+   hardening now leads with the affirmative side before the denial side.
+   Preference-following pre-live hardening now also emits explicit response
+   requirements for lightweight/minimal-dependency, automation, step-by-step,
+   direct-link, morning, and practical/logical constraints, and
+   information-extraction coverage cues now preserve source-backed fields,
+   deadlines, preparation steps, and required sub-items while avoiding
+   unrequested identifiers. The
+   latest hard-slice was
+   10/12 and the
    full run improved to 278/400, but this is still not performance closure.
 5. Revisit instruction_following 27 through noise budgeting because the latest
    analyzer still shows full-recall-noisy failures after the instruction
@@ -148,12 +160,24 @@ Acceptance Checks
 - Do not count a small live slice, a single retained recall repair, or one
   answer-gap improvement as closure.
 - Do not add BEAM expected-answer-specific rules to the answer evidence pack.
+- Current-value ledgers should not let a later sibling entity's metric replace
+  the target entity's latest value.
+- Instruction concrete answer-content cues should not list companion openers
+  such as `Also` or `Additionally` as named tools/examples.
+- Contradiction answer packs should preserve both sides of same-turn
+  strong-denial contradictions, including `did not` / `didn't` clauses.
+- Count ledgers should preserve compound word-number quantities such as
+  `twenty-one survey responses` instead of extracting only the trailing word.
 - Focused live-slice selector typos must fail fast instead of matching no cases
   or the wrong answer-gap queue.
 - Duplicate live-slice / live-closure scalar source and output flags must fail
   fast before report generation.
 - Focused live-slice reports should preserve the answer-gap / case-selection
   inputs that selected their cases.
+- Closure gate reports must reject inconsistent closure summaries, including
+  `profilesCompared` values that do not contain exactly the closure `profile`,
+  `correctCases + wrongAnswerCases != totalCases`, and `answerAccuracy` values
+  that do not equal `correctCases / totalCases`.
 - Answer-gap analyzer and ablation output report paths must fail fast when they
   would overwrite the input live report, and answer-gap output paths must also
   fail fast before overwriting a benchmark source file under `--benchmark-root`.

@@ -59,6 +59,30 @@ describe("answer evidence pack", () => {
         "preference_following",
       ),
     ).toBe("preference");
+    expect(
+      inferAnswerOperation(
+        "Which deadlines did I mention for the applications?",
+        "numerical_precision",
+      ),
+    ).toBe("extraction");
+    expect(
+      inferAnswerOperation(
+        "What preparation steps did I plan before the meeting?",
+        "Timeline Integration",
+      ),
+    ).toBe("extraction");
+    expect(
+      inferAnswerOperation(
+        "What details should I include?",
+        "information_extraction",
+      ),
+    ).toBe("extraction");
+    expect(
+      inferAnswerOperation(
+        "How should I address the project risk?",
+        "Problem-Solution Context",
+      ),
+    ).toBe("extraction");
     expect(inferAnswerOperation("What happened?", "abstention")).toBe(
       "abstention",
     );
@@ -759,6 +783,9 @@ describe("answer evidence pack", () => {
       ],
     });
     const affirmativeSection = pack.slice(pack.indexOf("affirmative/done side"));
+    expect(pack.indexOf("Affirmative/done side:")).toBeLessThan(
+      pack.indexOf("Denial/no side:"),
+    );
     expect(affirmativeSection).toContain("downloaded Zotero");
     expect(affirmativeSection).not.toContain("(not directly detected");
     expect(pack).toContain("lead with the affirmative claim");
@@ -936,6 +963,9 @@ describe("answer evidence pack", () => {
     expect(pack).toContain("lightweight libraries");
     expect(pack).toContain("minimal dependencies");
     expect(pack).toContain("avoid unnecessary complexity");
+    expect(pack).toContain("Preference response requirements:");
+    expect(pack).toContain("recommend lightweight/minimal-dependency options");
+    expect(pack).toContain("avoid unnecessary complexity");
     expect(pack).toContain("Supporting evidence for the requested answer:");
     expect(pack).toContain("Flask app");
     expect(pack).toContain(
@@ -983,6 +1013,91 @@ describe("answer evidence pack", () => {
     expect(support).toContain("GitHub Actions workflow");
     expect(support).toContain("automated deployments");
     expect(support).not.toContain("grocery list");
+  });
+
+  it("turns direct-link preferences into explicit response requirements", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "How should I include my portfolio links in the cover letter?",
+      questionType: "preference_following",
+      turns: [
+        {
+          sourceId: 41,
+          orderKey: 41,
+          content:
+            "I prefer portfolio links directly in the cover letter text instead of separate attachments.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    const requirementSection = pack.slice(
+      pack.indexOf("Preference response requirements:"),
+      pack.indexOf("Supporting evidence for the requested answer:"),
+    );
+    expect(requirementSection).toContain("embed links directly in the response");
+    expect(requirementSection).toContain("avoid separate attachments");
+  });
+
+  it("adds coverage cues for source-backed information extraction", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What preparation steps did I plan before the mentor meeting?",
+      questionType: "Timeline Integration",
+      turns: [
+        {
+          sourceId: 14,
+          orderKey: 14,
+          content:
+            "I planned to research Robert's academic background, prepare questions about my documentary script, and bring my draft script to the library.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 15,
+          orderKey: 15,
+          content:
+            "Before the meeting, I should arrive early at the library, dress professionally, engage politely and enthusiastically, take detailed notes, and send a thank-you note afterward.",
+          role: "assistant",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Information extraction coverage:");
+    expect(pack).toContain("cover each source-backed detail");
+    expect(pack).toContain("research Robert's academic background");
+    expect(pack).toContain("arrive early at the library");
+    expect(pack).toContain("dress professionally");
+    expect(pack).toContain("take detailed notes");
+    expect(pack).toContain(
+      "Do not add names, labels, or personal identifiers unless the question asks for them",
+    );
+  });
+
+  it("surfaces dates and named obligations for numerical extraction", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Which deadlines did I mention for the applications?",
+      questionType: "numerical_precision",
+      turns: [
+        {
+          sourceId: 12,
+          orderKey: 12,
+          content:
+            "The university application is due April 30, 2024, the scholarship deadline is May 15, 2024, and the visa application is due June 1, 2024.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    expect(pack).toContain("Information extraction coverage:");
+    expect(pack).toContain(
+      "dates: April 30, 2024; May 15, 2024; June 1, 2024",
+    );
+    expect(pack).toContain("university application");
+    expect(pack).toContain("scholarship deadline");
+    expect(pack).toContain("visa application");
+    expect(pack).toContain("Do not answer No answer for a requested field");
   });
 
   it("adds a source-ordered summary coverage checklist", () => {

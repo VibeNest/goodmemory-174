@@ -105,6 +105,20 @@ const FIXTURES: GoldenFixture[] = [
     ],
   },
   {
+    expectedOperation: "extraction",
+    name: "extraction",
+    question: "Which deadlines did I mention for the applications?",
+    questionType: "numerical_precision",
+    turns: [
+      turn({
+        content:
+          "The university application is due April 30, 2024, the scholarship deadline is May 15, 2024, and the visa application is due June 1, 2024.",
+        orderKey: 1,
+        sourceId: 45,
+      }),
+    ],
+  },
+  {
     expectedOperation: "instruction",
     name: "instruction",
     question: "List the libraries I asked you to always mention with version numbers.",

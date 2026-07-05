@@ -609,6 +609,87 @@ describe("phase-63 BEAM closure gate", () => {
     ).toBe(true);
   });
 
+  it("rejects closure reports whose answer accuracy is not summary-derived", async () => {
+    await expect(
+      runPhase63BeamClosureGate(
+        {
+          closureReportPath: "/tmp/out/run-closure/phase-63-beam-closure-report.json",
+          outputDir: "/tmp/gates",
+          runId: "run-gate",
+        },
+        {
+          mkdir: async () => undefined,
+          readFile: async () =>
+            JSON.stringify({
+              ...buildClosureReport(),
+              summary: {
+                ...buildClosureReport().summary,
+                answerAccuracy: 1,
+              },
+            }),
+          runCommand: async () => undefined,
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow(
+      "Phase 63 BEAM closure answerAccuracy must equal correctCases / totalCases",
+    );
+  });
+
+  it("rejects closure reports whose correct and wrong cases do not sum to total", async () => {
+    await expect(
+      runPhase63BeamClosureGate(
+        {
+          closureReportPath: "/tmp/out/run-closure/phase-63-beam-closure-report.json",
+          outputDir: "/tmp/gates",
+          runId: "run-gate",
+        },
+        {
+          mkdir: async () => undefined,
+          readFile: async () =>
+            JSON.stringify({
+              ...buildClosureReport(),
+              summary: {
+                ...buildClosureReport().summary,
+                wrongAnswerCases: 2,
+              },
+            }),
+          runCommand: async () => undefined,
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow(
+      "Phase 63 BEAM closure correctCases plus wrongAnswerCases must equal totalCases",
+    );
+  });
+
+  it("rejects closure reports whose compared profile does not match the closure profile", async () => {
+    await expect(
+      runPhase63BeamClosureGate(
+        {
+          closureReportPath: "/tmp/out/run-closure/phase-63-beam-closure-report.json",
+          outputDir: "/tmp/gates",
+          runId: "run-gate",
+        },
+        {
+          mkdir: async () => undefined,
+          readFile: async () =>
+            JSON.stringify({
+              ...buildClosureReport(),
+              summary: {
+                ...buildClosureReport().summary,
+                profilesCompared: ["goodmemory-hybrid"],
+              },
+            }),
+          runCommand: async () => undefined,
+          writeFile: async () => undefined,
+        },
+      ),
+    ).rejects.toThrow(
+      "Phase 63 BEAM closure profilesCompared must contain only the closure profile",
+    );
+  });
+
   it("uses the canonical closure gate run id by default", async () => {
     const writes = new Map<string, string>();
     await runPhase63BeamClosureGate(

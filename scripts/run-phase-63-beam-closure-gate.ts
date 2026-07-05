@@ -114,6 +114,31 @@ function validateClosureReport(value: unknown): Phase63BeamLiveClosureReport {
   if (report.summary.recallDiagnosticExecutionFailures !== 0) {
     throw new Error("Phase 63 BEAM closure recall report must have zero failures");
   }
+  if (
+    report.summary.profilesCompared.length !== 1 ||
+    report.summary.profilesCompared[0] !== report.profile
+  ) {
+    throw new Error(
+      "Phase 63 BEAM closure profilesCompared must contain only the closure profile",
+    );
+  }
+  if (
+    report.summary.correctCases + report.summary.wrongAnswerCases !==
+    report.summary.totalCases
+  ) {
+    throw new Error(
+      "Phase 63 BEAM closure correctCases plus wrongAnswerCases must equal totalCases",
+    );
+  }
+  const expectedAccuracy =
+    report.summary.totalCases === 0
+      ? 0
+      : report.summary.correctCases / report.summary.totalCases;
+  if (report.summary.answerAccuracy !== expectedAccuracy) {
+    throw new Error(
+      "Phase 63 BEAM closure answerAccuracy must equal correctCases / totalCases",
+    );
+  }
   return report;
 }
 
