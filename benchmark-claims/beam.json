@@ -7,19 +7,19 @@
     "vendored": false
   },
   "run": {
-    "commit": null,
-    "packageVersion": null,
-    "command": "eval:phase-63-live-closure (run-phase63-beam-100k-live-closure-gpt55-evidence-pack-answer-hardening-current)",
+    "commit": "dccfd5d",
+    "packageVersion": "0.3.5",
+    "command": "runPhase63BeamLiveClosure via the committed harness seams: union16 memory (retrieval.semanticCandidates topK 16 + provider embedding, prefix-bounded/chunked/disk-cached), profile goodmemory-hybrid, --evidence-pack, resume sidecar; recall prerequisite run-p5-beam-union16-fitted-recall; closure run-p5-beam-live-closure-union16-independent-judge; GOODMEMORY_JUDGE_* env -> google/gemini-3.5-flash via OpenRouter",
     "executionFailures": 0
   },
   "model": {
     "answerModel": "gpt-5.5",
-    "judgeModel": "gpt-5.5",
-    "sameModelJudge": true
+    "judgeModel": "google/gemini-3.5-flash",
+    "sameModelJudge": false
   },
   "metrics": {
-    "primary": "answer accuracy (100K, 400 cases)",
-    "score": 0.695,
+    "primary": "answer accuracy (100K, 400 cases, INDEPENDENT judge)",
+    "score": 0.68,
     "baseline": 0.56
   },
   "coverage": {
@@ -28,6 +28,6 @@
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "Pipeline/gate evidence only. Blocked: same-model judge (gpt-5.5 answer + gpt-5.5 judge); fitted-vs-generalization recall gap (0.9621 vs 0.6822 rules-only; 0.8529 with the opt-in union16 profile); below the 0.75+ improvement target; license/commit/package-version unverified. P67-D must raise answer accuracy to >=0.75 with an independent judge and always report fitted AND generalization recall. INDEPENDENT JUDGE VERIFIED FEASIBLE 2026-07-04: google/gemini-3.5-flash via OpenRouter passes the exact BEAM judge path (resolveLiveModelConfig(GOODMEMORY_JUDGE) + requestOpenAICompatibleObject strict JSON schema, 2/2 sanity verdicts) - the same-model blocker is resolvable per-run by env override, no code change; first-choice anthropic/claude-3.5-haiku has no endpoint on this account."
+    "reason": "INDEPENDENT-JUDGE ANSWER RUN COMPLETE 2026-07-04 but BELOW TARGET: 0.680 (272/400, executionFailures 0, judge google/gemini-3.5-flash via OpenRouter, sameModelJudge false) vs the >=0.75 public-claim target - stays internal_evidence. The prior same-model checkpoint 0.695 is quantified as ~+1.5pt same-model inflation. Profile: shipped opt-in union16 (retrieval.semanticCandidates topK 16 + provider embedding) + evidence pack; dual recall metrics for this profile: fitted 0.9718 (gates on, missedRecall 18/355) vs generalization 0.8529 (all 148 narrow gates disabled) - the ADR-005 fitted-vs-general gap narrows from 28pt (rules-only) to 11.9pt. The remaining deficit is ANSWER-SIDE (128 wrong answers at 97.2% evidence recall), the evidencePack answer-gap frontier. Remaining blockers: below 0.75 target; dataset license unverified; baseline 0.56 is the internal no-pack ablation under the OLD same-model judge (not re-measured under the independent judge). Judge feasibility recipe and lever matrix (BM25 no-op; union16 +17.1pt generalization) are banked in coverage.note."
   }
 }
