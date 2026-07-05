@@ -1,6 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertCliPathSegmentValue,
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import {
   resolvePhase62OutputDir,
   resolvePhase62RepoRoot,
@@ -88,7 +93,7 @@ export function parsePhase62Full500SummaryOptions(
     ),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     shardRunIds: parseRepeatedFlag(argv, "--shard-run-id"),
     shards: parsePositiveInteger(
       resolveCliFlagValueStrict(argv, "--shards"),
@@ -392,6 +397,7 @@ export async function runPhase62Full500Summary(
   const root = resolvePhase62RepoRoot();
   const outputDir = options.outputDir ?? resolvePhase62OutputDir(root);
   const runId = options.runId ?? PHASE62_FULL500_CANONICAL_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const profiles = normalizeLongMemEvalProfileList(options.profiles);
   const shardRunIds =
     options.shardRunIds ??

@@ -1,6 +1,11 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
+import {
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   LONGMEMEVAL_FULL_DATA_FILES,
@@ -46,6 +51,14 @@ export interface Phase62ReadinessDependencies {
   fileExists?: (path: string) => boolean;
 }
 
+export const PHASE62_LONGMEMEVAL_ROOT_ENV = "GOODMEMORY_LONGMEMEVAL_ROOT";
+
+export function resolvePhase62LongMemEvalRootEnv(
+  env: Record<string, string | undefined> = process.env,
+): string | undefined {
+  return resolveEnvValueStrict(env, PHASE62_LONGMEMEVAL_ROOT_ENV);
+}
+
 export function resolvePhase62FixtureRoot(root: string): string {
   return join(root, "fixtures/external-benchmarks/longmemeval");
 }
@@ -56,7 +69,7 @@ export function resolvePhase62BenchmarkRoot(
 ): string {
   return smoke
     ? resolvePhase62FixtureRoot(root)
-    : (process.env.GOODMEMORY_LONGMEMEVAL_ROOT ?? resolvePhase62FixtureRoot(root));
+    : (resolvePhase62LongMemEvalRootEnv() ?? resolvePhase62FixtureRoot(root));
 }
 
 export function resolvePhase62OutputDir(root: string): string {
@@ -91,7 +104,8 @@ export function checkPhase62Readiness(
 ): Phase62ReadinessReport {
   const env = dependencies.env ?? process.env;
   const fileExists = dependencies.fileExists ?? existsSync;
-  const benchmarkRoot = options.benchmarkRoot ?? process.env.GOODMEMORY_LONGMEMEVAL_ROOT;
+  const benchmarkRoot =
+    options.benchmarkRoot ?? resolvePhase62LongMemEvalRootEnv(env);
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 62 readiness check requires --benchmark-root or GOODMEMORY_LONGMEMEVAL_ROOT.",
@@ -257,7 +271,7 @@ export function parsePhase62CliOptions(
     allCases: parseFlagPresence(argv, "--all-cases"),
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_LONGMEMEVAL_ROOT,
+      resolvePhase62LongMemEvalRootEnv(),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     maxConcurrency: parseLimit(resolveCliFlagValueStrict(argv, "--max-concurrency")),
@@ -266,7 +280,7 @@ export function parsePhase62CliOptions(
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     questionTypes: parseRepeatedFlag(argv, "--question-type"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 

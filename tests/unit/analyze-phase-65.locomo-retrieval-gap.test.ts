@@ -244,6 +244,31 @@ describe("LoCoMo retrieval-gap analyzer", () => {
     ).rejects.toThrow("--output-path requires a value.");
   });
 
+  it("rejects ambiguous cases and benchmark-root sources before reading inputs", async () => {
+    await expect(
+      runLocomoRetrievalGapAnalysis(
+        [
+          "bun",
+          "run",
+          "analyze:phase-65-locomo-retrieval-gap",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--cases",
+          "/tmp/LOCOMO-cases/cases.json",
+          "--benchmark-root",
+          "/tmp/LOCOMO-root",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "LoCoMo retrieval-gap analysis accepts either --cases or --benchmark-root, not both.",
+    );
+  });
+
   it("rejects output paths that overwrite the source report before reading inputs", async () => {
     await expect(
       runLocomoRetrievalGapAnalysis(

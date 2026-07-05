@@ -77,8 +77,22 @@ Preparation Rules
   source/output/budget selectors before external-root writes; this is fixture-prep
   integrity only, not a new score or claim.
 - `eval:phase-64-smoke` rejects duplicate mode switches and scalar source/output
-  selectors before report generation; this protects smoke/live evidence inputs
-  only, not the accepted closure score or P67-C public claim.
+  selectors before report generation, and requires `--limit` to be a canonical
+  positive integer string; `--run-id` must also be a single path segment so
+  smoke/live evidence directories stay under the intended output tree. This
+  protects smoke/live evidence inputs only, not the accepted closure score or
+  P67-C public claim.
+- `analyze:phase-64-readiness` rejects duplicate scalar source/output selectors
+  (`--phase63-analysis-path`, `--output-dir`, `--output-path`, `--run-id`) before
+  reading Phase 63 analysis or writing prep evidence, and requires `--run-id` to
+  be a single path segment before deriving the default output path; this is
+  prep-report input and output-directory integrity only.
+- `GOODMEMORY_MAB_ROOT` must not be empty or whitespace-padded before
+  `prepare:phase-64-mab` or `eval:phase-64-smoke` uses it as an output-root or
+  benchmark-root fallback. Explicit CLI roots still take precedence, and
+  synthetic smoke still runs without an external root. This protects
+  fixture-prep, retrieval, and live evidence provenance only, not the accepted
+  closure score or P67-C public claim.
 
 
 Readiness Analyzer
@@ -86,9 +100,11 @@ Readiness Analyzer
 
 `scripts/analyze-phase-64-readiness.ts` consumes a Phase 63
 `recall-diagnostic-analysis.json` file and writes a Phase 64 preparation report.
-It rejects an output path that resolves to the input `--phase63-analysis-path`
-before reading the Phase 63 analysis, so the derived prep report cannot overwrite
-the source diagnostic analysis.
+It rejects duplicate scalar source/output selectors and rejects an output path
+that resolves to the input `--phase63-analysis-path` before reading the Phase 63
+analysis, and requires `--run-id` to be a single path segment before deriving the
+default output path, so the derived prep report cannot use ambiguous CLI inputs,
+escape the intended output tree, or overwrite the source diagnostic analysis.
 The report groups residual Phase 63 risk into:
 
 - `conflict_update_resolution`

@@ -275,6 +275,75 @@ describe("phase-63 BEAM live slice runner", () => {
         "run-b",
       ]),
     ).toThrow("--run-id cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--run-id",
+        "../outside-live-slice",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects empty or whitespace-padded BEAM root environment values", async () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63BeamLiveSliceCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-slice.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63BeamLiveSliceCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-slice.ts",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63BeamLiveSliceCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-slice.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+      await expect(
+        runPhase63BeamLiveSlice(
+          {},
+          {
+            readFile: async () => {
+              throw new Error("should not read benchmark rows");
+            },
+          },
+        ),
+      ).rejects.toThrow(
+        "GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.",
+      );
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63BeamLiveSliceCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-slice.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
   });
 
   it("accepts the hybrid live profile", () => {
@@ -621,6 +690,11 @@ describe("phase-63 BEAM live slice runner", () => {
     expect(prompt).toContain("compress repeated setup chatter");
     expect(prompt).toContain("do not create broad umbrella buckets");
     expect(prompt).toContain("Preserve the concrete source action");
+    expect(prompt).toContain(
+      "Based on the provided chat, there is no information related to <topic>",
+    );
+    expect(prompt).toContain(" - replacing <topic>");
+    expect(prompt).not.toMatch(/[^\x00-\x7F]/u);
   });
 
   it("compresses long source-message context before live answer synthesis", () => {

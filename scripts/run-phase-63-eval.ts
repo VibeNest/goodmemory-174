@@ -1,4 +1,5 @@
 import { runBeamSuite, type BeamReport, type RunBeamOptions } from "../src/eval/beam";
+import { assertCliPathSegmentValue } from "./cli-options";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,
@@ -22,6 +23,8 @@ export function buildPhase63BeamOptions(
   options: Phase63CliOptions,
 ): RunBeamOptions {
   const mode = options.mode;
+  const runId = options.runId ?? PHASE63_CANONICAL_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   return {
     benchmarkRoot:
       options.benchmarkRoot ?? resolvePhase63BenchmarkRoot(root, mode === "smoke"),
@@ -33,7 +36,7 @@ export function buildPhase63BeamOptions(
     outputDir: options.outputDir ?? resolvePhase63OutputDir(root),
     profiles: options.profiles,
     questionTypes: options.questionTypes,
-    runId: options.runId ?? PHASE63_CANONICAL_RUN_ID,
+    runId,
     scale: options.scale ?? "100K",
   };
 }

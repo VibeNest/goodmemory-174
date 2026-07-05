@@ -18,7 +18,10 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import {
   resolvePhase62OutputDir,
   resolvePhase62RepoRoot,
@@ -278,7 +281,7 @@ export function parseDeterministicSubsetCliOptions(
 ): DeterministicSubsetCliOptions {
   return {
     reportPath: resolveCliFlagValueStrict(argv, "--report-path"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     claimProfile: parseProfileFlag(
       resolveCliFlagValueStrict(argv, "--claim-profile"),

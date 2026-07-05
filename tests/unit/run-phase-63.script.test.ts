@@ -96,6 +96,115 @@ describe("run-phase-63 BEAM script", () => {
     });
   });
 
+  it("rejects empty or whitespace-padded BEAM root environment values", () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-eval.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-eval.ts",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+      expect(resolvePhase63BenchmarkRoot("/tmp/goodmemory", false)).toBe(
+        "/tmp/BEAM-env",
+      );
+      expect(
+        checkPhase63Readiness(
+          { mode: "full" },
+          { fileExists: () => true },
+        ).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-eval.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+      expect(() => resolvePhase63BenchmarkRoot("/tmp/goodmemory", false)).toThrow(
+        "GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.",
+      );
+      expect(() =>
+        checkPhase63Readiness({ mode: "full" }, { fileExists: () => true }),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-eval.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects duplicate scalar phase-63 eval flags before running", () => {
+    for (const flag of [
+      "--benchmark-root",
+      "--limit",
+      "--mode",
+      "--offset",
+      "--output-dir",
+      "--run-id",
+      "--scale",
+    ]) {
+      expect(() =>
+        parsePhase63CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-eval.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects output run ids that escape the phase-63 eval directory", async () => {
+    expect(() =>
+      parsePhase63CliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-eval.ts",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase63Beam(
+        {
+          runId: "../outside-beam",
+        },
+        {
+          runSuite: async (input) => buildReport(input),
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("builds canonical smoke options", () => {
     const options = buildPhase63BeamOptions("/tmp/goodmemory", {
       mode: "smoke",

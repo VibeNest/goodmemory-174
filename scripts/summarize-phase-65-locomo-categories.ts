@@ -2,14 +2,16 @@
 // five Phase 65 one-category smoke reports; it does not run retrieval or live
 // answer generation.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
 import {
   assertDistinctCliPathValues,
+  parseCliPathListFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoReportCategorySummariesMatchCases,
@@ -91,41 +93,10 @@ export interface LocomoCategorySummaryReport {
   }>;
 }
 
-function parseStringListFlag(
-  argv: readonly string[],
-  flagName: string,
-): string[] {
-  const values: string[] = [];
-  const seen = new Set<string>();
-  for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] !== flagName) {
-      continue;
-    }
-    const raw = argv[index + 1];
-    if (!raw || raw.startsWith("--")) {
-      throw new Error(`${flagName} requires a value.`);
-    }
-    const parts = raw.split(",");
-    for (const value of parts) {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) {
-        throw new Error(`${flagName} contains an empty value.`);
-      }
-      const normalizedPath = resolve(trimmed);
-      if (seen.has(normalizedPath)) {
-        throw new Error(`${flagName} contains duplicate value ${trimmed}.`);
-      }
-      seen.add(normalizedPath);
-      values.push(trimmed);
-    }
-  }
-  return values;
-}
-
 export function parseLocomoCategorySummaryCliOptions(
   argv: readonly string[],
 ): LocomoCategorySummaryCliOptions {
-  const reportPaths = parseStringListFlag(argv, "--report");
+  const reportPaths = parseCliPathListFlagStrict(argv, "--report");
   if (reportPaths.length === 0) {
     throw new Error(
       "LoCoMo category summary requires --report <smoke-report.json>.",
@@ -134,7 +105,7 @@ export function parseLocomoCategorySummaryCliOptions(
   return {
     outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
     reportPaths,
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 

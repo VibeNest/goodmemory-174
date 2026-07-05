@@ -13,7 +13,7 @@ describe("LoCoMo neural measurement CLI", () => {
         "--limit",
         "20",
         "--arms",
-        "bm25, neural(text-embedding-3-small)",
+        "bm25,neural(text-embedding-3-small)",
       ]),
     ).toEqual({
       armLabels: ["bm25", "neural(text-embedding-3-small)"],
@@ -51,6 +51,28 @@ describe("LoCoMo neural measurement CLI", () => {
         "bm25,unsupported",
       ]),
     ).toThrow("--arms contains unknown arm 'unsupported'.");
+
+    expect(() =>
+      parseLocomoNeuralCliOptions([
+        "bun",
+        "run",
+        "scripts/measure-locomo-neural.ts",
+        "--arms",
+        "bm25,",
+      ]),
+    ).toThrow("--arms contains an empty arm label.");
+
+    expect(() =>
+      parseLocomoNeuralCliOptions([
+        "bun",
+        "run",
+        "scripts/measure-locomo-neural.ts",
+        "--arms",
+        "bm25, neural(text-embedding-3-small)",
+      ]),
+    ).toThrow(
+      "--arms contains whitespace-padded arm 'neural(text-embedding-3-small)'.",
+    );
 
     expect(() =>
       parseLocomoNeuralCliOptions([
@@ -97,5 +119,53 @@ describe("LoCoMo neural measurement CLI", () => {
         "20",
       ]),
     ).toThrow("--benchmark-root requires a value.");
+  });
+
+  it("rejects empty or whitespace-padded LoCoMo root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoNeuralCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-neural.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseLocomoNeuralCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-neural.ts",
+          "--benchmark-root",
+          "/tmp/LOCOMO-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoNeuralCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-neural.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseLocomoNeuralCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-neural.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
   });
 });

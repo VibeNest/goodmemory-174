@@ -101,6 +101,77 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
         ]),
       ).toThrow(`${flag} cannot be specified more than once.`);
     }
+
+    expect(() =>
+      parseMemoryAgentBenchSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        "--run-id",
+        "../outside-memory-agent-bench",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects empty or whitespace-padded MemoryAgentBench root environment values", () => {
+    const original = process.env.GOODMEMORY_MAB_ROOT;
+    try {
+      process.env.GOODMEMORY_MAB_ROOT = "/tmp/MAB-env";
+      expect(
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/MAB-env");
+      expect(
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+          "--benchmark-root",
+          "/tmp/MAB-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/MAB-cli");
+
+      process.env.GOODMEMORY_MAB_ROOT = " /tmp/MAB-env ";
+      expect(() =>
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        ]),
+      ).toThrow("GOODMEMORY_MAB_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_MAB_ROOT = "";
+      expect(() =>
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        ]),
+      ).toThrow("GOODMEMORY_MAB_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_MAB_ROOT;
+      } else {
+        process.env.GOODMEMORY_MAB_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects non-canonical smoke limit values before report generation", () => {
+    for (const value of ["1e2", "2.0"]) {
+      expect(() =>
+        parseMemoryAgentBenchSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+          "--limit",
+          value,
+        ]),
+      ).toThrow("--limit must be a positive integer.");
+    }
   });
 
   it("loads synthetic cases by default and normalized cases from an external root", async () => {

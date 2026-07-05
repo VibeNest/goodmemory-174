@@ -15436,6 +15436,93 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
     }
   });
 
+  it("rejects empty or whitespace-padded BEAM root environment values", async () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63BeamRecallDiagnosticCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-recall-diagnostic.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63BeamRecallDiagnosticCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-recall-diagnostic.ts",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63BeamRecallDiagnosticCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-recall-diagnostic.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+      await expect(
+        runPhase63BeamRecallDiagnostic(
+          {},
+          {
+            readFile: async () => {
+              throw new Error("should not read benchmark rows");
+            },
+          },
+        ),
+      ).rejects.toThrow(
+        "GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.",
+      );
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63BeamRecallDiagnosticCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-recall-diagnostic.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects output run ids that are not single path segments", async () => {
+    expect(() =>
+      parsePhase63BeamRecallDiagnosticCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-recall-diagnostic.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase63BeamRecallDiagnostic(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          runId: "../outside-beam",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read benchmark rows");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("seeds BEAM chat turns into GoodMemory and scores retrieved chat ids", async () => {
     const writes = new Map<string, string>();
     const report = await runPhase63BeamRecallDiagnostic(

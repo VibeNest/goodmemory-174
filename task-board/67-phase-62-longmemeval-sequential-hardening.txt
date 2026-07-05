@@ -35,8 +35,36 @@ generation or batch planning. Covered booleans include `--all-cases`,
 `--retry-run-id`; repeated multi-value selectors such as `--profile`,
 `--case-id`, `--question-type`, `--shard-run-id`, and `--source-run-id` remain
 repeatable. This protects accepted and public-claim source evidence from
-repeated-switch ambiguity; it does not change the 0.720 judge-free public claim
+repeated-switch ambiguity. Base eval, recall-diagnostic, full500 runner, and
+full500 summary also require output `--run-id` values to be a single path
+segment before deriving report, shard, or merged-report directories. This does
+not change the 0.720 judge-free public claim or the older with-judge internal
+checkpoint.
+
+Base eval/readiness benchmark-root resolution now rejects empty or
+whitespace-padded `GOODMEMORY_LONGMEMEVAL_ROOT` fallback values before
+source-root resolution. Explicit `--benchmark-root` values still take
+precedence, and smoke-mode fixture defaults still bypass the external-root env
+fallback. This protects accepted LongMemEval smoke/full and recall evidence
+from malformed env-derived source roots without changing the 0.720 judge-free
+public claim or the older with-judge internal checkpoint. Unit coverage lives in
+`tests/unit/run-phase-62.script.test.ts`.
+
+`gate:phase-62` also rejects duplicate scalar gate output selectors
+(`--output-dir`, `--run-id`) before running LongMemEval smoke gate checks or
+writing gate artifacts, and requires `--run-id` to be a single path segment so
+gate artifacts stay under the intended quality-gates directory. This protects
+accepted LongMemEval gate evidence from repeated-selector ambiguity and
+gate-directory traversal without changing the 0.720 judge-free public claim
 or the older with-judge internal checkpoint.
+
+`eval:phase-62-deterministic-subset` also rejects duplicate scalar
+report/output/profile selectors (`--report-path`, `--run-id`, `--output-dir`,
+`--claim-profile`, `--baseline-profile`) before resolving the source report,
+and requires `--run-id` to be a single path segment so implicit source-report
+paths stay under the intended Phase 62 output directory. This protects the
+judge-free LongMemEval public-claim helper from repeated-selector ambiguity and
+source-report traversal without changing the 0.720 claim.
 
 
 Driver

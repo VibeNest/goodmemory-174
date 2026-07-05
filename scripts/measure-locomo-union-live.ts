@@ -31,6 +31,8 @@ import {
 import {
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
 } from "./cli-options";
 import { resolveLiveModelConfig } from "./run-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
@@ -169,7 +171,7 @@ export function parseLocomoUnionLiveCliOptions(
   return {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_LOCOMO_ROOT,
+      resolveEnvValueStrict(process.env, "GOODMEMORY_LOCOMO_ROOT"),
     concurrency: parsePositiveIntegerFlag(argv, "--concurrency") ?? 1,
     limit: parsePositiveIntegerFlag(argv, "--limit"),
     maxAdditions: parseNonNegativeIntegerFlag(argv, "--max-additions"),
@@ -180,7 +182,7 @@ export function parseLocomoUnionLiveCliOptions(
       join(repoRoot, "reports", "eval", "research", "phase-65", "locomo"),
     resume: hasCliFlagStrict(argv, "--resume"),
     runId:
-      resolveCliFlagValueStrict(argv, "--run-id") ??
+      resolveCliPathSegmentFlagValueStrict(argv, "--run-id") ??
       `run-locomo-union${topK}-live`,
     topK,
     withExtraction: hasCliFlagStrict(argv, "--with-extraction"),

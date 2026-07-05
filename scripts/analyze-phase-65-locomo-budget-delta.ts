@@ -10,6 +10,7 @@ import {
 import {
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoCategoryQuestionIdentities,
@@ -113,7 +114,7 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     baselineReportPath,
     candidateReportPath,
     outputPath,
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -306,6 +307,18 @@ export async function runLocomoBudgetDeltaAnalysis(
       options.candidateReportPath,
       options.runId ?? "locomo-budget-delta-current",
     );
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--baseline-report",
+    secondValue: options.baselineReportPath,
+  });
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--candidate-report",
+    secondValue: options.candidateReportPath,
+  });
 
   const baselineParsed = JSON.parse(
     await readFileImpl(options.baselineReportPath),

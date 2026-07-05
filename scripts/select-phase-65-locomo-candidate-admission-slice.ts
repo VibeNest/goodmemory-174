@@ -9,7 +9,9 @@ import {
 } from "../src/eval/locomo";
 import {
   assertDistinctCliPathValues,
+  parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoReportHasNoExecutionFailures,
@@ -133,22 +135,6 @@ export interface LocomoCandidateAdmissionSliceSelection {
   }>;
 }
 
-function parsePositiveIntegerFlag(
-  argv: readonly string[],
-  flagName: string,
-  defaultValue: number,
-): number {
-  const raw = resolveCliFlagValueStrict(argv, flagName);
-  if (raw === undefined) {
-    return defaultValue;
-  }
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${flagName} must be a positive integer.`);
-  }
-  return parsed;
-}
-
 function parseCliOptions(argv: readonly string[]): CliOptions {
   const baselineReportPath = resolveCliFlagValueStrict(argv, "--baseline-report");
   const candidateReportPath = resolveCliFlagValueStrict(argv, "--candidate-report");
@@ -187,8 +173,10 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     baselineReportPath,
     candidateReportPath,
     outputPath,
-    perBucket: parsePositiveIntegerFlag(argv, "--per-bucket", DEFAULT_PER_BUCKET),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    perBucket:
+      parseCliPositiveIntegerFlagStrict(argv, "--per-bucket") ??
+      DEFAULT_PER_BUCKET,
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -684,6 +672,18 @@ export async function runLocomoCandidateAdmissionSliceSelection(
   const runId = options.runId ?? "locomo-candidate-admission-slice-current";
   const outputPath =
     options.outputPath ?? defaultOutputPath(options.candidateReportPath, runId);
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--baseline-report",
+    secondValue: options.baselineReportPath,
+  });
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--candidate-report",
+    secondValue: options.candidateReportPath,
+  });
 
   const baselineParsed = JSON.parse(
     await readFileImpl(options.baselineReportPath),

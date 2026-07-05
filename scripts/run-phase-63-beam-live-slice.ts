@@ -30,12 +30,14 @@ import { resolveLiveModelConfig } from "./run-eval";
 import {
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
 import type { EvidenceTurn } from "../src/answer/evidencePack";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,
+  resolvePhase63BeamRootEnv,
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
@@ -375,7 +377,7 @@ export function parsePhase63BeamLiveSliceCliOptions(
     ),
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_BEAM_ROOT,
+      resolvePhase63BeamRootEnv(),
     caseSelection: parseCaseSelection(
       resolveCliFlagValueStrict(argv, "--case-selection"),
     ),
@@ -386,7 +388,7 @@ export function parsePhase63BeamLiveSliceCliOptions(
     profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
     recallReportPath: resolveCliFlagValueStrict(argv, "--recall-report"),
     resume: hasCliFlagStrict(argv, "--resume"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
@@ -422,7 +424,7 @@ export function buildPhase63BeamPrompt(input: {
     "For ordered numbered answers, each item should map to a concrete source turn or tightly adjacent source turns; do not create broad umbrella buckets that merge many unrelated turns.",
     "Preserve the concrete source action for each ordered item, such as the endpoint, status code, configuration setting, test target, security mechanism, date, or named feature, instead of replacing it with a broad phase label.",
     "Do not add adjacent themes from the same source turn unless they are necessary to answer that numbered item.",
-    "Return only the short answer. If the answer is not present, return exactly: No answer.",
+    "Return only the short answer. If the retrieved context does not contain the information needed to answer, reply exactly: Based on the provided chat, there is no information related to <topic>. - replacing <topic> with a short restatement of what the question asks about.",
   ].join("\n\n");
 }
 
@@ -1788,7 +1790,7 @@ export async function runPhase63BeamLiveSlice(
   dependencies: Phase63BeamLiveSliceDependencies = {},
 ): Promise<Phase63BeamLiveSliceReport> {
   const root = resolvePhase63RepoRoot();
-  const benchmarkRoot = options.benchmarkRoot ?? process.env.GOODMEMORY_BEAM_ROOT;
+  const benchmarkRoot = options.benchmarkRoot ?? resolvePhase63BeamRootEnv();
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 63 BEAM live slice requires --benchmark-root or GOODMEMORY_BEAM_ROOT.",

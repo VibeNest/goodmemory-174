@@ -51,6 +51,7 @@ import { join } from "node:path";
 import {
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveEnvValueStrict,
 } from "./cli-options";
 import { normalizeMemoryAgentBenchAnswer } from "../src/eval/memoryAgentBench";
 import type {
@@ -219,7 +220,7 @@ export function parsePhase64MabPrepareCliOptions(
     ),
     outputRoot:
       resolveCliFlagValueStrict(argv, "--output-root") ??
-      process.env.GOODMEMORY_MAB_ROOT ??
+      resolveEnvValueStrict(process.env, "GOODMEMORY_MAB_ROOT") ??
       DEFAULT_OUTPUT_ROOT,
   };
 }

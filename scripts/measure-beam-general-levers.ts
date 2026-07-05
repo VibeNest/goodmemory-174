@@ -6,7 +6,6 @@
  * BEAM generalization floor, not the fitted 0.9621 checkpoint.
  */
 import type { GoodMemory } from "../src/api/contracts";
-import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import type {
   BeamProfile,
   BeamProfileSummary,
@@ -24,8 +23,10 @@ import {
   listRegisteredNarrowGateIds,
 } from "../src/recall/narrowGates";
 import {
+  assertCliPathSegmentValue,
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   runPhase63BeamRecallDiagnostic,
@@ -78,6 +79,13 @@ interface ArmSpec {
   profile: "goodmemory-rules-only" | "goodmemory-hybrid";
 }
 
+const EMBEDDING_ENV_KEYS = [
+  "GOODMEMORY_EMBEDDING_API_KEY",
+  "GOODMEMORY_EMBEDDING_BASE_URL",
+  "GOODMEMORY_EMBEDDING_MODEL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
+] as const;
+
 function parsePositiveIntegerFlag(
   argv: readonly string[],
   flag: string,
@@ -119,28 +127,29 @@ export function parseBeamGeneralLeverCliOptions(
     keepGates: hasCliFlagStrict(argv, "--keep-gates"),
     limit: parsePositiveIntegerFlag(argv, "--limit"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     semanticTopK: parsePositiveIntegerFlag(argv, "--semantic-topk") ?? 16,
   };
 }
 
-function hashString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+function withEmbeddingEnvDisabled<T>(factory: () => T): T {
+  const previous = Object.fromEntries(
+    EMBEDDING_ENV_KEYS.map((key) => [key, process.env[key]]),
+  ) as Record<(typeof EMBEDDING_ENV_KEYS)[number], string | undefined>;
+  try {
+    for (const key of EMBEDDING_ENV_KEYS) {
+      delete process.env[key];
+    }
+    return factory();
+  } finally {
+    for (const key of EMBEDDING_ENV_KEYS) {
+      if (previous[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previous[key];
+      }
+    }
   }
-  return hash;
-}
-
-function createHashEmbeddingAdapter(): EmbeddingAdapter {
-  return {
-    async embed(texts: string[]): Promise<number[][]> {
-      return texts.map((text) => {
-        const hash = hashString(text);
-        return [hash % 997, (hash >> 3) % 997, (hash >> 7) % 997];
-      });
-    },
-  };
 }
 
 function createLeverMemory(input: {
@@ -153,39 +162,47 @@ function createLeverMemory(input: {
   let idCounter = 0;
   let clockTick = 0;
   const extractor = createDeterministicMemoryExtractor();
-  return createGoodMemory({
-    adapters: {
-      // Keep diagnostics independent from partial assisted-extractor env in the
-      // invoking shell. The runner seeds all BEAM turns via rules-only
-      // annotations, so this does not add LLM extraction.
-      assistedExtractor: extractor,
-      embeddingAdapter: input.providerEmbedding
-        ? createProviderEmbeddingAdapter({
-            model: {
-              apiKey: input.env.GOODMEMORY_EMBEDDING_API_KEY,
-              baseURL: input.env.GOODMEMORY_EMBEDDING_BASE_URL,
-              model:
-                input.env.GOODMEMORY_EMBEDDING_MODEL ??
-                "text-embedding-3-small",
-              provider: "openai",
-            },
-          })
-        : createHashEmbeddingAdapter(),
-    },
-    retrieval: {
-      ...(input.bm25 ? { bm25Ranking: true } : {}),
-      ...(input.union
-        ? { semanticCandidates: { topK: input.union.topK } }
-        : {}),
-    },
-    storage: { provider: "memory" },
-    testing: {
-      createId: () =>
-        `${input.idPrefix ?? "beam-diagnostic"}-${String((idCounter += 1)).padStart(6, "0")}`,
-      extractor,
-      now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, 0, (clockTick += 1))),
-    },
-  });
+  const createMemory = () =>
+    createGoodMemory({
+      adapters: {
+        // Keep diagnostics independent from partial assisted-extractor env in the
+        // invoking shell. The runner seeds all BEAM turns via rules-only
+        // annotations, so this does not add LLM extraction.
+        assistedExtractor: extractor,
+        ...(input.providerEmbedding
+          ? {
+              embeddingAdapter: createProviderEmbeddingAdapter({
+                model: {
+                  apiKey: input.env.GOODMEMORY_EMBEDDING_API_KEY,
+                  baseURL: input.env.GOODMEMORY_EMBEDDING_BASE_URL,
+                  model:
+                    input.env.GOODMEMORY_EMBEDDING_MODEL ??
+                    "text-embedding-3-small",
+                  provider: "openai",
+                },
+              }),
+            }
+          : {}),
+      },
+      retrieval: {
+        ...(input.bm25 ? { bm25Ranking: true } : {}),
+        ...(input.union
+          ? { semanticCandidates: { topK: input.union.topK } }
+          : {}),
+      },
+      storage: { provider: "memory" },
+      testing: {
+        createId: () =>
+          `${input.idPrefix ?? "beam-diagnostic"}-${String((idCounter += 1)).padStart(6, "0")}`,
+        extractor,
+        now: () =>
+          new Date(Date.UTC(2026, 0, 1, 0, 0, 0, (clockTick += 1))),
+      },
+    });
+
+  return input.providerEmbedding
+    ? createMemory()
+    : withEmbeddingEnvDisabled(createMemory);
 }
 
 function resolveArmSpec(input: {
@@ -255,8 +272,13 @@ function resolveBenchmarkRoot(input: {
 function buildDefaultRunId(input: {
   arm: BeamGeneralLeverArmName;
   keepGates: boolean;
+  semanticTopK: number;
 }): string {
-  return `run-p5-beam-levers-${input.arm}${
+  const armRunId =
+    input.arm.includes("union") && input.semanticTopK !== 16
+      ? input.arm.replace("union16", `union${input.semanticTopK}`)
+      : input.arm;
+  return `run-p5-beam-levers-${armRunId}${
     input.keepGates ? "-fitted" : "-generalization"
   }`;
 }
@@ -269,6 +291,18 @@ export async function runBeamGeneralLeverMeasure(
   const log = dependencies.log ?? console.log;
   const resetNarrowGateDisables =
     dependencies.resetNarrowGateDisables ?? __resetNarrowGateDisablesForTest;
+  const benchmarkRoot = resolveBenchmarkRoot({
+    env,
+    value: options.benchmarkRoot,
+  });
+  const runId =
+    options.runId ??
+    buildDefaultRunId({
+      arm: options.arm,
+      keepGates: options.keepGates,
+      semanticTopK: options.semanticTopK,
+    });
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const previousDisabledNarrowGates = env.GOODMEMORY_DISABLED_NARROW_GATES;
 
   if (options.keepGates) {
@@ -283,16 +317,6 @@ export async function runBeamGeneralLeverMeasure(
     log(`narrow gates disabled: ${gateIds.length}`);
   }
 
-  const benchmarkRoot = resolveBenchmarkRoot({
-    env,
-    value: options.benchmarkRoot,
-  });
-  const runId =
-    options.runId ??
-    buildDefaultRunId({
-      arm: options.arm,
-      keepGates: options.keepGates,
-    });
   const spec = resolveArmSpec({
     arm: options.arm,
     env,

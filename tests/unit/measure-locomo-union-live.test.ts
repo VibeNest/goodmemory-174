@@ -202,5 +202,78 @@ describe("LoCoMo union live measurement", () => {
         "/repo",
       ),
     ).toThrow("--run-id requires a value.");
+
+    expect(() =>
+      parseLocomoUnionLiveCliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/measure-locomo-union-live.ts",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        "/repo",
+      ),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects empty or whitespace-padded LoCoMo root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoUnionLiveCliOptions(
+          [
+            "bun",
+            "run",
+            "scripts/measure-locomo-union-live.ts",
+          ],
+          "/repo",
+        ).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseLocomoUnionLiveCliOptions(
+          [
+            "bun",
+            "run",
+            "scripts/measure-locomo-union-live.ts",
+            "--benchmark-root",
+            "/tmp/LOCOMO-cli",
+          ],
+          "/repo",
+        ).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoUnionLiveCliOptions(
+          [
+            "bun",
+            "run",
+            "scripts/measure-locomo-union-live.ts",
+          ],
+          "/repo",
+        ),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseLocomoUnionLiveCliOptions(
+          [
+            "bun",
+            "run",
+            "scripts/measure-locomo-union-live.ts",
+          ],
+          "/repo",
+        ),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
   });
 });

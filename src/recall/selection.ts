@@ -129,6 +129,19 @@ export function selectFacts(
   const selected = draft.selected;
   const selectedIds = draft.selectedIds;
   const selectAndTrace = draft.select;
+  const finishWithSelectedFacts = (): {
+    facts: FactMemory[];
+    traces: RecallCandidateTrace[];
+  } => {
+    if (semanticUnion) {
+      selectSemanticUnionCandidates({ compatible, draft, union: semanticUnion });
+    }
+    finalizeSuppressionReasons({ compatible, traces });
+    return {
+      facts: selected.map(materializeFactCandidate),
+      traces,
+    };
+  };
   if (trelloSprintPrioritizationCriteriaAbstentionQuery) {
     return { facts: [], traces };
   }
@@ -223,10 +236,7 @@ export function selectFacts(
       }
     }
 
-    return {
-      facts: selected.map(materializeFactCandidate),
-      traces,
-    };
+    return finishWithSelectedFacts();
   }
 
   if (
@@ -236,10 +246,7 @@ export function selectFacts(
     for (const entry of instructionEvidenceCandidates) {
       selectAndTrace(entry);
     }
-    return {
-      facts: selected.map(materializeFactCandidate),
-      traces,
-    };
+    return finishWithSelectedFacts();
   }
   const exclusivitySkipsPrimary =
     sourcePreferenceExclusiveQuery && !sourcePreferenceOverrideByContradiction;
@@ -280,14 +287,5 @@ export function selectFacts(
   // preserved for candidates with only incidental overlap). See the helper.
   selectZeroRetrievalLexicalFallback({ compatible, draft });
 
-  if (semanticUnion) {
-    selectSemanticUnionCandidates({ compatible, draft, union: semanticUnion });
-  }
-
-  finalizeSuppressionReasons({ compatible, traces });
-
-  return {
-    facts: selected.map(materializeFactCandidate),
-    traces,
-  };
+  return finishWithSelectedFacts();
 }

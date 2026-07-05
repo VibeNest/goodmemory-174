@@ -644,7 +644,9 @@ Tasks
   `summarize:phase-65-locomo-categories` reads repeated/comma-separated
   `--report` smoke-report paths, rejects failed, duplicate, or incomplete
   one-category shards, and writes a weighted all-category
-  `category-summary.json`. Unit coverage lives in
+  `category-summary.json`. Output `--run-id` values must be a single path
+  segment before the default output path is derived from the first source
+  report. Unit coverage lives in
   tests/unit/summarize-phase-65-locomo-categories.test.ts.
 
 [DONE] P65-T004b Category gap analyzer.
@@ -667,8 +669,11 @@ Tasks
   `analyze:phase-65-locomo-budget-delta` compares two smoke reports and reports
   recall delta, fully-retrieved delta, added noise, and recall gained per 100
   added noise turns. It now rejects same-`runId` baseline/candidate report
-  pairs and explicit output paths that would overwrite either input report
-  before writing derived evidence. Unit coverage lives in
+  pairs and output paths that would overwrite either input report before writing
+  derived evidence. The final output-path check also covers the default path
+  derived from `--candidate-report` plus `--run-id` before source reports are
+  read, and the output `--run-id` must be a single path segment before that
+  default path is derived. Unit coverage lives in
   tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
 
 [DONE] P65-T004e Candidate-admission slice selector.
@@ -676,8 +681,10 @@ Tasks
   and candidate smoke reports at question granularity, emits deterministic
   repair queues, and preserves turn-id-level evidence/noise deltas for targeted
   admission work. It now rejects same-`runId` baseline/candidate report pairs
-  and explicit output paths that would overwrite either input report before
-  emitting repair manifests. Unit coverage lives in
+  and output paths that would overwrite either input report before emitting
+  repair manifests. This includes default output paths derived from
+  `--candidate-report` plus `--run-id` before source reports are read. Unit
+  coverage lives in
   tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
 
 [DONE] P65-T004f Manifest-driven targeted rerun input.
@@ -748,8 +755,9 @@ Tasks
   observable drivers changed. This keeps multi_hop/temporal manifest replays and
   gold-evidence-only comparisons from being over-attributed to prompt policy.
   It now rejects same-`runId` baseline/candidate report pairs before writing
-  paired-delta lineage, and rejects explicit output paths that would overwrite
-  either input report.
+  paired-delta lineage, and rejects output paths that would overwrite either
+  input report, including default output paths derived from `--candidate-report`
+  plus `--run-id` before source reports are read.
   Unit coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
 
 [DONE] P65-T004m Live-delta reanswer queues.
@@ -997,8 +1005,9 @@ Tasks
 [DONE] P65-T004aj Selector numeric-flag strictness guard.
   `analyze:phase-65-locomo-answer-policy-slice` and
   `analyze:phase-65-locomo-candidate-admission-slice` now parse `--per-bucket`
-  strictly as a positive integer instead of accepting partially numeric strings
-  such as `2x`. This prevents malformed selector invocations from silently
+  strictly as a canonical positive integer string instead of accepting
+  partially numeric, scientific-notation, or decimal forms such as `2x`,
+  `1e2`, or `2.0`. This prevents malformed selector invocations from silently
   producing repair manifests with an unintended bucket size. Unit coverage
   lives in tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts and
   tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
@@ -1036,19 +1045,37 @@ Tasks
   `--max-additions` is a strict non-negative integer, and
   `--min-similarity` is a strict non-negative decimal value; missing numeric
   flag values and alternate numeric forms are rejected before any live run can
-  start. This prevents union-candidate live evidence from silently using an
-  unintended question scope, admission budget, or per-question concurrency.
-  Unit coverage lives in tests/unit/measure-locomo-union-live.test.ts.
+  start. Output `--run-id` values must also be a single path segment before the
+  live measurement writes progress checkpoints, extraction caches, or
+  `union-live-report.json` under `--output-dir`. This prevents union-candidate
+  live evidence from silently using an unintended question scope, admission
+  budget, per-question concurrency, or run directory. Unit coverage lives in
+  tests/unit/measure-locomo-union-live.test.ts.
 
 [DONE] P65-T004ao Neural/lever measurement scope guard.
   `measure-locomo-neural.ts` and `measure-locomo-levers.ts` now parse their
   `--limit` and `--arms` flags through testable CLI options paths. Limits are
   strict positive integers, arm filters reject missing values, unknown labels,
-  and duplicates, and malformed inputs fail before producing retrieval or
-  lever-comparison tables. This prevents Phase 65 measurement evidence from
-  silently shrinking, emptying, or retargeting its intended arm set. Unit
-  coverage lives in tests/unit/measure-locomo-neural.test.ts and
+  duplicates, empty labels, and whitespace-padded comma segments, and malformed
+  inputs fail before producing retrieval or lever-comparison tables. This
+  prevents Phase 65 measurement evidence from silently shrinking, emptying, or
+  retargeting its intended arm set. Unit coverage lives in
+  tests/unit/measure-locomo-neural.test.ts and
   tests/unit/measure-locomo-levers.test.ts.
+
+[DONE] P65-T004gw Measurement source-root env guard.
+  `measure-locomo-levers.ts`, `measure-locomo-neural.ts`,
+  `measure-locomo-union-live.ts`, and
+  `run-phase-65-locomo-embedding-free-comparison.ts` now reject empty or
+  whitespace-padded `GOODMEMORY_LOCOMO_ROOT` fallback values before benchmark
+  root resolution. This prevents Phase 65 lever, neural, union-live, and
+  gateway-free comparison evidence from reading malformed env-derived source
+  roots without changing retrieval scores, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/measure-locomo-levers.test.ts,
+  tests/unit/measure-locomo-neural.test.ts,
+  tests/unit/measure-locomo-union-live.test.ts, and
+  tests/unit/run-phase-65.locomo-embedding-free-comparison.test.ts.
 
 [DONE] P65-T004ap Report-list empty-entry guard.
   `summarize:phase-65-locomo-categories` and
@@ -1793,7 +1820,9 @@ Tasks
 
 [DONE] P65-T004dk Reanswer output/source path guard.
   The reanswer runner now rejects output `smoke-report.json` paths that resolve
-  to `--source-report` before loading replay selection or writing output.
+  to `--source-report` before loading replay selection or writing output. When
+  `--run-id` is explicit, that output/source path check now runs before the
+  source report is read.
   Shared compatibility already rejects generated reports whose
   `sourceReport.path` resolves to the report path, and this generation-side
   guard prevents clobbering the retrieval source report before that invalid
@@ -2228,11 +2257,12 @@ Tasks
   jobs for non-adversarial wrong rows whose candidate token-F1 is above zero but
   below the pass threshold. The live-delta CLI also backfills omitted
   `answerTokenF1` values in memory from the report benchmark source/external root
-  before writing derived artifacts, so compatible older live reports that
-  already carry required answer-context lineage can produce near-miss queues
-  without rerunning answer generation or rewriting source reports. Older reports
-  that also lack required compatibility metadata, such as `answerContextMode`,
-  still fail fast instead of being silently inferred.
+  before writing derived artifacts, and rejects output paths that would overwrite
+  the benchmark `cases.json` source before loading it. Compatible older live
+  reports that already carry required answer-context lineage can produce
+  near-miss queues without rerunning answer generation or rewriting source
+  reports. Older reports that also lack required compatibility metadata, such as
+  `answerContextMode`, still fail fast instead of being silently inferred.
   Answer-contract and label-compatibility queues can now identify and replay
   near-miss token-F1 failures without manually rejoining generated answers to
   the external root. This does not change correctness scoring or LoCoMo closure
@@ -2592,34 +2622,52 @@ Tasks
   The eval-only `run-phase-65-locomo-window-retrieval.ts` and
   `run-phase-65-locomo-query-expansion.ts` probes now reject duplicate scalar
   source/run/window selectors before writing comparison reports. This covers
-  `--benchmark-root`, `--run-id`, and `--window-radius`; `--window-radius` must
-  also be a positive integer. These probes carry negative retrieval-boundary
+  `--benchmark-root`, `--run-id`, and `--window-radius`; `--run-id` must be a
+  single path segment so comparison reports stay under the intended research
+  tree, `--window-radius` must be a positive integer, and empty or
+  whitespace-padded `GOODMEMORY_LOCOMO_ROOT` fallback values are rejected before
+  benchmark-root resolution. These probes carry negative retrieval-boundary
   evidence for dialog windows and rules-light query expansion, so malformed CLI
-  input should fail before producing comparison artifacts. This is CLI evidence
-  integrity hardening only; it does not change LoCoMo retrieval, answer scores,
-  default status, or public-claim boundaries. Unit coverage lives in
+  or env input should fail before producing comparison artifacts. This is CLI
+  evidence integrity hardening only; it does not change LoCoMo retrieval, answer
+  scores, default status, or public-claim boundaries. Unit coverage lives in
   tests/unit/run-phase-65.locomo-probe-cli.test.ts.
 
 [DONE] P65-T004gj Near-miss label output/source path guard.
   `analyze:phase-65-locomo-near-miss-labels` now rejects output paths that
   resolve to its input live-delta report before reading any report, and rejects
   output paths that resolve to the live-delta `candidateReport.path` before
-  reading that candidate source report. This prevents token-F1 near-miss label
-  diagnostics from overwriting source evidence while preserving the existing
-  live-delta/candidate provenance join. This is CLI evidence integrity
+  reading that candidate source report. After the candidate report is validated,
+  it also rejects output paths that resolve to the candidate benchmark
+  `cases.json` before loading benchmark cases. This prevents token-F1 near-miss
+  label diagnostics from overwriting source evidence while preserving the
+  existing live-delta/candidate provenance join. This is CLI evidence integrity
   hardening only; it does not change LoCoMo retrieval, answer scores, default
   status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
+
+[DONE] P65-T004gja Near-miss label output run-id path-segment guard.
+  `analyze:phase-65-locomo-near-miss-labels` now requires output `--run-id`
+  values to be a single path segment before deriving the default output path
+  from `--live-delta`, and before the live-delta report is read. This prevents
+  token-F1 near-miss label diagnostics from escaping the intended
+  derived-evidence directory through `../` or nested run-id values while
+  preserving the existing live-delta, candidate-report, and benchmark-cases
+  overwrite guards. This is CLI evidence integrity hardening only; it does not
+  change LoCoMo retrieval scores, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
   tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
 
 [DONE] P65-T004gk Multi-report post-processor output/source path guard.
   `summarize:phase-65-locomo-categories`,
   `analyze:phase-65-locomo-category-gaps`, and
-  `analyze:phase-65-locomo-answer-policy-slice` now reject output paths that
-  resolve to any input `--report` before reading reports. This prevents
-  category matrices, gap diagnostics, and answer-policy manifests from
-  overwriting source smoke reports while preserving the existing duplicate
-  report-list guard. This is CLI evidence integrity hardening only; it does not
-  change LoCoMo retrieval, answer scores, default status, or public-claim
+  `analyze:phase-65-locomo-answer-policy-slice` now reject empty or
+  whitespace-padded `--report` values and output paths that resolve to any
+  input `--report` before reading reports. This prevents category matrices,
+  gap diagnostics, and answer-policy manifests from malformed source lists or
+  overwritten source smoke reports while preserving the existing duplicate
+  report-list guard. This is CLI evidence integrity hardening only; it does
+  not change LoCoMo retrieval, answer scores, default status, or public-claim
   boundaries. Unit coverage lives in
   tests/unit/summarize-phase-65-locomo-categories.test.ts,
   tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, and
@@ -2627,22 +2675,161 @@ Tasks
 
 [DONE] P65-T004gl Retrieval-gap output/source path guard.
   `analyze:phase-65-locomo-retrieval-gap` now rejects output paths that resolve
-  to either its input smoke report or resolved cases file before reading inputs.
-  This prevents retrieval-gap diagnostics from overwriting source smoke reports
-  or external-root cases while preserving the existing report/cases join
-  validation. This is CLI evidence integrity hardening only; it does not change
-  LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
-  Unit coverage lives in tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
+  to either its input smoke report or resolved cases file before reading inputs,
+  and rejects ambiguous `--cases` plus `--benchmark-root` source selectors.
+  This prevents retrieval-gap diagnostics from overwriting source smoke reports,
+  overwriting external-root cases, or silently preferring one cases source over
+  another while preserving the existing report/cases join validation. This is
+  CLI evidence integrity hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage lives
+  in tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
 
 [DONE] P65-T004gm Captioned-root source/output root guard.
   `prepare:phase-65-locomo-captioned` now rejects output roots that resolve to
-  the input source root before reading source cases. This prevents captioned-root
-  fixture prep from overwriting the normalized external LoCoMo root while
-  preserving the existing leakage boundary: the captioner sees dialog turns only,
-  never questions, gold answers, or evidence labels. This is fixture-prep evidence
+  the input source root before reading source cases, and rejects empty or
+  whitespace-padded `GOODMEMORY_LOCOMO_ROOT` values before using that env var as
+  the source-root fallback. This prevents captioned-root fixture prep from
+  overwriting the normalized external LoCoMo root or reading malformed
+  env-derived source roots while preserving the existing leakage boundary: the
+  captioner sees dialog turns only, never questions, gold answers, or evidence
+  labels. This is fixture-prep evidence integrity hardening only; it does not
+  change LoCoMo retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
+  tests/unit/prepare-phase-65.locomo-captioned-root.test.ts.
+
+[DONE] P65-T004gmb External-root prep source intake/output file guard.
+  `prepare:phase-65-locomo` now rejects ambiguous `--source-file` plus
+  `--source-url` selectors, and rejects `--source-file` values that resolve to
+  the normalized output `--output-root/cases.json` before reading source data.
+  Remote `--source-url` intake also rejects non-OK fetch responses before JSON
+  parsing, and empty or whitespace-padded `GOODMEMORY_LOCOMO_ROOT` values are
+  rejected before output-root resolution.
+  This prevents silent source precedence and local raw LoCoMo source fixtures
+  from being overwritten by the generated normalized external root, prevents
+  remote error pages from becoming source data, and surfaces malformed env-derived
+  output roots while preserving the non-vendored external prep path. This is
+  fixture-prep evidence integrity hardening only; it does not change LoCoMo
+  retrieval, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in tests/unit/prepare-phase-65-locomo-data.test.ts.
+
+[DONE] P65-T004gn Smoke run-directory path-segment guard.
+  `eval:phase-65-smoke` now requires `--run-id` to be a single path segment
+  before smoke reports, live progress checkpoints, or extraction caches are
+  written under `--output-dir`, and rejects empty or whitespace-padded
+  `GOODMEMORY_LOCOMO_ROOT` fallback values before benchmark-root resolution.
+  This prevents retrieval-only, live-answer, and provider-backed LoCoMo evidence
+  from escaping the intended report tree through `../` or nested run-id values,
+  or from reading malformed env-derived source roots, while preserving the
+  existing strict scalar and duplicate-flag behavior. This is CLI evidence
   integrity hardening only; it does not change LoCoMo retrieval, answer scores,
   default status, or public-claim boundaries. Unit coverage lives in
-  tests/unit/prepare-phase-65.locomo-captioned-root.test.ts.
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004go Reanswer run-directory path-segment guard.
+  `eval:phase-65-reanswer-report` now requires output `--run-id` values to be
+  a single path segment at CLI parse time and inside the programmatic runner
+  before source reports are read. This prevents answer-policy replay,
+  gold-evidence-only noise-isolation, and other reanswer evidence from escaping
+  the intended output tree through `../` or nested run-id values while
+  preserving the existing blank/whitespace/source-run-id checks. This is CLI
+  evidence integrity hardening only; it does not change LoCoMo retrieval, answer
+  scores, default status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gp Budget-delta output run-id path-segment guard.
+  `analyze:phase-65-locomo-budget-delta` now requires output `--run-id` values
+  to be a single path segment before deriving the default output path from
+  `--candidate-report` plus `--run-id`, and before source reports are read.
+  This prevents candidate-budget delta artifacts from escaping the intended
+  derived-evidence directory through `../` or nested run-id values while
+  preserving the existing duplicate-scalar, self-comparison, and source-overwrite
+  checks. This is CLI evidence integrity hardening only; it does not change
+  LoCoMo retrieval scores, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-budget-delta.test.ts.
+
+[DONE] P65-T004gq Live-delta output run-id path-segment guard.
+  `analyze:phase-65-locomo-live-delta` now requires output `--run-id` values
+  to be a single path segment before deriving the default output path from
+  `--candidate-report` plus `--run-id`, and before source reports are read.
+  This prevents live-delta artifacts, answer-change diagnostics, and exported
+  reanswer queues from escaping the intended derived-evidence directory through
+  `../` or nested run-id values while preserving the existing duplicate-scalar,
+  self-comparison, source-overwrite, and benchmark-cases overwrite checks. This
+  is CLI evidence integrity hardening only; it does not change LoCoMo retrieval
+  scores, answer scores, default status, or public-claim boundaries. Unit
+  coverage lives in tests/unit/analyze-phase-65-locomo-live-delta.test.ts.
+
+[DONE] P65-T004gr Candidate-admission output run-id path-segment guard.
+  `analyze:phase-65-locomo-candidate-admission-slice` now requires output
+  `--run-id` values to be a single path segment before deriving the default
+  output path from `--candidate-report` plus `--run-id`, and before source
+  reports are read. This prevents candidate-admission repair manifests and
+  exported noisy-full-recall reanswer queues from escaping the intended
+  derived-evidence directory through `../` or nested run-id values while
+  preserving the existing duplicate-scalar, per-bucket, self-comparison, and
+  source-overwrite checks. This is CLI evidence integrity hardening only; it
+  does not change LoCoMo retrieval scores, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/select-phase-65-locomo-candidate-admission-slice.test.ts.
+
+[DONE] P65-T004gs Category-summary output run-id path-segment guard.
+  `summarize:phase-65-locomo-categories` now requires output `--run-id` values
+  to be a single path segment before deriving the default output path from the
+  first `--report`, and before source reports are read. This prevents full-root
+  category-matrix artifacts from escaping the intended derived-evidence
+  directory through `../` or nested run-id values while preserving the existing
+  multi-report list, duplicate-report, failed-shard, and source-overwrite
+  checks. This is CLI evidence integrity hardening only; it does not change
+  LoCoMo retrieval scores, answer scores, default status, or public-claim
+  boundaries. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-categories.test.ts.
+
+[DONE] P65-T004gt Answer-policy slice output run-id path-segment guard.
+  `analyze:phase-65-locomo-answer-policy-slice` now requires output `--run-id`
+  values to be a single path segment before deriving the default output path
+  from the first `--report`, and before source reports are read. This prevents
+  answer-policy replay manifests from escaping the intended derived-evidence
+  directory through `../` or nested run-id values while preserving the existing
+  multi-report list, duplicate-report, per-bucket, and source-overwrite checks.
+  This is CLI evidence integrity hardening only; it does not change LoCoMo
+  retrieval scores, answer scores, default status, or public-claim boundaries.
+  Unit coverage lives in
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
+
+[DONE] P65-T004gu Category-gap output run-id path-segment guard.
+  `analyze:phase-65-locomo-category-gaps` now requires output `--run-id`
+  values to be a single path segment before deriving the default output path
+  from the first `--report`, and before source reports are read. This prevents
+  category-gap diagnostics from escaping the intended derived-evidence directory
+  through `../` or nested run-id values while preserving the existing
+  multi-report list, duplicate-report, metadata-compatibility, and
+  source-overwrite checks. This is CLI evidence integrity hardening only; it
+  does not change LoCoMo retrieval scores, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/analyze-phase-65-locomo-category-gaps.test.ts.
+
+[DONE] P65-T004gv Embedding-free comparison source/output guard.
+  `run-phase-65-locomo-embedding-free-comparison.ts` now rejects
+  `--output-dir` values that resolve to the same path as `--benchmark-root` at
+  CLI parse time and in the exported runner before any deterministic arm can
+  run. This prevents gateway-free BM25 / deterministic-stack comparison
+  evidence from writing derived reports into the external benchmark root. This
+  is CLI evidence integrity hardening only; it does not change LoCoMo retrieval
+  scores, answer scores, default status, or public-claim boundaries. Unit
+  coverage lives in
+  tests/unit/run-phase-65.locomo-embedding-free-comparison.test.ts.
+
+[DONE] P65-T004gwa Evidence-pack category-operation routing.
+  `eval:phase-65-smoke` and `eval:phase-65-reanswer-report` now build LoCoMo
+  evidence-pack answer contexts with the shared `multi_session_reasoning`
+  framing for `multi_hop` questions and the shared `abstention` framing for
+  `adversarial` questions. This keeps multi-hop synthesis and no-answer/noise
+  calibration inside the generic answer evidence-pack operation layer instead
+  of relying only on the broad LoCoMo prompt. This is deterministic
+  answer-context hardening only; it is not a new live score, default-profile
+  promotion, or public-claim change until a focused live slice proves it.
+  Unit coverage lives in tests/unit/run-phase-65.locomo-live.test.ts.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

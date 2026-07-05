@@ -526,6 +526,31 @@ describe("phase-65 LoCoMo candidate-admission selector", () => {
     ).rejects.toThrow("--per-bucket must be a positive integer.");
   });
 
+  it("rejects non-canonical per-bucket flag values before reading reports", async () => {
+    for (const value of ["1e2", "2.0"]) {
+      await expect(
+        runLocomoCandidateAdmissionSliceSelection(
+          [
+            "bun",
+            "run",
+            "scripts/select-phase-65-locomo-candidate-admission-slice.ts",
+            "--baseline-report",
+            "/reports/baseline.json",
+            "--candidate-report",
+            "/reports/candidate.json",
+            "--per-bucket",
+            value,
+          ],
+          {
+            readFile: async () => {
+              throw new Error("should not read reports");
+            },
+          },
+        ),
+      ).rejects.toThrow("--per-bucket must be a positive integer.");
+    }
+  });
+
   it("rejects missing per-bucket flag values before reading reports", async () => {
     await expect(
       runLocomoCandidateAdmissionSliceSelection(
@@ -596,6 +621,54 @@ describe("phase-65 LoCoMo candidate-admission selector", () => {
     ).rejects.toThrow(
       "--output-path and --candidate-report must refer to different paths",
     );
+  });
+
+  it("rejects default output paths that would overwrite input reports before reading inputs", async () => {
+    await expect(
+      runLocomoCandidateAdmissionSliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-candidate-admission-slice.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/candidate-admission-slice.json",
+          "--run-id",
+          "candidate",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects output run ids that are not single path segments before reading inputs", async () => {
+    await expect(
+      runLocomoCandidateAdmissionSliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-candidate-admission-slice.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/smoke-report.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
   });
 
   it("rejects missing string flag values before reading reports", async () => {

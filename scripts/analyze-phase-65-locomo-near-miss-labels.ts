@@ -22,6 +22,7 @@ import type {
 import {
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoReportHasCompleteLiveAnswers,
@@ -180,7 +181,7 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
   return {
     liveDeltaPath,
     outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -759,6 +760,13 @@ export async function runLocomoNearMissLabelAnalysis(
   assertSmokeReport(candidateParsed, liveDeltaParsed.candidateReport.path);
 
   const benchmarkRoot = resolveBenchmarkRoot(candidateParsed);
+  if (benchmarkRoot !== undefined) {
+    assertOutputPathDoesNotOverwriteSource({
+      outputPath,
+      sourceFlag: "candidate benchmark cases",
+      sourcePath: join(benchmarkRoot, "cases.json"),
+    });
+  }
   const loaded = await loadLocomoCases({
     ...(benchmarkRoot === undefined ? {} : { benchmarkRoot }),
     readFile: readFileImpl,

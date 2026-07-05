@@ -127,6 +127,54 @@ describe("LoCoMo captioned-root CLI", () => {
       ]),
     ).toThrow("--concurrency requires a value.");
   });
+
+  it("rejects empty or whitespace-padded source-root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoCaptionedRootCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        ]).sourceRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseLocomoCaptionedRootCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-captioned-root.ts",
+          "--source-root",
+          "/tmp/LOCOMO-cli",
+        ]).sourceRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoCaptionedRootCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseLocomoCaptionedRootCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-captioned-root.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
+  });
 });
 
 describe("LoCoMo caption parsing", () => {

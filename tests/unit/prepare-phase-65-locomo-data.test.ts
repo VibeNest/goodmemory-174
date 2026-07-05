@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  loadLocomoPrepSource,
   normalizeLocomoPrepCases,
   parseLocomoPrepCliOptions,
 } from "../../scripts/prepare-phase-65-locomo-data";
@@ -59,8 +60,6 @@ describe("phase-65 LoCoMo external-root prep", () => {
         "/tmp/LOCOMO-full",
         "--source-file",
         "/tmp/locomo10.json",
-        "--source-url",
-        "https://example.test/locomo10.json",
         "--max-conversations",
         "0",
         "--max-questions-per-case",
@@ -71,6 +70,29 @@ describe("phase-65 LoCoMo external-root prep", () => {
       maxQuestionsPerCase: 40,
       outputRoot: "/tmp/LOCOMO-full",
       sourceFile: "/tmp/locomo10.json",
+      sourceUrl:
+        "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json",
+    });
+
+    expect(
+      parseLocomoPrepCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-data.ts",
+        "--output-root",
+        "/tmp/LOCOMO-full",
+        "--source-url",
+        "https://example.test/locomo10.json",
+        "--max-conversations",
+        "1",
+        "--max-questions-per-case",
+        "0",
+      ]),
+    ).toEqual({
+      maxConversations: 1,
+      maxQuestionsPerCase: 0,
+      outputRoot: "/tmp/LOCOMO-full",
+      sourceFile: undefined,
       sourceUrl: "https://example.test/locomo10.json",
     });
 
@@ -161,5 +183,118 @@ describe("phase-65 LoCoMo external-root prep", () => {
         "1",
       ]),
     ).toThrow("--source-url requires a value.");
+  });
+
+  it("rejects empty or whitespace-padded output-root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoPrepCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-data.ts",
+          "--max-conversations",
+          "1",
+        ]).outputRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoPrepCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseLocomoPrepCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-65-locomo-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects ambiguous source file and source url selectors", () => {
+    expect(() =>
+      parseLocomoPrepCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-data.ts",
+        "--source-file",
+        "/tmp/locomo10.json",
+        "--source-url",
+        "https://example.test/locomo10.json",
+      ]),
+    ).toThrow("--source-file and --source-url cannot both be specified.");
+  });
+
+  it("rejects a source file that resolves to the output cases file", () => {
+    expect(() =>
+      parseLocomoPrepCliOptions([
+        "bun",
+        "run",
+        "scripts/prepare-phase-65-locomo-data.ts",
+        "--output-root",
+        "/tmp/LOCOMO",
+        "--source-file",
+        "/tmp/LOCOMO/../LOCOMO/cases.json",
+      ]),
+    ).toThrow(
+      "--source-file and --output-root/cases.json must refer to different paths",
+    );
+  });
+
+  it("loads source files without fetching a source url", async () => {
+    const raw = await loadLocomoPrepSource({
+      fetchSource: async () => {
+        throw new Error("fetch should not be called for source files");
+      },
+      readTextFile: async (path) => `local:${path}`,
+      sourceFile: "/tmp/locomo10.json",
+      sourceUrl: "https://example.test/locomo10.json",
+    });
+
+    expect(raw).toBe("local:/tmp/locomo10.json");
+  });
+
+  it("rejects failed source-url fetches before JSON parsing", async () => {
+    await expect(
+      loadLocomoPrepSource({
+        fetchSource: async () => ({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+          text: async () => "<html>not json</html>",
+        }),
+        sourceUrl: "https://example.test/missing-locomo10.json",
+      }),
+    ).rejects.toThrow(
+      "Failed to fetch LoCoMo source https://example.test/missing-locomo10.json: 404 Not Found.",
+    );
+  });
+
+  it("loads source-url text after a successful fetch", async () => {
+    const raw = await loadLocomoPrepSource({
+      fetchSource: async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        text: async () => "[{\"sample_id\":\"conv-1\"}]",
+      }),
+      sourceUrl: "https://example.test/locomo10.json",
+    });
+
+    expect(raw).toBe("[{\"sample_id\":\"conv-1\"}]");
   });
 });

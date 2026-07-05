@@ -100,6 +100,76 @@ Next
 - Treat open_domain commonsense/strict-no-evidence probes as opt-in evidence
   until broader category validation proves they do not regress single_hop,
   multi_hop, temporal, or adversarial slices.
+- Keep evidence-pack category routing explicit: LoCoMo `multi_hop` live/reanswer
+  evidence-pack contexts should use the shared `multi_session_reasoning`
+  framing, and `adversarial` contexts should use the shared `abstention`
+  framing. This is deterministic answer-context hardening until a focused live
+  slice proves whether it changes scores.
 - Coordinate any shared recall-routing change with the BEAM workstream and
   verify a BEAM rules-only recall diagnostic spot-check (`caseDeltaCount: 0`)
   before treating it as safe cross-benchmark evidence.
+- Keep `eval:phase-65-smoke` report directories canonical: `--run-id` must be
+  a single path segment so smoke reports, live progress checkpoints, and
+  extraction caches stay under the intended `--output-dir`.
+- Keep `eval:phase-65-smoke` source roots canonical: `GOODMEMORY_LOCOMO_ROOT`
+  must not be empty or whitespace-padded before smoke/live runs use it as the
+  benchmark-root fallback.
+- Keep `eval:phase-65-reanswer-report` output directories canonical: output
+  `--run-id` must be a single path segment before source reports are read, so
+  reanswer and gold-evidence-only replay reports stay under the intended
+  `--output-dir`.
+- Keep `analyze:phase-65-locomo-budget-delta` derived output directories
+  canonical: `--run-id` must be a single path segment before the analyzer
+  derives its default output path from `--candidate-report` plus `--run-id`.
+- Keep `analyze:phase-65-locomo-live-delta` derived output directories
+  canonical for delta artifacts and exported reanswer queues: `--run-id` must
+  be a single path segment before the analyzer derives its default output path
+  from `--candidate-report` plus `--run-id`.
+- Keep `analyze:phase-65-locomo-candidate-admission-slice` derived output
+  directories canonical for repair manifests and exported reanswer queues:
+  `--run-id` must be a single path segment before the analyzer derives its
+  default output path from `--candidate-report` plus `--run-id`.
+- Keep `summarize:phase-65-locomo-categories` derived output directories
+  canonical for full-root category matrices: `--run-id` must be a single path
+  segment before the assembler derives its default output path from the first
+  `--report`.
+- Keep `analyze:phase-65-locomo-category-gaps` derived output directories
+  canonical for category-gap diagnostics: `--run-id` must be a single path
+  segment before the analyzer derives its default output path from the first
+  `--report`.
+- Keep `analyze:phase-65-locomo-answer-policy-slice` derived output directories
+  canonical for answer-policy replay manifests: `--run-id` must be a single
+  path segment before the selector derives its default output path from the
+  first `--report`.
+- Keep `analyze:phase-65-locomo-near-miss-labels` derived output directories
+  canonical for token-F1 near-miss diagnostics: `--run-id` must be a single
+  path segment before the analyzer derives its default output path from
+  `--live-delta`.
+- Keep eval-only retrieval-probe source roots canonical:
+  `GOODMEMORY_LOCOMO_ROOT` must not be empty or whitespace-padded before
+  dialog-window or rules-light query-expansion probes use it as the
+  benchmark-root fallback.
+- Keep `measure-locomo-union-live.ts` run directories canonical for legacy
+  union live evidence: `--run-id` must be a single path segment before progress
+  checkpoints, extraction caches, or `union-live-report.json` are written under
+  `--output-dir`.
+- Keep `run-phase-65-locomo-embedding-free-comparison.ts` source and output
+  paths distinct: `--output-dir` must not resolve to the same path as
+  `--benchmark-root`, so gateway-free comparison reports do not land in the
+  external benchmark root.
+- Keep Phase 65 measurement source roots canonical:
+  `GOODMEMORY_LOCOMO_ROOT` must not be empty or whitespace-padded before
+  `measure-locomo-levers.ts`, `measure-locomo-neural.ts`,
+  `measure-locomo-union-live.ts`, or
+  `run-phase-65-locomo-embedding-free-comparison.ts` use it as the
+  benchmark-root fallback.
+- Keep `prepare:phase-65-locomo-captioned` source roots canonical:
+  `GOODMEMORY_LOCOMO_ROOT` must not be empty or whitespace-padded before it is
+  used as the source-root fallback for captioned-root fixture prep.
+- Keep `prepare:phase-65-locomo` source and output files distinct:
+  specify either `--source-file` or `--source-url`, not both, and `--source-file`
+  must not resolve to `--output-root/cases.json`, so local raw LoCoMo source
+  fixtures are not overwritten by the generated normalized root. Remote
+  `--source-url` fetches must return an OK response before their body is parsed
+  as source JSON. `GOODMEMORY_LOCOMO_ROOT` must not be empty or
+  whitespace-padded before output-root resolution.

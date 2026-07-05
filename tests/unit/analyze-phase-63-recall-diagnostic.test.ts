@@ -266,6 +266,47 @@ describe("analyze phase-63 recall diagnostic", () => {
     }
   });
 
+  it("rejects run ids that escape recall diagnostic report roots before reading inputs", async () => {
+    for (const flagName of ["--baseline-run-id", "--run-id"]) {
+      expect(() =>
+        parsePhase63RecallDiagnosticAnalysisCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-recall-diagnostic.ts",
+          flagName,
+          "../outside-beam",
+        ]),
+      ).toThrow(`${flagName} must be a single path segment.`);
+    }
+
+    await expect(
+      runPhase63RecallDiagnosticAnalysis(
+        {
+          runId: "../outside-beam",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read recall report");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase63RecallDiagnosticAnalysis(
+        {
+          baselineRunId: "../outside-baseline",
+          reportPath: "/tmp/after/recall-diagnostic.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read recall reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--baseline-run-id must be a single path segment.");
+  });
+
   it("rejects output paths that overwrite the analyzed report before reading inputs", async () => {
     await expect(
       runPhase63RecallDiagnosticAnalysis(
@@ -300,6 +341,25 @@ describe("analyze phase-63 recall diagnostic", () => {
       ),
     ).rejects.toThrow(
       "--output-path and --baseline-report-path must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that overwrite a benchmark source file before reading inputs", async () => {
+    await expect(
+      runPhase63RecallDiagnosticAnalysis(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          outputPath: "/tmp/BEAM/../BEAM/100K.json",
+          reportPath: "/tmp/after/recall-diagnostic.json",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read recall inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --benchmark-root source must refer to different paths",
     );
   });
 

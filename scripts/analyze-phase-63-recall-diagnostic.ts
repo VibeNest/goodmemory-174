@@ -1,8 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+  assertCliPathSegmentValue,
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import { inferPhase63BeamCaseCategory } from "./analyze-phase-63-beam-report";
 import {
@@ -11,6 +13,7 @@ import {
   readPhase63BeamRows,
 } from "./run-phase-63-beam-recall-diagnostic";
 import { resolvePhase63OutputDir, resolvePhase63RepoRoot } from "./run-phase-63-shared";
+import { BEAM_FULL_DATA_FILES } from "../src/eval/beam";
 import type {
   BeamCaseResult,
   BeamProfile,
@@ -694,19 +697,36 @@ function resolveDefaultReportPath(input: {
   );
 }
 
+function assertOutputPathDoesNotOverwriteBenchmarkSource(input: {
+  benchmarkRoot: string;
+  outputPath: string;
+}): void {
+  for (const sourceFileName of BEAM_FULL_DATA_FILES) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: input.outputPath,
+      secondFlag: "--benchmark-root source",
+      secondValue: join(input.benchmarkRoot, sourceFileName),
+    });
+  }
+}
+
 export function parsePhase63RecallDiagnosticAnalysisCliOptions(
   argv: readonly string[],
 ): Phase63RecallDiagnosticAnalysisOptions {
   const profile = resolveCliFlagValueStrict(argv, "--profile") as BeamProfile | undefined;
   return {
     baselineReportPath: resolveCliFlagValueStrict(argv, "--baseline-report-path"),
-    baselineRunId: resolveCliFlagValueStrict(argv, "--baseline-run-id"),
+    baselineRunId: resolveCliPathSegmentFlagValueStrict(
+      argv,
+      "--baseline-run-id",
+    ),
     benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
     profile,
     reportPath: resolveCliFlagValueStrict(argv, "--report-path"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     sourceTurnLimit: parseSourceTurnLimit(
       resolveCliFlagValueStrict(argv, "--source-turn-limit"),
     ),
@@ -722,6 +742,15 @@ export async function runPhase63RecallDiagnosticAnalysis(
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = dependencies.writeFile ?? writeFile;
   const now = dependencies.now ?? (() => new Date());
+  if (options.runId !== undefined) {
+    assertCliPathSegmentValue({ flag: "--run-id", value: options.runId });
+  }
+  if (options.baselineRunId !== undefined) {
+    assertCliPathSegmentValue({
+      flag: "--baseline-run-id",
+      value: options.baselineRunId,
+    });
+  }
   const reportPath =
     options.reportPath ??
     resolveDefaultReportPath({
@@ -754,6 +783,12 @@ export async function runPhase63RecallDiagnosticAnalysis(
       secondValue: baselineReportPath,
     });
   }
+  if (options.benchmarkRoot) {
+    assertOutputPathDoesNotOverwriteBenchmarkSource({
+      benchmarkRoot: options.benchmarkRoot,
+      outputPath,
+    });
+  }
 
   const report = JSON.parse(await readFileImpl(reportPath)) as BeamReport;
   const baselineReport = baselineReportPath
@@ -763,6 +798,10 @@ export async function runPhase63RecallDiagnosticAnalysis(
   let sourceContextWarning: string | undefined;
   const benchmarkRoot = options.benchmarkRoot ?? report.benchmarkRoot;
   if (benchmarkRoot) {
+    assertOutputPathDoesNotOverwriteBenchmarkSource({
+      benchmarkRoot,
+      outputPath,
+    });
     try {
       const rows = await readPhase63BeamRows({
         benchmarkRoot,

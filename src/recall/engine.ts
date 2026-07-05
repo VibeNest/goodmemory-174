@@ -601,44 +601,20 @@ export function createRecallEngine(config: RecallEngineConfig) {
         1,
         Math.floor(config.semanticCandidates?.topK ?? 8),
       );
-      if (
-        routingDecision.strategy === "hybrid" &&
-        config.embedding &&
-        vectorIndex
-      ) {
-        try {
-          semanticScores = await searchSemanticScores({
-            embedding: config.embedding,
-            query: input.query,
-            scope: input.scope,
-            vectorIndex,
-            ...(config.semanticCandidates
-              ? { factCandidates: { topK: semanticUnionTopK } }
-              : {}),
-          });
-        } catch (error) {
-          throw new ProviderBackedRecallError({
-            cause: error,
-            stage: "semantic_search",
-          });
-        }
-      } else if (
-        config.bm25Ranking &&
-        routingDecision.strategy !== "rules-only"
-      ) {
-        // Embedding-free path: Okapi BM25 over the in-memory candidate pool
-        // populates the same additive ranking slot a neural semantic score
-        // would, giving hybrid/llm-assisted ranking IDF + length normalization
-        // with no embedding endpoint. rules-only never consumes this slot, so
-        // the pure lexical floor is preserved.
-        // IMPORTANT: this branch must never populate `semanticFactCandidates` —
+      const computeBm25AdditiveScores = (): SemanticSearchScores => {
+        // Okapi BM25 over the in-memory candidate pool populates the same
+        // additive ranking slot a neural semantic score would, giving
+        // hybrid/llm-assisted ranking IDF + length normalization with no
+        // embedding endpoint. rules-only never consumes this slot, so the pure
+        // lexical floor is preserved.
+        // IMPORTANT: this helper must never populate `semanticFactCandidates` -
         // BM25 scores are lexical, and feeding them to the semantic-candidates
         // union would readmit the lexical floor the union exists to bypass.
         const tokenizeForLocale = (text: string): string[] =>
           language.tokenize(text, resolvedLanguage.locale, {
             excludeStopwords: true,
           });
-        semanticScores = {
+        return {
           facts: computeBm25Scores(
             input.query,
             factsRaw.map((fact) => ({
@@ -664,6 +640,45 @@ export function createRecallEngine(config: RecallEngineConfig) {
             { tokenize: tokenizeForLocale },
           ),
         };
+      };
+      if (
+        routingDecision.strategy === "hybrid" &&
+        config.embedding &&
+        vectorIndex &&
+        (!config.bm25Ranking || config.semanticCandidates)
+      ) {
+        try {
+          const providerSemanticScores = await searchSemanticScores({
+            embedding: config.embedding,
+            query: input.query,
+            scope: input.scope,
+            vectorIndex,
+            ...(config.semanticCandidates
+              ? { factCandidates: { topK: semanticUnionTopK } }
+              : {}),
+          });
+          semanticScores = config.bm25Ranking
+            ? {
+                ...computeBm25AdditiveScores(),
+                ...(providerSemanticScores.semanticFactCandidates !== undefined
+                  ? {
+                      semanticFactCandidates:
+                        providerSemanticScores.semanticFactCandidates,
+                    }
+                  : {}),
+              }
+            : providerSemanticScores;
+        } catch (error) {
+          throw new ProviderBackedRecallError({
+            cause: error,
+            stage: "semantic_search",
+          });
+        }
+      } else if (
+        config.bm25Ranking &&
+        routingDecision.strategy !== "rules-only"
+      ) {
+        semanticScores = computeBm25AdditiveScores();
       }
 
       const filteredProfile = await applyRecallPolicyToProfile(profile, {
@@ -707,7 +722,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
       }
       // The union is bound to the embedding branch by construction:
       // semanticFactCandidates only exists when searchSemanticScores ran with
-      // factCandidates, which the BM25 branch never sets.
+      // factCandidates. BM25 may supply additive scores in the same run, but it
+      // never supplies union candidates.
       if (config.semanticCandidates && (!config.embedding || !vectorIndex)) {
         policyApplied.add("semantic_candidates_unavailable");
       }

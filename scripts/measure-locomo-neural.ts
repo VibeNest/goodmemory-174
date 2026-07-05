@@ -13,7 +13,10 @@
 import { readFile } from "node:fs/promises";
 import { createGoodMemory, type GoodMemory } from "../src";
 import { createProviderEmbeddingAdapter } from "../src/provider/layer";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 import {
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
@@ -94,16 +97,23 @@ function parseArmLabelsFlag(
   if (raw === undefined) {
     return undefined;
   }
-  const labels = raw
-    .split(",")
-    .map((label) => label.trim())
-    .filter((label) => label.length > 0);
+  const labels = raw.split(",");
   if (labels.length === 0) {
     throw new Error(`${flag} requires at least one arm label.`);
   }
   const validLabels = new Set(ARMS.map((arm) => arm.label));
   const seen = new Set<string>();
+  const parsed: string[] = [];
   for (const label of labels) {
+    const trimmed = label.trim();
+    if (trimmed.length === 0) {
+      throw new Error(`${flag} contains an empty arm label.`);
+    }
+    if (trimmed !== label) {
+      throw new Error(
+        `${flag} contains whitespace-padded arm '${trimmed}'.`,
+      );
+    }
     if (!validLabels.has(label)) {
       throw new Error(
         `${flag} contains unknown arm '${label}'. Valid arms: ${ARMS.map((arm) => arm.label).join(", ")}.`,
@@ -113,8 +123,9 @@ function parseArmLabelsFlag(
       throw new Error(`${flag} contains duplicate arm '${label}'.`);
     }
     seen.add(label);
+    parsed.push(label);
   }
-  return labels;
+  return parsed;
 }
 
 export function parseLocomoNeuralCliOptions(
@@ -124,7 +135,7 @@ export function parseLocomoNeuralCliOptions(
     armLabels: parseArmLabelsFlag(argv, "--arms"),
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_LOCOMO_ROOT,
+      resolveEnvValueStrict(process.env, "GOODMEMORY_LOCOMO_ROOT"),
     limit: parsePositiveIntegerFlag(argv, "--limit"),
   };
 }

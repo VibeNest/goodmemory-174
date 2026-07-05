@@ -91,6 +91,56 @@ describe("recall selection", () => {
     expect(result.traces.find((trace) => trace.memoryId === "fact-blocker")?.returned).toBe(true);
   });
 
+  it("still applies semantic union additions after slot-specific fact selection", () => {
+    const language = createLanguageService();
+    const facts = [
+      createFactMemory({
+        id: "fact-blocker",
+        userId: "user-1",
+        category: "project",
+        content: "The runtime rollout is blocked by legal signoff.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+      createFactMemory({
+        id: "fact-semantic-union",
+        userId: "user-1",
+        category: "personal",
+        content: "Marco goes fishing at the lake to destress.",
+        source: SOURCE,
+        updatedAt: TIMESTAMP,
+      }),
+    ];
+
+    const result = selectFacts(
+      facts,
+      "What is the blocker right now?",
+      language,
+      "en",
+      "general_chat",
+      buildRoutingDecision({
+        requestedSlots: ["blocker"],
+      }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      {
+        candidates: [{ id: "fact-semantic-union", score: 0.95 }],
+        maxAdditions: 1,
+      },
+    );
+
+    expect(result.facts.map((fact) => fact.id)).toEqual([
+      "fact-blocker",
+      "fact-semantic-union",
+    ]);
+    expect(
+      result.traces.find((trace) => trace.memoryId === "fact-semantic-union")
+        ?.fallback,
+    ).toBe("semantic_union");
+  });
+
   it("falls back to a unique reference candidate for reference slot queries", () => {
     const language = createLanguageService();
     const references = [

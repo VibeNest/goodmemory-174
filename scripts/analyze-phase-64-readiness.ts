@@ -1,6 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { assertDistinctCliPathValues, resolveCliFlagValue } from "./cli-options";
+import {
+  assertCliPathSegmentValue,
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import type {
   Phase63RecallDiagnosticBucketSummary,
@@ -324,10 +329,13 @@ export function parsePhase64ReadinessAnalysisCliOptions(
   argv: readonly string[],
 ): Phase64ReadinessCliOptions {
   return {
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
-    phase63AnalysisPath: resolveCliFlagValue(argv, "--phase63-analysis-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    phase63AnalysisPath: resolveCliFlagValueStrict(
+      argv,
+      "--phase63-analysis-path",
+    ),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -349,6 +357,12 @@ export async function runPhase64ReadinessAnalysis(
     throw new Error(
       "Phase 64 readiness analysis requires --phase63-analysis-path.",
     );
+  }
+  if (options.runId !== undefined) {
+    assertCliPathSegmentValue({
+      flag: "--run-id",
+      value: options.runId,
+    });
   }
 
   const root = resolveRepoRootFromScriptUrl(import.meta.url);

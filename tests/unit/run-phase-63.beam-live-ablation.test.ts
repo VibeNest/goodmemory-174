@@ -168,6 +168,104 @@ describe("phase-63 BEAM live ablation runner", () => {
     }
   });
 
+  it("rejects empty or whitespace-padded BEAM root environment values", async () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63AblationCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-ablation.ts",
+          "--mode",
+          "full-context",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63AblationCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-ablation.ts",
+          "--mode",
+          "full-context",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63AblationCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-ablation.ts",
+          "--mode",
+          "full-context",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+      await expect(
+        runPhase63BeamLiveAblation(
+          { mode: "full-context" },
+          {
+            readFile: async () => {
+              throw new Error("should not read benchmark rows");
+            },
+          },
+        ),
+      ).rejects.toThrow(
+        "GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.",
+      );
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63AblationCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-ablation.ts",
+          "--mode",
+          "full-context",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects output run ids that are not single path segments", async () => {
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-ablation.ts",
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--mode",
+        "gold-evidence-only",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase63BeamLiveAblation(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          mode: "gold-evidence-only",
+          runId: "../outside-beam",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read benchmark rows");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("selects chat ids per ablation mode", () => {
     const shared = {
       allChatIds: [1, 2, 3, 4],

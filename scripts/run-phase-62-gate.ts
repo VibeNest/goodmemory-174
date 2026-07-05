@@ -1,8 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import { PHASE62_CANONICAL_RUN_ID } from "./run-phase-62-eval";
 import { resolvePhase62OutputDir, resolvePhase62RepoRoot } from "./run-phase-62-shared";
-import { resolveCliFlagValue } from "./cli-options";
 import type { LongMemEvalProfile, LongMemEvalReport } from "../src/eval/longmemeval";
 
 export const PHASE62_CANONICAL_GATE_RUN_ID = "run-20260505200000";
@@ -40,10 +43,12 @@ export interface Phase62GateDependencies {
   writeFile?: (path: string, value: string) => Promise<void>;
 }
 
-function parseGateOptions(argv: readonly string[]): Phase62GateOptions {
+export function parsePhase62GateCliOptions(
+  argv: readonly string[],
+): Phase62GateOptions {
   return {
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -146,6 +151,6 @@ export async function runPhase62Gate(
 }
 
 if (import.meta.main) {
-  const report = await runPhase62Gate(parseGateOptions(Bun.argv));
+  const report = await runPhase62Gate(parsePhase62GateCliOptions(Bun.argv));
   console.log(JSON.stringify(report, null, 2));
 }

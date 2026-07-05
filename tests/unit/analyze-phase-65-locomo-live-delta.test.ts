@@ -1609,6 +1609,127 @@ describe("phase-65 LoCoMo live delta analyzer", () => {
     );
   });
 
+  it("rejects default output paths that would overwrite input reports before reading inputs", async () => {
+    await expect(
+      runLocomoLiveDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-live-delta.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/live-delta.json",
+          "--run-id",
+          "candidate",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects output run ids that are not single path segments before reading inputs", async () => {
+    await expect(
+      runLocomoLiveDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-live-delta.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/smoke-report.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects output paths that would overwrite backfill benchmark cases before reading them", async () => {
+    const baselinePath = "/reports/baseline/smoke-report.json";
+    const candidatePath = "/reports/candidate/smoke-report.json";
+    const casesPath = "/private/tmp/LOCOMO-full/cases.json";
+    const baseline = reportWithoutAnswerTokenF1(
+      report({
+        cases: [
+          question({
+            answerCorrect: false,
+            category: "open_domain",
+            evidenceRecall: 0,
+            generatedAnswer: "I do not know.",
+            goldEvidenceFullyRetrieved: false,
+            questionId: "q-near-miss",
+          }),
+        ],
+        maxAdditions: 4,
+        runId: "baseline-live",
+        topK: 16,
+      }),
+    );
+    const candidate = reportWithoutAnswerTokenF1(
+      report({
+        cases: [
+          question({
+            answerCorrect: false,
+            category: "open_domain",
+            evidenceRecall: 1,
+            generatedAnswer: "Nintendo Switch",
+            goldEvidenceFullyRetrieved: true,
+            questionId: "q-near-miss",
+          }),
+        ],
+        maxAdditions: 8,
+        minRelativeScore: 0.8,
+        runId: "candidate-live",
+        topK: 32,
+      }),
+    );
+
+    await expect(
+      runLocomoLiveDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-live-delta.ts",
+          "--baseline-report",
+          baselinePath,
+          "--candidate-report",
+          candidatePath,
+          "--output-path",
+          "/private/tmp/LOCOMO-full/../LOCOMO-full/cases.json",
+        ],
+        {
+          readFile: async (path: string) => {
+            if (path === baselinePath) {
+              return JSON.stringify(baseline);
+            }
+            if (path === candidatePath) {
+              return JSON.stringify(candidate);
+            }
+            if (path === casesPath) {
+              throw new Error("should not read benchmark cases");
+            }
+            throw new Error(`Unexpected read: ${path}`);
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and live-delta benchmark cases must refer to different paths",
+    );
+  });
+
   it("rejects missing string flag values before reading reports", async () => {
     const noReads = {
       readFile: async (_path: string): Promise<string> => {

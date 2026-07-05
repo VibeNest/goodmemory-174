@@ -3,14 +3,17 @@ import { join } from "node:path";
 import type { BeamCase, BeamChatTurn, BeamProfile } from "../src/eval/beam";
 import { normalizeBeamProfileList } from "../src/eval/beam";
 import {
+  assertCliPathSegmentValue,
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
 } from "./run-phase-63-beam-recall-diagnostic";
 import {
+  resolvePhase63BeamRootEnv,
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
@@ -179,13 +182,13 @@ export function parsePhase63AblationCliOptions(
   return {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_BEAM_ROOT,
+      resolvePhase63BeamRootEnv(),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     liveReportPath: resolveCliFlagValueStrict(argv, "--live-report"),
     mode: parseMode(resolveCliFlagValueStrict(argv, "--mode")),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
@@ -316,7 +319,7 @@ export async function runPhase63BeamLiveAblation(
     );
   }
   const benchmarkRoot =
-    options.benchmarkRoot ?? process.env.GOODMEMORY_BEAM_ROOT;
+    options.benchmarkRoot ?? resolvePhase63BeamRootEnv();
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 63 BEAM ablation requires --benchmark-root or GOODMEMORY_BEAM_ROOT.",
@@ -337,6 +340,7 @@ export async function runPhase63BeamLiveAblation(
   const profile = options.profile ?? "goodmemory-rules-only";
   const scale = options.scale ?? "100K";
   const runId = options.runId ?? `run-phase63-beam-ablation-${mode}-current`;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const outputDir = options.outputDir ?? resolvePhase63OutputDir(root);
   const runDirectory = join(outputDir, runId);
   const outputPath = join(runDirectory, "ablation-report.json");

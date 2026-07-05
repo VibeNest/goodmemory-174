@@ -18,6 +18,16 @@ the BEAM workstream; resume plan in
 task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt). Current active
 lane: v0.3 release readiness / public-surface hardening (Phase 66).
 
+Source-root env hardening: `prepare:phase-64-mab` and `eval:phase-64-smoke`
+now reject empty or whitespace-padded `GOODMEMORY_MAB_ROOT` fallback values
+before output-root or benchmark-root resolution. Explicit `--output-root` /
+`--benchmark-root` values still take precedence, and synthetic smoke still runs
+without an external root. This protects fixture-prep, retrieval, and live
+evidence from malformed env-derived source roots without changing accepted
+Phase 64 closure evidence or the P67-C public claim. Unit coverage lives in
+`tests/unit/prepare-phase-64-memory-agent-bench-data.test.ts` and
+`tests/unit/run-phase-64.memory-agent-bench-smoke.test.ts`.
+
 
 Driver
 ------
@@ -481,19 +491,25 @@ reports/eval/research/phase-64/mab/run-phase64-mab-smoke-current/smoke-report.js
 CLI Evidence Guard (2026-07-04)
 -------------------------------
 
-`analyze:phase-64-readiness` rejects output paths that resolve to the input
-`--phase63-analysis-path` before reading the Phase 63 analysis file. This keeps
-the derived preparation report from overwriting its source diagnostic analysis;
-it does not change accepted Phase 64 closure evidence or the P67-C public-claim
-boundary.
+`analyze:phase-64-readiness` rejects duplicate scalar source/output selectors
+(`--phase63-analysis-path`, `--output-dir`, `--output-path`, `--run-id`) before
+reading Phase 63 analysis or writing prep evidence, requires `--run-id` to be a
+single path segment before deriving the default output path, and rejects output
+paths that resolve to the input `--phase63-analysis-path` before reading the
+Phase 63 analysis file. This keeps the derived preparation report from using
+ambiguous CLI inputs, escaping the intended output directory, or overwriting its
+source diagnostic analysis; it does not change accepted Phase 64 closure evidence
+or the P67-C public-claim boundary.
 
 `eval:phase-64-smoke` rejects duplicate boolean mode flags and scalar
 source/output selectors before report generation: `--evidence-pack`, `--live`,
 `--no-memory`, `--resume`, `--benchmark-root`, `--limit`, `--output-dir`, and
-`--run-id` cannot be specified more than once. This keeps retrieval/live/no-memory
-mode, source root, output location, run id, slice size, and checkpoint evidence
-unambiguous; it does not change accepted Phase 64 closure evidence or the P67-C
-public-claim boundary.
+`--run-id` cannot be specified more than once, `--run-id` must be a single path
+segment, and `--limit` must be a canonical positive integer string rather than
+scientific or decimal notation. This keeps retrieval/live/no-memory mode,
+source root, output location, run id, evidence directory, slice size, and
+checkpoint evidence unambiguous; it does not change accepted Phase 64 closure
+evidence or the P67-C public-claim boundary.
 
 
 Current Prep Boundary

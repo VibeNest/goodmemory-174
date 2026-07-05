@@ -7,8 +7,10 @@ import {
 } from "../src/eval/locomo";
 import type { LocomoQaCategory } from "../src/eval/locomo";
 import {
+  assertCliPathSegmentValue,
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   LOCOMO_REANSWER_JOB_BUCKETS,
@@ -166,7 +168,7 @@ export function parseLocomoReanswerCliOptions(
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     questionIdFile: resolveCliFlagValueStrict(argv, "--question-id-file"),
     questionIds: parseStringListFlag(argv, "--question-id"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     sourceReportPath,
     strictNoEvidenceAbstention: hasCliFlagStrict(
       argv,
@@ -238,6 +240,44 @@ function assertUniqueQuestionIds(input: {
       );
     }
     seen.add(questionId);
+  }
+}
+
+function assertLocomoReanswerRunIdShape(runId: string): void {
+  if (runId.trim().length === 0) {
+    throw new Error("LoCoMo reanswer runId must not be empty.");
+  }
+  if (runId.trim() !== runId) {
+    throw new Error(
+      "LoCoMo reanswer runId must not have leading or trailing whitespace.",
+    );
+  }
+  assertCliPathSegmentValue({
+    flag: "LoCoMo reanswer runId",
+    value: runId,
+  });
+}
+
+function resolveLocomoReanswerOutputReportPath(input: {
+  outputDir?: string;
+  runId: string;
+}): string {
+  return join(
+    input.outputDir ?? DEFAULT_OUTPUT_DIR,
+    input.runId,
+    LOCOMO_SMOKE_REPORT_FILE_NAME,
+  );
+}
+
+function assertLocomoReanswerOutputIsNotSourceReport(input: {
+  outputReportPath: string;
+  sourceReportPath: string;
+}): void {
+  if (resolve(input.outputReportPath) === resolve(input.sourceReportPath)) {
+    throw new Error(
+      `LoCoMo reanswer output smoke report path ${input.outputReportPath} ` +
+        "must not resolve to the source report path.",
+    );
   }
 }
 
@@ -997,6 +1037,16 @@ export async function runLocomoReportReanswer(
     label: "explicit question ids",
     questionIds: options.questionIds,
   });
+  if (options.runId !== undefined) {
+    assertLocomoReanswerRunIdShape(options.runId);
+    assertLocomoReanswerOutputIsNotSourceReport({
+      outputReportPath: resolveLocomoReanswerOutputReportPath({
+        outputDir: options.outputDir,
+        runId: options.runId,
+      }),
+      sourceReportPath: options.sourceReportPath,
+    });
+  }
   const readFileImpl = deps.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = deps.writeFile ?? writeFile;
   const mkdirImpl = deps.mkdir ?? mkdir;
@@ -1044,14 +1094,7 @@ export async function runLocomoReportReanswer(
     );
   }
   const runId = options.runId ?? `${rawReport.runId}-reanswer-current`;
-  if (runId.trim().length === 0) {
-    throw new Error("LoCoMo reanswer runId must not be empty.");
-  }
-  if (runId.trim() !== runId) {
-    throw new Error(
-      "LoCoMo reanswer runId must not have leading or trailing whitespace.",
-    );
-  }
+  assertLocomoReanswerRunIdShape(runId);
   if (runId === rawReport.runId) {
     throw new Error(
       `LoCoMo reanswer runId ${runId} must not match source report runId.`,
@@ -1060,12 +1103,10 @@ export async function runLocomoReportReanswer(
   const outputDir = options.outputDir ?? DEFAULT_OUTPUT_DIR;
   const runDirectory = join(outputDir, runId);
   const outputReportPath = join(runDirectory, LOCOMO_SMOKE_REPORT_FILE_NAME);
-  if (resolve(outputReportPath) === resolve(options.sourceReportPath)) {
-    throw new Error(
-      `LoCoMo reanswer output smoke report path ${outputReportPath} ` +
-        "must not resolve to the source report path.",
-    );
-  }
+  assertLocomoReanswerOutputIsNotSourceReport({
+    outputReportPath,
+    sourceReportPath: options.sourceReportPath,
+  });
   if (
     options.questionIdFile !== undefined &&
     resolve(options.questionIdFile) === resolve(outputReportPath)

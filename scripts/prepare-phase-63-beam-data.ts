@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import { resolveCliFlagValueStrict } from "./cli-options";
+import { resolvePhase63BeamRootEnv } from "./run-phase-63-shared";
 
 export type Phase63BeamDatasetSplit = "100K" | "500K" | "1M";
 export type Phase63BeamPrepareSource = "huggingface" | "github-raw";
@@ -136,26 +137,32 @@ function parseSource(value: string | undefined): Phase63BeamPrepareSource | unde
 export function parsePhase63BeamPrepareCliOptions(
   argv: readonly string[],
 ): Phase63BeamPrepareOptions {
-  const githubApiRoot = resolveCliFlagValue(argv, "--github-api-root");
+  const githubApiRoot = resolveCliFlagValueStrict(argv, "--github-api-root");
   const githubConcurrency = parseOptionalPositiveInteger(
-    resolveCliFlagValue(argv, "--github-concurrency"),
+    resolveCliFlagValueStrict(argv, "--github-concurrency"),
     "--github-concurrency",
   );
-  const githubRawRoot = resolveCliFlagValue(argv, "--github-raw-root");
-  const source = parseSource(resolveCliFlagValue(argv, "--source"));
+  const githubRawRoot = resolveCliFlagValueStrict(argv, "--github-raw-root");
+  const source = parseSource(resolveCliFlagValueStrict(argv, "--source"));
   return {
-    dataset: resolveCliFlagValue(argv, "--dataset") ?? DEFAULT_DATASET,
+    dataset: resolveCliFlagValueStrict(argv, "--dataset") ?? DEFAULT_DATASET,
     ...(githubApiRoot ? { githubApiRoot } : {}),
     ...(githubConcurrency ? { githubConcurrency } : {}),
     ...(githubRawRoot ? { githubRawRoot } : {}),
-    length: parsePositiveInteger(resolveCliFlagValue(argv, "--length"), "--length"),
-    offset: parsePositiveInteger(resolveCliFlagValue(argv, "--offset"), "--offset"),
+    length: parsePositiveInteger(
+      resolveCliFlagValueStrict(argv, "--length"),
+      "--length",
+    ),
+    offset: parsePositiveInteger(
+      resolveCliFlagValueStrict(argv, "--offset"),
+      "--offset",
+    ),
     outputRoot:
-      resolveCliFlagValue(argv, "--output-root") ??
-      process.env.GOODMEMORY_BEAM_ROOT ??
+      resolveCliFlagValueStrict(argv, "--output-root") ??
+      resolvePhase63BeamRootEnv() ??
       DEFAULT_OUTPUT_ROOT,
     ...(source ? { source } : {}),
-    split: parseSplit(resolveCliFlagValue(argv, "--split")),
+    split: parseSplit(resolveCliFlagValueStrict(argv, "--split")),
   };
 }
 

@@ -26,6 +26,7 @@ import {
   resolveLiveModelConfig,
   resolveProviderBackedModelConfig,
 } from "./run-eval";
+import { assertCliPathSegmentValue } from "./cli-options";
 import {
   assertPhase62Readiness,
   checkPhase62Readiness,
@@ -334,6 +335,8 @@ function buildRunOptions(
   options: Phase62CliOptions,
 ): RunLongMemEvalOptions {
   const smoke = options.mode === "smoke";
+  const runId = options.runId ?? PHASE62_CANONICAL_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   return {
     benchmarkRoot:
       options.benchmarkRoot ?? resolvePhase62BenchmarkRoot(root, smoke),
@@ -346,7 +349,7 @@ function buildRunOptions(
     outputDir: options.outputDir ?? resolvePhase62OutputDir(root),
     profiles: options.profiles,
     questionTypes: options.questionTypes,
-    runId: options.runId ?? PHASE62_CANONICAL_RUN_ID,
+    runId,
   };
 }
 

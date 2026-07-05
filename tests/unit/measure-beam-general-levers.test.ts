@@ -2,12 +2,15 @@ import { describe, expect, it } from "bun:test";
 import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createGoodMemory } from "../../src";
+import type { EmbeddingAdapter } from "../../src/embedding/contracts";
 import type {
   BeamProfile,
   BeamProfileReport,
   BeamProfileSummary,
   BeamReport,
 } from "../../src/eval/beam";
+import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { BeamGeneralLeverRecallDiagnosticRunner } from "../../scripts/measure-beam-general-levers";
 import {
   parseBeamGeneralLeverCliOptions,
@@ -25,6 +28,31 @@ const SUMMARY: BeamProfileSummary = {
   wrongAnswerCases: 0,
   wrongRecallCases: 0,
 };
+
+const EMBEDDING_ENV_KEYS = [
+  "GOODMEMORY_EMBEDDING_API_KEY",
+  "GOODMEMORY_EMBEDDING_BASE_URL",
+  "GOODMEMORY_EMBEDDING_MODEL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
+] as const;
+
+function snapshotEmbeddingEnv(): Record<(typeof EMBEDDING_ENV_KEYS)[number], string | undefined> {
+  return Object.fromEntries(
+    EMBEDDING_ENV_KEYS.map((key) => [key, process.env[key]]),
+  ) as Record<(typeof EMBEDDING_ENV_KEYS)[number], string | undefined>;
+}
+
+function restoreEmbeddingEnv(
+  snapshot: Record<(typeof EMBEDDING_ENV_KEYS)[number], string | undefined>,
+): void {
+  for (const key of EMBEDDING_ENV_KEYS) {
+    if (snapshot[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = snapshot[key];
+    }
+  }
+}
 
 function buildReport(input: {
   profile: BeamProfile;
@@ -132,6 +160,40 @@ describe("measure BEAM general levers", () => {
     ).toThrow("--keep-gates cannot be specified more than once.");
   });
 
+  it("rejects output run ids that are not single path segments", async () => {
+    expect(() =>
+      parseBeamGeneralLeverCliOptions([
+        "bun",
+        "run",
+        "scripts/measure-beam-general-levers.ts",
+        "--arm",
+        "floor",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runBeamGeneralLeverMeasure(
+        {
+          arm: "floor",
+          benchmarkRoot: "/tmp/BEAM",
+          keepGates: false,
+          runId: "../outside-beam",
+          semanticTopK: 16,
+        },
+        {
+          env: { HOME: "/tmp/home" },
+          listNarrowGateIds: () => [],
+          log: () => {},
+          runRecallDiagnostic: async () => {
+            throw new Error("should not run recall diagnostic");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("disables every registered narrow gate for a generalization run", async () => {
     const env: Record<string, string | undefined> = { HOME: "/tmp/home" };
     const logs: string[] = [];
@@ -193,6 +255,201 @@ describe("measure BEAM general levers", () => {
       semanticTopK: null,
       summary: SUMMARY,
     });
+  });
+
+  it("keeps the bm25 arm embedding-free even when provider embedding env is present", async () => {
+    const savedEmbeddingEnv = snapshotEmbeddingEnv();
+    const env: Record<string, string | undefined> = { HOME: "/tmp/home" };
+    let embeddingEnabled: boolean | undefined;
+
+    try {
+      process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+      process.env.GOODMEMORY_EMBEDDING_MODEL = "text-embedding-3-small";
+      process.env.GOODMEMORY_EMBEDDING_API_KEY = "test-embedding-key";
+      process.env.GOODMEMORY_EMBEDDING_BASE_URL = "https://embedding.test/v1";
+
+      await runBeamGeneralLeverMeasure(
+        {
+          arm: "bm25",
+          keepGates: false,
+          semanticTopK: 16,
+        },
+        {
+          env,
+          listNarrowGateIds: () => [],
+          log: () => {},
+          runRecallDiagnostic: async (options, dependencies) => {
+            const memory = dependencies?.createMemory?.();
+            embeddingEnabled = memory
+              ? inspectGoodMemoryRuntime(memory)?.embeddingEnabled
+              : undefined;
+            return buildReport({
+              profile: (options.profiles?.[0] as BeamProfile | undefined) ??
+                "goodmemory-hybrid",
+              runId: options.runId ?? "run-missing",
+            });
+          },
+        },
+      );
+
+      expect(embeddingEnabled).toBe(false);
+    } finally {
+      restoreEmbeddingEnv(savedEmbeddingEnv);
+    }
+  });
+
+  it("includes non-default semantic topK in the default union run id", async () => {
+    let receivedRunId: string | undefined;
+
+    const summary = await runBeamGeneralLeverMeasure(
+      {
+        arm: "union16",
+        benchmarkRoot: "/tmp/BEAM",
+        keepGates: false,
+        semanticTopK: 32,
+      },
+      {
+        env: {
+          GOODMEMORY_EMBEDDING_API_KEY: "embedding-key",
+          GOODMEMORY_EMBEDDING_BASE_URL: "https://embedding.test/v1",
+          GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-small",
+          HOME: "/tmp/home",
+        },
+        listNarrowGateIds: () => [],
+        log: () => {},
+        runRecallDiagnostic: async (options) => {
+          receivedRunId = options.runId;
+          return buildReport({
+            profile: (options.profiles?.[0] as BeamProfile | undefined) ??
+              "goodmemory-hybrid",
+            runId: options.runId ?? "run-missing",
+          });
+        },
+      },
+    );
+
+    expect(receivedRunId).toBe("run-p5-beam-levers-union32-generalization");
+    expect(summary.runId).toBe("run-p5-beam-levers-union32-generalization");
+    expect(summary.semanticTopK).toBe(32);
+  });
+
+  it("combines BM25 additive ranking with provider semantic union", async () => {
+    const query = "What helps you relax in the evenings?";
+    const lexicalFact = "Quiet music helps you relax in the evenings.";
+    const unionFact = "Marco goes fishing at the lake to destress.";
+    const scope = { userId: "beam-user", workspaceId: "beam-workspace" };
+    const embedding: EmbeddingAdapter = {
+      async embed(texts) {
+        return texts.map((text) => {
+          if (text === query) {
+            return [1, 0, 0];
+          }
+          if (text.includes("music")) {
+            return [1, 0, 0];
+          }
+          if (text.includes("fishing")) {
+            return [0.95, 0.05, 0];
+          }
+          return [0, 1, 0];
+        });
+      },
+    };
+    const memory = createGoodMemory({
+      adapters: {
+        embeddingAdapter: embedding,
+      },
+      retrieval: {
+        bm25Ranking: true,
+        semanticCandidates: {
+          maxAdditions: 1,
+          topK: 2,
+        },
+      },
+      storage: { provider: "memory" },
+    });
+
+    await memory.remember({
+      annotations: [lexicalFact, unionFact].map((_, messageIndex) => ({
+        confirmed: true,
+        kindHint: "fact" as const,
+        messageIndex,
+        reason: "test seed",
+        remember: "always" as const,
+        verified: true,
+      })),
+      extractionStrategy: "rules-only",
+      messages: [
+        { content: lexicalFact, role: "user" },
+        { content: unionFact, role: "user" },
+      ],
+      scope,
+    });
+
+    const result = await memory.recall({
+      scope,
+      query,
+      strategy: "hybrid",
+    });
+    const lexicalTrace = result.metadata.candidateTraces.find((trace) =>
+      trace.memoryType === "fact" &&
+      trace.returned &&
+      trace.lexicalScore > 0,
+    );
+    const unionTrace = result.metadata.candidateTraces.find(
+      (trace) => trace.fallback === "semantic_union" && trace.returned,
+    );
+
+    expect(result.facts.map((fact) => fact.content)).toContain(lexicalFact);
+    expect(result.facts.map((fact) => fact.content)).toContain(unionFact);
+    expect(lexicalTrace?.semanticScore).toBeGreaterThan(0);
+    expect(unionTrace?.semanticScore).toBeUndefined();
+  });
+
+  it("does not call provider semantic search for BM25-only hybrid ranking", async () => {
+    const query = "Which migration blocker affects Orion?";
+    const fact = "Orion migration blocker is the pending rollback plan.";
+    const scope = { userId: "beam-user", workspaceId: "beam-workspace" };
+    const embedding: EmbeddingAdapter = {
+      async embed(texts) {
+        if (texts.includes(query)) {
+          throw new Error("BM25-only recall should not call semantic search");
+        }
+        return texts.map(() => [0, 1, 0]);
+      },
+    };
+    const memory = createGoodMemory({
+      adapters: {
+        embeddingAdapter: embedding,
+      },
+      retrieval: {
+        bm25Ranking: true,
+      },
+      storage: { provider: "memory" },
+    });
+
+    await memory.remember({
+      annotations: [
+        {
+          confirmed: true,
+          kindHint: "fact" as const,
+          messageIndex: 0,
+          reason: "test seed",
+          remember: "always" as const,
+          verified: true,
+        },
+      ],
+      extractionStrategy: "rules-only",
+      messages: [{ content: fact, role: "user" }],
+      scope,
+    });
+
+    const result = await memory.recall({
+      scope,
+      query,
+      strategy: "hybrid",
+    });
+
+    expect(result.facts.map((item) => item.content)).toContain(fact);
   });
 
   it("clears narrow-gate disables for a fitted keep-gates run", async () => {

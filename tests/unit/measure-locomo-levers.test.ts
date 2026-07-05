@@ -16,7 +16,7 @@ describe("LoCoMo lever measurement CLI", () => {
         "--limit",
         "15",
         "--arms",
-        "jaccard-baseline, bm25+decompose",
+        "jaccard-baseline,bm25+decompose",
       ]),
     ).toEqual({
       armLabels: ["jaccard-baseline", "bm25+decompose"],
@@ -72,6 +72,26 @@ describe("LoCoMo lever measurement CLI", () => {
         "run",
         "scripts/measure-locomo-levers.ts",
         "--arms",
+        "bm25,",
+      ]),
+    ).toThrow("--arms contains an empty arm label.");
+
+    expect(() =>
+      parseLocomoLeversCliOptions([
+        "bun",
+        "run",
+        "scripts/measure-locomo-levers.ts",
+        "--arms",
+        "jaccard-baseline, bm25+decompose",
+      ]),
+    ).toThrow("--arms contains whitespace-padded arm 'bm25+decompose'.");
+
+    expect(() =>
+      parseLocomoLeversCliOptions([
+        "bun",
+        "run",
+        "scripts/measure-locomo-levers.ts",
+        "--arms",
         "bm25,bm25",
       ]),
     ).toThrow("--arms contains duplicate arm 'bm25'.");
@@ -109,5 +129,53 @@ describe("LoCoMo lever measurement CLI", () => {
         "--live",
       ]),
     ).toThrow("--output-dir requires a value.");
+  });
+
+  it("rejects empty or whitespace-padded LoCoMo root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoLeversCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-levers.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseLocomoLeversCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-levers.ts",
+          "--benchmark-root",
+          "/tmp/LOCOMO-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoLeversCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-levers.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseLocomoLeversCliOptions([
+          "bun",
+          "run",
+          "scripts/measure-locomo-levers.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
   });
 });

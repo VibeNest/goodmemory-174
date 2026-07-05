@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   BEAM_FULL_DATA_FILES,
@@ -44,6 +48,12 @@ export interface Phase63ReadinessDependencies {
   fileExists?: (path: string) => boolean;
 }
 
+export const PHASE63_BEAM_ROOT_ENV = "GOODMEMORY_BEAM_ROOT";
+
+export function resolvePhase63BeamRootEnv(): string | undefined {
+  return resolveEnvValueStrict(process.env, PHASE63_BEAM_ROOT_ENV);
+}
+
 export function resolvePhase63FixtureRoot(root: string): string {
   return join(root, "fixtures/external-benchmarks/beam");
 }
@@ -54,7 +64,7 @@ export function resolvePhase63BenchmarkRoot(
 ): string {
   return smoke
     ? resolvePhase63FixtureRoot(root)
-    : (process.env.GOODMEMORY_BEAM_ROOT ?? resolvePhase63FixtureRoot(root));
+    : (resolvePhase63BeamRootEnv() ?? resolvePhase63FixtureRoot(root));
 }
 
 export function resolvePhase63OutputDir(root: string): string {
@@ -74,7 +84,7 @@ export function checkPhase63Readiness(
   dependencies: Phase63ReadinessDependencies = {},
 ): Phase63ReadinessReport {
   const fileExists = dependencies.fileExists ?? existsSync;
-  const benchmarkRoot = options.benchmarkRoot ?? process.env.GOODMEMORY_BEAM_ROOT;
+  const benchmarkRoot = options.benchmarkRoot ?? resolvePhase63BeamRootEnv();
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 63 readiness check requires --benchmark-root or GOODMEMORY_BEAM_ROOT.",
@@ -192,16 +202,17 @@ export function parsePhase63CliOptions(
 ): Phase63CliOptions {
   return {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ?? process.env.GOODMEMORY_BEAM_ROOT,
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      resolvePhase63BeamRootEnv(),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
-    limit: parseLimit(resolveCliFlagValue(argv, "--limit")),
-    mode: parseMode(resolveCliFlagValue(argv, "--mode")),
-    offset: parseOffset(resolveCliFlagValue(argv, "--offset")),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
+    limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
+    mode: parseMode(resolveCliFlagValueStrict(argv, "--mode")),
+    offset: parseOffset(resolveCliFlagValueStrict(argv, "--offset")),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     questionTypes: parseRepeatedFlag(argv, "--question-type"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
-    scale: parseScale(resolveCliFlagValue(argv, "--scale")),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
+    scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
 

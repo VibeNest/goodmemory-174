@@ -1,15 +1,19 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { BEAM_FULL_DATA_FILES } from "../src/eval/beam";
+import type { BeamChatTurn } from "../src/eval/beam";
 import {
+  assertCliPathSegmentValue,
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   flattenPhase63BeamCases,
   readPhase63BeamRows,
 } from "./run-phase-63-beam-recall-diagnostic";
-import type { BeamChatTurn } from "../src/eval/beam";
 import {
+  resolvePhase63BeamRootEnv,
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
@@ -614,6 +618,7 @@ export async function analyzePhase63LiveAnswerGap(
   const now = dependencies.now ?? (() => new Date());
   const root = resolvePhase63RepoRoot();
   const runId = options.runId ?? PHASE63_ANSWER_GAP_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const outputDir = options.outputDir ?? resolvePhase63OutputDir(root);
   const outputPath =
     options.outputPath ?? join(outputDir, runId, "live-answer-gap-analysis.json");
@@ -623,6 +628,16 @@ export async function analyzePhase63LiveAnswerGap(
     secondFlag: "--live-report",
     secondValue: options.liveReportPath,
   });
+  if (options.benchmarkRoot) {
+    for (const sourceFileName of BEAM_FULL_DATA_FILES) {
+      assertDistinctCliPathValues({
+        firstFlag: "--output-path",
+        firstValue: outputPath,
+        secondFlag: "--benchmark-root source",
+        secondValue: join(options.benchmarkRoot, sourceFileName),
+      });
+    }
+  }
 
   const liveReport = JSON.parse(
     await readFileImpl(options.liveReportPath),
@@ -808,11 +823,11 @@ export function parsePhase63AnswerGapCliOptions(
   return {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_BEAM_ROOT,
+      resolvePhase63BeamRootEnv(),
     liveReportPath: resolveCliFlagValueStrict(argv, "--live-report"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }

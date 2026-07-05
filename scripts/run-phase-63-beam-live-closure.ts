@@ -5,6 +5,7 @@ import { normalizeBeamProfileList } from "../src/eval/beam";
 import {
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   flattenPhase63BeamCases,
@@ -19,6 +20,7 @@ import type {
   Phase63BeamLiveSliceReport,
 } from "./run-phase-63-beam-live-slice";
 import {
+  resolvePhase63BeamRootEnv,
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
@@ -114,13 +116,13 @@ export function parsePhase63BeamLiveClosureCliOptions(
   return {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_BEAM_ROOT,
+      resolvePhase63BeamRootEnv(),
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
     recallReportPath: resolveCliFlagValueStrict(argv, "--recall-report"),
     resume: hasCliFlagStrict(argv, "--resume"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
@@ -210,7 +212,7 @@ export async function runPhase63BeamLiveClosure(
   dependencies: Phase63BeamLiveClosureDependencies = {},
 ): Promise<Phase63BeamLiveClosureReport> {
   const root = resolvePhase63RepoRoot();
-  const benchmarkRoot = options.benchmarkRoot ?? process.env.GOODMEMORY_BEAM_ROOT;
+  const benchmarkRoot = options.benchmarkRoot ?? resolvePhase63BeamRootEnv();
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 63 BEAM live closure requires --benchmark-root or GOODMEMORY_BEAM_ROOT.",

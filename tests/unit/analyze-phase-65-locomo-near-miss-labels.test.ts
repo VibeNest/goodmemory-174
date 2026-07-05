@@ -452,6 +452,26 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     );
   });
 
+  it("rejects output run ids that are not single path segments before reading reports", async () => {
+    await expect(
+      runLocomoNearMissLabelAnalysis(
+        [
+          "bun",
+          "analyze",
+          "--live-delta",
+          LIVE_DELTA_PATH,
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("rejects output paths that overwrite the candidate source report before reading it", async () => {
     const cases = [
       question({
@@ -482,6 +502,42 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       ),
     ).rejects.toThrow(
       "--output-path and live-delta candidateReport.path must refer to different paths",
+    );
+  });
+
+  it("rejects output paths that overwrite the candidate benchmark cases before reading them", async () => {
+    const cases = [
+      question({
+        answer: "Switch",
+        gold: "Nintendo Switch OLED console",
+        questionId: "q-under",
+      }),
+    ];
+
+    await expect(
+      runLocomoNearMissLabelAnalysis(
+        [
+          "bun",
+          "analyze",
+          "--live-delta",
+          LIVE_DELTA_PATH,
+          "--output-path",
+          "/tmp/LOCOMO-full/../LOCOMO-full/cases.json",
+        ],
+        {
+          readFile: async (path) => {
+            if (path === LIVE_DELTA_PATH) {
+              return JSON.stringify(liveDelta(cases.map(nearMissDelta)));
+            }
+            if (path === CANDIDATE_REPORT_PATH) {
+              return JSON.stringify(candidateReport(cases));
+            }
+            throw new Error(`should not read ${path}`);
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and candidate benchmark cases must refer to different paths",
     );
   });
 });

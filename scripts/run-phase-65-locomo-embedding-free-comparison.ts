@@ -14,7 +14,11 @@ import {
   type LocomoSmokeCliOptions,
   type LocomoSmokeReport,
 } from "./run-phase-65-locomo-smoke";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 
 export interface EmbeddingFreeComparisonArm {
   label: string;
@@ -68,12 +72,23 @@ function parsePositiveIntegerFlag(
 export function parseEmbeddingFreeComparisonCliOptions(
   argv: readonly string[],
 ): EmbeddingFreeComparisonCliOptions {
+  const benchmarkRoot =
+    resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+    resolveEnvValueStrict(process.env, "GOODMEMORY_LOCOMO_ROOT");
+  const outputDir = resolveCliFlagValueStrict(argv, "--output-dir");
+  if (benchmarkRoot !== undefined && outputDir !== undefined) {
+    assertDistinctCliPathValues({
+      firstFlag: "--benchmark-root",
+      firstValue: benchmarkRoot,
+      secondFlag: "--output-dir",
+      secondValue: outputDir,
+    });
+  }
+
   return {
-    benchmarkRoot:
-      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env.GOODMEMORY_LOCOMO_ROOT,
+    benchmarkRoot,
     limit: parsePositiveIntegerFlag(argv, "--limit"),
-    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    outputDir,
   };
 }
 
@@ -114,6 +129,15 @@ export async function runEmbeddingFreeComparison(
   },
   dependencies?: Parameters<typeof runLocomoSmoke>[1],
 ): Promise<EmbeddingFreeComparisonRow[]> {
+  if (input.benchmarkRoot !== undefined && input.outputDir !== undefined) {
+    assertDistinctCliPathValues({
+      firstFlag: "--benchmark-root",
+      firstValue: input.benchmarkRoot,
+      secondFlag: "--output-dir",
+      secondValue: input.outputDir,
+    });
+  }
+
   const rows: EmbeddingFreeComparisonRow[] = [];
   for (const arm of EMBEDDING_FREE_COMPARISON_ARMS) {
     const report = await runLocomoSmoke(

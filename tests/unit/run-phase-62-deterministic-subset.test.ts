@@ -107,6 +107,16 @@ describe("LongMemEval deterministic-subset analyzer", () => {
         ]),
       ).toThrow(`${flag} cannot be specified more than once.`);
     }
+
+    expect(() =>
+      parseDeterministicSubsetCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-deterministic-subset.ts",
+        "--run-id",
+        "../outside-longmem",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
   });
 
   it("excludes semantic_judge from the deterministic methods", () => {

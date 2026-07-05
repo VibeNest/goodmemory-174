@@ -1,7 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { hasCliFlagStrict, resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertCliPathSegmentValue,
+  hasCliFlagStrict,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import {
   runPhase62LongMemEval,
   type Phase62EvalDependencies,
@@ -108,7 +113,7 @@ export function parsePhase62Full500Options(
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     resumeExistingShards: parseBooleanFlag(argv, "--resume-existing-shards"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     shardConcurrency: parsePositiveInteger(
       resolveCliFlagValueStrict(argv, "--shard-concurrency"),
       "--shard-concurrency",
@@ -227,6 +232,7 @@ export async function runPhase62Full500LongMemEval(
   const readShardReport = dependencies.readShardReport ?? readExistingShardReport;
   const summarize = dependencies.summarize ?? runPhase62Full500Summary;
   const runId = options.runId ?? PHASE62_FULL500_CANONICAL_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const shardSize = options.shardSize ?? DEFAULT_SHARD_SIZE;
   const shards = options.shards ?? DEFAULT_SHARDS;
   const outputDir = options.outputDir ?? resolvePhase62OutputDir(root);

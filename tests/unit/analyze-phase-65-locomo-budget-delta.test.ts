@@ -838,6 +838,54 @@ describe("phase-65 LoCoMo candidate-budget delta analyzer", () => {
     );
   });
 
+  it("rejects default output paths that would overwrite input reports before reading inputs", async () => {
+    await expect(
+      runLocomoBudgetDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-budget-delta.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/budget-delta.json",
+          "--run-id",
+          "candidate",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --candidate-report must refer to different paths",
+    );
+  });
+
+  it("rejects output run ids that are not single path segments before reading inputs", async () => {
+    await expect(
+      runLocomoBudgetDeltaAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-budget-delta.ts",
+          "--baseline-report",
+          "/reports/baseline/smoke-report.json",
+          "--candidate-report",
+          "/reports/candidate/smoke-report.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("rejects missing string flag values before reading reports", async () => {
     const noReads = {
       readFile: async (_path: string): Promise<string> => {

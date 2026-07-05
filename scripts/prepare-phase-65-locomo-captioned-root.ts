@@ -546,13 +546,26 @@ function parsePositiveIntegerValue(
   return value;
 }
 
+function resolveLocomoRootEnv(): string | undefined {
+  const value = process.env.GOODMEMORY_LOCOMO_ROOT;
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value.trim().length === 0 || value.trim() !== value) {
+    throw new Error(
+      "GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.",
+    );
+  }
+  return value;
+}
+
 export function parseLocomoCaptionedRootCliOptions(
   argv: readonly string[],
 ): LocomoCaptionedRootCliOptions {
   const mode = parseMode(resolveCliFlagValueStrict(argv, "--mode"));
   const sourceRoot =
     resolveCliFlagValueStrict(argv, "--source-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT ??
+    resolveLocomoRootEnv() ??
     DEFAULT_SOURCE_ROOT;
   const outputRoot =
     resolveCliFlagValueStrict(argv, "--output-root") ?? DEFAULT_OUTPUT_ROOT;

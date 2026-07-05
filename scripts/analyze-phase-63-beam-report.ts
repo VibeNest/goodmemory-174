@@ -1,8 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+  assertCliPathSegmentValue,
   assertDistinctCliPathValues,
-  resolveCliFlagValue,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import { resolvePhase63OutputDir, resolvePhase63RepoRoot } from "./run-phase-63-shared";
 import type {
@@ -333,9 +335,9 @@ export function parsePhase63BeamAnalysisCliOptions(
   argv: readonly string[],
 ): Phase63BeamReportAnalysisOptions {
   return {
-    outputPath: resolveCliFlagValue(argv, "--output-path"),
-    reportPath: resolveCliFlagValue(argv, "--report-path"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
+    reportPath: resolveCliFlagValueStrict(argv, "--report-path"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -348,6 +350,9 @@ export async function runPhase63BeamReportAnalysis(
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = dependencies.writeFile ?? writeFile;
   const now = dependencies.now ?? (() => new Date());
+  if (options.runId !== undefined) {
+    assertCliPathSegmentValue({ flag: "--run-id", value: options.runId });
+  }
   const reportPath = options.reportPath ?? resolveDefaultReportPath(root, options.runId);
   const outputPath =
     options.outputPath ?? join(dirname(reportPath), "miss-case-analysis.json");

@@ -3744,6 +3744,27 @@ describe("phase-65 LoCoMo category gap analyzer", () => {
     ).rejects.toThrow("--report contains an empty value.");
   });
 
+  it("rejects whitespace-padded report path entries before reading gap inputs", async () => {
+    await expect(
+      runLocomoCategoryGapAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-category-gaps.ts",
+          "--report",
+          "/reports/single_hop/smoke-report.json ",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--report contains whitespace-padded value /reports/single_hop/smoke-report.json.",
+    );
+  });
+
   it("rejects duplicate report path entries before reading gap inputs", async () => {
     await expect(
       runLocomoCategoryGapAnalysis(
@@ -3788,6 +3809,27 @@ describe("phase-65 LoCoMo category gap analyzer", () => {
     ).rejects.toThrow(
       "--output-path and --report must refer to different paths",
     );
+  });
+
+  it("rejects output run ids that are not single path segments before reading gap inputs", async () => {
+    await expect(
+      runLocomoCategoryGapAnalysis(
+        [
+          "bun",
+          "run",
+          "scripts/analyze-phase-65-locomo-category-gaps.ts",
+          "--report",
+          "/reports/single_hop/smoke-report.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
   });
 
   it("rejects missing string flag values before reading gap inputs", async () => {

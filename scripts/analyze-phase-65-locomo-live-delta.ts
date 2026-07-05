@@ -16,6 +16,7 @@ import type {
 import {
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoReportHasCompleteLiveAnswers,
@@ -263,7 +264,7 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     baselineReportPath,
     candidateReportPath,
     outputPath,
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -901,6 +902,7 @@ function backfillReportAnswerTokenF1(input: {
 async function backfillReportsAnswerTokenF1(input: {
   baseline: ReportInput;
   candidate: ReportInput;
+  outputPath?: string;
   readFile: (path: string) => Promise<string>;
 }): Promise<{ baseline: ReportInput; candidate: ReportInput }> {
   const normalizedInput = normalizeLiveDeltaReportInputs(input);
@@ -913,6 +915,14 @@ async function backfillReportsAnswerTokenF1(input: {
 
   validateCompatibleReports(normalizedInput);
   const benchmarkRoot = resolveBackfillBenchmarkRoot(normalizedInput.candidate);
+  if (input.outputPath !== undefined && benchmarkRoot !== undefined) {
+    assertDistinctCliPathValues({
+      firstFlag: "--output-path",
+      firstValue: input.outputPath,
+      secondFlag: "live-delta benchmark cases",
+      secondValue: join(benchmarkRoot, "cases.json"),
+    });
+  }
   const loaded = await loadLocomoCases({
     ...(benchmarkRoot === undefined ? {} : { benchmarkRoot }),
     readFile: input.readFile,
@@ -1298,6 +1308,18 @@ export async function runLocomoLiveDeltaAnalysis(
   const runId = options.runId ?? "locomo-live-delta-current";
   const outputPath =
     options.outputPath ?? defaultOutputPath(options.candidateReportPath, runId);
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--baseline-report",
+    secondValue: options.baselineReportPath,
+  });
+  assertDistinctCliPathValues({
+    firstFlag: "--output-path",
+    firstValue: outputPath,
+    secondFlag: "--candidate-report",
+    secondValue: options.candidateReportPath,
+  });
 
   const baselineParsed = JSON.parse(
     await readFileImpl(options.baselineReportPath),
@@ -1317,6 +1339,7 @@ export async function runLocomoLiveDeltaAnalysis(
       path: options.candidateReportPath,
       report: candidateParsed,
     },
+    outputPath,
     readFile: readFileImpl,
   });
 

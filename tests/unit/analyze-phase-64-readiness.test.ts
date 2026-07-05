@@ -143,6 +143,56 @@ describe("analyze phase-64 readiness", () => {
     });
   });
 
+  it("rejects duplicate scalar cli selectors before reading Phase 63 analysis", () => {
+    for (const flagName of [
+      "--output-dir",
+      "--output-path",
+      "--phase63-analysis-path",
+      "--run-id",
+    ]) {
+      expect(() =>
+        parsePhase64ReadinessAnalysisCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-64-readiness.ts",
+          flagName,
+          "first",
+          flagName,
+          "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects run ids that escape the readiness output directory", async () => {
+    expect(() =>
+      parsePhase64ReadinessAnalysisCliOptions([
+        "bun",
+        "run",
+        "scripts/analyze-phase-64-readiness.ts",
+        "--phase63-analysis-path",
+        "/tmp/phase63/recall-diagnostic-analysis.json",
+        "--run-id",
+        "../outside-mab",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase64ReadinessAnalysis(
+        {
+          outputDir: "/tmp/phase64",
+          phase63AnalysisPath: "/tmp/phase63/recall-diagnostic-analysis.json",
+          runId: "../outside-mab",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read Phase 63 analysis");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("maps Phase 63 update and noise risks into MemoryAgentBench prep", () => {
     const report = buildPhase64MemoryAgentBenchReadiness({
       analysis: analysis(),

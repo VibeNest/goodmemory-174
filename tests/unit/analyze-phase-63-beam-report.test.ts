@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   analyzePhase63BeamReport,
   inferPhase63BeamCaseCategory,
+  parsePhase63BeamAnalysisCliOptions,
   runPhase63BeamReportAnalysis,
 } from "../../scripts/analyze-phase-63-beam-report";
 import type { BeamReport } from "../../src/eval/beam";
@@ -191,6 +192,45 @@ describe("analyze phase-63 BEAM report", () => {
     expect(analysis.boundaryFindings).toContain(
       "goodmemory profiles currently use deterministic oracle hypotheses/evidence ids; this report is not live GoodMemory answer-quality proof.",
     );
+  });
+
+  it("rejects duplicate scalar cli selectors before reading the source report", () => {
+    for (const flagName of ["--output-path", "--report-path", "--run-id"]) {
+      expect(() =>
+        parsePhase63BeamAnalysisCliOptions([
+          "bun",
+          "scripts/analyze-phase-63-beam-report.ts",
+          flagName,
+          "first",
+          flagName,
+          "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects source run ids that escape the report root before reading the source report", async () => {
+    expect(() =>
+      parsePhase63BeamAnalysisCliOptions([
+        "bun",
+        "scripts/analyze-phase-63-beam-report.ts",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase63BeamReportAnalysis(
+        {
+          runId: "../outside-beam",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read source report");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
   });
 
   it("writes the analysis next to the source report", async () => {

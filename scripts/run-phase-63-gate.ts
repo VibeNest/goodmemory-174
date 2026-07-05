@@ -2,7 +2,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PHASE63_CANONICAL_RUN_ID } from "./run-phase-63-eval";
 import { resolvePhase63OutputDir, resolvePhase63RepoRoot } from "./run-phase-63-shared";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import type { BeamProfile, BeamReport } from "../src/eval/beam";
 
 export const PHASE63_CANONICAL_GATE_RUN_ID = "run-20260518003000";
@@ -40,10 +43,12 @@ export interface Phase63GateDependencies {
   writeFile?: (path: string, value: string) => Promise<void>;
 }
 
-function parseGateOptions(argv: readonly string[]): Phase63GateOptions {
+export function parsePhase63GateCliOptions(
+  argv: readonly string[],
+): Phase63GateOptions {
   return {
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -152,6 +157,6 @@ export async function runPhase63Gate(
 }
 
 if (import.meta.main) {
-  const report = await runPhase63Gate(parseGateOptions(Bun.argv));
+  const report = await runPhase63Gate(parsePhase63GateCliOptions(Bun.argv));
   console.log(JSON.stringify(report, null, 2));
 }

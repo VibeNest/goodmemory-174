@@ -474,6 +474,29 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     ).rejects.toThrow("--per-bucket must be a positive integer.");
   });
 
+  it("rejects non-canonical per-bucket flag values before reading source reports", async () => {
+    for (const value of ["1e2", "2.0"]) {
+      await expect(
+        runLocomoAnswerPolicySliceSelection(
+          [
+            "bun",
+            "run",
+            "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+            "--report",
+            "/reports/source/smoke-report.json",
+            "--per-bucket",
+            value,
+          ],
+          {
+            readFile: async () => {
+              throw new Error("should not read reports");
+            },
+          },
+        ),
+      ).rejects.toThrow("--per-bucket must be a positive integer.");
+    }
+  });
+
   it("rejects missing per-bucket flag values before reading source reports", async () => {
     await expect(
       runLocomoAnswerPolicySliceSelection(
@@ -513,6 +536,27 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
         },
       ),
     ).rejects.toThrow("--report contains an empty value.");
+  });
+
+  it("rejects whitespace-padded report path entries before reading source reports", async () => {
+    await expect(
+      runLocomoAnswerPolicySliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+          "--report",
+          "/reports/source-a/smoke-report.json, /reports/source-b/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--report contains whitespace-padded value /reports/source-b/smoke-report.json.",
+    );
   });
 
   it("rejects duplicate report path entries before reading source reports", async () => {
@@ -559,6 +603,27 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     ).rejects.toThrow(
       "--output-path and --report must refer to different paths",
     );
+  });
+
+  it("rejects output run ids that are not single path segments before reading source reports", async () => {
+    await expect(
+      runLocomoAnswerPolicySliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
   });
 
   it("rejects missing string flag values before reading source reports", async () => {

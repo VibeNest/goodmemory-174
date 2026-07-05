@@ -339,8 +339,14 @@ export async function runLocomoRetrievalGapAnalysis(
     throw new Error("LoCoMo retrieval-gap analysis requires --report <smoke-report.json>.");
   }
   const benchmarkRoot = resolveCliFlagValueStrict(argv, "--benchmark-root");
+  const explicitCasesPath = resolveCliFlagValueStrict(argv, "--cases");
+  if (benchmarkRoot !== undefined && explicitCasesPath !== undefined) {
+    throw new Error(
+      "LoCoMo retrieval-gap analysis accepts either --cases or --benchmark-root, not both.",
+    );
+  }
   const casesPath =
-    resolveCliFlagValueStrict(argv, "--cases") ??
+    explicitCasesPath ??
     (benchmarkRoot ? join(benchmarkRoot, "cases.json") : undefined);
   if (!casesPath) {
     throw new Error("LoCoMo retrieval-gap analysis requires --cases or --benchmark-root.");

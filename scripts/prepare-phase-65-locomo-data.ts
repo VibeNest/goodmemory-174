@@ -16,7 +16,10 @@ import {
   type LocomoQuestion,
   type LocomoTurn,
 } from "../src/eval/locomo";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertDistinctCliPathValues,
+  resolveCliFlagValueStrict,
+} from "./cli-options";
 
 const UPSTREAM_URL =
   "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json";
@@ -33,6 +36,13 @@ export interface LocomoPrepCliOptions extends LocomoPrepNormalizeOptions {
   outputRoot: string;
   sourceFile?: string;
   sourceUrl: string;
+}
+
+export interface LocomoPrepFetchResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  text(): Promise<string>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -58,9 +68,41 @@ function parseNonNegativeIntegerFlag(
   return value;
 }
 
+function resolveOutputRootEnv(): string | undefined {
+  const value = process.env.GOODMEMORY_LOCOMO_ROOT;
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value.trim().length === 0 || value.trim() !== value) {
+    throw new Error(
+      "GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.",
+    );
+  }
+  return value;
+}
+
 export function parseLocomoPrepCliOptions(
   argv: readonly string[],
 ): LocomoPrepCliOptions {
+  const outputRoot =
+    resolveCliFlagValueStrict(argv, "--output-root") ??
+    resolveOutputRootEnv() ??
+    "/private/tmp/LOCOMO";
+  const sourceFile = resolveCliFlagValueStrict(argv, "--source-file");
+  const sourceUrl = resolveCliFlagValueStrict(argv, "--source-url");
+
+  if (sourceFile !== undefined) {
+    if (sourceUrl !== undefined) {
+      throw new Error("--source-file and --source-url cannot both be specified.");
+    }
+    assertDistinctCliPathValues({
+      firstFlag: "--source-file",
+      firstValue: sourceFile,
+      secondFlag: "--output-root/cases.json",
+      secondValue: join(outputRoot, "cases.json"),
+    });
+  }
+
   return {
     maxConversations: parseNonNegativeIntegerFlag(
       argv,
@@ -72,13 +114,36 @@ export function parseLocomoPrepCliOptions(
       "--max-questions-per-case",
       40,
     ),
-    outputRoot:
-      resolveCliFlagValueStrict(argv, "--output-root") ??
-      process.env.GOODMEMORY_LOCOMO_ROOT ??
-      "/private/tmp/LOCOMO",
-    sourceFile: resolveCliFlagValueStrict(argv, "--source-file"),
-    sourceUrl: resolveCliFlagValueStrict(argv, "--source-url") ?? UPSTREAM_URL,
+    outputRoot,
+    sourceFile,
+    sourceUrl: sourceUrl ?? UPSTREAM_URL,
   };
+}
+
+export async function loadLocomoPrepSource(input: {
+  fetchSource?: (url: string) => Promise<LocomoPrepFetchResponse>;
+  readTextFile?: (path: string) => Promise<string>;
+  sourceFile?: string;
+  sourceUrl: string;
+}): Promise<string> {
+  if (input.sourceFile !== undefined) {
+    const readTextFile =
+      input.readTextFile ?? ((path: string) => readFile(path, "utf8"));
+    return readTextFile(input.sourceFile);
+  }
+
+  const fetchSource = input.fetchSource ?? fetch;
+  const response = await fetchSource(input.sourceUrl);
+  if (!response.ok) {
+    const statusText =
+      response.statusText.length > 0 ? ` ${response.statusText}` : "";
+    throw new Error(
+      `Failed to fetch LoCoMo source ${input.sourceUrl}: ` +
+        `${response.status}${statusText}.`,
+    );
+  }
+
+  return response.text();
 }
 
 export function normalizeLocomoDiaId(value: string): string | null {
@@ -250,9 +315,7 @@ async function main(): Promise<void> {
     sourceUrl,
   } = parseLocomoPrepCliOptions(Bun.argv);
 
-  const raw = sourceFile
-    ? await readFile(sourceFile, "utf8")
-    : await (await fetch(sourceUrl)).text();
+  const raw = await loadLocomoPrepSource({ sourceFile, sourceUrl });
   const parsed = JSON.parse(raw) as unknown;
   const cases = normalizeLocomoPrepCases(parsed, {
     maxConversations,

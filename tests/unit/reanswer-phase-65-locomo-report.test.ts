@@ -339,6 +339,37 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
         "--gold-evidence-only-context",
       ]),
     ).toThrow("--run-id requires a value.");
+
+    expect(() =>
+      parseLocomoReanswerCliOptions([
+        "bun",
+        "run",
+        "scripts/reanswer-phase-65-locomo-report.ts",
+        "--source-report",
+        "/reports/source.json",
+        "--run-id",
+        "../outside-reanswer",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects output run ids that escape the report directory before reading sources", async () => {
+    await expect(
+      runLocomoReportReanswer(
+        {
+          allowCommonsenseResolution: false,
+          outputDir: "/reports/out",
+          runId: "../outside-reanswer",
+          sourceReportPath: "/reports/source/smoke-report.json",
+          strictNoEvidenceAbstention: false,
+        },
+        {
+          readFile: async () => {
+            throw new Error("source should not be read");
+          },
+        },
+      ),
+    ).rejects.toThrow("LoCoMo reanswer runId must be a single path segment.");
   });
 
   it("reanswers selected questions from a manifest file without manual id copying", async () => {
@@ -3132,10 +3163,7 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
         },
         {
           readFile: async (path) => {
-            if (path === "/reports/source/smoke-report.json") {
-              return JSON.stringify(sourceReport());
-            }
-            throw new Error(`unexpected read: ${path}`);
+            throw new Error(`should not read source report: ${path}`);
           },
           writeFile: async () => undefined,
         },

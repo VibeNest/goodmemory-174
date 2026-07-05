@@ -1,14 +1,17 @@
 // LoCoMo answer-policy selector. This builds deterministic re-answer slices for
 // prompt-policy probes, so safety checks do not rely on hand-picked question IDs.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import {
   LOCOMO_QA_CATEGORIES,
   type LocomoQaCategory,
 } from "../src/eval/locomo";
 import {
   assertDistinctCliPathValues,
+  parseCliPathListFlagStrict,
+  parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   LOCOMO_CATEGORY_GAP_METADATA_FIELDS,
@@ -114,56 +117,8 @@ export interface LocomoAnswerPolicySliceSelection {
   }>;
 }
 
-function parseStringListFlag(
-  argv: readonly string[],
-  flagName: string,
-): string[] {
-  const values: string[] = [];
-  const seen = new Set<string>();
-  for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] !== flagName) {
-      continue;
-    }
-    const raw = argv[index + 1];
-    if (!raw || raw.startsWith("--")) {
-      throw new Error(`${flagName} requires a value.`);
-    }
-    const parts = raw.split(",");
-    for (const value of parts) {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) {
-        throw new Error(`${flagName} contains an empty value.`);
-      }
-      const normalizedPath = resolve(trimmed);
-      if (seen.has(normalizedPath)) {
-        throw new Error(`${flagName} contains duplicate value ${trimmed}.`);
-      }
-      seen.add(normalizedPath);
-      values.push(trimmed);
-    }
-    index += 1;
-  }
-  return values;
-}
-
-function parsePositiveIntegerFlag(
-  argv: readonly string[],
-  flagName: string,
-  defaultValue: number,
-): number {
-  const raw = resolveCliFlagValueStrict(argv, flagName);
-  if (raw === undefined) {
-    return defaultValue;
-  }
-  const parsed = Number(raw);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${flagName} must be a positive integer.`);
-  }
-  return parsed;
-}
-
 function parseCliOptions(argv: readonly string[]): CliOptions {
-  const reportPaths = parseStringListFlag(argv, "--report");
+  const reportPaths = parseCliPathListFlagStrict(argv, "--report");
   if (reportPaths.length === 0) {
     throw new Error(
       "LoCoMo answer-policy slice selection requires --report <smoke-report.json>.",
@@ -171,9 +126,11 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
   }
   return {
     outputPath: resolveCliFlagValueStrict(argv, "--output-path"),
-    perBucket: parsePositiveIntegerFlag(argv, "--per-bucket", DEFAULT_PER_BUCKET),
+    perBucket:
+      parseCliPositiveIntegerFlagStrict(argv, "--per-bucket") ??
+      DEFAULT_PER_BUCKET,
     reportPaths,
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 

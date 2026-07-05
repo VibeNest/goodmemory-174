@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   PHASE62_CANONICAL_GATE_RUN_ID,
+  parsePhase62GateCliOptions,
   runPhase62Gate,
 } from "../../scripts/run-phase-62-gate";
 import { PHASE62_CANONICAL_RUN_ID } from "../../scripts/run-phase-62-eval";
@@ -51,6 +52,32 @@ function buildLongMemEvalReport(): string {
 }
 
 describe("run-phase-62 gate", () => {
+  it("rejects duplicate scalar gate flags before running checks", () => {
+    for (const flagName of ["--output-dir", "--run-id"]) {
+      expect(() =>
+        parsePhase62GateCliOptions([
+          "bun",
+          "scripts/run-phase-62-gate.ts",
+          flagName,
+          "first",
+          flagName,
+          "second",
+        ]),
+      ).toThrow(`${flagName} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects path-like gate run ids before running checks", () => {
+    expect(() =>
+      parsePhase62GateCliOptions([
+        "bun",
+        "scripts/run-phase-62-gate.ts",
+        "--run-id",
+        "../outside-gates",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
   it("writes an accepted gate for the canonical LongMemEval smoke report", async () => {
     const commands: string[][] = [];
     const writes = new Map<string, string>();

@@ -80,6 +80,36 @@ describe("run-phase-62 full-500 runner", () => {
     }
   });
 
+  it("rejects output run ids that escape the full-500 output directory before running shards", async () => {
+    expect(() =>
+      parsePhase62Full500Options([
+        "bun",
+        "run",
+        "scripts/run-phase-62-full500.ts",
+        "--run-id",
+        "../outside-longmemeval",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase62Full500LongMemEval(
+        {
+          benchmarkRoot: "/tmp/LongMemEval",
+          outputDir: "/tmp/phase62-full500-test",
+          runId: "../outside-longmemeval",
+        },
+        {
+          runShard: async () => {
+            throw new Error("should not run shard");
+          },
+          summarize: async () => {
+            throw new Error("should not summarize shards");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("builds ten fixed-size shard options by offset", () => {
     expect(
       buildPhase62Full500ShardOptions({

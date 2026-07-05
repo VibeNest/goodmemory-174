@@ -15,6 +15,7 @@ import {
   loadLocomoCases,
   LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV,
   LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV,
+  LOCOMO_ROOT_ENV,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
   parseLocomoSmokeCliOptions,
   parseLocomoQuestionIdsFile,
@@ -175,6 +176,62 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "--bm25",
       ]),
     ).toThrow("--run-id requires a value.");
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--run-id",
+        "../outside-locomo",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    const originalRoot = process.env[LOCOMO_ROOT_ENV];
+    try {
+      process.env[LOCOMO_ROOT_ENV] = "/tmp/LOCOMO-env";
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+          "--benchmark-root",
+          "/tmp/LOCOMO-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env[LOCOMO_ROOT_ENV] = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env[LOCOMO_ROOT_ENV] = "";
+      expect(() =>
+        parseLocomoSmokeCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-smoke.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (originalRoot === undefined) {
+        delete process.env[LOCOMO_ROOT_ENV];
+      } else {
+        process.env[LOCOMO_ROOT_ENV] = originalRoot;
+      }
+    }
 
     expect(
       parseLocomoSmokeCliOptions([

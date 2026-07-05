@@ -10,6 +10,7 @@ import {
 } from "../src/eval/longmemeval";
 import { createGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemory } from "../src/api/contracts";
+import { assertCliPathSegmentValue } from "./cli-options";
 import { createLongMemEvalMemoryFactory } from "./run-phase-62-eval";
 import type { Phase62CliOptions } from "./run-phase-62-shared";
 import {
@@ -121,6 +122,8 @@ export function buildPhase62RecallDiagnosticOptions(
   options: Phase62CliOptions,
 ): RunLongMemEvalRecallDiagnosticOptions {
   const profile = resolveRecallDiagnosticProfile(options.profiles);
+  const runId = options.runId ?? PHASE62_RECALL_DIAGNOSTIC_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   if (options.allCases && options.caseIds && options.caseIds.length > 0) {
     throw new Error("--all-cases cannot be combined with --case-id");
   }
@@ -139,7 +142,7 @@ export function buildPhase62RecallDiagnosticOptions(
     outputDir: options.outputDir ?? resolvePhase62OutputDir(root),
     profile,
     questionTypes: options.questionTypes,
-    runId: options.runId ?? PHASE62_RECALL_DIAGNOSTIC_RUN_ID,
+    runId,
   };
 }
 

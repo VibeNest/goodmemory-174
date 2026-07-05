@@ -99,6 +99,53 @@ describe("prepare-phase-63 BEAM data script", () => {
     });
   });
 
+  it("rejects empty or whitespace-padded BEAM root environment values", () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63BeamPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-63-beam-data.ts",
+        ]).outputRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63BeamPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-63-beam-data.ts",
+          "--output-root",
+          "/tmp/BEAM-cli",
+        ]).outputRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63BeamPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-63-beam-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63BeamPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-63-beam-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
+  });
+
   it("rejects invalid GitHub raw concurrency", () => {
     expect(() =>
       parsePhase63BeamPrepareCliOptions([
@@ -109,6 +156,34 @@ describe("prepare-phase-63 BEAM data script", () => {
         "0",
       ]),
     ).toThrow("--github-concurrency must be a positive integer");
+  });
+
+  it("rejects duplicate scalar preparation flags before fetching rows", () => {
+    const duplicateScalarFlags = [
+      "--dataset",
+      "--github-api-root",
+      "--github-concurrency",
+      "--github-raw-root",
+      "--length",
+      "--offset",
+      "--output-root",
+      "--source",
+      "--split",
+    ];
+
+    for (const flag of duplicateScalarFlags) {
+      expect(() =>
+        parsePhase63BeamPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-63-beam-data.ts",
+          flag,
+          flag === "--source" ? "huggingface" : "first",
+          flag,
+          flag === "--source" ? "github-raw" : "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
   });
 
   it("builds the Hugging Face rows endpoint URL", () => {

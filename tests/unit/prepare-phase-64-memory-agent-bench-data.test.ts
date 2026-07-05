@@ -187,6 +187,53 @@ describe("prepare-phase-64 MemoryAgentBench data script", () => {
     ).toThrow("--output-root cannot be specified more than once.");
   });
 
+  it("rejects empty or whitespace-padded MemoryAgentBench root environment values", () => {
+    const original = process.env.GOODMEMORY_MAB_ROOT;
+    try {
+      process.env.GOODMEMORY_MAB_ROOT = "/tmp/MAB-env";
+      expect(
+        parsePhase64MabPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+        ]).outputRoot,
+      ).toBe("/tmp/MAB-env");
+      expect(
+        parsePhase64MabPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+          "--output-root",
+          "/tmp/MAB-cli",
+        ]).outputRoot,
+      ).toBe("/tmp/MAB-cli");
+
+      process.env.GOODMEMORY_MAB_ROOT = " /tmp/MAB-env ";
+      expect(() =>
+        parsePhase64MabPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_MAB_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_MAB_ROOT = "";
+      expect(() =>
+        parsePhase64MabPrepareCliOptions([
+          "bun",
+          "run",
+          "scripts/prepare-phase-64-memory-agent-bench-data.ts",
+        ]),
+      ).toThrow("GOODMEMORY_MAB_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_MAB_ROOT;
+      } else {
+        process.env.GOODMEMORY_MAB_ROOT = original;
+      }
+    }
+  });
+
   it("defaults AR to the eventqa_full row (offset 5), all questions, no merge", () => {
     expect(
       parsePhase64MabPrepareCliOptions([

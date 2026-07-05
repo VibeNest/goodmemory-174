@@ -27,8 +27,19 @@ Accepted Inputs
   `Mohammadta/BEAM`, license `cc-by-sa-4.0`.
 - Local export: `/private/tmp/BEAM/100K.json`, 20 rows, 400 probing questions.
   The prep script supports Hugging Face rows and GitHub raw fallback.
+- External-root prep input guard: `prepare:phase-63-beam` rejects duplicate
+  scalar source/output/fetch selectors before fetching rows or writing the BEAM
+  root: `--dataset`, `--github-api-root`, `--github-concurrency`,
+  `--github-raw-root`, `--length`, `--offset`, `--output-root`, `--source`,
+  and `--split`.
 - Smoke harness: `run-phase63-beam-smoke-current`, gate `run-20260518003000`,
   `executionFailures: 0`.
+- Gate input guard: `gate:phase-63` rejects duplicate `--output-dir` and
+  `--run-id` before running smoke gate checks; `gate:phase-63-beam-closure`
+  rejects duplicate `--closure-report`, `--output-dir`, and `--run-id` before
+  reading closure evidence or writing gate artifacts. Both gate commands require
+  `--run-id` to be a single path segment so gate artifacts stay under the
+  intended quality-gates directory.
 - Initial real adapter run: `run-phase63-beam-100k-full-initial-20260518T000335Z`,
   all four profiles, `executionFailures: 0`. This proves ingestion and report
   contracts only.
@@ -53,6 +64,14 @@ Baseline: `run-phase63-beam-100k-recall-diagnostic-rules-cover-letter-submission
   `eval:phase-63-general-levers`. By default it disables registered narrow gates
   and measures the BEAM generalization floor, not the fitted scenario-retained
   path; use `--keep-gates` only when explicitly remeasuring the fitted path.
+  The runner keeps non-provider `floor` / `bm25` arms embedding-free even when
+  provider embedding env is present, preserves provider semantic-union behavior
+  for union arms, and includes non-default `--semantic-topk` values in default
+  union run ids so derived evidence directories do not hide widened union
+  budgets behind the default `union16` name. It also requires output
+  `--run-id` values to be a single path segment before invoking the recall
+  diagnostic, so general-lever report directories stay under the intended
+  output tree.
 
 Latest Accepted Measured Full-Run Checkpoint
 --------------------------------------------
@@ -108,18 +127,45 @@ Answer-Gap Evidence And Tooling
   selectors before reading live reports or writing derived evidence:
   `--benchmark-root`, `--live-report`, `--output-dir`, `--output-path` where
   supported, `--mode`, `--profile`, `--limit`, `--run-id`, and `--scale`. This
-  is evidence-input hardening only; it does not change BEAM scores, recall,
+  now also includes answer-gap output/source protection against candidate BEAM
+  source files under `--benchmark-root`, and answer-gap / ablation output
+  `--run-id` values must be a single path segment before deriving default output
+  paths. This is evidence-input and output-directory hardening only; it does not
+  change BEAM scores, recall, checkpoint status, or public-claim boundaries.
+- BEAM source-root env fallbacks are canonical across root-prep, smoke/full,
+  recall diagnostic, live slice, live closure, answer-gap, and ablation
+  evidence: `GOODMEMORY_BEAM_ROOT` must not be empty or whitespace-padded before
+  it is used as an output-root or benchmark-root fallback. Explicit
+  `--output-root` / `--benchmark-root` CLI values still take precedence. This is
+  source-root integrity hardening only; it does not change BEAM scores, recall,
+  checkpoint status, or public-claim boundaries. Unit coverage lives in
+  tests/unit/prepare-phase-63-beam-data.test.ts,
+  tests/unit/run-phase-63.script.test.ts,
+  tests/unit/run-phase-63.beam-recall-diagnostic.test.ts,
+  tests/unit/run-phase-63.beam-live-slice.test.ts,
+  tests/unit/run-phase-63.beam-live-closure.test.ts,
+  tests/unit/analyze-phase-63-live-answer-gap.test.ts, and
+  tests/unit/run-phase-63.beam-live-ablation.test.ts.
+- Base `eval:phase-63` smoke/full eval rejects duplicate scalar source/output/run
+  selectors before report generation: `--benchmark-root`, `--limit`, `--mode`,
+  `--offset`, `--output-dir`, `--run-id`, and `--scale`. Repeated multi-value
+  selectors such as `--case-id`, `--profile`, and `--question-type` remain
+  repeatable. Output `--run-id` values must also be a single path segment before
+  deriving smoke/full report directories. This is smoke/full evidence-input and
+  evidence-directory hardening only; it does not change BEAM scores, recall,
   checkpoint status, or public-claim boundaries.
 - Recall diagnostic and recall-analysis CLIs reject duplicate scalar
   source/report/output/run selectors before running diagnostics or comparing
   reports. The diagnostic runner keeps repeated `--profile` support while
   making `--benchmark-root`, `--limit`, `--output-dir`, `--run-id`, and
-  `--scale` single-valued; the analyzer makes `--baseline-report-path`,
-  `--baseline-run-id`, `--benchmark-root`, `--output-dir`, `--output-path`,
-  `--profile`, `--report-path`, `--run-id`, and `--source-turn-limit`
-  single-valued. This is recall/noise evidence-input hardening only; it does
-  not change BEAM scores, recall, checkpoint status, or public-claim
-  boundaries.
+  `--scale` single-valued and requires output `--run-id` values to be a single
+  path segment; the analyzer makes `--baseline-report-path`, `--baseline-run-id`,
+  `--benchmark-root`, `--output-dir`, `--output-path`, `--profile`,
+  `--report-path`, `--run-id`, and `--source-turn-limit` single-valued, and
+  requires `--run-id` / `--baseline-run-id` values to be single path segments
+  before resolving default report paths. This is recall/noise evidence-input and
+  report-directory hardening only; it does not change BEAM scores, recall,
+  checkpoint status, or public-claim boundaries.
 
 Current Failure Surface
 -----------------------
@@ -186,6 +232,7 @@ assistant guidance, plus value-bearing summary anchors, plus required summary
 source-coverage audits for late topic shifts, plus analyzer-level
 source-coverage warnings for expected cues found outside declared source chats,
 plus abstention target checks that reject adjacent-but-insufficient evidence,
+plus topic-specific missing-context abstention wording in focused live prompts,
 plus preference-following constraint packs that treat user preferences as
 response requirements. This is deterministic and unit-verified only; it is not a
 new accepted BEAM checkpoint until a focused live slice and any later full live
@@ -233,22 +280,38 @@ or unknown answer-gap bucket/status values. This keeps focused BEAM live slices
 from silently running the wrong answer-gap queue or matching no cases because of
 a CLI typo. `analyze:phase-63-recall-diagnostic` now rejects output paths that
 would overwrite either its analyzed report or baseline report before reading
-inputs, keeping recall/noise workbench evidence from destroying source reports.
-`analyze:phase-63-beam` also rejects output paths that would overwrite its source
-`--report-path` before reading inputs, keeping early miss-case analysis evidence
-from destroying the source BEAM report.
+inputs, and rejects output paths that would overwrite a BEAM source file under
+`--benchmark-root` before reading benchmark rows. This keeps recall/noise
+workbench evidence from destroying source reports or benchmark source files.
+`analyze:phase-63-beam` also rejects duplicate scalar source/output/run
+selectors (`--report-path`, `--output-path`, `--run-id`) before reading inputs
+or writing miss-case analysis, and rejects output paths that would overwrite its
+source `--report-path` before reading inputs. It also requires `--run-id` to be
+a single path segment before resolving the default source report path, keeping
+early miss-case analysis evidence from ambiguous CLI selectors, source-report
+path traversal, or source-report destruction.
 `eval:phase-63-live-slice` and `eval:phase-63-live-closure` also
 reject duplicate `--evidence-pack` and `--resume` mode switches plus duplicate
 scalar source/output selectors where supported (`--answer-gap-report`,
 `--benchmark-root`, `--case-selection`, `--limit`, `--output-dir`, `--profile`,
-`--recall-report`, `--run-id`, `--scale`) before report generation, keeping
-answer-context mode, source report, benchmark root, output location, run id, and
+`--recall-report`, `--run-id`, `--scale`) before report generation, and require
+`--run-id` to be a single path segment, keeping answer-context mode, source
+report, benchmark root, output location, run id, live evidence directory, and
 checkpoint/resume semantics unambiguous. `scripts/analyze-phase-63-live-answer-gap.ts`
 and `scripts/run-phase-63-beam-live-ablation.ts` also reject output report paths
 that would overwrite the input `--live-report` before reading benchmark or
-live-report sources. This keeps answer-gap and ablation routing evidence from
-destroying the source live report without changing BEAM scores, recall, or
-closure boundaries. For summarization, the corrected
+live-report sources, and the answer-gap analyzer rejects explicit output paths
+that would overwrite a BEAM source file under `--benchmark-root`. This keeps
+answer-gap and ablation routing evidence from destroying the source live report
+or benchmark source, or from escaping intended output directories through
+malformed run ids, without changing BEAM scores, recall, or closure boundaries.
+`GOODMEMORY_BEAM_ROOT` fallbacks are now rejected when empty or whitespace-padded
+before root-prep, smoke/full, recall, live-slice, live-closure, answer-gap, or
+ablation evidence can resolve an output root or benchmark root; explicit CLI
+roots keep precedence. This prevents malformed env-derived roots from being
+recorded as BEAM evidence provenance without changing scores, recall, or closure
+boundaries.
+For summarization, the corrected
 filtered answer-pack candidate set
 is only `12:summarization:1` and `14:summarization:2`; `18:summarization:1` and
 `18:summarization:2` are correctly classified as `no-declared-source-ids`. The

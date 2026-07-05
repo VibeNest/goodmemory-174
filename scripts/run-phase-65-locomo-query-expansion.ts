@@ -13,7 +13,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { LocomoQuestion } from "../src/eval/locomo";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
   buildLocomoScope,
@@ -89,10 +93,11 @@ export function parseLocomoQueryExpansionCliOptions(
   argv: readonly string[],
 ): LocomoQueryExpansionCliOptions {
   const runId =
-    resolveCliFlagValueStrict(argv, "--run-id") ?? "locomo-query-expansion";
+    resolveCliPathSegmentFlagValueStrict(argv, "--run-id") ??
+    "locomo-query-expansion";
   const benchmarkRoot =
     resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-    process.env.GOODMEMORY_LOCOMO_ROOT;
+    resolveEnvValueStrict(process.env, "GOODMEMORY_LOCOMO_ROOT");
   if (!benchmarkRoot) {
     throw new Error("--benchmark-root or GOODMEMORY_LOCOMO_ROOT is required.");
   }

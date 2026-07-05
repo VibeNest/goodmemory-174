@@ -42,6 +42,20 @@ Workstreams
      A current full `bun test` over the mixed worktree is not green: 2045/2052
      tests pass, with 7 failures in Phase 32/35 and governed procedural feedback
      recall paths outside the Phase 62 LongMemEval lane.
+   - `gate:phase-62` rejects duplicate scalar gate output selectors
+     (`--output-dir`, `--run-id`) before running LongMemEval smoke gate checks
+     or writing gate artifacts, keeping accepted gate evidence from
+     first-value/last-value ambiguity.
+   - `eval:phase-62-deterministic-subset` rejects duplicate scalar
+     report/output/profile selectors and requires `--run-id` to be a single
+     path segment before resolving the source report, keeping judge-free
+     LongMemEval public-claim helper evidence from repeated-selector ambiguity
+     and source-report traversal.
+   - `GOODMEMORY_LONGMEMEVAL_ROOT` must not be empty or whitespace-padded before
+     base eval/readiness uses it as a benchmark-root fallback; explicit
+     `--benchmark-root` values still take precedence. This keeps accepted
+     LongMemEval smoke/full and recall evidence from recording malformed
+     env-derived source roots.
    - during the earlier answer-generation provider block,
      `eval:phase-62-recall-diagnostic` provided a durable provider-free recall
      diagnostic for the fixed 18-case
@@ -172,7 +186,9 @@ Workstreams
     source/output/run/budget selectors before reading source reports or planning
     shard/retry work; repeated multi-value selectors such as `--profile`,
     `--case-id`, `--question-type`, `--shard-run-id`, and `--source-run-id`
-    remain repeatable.
+    remain repeatable. Base eval, recall-diagnostic, full500 runner, and
+    full500 summary also require output `--run-id` values to be a single path
+    segment before deriving report, shard, or merged-report directories.
     The current canonical clean merged live retry state is
     `run-phase62-longmemeval-full500-current-merged-gpt55-cooldown-resume3-20260507T191000Z`:
     all four profiles cover all 500 cases with `executionFailures: 0`.

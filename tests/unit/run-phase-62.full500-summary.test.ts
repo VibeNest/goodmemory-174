@@ -129,6 +129,34 @@ describe("run-phase-62 full-500 summary", () => {
     }
   });
 
+  it("rejects output run ids that escape the summary directory before reading shard reports", async () => {
+    expect(() =>
+      parsePhase62Full500SummaryOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-full500-summary.ts",
+        "--run-id",
+        "../outside-longmemeval",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase62Full500Summary(
+        {
+          outputDir: "/tmp/phase62-full500-summary-test",
+          runId: "../outside-longmemeval",
+          shardRunIds: ["run-shard-01"],
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read shard reports");
+          },
+          writeFile: async () => {},
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("aggregates shard reports into a canonical full report", async () => {
     const outputDir = "/tmp/phase62-full500-summary-test";
     const shardRunIds = [

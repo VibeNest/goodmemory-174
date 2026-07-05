@@ -67,6 +67,89 @@ describe("phase-63 live answer-gap analyzer", () => {
     }
   });
 
+  it("rejects empty or whitespace-padded BEAM root environment values", () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63AnswerGapCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-live-answer-gap.ts",
+          "--live-report",
+          "/tmp/live.json",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63AnswerGapCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-live-answer-gap.ts",
+          "--live-report",
+          "/tmp/live.json",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63AnswerGapCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-live-answer-gap.ts",
+          "--live-report",
+          "/tmp/live.json",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63AnswerGapCliOptions([
+          "bun",
+          "run",
+          "scripts/analyze-phase-63-live-answer-gap.ts",
+          "--live-report",
+          "/tmp/live.json",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects output run ids that are not single path segments", async () => {
+    expect(() =>
+      parsePhase63AnswerGapCliOptions([
+        "bun",
+        "run",
+        "scripts/analyze-phase-63-live-answer-gap.ts",
+        "--live-report",
+        "/tmp/live.json",
+        "--run-id",
+        "../outside-beam",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      analyzePhase63LiveAnswerGap(
+        {
+          liveReportPath: "/tmp/live.json",
+          runId: "../outside-beam",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read live report");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
   it("rejects an output path that would overwrite the live report before reading it", async () => {
     await expect(
       analyzePhase63LiveAnswerGap(
@@ -82,6 +165,28 @@ describe("phase-63 live answer-gap analyzer", () => {
       ),
     ).rejects.toThrow(
       "--output-path and --live-report must refer to different paths",
+    );
+  });
+
+  it("rejects an output path that would overwrite a benchmark source file before reading it", async () => {
+    await expect(
+      analyzePhase63LiveAnswerGap(
+        {
+          benchmarkRoot: "/tmp/BEAM",
+          liveReportPath: "/tmp/beam-live-report.json",
+          outputPath: "/tmp/BEAM/../BEAM/100K.json",
+        },
+        {
+          readFile: async (path) => {
+            if (path === "/tmp/beam-live-report.json") {
+              return JSON.stringify({ cases: [] });
+            }
+            throw new Error(`should not read benchmark source ${path}`);
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --benchmark-root source must refer to different paths",
     );
   });
 

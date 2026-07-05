@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   PHASE63_CANONICAL_GATE_RUN_ID,
+  parsePhase63GateCliOptions,
   runPhase63Gate,
 } from "../../scripts/run-phase-63-gate";
 import { PHASE63_CANONICAL_RUN_ID } from "../../scripts/run-phase-63-eval";
@@ -51,6 +52,34 @@ function buildBeamReport(): string {
 }
 
 describe("run-phase-63 gate", () => {
+  it("rejects duplicate scalar gate flags before running checks", () => {
+    for (const flag of ["--output-dir", "--run-id"]) {
+      expect(() =>
+        parsePhase63GateCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-gate.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects path-like gate run ids before running checks", () => {
+    expect(() =>
+      parsePhase63GateCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-gate.ts",
+        "--run-id",
+        "nested/gate",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
   it("writes an accepted gate for the canonical BEAM smoke report", async () => {
     const commands: string[][] = [];
     const writes = new Map<string, string>();

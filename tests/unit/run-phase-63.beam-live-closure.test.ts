@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
   PHASE63_BEAM_CLOSURE_GATE_RUN_ID,
+  parsePhase63BeamClosureGateCliOptions,
   runPhase63BeamClosureGate,
 } from "../../scripts/run-phase-63-beam-closure-gate";
 import {
@@ -276,6 +277,66 @@ describe("phase-63 BEAM live closure runner", () => {
         "run-b",
       ]),
     ).toThrow("--run-id cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveClosureCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-closure.ts",
+        "--run-id",
+        "nested/live-closure",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects empty or whitespace-padded BEAM root environment values", async () => {
+    const original = process.env.GOODMEMORY_BEAM_ROOT;
+    try {
+      process.env.GOODMEMORY_BEAM_ROOT = "/tmp/BEAM-env";
+      expect(
+        parsePhase63BeamLiveClosureCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-closure.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-env");
+      expect(
+        parsePhase63BeamLiveClosureCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-closure.ts",
+          "--benchmark-root",
+          "/tmp/BEAM-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/BEAM-cli");
+
+      process.env.GOODMEMORY_BEAM_ROOT = " /tmp/BEAM-env ";
+      expect(() =>
+        parsePhase63BeamLiveClosureCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-closure.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+      await expect(runPhase63BeamLiveClosure()).rejects.toThrow(
+        "GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.",
+      );
+
+      process.env.GOODMEMORY_BEAM_ROOT = "";
+      expect(() =>
+        parsePhase63BeamLiveClosureCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-live-closure.ts",
+        ]),
+      ).toThrow("GOODMEMORY_BEAM_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_BEAM_ROOT;
+      } else {
+        process.env.GOODMEMORY_BEAM_ROOT = original;
+      }
+    }
   });
 
   it("accepts the hybrid live closure profile", () => {
@@ -395,6 +456,36 @@ describe("phase-63 BEAM live closure runner", () => {
 });
 
 describe("phase-63 BEAM closure gate", () => {
+  it("rejects duplicate scalar closure-gate flags before running checks", () => {
+    for (const flag of ["--closure-report", "--output-dir", "--run-id"]) {
+      expect(() =>
+        parsePhase63BeamClosureGateCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-63-beam-closure-gate.ts",
+          flag,
+          "first",
+          flag,
+          "second",
+        ]),
+      ).toThrow(`${flag} cannot be specified more than once.`);
+    }
+  });
+
+  it("rejects path-like closure-gate run ids before running checks", () => {
+    expect(() =>
+      parsePhase63BeamClosureGateCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-closure-gate.ts",
+        "--closure-report",
+        "/tmp/out/run-closure/phase-63-beam-closure-report.json",
+        "--run-id",
+        "../outside-gates",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
   it("accepts a complete live closure report without rerunning live models", async () => {
     const commands: string[][] = [];
     const writes = new Map<string, string>();

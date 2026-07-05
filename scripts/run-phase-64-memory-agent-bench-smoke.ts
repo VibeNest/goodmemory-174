@@ -34,7 +34,10 @@ import {
 } from "../src/eval/memoryAgentBench";
 import {
   hasCliFlagStrict,
+  parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
 } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 import {
@@ -179,22 +182,17 @@ export interface MemoryAgentBenchSmokeReport {
 export function parseMemoryAgentBenchSmokeCliOptions(
   argv: readonly string[],
 ): MemoryAgentBenchSmokeCliOptions {
-  const limitRaw = resolveCliFlagValueStrict(argv, "--limit");
-  const limit = limitRaw === undefined ? undefined : Number(limitRaw);
-  if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
-    throw new Error("--limit must be a positive integer.");
-  }
   return {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env[MEMORY_AGENT_BENCH_ROOT_ENV],
+      resolveEnvValueStrict(process.env, MEMORY_AGENT_BENCH_ROOT_ENV),
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
-    limit,
+    limit: parseCliPositiveIntegerFlagStrict(argv, "--limit"),
     live: hasCliFlagStrict(argv, "--live"),
     noMemory: hasCliFlagStrict(argv, "--no-memory"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     resume: hasCliFlagStrict(argv, "--resume"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 

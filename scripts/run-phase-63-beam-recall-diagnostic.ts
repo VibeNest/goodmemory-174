@@ -16,10 +16,15 @@ import {
   type BeamReport,
   type BeamRow,
 } from "../src/eval/beam";
-import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  assertCliPathSegmentValue,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,
+  resolvePhase63BeamRootEnv,
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
@@ -98,11 +103,13 @@ export function parsePhase63BeamRecallDiagnosticCliOptions(
   argv: readonly string[],
 ): Phase63BeamRecallDiagnosticCliOptions {
   return {
-    benchmarkRoot: resolveCliFlagValueStrict(argv, "--benchmark-root"),
+    benchmarkRoot:
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      resolvePhase63BeamRootEnv(),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     scale: parseScale(resolveCliFlagValueStrict(argv, "--scale")),
   };
 }
@@ -394,7 +401,7 @@ export async function runPhase63BeamRecallDiagnostic(
   dependencies: Phase63BeamRecallDiagnosticDependencies = {},
 ): Promise<BeamReport> {
   const root = resolvePhase63RepoRoot();
-  const benchmarkRoot = options.benchmarkRoot ?? process.env.GOODMEMORY_BEAM_ROOT;
+  const benchmarkRoot = options.benchmarkRoot ?? resolvePhase63BeamRootEnv();
   if (!benchmarkRoot) {
     throw new Error(
       "Phase 63 BEAM recall diagnostic requires --benchmark-root or GOODMEMORY_BEAM_ROOT.",
@@ -426,6 +433,7 @@ export async function runPhase63BeamRecallDiagnostic(
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
   const runId = options.runId ?? PHASE63_RECALL_DIAGNOSTIC_RUN_ID;
+  assertCliPathSegmentValue({ flag: "--run-id", value: runId });
   const outputDir = options.outputDir ?? resolvePhase63OutputDir(root);
   const runDirectory = join(outputDir, runId);
   const rows = await readPhase63BeamRows({

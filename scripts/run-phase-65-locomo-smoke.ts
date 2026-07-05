@@ -47,6 +47,8 @@ import {
 import {
   hasCliFlagStrict,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
 } from "./cli-options";
 import { LOCOMO_REANSWER_JOB_BUCKET_SET } from "./locomo-reanswer-contracts";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
@@ -510,7 +512,7 @@ export function parseLocomoSmokeCliOptions(
   const parsed = {
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
-      process.env[LOCOMO_ROOT_ENV],
+      resolveEnvValueStrict(process.env, LOCOMO_ROOT_ENV),
     allowCommonsenseResolution: hasCliFlagStrict(
       argv,
       "--allow-commonsense-resolution",
@@ -547,7 +549,7 @@ export function parseLocomoSmokeCliOptions(
     live: hasCliFlagStrict(argv, "--live"),
     resume: hasCliFlagStrict(argv, "--resume"),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
-    runId: resolveCliFlagValueStrict(argv, "--run-id"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
   assertProviderEmbeddingTimeoutsRequireProvider(parsed);
   assertSemanticCandidateTuningRequiresAdmission(parsed);
@@ -1821,6 +1823,18 @@ export function buildLocomoAnswerContext(input: {
     .join("\n");
 }
 
+function locomoEvidencePackQuestionType(
+  category: LocomoQaCategory,
+): string | undefined {
+  if (category === "multi_hop") {
+    return "multi_session_reasoning";
+  }
+  if (category === "adversarial") {
+    return "abstention";
+  }
+  return undefined;
+}
+
 // Evidence-pack variant of the answer context. LoCoMo turns carry no wall-clock
 // timestamp, so the answer-time order key is the turn's position in the
 // conversation and the time anchor is its 1-based session index (sessions run in
@@ -1845,6 +1859,7 @@ export function buildLocomoEvidencePackContext(input: {
     }));
   return buildAnswerEvidencePack({
     question: input.question.question,
+    questionType: locomoEvidencePackQuestionType(input.question.category),
     turns,
   });
 }

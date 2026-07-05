@@ -1,6 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+} from "./cli-options";
 import type { Phase63BeamLiveClosureReport } from "./run-phase-63-beam-live-closure";
 import { resolvePhase63RepoRoot } from "./run-phase-63-shared";
 
@@ -45,11 +48,13 @@ export interface Phase63BeamClosureGateDependencies {
   writeFile?: (path: string, value: string) => Promise<void>;
 }
 
-function parseGateOptions(argv: readonly string[]): Phase63BeamClosureGateOptions {
+export function parsePhase63BeamClosureGateCliOptions(
+  argv: readonly string[],
+): Phase63BeamClosureGateOptions {
   return {
-    closureReportPath: resolveCliFlagValue(argv, "--closure-report"),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    runId: resolveCliFlagValue(argv, "--run-id"),
+    closureReportPath: resolveCliFlagValueStrict(argv, "--closure-report"),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }
 
@@ -172,6 +177,8 @@ export async function runPhase63BeamClosureGate(
 }
 
 if (import.meta.main) {
-  const report = await runPhase63BeamClosureGate(parseGateOptions(Bun.argv));
+  const report = await runPhase63BeamClosureGate(
+    parsePhase63BeamClosureGateCliOptions(Bun.argv),
+  );
   console.log(JSON.stringify(report, null, 2));
 }

@@ -147,6 +147,86 @@ describe("embedding-free LoCoMo comparison runner", () => {
     ).toThrow("--output-dir requires a value.");
   });
 
+  it("rejects empty or whitespace-padded LoCoMo root environment values", () => {
+    const original = process.env.GOODMEMORY_LOCOMO_ROOT;
+    try {
+      process.env.GOODMEMORY_LOCOMO_ROOT = "/tmp/LOCOMO-env";
+      expect(
+        parseEmbeddingFreeComparisonCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-env");
+
+      expect(
+        parseEmbeddingFreeComparisonCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+          "--benchmark-root",
+          "/tmp/LOCOMO-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LOCOMO-cli");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = " /tmp/LOCOMO-env ";
+      expect(() =>
+        parseEmbeddingFreeComparisonCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+
+      process.env.GOODMEMORY_LOCOMO_ROOT = "";
+      expect(() =>
+        parseEmbeddingFreeComparisonCliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        ]),
+      ).toThrow("GOODMEMORY_LOCOMO_ROOT cannot be empty or whitespace-padded.");
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LOCOMO_ROOT;
+      } else {
+        process.env.GOODMEMORY_LOCOMO_ROOT = original;
+      }
+    }
+  });
+
+  it("rejects output directories that resolve to the benchmark root before running arms", async () => {
+    expect(() =>
+      parseEmbeddingFreeComparisonCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-embedding-free-comparison.ts",
+        "--benchmark-root",
+        "/tmp/LOCOMO",
+        "--output-dir",
+        "/tmp/LOCOMO",
+      ]),
+    ).toThrow(
+      "--benchmark-root and --output-dir must refer to different paths",
+    );
+
+    await expect(
+      runEmbeddingFreeComparison(
+        {
+          benchmarkRoot: "/tmp/LOCOMO",
+          outputDir: "/tmp/LOCOMO",
+        },
+        {
+          readFile: async () => {
+            throw new Error("should not read benchmark root");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--benchmark-root and --output-dir must refer to different paths",
+    );
+  });
+
   it("runs every deterministic arm on the synthetic smoke (gateway-free, in-memory)", async () => {
     const rows = await runEmbeddingFreeComparison(
       { outputDir: "/tmp/locomo-ef" },

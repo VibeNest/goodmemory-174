@@ -180,6 +180,77 @@ describe("run-phase-62 LongMemEval script", () => {
     });
   });
 
+  it("rejects empty or whitespace-padded LongMemEval root environment values", () => {
+    const original = process.env.GOODMEMORY_LONGMEMEVAL_ROOT;
+    try {
+      process.env.GOODMEMORY_LONGMEMEVAL_ROOT = "/tmp/LongMemEval-env";
+      expect(
+        parsePhase62CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-eval.ts",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LongMemEval-env");
+      expect(
+        parsePhase62CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-eval.ts",
+          "--benchmark-root",
+          "/tmp/LongMemEval-cli",
+        ]).benchmarkRoot,
+      ).toBe("/tmp/LongMemEval-cli");
+      expect(resolvePhase62BenchmarkRoot("/tmp/goodmemory", false)).toBe(
+        "/tmp/LongMemEval-env",
+      );
+      expect(
+        checkPhase62Readiness(
+          { mode: "smoke" },
+          { fileExists: () => true },
+        ).benchmarkRoot,
+      ).toBe("/tmp/LongMemEval-env");
+
+      process.env.GOODMEMORY_LONGMEMEVAL_ROOT = " /tmp/LongMemEval-env ";
+      expect(() =>
+        parsePhase62CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-eval.ts",
+        ]),
+      ).toThrow(
+        "GOODMEMORY_LONGMEMEVAL_ROOT cannot be empty or whitespace-padded.",
+      );
+      expect(() => resolvePhase62BenchmarkRoot("/tmp/goodmemory", false)).toThrow(
+        "GOODMEMORY_LONGMEMEVAL_ROOT cannot be empty or whitespace-padded.",
+      );
+      expect(() =>
+        checkPhase62Readiness(
+          { mode: "smoke" },
+          { fileExists: () => true },
+        ),
+      ).toThrow(
+        "GOODMEMORY_LONGMEMEVAL_ROOT cannot be empty or whitespace-padded.",
+      );
+
+      process.env.GOODMEMORY_LONGMEMEVAL_ROOT = "";
+      expect(() =>
+        parsePhase62CliOptions([
+          "bun",
+          "run",
+          "scripts/run-phase-62-eval.ts",
+        ]),
+      ).toThrow(
+        "GOODMEMORY_LONGMEMEVAL_ROOT cannot be empty or whitespace-padded.",
+      );
+    } finally {
+      if (original === undefined) {
+        delete process.env.GOODMEMORY_LONGMEMEVAL_ROOT;
+      } else {
+        process.env.GOODMEMORY_LONGMEMEVAL_ROOT = original;
+      }
+    }
+  });
+
   it("rejects duplicate all-cases mode flags before running phase-62 eval", () => {
     expect(() =>
       parsePhase62CliOptions([
@@ -214,6 +285,40 @@ describe("run-phase-62 LongMemEval script", () => {
         ]),
       ).toThrow(`${flag} cannot be specified more than once.`);
     }
+  });
+
+  it("rejects output run ids that escape the phase-62 eval directory", async () => {
+    expect(() =>
+      parsePhase62CliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-62-eval.ts",
+        "--run-id",
+        "../outside-longmemeval",
+      ]),
+    ).toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase62LongMemEval(
+        {
+          runId: "../outside-longmemeval",
+        },
+        {
+          runSuite: async (input) => buildReport(input),
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+
+    await expect(
+      runPhase62LongMemEvalRecallDiagnostic(
+        {
+          runId: "../outside-longmemeval",
+        },
+        {
+          runDiagnostic: async (input) => buildRecallDiagnosticReport(input),
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
   });
 
   it("keeps the type-balanced manifest aligned with the four-profile run contract", async () => {
