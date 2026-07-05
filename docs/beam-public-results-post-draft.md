@@ -35,7 +35,7 @@ Per category (40 questions each unless noted):
 | summarization | 0.814 | 0.35 |
 | multi_session_reasoning | 0.780 | 0.62 |
 | contradiction_resolution | 0.775 | 0.40 |
-| information_extraction (mixed subtypes) | ~0.93 | 0.58 |
+| information_extraction (mixed subtypes, 40 questions) | 0.873 | 0.58 |
 | instruction_following | **0.394** | 0.66 |
 
 instruction_following is our one category below the prior datapoint — called
@@ -59,11 +59,11 @@ against the rubric's required formats, not retrieval.
 - Retrieval recall is reported as a dual metric (fitted 0.9621 vs
   generalization floor 0.6822 with all scenario-fitted classifiers disabled;
   our shipped opt-in semantic-candidate union lifts the floor to 0.8529) —
-  methodology note: [ADR-005](https://github.com/<REPO>/blob/main/adr/ADR-005-scenario-fitted-recall-boundary.txt).
+  methodology note: [ADR-005](https://github.com/hjqcan/GoodMemory/blob/main/adr/ADR-005-scenario-fitted-recall-boundary.txt).
 - executionFailures 0 across answer generation; declaration with the exact
   commands, commit, and package version:
-  [benchmark-claims/beam.json](https://github.com/<REPO>/blob/main/benchmark-claims/beam.json);
-  reproduction guide: [REPRODUCING.md](https://github.com/<REPO>/blob/main/REPRODUCING.md).
+  [benchmark-claims/beam.json](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/beam.json);
+  reproduction guide: [REPRODUCING.md](https://github.com/hjqcan/GoodMemory/blob/main/REPRODUCING.md).
 
 Happy to share the per-item judge verdicts (JSONL) or re-run under a
 different judge model if anyone wants to cross-check.
