@@ -4,18 +4,19 @@ Phase 66: v0.3 Release Readiness and Public Surface Hardening
 Status
 ------
 
-[ACTIVE] Phase 66 is the current release/public-surface lane. After the Phase
-62-65 sequential benchmark-hardening work produced enough internal evidence
-(LongMemEval accepted; BEAM measured checkpoint 0.695; MemoryAgentBench accepted
-internal AR/CR zero-failure live closure; LoCoMo banked retrieval boundary), the
-next priority for this lane was not more benchmarks. It was proving the v0.3
-public package surface is installable, importable, explainable, and rollback-safe
-for real users.
+[CLOSED - RELEASE READINESS; P67 SUPERSEDES PUBLIC-CLAIM ROUTING]
+Phase 66 was the v0.3 release/public-surface lane. At Phase 66 closure, the
+Phase 62-65 sequential benchmark-hardening evidence was still mostly internal
+(LongMemEval accepted; BEAM binary-track checkpoint 0.695; MemoryAgentBench
+internal AR/CR zero-failure live closure; LoCoMo retrieval boundary). The
+priority for this lane was not more benchmarks. It was proving the v0.3 public
+package surface is installable, importable, explainable, and rollback-safe for
+real users.
 
-This phase is docs + release-tooling + examples only. It opens no new eval/code
-work, does not reopen LoCoMo performance work, does not touch the Phase 63 BEAM
+This phase was docs + release-tooling + examples only. It opened no new eval/code
+work, did not reopen LoCoMo performance work, did not touch the Phase 63 BEAM
 answer-pack lane (owned by the BEAM workstream), and added no public benchmark
-claim in Phase 66 itself. Later public-claim promotion is tracked by Phase 67.
+claim in Phase 66 itself. P67 later promoted scoped public claims for MemoryAgentBench CR/TTL, LoCoMo P4, and BEAM official-protocol. Current Sequential lane is Phase 65 LoCoMo, with public-claim routing in Phase 67.
 
 
 Driver
@@ -42,7 +43,7 @@ Do NOT:
   before broader sharded coverage plus adversarial/noise/open-domain follow-up.
 - Run the local hashed-embedding hybrid (a lexical proxy; would pollute results).
 - Touch the Phase 63 BEAM answer-pack workstream's code.
-- Put Phase 66's then-internal MAB / LoCoMo numbers into the public README
+- Put Phase 66's then-internal benchmark numbers into the public README
   benchmark table.
 - Add any new public benchmark claim from Phase 66; later claim promotion belongs
   to Phase 67.
@@ -52,13 +53,14 @@ Tasks
 -----
 
 [DONE] P66-T001 Sync benchmark claim boundaries (commit 404cd2d): README
-  internal-boundary note for then-internal MAB/LoCoMo evidence, Current-Status +
-  Plan LoCoMo boundary, task-board active-lane router. Verified no real version
+  internal-boundary note for then-internal benchmark evidence, Current-Status +
+  Plan LoCoMo boundary, task-board then-active-lane router. Verified no real version
   drift (package + READMEs + Current-Status already 0.3.x); README.zh-CN has no
-  benchmark table and defers to Current-Status. P67 later superseded the MAB
-  boundary with a scoped CR/TTL public claim.
+  benchmark table and defers to Current-Status. P67 later superseded the MAB,
+  LoCoMo, and BEAM public-claim boundaries with scoped public claims.
 [DONE] P66-T002 Close the Phase 64 board status (commit 704d741): P64-T005 DONE,
-  both Phase 64 board headers flipped to CLOSED, active lane set to Phase 66.
+  both Phase 64 board headers flipped to CLOSED, then-active lane set to Phase
+  66. Current routing is now Phase 65 LoCoMo plus Phase 67 public-claim routing.
 [DONE] P66-T003 Release-readiness gate (commit ...gate, scripts/run-v0-3-release-
   readiness.ts, alias gate:v0-3-release-readiness). Checks: typecheck, unit tests,
   build + dist, npm pack manifest, exports-target resolution, by-name Node import
@@ -110,4 +112,4 @@ Source And Evidence Pointers
 - Public API docs: README.md / README.zh-CN.md "Opt-In Recall Tuning" section
 - Claim boundaries: docs/GoodMemory-Current-Status-and-Evidence.md
 - Active-lane router: task-board/00-README.txt
-- LoCoMo paused boundary (do not reopen): task-board/70-phase-65-...txt
+- LoCoMo active hardening lane: task-board/70-phase-65-...txt

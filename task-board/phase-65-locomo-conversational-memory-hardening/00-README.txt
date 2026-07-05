@@ -15,9 +15,7 @@ Phase 65 lane remains open for default-profile promotion and broader
 category-quality hardening.
 
 Current active work is targeted candidate admission plus multi_hop/noise
-answer-policy repair. Phase 63 BEAM remains partial under its own answer-gap
-workstream, and Phase 64 MemoryAgentBench is closed for the scoped public CR/TTL
-claim.
+answer-policy repair. Phase 63 / P67-D BEAM is publicly claimable on the official-protocol track, while its internal binary answer-gap workstream remains open, and Phase 64 MemoryAgentBench is closed for the scoped public CR/TTL claim.
 
 
 What LoCoMo Is
@@ -180,6 +178,12 @@ Next
   canonical for token-F1 near-miss diagnostics: `--run-id` must be a single
   path segment before the analyzer derives its default output path from
   `--live-delta`.
+- Keep `analyze:phase-65-locomo-retrieval-gap` derived output evidence
+  auditable: output `--run-id` must be a single path segment before deriving a
+  default output path from the source smoke report, output paths must not
+  overwrite the source report or resolved cases source, and the generated
+  analysis should persist diagnostic-only claim boundary, generation timestamp,
+  source report, cases source, output run id, and output path lineage.
 - Keep eval-only retrieval-probe source roots canonical:
   `GOODMEMORY_LOCOMO_ROOT` must not be empty or whitespace-padded before
   dialog-window or rules-light query-expansion probes use it as the

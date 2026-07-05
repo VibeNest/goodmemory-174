@@ -7,13 +7,15 @@
 //
 //   bun run analyze:phase-65-locomo-retrieval-gap -- \
 //     --report reports/eval/research/phase-65/locomo/<run-id>/smoke-report.json \
-//     --cases /private/tmp/LOCOMO/cases.json
+//     --cases /private/tmp/LOCOMO/cases.json \
+//     --run-id retrieval-gap-current
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { parseLocomoSession, tokenizeLocomoAnswer } from "../src/eval/locomo";
 import {
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
 import {
   assertLocomoReportHasNoExecutionFailures,
@@ -22,6 +24,9 @@ import {
 import type { LocomoSmokeReport } from "./run-phase-65-locomo-smoke";
 
 export const LOCOMO_RETRIEVAL_GAP_FILE_NAME = "retrieval-gap-analysis.json";
+
+const CLAIM_BOUNDARY =
+  "Research diagnostic only; not a public release or benchmark claim.";
 
 interface ReportQuestion {
   answerCorrect: boolean | null;
@@ -158,8 +163,13 @@ function summarizeAccumulator(acc: CategoryAccumulator) {
 }
 
 export function analyzeLocomoRetrievalGap(input: {
+  casesPath?: string;
   cases: NormalizedCase[];
+  generatedAt?: string;
+  outputPath?: string;
+  outputRunId?: string;
   report: { cases: ReportQuestion[]; runId?: string };
+  reportPath?: string;
 }): unknown {
   const turnIndexByCase = new Map<string, Map<string, TurnInfo>>();
   const orderedTurnsByCase = new Map<string, TurnInfo[]>();
@@ -283,9 +293,17 @@ export function analyzeLocomoRetrievalGap(input: {
   return {
     benchmark: "locomo",
     byCategory: categoriesOut,
+    casesSource: input.casesPath ? { path: input.casesPath } : null,
+    claimBoundary: CLAIM_BOUNDARY,
+    generatedAt: input.generatedAt ?? new Date().toISOString(),
     generatedBy: "scripts/analyze-phase-65-locomo-retrieval-gap.ts",
     overall: summarizeAccumulator(overall),
+    outputPath: input.outputPath ?? null,
+    outputRunId: input.outputRunId ?? null,
     phase: "phase-65",
+    sourceReport: input.reportPath
+      ? { path: input.reportPath, runId: input.report.runId ?? null }
+      : null,
     sourceRunId: input.report.runId ?? null,
   };
 }
@@ -322,17 +340,32 @@ function assertOutputPathDoesNotOverwriteInput(input: {
   });
 }
 
+function defaultOutputPath(reportPath: string, outputRunId?: string): string {
+  if (outputRunId === undefined) {
+    return join(dirname(reportPath), LOCOMO_RETRIEVAL_GAP_FILE_NAME);
+  }
+
+  return join(
+    dirname(reportPath),
+    "..",
+    outputRunId,
+    LOCOMO_RETRIEVAL_GAP_FILE_NAME,
+  );
+}
+
 export async function runLocomoRetrievalGapAnalysis(
   argv: readonly string[],
   deps: {
     readFile?: (path: string) => Promise<string>;
     writeFile?: (path: string, value: string) => Promise<void>;
     mkdir?: (path: string, options: { recursive: boolean }) => Promise<unknown>;
+    now?: () => Date;
   } = {},
 ): Promise<{ analysis: unknown; outputPath: string }> {
   const readFileImpl = deps.readFile ?? ((path: string) => readFile(path, "utf8"));
   const writeFileImpl = deps.writeFile ?? writeFile;
   const mkdirImpl = deps.mkdir ?? mkdir;
+  const now = deps.now ?? (() => new Date());
 
   const reportPath = resolveCliFlagValueStrict(argv, "--report");
   if (!reportPath) {
@@ -351,9 +384,10 @@ export async function runLocomoRetrievalGapAnalysis(
   if (!casesPath) {
     throw new Error("LoCoMo retrieval-gap analysis requires --cases or --benchmark-root.");
   }
+  const outputRunId = resolveCliPathSegmentFlagValueStrict(argv, "--run-id");
   const outputPath =
     resolveCliFlagValueStrict(argv, "--output-path") ??
-    join(dirname(reportPath), LOCOMO_RETRIEVAL_GAP_FILE_NAME);
+    defaultOutputPath(reportPath, outputRunId);
   assertOutputPathDoesNotOverwriteInput({
     outputPath,
     sourceFlag: "--report",
@@ -377,7 +411,15 @@ export async function runLocomoRetrievalGapAnalysis(
   }
   const cases = rawCases as NormalizedCase[];
 
-  const analysis = analyzeLocomoRetrievalGap({ cases, report });
+  const analysis = analyzeLocomoRetrievalGap({
+    cases,
+    casesPath,
+    generatedAt: now().toISOString(),
+    outputPath,
+    ...(outputRunId ? { outputRunId } : {}),
+    report,
+    reportPath,
+  });
   await mkdirImpl(dirname(outputPath), { recursive: true });
   await writeFileImpl(outputPath, `${JSON.stringify(analysis, null, 2)}\n`);
   return { analysis, outputPath };

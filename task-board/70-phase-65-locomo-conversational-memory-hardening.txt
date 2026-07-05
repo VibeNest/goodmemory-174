@@ -2692,16 +2692,22 @@ Tasks
   tests/unit/analyze-phase-65-locomo-category-gaps.test.ts, and
   tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts.
 
-[DONE] P65-T004gl Retrieval-gap output/source path guard.
+[DONE] P65-T004gl Retrieval-gap output/source path and run-id guard.
   `analyze:phase-65-locomo-retrieval-gap` now rejects output paths that resolve
   to either its input smoke report or resolved cases file before reading inputs,
-  and rejects ambiguous `--cases` plus `--benchmark-root` source selectors.
+  rejects ambiguous `--cases` plus `--benchmark-root` source selectors, and
+  requires output `--run-id` values to be a single path segment before deriving
+  default output paths. Generated analysis artifacts also persist `generatedAt`,
+  diagnostic-only `claimBoundary`, source smoke report path/run id, resolved
+  cases source path, output run id, and output path.
   This prevents retrieval-gap diagnostics from overwriting source smoke reports,
-  overwriting external-root cases, or silently preferring one cases source over
-  another while preserving the existing report/cases join validation. This is
-  CLI evidence integrity hardening only; it does not change LoCoMo retrieval,
-  answer scores, default status, or public-claim boundaries. Unit coverage lives
-  in tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
+  overwriting external-root cases, escaping intended derived-evidence
+  directories, silently preferring one cases source over another, or relying on
+  run-directory names to audit provenance while preserving the existing
+  report/cases join validation. This is CLI evidence integrity hardening only;
+  it does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/analyze-phase-65.locomo-retrieval-gap.test.ts.
 
 [DONE] P65-T004gm Captioned-root source/output root guard.
   `prepare:phase-65-locomo-captioned` now rejects output roots that resolve to

@@ -33,11 +33,14 @@ function report() {
         category: "single_hop",
         evidenceRecall: 0,
         evidenceTurnIds: ["D1:2"],
+        generatedAnswer: "downtown clinic",
         goldEvidenceFullyRetrieved: false,
         missingEvidenceTurnIds: ["D1:2"],
+        noiseTurnCount: 0,
         noiseTurnIds: [],
         questionId: "q1",
         retrievedTurnIds: [],
+        answerTokenF1: null,
       },
       {
         answerCorrect: true,
@@ -45,11 +48,14 @@ function report() {
         category: "single_hop",
         evidenceRecall: 1,
         evidenceTurnIds: ["D2:1"],
+        generatedAnswer: "Max is the dog",
         goldEvidenceFullyRetrieved: true,
         missingEvidenceTurnIds: [],
+        noiseTurnCount: 0,
         noiseTurnIds: [],
         questionId: "q2",
         retrievedTurnIds: ["D2:1"],
+        answerTokenF1: null,
       },
       {
         // partial recall but the answer is still wrong.
@@ -58,13 +64,59 @@ function report() {
         category: "temporal",
         evidenceRecall: 0.5,
         evidenceTurnIds: ["D2:2", "D2:1"],
+        generatedAnswer: "outside",
         goldEvidenceFullyRetrieved: false,
         missingEvidenceTurnIds: ["D2:1"],
+        noiseTurnCount: 0,
         noiseTurnIds: [],
         questionId: "q3",
         retrievedTurnIds: ["D2:2"],
+        answerTokenF1: null,
       },
     ],
+  };
+}
+
+function smokeReportJson(overrides: Record<string, unknown> = {}) {
+  const reportCases = report().cases;
+  return {
+    benchmark: "locomo",
+    answerContextMode: "raw-turns",
+    answerEvaluation: "scored",
+    benchmarkSource: "/tmp/LOCOMO/cases.json",
+    bm25Ranking: false,
+    caseCount: 1,
+    caseIds: ["c1"],
+    cases: reportCases,
+    categories: [],
+    executionFailures: 0,
+    externalRoot: "/tmp/LOCOMO",
+    generatedAt: "2026-07-03T00:00:00.000Z",
+    generatedBy: "scripts/run-phase-65-locomo-smoke.ts",
+    ingestMode: "raw-turns",
+    license: "CC BY-NC 4.0",
+    mode: "live-answer",
+    phase: "phase-65",
+    profilesCompared: ["goodmemory-rules-only"],
+    questionCategories: null,
+    questionCount: reportCases.length,
+    resume: false,
+    runDirectory: "/reports/source",
+    runId: "test-run",
+    semanticCandidateEmbeddingSource: "none",
+    semanticCandidates: {
+      enabled: false,
+      maxAdditions: null,
+      minRelativeScore: null,
+      minSimilarity: null,
+      topK: null,
+    },
+    upstreamAnswerMetricByCategory: {
+      single_hop: "f1_token_overlap",
+      temporal: "f1_token_overlap",
+    },
+    upstreamSource: "https://github.com/snap-research/locomo",
+    ...overrides,
   };
 }
 
@@ -139,43 +191,12 @@ describe("LoCoMo retrieval-gap analyzer", () => {
   });
 
   it("rejects smoke reports whose questionCount does not match cases length", async () => {
-    const reportJson = {
-      benchmark: "locomo",
-      answerContextMode: "raw-turns",
-      answerEvaluation: "deferred-to-live-mode",
-      benchmarkSource: "/tmp/LOCOMO/cases.json",
-      bm25Ranking: false,
-      caseCount: 1,
-      caseIds: ["c1"],
+    const reportJson = smokeReportJson({
       cases: report().cases.slice(0, 1),
-      categories: [],
-      executionFailures: 0,
-      externalRoot: "/tmp/LOCOMO",
-      generatedAt: "2026-07-03T00:00:00.000Z",
-      generatedBy: "scripts/run-phase-65-locomo-smoke.ts",
-      ingestMode: "raw-turns",
-      license: "CC BY-NC 4.0",
-      mode: "retrieval-only",
-      phase: "phase-65",
-      profilesCompared: ["goodmemory-rules-only"],
-      questionCategories: null,
       questionCount: 2,
-      resume: false,
       runDirectory: "/reports/truncated",
       runId: "truncated-smoke",
-      semanticCandidateEmbeddingSource: "none",
-      semanticCandidates: {
-        enabled: false,
-        maxAdditions: null,
-        minRelativeScore: null,
-        minSimilarity: null,
-        topK: null,
-      },
-      upstreamAnswerMetricByCategory: {
-        single_hop: "f1_token_overlap",
-      },
-      upstreamSource: "https://github.com/snap-research/locomo",
-    };
+    });
     const reads = new Map([
       ["/reports/truncated/smoke-report.json", JSON.stringify(reportJson)],
       ["/tmp/LOCOMO/cases.json", JSON.stringify({ cases })],
@@ -316,6 +337,120 @@ describe("LoCoMo retrieval-gap analyzer", () => {
       ),
     ).rejects.toThrow(
       "--output-path and --cases must refer to different paths",
+    );
+  });
+
+  it("derives the default output path from a single-segment output run id", async () => {
+    const reads = new Map([
+      ["/reports/source/smoke-report.json", JSON.stringify(smokeReportJson())],
+      ["/tmp/LOCOMO/cases.json", JSON.stringify({ cases })],
+    ]);
+    const mkdirPaths: string[] = [];
+    const writes: { path: string; value: string }[] = [];
+
+    const result = await runLocomoRetrievalGapAnalysis(
+      [
+        "bun",
+        "run",
+        "analyze:phase-65-locomo-retrieval-gap",
+        "--report",
+        "/reports/source/smoke-report.json",
+        "--cases",
+        "/tmp/LOCOMO/cases.json",
+        "--run-id",
+        "retrieval-gap-current",
+      ],
+      {
+        mkdir: async (path: string) => {
+          mkdirPaths.push(path);
+        },
+        now: () => new Date("2026-07-05T16:00:00.000Z"),
+        readFile: async (path: string) => {
+          const value = reads.get(path);
+          if (value === undefined) {
+            throw new Error(`Unexpected read: ${path}`);
+          }
+          return value;
+        },
+        writeFile: async (path: string, value: string) => {
+          writes.push({ path, value });
+        },
+      },
+    );
+
+    expect(result.outputPath).toBe(
+      "/reports/retrieval-gap-current/retrieval-gap-analysis.json",
+    );
+    expect(mkdirPaths).toEqual(["/reports/retrieval-gap-current"]);
+    expect(writes.map((write) => write.path)).toEqual([result.outputPath]);
+    const writtenAnalysis = JSON.parse(writes[0]!.value) as {
+      casesSource: { path: string };
+      claimBoundary: string;
+      generatedAt: string;
+      outputPath: string;
+      outputRunId: string;
+      sourceReport: { path: string; runId: string };
+    };
+    expect(writtenAnalysis.sourceReport).toEqual({
+      path: "/reports/source/smoke-report.json",
+      runId: "test-run",
+    });
+    expect(writtenAnalysis.casesSource).toEqual({
+      path: "/tmp/LOCOMO/cases.json",
+    });
+    expect(writtenAnalysis.claimBoundary).toBe(
+      "Research diagnostic only; not a public release or benchmark claim.",
+    );
+    expect(writtenAnalysis.generatedAt).toBe("2026-07-05T16:00:00.000Z");
+    expect(writtenAnalysis.outputPath).toBe(result.outputPath);
+    expect(writtenAnalysis.outputRunId).toBe("retrieval-gap-current");
+  });
+
+  it("rejects output run ids that are not single path segments before reading inputs", async () => {
+    await expect(
+      runLocomoRetrievalGapAnalysis(
+        [
+          "bun",
+          "run",
+          "analyze:phase-65-locomo-retrieval-gap",
+          "--report",
+          "/reports/source/smoke-report.json",
+          "--cases",
+          "/tmp/LOCOMO/cases.json",
+          "--run-id",
+          "../outside-locomo",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow("--run-id must be a single path segment.");
+  });
+
+  it("rejects default output paths that overwrite the source report before reading inputs", async () => {
+    await expect(
+      runLocomoRetrievalGapAnalysis(
+        [
+          "bun",
+          "run",
+          "analyze:phase-65-locomo-retrieval-gap",
+          "--report",
+          "/reports/source/retrieval-gap-analysis.json",
+          "--cases",
+          "/tmp/LOCOMO/cases.json",
+          "--run-id",
+          "source",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read inputs");
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "--output-path and --report must refer to different paths",
     );
   });
 });

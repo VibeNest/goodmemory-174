@@ -2963,10 +2963,38 @@ describe("release metadata and docs", () => {
       ),
       "utf8",
     );
+    const phase64Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/69-phase-64-memoryagentbench-agent-memory-hardening.txt",
+      ),
+      "utf8",
+    );
+    const phase64Breakdown = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-64-memoryagentbench-agent-memory-hardening/00-README.txt",
+      ),
+      "utf8",
+    );
+    const phase66Board = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt",
+      ),
+      "utf8",
+    );
     const phase67Board = await readFile(
       join(
         import.meta.dir,
         "../../task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt",
+      ),
+      "utf8",
+    );
+    const phase65Breakdown = await readFile(
+      join(
+        import.meta.dir,
+        "../../task-board/phase-65-locomo-conversational-memory-hardening/00-README.txt",
       ),
       "utf8",
     );
@@ -3004,9 +3032,36 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("promoted public claim scoped only to CR 0.959 and TTL 0.767");
     expect(taskBoard).toContain("Phase 65 LoCoMo has a README-promoted P4 full-10 opt-in union/extraction profile");
     expect(taskBoard).toContain("but the active hardening lane is still open for default-profile promotion");
-    expect(taskBoard).toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
+    expect(taskBoard).toContain(
+      "Phase 63 / P67-D BEAM has a README-promoted official-protocol public claim",
+    );
+    expect(taskBoard).toContain(
+      "answer-gap hardening remains open for the internal binary track",
+    );
+    expect(taskBoard).not.toContain(
+      "but not BEAM performance closure or a public claim",
+    );
+    expect(taskBoard).toContain("Closed release/public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
+    expect(taskBoard).not.toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
     expect(taskBoard).toContain("Current Sequential benchmark-hardening entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
     expect(taskBoard).toContain("Public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");
+    expect(phase66Board).toContain(
+      "[CLOSED - RELEASE READINESS; P67 SUPERSEDES PUBLIC-CLAIM ROUTING]",
+    );
+    expect(phase66Board).toContain(
+      "P67 later promoted scoped public claims for MemoryAgentBench CR/TTL, LoCoMo P4, and BEAM official-protocol",
+    );
+    expect(phase66Board).toContain(
+      "Current Sequential lane is Phase 65 LoCoMo, with public-claim routing in Phase 67",
+    );
+    expect(phase66Board).not.toContain(
+      "[ACTIVE] Phase 66 is the current release/public-surface lane",
+    );
+    expect(phase66Board).not.toContain("LoCoMo banked retrieval boundary");
+    expect(phase66Board).not.toContain("active lane set to Phase 66");
+    expect(phase66Board).not.toContain("LoCoMo paused boundary (do not reopen)");
+    expect(phase66Board).not.toContain("then-internal MAB/LoCoMo evidence");
+    expect(phase66Board).not.toContain("then-internal MAB / LoCoMo numbers");
     expect(phase67Board).toContain(
       "Current verdict after BEAM/LoCoMo promotion (2026-07-05):",
     );
@@ -3028,6 +3083,31 @@ describe("release metadata and docs", () => {
     expect(phase67Board).not.toContain(
       "No additional MemoryAgentBench scope or LoCoMo README row promotion until the",
     );
+    expect(phase65Breakdown).toContain(
+      "Phase 63 / P67-D BEAM is publicly claimable on the official-protocol track",
+    );
+    expect(phase65Breakdown).toContain(
+      "its internal binary answer-gap workstream remains open",
+    );
+    expect(phase65Breakdown).not.toContain(
+      "Phase 63 BEAM remains partial under its own answer-gap workstream",
+    );
+    for (const phase64Content of [phase64Board, phase64Breakdown]) {
+      expect(phase64Content).toContain(
+        "Phase 63 / P67-D BEAM has a separate official-protocol public claim",
+      );
+      expect(phase64Content).toContain(
+        "its binary-track answer-gap workstream remains open",
+      );
+      expect(phase64Content).toContain(
+        "Current Sequential lane is Phase 65 LoCoMo, with public-claim routing in Phase 67",
+      );
+      expect(phase64Content).not.toContain("Phase 63 BEAM remains PAUSED");
+      expect(phase64Content).not.toContain("Phase 63 BEAM remains paused");
+      expect(phase64Content).not.toContain(
+        "Current active lane: v0.3 release readiness / public-surface hardening (Phase 66)",
+      );
+    }
     expect(taskBoard).toContain(
       "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
     );

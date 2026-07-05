@@ -12,11 +12,7 @@ Phase 64 closure this was internal small-slice evidence (two competencies,
 single gpt-5.5 model, deterministic upstream match-mode scoring, no LLM judge),
 not a public benchmark claim. P67-C later added the task-specific four-competency
 harness plus no-memory ablation and promoted only CR 0.959 / TTL 0.767 through
-`benchmark-claims/memoryagentbench.json`; AR/LRU remain excluded. Phase 63 BEAM
-remains PAUSED (rules-only retrieval recall 0.9621; answer-gap hardening owned by
-the BEAM workstream; resume plan in
-task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt). Current active
-lane: v0.3 release readiness / public-surface hardening (Phase 66).
+`benchmark-claims/memoryagentbench.json`; AR/LRU remain excluded. Phase 63 / P67-D BEAM has a separate official-protocol public claim, while its binary-track answer-gap workstream remains open under the BEAM workstream (resume plan in task-board/phase-63-beam-scale-and-noise-hardening/00-README.txt). Current Sequential lane is Phase 65 LoCoMo, with public-claim routing in Phase 67.
 
 Source-root env hardening: `prepare:phase-64-mab` and `eval:phase-64-smoke`
 now reject empty or whitespace-padded `GOODMEMORY_MAB_ROOT` fallback values

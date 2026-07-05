@@ -9,9 +9,7 @@ Phase 64 is closed as the accepted zero-failure AR+CR live closure (CR 0.959,
 AR 0.67, executionFailures 0) plus the TTL/LRU answer-format boundary. At Phase
 64 closure this was internal small-slice evidence, not a public claim; P67-C
 later promoted only CR 0.959 / TTL 0.767 through
-`benchmark-claims/memoryagentbench.json`, with AR/LRU excluded. Phase 63 BEAM
-remains paused (rules-only retrieval recall 0.9621). Current active lane:
-v0.3 release readiness / public-surface hardening (Phase 66).
+`benchmark-claims/memoryagentbench.json`, with AR/LRU excluded. Phase 63 / P67-D BEAM has a separate official-protocol public claim, while its binary-track answer-gap workstream remains open under the BEAM workstream. Current Sequential lane is Phase 65 LoCoMo, with public-claim routing in Phase 67.
 
 Progress: P64-T001/T002 done (source intake + synthetic smoke contract). P64-T003
 done: external-root adapter + retrieval-only smoke report
