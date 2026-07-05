@@ -61,10 +61,10 @@ const REQUESTED_ITEM_COUNT_WORDS: Record<string, number> = {
   nine: 9,
   ten: 10,
 };
+// Strong negations only: incidental "no"/"without" inside a long assertion
+// clause must not classify the whole clause as the denial side.
 const CONTRADICTION_DENIAL_PATTERN =
-  /\b(?:deny|denied|never|no\b|not\s+yet|not\s+actually|haven't|have\s+not|hasn't|has\s+not|without)\b/iu;
-const CONTRADICTION_AFFIRMATIVE_PATTERN =
-  /\b(?:added|completed|fixed|implemented|integrated|managed|obtained|replaced|trying\s+to|using)\b/iu;
+  /\b(?:can't|cannot|couldn't|could\s+not|deny|denied|didn't|did\s+not|don't|do\s+not|haven't|have\s+not|hasn't|has\s+not|never|not\s+yet|not\s+actually|wasn't|was\s+not|weren't|were\s+not)\b/iu;
 const STANDING_INSTRUCTION_PATTERN =
   /\b(?:always|whenever|when\s+i\s+ask|do\s+not|don't|must)\b/iu;
 const COMPANION_INSTRUCTION_PATTERN =
@@ -80,11 +80,46 @@ const INSTRUCTION_CONCRETE_VALUE_QUESTION_PATTERN =
 const INSTRUCTION_NAMED_ITEM_PATTERN =
   /\b[A-Z][A-Za-z0-9.+_-]*(?:\s+[A-Z][A-Za-z0-9.+_-]*){0,3}\b/gu;
 const INSTRUCTION_NAMED_ITEM_STOP_WORDS = new Set([
+  "Additionally",
+  "Also",
   "Always",
+  "And",
+  "April",
+  "August",
   "Do",
+  "DD",
+  "Day",
+  "December",
+  "February",
   "I",
+  "Include",
+  "January",
+  "July",
+  "June",
+  "MM",
+  "March",
+  "May",
+  "Month",
+  "November",
+  "October",
+  "Plus",
+  "September",
   "The",
+  "YYYY",
+  "Year",
 ]);
+const INSTRUCTION_FORMAT_CUE_PATTERNS = [
+  /\bMM\/DD\/YYYY\b/giu,
+  /\bMonth\s+Day,\s*Year\b/giu,
+  /\bmonth[- ]day[- ]year(?:\s+order)?\b/giu,
+  /\bfull\s+month\s+name,\s*day,?\s+and\s+year\b/giu,
+  /\bsyntax\s+highlighting\b/giu,
+  /\bbullet\s+points?\b/giu,
+  /\bstep-by-step(?:\s+explanations?)?\b/giu,
+  /\bitemized\s+costs?\b/giu,
+  /\bspecific\s+amounts?\b/giu,
+  /\bdetailed\s+breakdown\b/giu,
+];
 const ORDER_CUE_MAX_PER_TURN = 5;
 const ORDER_CUE_SNIPPET_CHARS = 260;
 const ORDER_TARGET_ANCHOR_MAX_TURNS = 12;
@@ -93,10 +128,26 @@ const ORDER_FORMULA_CUE_PATTERN =
 const COUNT_MAX_OTHER_QUANTITIES_PER_TURN = 6;
 const COUNT_DATE_PATTERN =
   /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:-\d{1,2})?(?:,\s*\d{4})?\b|\b\d{4}-\d{2}-\d{2}\b/giu;
-const COUNT_DURATION_PATTERN =
-  /\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s*[- ]\s*(?:days?|weeks?|months?|years?)\b/giu;
-const COUNT_QUANTITY_PATTERN =
-  /(?:\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?\s+[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2}|\$\d+(?:\.\d+)?\s+[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2}|\b(?:\d+(?:\.\d+)?%\s+(?:of\s+)?[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2}|\d+(?:\.\d+)?%|\d+(?:\.\d+)?\s+of\s+\d+(?:\.\d+)?\s+[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2}|\d+(?:\.\d+)?\s+[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2}|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+[a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,2})\b)/giu;
+const COUNT_SMALL_WORD_NUMBER_PATTERN =
+  "(?:one|two|three|four|five|six|seven|eight|nine)";
+const COUNT_WORD_NUMBER_PATTERN = `(?:(?:${COUNT_SMALL_WORD_NUMBER_PATTERN}|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ]${COUNT_SMALL_WORD_NUMBER_PATTERN})?)`;
+const COUNT_NOUN_PHRASE_PATTERN = "[a-z][a-z-]*(?:\\s+[a-z][a-z-]*){0,2}";
+const COUNT_DURATION_PATTERN = new RegExp(
+  `\\b(?:\\d+(?:\\.\\d+)?|${COUNT_WORD_NUMBER_PATTERN})\\s*[- ]\\s*(?:days?|weeks?|months?|years?)\\b`,
+  "giu",
+);
+const COUNT_QUANTITY_PATTERN = new RegExp(
+  [
+    `\\$?\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?\\s+${COUNT_NOUN_PHRASE_PATTERN}`,
+    `\\$\\d+(?:\\.\\d+)?\\s+${COUNT_NOUN_PHRASE_PATTERN}`,
+    `\\b(?:\\d+(?:\\.\\d+)?%\\s+(?:of\\s+)?${COUNT_NOUN_PHRASE_PATTERN}`,
+    "\\d+(?:\\.\\d+)?%",
+    `\\d+(?:\\.\\d+)?\\s+of\\s+\\d+(?:\\.\\d+)?\\s+${COUNT_NOUN_PHRASE_PATTERN}`,
+    `\\d+(?:\\.\\d+)?\\s+${COUNT_NOUN_PHRASE_PATTERN}`,
+    `${COUNT_WORD_NUMBER_PATTERN}\\s+${COUNT_NOUN_PHRASE_PATTERN})\\b`,
+  ].join("|"),
+  "giu",
+);
 const CURRENT_VALUE_TIME_PATTERN = /\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b/giu;
 const CURRENT_VALUE_TARGET_CONTEXT_PATTERN =
   /\b(?:to|for|on|by|at|deadline|due|scheduled|rescheduled|moved|shifted|changed|updated|complete|finish|finished|deliver|target)\s*$/iu;
@@ -128,6 +179,8 @@ const CURRENT_VALUE_QUERY_STOP_WORDS = new Set([
   "changed",
   "current",
   "currently",
+  "for",
+  "is",
   "latest",
   "most",
   "now",
@@ -140,6 +193,18 @@ const CURRENT_VALUE_QUERY_STOP_WORDS = new Set([
   "what",
   "when",
   "which",
+]);
+const CURRENT_VALUE_GENERIC_TOPIC_WORDS = new Set([
+  "coverage",
+  "date",
+  "metric",
+  "metrics",
+  "module",
+  "scheduled",
+  "status",
+  "test",
+  "tests",
+  "value",
 ]);
 const INSTRUCTION_SUPPORT_STOP_WORDS = new Set([
   "about",
@@ -184,6 +249,8 @@ const INSTRUCTION_SUPPORT_STOP_WORDS = new Set([
 ]);
 const ORDER_TARGET_STOP_WORDS = new Set([
   "about",
+  "add",
+  "added",
   "after",
   "and",
   "aspect",
@@ -192,13 +259,19 @@ const ORDER_TARGET_STOP_WORDS = new Set([
   "bring",
   "bringing",
   "brought",
+  "build",
+  "built",
   "chronological",
+  "create",
+  "created",
   "could",
   "did",
   "earlier",
   "event",
   "events",
   "exactly",
+  "feature",
+  "features",
   "first",
   "five",
   "four",
@@ -207,8 +280,12 @@ const ORDER_TARGET_STOP_WORDS = new Set([
   "handling",
   "help",
   "how",
+  "implement",
+  "implementation",
+  "implemented",
   "item",
   "items",
+  "last",
   "later",
   "list",
   "mention",
@@ -231,6 +308,7 @@ const ORDER_TARGET_STOP_WORDS = new Set([
   "step",
   "steps",
   "ten",
+  "the",
   "then",
   "things",
   "three",
@@ -413,75 +491,117 @@ function buildAnswerShapeGuidance(input: {
   return undefined;
 }
 
+interface ContradictionClauseCandidate {
+  index: number;
+  isDenial: boolean;
+  orderKey: number;
+  sourceId: EvidenceTurn["sourceId"];
+  text: string;
+}
+
+function splitContradictionClauses(content: string): string[] {
+  const normalized = content.replace(/\s+/gu, " ").trim();
+  return normalized
+    .split(
+      /(?<=[.!?;])\s+|,\s+(?=(?:but|although|though|however|yet)\b)|\s+(?=(?:but|yet)\s+(?:i|i'm|i've|you)\b)/iu,
+    )
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length >= 8);
+}
+
 function buildContradictionEvidenceGuide(
   question: string,
   ordered: readonly EvidenceTurn[],
 ): string {
-  const formatTurns = (turns: readonly EvidenceTurn[], pattern: RegExp): string => {
-    if (turns.length === 0) {
-      return "(not directly detected; inspect the evidence text for this side)";
+  // BEAM-style synthetic messages can pack a denial and its contradicting
+  // affirmative into one turn joined by ", but I...". Score per clause so both
+  // sides can come from the same source turn without dragging adjacent details.
+  const questionTokens = currentValueTopicTokens(question);
+  const clauses: ContradictionClauseCandidate[] = [];
+  for (const turn of ordered) {
+    for (const text of splitContradictionClauses(turn.content)) {
+      clauses.push({
+        index: clauses.length,
+        isDenial: CONTRADICTION_DENIAL_PATTERN.test(text),
+        orderKey: turn.orderKey,
+        sourceId: turn.sourceId,
+        text,
+      });
     }
-    return turns
-      .map(
-        (turn) =>
-          `- [#${turn.sourceId}] ${extractSnippetAroundPattern(
-            turn.content,
-            pattern,
-          )}`,
-      )
-      .join("\n");
+  }
+
+  const overlap = (text: string, reference: ReadonlySet<string>): number => {
+    if (reference.size === 0) {
+      return 0;
+    }
+    const tokens = currentValueTopicTokens(text);
+    return [...reference].filter((token) => tokens.has(token)).length;
   };
-  const queryTokens = currentValueTopicTokens(question);
-  const scoreTurn = (turn: EvidenceTurn): number => {
-    if (queryTokens.size === 0) {
-      return 1;
-    }
-    const turnTokens = currentValueTopicTokens(turn.content);
-    return [...queryTokens].filter((token) => turnTokens.has(token)).length;
-  };
-  const selectBestTurn = (turns: readonly EvidenceTurn[]): EvidenceTurn[] => {
-    if (turns.length === 0) {
-      return [];
-    }
-    const scored = turns.map((turn, index) => ({
-      index,
-      score: scoreTurn(turn),
-      turn,
-    }));
-    const bestPositive = scored
+  const pickBest = (
+    pool: readonly ContradictionClauseCandidate[],
+    score: (clause: ContradictionClauseCandidate) => number,
+  ): ContradictionClauseCandidate | undefined =>
+    pool
+      .map((clause) => ({ clause, score: score(clause) }))
       .filter((entry) => entry.score > 0)
       .sort(
         (left, right) =>
           right.score - left.score ||
-          left.turn.orderKey - right.turn.orderKey ||
-          left.index - right.index,
-      )[0];
-    return [bestPositive?.turn ?? turns[0]];
+          left.clause.orderKey - right.clause.orderKey ||
+          left.clause.index - right.clause.index,
+      )[0]?.clause;
+
+  const denialPool = clauses.filter((clause) => clause.isDenial);
+  const denial =
+    pickBest(denialPool, (clause) => overlap(clause.text, questionTokens)) ??
+    denialPool[0];
+  const denialTokens = denial
+    ? currentValueTopicTokens(denial.text)
+    : new Set<string>();
+  const isRequestClause = (text: string): boolean =>
+    text.endsWith("?") ||
+    /^(?:can|could|should|would|will|how|what|why|where|when|is|are|do|does)\b/iu.test(
+      text,
+    );
+  const affirmativePool = clauses.filter(
+    (clause) =>
+      !clause.isDenial &&
+      clause !== denial &&
+      !isRequestClause(clause.text) &&
+      /[a-z]{3}/iu.test(clause.text),
+  );
+  const scoreAffirmative = (clause: ContradictionClauseCandidate): number =>
+    overlap(clause.text, questionTokens) * 2 +
+    overlap(clause.text, denialTokens);
+  const sameTurnPool = denial
+    ? affirmativePool.filter((clause) => clause.sourceId === denial.sourceId)
+    : [];
+  const affirmative =
+    pickBest(sameTurnPool, scoreAffirmative) ??
+    pickBest(affirmativePool, scoreAffirmative) ??
+    affirmativePool[0];
+
+  const formatClause = (
+    clause: ContradictionClauseCandidate | undefined,
+  ): string => {
+    if (!clause) {
+      return "(not directly detected; inspect the evidence text for this side)";
+    }
+    const text =
+      clause.text.length > 360 ? `${clause.text.slice(0, 357)}...` : clause.text;
+    return `- [#${clause.sourceId}] ${text}`;
   };
-  const denialTurns = ordered.filter((turn) =>
-    CONTRADICTION_DENIAL_PATTERN.test(turn.content),
-  );
-  // The affirmative side is every retrieved assertion that is NOT a denial, so a
-  // contradiction is still surfaced when the affirmative verb falls outside the
-  // affirmative pattern (e.g. downloaded, collaborated, attended, met, scheduled).
-  // Relying only on the narrow affirmative whitelist hid the affirmative side and
-  // let the answer collapse to the denial.
-  const affirmativeCandidates = ordered.filter(
-    (turn) => !CONTRADICTION_DENIAL_PATTERN.test(turn.content),
-  );
-  const minimalDenialTurns = selectBestTurn(denialTurns);
-  const minimalAffirmativeTurns = selectBestTurn(affirmativeCandidates);
   return [
     "Contradiction evidence guide:",
     "Minimal contradiction pair (use these exact sides first; ignore adjacent implementation details unless the question explicitly asks for them):",
     "Denial/no side:",
-    formatTurns(minimalDenialTurns, CONTRADICTION_DENIAL_PATTERN),
+    formatClause(denial),
     "Affirmative/done side:",
-    formatTurns(minimalAffirmativeTurns, CONTRADICTION_AFFIRMATIVE_PATTERN),
+    formatClause(affirmative),
     "Potential denial/no side:",
-    formatTurns(minimalDenialTurns, CONTRADICTION_DENIAL_PATTERN),
+    formatClause(denial),
     "Potential affirmative/done side (assertions that are not denials):",
-    formatTurns(minimalAffirmativeTurns, CONTRADICTION_AFFIRMATIVE_PATTERN),
+    formatClause(affirmative),
     "A retrieved non-denial assertion about the question target is the affirmative side even when it describes planning, registration, attendance, collaboration, invitation, ordering, use, meeting, a recommendation, or a feeling rather than a completed action.",
     "Use the user's question target to phrase both sides; avoid substituting adjacent implementation details as the contradiction target.",
   ].join("\n");
@@ -640,6 +760,24 @@ function currentValueTopicTokens(value: string): Set<string> {
   );
 }
 
+function currentValueSpecificTopicTokens(value: string): Set<string> {
+  const tokens = currentValueTopicTokens(value);
+  return new Set(
+    [...tokens].filter((token) => !CURRENT_VALUE_GENERIC_TOPIC_WORDS.has(token)),
+  );
+}
+
+function currentValueOverlapScore(
+  turn: EvidenceTurn,
+  queryTokens: ReadonlySet<string>,
+): number {
+  if (queryTokens.size === 0) {
+    return 0;
+  }
+  const turnTokens = currentValueTopicTokens(turn.content);
+  return [...queryTokens].filter((token) => turnTokens.has(token)).length;
+}
+
 function selectCurrentValueTurns(input: {
   ordered: readonly EvidenceTurn[];
   question: string;
@@ -648,10 +786,18 @@ function selectCurrentValueTurns(input: {
   if (queryTokens.size === 0) {
     return [...input.ordered];
   }
-  const selected = input.ordered.filter((turn) => {
-    const turnTokens = currentValueTopicTokens(turn.content);
-    return [...queryTokens].some((token) => turnTokens.has(token));
-  });
+  const specificTokens = currentValueSpecificTopicTokens(input.question);
+  if (specificTokens.size > 0) {
+    const specificSelected = input.ordered.filter(
+      (turn) => currentValueOverlapScore(turn, specificTokens) > 0,
+    );
+    if (specificSelected.length > 0) {
+      return specificSelected;
+    }
+  }
+  const selected = input.ordered.filter(
+    (turn) => currentValueOverlapScore(turn, queryTokens) > 0,
+  );
   return selected.length > 0 ? selected : [...input.ordered];
 }
 
@@ -726,19 +872,6 @@ function formatAbstentionEvidenceGuide(input: {
     lines.push("Retrieved evidence: (none)");
   }
   return lines.join("\n");
-}
-
-function extractSnippetAroundPattern(content: string, pattern: RegExp): string {
-  const normalized = content.replace(/\s+/gu, " ").trim();
-  const match = pattern.exec(normalized);
-  if (!match || match.index === undefined) {
-    return normalized.length > 360 ? `${normalized.slice(0, 357)}...` : normalized;
-  }
-  const start = Math.max(0, match.index - 140);
-  const end = Math.min(normalized.length, match.index + 260);
-  const prefix = start > 0 ? "..." : "";
-  const suffix = end < normalized.length ? "..." : "";
-  return `${prefix}${normalized.slice(start, end)}${suffix}`;
 }
 
 function selectInstructionConstraintIndexes(
@@ -951,6 +1084,22 @@ function extractInstructionVersionedValues(content: string): string[] {
   );
 }
 
+function extractInstructionDateValues(content: string): string[] {
+  return uniquePreservingOrder(
+    [...content.matchAll(COUNT_DATE_PATTERN)].map((match) => match[0]),
+  );
+}
+
+function extractInstructionFormatCues(content: string): string[] {
+  return uniquePreservingOrder(
+    INSTRUCTION_FORMAT_CUE_PATTERNS.flatMap((pattern) =>
+      [...content.matchAll(pattern)].map((match) =>
+        match[0].replace(/\s+/gu, " ").trim(),
+      ),
+    ),
+  );
+}
+
 function formatInstructionConcreteAnswerCues(input: {
   constraintTurns: readonly EvidenceTurn[];
   supportTurns: readonly EvidenceTurn[];
@@ -967,10 +1116,21 @@ function formatInstructionConcreteAnswerCues(input: {
         versionedValue.toLowerCase().startsWith(`${item.toLowerCase()} `),
       ),
   );
-  if (versionedValues.length === 0 && namedItems.length === 0) {
+  const dateValues = uniquePreservingOrder(
+    turns.flatMap((turn) => extractInstructionDateValues(turn.content)),
+  );
+  const formatCues = uniquePreservingOrder(
+    turns.flatMap((turn) => extractInstructionFormatCues(turn.content)),
+  );
+  if (
+    versionedValues.length === 0 &&
+    namedItems.length === 0 &&
+    dateValues.length === 0 &&
+    formatCues.length === 0
+  ) {
     return undefined;
   }
-  return [
+  const lines = [
     "Concrete answer-content cues:",
     "Do not only restate the instruction; include the concrete values below when they answer the user's requested response contents.",
     versionedValues.length > 0
@@ -979,7 +1139,14 @@ function formatInstructionConcreteAnswerCues(input: {
     namedItems.length > 0
       ? `named tools/examples: ${namedItems.join(", ")}`
       : "named tools/examples: (none detected)",
-  ].join("\n");
+  ];
+  if (dateValues.length > 0) {
+    lines.push(`date values: ${dateValues.join(", ")}`);
+  }
+  if (formatCues.length > 0) {
+    lines.push(`format/style requirements: ${formatCues.join(", ")}`);
+  }
+  return lines.join("\n");
 }
 
 function selectPreferenceConstraintIndexes(

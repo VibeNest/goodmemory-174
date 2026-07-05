@@ -268,6 +268,33 @@ describe("answer evidence pack", () => {
     expect(count).toContain("60% of post-production");
   });
 
+  it("keeps compound word-number quantities intact in count ledgers", () => {
+    const count = buildAnswerEvidencePack({
+      question: "How many survey response quantities did I mention?",
+      turns: [
+        {
+          sourceId: 44,
+          orderKey: 44,
+          content:
+            "The first research diary mentioned twenty-one survey responses, thirty two interview notes, and forty-five tagged observations.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+      ],
+    });
+
+    expect(count).toContain(
+      "other numeric quantities: twenty-one survey responses; thirty two interview notes; forty-five tagged observations",
+    );
+    const quantityLine = count
+      .split("\n")
+      .find((line) => line.includes("other numeric quantities:"));
+    const quantityValues = quantityLine?.split("other numeric quantities: ")[1];
+    expect(quantityValues?.split("; ")).not.toContain("one survey responses");
+    expect(quantityValues?.split("; ")).not.toContain("two interview notes");
+    expect(quantityValues?.split("; ")).not.toContain("five tagged observations");
+  });
+
   it("keeps date ranges and currency quantities intact in count ledgers", () => {
     const count = buildAnswerEvidencePack({
       question: "How much event planning detail did I mention?",
@@ -407,6 +434,44 @@ describe("answer evidence pack", () => {
     expect(anchorSection).not.toContain("#10");
     expect(anchorSection).toContain("Use these source-ordered anchors first");
     expect(order).toContain("[t=Setup | #10 | user] I configured Flask");
+  });
+
+  it("does not promote generic order words into target timeline anchors", () => {
+    const order = buildAnswerEvidencePack({
+      question: "In what order did I build the budget tracker features?",
+      questionType: "event_ordering",
+      turns: [
+        {
+          sourceId: 71,
+          orderKey: 1,
+          content: "First I set up user authentication with hashed passwords.",
+          role: "user",
+          timeAnchor: "2024-03-01",
+        },
+        {
+          sourceId: 72,
+          orderKey: 2,
+          content: "Then I implemented transaction creation with error handling.",
+          role: "user",
+          timeAnchor: "2024-03-02",
+        },
+        {
+          sourceId: 73,
+          orderKey: 3,
+          content: "Last I added the analytics dashboard with monthly charts.",
+          role: "user",
+          timeAnchor: "2024-03-03",
+        },
+      ],
+    });
+
+    const anchorSection = order.slice(
+      order.indexOf("Question-target timeline anchors"),
+      order.indexOf("Milestone cue candidates"),
+    );
+    expect(anchorSection).toContain("(no question-target anchors found");
+    expect(anchorSection).not.toContain("target terms: the");
+    expect(anchorSection).not.toContain("#73");
   });
 
   it("preserves formula cues while splitting order milestones", () => {
@@ -595,6 +660,46 @@ describe("answer evidence pack", () => {
     expect(ledgerSection).not.toContain("vacation budget");
   });
 
+  it("keeps later sibling-entity metrics out of the current-value ledger", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What is the current test coverage for the API module?",
+      questionType: "knowledge_update",
+      turns: [
+        {
+          sourceId: 31,
+          orderKey: 1,
+          content: "Test coverage for the API module is 62% today.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 32,
+          orderKey: 2,
+          content:
+            "After the new suite landed, API module coverage rose to 78%.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 33,
+          orderKey: 3,
+          content: "Core module coverage is a separate 85%.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    const ledgerSection = pack.slice(
+      pack.indexOf("Current-value ledger:"),
+      pack.indexOf("Evidence (source-ordered, earliest first):"),
+    );
+    expect(ledgerSection).toContain(
+      "Latest/current candidate: [t=Feb | #32] After the new suite landed, API module coverage rose to 78%.",
+    );
+    expect(ledgerSection).not.toContain("Core module coverage");
+  });
+
   it("adds contradiction framing that forbids resolving yes/no conflicts", () => {
     const pack = buildAnswerEvidencePack({
       question: "Have I integrated Flask-Login?",
@@ -701,6 +806,31 @@ describe("answer evidence pack", () => {
     expect(guide).toContain("ignore adjacent implementation details");
     expect(guide).not.toContain("POST /transactions");
     expect(guide).not.toContain("CRUD error handling");
+  });
+
+  it("treats did-not clauses as the denial side of a same-turn contradiction", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Did I attend the patent webinar?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content:
+            "I did not attend the patent webinar at first, but I later attended the USPTO patent webinar and took notes.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+      ],
+    });
+
+    const guide = pack.slice(
+      pack.indexOf("Contradiction evidence guide:"),
+      pack.indexOf("Use the contradiction evidence guide above"),
+    );
+    expect(guide).toContain("did not attend the patent webinar");
+    expect(guide).toContain("later attended the USPTO patent webinar");
+    expect(guide).not.toContain("(not directly detected");
   });
 
   it("adds multi-session facet framing for cross-session reasoning", () => {
@@ -1172,6 +1302,75 @@ describe("answer evidence pack", () => {
     expect(cueSection).toContain("Grammarly");
     expect(cueSection).toContain("Hemingway Editor");
     expect(cueSection).toContain("Mendeley");
+  });
+
+  it("does not treat companion instruction openers as named tools", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What should the response include for dependency notes?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "Always include dependency names with versions.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "Also include the license for each library.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 3,
+          orderKey: 3,
+          content: "Additionally include Flask 2.3.1 and SQLite 3.39.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("Flask 2.3.1");
+    expect(cueSection).toContain("SQLite 3.39");
+    expect(cueSection).not.toContain("named tools/examples: Also");
+    expect(cueSection).not.toContain("Additionally");
+  });
+
+  it("surfaces date values and date-format requirements for instruction questions", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "What precise filing date should the response include?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 10,
+          orderKey: 10,
+          content: "Always present filing dates using MM/DD/YYYY format.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 11,
+          orderKey: 11,
+          content: "The non-provisional patent filing was on May 18, 2024.",
+          role: "user",
+          timeAnchor: "May",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("date values: May 18, 2024");
+    expect(cueSection).toContain("format/style requirements: MM/DD/YYYY");
   });
 
   it("does not fall back to all noisy turns for instruction questions without an explicit constraint", () => {
