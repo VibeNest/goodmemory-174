@@ -159,4 +159,32 @@ describe("run-phase-40 cross-consumer smoke script", () => {
       },
     ]);
   });
+
+  it("isolates public consumer smokes from live provider environment variables", () => {
+    const savedProvider = process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+    const savedStorageUrl = process.env.GOODMEMORY_STORAGE_URL;
+
+    try {
+      process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = "openai";
+      process.env.GOODMEMORY_STORAGE_URL = "postgres://user:pass@example/db";
+
+      const command = buildPhase40CrossConsumerSmokeCommands("/repo")[0]!;
+
+      expect(command.env?.PHASE40_CROSS_CONSUMER_SMOKE_IN_PROGRESS).toBe("1");
+      expect(command.env?.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER).toBeUndefined();
+      expect(command.env?.GOODMEMORY_STORAGE_URL).toBeUndefined();
+    } finally {
+      if (savedProvider === undefined) {
+        delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+      } else {
+        process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER = savedProvider;
+      }
+
+      if (savedStorageUrl === undefined) {
+        delete process.env.GOODMEMORY_STORAGE_URL;
+      } else {
+        process.env.GOODMEMORY_STORAGE_URL = savedStorageUrl;
+      }
+    }
+  });
 });

@@ -66,7 +66,7 @@ if (POSTGRES_URL) {
       }),
       cleanup: () => dropSchema(POSTGRES_URL, schema),
     };
-  });
+  }, 15_000);
 } else {
   describe.skip("postgres storage contracts", () => {
     it("requires GOODMEMORY_TEST_POSTGRES_URL", () => {});

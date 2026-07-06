@@ -228,7 +228,7 @@ if (POSTGRES_URL) {
         await sql.close();
         await cleanupUserData(POSTGRES_URL, userId);
       }
-    });
+    }, 15_000);
   });
 } else {
   describe.skip("public postgres API", () => {

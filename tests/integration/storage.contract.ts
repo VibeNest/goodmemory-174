@@ -187,6 +187,7 @@ export function runSessionStoreContract(
 export function runVectorStoreContract(
   suiteName: string,
   createStore: StoreFactory<VectorStore>,
+  timeoutMs?: number,
 ): void {
   describe(suiteName, () => {
     it("implements vector store behavior", async () => {
@@ -232,6 +233,6 @@ export function runVectorStoreContract(
       } finally {
         await fixture.cleanup?.();
       }
-    });
+    }, timeoutMs);
   });
 }

@@ -704,7 +704,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.3.6");
+    expect(pkg.version).toBe("0.5.0");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -1411,9 +1411,9 @@ describe("release metadata and docs", () => {
     expect(guide).not.toContain("query-resolved");
   });
 
-  it("v0.3 package metadata and public release docs agree on the current stable release", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.3.6");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.3.6.tgz");
+  it("v0.5 package metadata and public release docs agree on the current stable release", async () => {
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.5.0");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.5.0.tgz");
 
     const releaseDocPaths = [
       "README.md",

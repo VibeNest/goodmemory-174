@@ -102,6 +102,32 @@ const PHASE40_OUT_OF_SCOPE = [
   "consumer framework adapters beyond the documented thin examples",
   "non-Codex installed-host enforcement gates",
 ] as const;
+const ISOLATED_GOODMEMORY_ENV_KEYS = [
+  "GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
+  "GOODMEMORY_EMBEDDING_API_KEY",
+  "GOODMEMORY_EMBEDDING_BASE_URL",
+  "GOODMEMORY_EMBEDDING_MODEL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
+  "GOODMEMORY_JUDGE_API_KEY",
+  "GOODMEMORY_JUDGE_BASE_URL",
+  "GOODMEMORY_JUDGE_MODEL",
+  "GOODMEMORY_JUDGE_PROVIDER",
+  "GOODMEMORY_RECALL_ROUTER_API_KEY",
+  "GOODMEMORY_RECALL_ROUTER_BASE_URL",
+  "GOODMEMORY_RECALL_ROUTER_MODEL",
+  "GOODMEMORY_RECALL_ROUTER_PROVIDER",
+  "GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_MODE",
+  "GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION",
+  "GOODMEMORY_STORAGE_PROVIDER",
+  "GOODMEMORY_STORAGE_URL",
+  "GOODMEMORY_TEST_POSTGRES_URL",
+] as const;
 
 export function resolvePhase40CrossConsumerSmokeOutputDir(root: string): string {
   return join(root, "reports/eval/adoption/phase-40");
@@ -122,10 +148,16 @@ export function buildPhase40CrossConsumerSmokeRunId(timestamp: string): string {
 }
 
 function createChildEnv(): Record<string, string | undefined> {
-  return {
+  const env: Record<string, string | undefined> = {
     ...process.env,
     PHASE40_CROSS_CONSUMER_SMOKE_IN_PROGRESS: "1",
   };
+
+  for (const key of ISOLATED_GOODMEMORY_ENV_KEYS) {
+    env[key] = undefined;
+  }
+
+  return env;
 }
 
 export function buildPhase40CrossConsumerSmokeCommands(
@@ -135,19 +167,19 @@ export function buildPhase40CrossConsumerSmokeCommands(
 
   return [
     {
-      args: ["bun", "run", "example:chat"],
+      args: ["bun", "--no-env-file", "run", "examples/basic-chat.ts"],
       cwd: root,
       env,
       label: "direct-typescript-app",
     },
     {
-      args: ["bun", "run", "example:express-chat"],
+      args: ["bun", "--no-env-file", "run", "examples/express-chat-server.ts"],
       cwd: root,
       env,
       label: "express-http-server",
     },
     {
-      args: ["bun", "run", "example:fastify-chat"],
+      args: ["bun", "--no-env-file", "run", "examples/fastify-chat-server.ts"],
       cwd: root,
       env,
       label: "fastify-http-server",
@@ -155,6 +187,7 @@ export function buildPhase40CrossConsumerSmokeCommands(
     {
       args: [
         "bun",
+        "--no-env-file",
         "test",
         "tests/release/release.test.ts",
         "--test-name-pattern",
@@ -167,6 +200,7 @@ export function buildPhase40CrossConsumerSmokeCommands(
     {
       args: [
         "bun",
+        "--no-env-file",
         "test",
         "tests/release/release.test.ts",
         "--test-name-pattern",
@@ -316,7 +350,7 @@ function writeReport(input: {
       }),
       publicEntrypointsOnly: {
         reason: publicEntrypointsOnly
-          ? "Command matrix stays on package scripts, example imports from goodmemory, the HTTP bridge bin, and installed package binaries."
+          ? "Command matrix stays on example imports from goodmemory, the HTTP bridge bin, and installed package binaries."
           : "At least one consumer command did not pass or the command matrix no longer proves public entrypoint use.",
         status: publicEntrypointsOnly ? "accepted" : "blocked",
       },
