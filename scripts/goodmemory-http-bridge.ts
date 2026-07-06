@@ -282,7 +282,15 @@ function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
 
   const memory = createGoodMemory(createMemoryConfig(options.profile));
   const bridge = createGoodMemoryHttpMemoryBridge({
-    healthMetadata: { profile: options.profile },
+    healthMetadata: {
+      authMode: options.token
+        ? "bearer"
+        : options.allowInsecure
+          ? "insecure"
+          : "disabled",
+      bridgeFeatures: "auth-env-alias,body-auth,body-caller",
+      profile: options.profile,
+    },
     memory,
     resolveCaller: createTokenAwareCallerResolver(options),
   });

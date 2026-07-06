@@ -1158,6 +1158,12 @@ describe("Phase 39 Python HTTP memory bridge", () => {
 
       try {
         await waitForBridgeReady({ token, url });
+        const health = await fetch(`${url}/healthz`, { method: "GET" });
+        expect(health.status).toBe(200);
+        expect(await health.json()).toMatchObject({
+          authMode: "bearer",
+          bridgeFeatures: "auth-env-alias,body-auth,body-caller",
+        });
 
         const scope = {
           userId: "python-user",
