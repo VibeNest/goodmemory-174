@@ -67,7 +67,7 @@ function productCase(focus: keyof typeof PRODUCT_CASE_CONTRACTS): Record<string,
 
 function acceptedReports(): Record<string, string> {
   return {
-    [PACKAGE_JSON_PATH]: JSON.stringify({ version: "0.3.5" }),
+    [PACKAGE_JSON_PATH]: JSON.stringify({ version: "0.5.0" }),
     [PHASE39_REPORT_PATH]: JSON.stringify({
       acceptance: { decision: "accepted" },
       runId: "run-20260425041112",
@@ -76,7 +76,7 @@ function acceptedReports(): Record<string, string> {
       acceptance: { decision: "accepted" },
       commands: [
         {
-          command: "bun run example:chat",
+          command: "bun --no-env-file run examples/basic-chat.ts",
           durationMs: 10,
           exitCode: 0,
           label: "direct-typescript-app",
@@ -85,7 +85,7 @@ function acceptedReports(): Record<string, string> {
           stdoutTail: [],
         },
         {
-          command: "bun run example:express-chat",
+          command: "bun --no-env-file run examples/express-chat-server.ts",
           durationMs: 10,
           exitCode: 0,
           label: "express-http-server",
@@ -94,7 +94,7 @@ function acceptedReports(): Record<string, string> {
           stdoutTail: [],
         },
         {
-          command: "bun run example:fastify-chat",
+          command: "bun --no-env-file run examples/fastify-chat-server.ts",
           durationMs: 10,
           exitCode: 0,
           label: "fastify-http-server",
@@ -104,7 +104,7 @@ function acceptedReports(): Record<string, string> {
         },
         {
           command:
-            "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
+            "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
           durationMs: 10,
           exitCode: 0,
           label: "python-fastapi-bridge-consumer",
@@ -114,7 +114,7 @@ function acceptedReports(): Record<string, string> {
         },
         {
           command:
-            "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
+            "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
           durationMs: 10,
           exitCode: 0,
           label: "installed-host-package-path",
@@ -330,7 +330,7 @@ describe("run-phase-40 gate", () => {
     expect(report.acceptance.decision).toBe("accepted");
     expect(report.generatedBy).toBe("scripts/run-phase-40-gate.ts");
     expect(report.phase).toBe("phase-40");
-    expect(report.releaseCandidate.version).toBe("0.3.5");
+    expect(report.releaseCandidate.version).toBe("0.5.0");
     expect(report.evidence.phase39Gate.status).toBe("accepted");
     expect(report.evidence.crossConsumerAdoption.status).toBe("accepted");
     expect(report.evidence.productEval.status).toBe("accepted");

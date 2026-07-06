@@ -1,96 +1,39 @@
 {
   "acceptance": {
-    "decision": "blocked",
-    "reason": "Cross-consumer smoke failed: direct-typescript-app."
+    "decision": "accepted",
+    "reason": "Direct TypeScript, Express, Fastify, Python bridge, and installed-host consumers all passed through public package entrypoints."
   },
   "commands": [
     {
-      "command": "bun run example:chat",
-      "durationMs": 85,
-      "exitCode": 1,
+      "command": "bun --no-env-file run examples/basic-chat.ts",
+      "durationMs": 105,
+      "exitCode": 0,
       "label": "direct-typescript-app",
-      "status": "failed",
-      "stderrTail": [
-        "$ bun run examples/basic-chat.ts",
-        "527 |     !model ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_MODEL` : null,",
-        "528 |     !apiKey ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_API_KEY` : null,",
-        "529 |   ].filter(Boolean) as string[];",
-        "530 | ",
-        "531 |   if (missingVars.length > 0) {",
-        "532 |     throw new Error(",
-        "                    ^",
-        "error: Missing required GOODMEMORY_ASSISTED_EXTRACTOR environment variables: GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
-        "      at resolveAssistedExtractorModelConfigFromEnv (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:532:15)",
-        "      at resolveGoodMemoryRuntimeResolution (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:319:12)",
-        "      at new GoodMemoryImpl (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:742:31)",
-        "      at createInternalGoodMemory (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:1348:16)",
-        "      at runBasicChatExample (/Users/hjqcan/workspace/GoodMemory/examples/basic-chat.ts:9:18)",
-        "      at /Users/hjqcan/workspace/GoodMemory/examples/basic-chat.ts:54:24",
-        "",
-        "Bun v1.3.11 (macOS arm64)",
-        "error: script \"example:chat\" exited with code 1"
-      ],
+      "status": "passed",
+      "stderrTail": [],
       "stdoutTail": []
     },
     {
-      "command": "bun run example:express-chat",
-      "durationMs": 77,
-      "exitCode": 1,
+      "command": "bun --no-env-file run examples/express-chat-server.ts",
+      "durationMs": 125,
+      "exitCode": 0,
       "label": "express-http-server",
-      "status": "failed",
-      "stderrTail": [
-        "$ bun run examples/express-chat-server.ts",
-        "527 |     !model ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_MODEL` : null,",
-        "528 |     !apiKey ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_API_KEY` : null,",
-        "529 |   ].filter(Boolean) as string[];",
-        "530 | ",
-        "531 |   if (missingVars.length > 0) {",
-        "532 |     throw new Error(",
-        "                    ^",
-        "error: Missing required GOODMEMORY_ASSISTED_EXTRACTOR environment variables: GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
-        "      at resolveAssistedExtractorModelConfigFromEnv (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:532:15)",
-        "      at resolveGoodMemoryRuntimeResolution (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:319:12)",
-        "      at new GoodMemoryImpl (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:742:31)",
-        "      at createInternalGoodMemory (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:1348:16)",
-        "      at <anonymous> (/Users/hjqcan/workspace/GoodMemory/examples/express-chat-server.ts:128:20)",
-        "      at withLocalDefaultRuntime (/Users/hjqcan/workspace/GoodMemory/examples/support/local-default-runtime.ts:34:18)",
-        "",
-        "Bun v1.3.11 (macOS arm64)",
-        "error: script \"example:express-chat\" exited with code 1"
-      ],
+      "status": "passed",
+      "stderrTail": [],
       "stdoutTail": []
     },
     {
-      "command": "bun run example:fastify-chat",
-      "durationMs": 80,
-      "exitCode": 1,
+      "command": "bun --no-env-file run examples/fastify-chat-server.ts",
+      "durationMs": 113,
+      "exitCode": 0,
       "label": "fastify-http-server",
-      "status": "failed",
-      "stderrTail": [
-        "$ bun run examples/fastify-chat-server.ts",
-        "527 |     !model ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_MODEL` : null,",
-        "528 |     !apiKey ? `${ASSISTED_EXTRACTOR_ENV_PREFIX}_API_KEY` : null,",
-        "529 |   ].filter(Boolean) as string[];",
-        "530 | ",
-        "531 |   if (missingVars.length > 0) {",
-        "532 |     throw new Error(",
-        "                    ^",
-        "error: Missing required GOODMEMORY_ASSISTED_EXTRACTOR environment variables: GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
-        "      at resolveAssistedExtractorModelConfigFromEnv (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:532:15)",
-        "      at resolveGoodMemoryRuntimeResolution (/Users/hjqcan/workspace/GoodMemory/src/api/runtimeResolution.ts:319:12)",
-        "      at new GoodMemoryImpl (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:742:31)",
-        "      at createInternalGoodMemory (/Users/hjqcan/workspace/GoodMemory/src/api/createGoodMemory.ts:1348:16)",
-        "      at <anonymous> (/Users/hjqcan/workspace/GoodMemory/examples/fastify-chat-server.ts:138:20)",
-        "      at withLocalDefaultRuntime (/Users/hjqcan/workspace/GoodMemory/examples/support/local-default-runtime.ts:34:18)",
-        "",
-        "Bun v1.3.11 (macOS arm64)",
-        "error: script \"example:fastify-chat\" exited with code 1"
-      ],
+      "status": "passed",
+      "stderrTail": [],
       "stdoutTail": []
     },
     {
-      "command": "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
-      "durationMs": 3752,
+      "command": "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
+      "durationMs": 3589,
       "exitCode": 0,
       "label": "python-fastapi-bridge-consumer",
       "status": "passed",
@@ -98,8 +41,8 @@
       "stdoutTail": []
     },
     {
-      "command": "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
-      "durationMs": 6399,
+      "command": "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
+      "durationMs": 6218,
       "exitCode": 0,
       "label": "installed-host-package-path",
       "status": "passed",
@@ -109,35 +52,35 @@
   ],
   "evidence": {
     "directTypeScriptApp": {
-      "reason": "Cross-consumer smoke failed: direct-typescript-app.",
-      "status": "blocked"
+      "reason": "example:chat completed recall, context construction, memory export, and package-root imports.",
+      "status": "accepted"
     },
     "expressHttpServer": {
-      "reason": "Cross-consumer smoke failed: direct-typescript-app.",
-      "status": "blocked"
+      "reason": "example:express-chat completed a two-turn HTTP-style route flow with async remember drained.",
+      "status": "accepted"
     },
     "failureVisibility": {
       "reason": "The report records every consumer command with command text, exit code, duration, and stdout/stderr tails.",
       "status": "accepted"
     },
     "fastifyHttpServer": {
-      "reason": "Cross-consumer smoke failed: direct-typescript-app.",
-      "status": "blocked"
+      "reason": "example:fastify-chat completed validation, two-turn recall/context, and async remember drained.",
+      "status": "accepted"
     },
     "installedHostPath": {
       "reason": "installed-package smoke passed CLI write, Codex hook recall, and MCP deep-read on the packed package path.",
       "status": "accepted"
     },
     "publicEntrypointsOnly": {
-      "reason": "At least one consumer command did not pass or the command matrix no longer proves public entrypoint use.",
-      "status": "blocked"
+      "reason": "Command matrix stays on example imports from goodmemory, the HTTP bridge bin, and installed package binaries.",
+      "status": "accepted"
     },
     "pythonFastApiBridge": {
       "reason": "External Python process consumed the installed goodmemory-http-bridge package bin over HTTP with bearer auth.",
       "status": "accepted"
     }
   },
-  "generatedAt": "2026-07-06T06:18:55.881Z",
+  "generatedAt": "2026-07-06T06:37:16.384Z",
   "generatedBy": "scripts/run-phase-40-cross-consumer-smoke.ts",
   "mode": "cross-consumer-adoption-smoke",
   "outputDir": "/Users/hjqcan/workspace/GoodMemory/reports/eval/adoption/phase-40",

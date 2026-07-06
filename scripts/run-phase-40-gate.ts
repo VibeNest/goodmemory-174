@@ -120,25 +120,25 @@ const EXPECTED_CROSS_CONSUMER_EVIDENCE = [
 ] as const;
 const EXPECTED_CROSS_CONSUMER_COMMANDS = [
   {
-    command: "bun run example:chat",
+    command: "bun --no-env-file run examples/basic-chat.ts",
     label: "direct-typescript-app",
   },
   {
-    command: "bun run example:express-chat",
+    command: "bun --no-env-file run examples/express-chat-server.ts",
     label: "express-http-server",
   },
   {
-    command: "bun run example:fastify-chat",
+    command: "bun --no-env-file run examples/fastify-chat-server.ts",
     label: "fastify-http-server",
   },
   {
     command:
-      "bun test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
+      "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package Python bridge smoke covers goodmemory-http-bridge bin and Python consumer",
     label: "python-fastapi-bridge-consumer",
   },
   {
     command:
-      "bun test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
+      "bun --no-env-file test tests/release/release.test.ts --test-name-pattern installed-package write CLI smoke covers write -> hook recall -> MCP deep read",
     label: "installed-host-package-path",
   },
 ] as const;

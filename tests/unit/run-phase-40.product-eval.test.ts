@@ -36,6 +36,47 @@ describe("run-phase-40 product eval script", () => {
     });
   });
 
+  it("isolates the deterministic rollup from partial live provider environment variables", async () => {
+    const envKeys = [
+      "GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY",
+      "GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL",
+      "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL",
+      "GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
+    ] as const;
+    const envSnapshot = envKeys.map((key) => [key, process.env[key]] as const);
+
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY = "partial-key";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL = "https://example.invalid/v1";
+    process.env.GOODMEMORY_ASSISTED_EXTRACTOR_MODEL = "partial-model";
+    delete process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER;
+
+    try {
+      const report = await runPhase40ProductEval(
+        {
+          outputDir: "/tmp/goodmemory/reports/eval/product/phase-40",
+          runId: "run-phase40-product-env-isolation",
+        },
+        {
+          ensureDir: async () => {},
+          now: () => "2026-04-25T08:55:44.000Z",
+          writeTextFile: async () => {},
+        },
+      );
+
+      expect(report.acceptance.decision).toBe("accepted");
+      expect(process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY).toBe("partial-key");
+      expect(process.env.GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER).toBeUndefined();
+    } finally {
+      for (const [key, value] of envSnapshot) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  });
+
   it("writes an accepted product rollup with no-memory and GoodMemory variants", async () => {
     const writes: Array<{ content: string; path: string }> = [];
     const directories: string[] = [];

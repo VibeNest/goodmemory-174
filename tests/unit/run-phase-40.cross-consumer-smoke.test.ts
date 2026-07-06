@@ -126,20 +126,21 @@ describe("run-phase-40 cross-consumer smoke script", () => {
       })),
     ).toEqual([
       {
-        args: ["bun", "run", "example:chat"],
+        args: ["bun", "--no-env-file", "run", "examples/basic-chat.ts"],
         label: "direct-typescript-app",
       },
       {
-        args: ["bun", "run", "example:express-chat"],
+        args: ["bun", "--no-env-file", "run", "examples/express-chat-server.ts"],
         label: "express-http-server",
       },
       {
-        args: ["bun", "run", "example:fastify-chat"],
+        args: ["bun", "--no-env-file", "run", "examples/fastify-chat-server.ts"],
         label: "fastify-http-server",
       },
       {
         args: [
           "bun",
+          "--no-env-file",
           "test",
           "tests/release/release.test.ts",
           "--test-name-pattern",
@@ -150,6 +151,7 @@ describe("run-phase-40 cross-consumer smoke script", () => {
       {
         args: [
           "bun",
+          "--no-env-file",
           "test",
           "tests/release/release.test.ts",
           "--test-name-pattern",

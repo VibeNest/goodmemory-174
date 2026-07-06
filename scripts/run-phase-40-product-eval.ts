@@ -197,6 +197,57 @@ const PHASE40_OUT_OF_SCOPE = [
   "raw transcript archive as an eval artifact",
   "new public memory CRUD APIs",
 ] as const;
+const ISOLATED_GOODMEMORY_ENV_KEYS = [
+  "GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL",
+  "GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER",
+  "GOODMEMORY_EMBEDDING_API_KEY",
+  "GOODMEMORY_EMBEDDING_BASE_URL",
+  "GOODMEMORY_EMBEDDING_MODEL",
+  "GOODMEMORY_EMBEDDING_PROVIDER",
+  "GOODMEMORY_JUDGE_API_KEY",
+  "GOODMEMORY_JUDGE_BASE_URL",
+  "GOODMEMORY_JUDGE_MODEL",
+  "GOODMEMORY_JUDGE_PROVIDER",
+  "GOODMEMORY_RECALL_ROUTER_API_KEY",
+  "GOODMEMORY_RECALL_ROUTER_BASE_URL",
+  "GOODMEMORY_RECALL_ROUTER_MODEL",
+  "GOODMEMORY_RECALL_ROUTER_PROVIDER",
+  "GOODMEMORY_SQLITE_CUSTOM_LIBRARY_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_ENTRYPOINT",
+  "GOODMEMORY_SQLITE_VECTOR_EXTENSION_PATH",
+  "GOODMEMORY_SQLITE_VECTOR_MODE",
+  "GOODMEMORY_SQLITE_VECTOR_SEARCH_FUNCTION",
+  "GOODMEMORY_STORAGE_PROVIDER",
+  "GOODMEMORY_STORAGE_URL",
+  "GOODMEMORY_TEST_POSTGRES_URL",
+] as const;
+
+type GoodMemoryEnvSnapshot = Array<readonly [string, string | undefined]>;
+
+function isolateGoodMemoryEvalEnv(): GoodMemoryEnvSnapshot {
+  const snapshot = ISOLATED_GOODMEMORY_ENV_KEYS.map((key) => [
+    key,
+    process.env[key],
+  ] as const);
+
+  for (const key of ISOLATED_GOODMEMORY_ENV_KEYS) {
+    delete process.env[key];
+  }
+
+  return snapshot;
+}
+
+function restoreGoodMemoryEvalEnv(snapshot: GoodMemoryEnvSnapshot): void {
+  for (const [key, value] of snapshot) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
 
 export function resolvePhase40ProductEvalOutputDir(root: string): string {
   return join(root, "reports/eval/product/phase-40");
@@ -927,6 +978,19 @@ function buildAcceptance(input: {
 }
 
 export async function runPhase40ProductEval(
+  options: Phase40ProductEvalOptions = {},
+  dependencies: Phase40ProductEvalDependencies = {},
+): Promise<Phase40ProductEvalReport> {
+  const envSnapshot = isolateGoodMemoryEvalEnv();
+
+  try {
+    return await runPhase40ProductEvalIsolated(options, dependencies);
+  } finally {
+    restoreGoodMemoryEvalEnv(envSnapshot);
+  }
+}
+
+async function runPhase40ProductEvalIsolated(
   options: Phase40ProductEvalOptions = {},
   dependencies: Phase40ProductEvalDependencies = {},
 ): Promise<Phase40ProductEvalReport> {
