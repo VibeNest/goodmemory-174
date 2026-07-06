@@ -79,6 +79,7 @@ export interface Phase60ProfileOverallSummary {
   distilledContextPassRate?: number | null;
   distilledFallbackPolicyCount?: number;
   exceedsReferenceLine: boolean | null;
+  executionFailures: number;
   full300OverallScore: Phase60EquivalentScore;
   officialComparability: {
     actualBlockingCases: number;
@@ -168,6 +169,7 @@ const REQUIRED_PHASE60_FIELDS = [
   "distilledFallbackPolicyCount",
   "distilledContextPassRate",
   "distilledContextExamples",
+  "executionFailures",
 ] as const;
 
 const PRIMING_STOP_WORDS = new Set([
@@ -476,10 +478,17 @@ function buildProfileOverallSummary(input: {
 }): Phase60ProfileOverallSummary {
   const blockingPassed = input.blockingSummary?.passedBlockingCases ?? 0;
   const blockingTotal = input.blockingSummary?.totalBlockingCases ?? 0;
+  const blockingExecutionFailures =
+    input.blockingSummary?.cases.filter(
+      (caseResult) => caseResult.blocking && caseResult.executionFailure,
+    ).length ?? 0;
   const primingResults =
     input.primingSummary?.cases.filter(
       (caseResult) => caseResult.scorerFamily === "priming_pair_judge",
     ) ?? [];
+  const primingExecutionFailures = primingResults.filter(
+    (caseResult) => caseResult.executionFailure,
+  ).length;
   const primingAudits = primingResults.map((result) =>
     buildPrimingAuditForResult({
       primingCaseMap: input.primingCaseMap,
@@ -557,6 +566,7 @@ function buildProfileOverallSummary(input: {
         }
       : {}),
     exceedsReferenceLine: fullRate === null ? null : fullRate >= input.referenceLine,
+    executionFailures: blockingExecutionFailures + primingExecutionFailures,
     full300OverallScore: {
       passedEquivalent: fullPassedEquivalent,
       rate: fullRate,

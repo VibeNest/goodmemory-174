@@ -407,4 +407,59 @@ describe("phase60 overall protocol", () => {
     expect(summary.protocol.requiredFields).toContain("full300OverallScore");
     expect(summary.protocol.requiredFields).toContain("distilledContextEmptyCount");
   });
+
+  it("surfaces case execution failures in profile summaries without double-counting", () => {
+    const primingCase = buildPrimingCase();
+    const goodmemoryReport = buildReport({ kind: "goodmemory" });
+    const baselineReport = buildReport({ kind: "baseline" });
+    const distilled =
+      goodmemoryReport.profiles["goodmemory-distilled-feedback"];
+    const raw = goodmemoryReport.profiles["goodmemory-raw-experience"];
+    if (!distilled || !raw) {
+      throw new Error("expected GoodMemory Phase 60 profiles");
+    }
+
+    distilled.executionFailures = 1;
+    distilled.cases = distilled.cases.map((caseResult) => ({
+      ...caseResult,
+      executionFailure: "blocking timeout",
+    }));
+    raw.executionFailures = 1;
+    raw.cases = raw.cases.map((caseResult) =>
+      caseResult.scorerFamily === "priming_pair_judge"
+        ? {
+            ...caseResult,
+            executionFailure: "priming timeout",
+          }
+        : caseResult,
+    );
+
+    const summary = buildPhase60OverallSummary({
+      baselineReport,
+      cases: [primingCase],
+      expectedCaseShape: {
+        blockingCases: 2,
+        primingCases: 1,
+        totalCases: 3,
+      },
+      generatedAt: "2026-05-05T00:00:00.000Z",
+      generatedBy: "tests",
+      goodmemoryReport,
+      outputDir: "/tmp/out",
+      runDirectory: "/tmp/out/run",
+      runId: "run",
+    });
+
+    expect(summary.profiles["goodmemory-raw-experience"]?.executionFailures)
+      .toBe(1);
+    expect(summary.profiles["goodmemory-controlled-priming"]?.executionFailures)
+      .toBe(1);
+    expect(summary.profiles["goodmemory-distilled-feedback"]?.executionFailures)
+      .toBe(1);
+    expect(
+      summary.profiles["goodmemory-distilled-feedback+controlled-priming"]
+        ?.executionFailures,
+    ).toBe(2);
+    expect(summary.protocol.requiredFields).toContain("executionFailures");
+  });
 });
