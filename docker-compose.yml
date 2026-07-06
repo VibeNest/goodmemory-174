@@ -1,0 +1,46 @@
+# GoodMemory HTTP bridge.
+#
+# SQLite (default):
+#   GOODMEMORY_HTTP_BRIDGE_TOKEN=<token> docker compose up -d
+#
+# Postgres (pgvector) profile:
+#   GOODMEMORY_HTTP_BRIDGE_TOKEN=<token> \
+#   GOODMEMORY_STORAGE_PROVIDER=postgres \
+#   GOODMEMORY_STORAGE_URL=postgres://goodmemory:goodmemory@postgres:5432/goodmemory \
+#   docker compose --profile postgres up -d
+services:
+  goodmemory-bridge:
+    build: .
+    image: goodmemory-bridge:latest
+    restart: unless-stopped
+    ports:
+      - "8739:8739"
+    environment:
+      GOODMEMORY_HTTP_BRIDGE_TOKEN: ${GOODMEMORY_HTTP_BRIDGE_TOKEN:?Set a bearer token for the bridge}
+      GOODMEMORY_HTTP_BRIDGE_PROFILE: ${GOODMEMORY_HTTP_BRIDGE_PROFILE:-default}
+      # Empty string behaves as unset (the runtime resolver normalizes it), so
+      # plain `docker compose up` keeps the SQLite default.
+      GOODMEMORY_STORAGE_PROVIDER: ${GOODMEMORY_STORAGE_PROVIDER:-}
+      GOODMEMORY_STORAGE_URL: ${GOODMEMORY_STORAGE_URL:-}
+    volumes:
+      - goodmemory-data:/app/.goodmemory
+
+  postgres:
+    profiles: ["postgres"]
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goodmemory
+      POSTGRES_PASSWORD: goodmemory
+      POSTGRES_DB: goodmemory
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goodmemory -d goodmemory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - goodmemory-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  goodmemory-data:
+  goodmemory-postgres-data:

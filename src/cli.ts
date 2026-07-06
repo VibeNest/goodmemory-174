@@ -76,6 +76,10 @@ import {
 } from "./install/hostMcpConfig";
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import {
+  ensureStandaloneStorageReady,
+  resolveMcpServeOptions,
+} from "./install/standaloneMcpContext";
+import {
   createRuntimeWorkerQueue,
 } from "./runtime-worker/public";
 import {
@@ -599,6 +603,18 @@ const MCP_SERVE_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory mcp serve --host <codex|claude>",
+  "  goodmemory mcp serve --standalone --user-id <id> [--workspace-id <id>] [--agent-id <id>]",
+  "                       [--storage-provider <memory|sqlite|postgres>] [--storage-url <path-or-url>]",
+  "                       [--max-tokens <n>] [--retrieval-profile <coding_agent|general_chat>]",
+  "                       [--allow-write]",
+  "",
+  "Standalone mode runs without installed host config; any MCP client can use it.",
+  "Flag fallbacks: GOODMEMORY_USER_ID, GOODMEMORY_WORKSPACE_ID, GOODMEMORY_AGENT_ID,",
+  "GOODMEMORY_STORAGE_PROVIDER, GOODMEMORY_STORAGE_URL, GOODMEMORY_MCP_ALLOW_WRITE.",
+  "Scope note: --agent-id hard-filters recall to that agent's records; omit it to",
+  "see agent-less records (installed-host memories stay agent-private unless named).",
+  "--allow-write (or GOODMEMORY_MCP_ALLOW_WRITE=1) registers the opt-in",
+  "goodmemory_remember write tool; the default surface is read-only.",
 ].join("\n");
 const RUNTIME_HELP_TEXT = [
   "GoodMemory Runtime CLI",
@@ -5306,8 +5322,26 @@ function hostWritebackExitCode(
 }
 
 async function handleMcpServe(flags: ParsedFlags): Promise<void> {
+  const options = resolveMcpServeOptions({
+    env: process.env,
+    flags,
+  });
+  if (options.mode === "error") {
+    throw new Error(options.message);
+  }
+
+  if (options.mode === "standalone") {
+    ensureStandaloneStorageReady(options.config);
+    await serveGoodMemoryMcp({
+      allowWrite: options.allowWrite,
+      standalone: options.config,
+    });
+    return;
+  }
+
   await serveGoodMemoryMcp({
-    host: requireInstalledHostKind(flags.host),
+    allowWrite: options.allowWrite,
+    host: options.host,
   });
 }
 

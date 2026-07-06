@@ -20,8 +20,10 @@
  * answerer - disclose in any claim). Resumable via a per-question progress
  * JSONL in the output run dir.
  */
+import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
@@ -30,6 +32,8 @@ import {
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export type OfficialRescoreBenchmark = "beam" | "locomo" | "longmemeval";
+export type OfficialRescoreLimitUnit = "cases" | "rubric-items";
+export type OfficialRescoreCaseBenchmark = Exclude<OfficialRescoreBenchmark, "beam">;
 
 export interface OfficialRescoreCliOptions {
   benchmark: OfficialRescoreBenchmark;
@@ -40,6 +44,83 @@ export interface OfficialRescoreCliOptions {
   rootPath?: string;
   rubricsPath?: string;
   runId: string;
+}
+
+export interface OfficialRescoreSourceInputs {
+  referencePath?: string;
+  reportPath?: string;
+  rootPath?: string;
+  rubricsPath?: string;
+}
+
+const OFFICIAL_RESCORE_SOURCE_INPUT_KEYS = [
+  "referencePath",
+  "reportPath",
+  "rootPath",
+  "rubricsPath",
+] as const;
+
+type OfficialRescoreSourceInputKey = (typeof OFFICIAL_RESCORE_SOURCE_INPUT_KEYS)[number];
+
+export interface OfficialRescoreSourceInputFingerprint {
+  bytes: number;
+  sha256: string;
+}
+
+export type OfficialRescoreSourceInputFingerprints = Partial<
+  Record<OfficialRescoreSourceInputKey, OfficialRescoreSourceInputFingerprint>
+>;
+
+export interface OfficialRescoreBeamScopeMetadata {
+  selectedQuestions: number;
+  selectedRubricItems: number;
+  sourceQuestions: number;
+  sourceRubricItems: number;
+}
+
+export interface OfficialRescoreCaseScopeMetadata {
+  selectedCases: number;
+  sourceCases: number;
+}
+
+export type OfficialRescoreScopeMetadata =
+  | OfficialRescoreBeamScopeMetadata
+  | OfficialRescoreCaseScopeMetadata;
+
+type OfficialRescoreScopeInput =
+  | {
+      benchmark: "beam";
+      selectedQuestionCount: number;
+      selectedRubricItemCount: number;
+      sourceQuestionCount: number;
+      sourceRubricItemCount: number;
+    }
+  | {
+      benchmark: OfficialRescoreCaseBenchmark;
+      selectedCaseCount: number;
+      sourceCaseCount: number;
+    };
+
+interface OfficialRescoreMetadataInput {
+  benchmark: OfficialRescoreBenchmark;
+  generatedAt: string;
+  judgeModel: string | undefined;
+  limit?: number;
+  outputPath: string;
+  runId: string;
+  sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
+  sourceInputs: OfficialRescoreSourceInputs;
+}
+
+export interface OfficialRescoreRunIdentity {
+  benchmark: OfficialRescoreBenchmark;
+  generatedBy: "scripts/rescore-official-protocols.ts";
+  judgeModel: string | undefined;
+  limit?: number;
+  runId: string;
+  sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
+  sourceInputs: OfficialRescoreSourceInputs;
+  sourceAnswersUnchanged: true;
 }
 
 interface JudgeCase {
@@ -55,7 +136,356 @@ interface JudgeVerdict {
   raw: string;
 }
 
+interface OfficialRescoreProgressRow {
+  correct: boolean;
+  questionId: string;
+}
+
+interface OfficialRescoreRubricProgressRow {
+  key: string;
+  questionId: string;
+  score: 0 | 0.5 | 1;
+}
+
 const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
+const OFFICIAL_RESCORE_CLAIM_BOUNDARY =
+  "Official-protocol comparability rescore of stored answers; not answer regeneration or a public benchmark claim unless promoted by the benchmark-claim gate.";
+
+function sourceInputFingerprintsFingerprint(
+  input: OfficialRescoreSourceInputFingerprints,
+): string {
+  return JSON.stringify({
+    ...(input.referencePath === undefined ? {} : { referencePath: input.referencePath }),
+    ...(input.reportPath === undefined ? {} : { reportPath: input.reportPath }),
+    ...(input.rootPath === undefined ? {} : { rootPath: input.rootPath }),
+    ...(input.rubricsPath === undefined ? {} : { rubricsPath: input.rubricsPath }),
+  });
+}
+
+function sourceInputsFingerprint(input: OfficialRescoreSourceInputs): string {
+  return JSON.stringify({
+    ...(input.referencePath === undefined ? {} : { referencePath: input.referencePath }),
+    ...(input.reportPath === undefined ? {} : { reportPath: input.reportPath }),
+    ...(input.rootPath === undefined ? {} : { rootPath: input.rootPath }),
+    ...(input.rubricsPath === undefined ? {} : { rubricsPath: input.rubricsPath }),
+  });
+}
+
+function officialRescoreLimitUnit(benchmark: OfficialRescoreBenchmark): OfficialRescoreLimitUnit {
+  return benchmark === "beam" ? "rubric-items" : "cases";
+}
+
+function fingerprintOfficialRescoreSourceInputContent(
+  content: string | Uint8Array,
+): OfficialRescoreSourceInputFingerprint {
+  const buffer = typeof content === "string" ? Buffer.from(content, "utf8") : Buffer.from(content);
+  return {
+    bytes: buffer.length,
+    sha256: createHash("sha256").update(buffer).digest("hex"),
+  };
+}
+
+export function buildOfficialRescoreSourceInputFingerprints(input: {
+  contents: Partial<Record<OfficialRescoreSourceInputKey, string | Uint8Array>>;
+  sourceInputs: OfficialRescoreSourceInputs;
+}): OfficialRescoreSourceInputFingerprints {
+  const fingerprints: OfficialRescoreSourceInputFingerprints = {};
+  for (const key of OFFICIAL_RESCORE_SOURCE_INPUT_KEYS) {
+    if (input.sourceInputs[key] === undefined) continue;
+    const content = input.contents[key];
+    if (content === undefined) {
+      throw new Error(`missing official rescore source input content for ${key}`);
+    }
+    fingerprints[key] = fingerprintOfficialRescoreSourceInputContent(content);
+  }
+  return fingerprints;
+}
+
+async function readOfficialRescoreSourceInputFingerprints(
+  sourceInputs: OfficialRescoreSourceInputs,
+): Promise<OfficialRescoreSourceInputFingerprints> {
+  const contents: Partial<Record<OfficialRescoreSourceInputKey, Uint8Array>> = {};
+  await Promise.all(
+    OFFICIAL_RESCORE_SOURCE_INPUT_KEYS.map(async (key) => {
+      const sourcePath = sourceInputs[key];
+      if (sourcePath === undefined) return;
+      contents[key] = await readFile(sourcePath);
+    }),
+  );
+  return buildOfficialRescoreSourceInputFingerprints({ contents, sourceInputs });
+}
+
+export function buildOfficialRescoreScopeMetadata(
+  input: OfficialRescoreScopeInput,
+): OfficialRescoreScopeMetadata {
+  if (input.benchmark === "beam") {
+    return {
+      selectedQuestions: input.selectedQuestionCount,
+      selectedRubricItems: input.selectedRubricItemCount,
+      sourceQuestions: input.sourceQuestionCount,
+      sourceRubricItems: input.sourceRubricItemCount,
+    };
+  }
+  return {
+    selectedCases: input.selectedCaseCount,
+    sourceCases: input.sourceCaseCount,
+  };
+}
+
+export function buildOfficialRescoreRunIdentity(input: {
+  benchmark: OfficialRescoreBenchmark;
+  judgeModel: string | undefined;
+  limit?: number;
+  runId: string;
+  sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
+  sourceInputs: OfficialRescoreSourceInputs;
+}): OfficialRescoreRunIdentity {
+  return {
+    benchmark: input.benchmark,
+    generatedBy: "scripts/rescore-official-protocols.ts",
+    judgeModel: input.judgeModel,
+    ...(input.limit === undefined ? {} : { limit: input.limit }),
+    runId: input.runId,
+    sourceAnswersUnchanged: true,
+    sourceInputFingerprints: input.sourceInputFingerprints,
+    sourceInputs: input.sourceInputs,
+  };
+}
+
+export function assertOfficialRescoreRunIdentityCompatible(
+  existing: OfficialRescoreRunIdentity,
+  expected: OfficialRescoreRunIdentity,
+): void {
+  if (existing.generatedBy !== expected.generatedBy) {
+    throw new Error("official rescore run identity changed: generatedBy");
+  }
+  if (existing.runId !== expected.runId) {
+    throw new Error("official rescore run identity changed: runId");
+  }
+  if (existing.benchmark !== expected.benchmark) {
+    throw new Error("official rescore run identity changed: benchmark");
+  }
+  if (existing.judgeModel !== expected.judgeModel) {
+    throw new Error("official rescore run identity changed: judgeModel");
+  }
+  if (existing.limit !== expected.limit) {
+    throw new Error("official rescore run identity changed: limit");
+  }
+  if (existing.sourceAnswersUnchanged !== expected.sourceAnswersUnchanged) {
+    throw new Error("official rescore run identity changed: sourceAnswersUnchanged");
+  }
+  if (sourceInputsFingerprint(existing.sourceInputs) !== sourceInputsFingerprint(expected.sourceInputs)) {
+    throw new Error("official rescore run identity changed: sourceInputs");
+  }
+  if (
+    sourceInputFingerprintsFingerprint(existing.sourceInputFingerprints) !==
+    sourceInputFingerprintsFingerprint(expected.sourceInputFingerprints)
+  ) {
+    throw new Error("official rescore run identity changed: sourceInputFingerprints");
+  }
+}
+
+export function buildOfficialRescoreMetadata(
+  input: OfficialRescoreMetadataInput,
+) {
+  return {
+    benchmark: input.benchmark,
+    claimBoundary: OFFICIAL_RESCORE_CLAIM_BOUNDARY,
+    generatedAt: input.generatedAt,
+    generatedBy: "scripts/rescore-official-protocols.ts",
+    judgeModel: input.judgeModel,
+    limit: input.limit ?? null,
+    limitUnit: officialRescoreLimitUnit(input.benchmark),
+    outputPath: input.outputPath,
+    runId: input.runId,
+    sourceAnswersUnchanged: true,
+    sourceInputFingerprints: input.sourceInputFingerprints,
+    sourceInputs: input.sourceInputs,
+  };
+}
+
+export function requireOfficialRescoreCompleteJudging(input: {
+  failureCount: number;
+  label: string;
+}): void {
+  if (input.failureCount === 0) {
+    return;
+  }
+  throw new Error(
+    `official rescore ${input.label} had ${input.failureCount} judge failure(s); rerun with the same run id to resume before writing a final summary.`,
+  );
+}
+
+function parseJsonLine(line: string): unknown {
+  return JSON.parse(line);
+}
+
+function parseOfficialRescoreRubricProgressKeyQuestionId(key: string): string | null {
+  const separatorIndex = key.lastIndexOf("#");
+  if (separatorIndex <= 0 || separatorIndex === key.length - 1) {
+    return null;
+  }
+  const itemIndex = key.slice(separatorIndex + 1);
+  if (!/^(0|[1-9][0-9]*)$/.test(itemIndex)) {
+    return null;
+  }
+  return key.slice(0, separatorIndex);
+}
+
+export function parseOfficialRescoreProgressLine(
+  line: string,
+  label: string,
+): OfficialRescoreProgressRow {
+  const parsed = parseJsonLine(line);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("correct" in parsed) ||
+    !("questionId" in parsed)
+  ) {
+    throw new Error(`malformed official rescore progress row at ${label}`);
+  }
+  const row = parsed as { correct: unknown; questionId: unknown };
+  if (
+    typeof row.correct !== "boolean" ||
+    typeof row.questionId !== "string" ||
+    row.questionId.trim() !== row.questionId ||
+    row.questionId.length === 0
+  ) {
+    throw new Error(`malformed official rescore progress row at ${label}`);
+  }
+  return {
+    correct: row.correct,
+    questionId: row.questionId,
+  };
+}
+
+export function parseOfficialRescoreRubricProgressLine(
+  line: string,
+  label: string,
+): OfficialRescoreRubricProgressRow {
+  const parsed = parseJsonLine(line);
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("key" in parsed) ||
+    !("questionId" in parsed) ||
+    !("score" in parsed)
+  ) {
+    throw new Error(`malformed official rescore rubric progress row at ${label}`);
+  }
+  const row = parsed as { key: unknown; questionId: unknown; score: unknown };
+  if (
+    typeof row.key !== "string" ||
+    row.key.trim() !== row.key ||
+    row.key.length === 0 ||
+    typeof row.questionId !== "string" ||
+    row.questionId.trim() !== row.questionId ||
+    row.questionId.length === 0 ||
+    !(row.score === 0 || row.score === 0.5 || row.score === 1)
+  ) {
+    throw new Error(`malformed official rescore rubric progress row at ${label}`);
+  }
+  const keyQuestionId = parseOfficialRescoreRubricProgressKeyQuestionId(row.key);
+  if (keyQuestionId !== row.questionId) {
+    throw new Error(`malformed official rescore rubric progress row at ${label}`);
+  }
+  return {
+    key: row.key,
+    questionId: row.questionId,
+    score: row.score,
+  };
+}
+
+export function readOfficialRescoreProgressRows(
+  text: string,
+  label: string,
+): OfficialRescoreProgressRow[] {
+  const rows: OfficialRescoreProgressRow[] = [];
+  const seen = new Set<string>();
+  const lines = text.split("\n");
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex]!;
+    if (!line.trim()) continue;
+    let row: OfficialRescoreProgressRow;
+    try {
+      row = parseOfficialRescoreProgressLine(line, `${label}:${lineIndex + 1}`);
+    } catch (error) {
+      if (!(error instanceof SyntaxError && lineIndex === lines.length - 1)) {
+        throw error;
+      }
+      // torn tail line from a killed run - ignore
+      continue;
+    }
+    if (seen.has(row.questionId)) {
+      throw new Error(
+        `duplicate official rescore progress row for ${row.questionId} at ${label}:${lineIndex + 1}`,
+      );
+    }
+    seen.add(row.questionId);
+    rows.push(row);
+  }
+  return rows;
+}
+
+export function readOfficialRescoreRubricProgressRows(
+  text: string,
+  label: string,
+): OfficialRescoreRubricProgressRow[] {
+  const rows: OfficialRescoreRubricProgressRow[] = [];
+  const seen = new Set<string>();
+  const lines = text.split("\n");
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex]!;
+    if (!line.trim()) continue;
+    let row: OfficialRescoreRubricProgressRow;
+    try {
+      row = parseOfficialRescoreRubricProgressLine(line, `${label}:${lineIndex + 1}`);
+    } catch (error) {
+      if (!(error instanceof SyntaxError && lineIndex === lines.length - 1)) {
+        throw error;
+      }
+      // torn tail line from a killed run - ignore
+      continue;
+    }
+    if (seen.has(row.key)) {
+      throw new Error(
+        `duplicate official rescore rubric progress row for ${row.key} at ${label}:${lineIndex + 1}`,
+      );
+    }
+    seen.add(row.key);
+    rows.push(row);
+  }
+  return rows;
+}
+
+export function requireOfficialRescoreProgressRowsWithinSelection(
+  rows: OfficialRescoreProgressRow[],
+  selectedQuestionIds: ReadonlySet<string>,
+  label: string,
+): void {
+  for (const row of rows) {
+    if (!selectedQuestionIds.has(row.questionId)) {
+      throw new Error(
+        `official rescore progress row ${row.questionId} is outside selected scope at ${label}`,
+      );
+    }
+  }
+}
+
+export function requireOfficialRescoreRubricProgressRowsWithinSelection(
+  rows: OfficialRescoreRubricProgressRow[],
+  selectedRubricKeys: ReadonlySet<string>,
+  label: string,
+): void {
+  for (const row of rows) {
+    if (!selectedRubricKeys.has(row.key)) {
+      throw new Error(
+        `official rescore rubric progress row ${row.key} is outside selected scope at ${label}`,
+      );
+    }
+  }
+}
 
 function parseOfficialRescoreBenchmark(
   value: string | undefined,
@@ -64,6 +494,60 @@ function parseOfficialRescoreBenchmark(
     return value;
   }
   throw new Error("--benchmark must be longmemeval, locomo, or beam.");
+}
+
+function validateOfficialRescoreSourceSelectors(input: {
+  benchmark: OfficialRescoreBenchmark;
+  referencePath?: string;
+  rootPath?: string;
+  rubricsPath?: string;
+}): void {
+  if (input.referencePath !== undefined && input.benchmark !== "longmemeval") {
+    throw new Error("--reference is only valid with --benchmark longmemeval.");
+  }
+  if (input.rootPath !== undefined && input.benchmark !== "locomo") {
+    throw new Error("--root is only valid with --benchmark locomo.");
+  }
+  if (input.rubricsPath !== undefined && input.benchmark !== "beam") {
+    throw new Error("--rubrics is only valid with --benchmark beam.");
+  }
+}
+
+function pathResolvesInsideOrEqual(input: {
+  candidatePath: string;
+  parentPath: string;
+}): boolean {
+  const relativePath = relative(
+    resolve(input.parentPath),
+    resolve(input.candidatePath),
+  );
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+  );
+}
+
+export function assertOfficialRescoreSourceInputsOutsideOutputDir(input: {
+  outputDir: string;
+  sourceInputs: OfficialRescoreSourceInputs;
+}): void {
+  for (const key of OFFICIAL_RESCORE_SOURCE_INPUT_KEYS) {
+    const sourcePath = input.sourceInputs[key];
+    if (sourcePath === undefined) {
+      continue;
+    }
+    if (
+      pathResolvesInsideOrEqual({
+        candidatePath: sourcePath,
+        parentPath: input.outputDir,
+      })
+    ) {
+      throw new Error(
+        `official rescore source input ${key} resolves inside output run ` +
+          `directory ${input.outputDir}: ${sourcePath}`,
+      );
+    }
+  }
 }
 
 export function parseOfficialRescoreCliOptions(
@@ -82,6 +566,12 @@ export function parseOfficialRescoreCliOptions(
   const runId =
     resolveCliPathSegmentFlagValueStrict(argv, "--run-id") ??
     `rescore-${benchmark}-official-judge`;
+  validateOfficialRescoreSourceSelectors({
+    benchmark,
+    ...(referencePath === undefined ? {} : { referencePath }),
+    ...(rootPath === undefined ? {} : { rootPath }),
+    ...(rubricsPath === undefined ? {} : { rubricsPath }),
+  });
 
   return {
     benchmark,
@@ -277,32 +767,72 @@ function parseBeamScore(raw: string): number {
 // (temperature 0, bounded max_tokens) are honored exactly.
 // ---------------------------------------------------------------------------
 
+export interface OfficialRescoreJudgeEnvironment {
+  apiKey: string;
+  baseURL: string;
+  model: string;
+}
+
+function requireCanonicalJudgeEnvValue(input: {
+  env: Record<string, string | undefined>;
+  name:
+    | "GOODMEMORY_JUDGE_API_KEY"
+    | "GOODMEMORY_JUDGE_BASE_URL"
+    | "GOODMEMORY_JUDGE_MODEL";
+}): string {
+  const value = input.env[input.name];
+  if (value === undefined || value.length === 0) {
+    throw new Error(`${input.name} is required for official rescore judging.`);
+  }
+  if (value.trim().length === 0) {
+    throw new Error(`${input.name} must not be empty.`);
+  }
+  if (value.trim() !== value) {
+    throw new Error(`${input.name} must not have leading or trailing whitespace.`);
+  }
+  return value;
+}
+
+export function resolveOfficialRescoreJudgeEnvironment(
+  env: Record<string, string | undefined>,
+): OfficialRescoreJudgeEnvironment {
+  return {
+    apiKey: requireCanonicalJudgeEnvValue({
+      env,
+      name: "GOODMEMORY_JUDGE_API_KEY",
+    }),
+    baseURL: requireCanonicalJudgeEnvValue({
+      env,
+      name: "GOODMEMORY_JUDGE_BASE_URL",
+    }),
+    model: requireCanonicalJudgeEnvValue({
+      env,
+      name: "GOODMEMORY_JUDGE_MODEL",
+    }),
+  };
+}
+
 async function callJudge(input: {
   maxTokens: number;
   prompt: string;
   system?: string;
 }): Promise<string> {
-  const baseURL = process.env.GOODMEMORY_JUDGE_BASE_URL;
-  const apiKey = process.env.GOODMEMORY_JUDGE_API_KEY;
-  const model = process.env.GOODMEMORY_JUDGE_MODEL;
-  if (!baseURL || !apiKey || !model) {
-    throw new Error("GOODMEMORY_JUDGE_BASE_URL/API_KEY/MODEL are required");
-  }
+  const judgeEnv = resolveOfficialRescoreJudgeEnvironment(process.env);
   let lastError: unknown;
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     try {
-      const response = await fetch(`${baseURL.replace(/\/$/, "")}/chat/completions`, {
+      const response = await fetch(`${judgeEnv.baseURL.replace(/\/$/, "")}/chat/completions`, {
         body: JSON.stringify({
           max_tokens: input.maxTokens,
           messages: [
             ...(input.system ? [{ content: input.system, role: "system" }] : []),
             { content: input.prompt, role: "user" },
           ],
-          model,
+          model: judgeEnv.model,
           temperature: 0,
         }),
         headers: {
-          authorization: `Bearer ${apiKey}`,
+          authorization: `Bearer ${judgeEnv.apiKey}`,
           "content-type": "application/json",
         },
         method: "POST",
@@ -449,12 +979,14 @@ async function loadLocomoCases(input: {
 
 async function runBeamRubricRescore(input: {
   concurrency: number;
+  generatedAt: string;
   limit?: number;
   outputDir: string;
   progressPath: string;
   reportPath: string;
   rubricsPath: string;
   runId: string;
+  sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
 }): Promise<void> {
   const report = (await loadJson(input.reportPath)) as {
     cases: Array<{ hypothesis?: string; questionId: string; questionType: string }>;
@@ -491,22 +1023,33 @@ async function runBeamRubricRescore(input: {
       });
     });
   }
+  const sourceQuestionCount = questionMeta.size;
+  const sourceRubricItemCount = units.length;
   if (input.limit !== undefined) {
     units = units.slice(0, input.limit);
   }
+  const selectedQuestionCount = new Set(units.map((unit) => unit.questionId)).size;
+  const selectedRubricItemCount = units.length;
+  const selectedRubricKeys = new Set(units.map((unit) => unit.key));
 
   const done = new Map<string, number>();
   try {
-    for (const line of (await readFile(input.progressPath, "utf8")).split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const row = JSON.parse(line) as { key: string; score: number };
-        done.set(row.key, row.score);
-      } catch {
-        // torn tail line - ignore
-      }
+    const rows = readOfficialRescoreRubricProgressRows(
+      await readFile(input.progressPath, "utf8"),
+      input.progressPath,
+    );
+    requireOfficialRescoreRubricProgressRowsWithinSelection(
+      rows,
+      selectedRubricKeys,
+      input.progressPath,
+    );
+    for (const row of rows) {
+      done.set(row.key, row.score);
     }
-  } catch {
+  } catch (error) {
+    if (!isMissingFileError(error)) {
+      throw error;
+    }
     // fresh run
   }
   const pending = units.filter((unit) => !done.has(unit.key));
@@ -544,6 +1087,10 @@ async function runBeamRubricRescore(input: {
       worker(),
     ),
   );
+  requireOfficialRescoreCompleteJudging({
+    failureCount: failures,
+    label: "beam",
+  });
 
   const questionScores = new Map<string, number>();
   for (const [questionId, meta] of questionMeta) {
@@ -572,17 +1119,35 @@ async function runBeamRubricRescore(input: {
     questions: bucket.scores.length,
   }));
   const allScores = [...questionScores.values()];
+  const summaryPath = join(input.outputDir, "rescore-summary.json");
   const summary = {
-    benchmark: "beam",
+    ...buildOfficialRescoreMetadata({
+      benchmark: "beam",
+      generatedAt: input.generatedAt,
+      judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
+      limit: input.limit,
+      outputPath: summaryPath,
+      runId: input.runId,
+      sourceInputs: {
+        reportPath: input.reportPath,
+        rubricsPath: input.rubricsPath,
+      },
+      sourceInputFingerprints: input.sourceInputFingerprints,
+    }),
+    ...buildOfficialRescoreScopeMetadata({
+      benchmark: "beam",
+      selectedQuestionCount,
+      selectedRubricItemCount,
+      sourceQuestionCount,
+      sourceRubricItemCount,
+    }),
     categories: Object.fromEntries(
       categoryMeans.map((entry) => [
         entry.category,
         { meanScore: entry.mean, questions: entry.questions },
       ]),
     ),
-    generatedBy: "scripts/rescore-official-protocols.ts",
     judgeFailures: failures,
-    judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
     overallMacroByCategory:
       categoryMeans.reduce((a, b) => a + b.mean, 0) / Math.max(1, categoryMeans.length),
     overallMicroByQuestion:
@@ -590,17 +1155,57 @@ async function runBeamRubricRescore(input: {
     protocol:
       "official BEAM unified rubric judge (1.0/0.5/0.0 per rubric item; question = mean over items). Deviation from the paper pipeline: event_ordering is rubric-judged here (the paper scores it with tau_norm); this matches the public third-party reference which judged all 1051 rubric items.",
     rubricItemsJudged: done.size,
-    runId: input.runId,
     scoredQuestions: questionScores.size,
-    sourceAnswersUnchanged: true,
     totalQuestions: questionMeta.size,
     totalRubricItems: units.length,
   };
-  await writeFile(
-    join(input.outputDir, "rescore-summary.json"),
-    `${JSON.stringify(summary, null, 2)}\n`,
-  );
+  await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "ENOENT"
+  );
+}
+
+export async function ensureOfficialRescoreRunIdentity(
+  identityPath: string,
+  progressPath: string,
+  expected: OfficialRescoreRunIdentity,
+): Promise<void> {
+  try {
+    const existing = JSON.parse(
+      await readFile(identityPath, "utf8"),
+    ) as OfficialRescoreRunIdentity;
+    assertOfficialRescoreRunIdentityCompatible(existing, expected);
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      const progress = await readFileIfPresent(progressPath);
+      if (progress !== null && progress.trim().length > 0) {
+        throw new Error(
+          `official rescore progress cache exists without run-identity.json at ${progressPath}`,
+        );
+      }
+      await writeFile(identityPath, `${JSON.stringify(expected, null, 2)}\n`);
+      return;
+    }
+    throw error;
+  }
+}
+
+async function readFileIfPresent(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -610,6 +1215,8 @@ async function runBeamRubricRescore(input: {
 async function main(): Promise<void> {
   const options = parseOfficialRescoreCliOptions(Bun.argv);
   const { benchmark, concurrency, limit, runId } = options;
+  const generatedAt = new Date().toISOString();
+  const judgeEnv = resolveOfficialRescoreJudgeEnvironment(process.env);
 
   const outputDir = join(
     repoRoot,
@@ -620,23 +1227,35 @@ async function main(): Promise<void> {
     runId,
   );
   await mkdir(outputDir, { recursive: true });
+  const runIdentityPath = join(outputDir, "run-identity.json");
   const progressPath = join(outputDir, "progress.jsonl");
+  const judgeModel = judgeEnv.model;
 
   let judgePrompt: (c: JudgeCase) => { maxTokens: number; prompt: string; system?: string };
   let parseVerdict: (raw: string) => boolean;
   let cases: JudgeCase[];
+  let sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
+  let sourceInputs: OfficialRescoreSourceInputs;
 
   if (benchmark === "longmemeval") {
+    const referencePath =
+      options.referencePath ??
+      `${process.env.HOME}/.goodmemory-longmemeval/longmemeval_s.json`;
+    const reportPath =
+      options.reportPath ??
+      join(
+        repoRoot,
+        "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json",
+      );
+    sourceInputs = { referencePath, reportPath };
+    assertOfficialRescoreSourceInputsOutsideOutputDir({
+      outputDir,
+      sourceInputs,
+    });
+    sourceInputFingerprints = await readOfficialRescoreSourceInputFingerprints(sourceInputs);
     const { abstentionIds, cases: loaded } = await loadLongmemevalCases({
-      referencePath:
-        options.referencePath ??
-        `${process.env.HOME}/.goodmemory-longmemeval/longmemeval_s.json`,
-      reportPath:
-        options.reportPath ??
-        join(
-          repoRoot,
-          "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json",
-        ),
+      referencePath,
+      reportPath,
     });
     cases = loaded;
     judgePrompt = (c) => ({
@@ -645,14 +1264,22 @@ async function main(): Promise<void> {
     });
     parseVerdict = parseYesNo;
   } else if (benchmark === "locomo") {
+    const reportPath =
+      options.reportPath ??
+      join(
+        repoRoot,
+        "reports/eval/research/phase-65/locomo/run-p4-full10-union16-ext-live/union-live-report.json",
+      );
+    const rootPath = options.rootPath ?? "/private/tmp/LOCOMO-full10/cases.json";
+    sourceInputs = { reportPath, rootPath };
+    assertOfficialRescoreSourceInputsOutsideOutputDir({
+      outputDir,
+      sourceInputs,
+    });
+    sourceInputFingerprints = await readOfficialRescoreSourceInputFingerprints(sourceInputs);
     cases = await loadLocomoCases({
-      reportPath:
-        options.reportPath ??
-        join(
-          repoRoot,
-          "reports/eval/research/phase-65/locomo/run-p4-full10-union16-ext-live/union-live-report.json",
-        ),
-      rootPath: options.rootPath ?? "/private/tmp/LOCOMO-full10/cases.json",
+      reportPath,
+      rootPath,
     });
     judgePrompt = (c) => ({
       maxTokens: 300,
@@ -663,41 +1290,85 @@ async function main(): Promise<void> {
     });
     parseVerdict = parseCorrectWrong;
   } else {
+    const reportPath =
+      options.reportPath ??
+      join(
+        repoRoot,
+        "reports/eval/research/phase-63/beam/run-p5-beam-closure-rules-abstfmt-gpt54judge/live-slice-report.json",
+      );
+    const rubricsPath =
+      options.rubricsPath ??
+      `${process.env.HOME}/.goodmemory-beam/rubrics-by-question-id.json`;
+    const sourceInputs = { reportPath, rubricsPath };
+    assertOfficialRescoreSourceInputsOutsideOutputDir({
+      outputDir,
+      sourceInputs,
+    });
+    const sourceInputFingerprints = await readOfficialRescoreSourceInputFingerprints(sourceInputs);
+    await ensureOfficialRescoreRunIdentity(
+      runIdentityPath,
+      progressPath,
+      buildOfficialRescoreRunIdentity({
+        benchmark,
+        judgeModel,
+        limit,
+        runId,
+        sourceInputFingerprints,
+        sourceInputs,
+      }),
+    );
     await runBeamRubricRescore({
       concurrency,
+      generatedAt,
       limit,
       outputDir,
       progressPath,
-      reportPath:
-        options.reportPath ??
-        join(
-          repoRoot,
-          "reports/eval/research/phase-63/beam/run-p5-beam-closure-rules-abstfmt-gpt54judge/live-slice-report.json",
-        ),
-      rubricsPath:
-        options.rubricsPath ??
-        `${process.env.HOME}/.goodmemory-beam/rubrics-by-question-id.json`,
+      reportPath,
+      rubricsPath,
       runId,
+      sourceInputFingerprints,
     });
     return;
   }
 
+  await ensureOfficialRescoreRunIdentity(
+    runIdentityPath,
+    progressPath,
+    buildOfficialRescoreRunIdentity({
+      benchmark,
+      judgeModel,
+      limit,
+      runId,
+      sourceInputFingerprints,
+      sourceInputs,
+    }),
+  );
+
+  const sourceCaseCount = cases.length;
   if (limit !== undefined) {
     cases = cases.slice(0, limit);
   }
+  const selectedCaseCount = cases.length;
+  const selectedQuestionIds = new Set(cases.map((c) => c.questionId));
 
   const done = new Map<string, boolean>();
   try {
-    for (const line of (await readFile(progressPath, "utf8")).split("\n")) {
-      if (!line.trim()) continue;
-      try {
-        const row = JSON.parse(line) as { correct: boolean; questionId: string };
-        done.set(row.questionId, row.correct);
-      } catch {
-        // torn tail line from a killed run - ignore
-      }
+    const rows = readOfficialRescoreProgressRows(
+      await readFile(progressPath, "utf8"),
+      progressPath,
+    );
+    requireOfficialRescoreProgressRowsWithinSelection(
+      rows,
+      selectedQuestionIds,
+      progressPath,
+    );
+    for (const row of rows) {
+      done.set(row.questionId, row.correct);
     }
-  } catch {
+  } catch (error) {
+    if (!isMissingFileError(error)) {
+      throw error;
+    }
     // fresh run
   }
   const pending = cases.filter((c) => !done.has(c.questionId));
@@ -734,6 +1405,10 @@ async function main(): Promise<void> {
   await Promise.all(
     Array.from({ length: Math.max(1, Math.min(concurrency, pending.length)) }, () => worker()),
   );
+  requireOfficialRescoreCompleteJudging({
+    failureCount: failures,
+    label: benchmark,
+  });
 
   const byCategory = new Map<string, { correct: number; total: number }>();
   for (const c of cases) {
@@ -746,8 +1421,23 @@ async function main(): Promise<void> {
   }
   const judged = [...done.entries()].filter(([id]) => cases.some((c) => c.questionId === id));
   const overallCorrect = judged.filter(([, v]) => v).length;
+  const summaryPath = join(outputDir, "rescore-summary.json");
   const summary = {
-    benchmark,
+    ...buildOfficialRescoreMetadata({
+      benchmark,
+      generatedAt,
+      judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
+      limit,
+      outputPath: summaryPath,
+      runId,
+      sourceInputs,
+      sourceInputFingerprints,
+    }),
+    ...buildOfficialRescoreScopeMetadata({
+      benchmark,
+      selectedCaseCount,
+      sourceCaseCount,
+    }),
     categories: Object.fromEntries(
       [...byCategory.entries()].map(([category, bucket]) => [
         category,
@@ -758,9 +1448,7 @@ async function main(): Promise<void> {
         },
       ]),
     ),
-    generatedBy: "scripts/rescore-official-protocols.ts",
     judgeFailures: failures,
-    judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
     judgedCases: judged.length,
     overallAccuracy: judged.length === 0 ? null : overallCorrect / judged.length,
     overallCorrect,
@@ -770,11 +1458,9 @@ async function main(): Promise<void> {
         : benchmark === "locomo"
           ? "mem0ai/memory-benchmarks LoCoMo judge (no-evidence variant, categories 1-4)"
           : "official BEAM judge prompt",
-    runId,
-    sourceAnswersUnchanged: true,
     totalCases: cases.length,
   };
-  await writeFile(join(outputDir, "rescore-summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+  await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
 }
 

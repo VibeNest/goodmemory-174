@@ -18,7 +18,9 @@ import {
   LOCOMO_PROVIDER_EMBEDDING_TIMEOUT_MS_ENV,
   LOCOMO_ROOT_ENV,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
+  locomoQuestionKey,
   parseLocomoSmokeCliOptions,
+  readLocomoProgressRowsForSelection,
   parseLocomoQuestionIdsFile,
   resolveLocomoQuestionIds,
   runLocomoSmoke,
@@ -3176,6 +3178,63 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
       true,
     );
     expect(report.cases.every((entry) => entry.answerCorrect === null)).toBe(true);
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: join(outputDir, failedRunId, "smoke-report.json"),
+        report: {
+          ...report,
+          executionFailures: report.executionFailures - 1,
+        },
+      }),
+    ).toThrow(
+      `executionFailures ${report.executionFailures - 1} does not match ` +
+        `failed live-answer rows ${report.questionCount}`,
+    );
+
+    const firstFailedCase = report.cases[0];
+    if (!firstFailedCase) {
+      throw new Error("expected at least one failed LoCoMo case");
+    }
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: join(outputDir, failedRunId, "smoke-report.json"),
+        report: {
+          ...report,
+          cases: [
+            {
+              ...firstFailedCase,
+              answerTokenF1: 0.5,
+            },
+          ],
+          questionCount: 1,
+        },
+      }),
+    ).toThrow(
+      `unscored row ${firstFailedCase.caseId}::${firstFailedCase.questionId} ` +
+        "carries answerTokenF1",
+    );
+
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: join(outputDir, failedRunId, "smoke-report.json"),
+        report: {
+          ...report,
+          answerEvaluation: "deferred-to-live-mode",
+          cases: [
+            {
+              ...firstFailedCase,
+              answerTokenF1: 0.75,
+            },
+          ],
+          executionFailures: 0,
+          mode: "retrieval-only",
+          questionCount: 1,
+        },
+      }),
+    ).toThrow(
+      `unscored row ${firstFailedCase.caseId}::${firstFailedCase.questionId} ` +
+        "carries answerTokenF1",
+    );
   });
 
   it("checkpoints one line per completed question and replays them on --resume without reseeding", async () => {
@@ -3239,6 +3298,50 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
         },
       ),
     ).rejects.toThrow("LoCoMo progress config fingerprint mismatch");
+  });
+
+  it("rejects duplicate or out-of-scope progress rows before resume replay", () => {
+    const selectedQuestionKeys = new Set([locomoQuestionKey("case-1", "q1")]);
+    const firstRow = {
+      answerCorrect: true,
+      caseId: "case-1",
+      category: "single_hop",
+      evidenceRecall: 1,
+      evidenceTurnIds: ["D1:1"],
+      generatedAnswer: "answer",
+      goldEvidenceFullyRetrieved: true,
+      missingEvidenceTurnIds: [],
+      noiseTurnCount: 0,
+      noiseTurnIds: [],
+      questionId: "q1",
+      retrievedTurnIds: ["D1:1"],
+    };
+
+    expect(() =>
+      readLocomoProgressRowsForSelection({
+        progressPath,
+        raw: `${JSON.stringify(firstRow)}\n${JSON.stringify({
+          ...firstRow,
+          answerCorrect: false,
+        })}\n`,
+        selectedQuestionKeys,
+      }),
+    ).toThrow(
+      `duplicate LoCoMo progress row for ${locomoQuestionKey("case-1", "q1")}`,
+    );
+
+    expect(() =>
+      readLocomoProgressRowsForSelection({
+        progressPath,
+        raw: `${JSON.stringify({
+          ...firstRow,
+          caseId: "case-2",
+        })}\n`,
+        selectedQuestionKeys,
+      }),
+    ).toThrow(
+      `LoCoMo progress row ${locomoQuestionKey("case-2", "q1")} is outside selected scope`,
+    );
   });
 
   it("re-scores checkpointed live answers on resume with the current scorer", async () => {
@@ -3443,5 +3546,53 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     );
     expect(parsed.length).toBe(1);
     expect(parsed[0]?.questionId).toBe("q1");
+  });
+
+  it("rejects broken checkpoint lines before the tail", async () => {
+    const { parseLocomoProgressLines } = await import(
+      "../../scripts/run-phase-65-locomo-smoke"
+    );
+    const good: Partial<LocomoQuestionRetrieval> = {
+      caseId: "c1",
+      evidenceRecall: 1,
+      questionId: "q1",
+    };
+    expect(() =>
+      parseLocomoProgressLines(
+        `${JSON.stringify(good)}\n{"caseId":"c1","questionId":"q2","evi\n${JSON.stringify({
+          ...good,
+          questionId: "q3",
+        })}\n`,
+      ),
+    ).toThrow("malformed LoCoMo progress line 2");
+  });
+
+  it("rejects malformed checkpoint objects but still skips the config header", async () => {
+    const { parseLocomoProgressLines } = await import(
+      "../../scripts/run-phase-65-locomo-smoke"
+    );
+    const header = {
+      config: {},
+      configFingerprint: "config-sha",
+      kind: "locomo-progress-config",
+    };
+    const good: Partial<LocomoQuestionRetrieval> = {
+      caseId: "c1",
+      evidenceRecall: 1,
+      questionId: "q1",
+    };
+
+    const parsed = parseLocomoProgressLines(
+      `${JSON.stringify(header)}\n${JSON.stringify(good)}\n`,
+    );
+    expect(parsed.length).toBe(1);
+    expect(parsed[0]?.caseId).toBe("c1");
+    expect(parsed[0]?.questionId).toBe("q1");
+
+    expect(() =>
+      parseLocomoProgressLines(
+        `${JSON.stringify(header)}\n{}\n${JSON.stringify(good)}\n`,
+      ),
+    ).toThrow("malformed LoCoMo progress line 2");
   });
 });

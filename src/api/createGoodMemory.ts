@@ -769,7 +769,10 @@ class GoodMemoryImpl implements GoodMemory {
     const assistedExtractor =
       config.adapters?.assistedExtractor ??
       (runtimeResolution.assistedExtractorModelConfig
-        ? config.providers?.extraction?.mode === "conversational"
+        ? // Resolved mode = the raw config predicate plus the recommended
+          // preset's conversational flip; identical to the old inline check
+          // for non-preset configs by construction.
+          runtimeResolution.extractionMode === "conversational"
           ? createProviderConversationalMemoryExtractor({
               model: runtimeResolution.assistedExtractorModelConfig,
               contextualDescriptor:
@@ -840,8 +843,9 @@ class GoodMemoryImpl implements GoodMemory {
       runtime: sessionStore,
       vectorIndex: repositories.vectorIndex,
       embedding: embeddingAdapter,
-      bm25Ranking: config.retrieval?.bm25Ranking,
-      semanticCandidates: config.retrieval?.semanticCandidates,
+      autoStrategyBias: runtimeResolution.retrieval.autoStrategyBias,
+      bm25Ranking: runtimeResolution.retrieval.bm25Ranking,
+      semanticCandidates: runtimeResolution.retrieval.semanticCandidates,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
         ? () => config.testing!.now!().toISOString()

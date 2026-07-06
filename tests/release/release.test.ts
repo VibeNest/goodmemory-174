@@ -311,30 +311,18 @@ async function waitForReleaseBridgeReady(input: {
 
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
-      const response = await fetch(`${input.url}/memory/recall-context`, {
-        body: JSON.stringify({
-          scope: {
-            userId: "python-user",
-            workspaceId: "life-workspace",
-            agentId: "life-coach",
-            sessionId: "release-health-check",
-          },
-          query: "health check",
-        }),
-        headers: {
-          authorization: `Bearer ${input.token}`,
-          "content-type": "application/json",
-          "x-goodmemory-operations":
-            "recall-context,remember,feedback,export,forget,revise",
-          "x-goodmemory-user-id": "python-user",
-          "x-goodmemory-workspace-id": "life-workspace",
-        },
-        method: "POST",
-      });
+      // GET /healthz: auth-free liveness. Probing it here also proves the
+      // endpoint survives packaging, since this hits the packed-tarball bin.
+      const response = await fetch(`${input.url}/healthz`, { method: "GET" });
 
       if (response.status === 200) {
-        await response.arrayBuffer();
-        return;
+        const body = (await response.json()) as {
+          contractVersion?: unknown;
+          ok?: unknown;
+        };
+        if (body.ok === true && typeof body.contractVersion === "string") {
+          return;
+        }
       }
 
       lastError = new Error(`Bridge returned HTTP ${response.status}.`);
@@ -1185,6 +1173,10 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-Standalone-MCP-Setup-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-Cursor-Setup-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-Gemini-CLI-Setup-Guide.md");
+      expect(entries).toContain("package/docs/GoodMemory-OpenCode-Setup-Guide.md");
       expect(entries).not.toContain("package/tests/release/release.test.ts");
       expect(entries).not.toContain("package/task-board/00-README.txt");
       expect(entries).not.toContain("package/reports/quality-gates/phase-28/run-20260421093000/phase-28-quality-gate.json");
@@ -1450,6 +1442,90 @@ describe("release metadata and docs", () => {
 
     expect(mcpServer).toContain("package.json");
     expect(mcpServer).not.toContain('version: "0.1.2"');
+  });
+
+  it("ships the framework cookbooks with the docs index routing them", async () => {
+    const langgraph = await readFile(
+      join(import.meta.dir, "../../docs/cookbooks/langgraph.md"),
+      "utf8",
+    );
+    expect(langgraph).toContain("createGoodMemoryLangGraphStore");
+    expect(langgraph).toContain("BaseStore");
+
+    const openaiAgents = await readFile(
+      join(import.meta.dir, "../../docs/cookbooks/openai-agents-sdk.md"),
+      "utf8",
+    );
+    expect(openaiAgents).toContain("goodmemory-client");
+    expect(openaiAgents).toContain("recall_context");
+
+    const crewai = await readFile(
+      join(import.meta.dir, "../../docs/cookbooks/crewai.md"),
+      "utf8",
+    );
+    expect(crewai).toContain("goodmemory-client");
+    expect(crewai).toContain("GoodMemoryClient");
+
+    const docsIndex = await readFile(
+      join(import.meta.dir, "../../docs/README.md"),
+      "utf8",
+    );
+    expect(docsIndex).toContain("cookbooks/langgraph.md");
+    expect(docsIndex).toContain("cookbooks/openai-agents-sdk.md");
+    expect(docsIndex).toContain("cookbooks/crewai.md");
+  });
+
+  it("ships the standalone MCP guide and per-host recipe docs", async () => {
+    const standaloneGuide = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Standalone-MCP-Setup-Guide.md"),
+      "utf8",
+    );
+    expect(standaloneGuide).toContain("--standalone");
+    expect(standaloneGuide).toContain("GOODMEMORY_USER_ID");
+    expect(standaloneGuide).toContain("GOODMEMORY_MCP_ALLOW_WRITE");
+    expect(standaloneGuide).toContain("--agent-id");
+    // Bun is a hard runtime prerequisite: the goodmemory-mcp bin spawns bun.
+    expect(standaloneGuide).toContain("Bun");
+
+    const cursorGuide = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Cursor-Setup-Guide.md"),
+      "utf8",
+    );
+    expect(cursorGuide).toContain(".cursor/mcp.json");
+    expect(cursorGuide).toContain("goodmemory-mcp");
+
+    const geminiGuide = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-Gemini-CLI-Setup-Guide.md"),
+      "utf8",
+    );
+    expect(geminiGuide).toContain(".gemini/settings.json");
+    expect(geminiGuide).toContain("mcpServers");
+
+    const openCodeGuide = await readFile(
+      join(import.meta.dir, "../../docs/GoodMemory-OpenCode-Setup-Guide.md"),
+      "utf8",
+    );
+    expect(openCodeGuide).toContain("opencode.json");
+    expect(openCodeGuide).toContain('"type": "local"');
+
+    const docsIndex = await readFile(
+      join(import.meta.dir, "../../docs/README.md"),
+      "utf8",
+    );
+    expect(docsIndex).toContain("GoodMemory-Standalone-MCP-Setup-Guide.md");
+    expect(docsIndex).toContain("GoodMemory-Cursor-Setup-Guide.md");
+    expect(docsIndex).toContain("GoodMemory-Gemini-CLI-Setup-Guide.md");
+    expect(docsIndex).toContain("GoodMemory-OpenCode-Setup-Guide.md");
+
+    const readme = await readFile(join(import.meta.dir, "../../README.md"), "utf8");
+    expect(readme).toContain("goodmemory-mcp --standalone");
+    expect(readme).toContain("GoodMemory-Standalone-MCP-Setup-Guide.md");
+    const zhReadme = await readFile(
+      join(import.meta.dir, "../../README.zh-CN.md"),
+      "utf8",
+    );
+    expect(zhReadme).toContain("goodmemory-mcp --standalone");
+    expect(zhReadme).toContain("GoodMemory-Standalone-MCP-Setup-Guide.md");
   });
 
   it("readme ships a Simplified Chinese product entrypoint", async () => {

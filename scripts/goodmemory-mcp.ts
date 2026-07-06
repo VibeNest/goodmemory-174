@@ -1,21 +1,35 @@
 #!/usr/bin/env bun
 import { serveGoodMemoryMcp } from "../src/install/hostMcpServer";
-
-function parseHost(argv: string[]): "claude" | "codex" {
-  const hostFlagIndex = argv.findIndex((token) => token === "--host");
-  const hostValue =
-    hostFlagIndex >= 0 ? argv[hostFlagIndex + 1] : undefined;
-
-  if (hostValue === "claude" || hostValue === "codex") {
-    return hostValue;
-  }
-
-  throw new Error("Missing required flag --host <codex|claude>.");
-}
+import {
+  ensureStandaloneStorageReady,
+  resolveMcpServeOptions,
+} from "../src/install/standaloneMcpContext";
 
 async function main(): Promise<void> {
+  const options = resolveMcpServeOptions({
+    argv: process.argv.slice(2),
+    env: process.env,
+  });
+
+  if (options.mode === "error") {
+    // stderr only: stdout is the MCP stdio transport channel and must stay
+    // clean for the connecting client.
+    process.stderr.write(`${options.message}\n`);
+    process.exit(1);
+  }
+
+  if (options.mode === "standalone") {
+    ensureStandaloneStorageReady(options.config);
+    await serveGoodMemoryMcp({
+      allowWrite: options.allowWrite,
+      standalone: options.config,
+    });
+    return;
+  }
+
   await serveGoodMemoryMcp({
-    host: parseHost(process.argv.slice(2)),
+    allowWrite: options.allowWrite,
+    host: options.host,
   });
 }
 

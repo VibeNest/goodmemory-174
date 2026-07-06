@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { mkdtempSync, existsSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { DEFAULT_INSTALLED_HOST_WRITEBACK } from "../../src/install/hostConfigValidation";
 import {
@@ -178,6 +178,28 @@ describe("resolveMcpServeOptions", () => {
     }
   });
 
+  it("expands sqlite storage urls that start with a home directory marker", () => {
+    const options = resolveMcpServeOptions({
+      argv: [
+        "--standalone",
+        "--user-id",
+        "u-1",
+        "--storage-provider",
+        "sqlite",
+        "--storage-url",
+        "~/.goodmemory/memory.sqlite",
+      ],
+      env: emptyEnv,
+    });
+    expect(options.mode).toBe("standalone");
+    if (options.mode === "standalone") {
+      expect(options.config.storage).toEqual({
+        provider: "sqlite",
+        url: join(homedir(), ".goodmemory", "memory.sqlite"),
+      });
+    }
+  });
+
   it("rejects postgres storage without a url", () => {
     const options = resolveMcpServeOptions({
       argv: ["--standalone", "--user-id", "u-1", "--storage-provider", "postgres"],
@@ -309,9 +331,10 @@ describe("resolveStandaloneMcpContext", () => {
     expect(context.storage).toEqual(baseConfig.storage);
     expect(context.writeback).toEqual(DEFAULT_INSTALLED_HOST_WRITEBACK);
     expect(context.workspaceRoot).toBe(resolve("/tmp/project-a"));
-    // agentId must stay undefined by default: a defined agentId is a hard
-    // scope filter, and standalone reads should see records written by any
-    // installed host (claude/codex) in the same store.
+    // agentId stays undefined by default. Per the default scope guard's
+    // containment rule, that means standalone sees agent-less records only;
+    // reading an installed host's agent-tagged memory is an explicit opt-in
+    // via --agent-id.
     expect(context.scope).toEqual({
       agentId: undefined,
       sessionId: undefined,

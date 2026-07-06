@@ -8,6 +8,7 @@ import type {
   GoodMemoryConfig,
   RecallResult,
 } from "../api/contracts";
+import type { HostKind } from "../domain/hostTypes";
 import { scopeToKey, type MemoryScope } from "../domain/scope";
 import { createHostAdapter } from "../host";
 import {
@@ -17,9 +18,9 @@ import {
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
+  type HostMemoryRuntimeContext,
   type InstalledHostContextDependencies,
   type InstalledHostContextInput,
-  type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import {
@@ -27,6 +28,11 @@ import {
   readInstalledHostProgressiveRecordCache,
   resolveInstalledHostProgressiveScopeDigest,
 } from "./hostProgressiveRecall";
+import {
+  resolveStandaloneMcpContext,
+  type StandaloneMcpConfig,
+  type StandaloneMcpPerCallInput,
+} from "./standaloneMcpContext";
 
 const DEFAULT_CONTEXT_OUTPUT: BuildContextInput["output"] =
   "developer_prompt_fragment";
@@ -63,29 +69,59 @@ const TOOL_SCOPE_SCHEMA = {
   sessionId: z.string().optional().describe("Optional host session id for session-scoped recall."),
 };
 
-export async function serveGoodMemoryMcp(input: {
-  dependencies?: GoodMemoryMcpServerDependencies;
-  host: InstalledHostKind;
-}): Promise<void> {
-  const server = createGoodMemoryMcpServer({
-    dependencies: input.dependencies,
-    host: input.host,
-  });
+// Installed mode reads the managed host config (`goodmemory setup`);
+// standalone mode synthesizes the same runtime context from explicit config,
+// so any MCP client can run the server without an installed host.
+export type GoodMemoryMcpServerInput =
+  | {
+      // Registers the opt-in goodmemory_remember write tool. Default false:
+      // the served surface stays read-only.
+      allowWrite?: boolean;
+      dependencies?: GoodMemoryMcpServerDependencies;
+      host: InstalledHostKind;
+      standalone?: undefined;
+    }
+  | {
+      allowWrite?: boolean;
+      dependencies?: GoodMemoryMcpServerDependencies;
+      host?: undefined;
+      standalone: StandaloneMcpConfig;
+    };
+
+export async function serveGoodMemoryMcp(
+  input: GoodMemoryMcpServerInput,
+): Promise<void> {
+  const server = createGoodMemoryMcpServer(input);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   await waitForTransportShutdown();
 }
 
-export function createGoodMemoryMcpServer(input: {
-  dependencies?: GoodMemoryMcpServerDependencies;
-  host: InstalledHostKind;
-}): McpServer {
+export function createGoodMemoryMcpServer(
+  input: GoodMemoryMcpServerInput,
+): McpServer {
   const server = new McpServer({
     name: "goodmemory-mcp",
     version: readPackageVersion(),
   });
   const dependencies = input.dependencies ?? {};
   const progressiveServices = new Map<string, ProgressiveRecallService>();
+  const hostLabel: HostKind = input.standalone ? "generic" : input.host;
+  const loadContext = async (
+    args: StandaloneMcpPerCallInput,
+  ): Promise<(HostMemoryRuntimeContext & { memory: GoodMemory }) | { error: string }> => {
+    if (input.standalone) {
+      const context = resolveStandaloneMcpContext(input.standalone, args);
+      return {
+        ...context,
+        memory: createInstalledHostMemory(context, dependencies),
+      };
+    }
+    return loadInstalledHostExecutionContext(
+      { ...args, host: input.host },
+      dependencies,
+    );
+  };
 
   server.registerTool(
     "goodmemory_get_context",
@@ -103,16 +139,12 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          maxTokens: args.maxTokens,
-          retrievalProfile: args.retrievalProfile,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        maxTokens: args.maxTokens,
+        retrievalProfile: args.retrievalProfile,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -151,14 +183,10 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -189,15 +217,11 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          retrievalProfile: args.retrievalProfile,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        retrievalProfile: args.retrievalProfile,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -232,15 +256,11 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          retrievalProfile: args.retrievalProfile,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        retrievalProfile: args.retrievalProfile,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -276,15 +296,11 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          retrievalProfile: args.retrievalProfile,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        retrievalProfile: args.retrievalProfile,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -317,14 +333,10 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -348,7 +360,7 @@ export function createGoodMemoryMcpServer(input: {
         });
         if (fallbackScopeDigest) {
           const cachedRecords = await readInstalledHostProgressiveRecordCache({
-            host: input.host,
+            host: hostLabel,
             recordRefs: args.recordRefs,
             scopeDigest: fallbackScopeDigest,
           }).catch(() => []);
@@ -377,20 +389,16 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
 
       const adapter = createHostAdapter({
-        hostKind: input.host,
+        hostKind: hostLabel,
         id: "goodmemory-mcp",
         memory: context.memory,
       });
@@ -418,14 +426,10 @@ export function createGoodMemoryMcpServer(input: {
       },
     },
     async (args) => {
-      const context = await loadInstalledHostExecutionContext(
-        {
-          cwd: args.cwd,
-          host: input.host,
-          sessionId: args.sessionId,
-        },
-        dependencies,
-      );
+      const context = await loadContext({
+        cwd: args.cwd,
+        sessionId: args.sessionId,
+      });
       if ("error" in context) {
         return buildMcpErrorResult(context.error);
       }
@@ -460,11 +464,70 @@ export function createGoodMemoryMcpServer(input: {
     },
   );
 
+  if (input.allowWrite === true) {
+    server.registerTool(
+      "goodmemory_remember",
+      {
+        annotations: {
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+          readOnlyHint: false,
+        },
+        description:
+          "Use this to persist a memory-worthy statement as durable GoodMemory. The write is governed: classification and dedupe may reject or merge it (see accepted/rejected in the result).",
+        inputSchema: {
+          ...TOOL_SCOPE_SCHEMA,
+          content: z.string().min(1).describe("The memory-worthy statement to persist."),
+          extractionStrategy: z.enum(["auto", "rules-only", "llm-assisted"]).optional(),
+          locale: z.string().optional(),
+          role: z
+            .enum(["user", "assistant"])
+            .optional()
+            .describe("Message role for governance. Defaults to assistant; pass user only for user-originated content."),
+        },
+      },
+      async (args) => {
+        const context = await loadContext({
+          cwd: args.cwd,
+          sessionId: args.sessionId,
+        });
+        if ("error" in context) {
+          return buildMcpErrorResult(context.error);
+        }
+
+        const result = await context.memory.remember({
+          extractionStrategy: args.extractionStrategy,
+          locale: args.locale,
+          messages: [
+            {
+              content: args.content,
+              role: args.role ?? "assistant",
+            },
+          ],
+          scope: context.scope,
+        });
+        return buildMcpStructuredResult({
+          accepted: result.accepted,
+          events: result.events,
+          memoryIds: result.events
+            .map((event) => event.memoryId)
+            .filter((memoryId): memoryId is string => memoryId !== undefined),
+          rejected: result.rejected,
+          scope: context.scope,
+          storage: {
+            provider: context.storage?.provider,
+          },
+        });
+      },
+    );
+  }
+
   return server;
 }
 
 async function getProgressiveRecallService(
-  context: InstalledHostResolvedContext,
+  context: HostMemoryRuntimeContext,
   dependencies: InstalledHostContextDependencies,
   cache: Map<string, ProgressiveRecallService>,
 ): Promise<ProgressiveRecallService> {
@@ -489,7 +552,7 @@ async function getProgressiveRecallService(
 }
 
 async function resolveCacheFallbackScopeDigest(input: {
-  context: InstalledHostResolvedContext;
+  context: HostMemoryRuntimeContext;
   error: unknown;
   recordRefs: string[];
 }): Promise<string | null> {
@@ -531,7 +594,7 @@ async function loadInstalledHostExecutionContext(
   input: InstalledHostContextInput,
   dependencies: InstalledHostContextDependencies,
 ): Promise<
-  | (InstalledHostResolvedContext & { memory: GoodMemory })
+  | (HostMemoryRuntimeContext & { memory: GoodMemory })
   | { error: string }
 > {
   const resolved = await resolveInstalledHostContext(

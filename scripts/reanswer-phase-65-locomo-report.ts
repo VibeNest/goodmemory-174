@@ -88,6 +88,11 @@ function parseStringListFlag(
       if (trimmed.length === 0) {
         throw new Error(`${flagName} contains an empty value.`);
       }
+      if (trimmed !== value) {
+        throw new Error(
+          `${flagName} contains a value with leading or trailing whitespace.`,
+        );
+      }
       values.push(trimmed);
     }
     index += 1;

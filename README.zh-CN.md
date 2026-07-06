@@ -257,6 +257,35 @@ goodmemory uninstall codex
 - 深度 inspection：`goodmemory mcp serve --host codex` 和 `goodmemory-mcp --host codex` 暴露只读 context、trace、stats 与 artifact tools。
 - 可选 writeback：`session-stop` 与显式 writeback 命令可以把经过筛选的 after-response 信号写入 durable memory。
 
+## Standalone MCP：任意 MCP 客户端接入
+
+没有托管安装路径的 host（Cursor、Windsurf、Cline、Claude Desktop、Gemini CLI、
+OpenCode 或你自己的 MCP 客户端）可以用 standalone 模式运行同一个 MCP
+server——不需要 `goodmemory setup`，也不需要任何 host 配置文件。scope 与
+storage 来自 flags/env；服务面与已安装模式相同（8 个只读工具 + 可选的受治理写工具）：
+
+```json
+{
+  "mcpServers": {
+    "goodmemory": {
+      "command": "goodmemory-mcp",
+      "args": ["--standalone", "--user-id", "YOUR_USER_ID"]
+    }
+  }
+}
+```
+
+等价命令：`goodmemory-mcp --standalone --user-id <id>`（需要 PATH 上有
+Bun；`GOODMEMORY_USER_ID` 是 flag 的 env 回退）。`--allow-write`（或
+`GOODMEMORY_MCP_ALLOW_WRITE=1`）注册 `goodmemory_remember` 写工具，写入走
+正常的受治理 remember 管线。已安装 host 写入的记忆带 agent 标签、默认对其
+私有；加 `--agent-id codex` 并共享 `--storage-url` 才能选入读取。完整
+flag/env 矩阵、scope 说明与各 host 配方见
+[docs/GoodMemory-Standalone-MCP-Setup-Guide.md](./docs/GoodMemory-Standalone-MCP-Setup-Guide.md)
+（[Cursor](./docs/GoodMemory-Cursor-Setup-Guide.md) ·
+[Gemini CLI](./docs/GoodMemory-Gemini-CLI-Setup-Guide.md) ·
+[OpenCode](./docs/GoodMemory-OpenCode-Setup-Guide.md)）。
+
 ## Installed Host Writeback：已安装主机写回
 
 Installed Host Writeback 是 opt-in 的。runtime 默认配置和新的脚本化安装在没有显式选择时仍保持 `off`；已有配置在没有显式 override 时保持当前 writeback 模式，可能是 `off`、`observe` 或 `selective`。新的交互式安装会推荐 `observe`，让候选先可见，而不是直接写入长期记忆。
@@ -444,9 +473,47 @@ server 集成先从 thin examples 开始：
 [examples/fastify-chat-server.ts](./examples/fastify-chat-server.ts)。
 Python/FastAPI 后端使用下文的 packaged `goodmemory-http-bridge` 路径。
 
-## 可选 Recall 调优：多跳、离线 Embedding 与对话事实抽取
+## 可选 Recall 调优：推荐 preset、多跳、本地 Embedding 与对话事实抽取
 
-下面这些选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，默认抽取也保持不变，不开启就不会改变行为。
+下面这些选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，默认抽取也保持不变，不开启就不会改变行为。推荐 preset 是唯一带硬性要求的开关：没有神经 embedding 端点时它在构造期直接抛错，而不是静默降级。
+
+### 一键推荐检索 preset
+
+`retrieval.preset: "recommended"` 用一个 flag 启用公开 LoCoMo claim 所用配置档的检索+抽取侧：
+
+```ts
+const memory = createGoodMemory({
+  retrieval: { preset: "recommended" },
+});
+```
+
+激活后它会：(a) 启用语义候选并集（`topK: 16`，噪声预算由引擎从 topK 派生）；(b) 把 `auto` 路由偏置到 hybrid，使并集无需逐次传 `strategy: "hybrid"` 就能触发（显式 per-call strategy 仍然优先）；(c) 当抽取模型已可解析（provider 配置或 `GOODMEMORY_ASSISTED_EXTRACTOR_*` env）且 `mode` 未显式设置时，把抽取翻转为 `mode: "conversational"`——它从不注入 provider。显式配置字段永远胜过 preset；不设 `preset` 时零依赖默认逐字节不变。
+
+要求与边界：
+
+- 必须有可解析的神经 embedding 端点（`GOODMEMORY_EMBEDDING_*`、`providers.embedding` 或 `adapters.embeddingAdapter`），否则 `createGoodMemory` 抛错并给出配置指引；零出境的本地路径见下方 Ollama 配方。`createLocalEmbeddingAdapter()` 会被拒绝：哈希词法向量不是语义向量。
+- 用 `inspectGoodMemoryRuntime(memory).retrievalPreset` 检查解析结果——其 `extraction` 字段报告写时那一半是否生效（`"conversational"`）或抽取器不可用/保持原样。
+- preset 只覆盖库配置。LoCoMo claim 还用了 answer 侧的 abstention 格式 prompt（属于应用的回答步骤），而 LongMemEval 公开 claim 用的是 rules-only 配置档——两者都不受此 preset 影响。
+- 与 `bm25Ranking: true` 同开会把加法排序槽从神经分数换成 BM25、偏离 claims 配置档；preset 从不设置它。
+- 若你用 env 解析抽取并采用 preset，写时输出会变为会话式原子事实；退路是显式 `providers.extraction` 对象加 `mode: "default"`。
+
+### 本地 embedding 端点（Ollama）
+
+推荐 preset 需要神经 embedding 端点，但这不要求数据出境：`GOODMEMORY_EMBEDDING_BASE_URL` 接受任何 OpenAI-compatible 的 `/v1/embeddings` 端点，包括本地 Ollama。
+
+```bash
+ollama pull nomic-embed-text        # 或 bge-m3（更强的多语言召回）
+
+export GOODMEMORY_EMBEDDING_PROVIDER=openai
+export GOODMEMORY_EMBEDDING_BASE_URL=http://localhost:11434/v1
+export GOODMEMORY_EMBEDDING_MODEL=nomic-embed-text
+export GOODMEMORY_EMBEDDING_API_KEY=ollama   # 任意占位值；Ollama 忽略它，但变量必须设置
+```
+
+- `provider` 保持 `openai`：它选择的是 OpenAI-compatible 线协议，不是厂商。
+- 一个存储只用一个 embedding 模型：不同模型/维度的向量不可比，换模型意味着重新 remember（重嵌入）语料。
+- 本地 embedding 质量与 `text-embedding-3-small` 不同；公开 LoCoMo 数字用的是 OpenAI 端点。此配方以零出境复现机制，不复现精确数字。
+- 这不是下方的 `createLocalEmbeddingAdapter()`——那是哈希词法、非语义，且会被推荐 preset 拒绝。
 
 ### 可选多跳 recall（multiHop）
 
@@ -689,6 +756,20 @@ headers，调用 `POST /memory/recall-context`、`/memory/remember`、
 `/memory/feedback`、`/memory/export`、`/memory/forget`，以及只接受显式
 `memoryId` 的 `/memory/revise`。TypeScript bridge API 从 `goodmemory/http`
 导入。
+
+也可以用 Docker 一条命令部署（自带 SQLite volume；加 compose 的 `postgres`
+profile 可切 pgvector）：
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN="replace-with-service-token" docker compose up -d
+curl -fsS http://127.0.0.1:8739/healthz
+```
+
+`GET /healthz` 是免认证的存活探针，供容器、负载均衡与客户端 ready-wait 使用。
+Python 后端建议使用官方客户端——`pip install goodmemory-client`——它从一个
+`Scope` 对象派生 caller headers、逐端点镜像冪等键规则，并在 recall 结果上暴露
+`routing`（静默的策略降级由此可见）。详见
+[docs/GoodMemory-Python-HTTP-Integration-Bridge.md](./docs/GoodMemory-Python-HTTP-Integration-Bridge.md)。
 
 ## Host Adapter API
 

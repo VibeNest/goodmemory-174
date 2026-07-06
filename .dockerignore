@@ -1,0 +1,8 @@
+# Whitelist build context: everything out, then only what the bridge needs.
+*
+!package.json
+!bun.lock
+!tsconfig.json
+!src
+!scripts/goodmemory-http-bridge.ts
+src/**/*.test.ts

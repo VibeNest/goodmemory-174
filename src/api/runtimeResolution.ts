@@ -1,6 +1,10 @@
 import { resolve } from "node:path";
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
 import { isModelProviderId } from "../provider/model-provider";
+import {
+  resolveGoodMemoryRetrievalRuntime,
+  type ResolvedGoodMemoryRetrieval,
+} from "./retrievalPreset";
 import type {
   GoodMemoryConfig,
   GoodMemoryEmbeddingProviderConfig,
@@ -75,6 +79,12 @@ export interface GoodMemoryRuntimeResolution {
   embeddingModelConfig: AISDKModelConfig | null;
   explicitAdaptersConfigured: boolean;
   explicitStorageConfigured: boolean;
+  // Effective write-time extraction mode: the raw config predicate, plus the
+  // recommended preset's conversational flip when an extractor model resolves.
+  extractionMode: "conversational" | "default";
+  // Retrieval config after preset expansion (passthrough by reference when no
+  // preset is set); the engine consumes this, never the raw config.
+  retrieval: ResolvedGoodMemoryRetrieval;
   runtimeCapabilities: GoodMemoryRuntimeCapabilities;
   storageAdapterOverrides: GoodMemoryStorageAdapterOverride[];
   storagePlan: StoragePlan;
@@ -290,7 +300,7 @@ export function resolveStoragePlan(input: {
 }
 
 export function resolveGoodMemoryRuntimeResolution(input: {
-  config: Pick<GoodMemoryConfig, "adapters" | "providers" | "storage">;
+  config: Pick<GoodMemoryConfig, "adapters" | "providers" | "retrieval" | "storage">;
   env?: EnvironmentMap;
   cwd?: string;
   runtimeCapabilities?: GoodMemoryRuntimeCapabilitiesInput;
@@ -307,16 +317,26 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     : resolveAssistedExtractorModelConfigFromProviderConfig(
         input.config.providers?.extraction,
       ) ?? resolveAssistedExtractorModelConfigFromEnv(env);
+  const embeddingEnabled = Boolean(
+    input.config.adapters?.embeddingAdapter || embeddingModelConfig,
+  );
+  const retrievalRuntime = resolveGoodMemoryRetrievalRuntime({
+    adapters: input.config.adapters,
+    assistedExtractorModelConfigured: Boolean(assistedExtractorModelConfig),
+    embeddingEnabled,
+    extraction: input.config.providers?.extraction,
+    retrieval: input.config.retrieval,
+  });
 
   return {
     assistedExtractionEnabled: Boolean(
       input.config.adapters?.assistedExtractor || assistedExtractorModelConfig,
     ),
     assistedExtractorModelConfig,
-    embeddingEnabled: Boolean(
-      input.config.adapters?.embeddingAdapter || embeddingModelConfig,
-    ),
+    embeddingEnabled,
     embeddingModelConfig,
+    extractionMode: retrievalRuntime.extractionMode,
+    retrieval: retrievalRuntime.retrieval,
     explicitAdaptersConfigured: hasExplicitAdaptersConfigured(input.config.adapters),
     explicitStorageConfigured: hasExplicitStorageConfigured(input.config.storage),
     runtimeCapabilities,
@@ -442,8 +462,14 @@ export function resolveEmbeddingModelConfigFromEnv(
   ].filter(Boolean) as string[];
 
   if (missingVars.length > 0) {
+    // A base URL with a missing key usually means a local OpenAI-compatible
+    // endpoint (Ollama ignores the key, but the variable stays required).
+    const localEndpointHint =
+      baseURL && missingVars.length === 1 && !apiKey
+        ? " (local OpenAI-compatible endpoints such as Ollama accept any placeholder value, e.g. GOODMEMORY_EMBEDDING_API_KEY=ollama)"
+        : "";
     throw new Error(
-      `Missing required ${EMBEDDING_ENV_PREFIX} environment variables: ${missingVars.join(", ")}`,
+      `Missing required ${EMBEDDING_ENV_PREFIX} environment variables: ${missingVars.join(", ")}${localEndpointHint}`,
     );
   }
 

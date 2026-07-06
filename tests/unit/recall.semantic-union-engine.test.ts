@@ -57,6 +57,7 @@ function makeFact(id: string, content: string) {
 }
 
 async function buildEngine(input: {
+  autoStrategyBias?: "hybrid";
   embedding?: boolean;
   semanticCandidates?: RecallSemanticCandidatesConfig;
   extraFactIds?: string[];
@@ -100,6 +101,9 @@ async function buildEngine(input: {
   const engine = createRecallEngine({
     repositories,
     runtime: sessionStore,
+    ...(input.autoStrategyBias
+      ? { autoStrategyBias: input.autoStrategyBias }
+      : {}),
     ...(input.embedding === false ? {} : { embedding }),
     ...(input.semanticCandidates
       ? { semanticCandidates: input.semanticCandidates }
@@ -109,6 +113,37 @@ async function buildEngine(input: {
 }
 
 describe("semantic candidate-generation union (engine)", () => {
+  it("fires under auto strategy when the engine carries the hybrid bias", async () => {
+    const { engine } = await buildEngine({
+      autoStrategyBias: "hybrid",
+      semanticCandidates: { topK: 4 },
+    });
+    // No per-call strategy: the preset-driven bias must resolve auto→hybrid.
+    const biased = await engine.recall({
+      scope,
+      query: QUERY,
+      retrievalProfile: "general_chat",
+    });
+    expect(biased.facts.map((fact) => fact.id)).toContain("fact-gold");
+    expect(
+      biased.metadata.candidateTraces.some(
+        (entry) => entry.fallback === "semantic_union" && entry.returned,
+      ),
+    ).toBe(true);
+    expect(biased.metadata.routingDecision.strategy).toBe("hybrid");
+
+    // Control: same config without the bias keeps today's auto→rules-only.
+    const { engine: unbiased } = await buildEngine({
+      semanticCandidates: { topK: 4 },
+    });
+    const plain = await unbiased.recall({
+      scope,
+      query: QUERY,
+      retrievalProfile: "general_chat",
+    });
+    expect(plain.facts.map((fact) => fact.id)).not.toContain("fact-gold");
+  });
+
   it("admits a zero-lexical-overlap fact with full attribution, skips stale rows and zero-signal candidates", async () => {
     const { engine } = await buildEngine({ semanticCandidates: { topK: 4 } });
     const result = await engine.recall({

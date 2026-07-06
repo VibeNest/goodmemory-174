@@ -1,4 +1,5 @@
 import type { GoodMemory } from "./contracts";
+import type { GoodMemoryRetrievalPresetStatus } from "./retrievalPreset";
 import {
   type GoodMemoryRuntimeResolution,
   resolveGoodMemoryRuntimeResolution,
@@ -89,6 +90,9 @@ export interface GoodMemoryRuntimeInfo {
   embeddingEnabled: boolean;
   explicitAdaptersConfigured: boolean;
   explicitStorageConfigured: boolean;
+  // Present exactly when retrieval.preset was requested; `extraction` reports
+  // whether the write-time half of the profile engaged.
+  retrievalPreset?: GoodMemoryRetrievalPresetStatus;
   storage: GoodMemoryStorageRuntimeInfo;
 }
 
@@ -221,6 +225,9 @@ export function buildGoodMemoryRuntimeInfo(
     embeddingEnabled: resolution.embeddingEnabled,
     explicitAdaptersConfigured: resolution.explicitAdaptersConfigured,
     explicitStorageConfigured: resolution.explicitStorageConfigured,
+    ...(resolution.retrieval.preset
+      ? { retrievalPreset: resolution.retrieval.preset }
+      : {}),
     storage: resolveStorageRuntimeInfo(resolution),
   };
 }

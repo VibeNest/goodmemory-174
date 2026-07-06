@@ -68,6 +68,10 @@ export interface RoutingDecision {
 export interface RecallRoutingInput {
   retrievalProfile?: RetrievalProfile;
   strategy?: RecallRouterStrategy;
+  // Set by retrieval.preset resolution (never a public per-call knob): biases
+  // "auto" to hybrid whenever semantic search is available, so the semantic
+  // candidate union fires without an explicit per-call strategy.
+  autoStrategyBias?: "hybrid";
   availability?: Partial<RecallRouterAvailability>;
   query: string;
   runtime: RecallRuntimeAvailability;
@@ -94,6 +98,7 @@ export function resolveRetrievalProfile(
 
 export function resolveRouterStrategy(input: {
   strategy?: RecallRouterStrategy;
+  autoStrategyBias?: "hybrid";
   availability?: Partial<RecallRouterAvailability>;
   autoSignals?: AutoRouterSignals;
 }): RouterStrategyExplanation {
@@ -102,9 +107,8 @@ export function resolveRouterStrategy(input: {
   const llmRoutingAvailable = input.availability?.llmRouting === true;
 
   if (requestedStrategy === "auto") {
-    const shouldUseHybrid = Boolean(
-      semanticSearchAvailable &&
-        input.autoSignals &&
+    const signalHybrid = Boolean(
+      input.autoSignals &&
         (
           input.autoSignals.retrievalProfile === "coding_agent" ||
           input.autoSignals.continuation ||
@@ -116,13 +120,19 @@ export function resolveRouterStrategy(input: {
           input.autoSignals.supportSlots.includes("project_state_support")
         ),
     );
+    const shouldUseHybrid =
+      semanticSearchAvailable &&
+      (input.autoStrategyBias === "hybrid" || signalHybrid);
 
     if (shouldUseHybrid) {
       return {
         requestedStrategy,
         resolvedStrategy: "hybrid",
-        summary:
-          "auto routing enabled hybrid recall because the query needs continuation, references, or action-driving semantic support while keeping rules-first priorities as the hard floor.",
+        // Signal-driven hybrid keeps its summary verbatim (pinned by tests);
+        // the bias-only path carries its own attribution.
+        summary: signalHybrid
+          ? "auto routing enabled hybrid recall because the query needs continuation, references, or action-driving semantic support while keeping rules-first priorities as the hard floor."
+          : "auto routing enabled hybrid recall because the recommended retrieval preset biases auto routing to hybrid whenever semantic search is available, keeping rules-first priorities as the hard floor.",
         hardFloor: "lexical_runtime_procedural_priors",
         semanticTieBreaking: true,
         llmRefinement: false,
@@ -264,6 +274,7 @@ export function planRecall(input: RecallRoutingInput): RoutingDecision {
   }
   const strategyExplanation = resolveRouterStrategy({
     strategy: input.strategy,
+    autoStrategyBias: input.autoStrategyBias,
     availability: input.availability,
     autoSignals: {
       retrievalProfile,

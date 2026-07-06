@@ -549,6 +549,37 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     ]);
   });
 
+  it("records selected near-miss row counts in source report lineage", () => {
+    const nearMiss = question({
+      answer: "Switch",
+      gold: "Nintendo Switch OLED console",
+      questionId: "q-under",
+    });
+    const extraCandidateRow = question({
+      answer: "Nintendo",
+      gold: "Nintendo",
+      questionId: "q-not-selected",
+    });
+    const analysis = analyzeLocomoNearMissLabels({
+      benchmarkCases: JSON.parse(locomoCasesJson()).cases,
+      candidate: candidateReport([nearMiss, extraCandidateRow]),
+      candidatePath: CANDIDATE_REPORT_PATH,
+      generatedAt: "2026-07-04T02:50:00.000Z",
+      liveDelta: liveDelta([nearMissDelta(nearMiss)]),
+      liveDeltaPath: LIVE_DELTA_PATH,
+      runId: "near-miss-label-analysis",
+    });
+
+    expect(analysis.questionIds).toEqual(["q-under"]);
+    expect(analysis.sourceReports).toEqual([
+      {
+        path: CANDIDATE_REPORT_PATH,
+        questionCount: 1,
+        runId: "candidate-live",
+      },
+    ]);
+  });
+
   it("loads the candidate report and benchmark source from live-delta provenance", async () => {
     const cases = [
       question({

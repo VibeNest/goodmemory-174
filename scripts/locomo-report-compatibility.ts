@@ -2604,6 +2604,17 @@ export function assertLocomoReportQuestionCountMatchesCases(
           `${identity} carries scored answer fields.`,
       );
     }
+    if (
+      question.answerTokenF1 !== undefined &&
+      question.answerTokenF1 !== null &&
+      (question.answerCorrect === null || question.generatedAnswer === null)
+    ) {
+      throw new Error(
+        `Report ${input.path} (${input.report.runId}) unscored row ` +
+          `${identity} carries answerTokenF1; answerTokenF1 must be null or ` +
+          "omitted unless answerCorrect and generatedAnswer are present.",
+      );
+    }
     if (!isLocomoQaCategory(question.category)) {
       throw new Error(
         `Report ${input.path} (${input.report.runId}) row ${identity} ` +
@@ -2704,6 +2715,20 @@ export function assertLocomoReportQuestionCountMatchesCases(
           `does not match unretrieved evidence turns ${JSON.stringify(
             expectedMissingIds,
           )}.`,
+      );
+    }
+  }
+
+  if (input.report.mode === "live-answer") {
+    const failedLiveAnswerRows = input.report.cases.filter(
+      (question) =>
+        question.answerCorrect === null && question.generatedAnswer === null,
+    ).length;
+    if (input.report.executionFailures !== failedLiveAnswerRows) {
+      throw new Error(
+        `Report ${input.path} (${input.report.runId}) executionFailures ` +
+          `${input.report.executionFailures} does not match failed ` +
+          `live-answer rows ${failedLiveAnswerRows}.`,
       );
     }
   }

@@ -1,0 +1,324 @@
+import { describe, expect, it } from "bun:test";
+import { basename, resolve } from "node:path";
+import type {
+  BuildContextInput,
+  ExportMemoryInput,
+  GoodMemory,
+  RecallInput,
+  RememberInput,
+} from "../../src/api/contracts";
+import type { GoodMemoryMcpServerDependencies } from "../../src/install/hostMcpServer";
+import { createGoodMemoryMcpServer } from "../../src/install/hostMcpServer";
+import type { StandaloneMcpConfig } from "../../src/install/standaloneMcpContext";
+
+// Standalone mode serves the same read-only tool surface as installed mode
+// without reading any host config file: the context is synthesized from the
+// standalone config plus per-call arguments.
+
+interface RegisteredMcpTool {
+  annotations?: Record<string, unknown>;
+  description?: string;
+  handler: (args: Record<string, unknown>) => Promise<McpToolResult>;
+}
+
+interface InspectableMcpServer {
+  _registeredTools: Record<string, RegisteredMcpTool>;
+  server: {
+    _serverInfo: {
+      name: string;
+      version: string;
+    };
+  };
+}
+
+interface McpToolResult {
+  content: Array<{ text: string; type: "text" }>;
+  isError?: true;
+  structuredContent?: Record<string, unknown>;
+}
+
+const READ_ONLY_TOOLS = [
+  "goodmemory_get_context",
+  "goodmemory_get_records",
+  "goodmemory_inspect_memory",
+  "goodmemory_read_artifacts",
+  "goodmemory_search_index",
+  "goodmemory_stats",
+  "goodmemory_timeline",
+  "goodmemory_trace_recall",
+];
+
+function inspectServer(server: object): InspectableMcpServer {
+  return server as unknown as InspectableMcpServer;
+}
+
+interface FakeMemoryCalls {
+  buildContext: BuildContextInput[];
+  exportMemory: ExportMemoryInput[];
+  recall: RecallInput[];
+  remember: RememberInput[];
+}
+
+function createFakeMemory(): { calls: FakeMemoryCalls; memory: GoodMemory } {
+  const calls: FakeMemoryCalls = {
+    buildContext: [],
+    exportMemory: [],
+    recall: [],
+    remember: [],
+  };
+  const memory = {
+    remember: async (input: RememberInput) => {
+      calls.remember.push(input);
+      return {
+        accepted: 1,
+        events: [
+          {
+            candidateId: "candidate-1",
+            memoryId: "fact-new",
+            memoryType: "fact",
+            outcome: "written",
+          },
+        ],
+        rejected: 0,
+      };
+    },
+    buildContext: async (input: BuildContextInput) => {
+      calls.buildContext.push(input);
+      return {
+        content: "standalone context",
+        estimatedTokens: 3,
+        omittedSections: [],
+        output: input.output,
+      };
+    },
+    exportMemory: async (input: ExportMemoryInput) => {
+      calls.exportMemory.push(input);
+      return {
+        durable: {
+          archives: [],
+          episodes: [],
+          evidence: [],
+          experiences: [],
+          facts: [],
+          feedback: [],
+          preferences: [],
+          profile: null,
+          promotions: [],
+          proposals: [],
+          references: [],
+        },
+        runtime: null,
+        scope: input.scope,
+      };
+    },
+    recall: async (input: RecallInput) => {
+      calls.recall.push(input);
+      return { facts: [] };
+    },
+  } as unknown as GoodMemory;
+
+  return { calls, memory };
+}
+
+// readFile that always fails: standalone mode must never depend on installed
+// host config files.
+function createConfiglessDependencies(
+  memory: GoodMemory,
+): GoodMemoryMcpServerDependencies {
+  return {
+    createMemory: () => memory,
+    readFile: async (path: string) => {
+      throw Object.assign(new Error(`unexpected config read: ${path}`), {
+        code: "ENOENT" as const,
+      });
+    },
+  };
+}
+
+const STANDALONE_CONFIG: StandaloneMcpConfig = {
+  storage: { provider: "memory" },
+  userId: "standalone-user",
+};
+
+describe("goodmemory mcp server standalone direct handlers", () => {
+  it("registers the same read-only tool surface without any host config", () => {
+    const { memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    expect(server.server._serverInfo.name).toBe("goodmemory-mcp");
+    expect(Object.keys(server._registeredTools).sort()).toEqual(READ_ONLY_TOOLS);
+  });
+
+  it("serves get_context from the synthesized standalone scope", async () => {
+    const { calls, memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_get_context!.handler({
+      cwd: "/tmp/standalone-project",
+      query: "release runbook",
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.content).toBe("standalone context");
+    // Default maxTokens (256) flows through to buildContext.
+    expect(result.structuredContent?.maxTokens).toBe(256);
+    expect(calls.buildContext[0]?.maxTokens).toBe(256);
+    // The standalone scope omits agentId by default (agent-less records
+    // only; --agent-id opts into a specific host's agent-tagged memory).
+    expect(calls.recall[0]?.scope).toEqual({
+      agentId: undefined,
+      sessionId: undefined,
+      tenantId: undefined,
+      userId: "standalone-user",
+      workspaceId: basename(resolve("/tmp/standalone-project")),
+    });
+  });
+
+  it("derives workspaceId from the per-call cwd", async () => {
+    const { calls, memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    await server._registeredTools.goodmemory_stats!.handler({
+      cwd: "/tmp/project-alpha",
+    });
+    await server._registeredTools.goodmemory_stats!.handler({
+      cwd: "/tmp/project-beta",
+    });
+
+    expect(calls.exportMemory[0]?.scope?.workspaceId).toBe("project-alpha");
+    expect(calls.exportMemory[1]?.scope?.workspaceId).toBe("project-beta");
+  });
+
+  it("registers goodmemory_remember only when allowWrite is set", async () => {
+    const { memory } = createFakeMemory();
+
+    const withWrite = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+    expect(Object.keys(withWrite._registeredTools).sort()).toEqual(
+      [...READ_ONLY_TOOLS, "goodmemory_remember"].sort(),
+    );
+    const writeTool = withWrite._registeredTools.goodmemory_remember;
+    expect(writeTool?.description).toContain("durable");
+    expect(writeTool?.annotations?.readOnlyHint).toBe(false);
+
+    // Explicit allowWrite: false keeps the read-only surface.
+    const withoutWrite = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: false,
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+    expect(Object.keys(withoutWrite._registeredTools).sort()).toEqual(
+      READ_ONLY_TOOLS,
+    );
+  });
+
+  it("writes through memory.remember with the standalone scope", async () => {
+    const { calls, memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "The deploy is blocked on smoke verification.",
+      cwd: "/tmp/standalone-project",
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent).toMatchObject({
+      accepted: 1,
+      memoryIds: ["fact-new"],
+      rejected: 0,
+    });
+    expect(calls.remember[0]?.messages).toEqual([
+      {
+        content: "The deploy is blocked on smoke verification.",
+        role: "assistant",
+      },
+    ]);
+    expect(calls.remember[0]?.scope?.userId).toBe("standalone-user");
+    expect("agentId" in (calls.remember[0]?.scope ?? {})).toBe(true);
+    expect(calls.remember[0]?.scope?.agentId).toBeUndefined();
+
+    const asUser = await server._registeredTools.goodmemory_remember!.handler({
+      content: "The user confirmed the rollout completed.",
+      extractionStrategy: "rules-only",
+      role: "user",
+    });
+    expect(asUser.isError).toBeUndefined();
+    expect(calls.remember[1]?.messages[0]?.role).toBe("user");
+    expect(calls.remember[1]?.extractionStrategy).toBe("rules-only");
+  });
+
+  it("routes installed-mode writes through the installed context", async () => {
+    const { memory } = createFakeMemory();
+    // All-ENOENT readFile: installed mode without config must surface the
+    // structured context error, not throw.
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createConfiglessDependencies(memory),
+        host: "codex",
+      }),
+    );
+
+    expect(Object.keys(server._registeredTools)).toContain(
+      "goodmemory_remember",
+    );
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "note",
+    });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent?.error).toContain("missing_global_config");
+  });
+
+  it("honors per-call session and config-level overrides", async () => {
+    const { calls, memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createConfiglessDependencies(memory),
+        standalone: {
+          ...STANDALONE_CONFIG,
+          maxTokens: 96,
+          retrievalProfile: "general_chat",
+          workspaceId: "workspace-fixed",
+        },
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_get_context!.handler({
+      query: "current focus",
+      sessionId: "s-42",
+    });
+
+    expect(result.structuredContent?.maxTokens).toBe(96);
+    expect(calls.recall[0]?.retrievalProfile).toBe("general_chat");
+    expect(calls.recall[0]?.scope?.sessionId).toBe("s-42");
+    expect(calls.recall[0]?.scope?.workspaceId).toBe("workspace-fixed");
+  });
+});

@@ -2797,26 +2797,67 @@ function assertLocomoProgressConfigMatches(input: {
 // by the crash the checkpoint exists to survive) are skipped, not fatal.
 export function parseLocomoProgressLines(raw: string): LocomoQuestionRetrieval[] {
   const results: LocomoQuestionRetrieval[] = [];
-  for (const line of raw.split("\n")) {
+  const lines = raw.split("\n");
+  for (const [lineIndex, line] of lines.entries()) {
     const trimmed = line.trim();
     if (trimmed.length === 0) {
       continue;
     }
+    let value: unknown;
     try {
-      const value = JSON.parse(trimmed) as unknown;
-      if (
-        isRecord(value) &&
-        typeof value.caseId === "string" &&
-        typeof value.questionId === "string" &&
-        typeof value.evidenceRecall === "number"
-      ) {
-        results.push(value as unknown as LocomoQuestionRetrieval);
+      value = JSON.parse(trimmed) as unknown;
+    } catch (error) {
+      if (!(error instanceof SyntaxError && lineIndex === lines.length - 1)) {
+        throw new Error(`malformed LoCoMo progress line ${lineIndex + 1}.`);
       }
-    } catch {
-      // skip partial line
+      // skip a partial tail line from a killed run
+      continue;
     }
+    if (
+      isRecord(value) &&
+      typeof value.caseId === "string" &&
+      typeof value.questionId === "string" &&
+      typeof value.evidenceRecall === "number"
+    ) {
+      results.push(value as unknown as LocomoQuestionRetrieval);
+      continue;
+    }
+    if (
+      isRecord(value) &&
+      value.kind === LOCOMO_PROGRESS_CONFIG_KIND &&
+      typeof value.configFingerprint === "string" &&
+      isRecord(value.config)
+    ) {
+      continue;
+    }
+    throw new Error(`malformed LoCoMo progress line ${lineIndex + 1}.`);
   }
   return results;
+}
+
+export function readLocomoProgressRowsForSelection(input: {
+  progressPath: string;
+  raw: string;
+  selectedQuestionKeys: ReadonlySet<string>;
+}): LocomoQuestionRetrieval[] {
+  const rows = parseLocomoProgressLines(input.raw);
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const key = locomoQuestionKey(row.caseId, row.questionId);
+    if (seen.has(key)) {
+      throw new Error(
+        `duplicate LoCoMo progress row for ${key} at ${input.progressPath}.`,
+      );
+    }
+    seen.add(key);
+    if (!input.selectedQuestionKeys.has(key)) {
+      throw new Error(
+        `LoCoMo progress row ${key} is outside selected scope at ` +
+          `${input.progressPath}.`,
+      );
+    }
+  }
+  return rows;
 }
 
 function rescoreCompletedLocomoResult(
@@ -3067,6 +3108,13 @@ export async function runLocomoSmoke(
     options.providerEmbedding === true;
   const progressPath = join(runDirectory, LOCOMO_LIVE_PROGRESS_FILE_NAME);
   const completed = new Map<string, LocomoQuestionRetrieval>();
+  const selectedQuestionKeys = new Set(
+    cases.flatMap((testCase) =>
+      testCase.questions.map((question) =>
+        locomoQuestionKey(testCase.caseId, question.questionId),
+      ),
+    ),
+  );
   if (checkpointing && options.resume) {
     let progress = "";
     try {
@@ -3080,7 +3128,11 @@ export async function runLocomoSmoke(
         progressPath,
         raw: progress,
       });
-      for (const result of parseLocomoProgressLines(progress)) {
+      for (const result of readLocomoProgressRowsForSelection({
+        progressPath,
+        raw: progress,
+        selectedQuestionKeys,
+      })) {
         completed.set(locomoQuestionKey(result.caseId, result.questionId), result);
       }
     } else {

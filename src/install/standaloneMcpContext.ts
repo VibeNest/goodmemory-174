@@ -1,4 +1,5 @@
 import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { GoodMemoryConfig } from "../api/contracts";
 import { normalizeScope } from "../domain/scope";
@@ -178,9 +179,21 @@ function resolveStandaloneStorage(
   return {
     storage: {
       provider,
-      url: url ?? join(resolveInstallRoot(env.GOODMEMORY_HOME), "standalone.sqlite"),
+      url: resolveStandaloneSqliteUrl(
+        url ?? join(resolveInstallRoot(env.GOODMEMORY_HOME), "standalone.sqlite"),
+      ),
     },
   };
+}
+
+function resolveStandaloneSqliteUrl(url: string): string {
+  if (url === "~") {
+    return homedir();
+  }
+  if (url.startsWith("~/")) {
+    return join(homedir(), url.slice(2));
+  }
+  return url;
 }
 
 // The runtime context shape shared by installed and standalone MCP serving.
@@ -198,9 +211,11 @@ export interface StandaloneMcpPerCallInput {
 // Synthesizes the installed-context shape from standalone config + per-call
 // tool arguments. Pure and synchronous (no config files, no filesystem), so
 // standalone per-call context loading cannot fail. scope.agentId stays
-// undefined unless explicitly configured: a defined agentId is a hard scope
-// filter, and standalone reads should see records written by any installed
-// host sharing the store.
+// undefined unless explicitly configured. Visibility follows the default
+// scope guard's containment rule (passesDefaultScopeGuard): an agent-less
+// scope sees only agent-less records — agent-tagged memories written by an
+// installed host stay private to that agent unless the caller opts in with
+// --agent-id <host>.
 export function resolveStandaloneMcpContext(
   config: StandaloneMcpConfig,
   perCall: StandaloneMcpPerCallInput = {},

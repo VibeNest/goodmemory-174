@@ -301,3 +301,92 @@ describe("recall router", () => {
     expect(plan.sourcePriorities.includes("evidence")).toBe(false);
   });
 });
+
+// The autoStrategyBias seam exists for retrieval.preset "recommended": when
+// the preset is active and an embedding resolves, "auto" routing biases to
+// hybrid so the semantic candidate union fires without a per-call strategy.
+// Explicit strategies bypass the auto branch, so per-call control is intact,
+// and the bias is inert unless set (bare semanticCandidates users unchanged).
+describe("recall router auto-strategy bias", () => {
+  const signalsOff = {
+    actionDriving: false,
+    continuation: false,
+    referenceSeeking: false,
+    requestedSlots: [],
+    retrievalProfile: "general_chat" as const,
+    supportSlots: [],
+  };
+
+  it("biases auto to hybrid with no signals when semantic search is available", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: true },
+    });
+
+    expect(strategy.requestedStrategy).toBe("auto");
+    expect(strategy.resolvedStrategy).toBe("hybrid");
+    expect(strategy.semanticTieBreaking).toBe(true);
+    expect(strategy.summary).toContain("recommended retrieval preset");
+  });
+
+  it("keeps rules-only without the bias (existing behavior)", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      availability: { semanticSearch: true },
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+  });
+
+  it("preserves the signal summary verbatim when signals fire alongside the bias", () => {
+    const withSignals = resolveRouterStrategy({
+      autoSignals: { ...signalsOff, retrievalProfile: "coding_agent" },
+      availability: { semanticSearch: true },
+    });
+    const withBiasAndSignals = resolveRouterStrategy({
+      autoSignals: { ...signalsOff, retrievalProfile: "coding_agent" },
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: true },
+    });
+
+    expect(withBiasAndSignals.resolvedStrategy).toBe("hybrid");
+    expect(withBiasAndSignals.summary).toBe(withSignals.summary);
+  });
+
+  it("stays rules-only when semantic search is unavailable", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: false },
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+  });
+
+  it("never overrides an explicit strategy", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: true },
+      strategy: "rules-only",
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+  });
+
+  it("threads through planRecall", () => {
+    const plan = planRecall({
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: true },
+      query: "What is my current favorite tea?",
+      retrievalProfile: "general_chat",
+      runtime: {
+        hasJournal: false,
+        hasWorkingMemory: false,
+      },
+    });
+
+    expect(plan.strategy).toBe("hybrid");
+  });
+});

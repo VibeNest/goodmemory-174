@@ -1,0 +1,68 @@
+ADR-007: Python Client and Docker Distribution
+==============================================
+
+Status
+------
+Accepted (2026-07-05)
+
+Context
+-------
+The HTTP bridge contract (phase-39.http-memory.v1) is stable, but Python
+consumption existed only as an example script and deployment meant running a
+bare Bun process by hand. The repo had no precedent for non-TypeScript
+packages, no container artifacts, and no liveness endpoint (ready-probes had
+to POST a real recall with full auth headers). Release tests pin the npm
+tarball contents (pkg.files via toEqual) and a releaseDocPaths list of
+version-consistent docs. The bridge is Bun-hard (Bun.serve, bun:sqlite,
+Bun SQL); sqlite-vss ships native libraries that a container would otherwise
+need (libgomp/atlas/lapack); the default bind address (127.0.0.1) rejects
+container traffic.
+
+Decision
+--------
+1. Official non-TypeScript clients live under a top-level clients/ directory.
+   clients/python (package name goodmemory-client; fallback
+   goodmemory-bridge-client if PyPI has claimed it — check before first
+   publish) is stdlib-only (urllib + unittest, zero dependencies), typed
+   (py.typed), Python >= 3.9, and versioned independently (0.1.x): it tracks
+   the wire contract, not the npm release. It is excluded from the npm
+   tarball; distribution is PyPI, published manually by the maintainer.
+   Its tests run standalone (python3 -m unittest discover) and are also
+   spawned from the bun suite (tests/integration/python-http-bridge.test.ts)
+   against an in-process bridge and the packed bin.
+2. GET /healthz is an additive amendment to phase-39.http-memory.v1 (no
+   version bump): auth-free liveness answering before the POST guard, body
+   parsing, and caller resolution, with optional injectable string metadata
+   (the bridge script injects the serving profile; hardened deployments omit
+   it). Ready-probes (tests, Docker HEALTHCHECK, the Python client) use it.
+3. Docker artifacts live at the repo root. Base image oven/bun pinned to the
+   CI Bun version; GOODMEMORY_SQLITE_VECTOR_MODE=off neutralizes the
+   sqlite-vss native dependency; GOODMEMORY_HTTP_BRIDGE_HOST=0.0.0.0 accepts
+   container traffic; /app/.goodmemory is the SQLite volume; the bearer token
+   is never baked (runtime env only); ENTRYPOINT passes run-time flags
+   through. docker-compose.yml runs one bridge service with env passthrough
+   plus an opt-in postgres profile (pgvector/pgvector:pg16, matching CI).
+   Textual release guards (tests/release/docker-deployment.test.ts) pin these
+   invariants; image builds are not a release gate.
+4. Publishing a container image is out of scope; the extension point is a
+   user-gated job in .github/workflows/release.yml after npm publish.
+
+Consequences
+------------
++ One-command deployment and sane probes (healthz) for containers and LBs.
++ Python backends get a typed official client instead of hand-rolled urllib.
++ Zero npm-tarball or coverage-gate churn (clients/ is outside pkg.files and
+  the src/** coverage groups).
+- Two-language maintenance: bridge contract changes must update the Python
+  client and its mirrored idempotency/authorization rules.
+- Docker artifacts are guarded textually, not by CI builds; a broken base
+  image tag surfaces only at user build time.
+- The client does not verify contractVersion at runtime (future: warn on
+  prefix mismatch).
+
+Related
+-------
+- src/http/index.ts (healthz, contract), scripts/goodmemory-http-bridge.ts
+- clients/python/, tests/integration/python-http-bridge.test.ts
+- Dockerfile, docker-compose.yml, tests/release/docker-deployment.test.ts
+- docs/GoodMemory-Python-HTTP-Integration-Bridge.md, ADR-006 (layering)

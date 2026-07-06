@@ -92,5 +92,9 @@ export function createLocalEmbeddingAdapter(
         texts.map((text) => embedTextLocally(text, dimensions)),
       );
     },
-  };
+    // Brand: these vectors are hashed-lexical, not semantic. Consumers that
+    // require neural embeddings (retrieval.preset "recommended") detect and
+    // reject this adapter by the symbol — structural typing cannot.
+    [Symbol.for("goodmemory.embedding.hashed-lexical")]: true,
+  } as EmbeddingAdapter;
 }

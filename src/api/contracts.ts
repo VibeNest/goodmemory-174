@@ -112,14 +112,32 @@ export interface GoodMemoryProviderConfig {
 // behavior is byte-identical.
 export type GoodMemorySemanticCandidatesConfig = RecallSemanticCandidatesConfig;
 
+// Named retrieval presets, mirroring the remember.preset convention. Open
+// union so future presets extend it.
+export type GoodMemoryRetrievalPresetId = "recommended";
+
 export interface GoodMemoryRetrievalConfig {
+  // One-flag champion profile: expands to the retrieval+extraction side of the
+  // public-claims LoCoMo configuration — semantic candidate union topK 16 plus
+  // conversational write-time extraction (flipped only when an extraction
+  // model resolves and mode is unset; never injects a provider) — and biases
+  // "auto" recall routing to hybrid. HARD-REQUIRES a neural embedding endpoint:
+  // construction throws otherwise (set GOODMEMORY_EMBEDDING_* /
+  // providers.embedding / adapters.embeddingAdapter; a local Ollama endpoint
+  // works — see the README recipe). Explicit fields below always win over the
+  // preset; unset keeps the zero-dependency default byte-identical. The preset
+  // does not cover answer-side prompts, and the rules-only LongMemEval public
+  // claim is unaffected by it.
+  preset?: GoodMemoryRetrievalPresetId;
   // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
   // lexical ranking signal for hybrid/llm-assisted strategies, populating the
   // same ranking slot the neural semantic score would, so it works with no
   // embedding endpoint. The default rules-only lexical floor is unchanged and
   // never receives the additive term; this only adds signal under non-rules-only
   // strategies. Defaults to off, so accepted rules-only/hybrid behavior is
-  // unchanged unless explicitly enabled.
+  // unchanged unless explicitly enabled. The recommended preset never sets it:
+  // under hybrid it would replace the neural additive slot with BM25 and
+  // deviate from the claims profile.
   bm25Ranking?: boolean;
   // Opt-in semantic candidate-generation union (see the type above). This is
   // the only retrieval lever that can surface a fact sharing no tokens with

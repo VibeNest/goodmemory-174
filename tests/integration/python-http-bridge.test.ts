@@ -71,23 +71,17 @@ async function waitForBridgeReady(input: {
   let lastError: unknown;
   for (let attempt = 0; attempt < 60; attempt += 1) {
     try {
-      const response = await fetch(`${input.url}/memory/recall-context`, {
-        body: JSON.stringify(
-          scopedBody({
-            query: "health check",
-          }),
-        ),
-        headers: {
-          ...AUTH_HEADERS,
-          authorization: `Bearer ${input.token}`,
-          "content-type": "application/json",
-        },
-        method: "POST",
+      // Liveness probe: GET /healthz needs no token, no scope headers, and
+      // touches no memory — the shape Docker HEALTHCHECK and clients use.
+      const response = await fetch(`${input.url}/healthz`, {
+        method: "GET",
       });
 
       if (response.status === 200) {
-        await response.arrayBuffer();
-        return;
+        const body = (await response.json()) as { ok?: unknown };
+        if (body.ok === true) {
+          return;
+        }
       }
 
       lastError = new Error(`Bridge returned HTTP ${response.status}.`);
@@ -102,6 +96,82 @@ async function waitForBridgeReady(input: {
     ? lastError
     : new Error("GoodMemory HTTP bridge did not become ready.");
 }
+
+// GET /healthz is the auth-free liveness endpoint: it answers before body
+// parsing, caller resolution, or any memory access, so container health checks
+// and client ready-probes need no token and touch no data.
+describe("HTTP bridge healthz endpoint", () => {
+  it("answers GET /healthz with the contract version and no auth", async () => {
+    const memory = createGoodMemory({ storage: { provider: "memory" } });
+    const bridge = createGoodMemoryHttpMemoryBridge({ memory });
+
+    const response = await bridge.handle(
+      new Request("http://localhost/healthz", { method: "GET" }),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({
+      contractVersion: "phase-39.http-memory.v1",
+      ok: true,
+      status: "ok",
+    });
+  });
+
+  it("echoes health metadata without letting it override reserved fields", async () => {
+    const memory = createGoodMemory({ storage: { provider: "memory" } });
+    const bridge = createGoodMemoryHttpMemoryBridge({
+      healthMetadata: {
+        contractVersion: "spoofed",
+        profile: "life-coach",
+        status: "degraded",
+      },
+      memory,
+    });
+
+    const response = await bridge.handle(
+      new Request("http://localhost/healthz", { method: "GET" }),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({
+      contractVersion: "phase-39.http-memory.v1",
+      ok: true,
+      profile: "life-coach",
+      status: "ok",
+    });
+  });
+
+  it("keeps POST /healthz and GET /memory/* behavior unchanged", async () => {
+    const memory = createGoodMemory({ storage: { provider: "memory" } });
+    const bridge = createGoodMemoryHttpMemoryBridge({ memory });
+
+    const postHealthz = await bridge.handle(
+      new Request("http://localhost/healthz", { method: "POST" }),
+    );
+    expect(postHealthz.statusCode).toBe(404);
+
+    const getMemory = await bridge.handle(
+      new Request("http://localhost/memory/recall-context", { method: "GET" }),
+    );
+    expect(getMemory.statusCode).toBe(405);
+  });
+
+  it("performs no memory access", async () => {
+    const throwingMemory = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("healthz must not touch memory");
+        },
+      },
+    ) as GoodMemory;
+    const bridge = createGoodMemoryHttpMemoryBridge({ memory: throwingMemory });
+
+    const response = await bridge.handle(
+      new Request("http://localhost/healthz", { method: "GET" }),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, status: "ok" });
+  });
+});
 
 describe("Phase 39 Python HTTP memory bridge", () => {
   it("validates scope, caller authorization, and targeted-only revise requests at the HTTP boundary", async () => {
@@ -854,6 +924,97 @@ describe("Phase 39 Python HTTP memory bridge", () => {
     }
   });
 
+  it("passes the official Python client's stdlib unit suite", async () => {
+    const child = Bun.spawn({
+      cmd: [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "clients/python/tests",
+        "-t",
+        "clients/python",
+      ],
+      env: {
+        ...process.env,
+        PYTHONPATH: "clients/python",
+      },
+      stderr: "pipe",
+      stdout: "pipe",
+    });
+    const [stderr, exitCode] = await Promise.all([
+      new Response(child.stderr).text(),
+      child.exited,
+    ]);
+
+    expect(exitCode).toBe(0);
+    // unittest reports to stderr; "OK" is the pass marker.
+    expect(stderr).toContain("OK");
+    expect(stderr).not.toContain("FAILED");
+  });
+
+  it("drives the full endpoint surface through the official Python client", async () => {
+    const memory = createGoodMemory({
+      remember: createLifeCoachHttpRememberConfig(),
+      storage: { provider: "memory" },
+    });
+    const bridge = createGoodMemoryHttpMemoryBridge({
+      healthMetadata: { profile: "life-coach" },
+      memory,
+    });
+    const server = Bun.serve({
+      fetch: bridge.fetch,
+      port: 0,
+    });
+
+    try {
+      const child = Bun.spawn({
+        cmd: ["python3", "clients/python/tests/live_smoke.py"],
+        env: {
+          ...process.env,
+          GOODMEMORY_BRIDGE_URL: `http://127.0.0.1:${server.port}`,
+          PYTHONPATH: "clients/python",
+        },
+        stderr: "pipe",
+        stdout: "pipe",
+      });
+      const [stdout, stderr, exitCode] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+      ]);
+
+      expect(stderr).toBe("");
+      expect(exitCode).toBe(0);
+      const summary = JSON.parse(stdout) as {
+        asyncHandledBy: string;
+        contractVersion: string;
+        feedbackAccepted: boolean;
+        forgot: boolean;
+        hasContext: boolean;
+        healthOk: boolean;
+        itemCount: number;
+        rememberAccepted: number;
+        requestedStrategy: string;
+        revised: boolean;
+      };
+
+      expect(summary.healthOk).toBe(true);
+      expect(summary.contractVersion).toBe("phase-39.http-memory.v1");
+      expect(summary.rememberAccepted).toBeGreaterThanOrEqual(1);
+      expect(summary.asyncHandledBy).toBe("goodmemory_jobs");
+      expect(summary.hasContext).toBe(true);
+      expect(summary.itemCount).toBeGreaterThanOrEqual(1);
+      expect(summary.requestedStrategy).toBe("auto");
+      expect(summary.feedbackAccepted).toBe(true);
+      expect(summary.revised).toBe(true);
+      expect(summary.forgot).toBe(true);
+    } finally {
+      server.stop(true);
+    }
+  });
+
   it(
     "starts the packaged HTTP bridge entrypoint with bearer auth for a Python backend",
     async () => {
@@ -887,6 +1048,40 @@ describe("Phase 39 Python HTTP memory bridge", () => {
 
       try {
         await waitForBridgeReady({ token, url });
+
+        // The packaged bin serves healthz auth-free and reports its profile.
+        const healthz = await fetch(`${url}/healthz`, { method: "GET" });
+        expect(healthz.status).toBe(200);
+        expect(await healthz.json()).toMatchObject({
+          contractVersion: "phase-39.http-memory.v1",
+          ok: true,
+          profile: "life-coach",
+          status: "ok",
+        });
+
+        // The official client's bearer + header path against the real bin.
+        const clientSmoke = Bun.spawn({
+          cmd: ["python3", "clients/python/tests/live_smoke.py"],
+          env: {
+            ...process.env,
+            GOODMEMORY_BRIDGE_TOKEN: token,
+            GOODMEMORY_BRIDGE_URL: url,
+            PYTHONPATH: "clients/python",
+          },
+          stderr: "pipe",
+          stdout: "pipe",
+        });
+        const [clientStdout, clientStderr, clientExitCode] = await Promise.all([
+          new Response(clientSmoke.stdout).text(),
+          new Response(clientSmoke.stderr).text(),
+          clientSmoke.exited,
+        ]);
+        expect(clientStderr).toBe("");
+        expect(clientExitCode).toBe(0);
+        expect(JSON.parse(clientStdout)).toMatchObject({
+          contractVersion: "phase-39.http-memory.v1",
+          healthOk: true,
+        });
 
         const python = Bun.spawn({
           cmd: ["python3", "examples/python-fastapi-memory-consumer.py"],

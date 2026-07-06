@@ -1063,6 +1063,33 @@ describe("goodmemory cli help and routing", () => {
     expect(claudeWriteback.stdout).toContain("goodmemory claude writeback forget --event-id <id>");
   });
 
+  it("documents and validates mcp serve standalone mode", async () => {
+    const help = await runCLI(["mcp", "serve", "--help"]);
+    expect(help.exitCode).toBe(0);
+    // Installed-mode pins stay intact alongside the standalone additions.
+    expect(help.stdout).toContain("GoodMemory MCP Serve");
+    expect(help.stdout).toContain("--host <codex|claude>");
+    expect(help.stdout).toContain("--standalone");
+    expect(help.stdout).toContain("--allow-write");
+    expect(help.stdout).toContain("GOODMEMORY_USER_ID");
+    expect(help.stdout).toContain("GOODMEMORY_MCP_ALLOW_WRITE");
+
+    const missingUser = await runCLI(["mcp", "serve", "--standalone"]);
+    expect(missingUser.exitCode).toBe(1);
+    expect(missingUser.stderr).toContain("--user-id");
+    expect(missingUser.stderr).toContain("GOODMEMORY_USER_ID");
+
+    const conflictingModes = await runCLI([
+      "mcp",
+      "serve",
+      "--host",
+      "codex",
+      "--standalone",
+    ]);
+    expect(conflictingModes.exitCode).toBe(1);
+    expect(conflictingModes.stderr).toContain("mutually exclusive");
+  });
+
   it("returns help hints for unknown root and eval commands", async () => {
     const unknownRoot = await runCLI(["unknown"]);
     const unknownEval = await runCLI(["eval", "unknown"]);

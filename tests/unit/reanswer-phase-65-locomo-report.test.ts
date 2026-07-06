@@ -201,6 +201,50 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
     ).toThrow("--reanswer-job-category contains an empty value.");
   });
 
+  it("rejects whitespace-padded targeted list entries before replay selection", () => {
+    expect(() =>
+      parseLocomoReanswerCliOptions([
+        "bun",
+        "run",
+        "scripts/reanswer-phase-65-locomo-report.ts",
+        "--source-report",
+        "/reports/source.json",
+        "--question-id",
+        "conv-test:q1, conv-test:q2",
+      ]),
+    ).toThrow(
+      "--question-id contains a value with leading or trailing whitespace.",
+    );
+
+    expect(() =>
+      parseLocomoReanswerCliOptions([
+        "bun",
+        "run",
+        "scripts/reanswer-phase-65-locomo-report.ts",
+        "--source-report",
+        "/reports/source.json",
+        "--reanswer-job-bucket",
+        " answerRegressions",
+      ]),
+    ).toThrow(
+      "--reanswer-job-bucket contains a value with leading or trailing whitespace.",
+    );
+
+    expect(() =>
+      parseLocomoReanswerCliOptions([
+        "bun",
+        "run",
+        "scripts/reanswer-phase-65-locomo-report.ts",
+        "--source-report",
+        "/reports/source.json",
+        "--reanswer-job-category",
+        "open_domain ",
+      ]),
+    ).toThrow(
+      "--reanswer-job-category contains a value with leading or trailing whitespace.",
+    );
+  });
+
   it("rejects empty explicit question-id selections before replay", async () => {
     await expect(
       runLocomoReportReanswer(

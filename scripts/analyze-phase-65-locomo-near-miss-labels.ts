@@ -753,7 +753,7 @@ export function analyzeLocomoNearMissLabels(input: {
     sourceReports: [
       {
         path: input.candidatePath,
-        questionCount: input.candidate.questionCount,
+        questionCount: rows.length,
         runId: input.candidate.runId,
       },
     ],

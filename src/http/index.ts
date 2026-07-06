@@ -57,8 +57,19 @@ export interface CreateGoodMemoryHttpMemoryBridgeInput {
   authorize?(
     input: GoodMemoryHttpBridgeAuthorizationInput,
   ): GoodMemoryHttpBridgeAuthorizationResult | Promise<GoodMemoryHttpBridgeAuthorizationResult>;
+  // Extra string fields echoed by GET /healthz (e.g. the serving profile).
+  // Reserved fields (ok/status/contractVersion) cannot be overridden. Omit to
+  // keep the healthz body minimal in hardened deployments.
+  healthMetadata?: Record<string, string>;
   memory: GoodMemory;
   resolveCaller?(request: Request): GoodMemoryHttpBridgeCaller | null;
+}
+
+export interface GoodMemoryHttpHealthzResponse {
+  [key: string]: unknown;
+  contractVersion: string;
+  ok: true;
+  status: "ok";
 }
 
 export interface GoodMemoryHttpBridgeErrorBody {
@@ -1522,6 +1533,20 @@ export function createGoodMemoryHttpMemoryBridge(
   const authorize = input.authorize ?? defaultAuthorize;
 
   async function handle(request: Request): Promise<GoodMemoryHttpBridgeResult> {
+    // Liveness answers before the POST guard, body parsing, and caller
+    // resolution: auth-free by construction, zero data access.
+    if (
+      request.method === "GET" &&
+      new URL(request.url).pathname === "/healthz"
+    ) {
+      return result(200, {
+        ...(input.healthMetadata ?? {}),
+        contractVersion: GOODMEMORY_HTTP_MEMORY_BRIDGE_CONTRACT_VERSION,
+        ok: true,
+        status: "ok",
+      });
+    }
+
     if (request.method !== "POST") {
       return errorResult(405, "method_not_allowed", "GoodMemory bridge endpoints require POST.");
     }

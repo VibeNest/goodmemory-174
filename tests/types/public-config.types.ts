@@ -14,6 +14,17 @@ const minimalConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },
 };
 
+// The recommended retrieval preset is a first-class config literal; explicit
+// semanticCandidates fields compose with it (user keys win at resolution).
+const recommendedPresetConfig: GoodMemoryConfig = {
+  retrieval: {
+    preset: "recommended",
+    semanticCandidates: { maxAdditions: 4 },
+  },
+  storage: { provider: "memory" },
+};
+void recommendedPresetConfig;
+
 const testingConfig: GoodMemoryConfig = {
   storage: { provider: "memory" },
   testing: {

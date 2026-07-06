@@ -315,6 +315,38 @@ The installed host path has four pieces:
 - Optional writeback: `session-stop` and explicit writeback commands can turn
   selected after-response signals into durable memory.
 
+## Standalone MCP For Any Client
+
+Hosts without a managed install path (Cursor, Windsurf, Cline, Claude Desktop,
+Gemini CLI, OpenCode, or your own MCP client) can run the same MCP server in
+standalone mode — no `goodmemory setup`, no host config files. Scope and
+storage come from flags/env; the served surface is the same 8 read-only tools,
+plus an opt-in governed write tool:
+
+```json
+{
+  "mcpServers": {
+    "goodmemory": {
+      "command": "goodmemory-mcp",
+      "args": ["--standalone", "--user-id", "YOUR_USER_ID"]
+    }
+  }
+}
+```
+
+Equivalent invocation: `goodmemory-mcp --standalone --user-id <id>` (requires
+Bun on PATH; `GOODMEMORY_USER_ID` works as the flag's env fallback).
+`--allow-write` (or `GOODMEMORY_MCP_ALLOW_WRITE=1`) registers
+`goodmemory_remember`, which writes through the normal governed remember
+pipeline. Agent-tagged memories written by installed hosts stay private to
+their agent; add `--agent-id codex` plus the shared `--storage-url` to opt into
+reading an installed host's store. Full flag/env matrix, scope notes, and
+per-host recipes:
+[docs/GoodMemory-Standalone-MCP-Setup-Guide.md](./docs/GoodMemory-Standalone-MCP-Setup-Guide.md)
+([Cursor](./docs/GoodMemory-Cursor-Setup-Guide.md) ·
+[Gemini CLI](./docs/GoodMemory-Gemini-CLI-Setup-Guide.md) ·
+[OpenCode](./docs/GoodMemory-OpenCode-Setup-Guide.md)).
+
 ## Installed Host Writeback
 
 Installed Host Writeback is opt-in. Runtime config defaults and new scripted
@@ -522,11 +554,86 @@ For server integrations, start with the thin examples:
 For Python/FastAPI backends, use the packaged `goodmemory-http-bridge` path
 described below.
 
-## Opt-In Recall Tuning: Multi-Hop, Offline Embedding, And Conversational Extraction
+## Opt-In Recall Tuning: Recommended Preset, Multi-Hop, Local Embeddings, And Conversational Extraction
 
 The knobs below are optional and conservative by design. Default recall is
 single-pass and rules-only, and default extraction is unchanged; nothing happens
-unless you opt in.
+unless you opt in. The recommended preset is the one knob with a hard
+requirement: it refuses to construct without a neural embedding endpoint
+instead of silently degrading.
+
+### One-flag recommended retrieval preset
+
+`retrieval.preset: "recommended"` enables the retrieval+extraction side of the
+profile behind the public LoCoMo claim with one flag:
+
+```ts
+const memory = createGoodMemory({
+  retrieval: { preset: "recommended" },
+});
+```
+
+When active it (a) enables the semantic candidate-generation union at
+`topK: 16` (the engine derives the noise budget from it), (b) biases `auto`
+recall routing to hybrid so the union fires without a per-call
+`strategy: "hybrid"` (an explicit per-call strategy still wins), and (c) flips
+assisted extraction to `mode: "conversational"` — only when an extraction
+model already resolves (provider config or `GOODMEMORY_ASSISTED_EXTRACTOR_*`
+env) and `mode` was not set explicitly; it never injects a provider. Explicit
+config fields always win over the preset, and leaving `preset` unset keeps the
+zero-dependency default byte-identical.
+
+Requirements and boundaries:
+
+- A neural embedding endpoint must resolve (`GOODMEMORY_EMBEDDING_*`,
+  `providers.embedding`, or `adapters.embeddingAdapter`) — otherwise
+  `createGoodMemory` throws with setup instructions. The zero-egress local
+  path is the Ollama recipe below. `createLocalEmbeddingAdapter()` is
+  rejected: hashed-lexical vectors are not semantic.
+- Check `inspectGoodMemoryRuntime(memory).retrievalPreset` — its `extraction`
+  field reports whether the write-time half engaged (`"conversational"`) or an
+  extractor was unavailable/kept as-is.
+- The preset covers library configuration only. The LoCoMo claim additionally
+  used an answer-side abstention-format prompt, which belongs to the
+  application's answer step, and the LongMemEval public claim uses the
+  rules-only profile — unchanged by this preset.
+- Pairing it with `bm25Ranking: true` swaps the additive ranking slot from the
+  neural score to BM25 and deviates from the claims profile; the preset never
+  sets it.
+- If you use env-resolved extraction and adopt the preset, write-time output
+  becomes conversational atomic claims; the escape hatch is an explicit
+  `providers.extraction` object with `mode: "default"`.
+
+### Local embedding endpoint (Ollama)
+
+The recommended preset needs a neural embedding endpoint, but that does not
+require data egress: `GOODMEMORY_EMBEDDING_BASE_URL` accepts any
+OpenAI-compatible `/v1/embeddings` endpoint, including a local Ollama server.
+
+```bash
+ollama pull nomic-embed-text        # or bge-m3 for stronger multilingual recall
+
+export GOODMEMORY_EMBEDDING_PROVIDER=openai
+export GOODMEMORY_EMBEDDING_BASE_URL=http://localhost:11434/v1
+export GOODMEMORY_EMBEDDING_MODEL=nomic-embed-text
+export GOODMEMORY_EMBEDDING_API_KEY=ollama   # any placeholder; Ollama ignores it, the variable stays required
+
+# smoke-check the endpoint before starting your app
+curl http://localhost:11434/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"model": "nomic-embed-text", "input": "hello"}'
+```
+
+- `provider` stays `openai`: it selects the OpenAI-compatible wire protocol,
+  not the vendor.
+- Keep one embedding model per store: vectors from different models or
+  dimensions are not comparable, and switching models means re-remembering
+  (re-embedding) the corpus.
+- Local embedding quality differs from `text-embedding-3-small`; the public
+  LoCoMo numbers were measured with the OpenAI endpoint. This recipe
+  reproduces the mechanism with zero egress, not the exact number.
+- This is not `createLocalEmbeddingAdapter()` (below), which is
+  hashed-lexical, not semantic, and is rejected by the recommended preset.
 
 ### Opt-in multi-hop recall
 
@@ -805,6 +912,21 @@ Python callers send `Authorization: Bearer <token>` plus the `x-goodmemory-*`
 scope headers to `POST /memory/recall-context`, `/memory/remember`,
 `/memory/feedback`, `/memory/export`, `/memory/forget`, and targeted
 `/memory/revise`. The TypeScript bridge API is available from `goodmemory/http`.
+
+Or deploy it with Docker in one command (SQLite volume included; add the
+compose `postgres` profile for pgvector):
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN="replace-with-service-token" docker compose up -d
+curl -fsS http://127.0.0.1:8739/healthz
+```
+
+`GET /healthz` is the auth-free liveness endpoint for containers, load
+balancers, and client ready-waits. Python backends should use the official
+client — `pip install goodmemory-client` — which derives the caller headers
+from one `Scope` object, mirrors the per-endpoint idempotency rules, and
+surfaces recall `routing` (so silent strategy downgrades are visible). Details:
+[docs/GoodMemory-Python-HTTP-Integration-Bridge.md](./docs/GoodMemory-Python-HTTP-Integration-Bridge.md).
 
 ## Host Adapter API
 

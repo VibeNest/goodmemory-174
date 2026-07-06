@@ -346,7 +346,7 @@ describe("phase-65 LoCoMo category summarizer", () => {
             path: "/reports/adversarial/smoke-report.json",
             report: report("adversarial", {
               answerAccuracy: 1,
-              answeredCount: 2,
+              answeredCount: 1,
               averageEvidenceRecall: 1,
               executionFailures: 1,
               fullyRetrievedCount: 2,

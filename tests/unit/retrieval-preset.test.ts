@@ -1,0 +1,223 @@
+import { describe, expect, it } from "bun:test";
+import type { GoodMemorySemanticCandidatesConfig } from "../../src/api/contracts";
+import {
+  HASHED_LEXICAL_EMBEDDING_BRAND,
+  RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
+  resolveGoodMemoryRetrievalRuntime,
+} from "../../src/api/retrievalPreset";
+
+// retrieval.preset "recommended" expands to the retrieval+extraction side of
+// the public-claims LoCoMo profile (semantic union topK 16 + conversational
+// write-time extraction) and biases auto routing to hybrid. Preset unset must
+// be a byte-identical passthrough; explicit user fields always win; without a
+// neural embedding the preset throws at construction instead of silently
+// degrading to the lexical floor.
+
+const fakeEmbeddingAdapter = { embed: async () => [[0, 1]] };
+
+function resolve(input: Partial<Parameters<typeof resolveGoodMemoryRetrievalRuntime>[0]> = {}) {
+  return resolveGoodMemoryRetrievalRuntime({
+    assistedExtractorModelConfigured: false,
+    embeddingEnabled: false,
+    ...input,
+  });
+}
+
+describe("resolveGoodMemoryRetrievalRuntime without a preset", () => {
+  it("passes retrieval config through by reference", () => {
+    const semanticCandidates: GoodMemorySemanticCandidatesConfig = {
+      minRelativeScore: 0.8,
+      topK: 32,
+    };
+    const resolved = resolve({
+      retrieval: { bm25Ranking: true, semanticCandidates },
+    });
+
+    // Reference identity is the byte-identity proof: nothing is cloned or
+    // normalized on the non-preset path.
+    expect(resolved.retrieval.semanticCandidates).toBe(semanticCandidates);
+    expect(resolved.retrieval.bm25Ranking).toBe(true);
+    expect(resolved.retrieval.autoStrategyBias).toBeUndefined();
+    expect(resolved.retrieval.preset).toBeUndefined();
+  });
+
+  it("mirrors the constructor's conversational predicate for extraction mode", () => {
+    expect(resolve().extractionMode).toBe("default");
+    expect(
+      resolve({
+        extraction: {
+          apiKey: "k",
+          model: "gpt-5.5",
+          provider: "openai",
+        },
+      }).extractionMode,
+    ).toBe("default");
+    expect(
+      resolve({
+        extraction: {
+          apiKey: "k",
+          mode: "conversational",
+          model: "gpt-5.5",
+          provider: "openai",
+        },
+      }).extractionMode,
+    ).toBe("conversational");
+  });
+
+  it("never throws without embedding when no preset is requested", () => {
+    expect(() =>
+      resolve({ retrieval: { semanticCandidates: { topK: 4 } } }),
+    ).not.toThrow();
+  });
+});
+
+describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
+  it("expands to the claims profile when the user set nothing", () => {
+    const resolved = resolve({
+      embeddingEnabled: true,
+      retrieval: { preset: "recommended" },
+    });
+
+    expect(resolved.retrieval.semanticCandidates).toEqual({
+      topK: RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
+    });
+    // maxAdditions is deliberately left unset: the engine derives it from the
+    // resolved topK (=16), matching the claims run's exact command line.
+    expect(resolved.retrieval.semanticCandidates?.maxAdditions).toBeUndefined();
+    expect(resolved.retrieval.autoStrategyBias).toBe("hybrid");
+    expect(resolved.retrieval.bm25Ranking).toBeUndefined();
+    expect(resolved.retrieval.preset).toEqual({
+      active: true,
+      extraction: "unavailable",
+      requested: "recommended",
+    });
+  });
+
+  it("merges per key with explicit user fields winning", () => {
+    const resolved = resolve({
+      embeddingEnabled: true,
+      retrieval: {
+        preset: "recommended",
+        semanticCandidates: { maxAdditions: 4, minRelativeScore: 0.8 },
+      },
+    });
+    expect(resolved.retrieval.semanticCandidates).toEqual({
+      maxAdditions: 4,
+      minRelativeScore: 0.8,
+      topK: RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
+    });
+
+    const userTopK = resolve({
+      embeddingEnabled: true,
+      retrieval: {
+        preset: "recommended",
+        semanticCandidates: { topK: 24 },
+      },
+    });
+    expect(userTopK.retrieval.semanticCandidates?.topK).toBe(24);
+  });
+
+  it("never sets bm25Ranking (it would swap the additive slot away from the claims profile)", () => {
+    const resolved = resolve({
+      embeddingEnabled: true,
+      retrieval: { bm25Ranking: true, preset: "recommended" },
+    });
+    expect(resolved.retrieval.bm25Ranking).toBe(true);
+
+    const unset = resolve({
+      embeddingEnabled: true,
+      retrieval: { preset: "recommended" },
+    });
+    expect(unset.retrieval.bm25Ranking).toBeUndefined();
+  });
+
+  it("flips extraction to conversational only when a model resolves and mode is unset", () => {
+    // (c) model resolved (provider config or env), mode unset ⇒ flip.
+    const flipped = resolve({
+      assistedExtractorModelConfigured: true,
+      embeddingEnabled: true,
+      retrieval: { preset: "recommended" },
+    });
+    expect(flipped.extractionMode).toBe("conversational");
+    expect(flipped.retrieval.preset?.extraction).toBe("conversational");
+
+    // (a) explicit mode always wins.
+    const explicitDefault = resolve({
+      assistedExtractorModelConfigured: true,
+      embeddingEnabled: true,
+      extraction: {
+        apiKey: "k",
+        mode: "default",
+        model: "gpt-5.5",
+        provider: "openai",
+      },
+      retrieval: { preset: "recommended" },
+    });
+    expect(explicitDefault.extractionMode).toBe("default");
+    expect(explicitDefault.retrieval.preset?.extraction).toBe("kept_existing");
+
+    const explicitConversational = resolve({
+      assistedExtractorModelConfigured: true,
+      embeddingEnabled: true,
+      extraction: {
+        apiKey: "k",
+        mode: "conversational",
+        model: "gpt-5.5",
+        provider: "openai",
+      },
+      retrieval: { preset: "recommended" },
+    });
+    expect(explicitConversational.extractionMode).toBe("conversational");
+    expect(explicitConversational.retrieval.preset?.extraction).toBe(
+      "conversational",
+    );
+
+    // (b) injected opaque extractor adapter: mode only affects provider-built
+    // extractors, so it stays untouched.
+    const injected = resolve({
+      adapters: {
+        assistedExtractor: { extract: async () => [] } as never,
+        embeddingAdapter: fakeEmbeddingAdapter,
+      },
+      assistedExtractorModelConfigured: true,
+      embeddingEnabled: true,
+      retrieval: { preset: "recommended" },
+    });
+    expect(injected.extractionMode).toBe("default");
+    expect(injected.retrieval.preset?.extraction).toBe("kept_existing");
+
+    // (d) no extractor at all ⇒ unavailable, and it does NOT throw: write-time
+    // infrastructure is orthogonal to retrieval.
+    const unavailable = resolve({
+      embeddingEnabled: true,
+      retrieval: { preset: "recommended" },
+    });
+    expect(unavailable.retrieval.preset?.extraction).toBe("unavailable");
+  });
+
+  it("throws without a resolvable embedding, naming the setup paths", () => {
+    let message = "";
+    try {
+      resolve({ retrieval: { preset: "recommended" } });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("GOODMEMORY_EMBEDDING_");
+    expect(message).toContain("Ollama");
+    expect(message).toContain("retrieval.preset");
+  });
+
+  it("rejects the hashed-lexical local adapter by brand", () => {
+    const hashedAdapter = Object.assign(
+      { embed: async () => [[0, 1]] },
+      { [HASHED_LEXICAL_EMBEDDING_BRAND]: true },
+    );
+    expect(() =>
+      resolve({
+        adapters: { embeddingAdapter: hashedAdapter },
+        embeddingEnabled: true,
+        retrieval: { preset: "recommended" },
+      }),
+    ).toThrow(/hashed-lexical/);
+  });
+});

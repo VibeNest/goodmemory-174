@@ -22,7 +22,17 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-Reference-Integration-Guide.md` - reference consumer pattern.
 - `GoodMemory-Codex-Handoff-Setup-Guide.md` - Codex installed-host setup.
 - `GoodMemory-Claude-Code-Setup-Guide.md` - Claude Code installed-host setup.
+- `GoodMemory-Standalone-MCP-Setup-Guide.md` - standalone MCP server for any
+  MCP client (no installed host); canonical flag/env matrix and scope notes.
+- `GoodMemory-Cursor-Setup-Guide.md` - Cursor recipe on the standalone server.
+- `GoodMemory-Gemini-CLI-Setup-Guide.md` - Gemini CLI recipe on the standalone
+  server.
+- `GoodMemory-OpenCode-Setup-Guide.md` - OpenCode recipe on the standalone
+  server.
 - `GoodMemory-Python-HTTP-Integration-Bridge.md` - Python/FastAPI bridge.
+- `cookbooks/langgraph.md` - LangGraph store adapter (TypeScript).
+- `cookbooks/openai-agents-sdk.md` - OpenAI Agents SDK via the Python client.
+- `cookbooks/crewai.md` - CrewAI via the Python client.
 - `GoodMemory-Strategy-Rollout-Guide.md` - observe/assist/promote rollout.
 
 ## Research And Evidence

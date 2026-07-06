@@ -329,6 +329,7 @@ export type {
   GoodMemoryJobsLookupInput,
   GoodMemoryProviderConfig,
   GoodMemoryRetrievalConfig,
+  GoodMemoryRetrievalPresetId,
   GoodMemorySemanticCandidatesConfig,
   GoodMemoryRuntimeAppendMessageInput,
   GoodMemoryRuntimeBufferResult,
@@ -365,6 +366,14 @@ export type {
   StorageConfig,
 } from "./api/contracts";
 export { createGoodMemory } from "./api/createGoodMemory";
+export type { GoodMemoryRetrievalPresetStatus } from "./api/retrievalPreset";
+export { createGoodMemoryLangGraphStore } from "./langgraph";
+export type {
+  GoodMemoryLangGraphItem,
+  GoodMemoryLangGraphOperation,
+  GoodMemoryLangGraphSearchItem,
+  GoodMemoryLangGraphStore,
+} from "./langgraph";
 export type {
   GoodMemoryRuntimeInfo,
   GoodMemoryStorageRuntimeInfo,

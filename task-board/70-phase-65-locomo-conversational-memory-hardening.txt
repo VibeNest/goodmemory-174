@@ -2376,6 +2376,13 @@ Tasks
   Provider-backed retrieval-only runs now also checkpoint completed question
   rows to `live-progress.jsonl` and can `--resume`, matching the live-answer
   path instead of treating provider retrieval as cheap deterministic replay.
+  Resume now rejects duplicate checkpoint rows, checkpoint rows outside the
+  selected question scope, malformed non-tail checkpoint JSON, and non-header
+  JSON objects that do not match the progress-row shape before replaying cached
+  results, while still tolerating a killed-run final partial JSON line.
+  Hand-edited or spliced progress files therefore cannot silently overwrite a
+  completed question, widen the selected evidence scope, hide corrupted middle
+  rows, or smuggle malformed row objects into a resumed run.
   The targeted 7-question near-miss rel0.8 provider retry
   `locomo-multihop-near-miss-label-rel08-retrieval-timeout-current` was run
   with 5s embedding requests and a 60s run watchdog; it exited cleanly with
@@ -2407,6 +2414,16 @@ Tasks
   the existing source-execution boundary: reports with `executionFailures > 0`
   still cannot be reused as clean source evidence. Unit coverage lives in
   tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004fla Shared live-answer failure-count guard.
+  Shared Phase 65 LoCoMo smoke-report compatibility validation now rejects
+  live-answer reports whose `executionFailures` count does not equal the number
+  of failed rows with null `answerCorrect` and null `generatedAnswer`. This keeps
+  failed-row retention evidence, reanswer hard-failure evidence, and downstream
+  category-gap / live-delta inputs from carrying impossible failure accounting.
+  This is evidence-integrity hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage lives
+  in tests/unit/run-phase-65.locomo-smoke.test.ts.
 
 [DONE] P65-T004fm Near-miss label sourceReports lineage.
   `analyze:phase-65-locomo-near-miss-labels` now writes top-level
@@ -2951,6 +2968,38 @@ Tasks
   whole-report replays. This is evidence lineage hardening only; it does not
   change LoCoMo scores, default status, or public-claim boundaries. Unit
   coverage lives in tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gwf Reanswer CLI list whitespace guard.
+  `eval:phase-65-reanswer-report` now rejects whitespace-padded values inside
+  comma-separated `--question-id`, `--reanswer-job-bucket`, and
+  `--reanswer-job-category` lists before replay selection. This prevents the
+  CLI from silently trimming malformed targeted scopes such as
+  `--question-id "q1, q2"` or `--reanswer-job-category "open_domain "` into
+  apparently clean evidence. This is CLI scope-canonicality hardening only; it
+  does not change LoCoMo retrieval, answer scores, default status, or
+  public-claim boundaries. Unit coverage lives in
+  tests/unit/reanswer-phase-65-locomo-report.test.ts.
+
+[DONE] P65-T004gwg Near-miss source-report selected-count lineage.
+  `analyze:phase-65-locomo-near-miss-labels` now writes
+  `sourceReports[].questionCount` as the number of selected
+  `answerTokenF1NearMiss` rows emitted by the near-miss label artifact, not the
+  full candidate report `questionCount`. This keeps source lineage aligned with
+  top-level/category `questionIds` and avoids overstating the source scope when a
+  candidate report contains rows that are not selected into the diagnostic queue.
+  This is evidence-lineage hardening only; it does not change LoCoMo retrieval,
+  answer scores, default status, or public-claim boundaries. Unit coverage lives
+  in tests/unit/analyze-phase-65-locomo-near-miss-labels.test.ts.
+
+[DONE] P65-T004gwh Shared answer-token-F1 state guard.
+  Shared LoCoMo smoke-report validation now rejects failed live-answer rows and
+  retrieval-only rows that carry a non-null `answerTokenF1`; only rows with both
+  `answerCorrect` and `generatedAnswer` present may carry a numeric token-F1.
+  Legacy live-answer reports may still omit the field or carry null for
+  in-memory backfill, so historical token-F1 near-miss analysis remains
+  compatible. This is evidence-contract hardening only; it does not change
+  LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
+  Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

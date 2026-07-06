@@ -112,6 +112,26 @@ Malformed optional scope fields are rejected. The bridge must not silently drop
 an invalid tenant, workspace, agent, or session field and continue with a
 broader scope.
 
+## Health Endpoint
+
+`GET /healthz` is the auth-free liveness probe. It answers before the POST
+guard, body parsing, and caller resolution, so it needs no token, no
+`x-goodmemory-*` headers, and touches no memory data:
+
+```json
+{
+  "ok": true,
+  "status": "ok",
+  "contractVersion": "phase-39.http-memory.v1",
+  "profile": "default"
+}
+```
+
+`profile` (and any other extra string field) comes from the bridge's
+injectable health metadata; hardened deployments can omit it. Reserved fields
+(`ok`, `status`, `contractVersion`) cannot be overridden. Use this endpoint
+for Docker `HEALTHCHECK`, load-balancer probes, and client ready-waits.
+
 ## Endpoints
 
 ### `POST /memory/recall-context`
@@ -315,6 +335,56 @@ python3 examples/python-fastapi-memory-consumer.py
 
 The Phase 39 test suite starts both the public bridge API and the packaged
 `goodmemory-http-bridge` server, then runs that Python process against them.
+
+## Official Python Client
+
+`pip install goodmemory-client` installs the official stdlib-only client
+(package source: `clients/python/` in the goodmemory repository; versioned
+independently of the npm package because it tracks the wire contract).
+
+```python
+from goodmemory_client import GoodMemoryClient, Scope
+
+client = GoodMemoryClient(
+    "http://127.0.0.1:8739",
+    token="replace-with-service-token",
+    scope=Scope(user_id="user-123", workspace_id="workspace-a"),
+)
+client.wait_until_ready()
+recall = client.recall_context("What should the coach remember?")
+```
+
+The client derives the `x-goodmemory-*` caller headers from the `Scope` you
+pass (the bridge requires header caller and body scope to agree), mirrors the
+per-endpoint idempotency rules (always required for `feedback`/`revise`,
+required for async `remember` only), never retries HTTP-status errors (a 409
+`idempotency_conflict` surfaces immediately), and exposes `routing` on recall
+results so silent `hybrid -> rules-only` downgrades are visible. Bridge errors
+raise `GoodMemoryBridgeError` with `.code`, `.status`, and `.body`.
+
+## Docker Deployment
+
+The repo root ships a `Dockerfile` and `docker-compose.yml` for one-command
+deployment (Bun base image; SQLite volume at `/app/.goodmemory`; vector
+acceleration off so no native libraries are required; health check wired to
+`GET /healthz`; the bearer token is never baked into the image):
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN=replace-with-service-token docker compose up -d
+curl -fsS http://127.0.0.1:8739/healthz
+```
+
+Postgres (pgvector) profile:
+
+```bash
+GOODMEMORY_HTTP_BRIDGE_TOKEN=replace-with-service-token \
+GOODMEMORY_STORAGE_PROVIDER=postgres \
+GOODMEMORY_STORAGE_URL=postgres://goodmemory:goodmemory@postgres:5432/goodmemory \
+docker compose --profile postgres up -d
+```
+
+Run-time flags append through the image entrypoint, e.g.
+`docker run goodmemory-bridge --profile life-coach`.
 
 ## Storage Guidance
 

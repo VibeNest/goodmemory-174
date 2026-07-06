@@ -221,6 +221,11 @@ describe("runtime resolution", () => {
       embeddingModelConfig: null,
       explicitAdaptersConfigured: false,
       explicitStorageConfigured: false,
+      extractionMode: "default",
+      retrieval: {
+        bm25Ranking: undefined,
+        semanticCandidates: undefined,
+      },
       runtimeCapabilities: {
         builtInPostgres: true,
         builtInSQLite: true,
@@ -287,6 +292,11 @@ describe("runtime resolution", () => {
       embeddingModelConfig: null,
       explicitAdaptersConfigured: false,
       explicitStorageConfigured: false,
+      extractionMode: "default",
+      retrieval: {
+        bm25Ranking: undefined,
+        semanticCandidates: undefined,
+      },
       runtimeCapabilities: {
         builtInPostgres: true,
         builtInSQLite: false,
@@ -299,6 +309,90 @@ describe("runtime resolution", () => {
         postgresUrl: undefined,
       },
     });
+  });
+
+  it("expands the recommended retrieval preset through the shared resolution", () => {
+    const embeddingAdapter = { embed: async () => [[0, 1]] };
+    const resolution = resolveGoodMemoryRuntimeResolution({
+      config: {
+        adapters: { embeddingAdapter },
+        retrieval: { preset: "recommended" },
+      },
+      env: {},
+    });
+
+    expect(resolution.retrieval.autoStrategyBias).toBe("hybrid");
+    expect(resolution.retrieval.semanticCandidates).toEqual({ topK: 16 });
+    expect(resolution.retrieval.preset).toEqual({
+      active: true,
+      extraction: "unavailable",
+      requested: "recommended",
+    });
+    // No preset ⇒ raw config objects pass through by reference.
+    const semanticCandidates = { topK: 8 };
+    const passthrough = resolveGoodMemoryRuntimeResolution({
+      config: { retrieval: { semanticCandidates } },
+      env: {},
+    });
+    expect(passthrough.retrieval.semanticCandidates).toBe(semanticCandidates);
+    expect(passthrough.retrieval.preset).toBeUndefined();
+  });
+
+  it("hints at the Ollama placeholder key when only API_KEY is missing with a base URL", () => {
+    let message = "";
+    try {
+      resolveEmbeddingModelConfigFromEnv({
+        GOODMEMORY_EMBEDDING_BASE_URL: "http://localhost:11434/v1",
+        GOODMEMORY_EMBEDDING_MODEL: "nomic-embed-text",
+        GOODMEMORY_EMBEDDING_PROVIDER: "openai",
+      });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("GOODMEMORY_EMBEDDING_API_KEY");
+    expect(message).toContain("Ollama");
+    expect(message).toContain("placeholder");
+
+    // Without a base URL the message is unchanged (no local-endpoint hint).
+    let plainMessage = "";
+    try {
+      resolveEmbeddingModelConfigFromEnv({
+        GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-small",
+        GOODMEMORY_EMBEDDING_PROVIDER: "openai",
+      });
+    } catch (error) {
+      plainMessage = (error as Error).message;
+    }
+    expect(plainMessage).toContain("GOODMEMORY_EMBEDDING_API_KEY");
+    expect(plainMessage).not.toContain("Ollama");
+  });
+
+  it("throws for the recommended preset when no embedding resolves", () => {
+    expect(() =>
+      resolveGoodMemoryRuntimeResolution({
+        config: { retrieval: { preset: "recommended" } },
+        env: {},
+      }),
+    ).toThrow(/GOODMEMORY_EMBEDDING_/);
+  });
+
+  it("reports the retrieval preset through runtime info exactly when requested", () => {
+    const embeddingAdapter = { embed: async () => [[0, 1]] };
+    const withPreset = resolveGoodMemoryRuntimeInfo({
+      config: {
+        adapters: { embeddingAdapter },
+        retrieval: { preset: "recommended" },
+      },
+      env: {},
+    });
+    expect(withPreset.retrievalPreset).toEqual({
+      active: true,
+      extraction: "unavailable",
+      requested: "recommended",
+    });
+
+    const withoutPreset = resolveGoodMemoryRuntimeInfo({ config: {}, env: {} });
+    expect(withoutPreset.retrievalPreset).toBeUndefined();
   });
 
   it("makes the zero-config Node-style memory fallback observable", () => {

@@ -30,6 +30,15 @@ const publicRuntimeScope = {
 
 void publicRuntime;
 
+// inspectGoodMemoryRuntime exposes retrieval-preset resolution; the extraction
+// field reports whether the write-time half of the profile engaged.
+const runtimeInfoForPreset = (0 as unknown as
+  | import("../../src").GoodMemoryRuntimeInfo
+  | undefined);
+const presetExtraction: "conversational" | "kept_existing" | "unavailable" | undefined =
+  runtimeInfoForPreset?.retrievalPreset?.extraction;
+void presetExtraction;
+
 const invalidPublicRuntimeConfig: RuntimeContextServiceConfig = {
   sessionStore,
   // @ts-expect-error Root runtime config must not expose internal salvage hooks.

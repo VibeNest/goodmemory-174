@@ -195,6 +195,10 @@ export interface RecallEngineConfig {
   // non-rules-only strategies. Off by default, so rules-only/hybrid ranking is
   // unchanged unless explicitly enabled.
   bm25Ranking?: boolean;
+  // Set by retrieval.preset resolution (never a public per-call knob): biases
+  // "auto" routing to hybrid whenever semantic search is available, so the
+  // semantic union fires without an explicit per-call strategy.
+  autoStrategyBias?: "hybrid";
   // Opt-in semantic candidate-generation union (see the config type above).
   semanticCandidates?: RecallSemanticCandidatesConfig;
   language?: LanguageService;
@@ -453,6 +457,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         const routingDecision = planRecall({
           retrievalProfile,
           strategy: input.strategy,
+          autoStrategyBias: config.autoStrategyBias,
           availability: routerAvailability,
           query: input.query,
           locale: resolvedLanguage.locale,
@@ -537,6 +542,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       let routingDecision = planRecall({
         retrievalProfile,
         strategy: input.strategy,
+        autoStrategyBias: config.autoStrategyBias,
         availability: routerAvailability,
         query: input.query,
         locale: resolvedLanguage.locale,

@@ -205,6 +205,7 @@ function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
 
   const memory = createGoodMemory(createMemoryConfig(options.profile));
   const bridge = createGoodMemoryHttpMemoryBridge({
+    healthMetadata: { profile: options.profile },
     memory,
     resolveCaller: createTokenAwareCallerResolver(options),
   });

@@ -127,6 +127,9 @@ Next
   `repairJobs` for the 3-row rationale-bearing bucket and the
   1-row balanced bucket, and `eval:phase-65-smoke` can filter those jobs by
   `--repair-job-diagnosis` and `--repair-job-retrieval-bucket`. The
+  near-miss artifact's `sourceReports[].questionCount` records the selected
+  near-miss row count, not the full candidate report size, so lineage matches the
+  emitted `questionIds`. The
   rationale-bearing/full loader proof selected the intended 3 rows with
   `executionFailures: 0`, while default retrieval found 0/3 evidence recall
   and 9 noise turns; the broader 4-row loader still finds only 1/4 fully.

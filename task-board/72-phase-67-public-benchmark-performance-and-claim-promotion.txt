@@ -71,14 +71,51 @@ Tasks
 [DONE 2026-07-05] P67-A2 Official-protocol rescore CLI guard. The pinned
   package command is `eval:official-rescore`; the underlying comparability
   rescore entrypoint (`scripts/rescore-official-protocols.ts`) now rejects
-  duplicate scalar benchmark/source/output/judge selectors before loading
+  duplicate scalar benchmark/source/run/judge selectors before loading
   existing LongMemEval, LoCoMo, or BEAM answer reports for official-protocol
   judging: `--benchmark`, `--reference`, `--report`, `--root`, `--rubrics`,
   `--concurrency`, `--limit`, and `--run-id`. `--run-id` must be a single path
   segment; `--concurrency` and `--limit` must be canonical positive integers.
-  This is input and output-directory hardening for the planned independent-judge
-  comparability rescore only; it does not run a judge, change scores, or change
-  public-claim boundaries.
+  It also rejects benchmark-incompatible source selectors before loading reports:
+  `--reference` is LongMemEval-only, `--root` is LoCoMo-only, and `--rubrics`
+  is BEAM-only.
+  Each output run directory now persists `run-identity.json` and refuses to
+  reuse an existing `progress.jsonl` cache when the benchmark, run id, source
+  input paths, source input SHA-256 fingerprints, judge model, slice limit, or
+  stored-answer boundary no longer match.
+  Resumable progress rows now reject malformed cached verdicts/scores,
+  malformed BEAM rubric keys whose `<questionId>#<itemIndex>` prefix disagrees
+  with row `questionId`, duplicate cached question/rubric keys, and cached rows
+  outside the selected case/rubric scope instead of silently counting
+  non-boolean correctness, invalid BEAM rubric scores, last-write-wins summary
+  drift, or stale out-of-scope slice rows, while still tolerating a killed-run
+  final partial JSON line.
+  Generated `rescore-summary.json` files also persist `generatedAt`,
+  `outputPath`, `sourceInputs`, `sourceInputFingerprints` (bytes + SHA-256),
+  `judgeModel`, `limit` (number for a sliced rescore, `null` for full scope),
+  `limitUnit` (`cases` for LongMemEval/LoCoMo,
+  `rubric-items` for BEAM), `sourceAnswersUnchanged`, source-vs-selected scope
+  counts (`sourceCases`/`selectedCases`, or BEAM `sourceQuestions` /
+  `selectedQuestions` plus `sourceRubricItems` / `selectedRubricItems`), and an
+  explicit claim boundary for stored-answer official-protocol comparability
+  evidence. Source input paths are also rejected when they resolve inside the
+  official-rescore output run directory, so stored answers, benchmark reference
+  roots, and BEAM rubrics cannot be mixed with derived `run-identity.json`,
+  `progress.jsonl`, or `rescore-summary.json` artifacts. This is input,
+  source-family, run-directory, source/output isolation, slice-budget,
+  progress-cache, and source-lineage hardening for the planned independent
+  judge comparability rescore only; it does not regenerate answers, run a judge
+  in this guard step, change scores, or change public-claim boundaries.
+  Judge gateway environment is now preflighted before creating the output run
+  directory or writing `run-identity.json`: `GOODMEMORY_JUDGE_BASE_URL`,
+  `GOODMEMORY_JUDGE_API_KEY`, and `GOODMEMORY_JUDGE_MODEL` must be present,
+  non-empty, and free of leading/trailing whitespace. This prevents a failed
+  env-only dry start from leaving a run identity with an undefined or malformed
+  judge model that would later block the real rescore as identity drift.
+  Final `rescore-summary.json` writes are now refused if any judge call fails;
+  `progress.jsonl` stays resumable under the same run id until the selected
+  scope completes without judge failures. This prevents partial official-judge
+  batches from being mistaken for complete comparability evidence.
 
 [DONE 2026-07-02] P67-B LongMemEval public-claim replay. The v0.3.5
   `goodmemory-rules-only` replay produced a judge-free deterministic-subset
