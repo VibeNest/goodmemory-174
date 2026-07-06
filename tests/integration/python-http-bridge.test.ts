@@ -1148,6 +1148,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
         env: {
           ...process.env,
           GOODMEMORY_HTTP_BRIDGE_AUTH: token,
+          GOODMEMORY_HTTP_BRIDGE_TOKEN: "stale-reserved-token-value",
           GOODMEMORY_STORAGE_PROVIDER: "memory",
         },
         stderr: "pipe",

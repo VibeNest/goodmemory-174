@@ -96,8 +96,8 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
     port: parsePort(env[HTTP_BRIDGE_PORT_ENV]),
     profile: parseProfile(env[HTTP_BRIDGE_PROFILE_ENV]),
     token:
-      env[HTTP_BRIDGE_TOKEN_ENV]?.trim() ||
       env[HTTP_BRIDGE_AUTH_ENV]?.trim() ||
+      env[HTTP_BRIDGE_TOKEN_ENV]?.trim() ||
       undefined,
   };
 
