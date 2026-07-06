@@ -3159,6 +3159,24 @@ Tasks
   admission. It does not change LoCoMo scores, default status, or public-claim
   boundaries.
 
+[DONE] P65-T004gwt Residual near-miss rel0.8 candidate-admission proof.
+  The residual 6-row gold-only label queue now has a provider-backed retrieval
+  comparison. Provider-only baseline
+  `locomo-multihop-near-miss-gold-only-label-provider-baseline-6row-timeout15-current`
+  found average evidence recall 0, 0/6 fully retrieved, 29 noise turns, and
+  `executionFailures: 0`. Rel0.8 semantic admission
+  `locomo-multihop-near-miss-gold-only-label-rel08-retrieval-6row-timeout15-current`
+  reached average evidence recall 0.6071428571, 2/6 fully retrieved, 67 noise
+  turns, and `executionFailures: 0`.
+
+  The paired budget delta
+  `locomo-multihop-near-miss-gold-only-label-provider-vs-rel08-retrieval-6row-timeout15-delta-current/budget-delta.json`
+  records +0.6071428571 evidence recall, +2 fully retrieved, +38 noise turns,
+  and 1.5977443609 recall per 100 added noise turns. This is positive targeted
+  candidate-admission evidence for the residual queue only; it is not
+  live-answer score movement, default-profile promotion, or public-claim
+  evidence.
+
 [DONE] P65-T004gwj Targeted no-floor provider retry caveat.
   `locomo-multihop-near-miss-top32-add8-current` attempted to rerun the 10-row
   near-miss queue on the refreshed `/private/tmp/LOCOMO-full/cases.json` with

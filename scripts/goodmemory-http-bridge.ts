@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import type { GoodMemoryConfig } from "../src";
+import type { GoodMemoryConfig, GoodMemoryRetrievalPresetId } from "../src";
 import type {
   GoodMemoryHttpBridgeCaller,
   GoodMemoryHttpBridgeOperation,
@@ -19,6 +19,8 @@ const HTTP_BRIDGE_TOKEN_ENV = "GOODMEMORY_HTTP_BRIDGE_TOKEN";
 const HTTP_BRIDGE_AUTH_ENV = "GOODMEMORY_HTTP_BRIDGE_AUTH";
 const HTTP_BRIDGE_AUTH_HEADER = "x-goodmemory-bridge-auth";
 const HTTP_BRIDGE_PROFILE_ENV = "GOODMEMORY_HTTP_BRIDGE_PROFILE";
+const HTTP_BRIDGE_RETRIEVAL_PRESET_ENV =
+  "GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET";
 const HTTP_BRIDGE_ALLOW_INSECURE_ENV =
   "GOODMEMORY_HTTP_BRIDGE_ALLOW_INSECURE";
 
@@ -29,6 +31,12 @@ interface GoodMemoryHttpBridgeServeOptions {
   host: string;
   port: number;
   profile: GoodMemoryHttpBridgeProfile;
+  // Opt-in retrieval preset (currently only "recommended"), which enables the
+  // full recall profile — semantic candidate union + BM25 + conversational
+  // extraction — needed to reproduce GoodMemory's public benchmark numbers.
+  // Requires an embedding endpoint (GOODMEMORY_EMBEDDING_*); createGoodMemory
+  // throws on recall otherwise, matching the SDK's preset boundary.
+  retrievalPreset?: GoodMemoryRetrievalPresetId;
   token?: string;
 }
 
@@ -40,7 +48,7 @@ function printHelp(): void {
   console.log(`GoodMemory HTTP memory bridge
 
 Usage:
-  goodmemory-http-bridge [--host <host>] [--port <port>] [--profile <default|life-coach>] [--token <token>]
+  goodmemory-http-bridge [--host <host>] [--port <port>] [--profile <default|life-coach>] [--retrieval-preset recommended] [--token <token>]
 
 Environment:
   ${HTTP_BRIDGE_TOKEN_ENV}              Bearer token required by default
@@ -48,6 +56,7 @@ Environment:
   ${HTTP_BRIDGE_HOST_ENV}               Hostname, defaults to ${DEFAULT_HOST}
   ${HTTP_BRIDGE_PORT_ENV}               Port, defaults to ${DEFAULT_PORT}
   ${HTTP_BRIDGE_PROFILE_ENV}            default or life-coach
+  ${HTTP_BRIDGE_RETRIEVAL_PRESET_ENV}   recommended (enables semantic union + BM25; requires GOODMEMORY_EMBEDDING_*)
   ${HTTP_BRIDGE_ALLOW_INSECURE_ENV}=1   Allow header-only auth for local development
 
 Requests authenticate with Authorization: Bearer <token> (or ${HTTP_BRIDGE_AUTH_HEADER}: Bearer <token> behind proxies)
@@ -84,17 +93,34 @@ function parseProfile(value: string | undefined): GoodMemoryHttpBridgeProfile {
   throw new Error("Expected --profile to be default or life-coach.");
 }
 
+function parseRetrievalPreset(
+  value: string | undefined,
+): GoodMemoryRetrievalPresetId | undefined {
+  const trimmed = value?.trim();
+  if (trimmed === undefined || trimmed === "") {
+    return undefined;
+  }
+  if (trimmed === "recommended") {
+    return trimmed;
+  }
+
+  throw new Error("Expected --retrieval-preset to be recommended.");
+}
+
 function isEnabled(value: string | undefined): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
 
-function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
+export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
   const options: ParsedArgs = {
     allowInsecure: isEnabled(env[HTTP_BRIDGE_ALLOW_INSECURE_ENV]),
     help: false,
     host: env[HTTP_BRIDGE_HOST_ENV] ?? DEFAULT_HOST,
     port: parsePort(env[HTTP_BRIDGE_PORT_ENV]),
     profile: parseProfile(env[HTTP_BRIDGE_PROFILE_ENV]),
+    retrievalPreset: parseRetrievalPreset(
+      env[HTTP_BRIDGE_RETRIEVAL_PRESET_ENV],
+    ),
     token:
       env[HTTP_BRIDGE_AUTH_ENV]?.trim() ||
       env[HTTP_BRIDGE_TOKEN_ENV]?.trim() ||
@@ -123,6 +149,13 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
     }
     if (token === "--profile") {
       options.profile = parseProfile(readFlagValue(argv, index, token));
+      index += 1;
+      continue;
+    }
+    if (token === "--retrieval-preset") {
+      options.retrievalPreset = parseRetrievalPreset(
+        readFlagValue(argv, index, token),
+      );
       index += 1;
       continue;
     }
@@ -261,16 +294,23 @@ function createTokenAwareCallerResolver(
   };
 }
 
-function createMemoryConfig(
-  profile: GoodMemoryHttpBridgeProfile,
+export function createMemoryConfig(
+  options: Pick<
+    GoodMemoryHttpBridgeServeOptions,
+    "profile" | "retrievalPreset"
+  >,
 ): GoodMemoryConfig {
-  if (profile === "life-coach") {
+  const retrieval = options.retrievalPreset
+    ? { retrieval: { preset: options.retrievalPreset } }
+    : {};
+  if (options.profile === "life-coach") {
     return {
       remember: createLifeCoachHttpRememberConfig(),
+      ...retrieval,
     };
   }
 
-  return {};
+  return { ...retrieval };
 }
 
 function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
@@ -280,7 +320,7 @@ function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
     );
   }
 
-  const memory = createGoodMemory(createMemoryConfig(options.profile));
+  const memory = createGoodMemory(createMemoryConfig(options));
   const bridge = createGoodMemoryHttpMemoryBridge({
     healthMetadata: {
       authMode: options.token

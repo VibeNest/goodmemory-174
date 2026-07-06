@@ -227,6 +227,19 @@ Next
   at 0 recall / 14 noise, and under-specified/partial 1 row
   `locomo-multihop-near-miss-gold-only-label-under-specified-partial-loader-smoke-current`
   at 0 recall / 6 noise.
+  The same residual queue now has a provider-backed candidate-admission
+  comparison: provider-only baseline
+  `locomo-multihop-near-miss-gold-only-label-provider-baseline-6row-timeout15-current`
+  stayed at 0 recall / 0 fully retrieved / 29 noise, while rel0.8 semantic
+  admission
+  `locomo-multihop-near-miss-gold-only-label-rel08-retrieval-6row-timeout15-current`
+  reached 0.6071428571 recall, 2/6 fully retrieved, and 67 noise with
+  `executionFailures: 0`. Paired delta
+  `locomo-multihop-near-miss-gold-only-label-provider-vs-rel08-retrieval-6row-timeout15-delta-current`
+  records +0.6071428571 recall, +2 fully retrieved, +38 noise turns, and
+  1.5977443609 recall per 100 added noise turns. Treat this as targeted
+  retrieval repair evidence only; it still needs live-answer conversion before
+  it can affect default/category scoring.
 - Do not use `locomo-multihop-near-miss-top32-add8-current` as a no-floor
   comparison. It attempted the 10-row queue with provider embeddings and no
   relative-score floor, but all 10 rows failed under the 120s run watchdog and
