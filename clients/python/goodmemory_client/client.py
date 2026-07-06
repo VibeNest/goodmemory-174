@@ -334,6 +334,8 @@ class GoodMemoryClient:
         payload = dict(body)
         payload["caller"] = self._caller_payload(effective_scope)
         payload["scope"] = effective_scope.to_payload()
+        if self.token is not None:
+            payload["bridgeAuth"] = f"Bearer {self.token}"
         request = Request(
             f"{self.base_url}{path}",
             data=json.dumps(payload).encode("utf-8"),

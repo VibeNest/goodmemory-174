@@ -1165,6 +1165,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
         };
         const response = await fetch(`${url}/memory/recall-context`, {
           body: JSON.stringify({
+            bridgeAuth: `Bearer ${token}`,
             caller: {
               ...scope,
               authorizedOperations: ["recall-context"],
@@ -1174,7 +1175,6 @@ describe("Phase 39 Python HTTP memory bridge", () => {
           }),
           headers: {
             "content-type": "application/json",
-            "x-goodmemory-bridge-auth": `Bearer ${token}`,
           },
           method: "POST",
         });

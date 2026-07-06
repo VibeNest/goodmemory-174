@@ -112,6 +112,16 @@ class HeaderDerivationTests(unittest.TestCase):
             },
         )
 
+    def test_bearer_token_is_mirrored_for_header_stripping_proxies(self) -> None:
+        with mock.patch(
+            "goodmemory_client.client.urlopen",
+            return_value=ok_response({"ok": True, "result": {}, "operation": "forget"}),
+        ) as spy:
+            build_client(token="secret").forget("m-1")
+
+        body = json.loads(spy.call_args[0][0].data.decode("utf-8"))
+        self.assertEqual(body["bridgeAuth"], "Bearer secret")
+
 
 class IdempotencyRuleTests(unittest.TestCase):
     def test_feedback_requires_idempotency_key_keyword(self) -> None:

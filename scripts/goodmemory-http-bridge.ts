@@ -217,14 +217,25 @@ function resolveBodyCaller(
   };
 }
 
-function requestCarriesBridgeToken(request: Request, token: string): boolean {
+function bridgeAuthMatches(value: unknown, token: string): boolean {
+  const bridgeAuth = readOptionalString(value);
+  return bridgeAuth === token || bridgeAuth === `Bearer ${token}`;
+}
+
+function requestCarriesBridgeToken(
+  request: Request,
+  token: string,
+  body: Record<string, unknown> | undefined,
+): boolean {
   const authorization = request.headers.get("authorization")?.trim();
   if (authorization === `Bearer ${token}`) {
     return true;
   }
 
-  const bridgeAuth = request.headers.get(HTTP_BRIDGE_AUTH_HEADER)?.trim();
-  return bridgeAuth === token || bridgeAuth === `Bearer ${token}`;
+  return (
+    bridgeAuthMatches(request.headers.get(HTTP_BRIDGE_AUTH_HEADER), token) ||
+    bridgeAuthMatches(body?.bridgeAuth, token)
+  );
 }
 
 function createTokenAwareCallerResolver(
@@ -235,7 +246,7 @@ function createTokenAwareCallerResolver(
 ) => GoodMemoryHttpBridgeCaller | null {
   return (request, body) => {
     if (options.token) {
-      if (!requestCarriesBridgeToken(request, options.token)) {
+      if (!requestCarriesBridgeToken(request, options.token, body)) {
         return null;
       }
 
