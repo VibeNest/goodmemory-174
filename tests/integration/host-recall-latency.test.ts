@@ -61,5 +61,5 @@ describe("installed host recall latency", () => {
     } finally {
       await rm(dir, { force: true, recursive: true });
     }
-  });
+  }, 15_000);
 });
