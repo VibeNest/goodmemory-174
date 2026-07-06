@@ -443,10 +443,141 @@ describe("installed host writeback runtime", () => {
     }
   });
 
-  it("uses llm-assisted public remember when the installed host has an assisted provider", async () => {
+  it("runs batch LLM extraction once and keeps the inner remember rules-only", async () => {
     const homeRoot = await createWorkspace("goodmemory-writeback-provider-home-");
     const workspaceRoot = await createWorkspace(
       "goodmemory-writeback-provider-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeHostConfig({
+        assistedExtractor: true,
+        homeRoot,
+        mode: "selective",
+      });
+
+      const extractorWindows: Array<Array<{ content: string; role: string }>> = [];
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to add the phase-37 live report.",
+                role: "user",
+              },
+              {
+                content: "By the way our staging db moved to postgres 16.",
+                role: "user",
+              },
+            ],
+            session_id: "session-1",
+          },
+        },
+        {
+          // Hermetic batch extractor: sees the whole window in one call and
+          // recovers a durable fact the regex floor cannot classify.
+          createWritebackExtractor: () => ({
+            async extract(input) {
+              extractorWindows.push(
+                input.messages.map((message) => ({ ...message })),
+              );
+              return {
+                candidates: [
+                  {
+                    content: "The staging database is postgres 16.",
+                    explicitness: "explicit" as const,
+                    id: "batch-1",
+                    kindHint: "fact" as const,
+                    sourceMessageIndex: 1,
+                    sourceRole: "user",
+                  },
+                ],
+                ignoredMessageCount: 0,
+              };
+            },
+          }),
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember(input) {
+                rememberCalls.push(input);
+                return {
+                  accepted: 1,
+                  events: [],
+                  metadata: {
+                    adapterId: "test",
+                    analysisMode: "rules-only",
+                    locale: "en",
+                    localeSource: "default",
+                    requestedExtractionStrategy: "rules-only",
+                    resolvedExtractionStrategy: "rules-only",
+                  },
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.reason).toBe("written");
+      // One extractor call over the whole bounded window.
+      expect(extractorWindows).toHaveLength(1);
+      expect(extractorWindows[0]).toHaveLength(2);
+      expect(result.trace.batchExtraction).toBe("ok");
+      // The batch stage already ran the LLM: the inner remember must not
+      // trigger a second pass.
+      expect(result.trace.extractionStrategy).toBe("rules-only");
+      expect(rememberCalls.every((call) => call.extractionStrategy === "rules-only")).toBe(
+        true,
+      );
+      // Both the regex open-loop and the batch-recovered fact land.
+      const rememberedContents = rememberCalls.map(
+        (call) => call.messages[0]?.content,
+      );
+      expect(rememberedContents).toContain(
+        "Next step is to add the phase-37 live report.",
+      );
+      expect(rememberedContents).toContain("The staging database is postgres 16.");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("falls back to per-candidate llm-assisted when the batch extractor fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-batchfail-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-batchfail-workspace-",
     );
     const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
 
@@ -474,6 +605,11 @@ describe("installed host writeback runtime", () => {
           },
         },
         {
+          createWritebackExtractor: () => ({
+            async extract() {
+              throw new Error("provider down");
+            },
+          }),
           createMemory: ((_: GoodMemoryConfig) =>
             ({
               jobs: createNoopGoodMemoryJobsFacade(),
@@ -522,9 +658,11 @@ describe("installed host writeback runtime", () => {
         },
       );
 
+      // Rules floor still writes; the failed batch is visible in the trace
+      // and the inner remember keeps today's llm-assisted path.
       expect(result.reason).toBe("written");
+      expect(result.trace.batchExtraction).toBe("extractor_failed");
       expect(result.trace.extractionStrategy).toBe("llm-assisted");
-      expect(result.trace.resolvedExtractionStrategies).toEqual(["llm-assisted"]);
       expect(rememberCalls[0]?.extractionStrategy).toBe("llm-assisted");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
@@ -2122,6 +2260,462 @@ describe("installed host writeback runtime", () => {
         }),
       ]);
       expect(rememberCallCount).toBe(1);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+});
+
+// Stop/SessionEnd hook payloads from Claude Code carry transcript_path (a
+// session JSONL file) and no inline messages. Hydration turns that path into
+// the bounded message window the pipeline already governs; inline payloads
+// always win, and the per-session cursor keeps per-turn work incremental.
+describe("installed host writeback transcript hydration", () => {
+  async function writeClaudeHostConfig(input: {
+    homeRoot: string;
+    mode: "off" | "observe" | "selective";
+  }): Promise<void> {
+    await mkdir(join(input.homeRoot, ".goodmemory"), { recursive: true });
+    await writeFile(
+      join(input.homeRoot, ".goodmemory/claude.json"),
+      JSON.stringify(
+        {
+          activationMode: "global",
+          host: "claude",
+          maxTokens: 128,
+          retrievalProfile: "coding_agent",
+          storage: {
+            path: join(input.homeRoot, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
+          },
+          userId: "hydration-user",
+          version: 1,
+          writeback: {
+            allowAssistantOutput: "confirmed_or_verified",
+            dryRun: false,
+            maxChars: 12_000,
+            maxMessages: 12,
+            minConfidence: 0.7,
+            mode: input.mode,
+            persistRawTranscript: false,
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  }
+
+  function transcriptUserLine(content: string): string {
+    return JSON.stringify({
+      cwd: "/tmp/project",
+      message: { content, role: "user" },
+      sessionId: "hydration-session",
+      timestamp: "2026-07-05T10:00:00.000Z",
+      type: "user",
+      uuid: `uuid-${content.length}`,
+    });
+  }
+
+  function transcriptAssistantLine(text: string): string {
+    return JSON.stringify({
+      cwd: "/tmp/project",
+      message: {
+        content: [{ text, type: "text" }],
+        model: "claude-fable-5",
+        role: "assistant",
+      },
+      sessionId: "hydration-session",
+      timestamp: "2026-07-05T10:00:01.000Z",
+      type: "assistant",
+      uuid: `uuid-a-${text.length}`,
+    });
+  }
+
+  function createHydrationMemory(input: {
+    onRemember?: (call: Parameters<GoodMemory["remember"]>[0]) => Promise<void> | void;
+    rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]>;
+  }): (config: GoodMemoryConfig) => GoodMemory {
+    return ((_: GoodMemoryConfig) =>
+      ({
+        jobs: createNoopGoodMemoryJobsFacade(),
+        runtime: createNoopGoodMemoryRuntimeFacade(),
+        async buildContext() {
+          throw new Error("not used");
+        },
+        async recall() {
+          throw new Error("not used");
+        },
+        async remember(rememberInput) {
+          input.rememberCalls.push(rememberInput);
+          if (input.onRemember) {
+            await input.onRemember(rememberInput);
+          }
+          return {
+            accepted: 1,
+            events: [],
+            metadata: {
+              adapterId: "test",
+              analysisMode: "rules-only",
+              locale: "en",
+              localeSource: "default",
+              requestedExtractionStrategy: "rules-only",
+              resolvedExtractionStrategy: "rules-only",
+            },
+            rejected: 0,
+          };
+        },
+        async forget() {
+          throw new Error("not used");
+        },
+        async exportMemory() {
+          throw new Error("not used");
+        },
+        async deleteAllMemory() {
+          throw new Error("not used");
+        },
+        async feedback() {
+          throw new Error("not used");
+        },
+        async reviseMemory() {
+          throw new Error("not used");
+        },
+        async runMaintenance() {
+          throw new Error("not used");
+        },
+      }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory;
+  }
+
+  it("hydrates transcript_path payloads and writes durable user candidates", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hydration-workspace-");
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine(
+          "Next step is to wire the transcript hydration report.",
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: {
+            cwd: workspaceRoot,
+            session_id: "hydration-session",
+            transcript_path: transcriptPath,
+          },
+        },
+        { createMemory: createHydrationMemory({ rememberCalls }) },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(result.wrote).toBe(true);
+      expect(result.trace).toMatchObject({
+        rawTranscriptPersisted: false,
+        transcriptDeltaMessageCount: 1,
+        transcriptPathUsed: true,
+        transcriptReadStatus: "ok",
+      });
+      expect(rememberCalls).toHaveLength(1);
+      expect(rememberCalls[0]?.messages).toEqual([
+        {
+          content: "Next step is to wire the transcript hydration report.",
+          role: "user",
+        },
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("prefers inline messages over transcript_path", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-inline-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-inline-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Next step is to keep inline payloads authoritative.",
+                role: "user",
+              },
+            ],
+            session_id: "hydration-session",
+            transcript_path: join(homeRoot, "does-not-exist.jsonl"),
+          },
+        },
+        { createMemory: createHydrationMemory({ rememberCalls }) },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(result.trace.transcriptPathUsed).toBeUndefined();
+      expect(rememberCalls[0]?.messages?.[0]?.content).toBe(
+        "Next step is to keep inline payloads authoritative.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("stays disabled without touching the transcript when writeback is off", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-off-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-off-workspace-",
+    );
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "off" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is invisible while writeback is off.") + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: {
+            cwd: workspaceRoot,
+            session_id: "hydration-session",
+            transcript_path: transcriptPath,
+          },
+        },
+        {},
+      );
+
+      expect(result.reason).toBe("disabled");
+      expect(result.trace.transcriptPathUsed).toBeUndefined();
+      expect(result.trace.transcriptReadStatus).toBeUndefined();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("processes only the delta on repeated runs and resumes after appends", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-delta-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-delta-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+    const dependencies = { createMemory: createHydrationMemory({ rememberCalls }) };
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is the first hydrated capture.") + "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-session",
+        transcript_path: transcriptPath,
+      };
+
+      const first = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(first.reason).toBe("written");
+      expect(rememberCalls).toHaveLength(1);
+
+      const second = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(second.reason).toBe("empty_transcript");
+      expect(second.trace).toMatchObject({
+        transcriptDeltaMessageCount: 0,
+        transcriptPathUsed: true,
+        transcriptReadStatus: "ok",
+      });
+      expect(rememberCalls).toHaveLength(1);
+
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is to capture the appended turn only.") + "\n",
+        { flag: "a" },
+      );
+      const third = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(third.reason).toBe("written");
+      expect(rememberCalls).toHaveLength(2);
+      expect(rememberCalls[1]?.messages?.[0]?.content).toBe(
+        "Next step is to capture the appended turn only.",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not advance the cursor on write failure so the delta is retried", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-retry-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-retry-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is to survive a transient write failure.") +
+          "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-session",
+        transcript_path: transcriptPath,
+      };
+
+      const failing = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        {
+          createMemory: createHydrationMemory({
+            onRemember: () => {
+              throw new Error("transient failure");
+            },
+            rememberCalls,
+          }),
+        },
+      );
+      expect(failing.reason).toBe("write_failed");
+
+      const retried = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        { createMemory: createHydrationMemory({ rememberCalls }) },
+      );
+      expect(retried.reason).toBe("written");
+      expect(
+        rememberCalls.at(-1)?.messages?.[0]?.content,
+      ).toBe("Next step is to survive a transient write failure.");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps hydrated assistant content governed by the assistant policy", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-assistant-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-assistant-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptAssistantLine(
+          "We decided the canonical source of truth is the writeback ledger.",
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: {
+            cwd: workspaceRoot,
+            session_id: "hydration-session",
+            transcript_path: transcriptPath,
+          },
+        },
+        { createMemory: createHydrationMemory({ rememberCalls }) },
+      );
+
+      expect(rememberCalls).toHaveLength(0);
+      expect(result.wrote).toBe(false);
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          durable: false,
+          reason: "assistant_policy_blocked",
+          source: "assistant",
+        }),
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("redacts secret-like hydrated content before it reaches candidates", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-secret-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-secret-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine(
+          "Remember to use api_key: sk-abcdefghijklmnopqrstuvwx for the bridge.",
+        ) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: {
+            cwd: workspaceRoot,
+            session_id: "hydration-session",
+            transcript_path: transcriptPath,
+          },
+        },
+        { createMemory: createHydrationMemory({ rememberCalls }) },
+      );
+
+      expect(rememberCalls).toHaveLength(0);
+      expect(result.wrote).toBe(false);
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          confidence: 0,
+          content: "[redacted secret-like content]",
+          durable: false,
+        }),
+      ]);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

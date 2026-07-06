@@ -2,6 +2,7 @@
 import { serveGoodMemoryMcp } from "../src/install/hostMcpServer";
 import {
   ensureStandaloneStorageReady,
+  resolveInstalledHostMcpAllowWrite,
   resolveMcpServeOptions,
 } from "../src/install/standaloneMcpContext";
 
@@ -28,7 +29,12 @@ async function main(): Promise<void> {
   }
 
   await serveGoodMemoryMcp({
-    allowWrite: options.allowWrite,
+    // The managed registration args never carry --allow-write (repair would
+    // rewrite them); installed hosts opt in via mcp.allowWrite in the host
+    // config, read once at server start.
+    allowWrite:
+      options.allowWrite ||
+      (await resolveInstalledHostMcpAllowWrite({ host: options.host })),
     host: options.host,
   });
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type {
   GoodMemory,
   GoodMemoryConfig,
@@ -11,6 +11,7 @@ import { createMemorySource } from "../../src/domain/provenance";
 import { createFactMemory } from "../../src/domain/records";
 import { executeInstalledHostHook } from "../../src/install/hostHookRuntime";
 import { registerInstalledHostMcp } from "../../src/install/hostMcpConfig";
+import { readInstalledHostWritebackLedger } from "../../src/install/hostWritebackAuditLedger";
 import { readInstalledHostProgressiveRecordCache } from "../../src/install/hostProgressiveRecall";
 import {
   createNoopGoodMemoryJobsFacade,
@@ -1391,6 +1392,818 @@ describe("installed host hook runtime", () => {
       expect(result.output).toEqual({
         systemMessage: "GoodMemory codex user-prompt-submit hook skipped: invalid_repo_config.",
       });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+  it("captures transcript_path stop payloads as per-turn writeback events", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-turnend-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-turnend-workspace-");
+    const rememberMessages: string[] = [];
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            writeback: {
+              mode: "selective",
+            },
+            debug: false,
+            host: "claude",
+            maxTokens: 128,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+      // A real Claude Code Stop payload: transcript by path, nothing inline.
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        JSON.stringify({
+          cwd: workspaceRoot,
+          message: {
+            content: "Next step is to verify the per-turn capture path.",
+            role: "user",
+          },
+          sessionId: "session-88",
+          timestamp: "2026-07-05T10:00:00.000Z",
+          type: "user",
+          uuid: "uuid-turnend",
+        }) + "\n",
+        "utf8",
+      );
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            session_id: "session-88",
+            stop_hook_active: false,
+            transcript_path: transcriptPath,
+          },
+        },
+        {
+          createMemory: ((_: GoodMemoryConfig) =>
+            ({
+              jobs: createNoopGoodMemoryJobsFacade(),
+              runtime: createNoopGoodMemoryRuntimeFacade(),
+              async buildContext() {
+                throw new Error("not used");
+              },
+              async recall() {
+                throw new Error("not used");
+              },
+              async remember(input) {
+                rememberMessages.push(input.messages[0]?.content ?? "");
+                return {
+                  accepted: 1,
+                  events: [],
+                  metadata: {
+                    adapterId: "test",
+                    analysisMode: "rules-only",
+                    locale: "en",
+                    localeSource: "default",
+                    requestedExtractionStrategy: "rules-only",
+                    resolvedExtractionStrategy: "rules-only",
+                  },
+                  rejected: 0,
+                };
+              },
+              async forget() {
+                throw new Error("not used");
+              },
+              async exportMemory() {
+                throw new Error("not used");
+              },
+              async deleteAllMemory() {
+                throw new Error("not used");
+              },
+              async feedback() {
+                throw new Error("not used");
+              },
+              async reviseMemory() {
+                throw new Error("not used");
+              },
+              async runMaintenance() {
+                throw new Error("not used");
+              },
+            }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+        },
+      );
+
+      expect(result.reason).toBe("writeback_written");
+      expect(result.writeback.wrote).toBe(true);
+      expect(rememberMessages).toEqual([
+        "Next step is to verify the per-turn capture path.",
+      ]);
+
+      // Per-turn Stop firings record honest per-turn provenance in the ledger.
+      const ledger = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(ledger.auditEvents).toHaveLength(1);
+      expect(ledger.auditEvents[0]?.command).toBe("turn-end");
+      expect(ledger.auditEvents[0]?.status).toBe("committed");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+  it("plumbs the global retrieval config into createGoodMemory", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-retrieval-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hook-retrieval-workspace-",
+    );
+    const received: Array<GoodMemoryConfig["retrieval"]> = [];
+
+    const dependencies = {
+      createMemory: ((config: GoodMemoryConfig) => {
+        received.push(config.retrieval);
+        return {
+          jobs: createNoopGoodMemoryJobsFacade(),
+          runtime: createNoopGoodMemoryRuntimeFacade(),
+          async buildContext() {
+            return {
+              content: "notes",
+              estimatedTokens: 1,
+              omittedSections: [],
+              output: "developer_prompt_fragment" as const,
+            };
+          },
+          async recall() {
+            return createRecallResult();
+          },
+          async remember() {
+            throw new Error("not used");
+          },
+          async forget() {
+            throw new Error("not used");
+          },
+          async exportMemory() {
+            throw new Error("not used");
+          },
+          async deleteAllMemory() {
+            throw new Error("not used");
+          },
+          async feedback() {
+            throw new Error("not used");
+          },
+          async reviseMemory() {
+            throw new Error("not used");
+          },
+          async runMaintenance() {
+            throw new Error("not used");
+          },
+        } satisfies GoodMemory;
+      }) as (config: GoodMemoryConfig) => GoodMemory,
+    };
+
+    const writeConfig = async (retrieval?: Record<string, unknown>) =>
+      writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            host: "claude",
+            maxTokens: 128,
+            ...(retrieval ? { retrieval } : {}),
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "hook-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeConfig({ bm25Ranking: true, semanticCandidates: { topK: 16 } });
+
+      const withRetrieval = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "What is the current focus?",
+            session_id: "session-r1",
+          },
+        },
+        dependencies,
+      );
+      expect(withRetrieval.applied).toBe(true);
+      expect(received[0]).toEqual({
+        bm25Ranking: true,
+        semanticCandidates: { topK: 16 },
+      });
+
+      // Absence parity: configs without a retrieval section behave exactly
+      // as today (no retrieval key reaches createGoodMemory).
+      await writeConfig();
+      await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "What is the current focus?",
+            session_id: "session-r2",
+          },
+        },
+        dependencies,
+      );
+      expect(received[1]).toBeUndefined();
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+});
+describe("installed host hook injection right-sizing", () => {
+  interface FakeMemoryPlan {
+    buildContextCalls: Array<{ maxTokens?: number }>;
+    content: string;
+    recallCalls: Array<{ query?: string }>;
+    recallOverrides: Partial<RecallResult>;
+  }
+
+  function createPlannedMemory(plan: FakeMemoryPlan): (config: GoodMemoryConfig) => GoodMemory {
+    return ((_: GoodMemoryConfig) =>
+      ({
+        jobs: createNoopGoodMemoryJobsFacade(),
+        runtime: createNoopGoodMemoryRuntimeFacade(),
+        async buildContext(input) {
+          plan.buildContextCalls.push({ maxTokens: input.maxTokens });
+          return {
+            content: plan.content,
+            estimatedTokens: 12,
+            omittedSections: [],
+            output: "developer_prompt_fragment" as const,
+          };
+        },
+        async recall(input) {
+          plan.recallCalls.push({ query: input.query });
+          return createRecallResult(plan.recallOverrides);
+        },
+        async remember() {
+          throw new Error("not used");
+        },
+        async forget() {
+          throw new Error("not used");
+        },
+        async exportMemory() {
+          throw new Error("not used");
+        },
+        async deleteAllMemory() {
+          throw new Error("not used");
+        },
+        async feedback() {
+          throw new Error("not used");
+        },
+        async reviseMemory() {
+          throw new Error("not used");
+        },
+        async runMaintenance() {
+          throw new Error("not used");
+        },
+      }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory;
+  }
+
+  function lexicalHitOverrides(factId: string): Partial<RecallResult> {
+    return {
+      facts: [{ id: factId } as never],
+      metadata: {
+        ...createRecallResult().metadata,
+        candidateTraces: [
+          {
+            fallback: false,
+            intentScore: 0,
+            lexicalScore: 0.5,
+            memoryId: factId,
+            memoryType: "fact",
+            returned: true,
+            slot: null,
+          } as never,
+        ],
+      },
+    };
+  }
+
+  async function writeInjectionHostConfig(input: {
+    homeRoot: string;
+    promptInjection?: string;
+    sessionStartMaxTokens?: number;
+  }): Promise<void> {
+    await mkdir(join(input.homeRoot, ".goodmemory"), { recursive: true });
+    await writeFile(
+      join(input.homeRoot, ".goodmemory/claude.json"),
+      JSON.stringify(
+        {
+          activationMode: "global",
+          host: "claude",
+          maxTokens: 512,
+          ...(input.promptInjection
+            ? { promptInjection: input.promptInjection }
+            : {}),
+          retrievalProfile: "coding_agent",
+          ...(input.sessionStartMaxTokens
+            ? { sessionStartMaxTokens: input.sessionStartMaxTokens }
+            : {}),
+          storage: {
+            path: join(input.homeRoot, ".goodmemory/memory.sqlite"),
+            provider: "sqlite",
+          },
+          userId: "injection-user",
+          version: 1,
+        },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+  }
+
+  it("gives the session-start brief its own budget", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-budget-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-budget-workspace-");
+    const plan: FakeMemoryPlan = {
+      buildContextCalls: [],
+      content: "Developer memory notes:\nbrief",
+      recallCalls: [],
+      recallOverrides: lexicalHitOverrides("fact-1"),
+    };
+
+    try {
+      await writeInjectionHostConfig({ homeRoot, sessionStartMaxTokens: 1024 });
+      const dependencies = { createMemory: createPlannedMemory(plan) };
+
+      const sessionStart = await executeInstalledHostHook(
+        {
+          command: "session-start",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "s-b1", source: "startup" },
+        },
+        dependencies,
+      );
+      expect(sessionStart.applied).toBe(true);
+      expect(sessionStart.maxTokens).toBe(1024);
+      expect(plan.buildContextCalls[0]?.maxTokens).toBe(1024);
+
+      const promptSubmit = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "Where is the release runbook?",
+            session_id: "s-b1",
+          },
+        },
+        dependencies,
+      );
+      expect(promptSubmit.applied).toBe(true);
+      expect(plan.buildContextCalls[1]?.maxTokens).toBe(512);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("skips low-relevance prompt injections when relevance gating is on", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-gate-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-gate-workspace-");
+    const plan: FakeMemoryPlan = {
+      buildContextCalls: [],
+      content: "Developer memory notes:\ncontinuity",
+      recallCalls: [],
+      recallOverrides: {},
+    };
+
+    try {
+      await writeInjectionHostConfig({
+        homeRoot,
+        promptInjection: "relevance_gated",
+      });
+
+      const result = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "hello there",
+            session_id: "s-g1",
+          },
+        },
+        { createMemory: createPlannedMemory(plan) },
+      );
+
+      expect(result.applied).toBe(false);
+      expect(result.reason).toBe("low_relevance");
+      expect(result.output).toBeNull();
+      // Session-start is never gated even with continuity-only recall.
+      const sessionStart = await executeInstalledHostHook(
+        {
+          command: "session-start",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "s-g1", source: "startup" },
+        },
+        { createMemory: createPlannedMemory(plan) },
+      );
+      expect(sessionStart.applied).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("suppresses duplicate prompt injections within a session and resets on compact", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-dedupe-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-dedupe-workspace-");
+    const plan: FakeMemoryPlan = {
+      buildContextCalls: [],
+      content: "Developer memory notes:\nrunbook fact",
+      recallCalls: [],
+      recallOverrides: lexicalHitOverrides("fact-1"),
+    };
+
+    try {
+      await writeInjectionHostConfig({
+        homeRoot,
+        promptInjection: "relevance_gated",
+      });
+      const dependencies = { createMemory: createPlannedMemory(plan) };
+      const payload = {
+        cwd: workspaceRoot,
+        prompt: "Where is the release runbook?",
+        session_id: "s-d1",
+      };
+
+      const first = await executeInstalledHostHook(
+        { command: "user-prompt-submit", host: "claude", homeRoot, payload },
+        dependencies,
+      );
+      expect(first.applied).toBe(true);
+
+      const second = await executeInstalledHostHook(
+        { command: "user-prompt-submit", host: "claude", homeRoot, payload },
+        dependencies,
+      );
+      expect(second.applied).toBe(false);
+      expect(second.reason).toBe("duplicate_context");
+
+      // New record set → injects again.
+      plan.recallOverrides = lexicalHitOverrides("fact-2");
+      plan.content = "Developer memory notes:\nnew fact";
+      const third = await executeInstalledHostHook(
+        { command: "user-prompt-submit", host: "claude", homeRoot, payload },
+        dependencies,
+      );
+      expect(third.applied).toBe(true);
+
+      // Without a reset, repeating the third fragment stays suppressed.
+      const repeatBeforeCompact = await executeInstalledHostHook(
+        { command: "user-prompt-submit", host: "claude", homeRoot, payload },
+        dependencies,
+      );
+      expect(repeatBeforeCompact.reason).toBe("duplicate_context");
+
+      // Post-compact session-start resets the dedupe state: content injected
+      // before the compaction is welcome again in the fresh context window.
+      plan.recallOverrides = lexicalHitOverrides("fact-brief");
+      plan.content = "Developer memory notes:\nsession brief";
+      await executeInstalledHostHook(
+        {
+          command: "session-start",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "s-d1", source: "compact" },
+        },
+        dependencies,
+      );
+      plan.recallOverrides = lexicalHitOverrides("fact-2");
+      plan.content = "Developer memory notes:\nnew fact";
+      const afterCompact = await executeInstalledHostHook(
+        { command: "user-prompt-submit", host: "claude", homeRoot, payload },
+        dependencies,
+      );
+      expect(afterCompact.applied).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps ungated prompt injection byte-compatible and enriches session-start queries", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hook-parity-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-hook-parity-workspace-");
+    const plan: FakeMemoryPlan = {
+      buildContextCalls: [],
+      content: "Developer memory notes:\ncontinuity",
+      recallCalls: [],
+      recallOverrides: {},
+    };
+
+    try {
+      await writeInjectionHostConfig({ homeRoot });
+      const dependencies = { createMemory: createPlannedMemory(plan) };
+
+      // No promptInjection config: continuity-only recall still injects.
+      const prompt = await executeInstalledHostHook(
+        {
+          command: "user-prompt-submit",
+          host: "claude",
+          homeRoot,
+          payload: {
+            cwd: workspaceRoot,
+            prompt: "hello there",
+            session_id: "s-p1",
+          },
+        },
+        dependencies,
+      );
+      expect(prompt.applied).toBe(true);
+
+      // Session-start queries carry the workspace name as a lexical anchor.
+      await executeInstalledHostHook(
+        {
+          command: "session-start",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "s-p1", source: "resume" },
+        },
+        dependencies,
+      );
+      const sessionStartQuery = plan.recallCalls.at(-1)?.query ?? "";
+      expect(sessionStartQuery).toContain("resume");
+      expect(sessionStartQuery).toContain(basename(workspaceRoot));
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+});
+describe("installed host shared-agent reads", () => {
+  it("surfaces another host's records only when sharedAgents opts in", async () => {
+    const homeRoot = await createWorkspace("goodmemory-shared-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-shared-workspace-");
+
+    const writeClaudeConfig = async (sharedAgents?: string[]) =>
+      writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            host: "claude",
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            ...(sharedAgents ? { sharedAgents } : {}),
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "shared-user",
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+      await writeClaudeConfig();
+      // Seed a codex-tagged fact through the real write pipeline against the
+      // same shared sqlite store both hosts default to.
+      const { createInstalledHostMemory: createMemoryForSeed } = await import(
+        "../../src/install/hostExecutionContext"
+      );
+      const codexMemory = createMemoryForSeed({
+        activationMode: "global",
+        contextMode: "fragment",
+        debug: false,
+        host: "codex",
+        maxTokens: 256,
+        retrievalProfile: "coding_agent",
+        scope: {
+          agentId: "codex",
+          userId: "shared-user",
+          workspaceId: basename(workspaceRoot),
+        },
+        storage: {
+          provider: "sqlite",
+          url: join(homeRoot, ".goodmemory/memory.sqlite"),
+        },
+        writeback: {
+          allowAssistantOutput: "confirmed_or_verified",
+          dryRun: false,
+          maxChars: 12_000,
+          maxMessages: 12,
+          minConfidence: 0.7,
+          mode: "selective",
+          persistRawTranscript: false,
+        },
+        workspaceRoot,
+      });
+      const seeded = await codexMemory.remember({
+        annotations: [{ messageIndex: 0, remember: "always" }],
+        messages: [
+          {
+            content: "The codex migration blocker is the shared schema review.",
+            role: "user",
+          },
+        ],
+        scope: {
+          agentId: "codex",
+          userId: "shared-user",
+          workspaceId: basename(workspaceRoot),
+        },
+      });
+      expect(seeded.accepted).toBe(1);
+
+      const prompt = {
+        cwd: workspaceRoot,
+        prompt: "What is the codex migration blocker about the schema review?",
+        session_id: "shared-session",
+      };
+
+      // Without sharedAgents: codex records stay private to codex.
+      const siloed = await executeInstalledHostHook({
+        command: "user-prompt-submit",
+        host: "claude",
+        homeRoot,
+        payload: prompt,
+      });
+      expect(String(siloed.context ?? "")).not.toContain("schema review");
+
+      // With sharedAgents ["codex"]: the read union surfaces it.
+      await writeClaudeConfig(["codex"]);
+      const shared = await executeInstalledHostHook({
+        command: "user-prompt-submit",
+        host: "claude",
+        homeRoot,
+        payload: prompt,
+      });
+      expect(shared.applied).toBe(true);
+      expect(String(shared.context)).toContain("schema review");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+});
+describe("installed host opportunistic maintenance", () => {
+  it("runs the non-synthesizing job set on session-stop when enabled", async () => {
+    const homeRoot = await createWorkspace("goodmemory-maintenance-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-maintenance-workspace-");
+    const maintenanceCalls: Array<Record<string, unknown>> = [];
+
+    const writeConfig = async (maintenance?: Record<string, unknown>) =>
+      writeFile(
+        join(homeRoot, ".goodmemory/claude.json"),
+        JSON.stringify(
+          {
+            activationMode: "global",
+            host: "claude",
+            ...(maintenance ? { maintenance } : {}),
+            maxTokens: 256,
+            retrievalProfile: "coding_agent",
+            storage: {
+              path: join(homeRoot, ".goodmemory/memory.sqlite"),
+              provider: "sqlite",
+            },
+            userId: "maintenance-user",
+            version: 1,
+            writeback: { mode: "off" },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+    const dependencies = {
+      createMemory: ((_: GoodMemoryConfig) =>
+        ({
+          jobs: createNoopGoodMemoryJobsFacade(),
+          runtime: createNoopGoodMemoryRuntimeFacade(),
+          async buildContext() {
+            throw new Error("not used");
+          },
+          async recall() {
+            throw new Error("not used");
+          },
+          async remember() {
+            throw new Error("not used");
+          },
+          async forget() {
+            throw new Error("not used");
+          },
+          async exportMemory() {
+            throw new Error("not used");
+          },
+          async deleteAllMemory() {
+            throw new Error("not used");
+          },
+          async feedback() {
+            throw new Error("not used");
+          },
+          async reviseMemory() {
+            throw new Error("not used");
+          },
+          async runMaintenance(input) {
+            maintenanceCalls.push(input as unknown as Record<string, unknown>);
+            return {
+              compiledCount: 0,
+              maintenance: null,
+              promotionDecisionCounts: {},
+              proposalCount: 0,
+              ran: true,
+              reason: "completed" as const,
+            };
+          },
+        }) satisfies GoodMemory) as (config: GoodMemoryConfig) => GoodMemory,
+    };
+
+    try {
+      await mkdir(join(homeRoot, ".goodmemory"), { recursive: true });
+
+      // Disabled (absent maintenance config): never called.
+      await writeConfig();
+      await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "m-1" },
+        },
+        dependencies,
+      );
+      expect(maintenanceCalls).toHaveLength(0);
+
+      // Enabled: runs after writeback with the pinned non-synthesizing jobs
+      // (no consolidation) and the cooldown default.
+      await writeConfig({ auto: true });
+      await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "m-1" },
+        },
+        dependencies,
+      );
+      expect(maintenanceCalls).toHaveLength(1);
+      expect(maintenanceCalls[0]?.jobs).toEqual([
+        "dedupe",
+        "contradiction",
+        "qualityRepair",
+        "ttlExpiry",
+      ]);
+      expect(maintenanceCalls[0]?.minHoursBetweenRuns).toBe(24);
+      expect(
+        (maintenanceCalls[0]?.scope as Record<string, unknown>)?.sessionId,
+      ).toBeUndefined();
+
+      // Second stop inside the cooldown window passes the recorded mark.
+      await executeInstalledHostHook(
+        {
+          command: "session-stop",
+          host: "claude",
+          homeRoot,
+          payload: { cwd: workspaceRoot, session_id: "m-1" },
+        },
+        dependencies,
+      );
+      expect(maintenanceCalls).toHaveLength(2);
+      expect(typeof maintenanceCalls[1]?.lastRunAt).toBe("string");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

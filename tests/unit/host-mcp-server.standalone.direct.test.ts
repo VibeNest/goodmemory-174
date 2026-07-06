@@ -154,6 +154,36 @@ describe("goodmemory mcp server standalone direct handlers", () => {
     expect(Object.keys(server._registeredTools).sort()).toEqual(READ_ONLY_TOOLS);
   });
 
+  it("describes read tools as when-to-call directives", async () => {
+    const { memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+    const description = (name: string): string =>
+      server._registeredTools[name]?.description ?? "";
+
+    // Directive phrasing shapes whether agents actually reach for memory.
+    expect(description("goodmemory_get_context")).toContain(
+      "Call it when hook-injected context is missing or insufficient",
+    );
+    expect(description("goodmemory_trace_recall")).toContain(
+      "did not surface",
+    );
+    expect(description("goodmemory_search_index")).toContain(
+      "specific records rather than a rendered summary",
+    );
+    expect(description("goodmemory_stats")).toContain(
+      "before assuming an empty store",
+    );
+    // The progressive pairing stays discoverable from get_records itself.
+    expect(description("goodmemory_get_records")).toContain(
+      "progressive GoodMemory recall",
+    );
+  });
+
   it("serves get_context from the synthesized standalone scope", async () => {
     const { calls, memory } = createFakeMemory();
     const server = inspectServer(
@@ -273,6 +303,115 @@ describe("goodmemory mcp server standalone direct handlers", () => {
     expect(asUser.isError).toBeUndefined();
     expect(calls.remember[1]?.messages[0]?.role).toBe("user");
     expect(calls.remember[1]?.extractionStrategy).toBe("rules-only");
+  });
+
+  it("annotates explicit tool writes as confirmed remember-always", async () => {
+    const { calls, memory } = createFakeMemory();
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createConfiglessDependencies(memory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "The deploy is blocked on smoke verification.",
+    });
+
+    // The explicit tool call is the deliberate confirming act: without the
+    // remember-always + confirmed annotation, assistant-role content is
+    // silently dropped by the default extractor and assistant policy.
+    expect(calls.remember[0]?.annotations).toEqual([
+      {
+        confirmed: true,
+        messageIndex: 0,
+        reason: "explicit goodmemory_remember tool call",
+        remember: "always",
+      },
+    ]);
+    expect(result.structuredContent?.outcomes).toEqual([
+      {
+        memoryId: "fact-new",
+        memoryType: "fact",
+        outcome: "written",
+      },
+    ]);
+
+    await server._registeredTools.goodmemory_remember!.handler({
+      content: "Prefer bun test over npm test in this repo.",
+      kindHint: "preference",
+    });
+    expect(calls.remember[1]?.annotations?.[0]).toMatchObject({
+      kindHint: "preference",
+      remember: "always",
+    });
+  });
+
+  it("explains why nothing was written when the pipeline rejects", async () => {
+    const { memory } = createFakeMemory();
+    const rejectingMemory = {
+      ...memory,
+      remember: async () => ({
+        accepted: 0,
+        events: [
+          {
+            candidateId: "candidate-1",
+            memoryType: "fact" as const,
+            outcome: "rejected" as const,
+            reason: "below_threshold",
+          },
+        ],
+        rejected: 1,
+      }),
+    } as unknown as GoodMemory;
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createConfiglessDependencies(rejectingMemory),
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "maybe",
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.accepted).toBe(0);
+    expect(result.structuredContent?.outcomes).toEqual([
+      {
+        memoryType: "fact",
+        outcome: "rejected",
+        reason: "below_threshold",
+      },
+    ]);
+    expect(String(result.structuredContent?.explanation)).toContain(
+      "below_threshold",
+    );
+  });
+
+  it("persists default-role writes through the real governed pipeline", async () => {
+    // Regression: default role is assistant and the deterministic extractor
+    // skips assistant messages, so without the tool annotation this write
+    // silently no-ops (accepted 0). Real createGoodMemory, no fakes.
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        standalone: STANDALONE_CONFIG,
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "The rollout decision is to ship behind the beta flag.",
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent?.accepted).toBe(1);
+    expect(result.structuredContent?.rejected).toBe(0);
+    expect(
+      (result.structuredContent?.memoryIds as string[] | undefined)?.length,
+    ).toBe(1);
   });
 
   it("routes installed-mode writes through the installed context", async () => {

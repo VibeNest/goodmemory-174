@@ -14,7 +14,13 @@ import type {
 import { listImplicitMemBenchResearchCases } from "../src/eval/implicitmembench-research";
 import type { Phase60OverallSummary } from "../src/eval/phase60";
 import { buildPhase60OverallSummary } from "../src/eval/phase60";
-import { resolveCliFlagValue } from "./cli-options";
+import {
+  assertCliPathSegmentValue,
+  parseCliPositiveIntegerFlagStrict,
+  resolveCliFlagValueStrict,
+  resolveCliPathSegmentFlagValueStrict,
+  resolveEnvValueStrict,
+} from "./cli-options";
 import {
   PHASE60_CANONICAL_RUN_ID,
   runPhase60Eval,
@@ -130,32 +136,36 @@ export function parsePhase61Full300CliOptions(
   const now = input?.now ?? (() => new Date());
   return {
     benchmarkRoot:
-      resolveCliFlagValue(argv, "--benchmark-root") ??
-      env.GOODMEMORY_IMPLICITMEMBENCH_ROOT,
-    maxConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--max-concurrency") ??
-        env.GOODMEMORY_PHASE61_FULL300_MAX_CONCURRENCY,
-      "--max-concurrency",
-    ),
-    outputDir: resolveCliFlagValue(argv, "--output-dir"),
-    primingTimeoutMs: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--priming-timeout-ms") ??
-        env.GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS,
-      "--priming-timeout-ms",
-    ),
+      resolveCliFlagValueStrict(argv, "--benchmark-root") ??
+      resolveEnvValueStrict(env, "GOODMEMORY_IMPLICITMEMBENCH_ROOT"),
+    maxConcurrency:
+      parseCliPositiveIntegerFlagStrict(argv, "--max-concurrency") ??
+      parsePositiveInteger(
+        resolveEnvValueStrict(env, "GOODMEMORY_PHASE61_FULL300_MAX_CONCURRENCY"),
+        "GOODMEMORY_PHASE61_FULL300_MAX_CONCURRENCY",
+      ),
+    outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    primingTimeoutMs:
+      parseCliPositiveIntegerFlagStrict(argv, "--priming-timeout-ms") ??
+      parsePositiveInteger(
+        resolveEnvValueStrict(env, "GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS"),
+        "GOODMEMORY_IMPLICITMEMBENCH_PRIMING_TIMEOUT_MS",
+      ),
     runId:
-      resolveCliFlagValue(argv, "--run-id") ??
+      resolveCliPathSegmentFlagValueStrict(argv, "--run-id") ??
       `run-phase61-full300-${timestampForRunId(now())}`,
-    shardConcurrency: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--shard-concurrency") ??
-        env.GOODMEMORY_PHASE61_FULL300_SHARD_CONCURRENCY,
-      "--shard-concurrency",
-    ),
-    shards: parsePositiveInteger(
-      resolveCliFlagValue(argv, "--shards") ??
-        env.GOODMEMORY_PHASE61_FULL300_SHARDS,
-      "--shards",
-    ),
+    shardConcurrency:
+      parseCliPositiveIntegerFlagStrict(argv, "--shard-concurrency") ??
+      parsePositiveInteger(
+        resolveEnvValueStrict(env, "GOODMEMORY_PHASE61_FULL300_SHARD_CONCURRENCY"),
+        "GOODMEMORY_PHASE61_FULL300_SHARD_CONCURRENCY",
+      ),
+    shards:
+      parseCliPositiveIntegerFlagStrict(argv, "--shards") ??
+      parsePositiveInteger(
+        resolveEnvValueStrict(env, "GOODMEMORY_PHASE61_FULL300_SHARDS"),
+        "GOODMEMORY_PHASE61_FULL300_SHARDS",
+      ),
   };
 }
 
@@ -168,6 +178,11 @@ export function resolvePhase61Full300Options(
       "Phase 61 full-300 requires GOODMEMORY_IMPLICITMEMBENCH_ROOT or --benchmark-root.",
     );
   }
+  const runId = input.runId ?? PHASE60_CANONICAL_RUN_ID;
+  assertCliPathSegmentValue({
+    flag: "--run-id",
+    value: runId,
+  });
 
   return {
     benchmarkRoot: resolve(input.benchmarkRoot),
@@ -176,7 +191,7 @@ export function resolvePhase61Full300Options(
     outputDir: resolve(input.outputDir ?? resolvePhase61Full300OutputDir(root)),
     primingTimeoutMs:
       input.primingTimeoutMs ?? PHASE61_FULL300_DEFAULT_PRIMING_TIMEOUT_MS,
-    runId: input.runId ?? PHASE60_CANONICAL_RUN_ID,
+    runId,
     shardConcurrency:
       input.shardConcurrency ?? PHASE61_FULL300_DEFAULT_SHARD_CONCURRENCY,
     shards: input.shards ?? PHASE61_FULL300_DEFAULT_SHARDS,

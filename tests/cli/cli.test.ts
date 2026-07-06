@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, it } from "bun:test";
 import { access, chmod, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { buildWritebackScopeDigest } from "../../src/install/hostWritebackAuditLedger";
 import {
   createFactMemory,
   createFeedbackMemory,
@@ -1043,6 +1044,10 @@ describe("goodmemory cli help and routing", () => {
     expect(codexWriteback.stdout).toContain("GoodMemory Codex Writeback");
     expect(codexWriteback.stdout).toContain("observe    stores local bounded/redacted candidate previews");
     expect(codexWriteback.stdout).toContain("dismisses observe-only events");
+    expect(codexWriteback.stdout).toContain("--from-rollout");
+    expect(codexWriteback.stdout).toContain("--rollout-path <path>");
+    expect(codexWriteback.stdout).toContain("--sessions-root <path>");
+    expect(codexWriteback.stdout).toContain("--workspace-root <path>");
     expect(codexWriteback.stdout).toContain("goodmemory codex writeback inspect");
     expect(codexWriteback.stdout).toContain("goodmemory codex writeback forget --event-id <id>");
     expect(claude.exitCode).toBe(0);
@@ -2422,7 +2427,9 @@ describe("goodmemory cli installed host config", () => {
             writeback: { mode: string };
           };
           expect(config.userId).toBe("codex-user");
-          expect(config.writeback.mode).toBe("observe");
+          // Fresh interactive installs now recommend selective (capture on,
+          // auditable/reversible) instead of observe.
+          expect(config.writeback.mode).toBe("selective");
           expect(config.storage).toEqual({
             provider: "postgres",
             url: "postgres://postgres:secret@localhost:5432/goodmemory",
@@ -3413,6 +3420,550 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
+  it("surfaces writeback capture activity in status output", async () => {
+    const home = await createTempWorkspace("goodmemory-status-activity-home");
+    const workspace = await createTempWorkspace("goodmemory-status-activity-workspace");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      const writeConfig = async (mode: "off" | "selective") =>
+        writeFile(
+          join(home.root, ".goodmemory/claude.json"),
+          JSON.stringify(
+            {
+              activationMode: "global",
+              host: "claude",
+              maxTokens: 256,
+              retrievalProfile: "coding_agent",
+              storage: {
+                path: join(home.root, ".goodmemory/memory.sqlite"),
+                provider: "sqlite",
+              },
+              userId: "activity-user",
+              version: 1,
+              writeback: { mode },
+            },
+            null,
+            2,
+          ) + "\n",
+          "utf8",
+        );
+      await writeConfig("selective");
+
+      const scopeDigest = buildWritebackScopeDigest({
+        agentId: "claude",
+        userId: "activity-user",
+        workspaceId: basename(workspace.root),
+      });
+      const buildEvent = (input: {
+        eventId: string;
+        occurredAt: string;
+        recallHitCount?: number;
+        scopeDigest?: string;
+        sessionDigest: string;
+        status?: string;
+      }) => ({
+        candidateKey: `sha256:${input.eventId}`,
+        command: "turn-end",
+        contentPreview: "bounded preview",
+        eventId: input.eventId,
+        forgottenLinkedRecordIds: [],
+        forgottenMemoryIds: [],
+        host: "claude",
+        kind: "fact",
+        linkedRecordIds: [],
+        memoryIds: [`memory-${input.eventId}`],
+        mode: "selective",
+        occurredAt: input.occurredAt,
+        reason: "decision",
+        recallHitCount: input.recallHitCount ?? 0,
+        recalledBy: [],
+        scopeDigest: input.scopeDigest ?? scopeDigest,
+        sessionDigest: input.sessionDigest,
+        source: "user",
+        status: input.status ?? "committed",
+        updatedAt: input.occurredAt,
+      });
+      await writeFile(
+        join(home.root, ".goodmemory/claude-writeback-events.json"),
+        JSON.stringify(
+          {
+            auditEvents: [
+              buildEvent({
+                eventId: "evt-early",
+                occurredAt: "2026-07-04T10:00:00.000Z",
+                sessionDigest: "session:aaa",
+              }),
+              buildEvent({
+                eventId: "evt-latest",
+                occurredAt: "2026-07-05T09:00:00.000Z",
+                recallHitCount: 2,
+                sessionDigest: "session:bbb",
+              }),
+              buildEvent({
+                eventId: "evt-foreign-scope",
+                occurredAt: "2026-07-05T09:30:00.000Z",
+                scopeDigest: "scope:other",
+                sessionDigest: "session:ccc",
+              }),
+              buildEvent({
+                eventId: "evt-observed",
+                occurredAt: "2026-07-05T09:45:00.000Z",
+                sessionDigest: "session:bbb",
+                status: "observed",
+              }),
+            ],
+            events: [],
+            pending: [],
+            version: 1,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf8",
+      );
+
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const status = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "claude",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(status.exitCode).toBe(0);
+          const payload = JSON.parse(status.stdout) as {
+            hosts: Array<{
+              writebackActivity?: {
+                committedTotal: number;
+                lastCapturedAt: string | null;
+                lastSessionCaptured: number;
+                recallHitEvents: number;
+              };
+            }>;
+          };
+          // Only committed events in the current scope count; the foreign
+          // scope and the observed (non-durable) event stay out.
+          expect(payload.hosts[0]?.writebackActivity).toEqual({
+            committedTotal: 2,
+            lastCapturedAt: "2026-07-05T09:00:00.000Z",
+            lastSessionCaptured: 1,
+            recallHitEvents: 1,
+          });
+
+          const text = await withCwd(workspace.root, async () =>
+            runCLI(["status", "claude", "--workspace-root", workspace.root]),
+          );
+          expect(text.stdout).toContain(
+            "captured: 1 memory last session (1 recalled in later sessions)",
+          );
+          expect(text.stdout).toContain("goodmemory claude writeback inspect");
+
+          // Capture off: status points at the enable command instead.
+          await writeConfig("off");
+          const offText = await withCwd(workspace.root, async () =>
+            runCLI(["status", "claude", "--workspace-root", workspace.root]),
+          );
+          expect(offText.stdout).toContain(
+            "capture: off — enable: goodmemory enable claude --writeback selective",
+          );
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("reports the retrieval tier in status and flags preset misconfiguration in doctor", async () => {
+    const home = await createTempWorkspace("goodmemory-retrieval-tier-home");
+    const workspace = await createTempWorkspace("goodmemory-retrieval-tier-workspace");
+
+    try {
+      await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+      const writeConfig = async (extra: Record<string, unknown>) =>
+        writeFile(
+          join(home.root, ".goodmemory/claude.json"),
+          JSON.stringify(
+            {
+              activationMode: "global",
+              host: "claude",
+              maxTokens: 256,
+              retrievalProfile: "coding_agent",
+              storage: {
+                path: join(home.root, ".goodmemory/memory.sqlite"),
+                provider: "sqlite",
+              },
+              userId: "tier-user",
+              version: 1,
+              writeback: { mode: "off" },
+              ...extra,
+            },
+            null,
+            2,
+          ) + "\n",
+          "utf8",
+        );
+
+      await withEnv(
+        {
+          GOODMEMORY_EMBEDDING_API_KEY: undefined,
+          GOODMEMORY_EMBEDDING_MODEL: undefined,
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          await writeConfig({ retrieval: { bm25Ranking: true } });
+          const bm25Status = await withCwd(workspace.root, async () =>
+            runCLI(["status", "claude", "--workspace-root", workspace.root]),
+          );
+          expect(bm25Status.stdout).toContain("- retrieval: bm25-hybrid");
+
+          // Shared reads + injection telemetry surface alongside the tier.
+          await writeFile(
+            join(home.root, ".goodmemory/claude-injection-state.json"),
+            JSON.stringify(
+              {
+                events: [
+                  {
+                    at: "2026-07-05T10:00:00.000Z",
+                    command: "user-prompt-submit",
+                    decision: "injected",
+                    estimatedTokens: 120,
+                    recallLatencyMs: 40,
+                    recordIds: ["fact-1"],
+                  },
+                  {
+                    at: "2026-07-05T10:01:00.000Z",
+                    command: "user-prompt-submit",
+                    decision: "low_relevance",
+                    estimatedTokens: 0,
+                    recallLatencyMs: 20,
+                    recordIds: [],
+                  },
+                ],
+                sessions: {},
+                version: 1,
+              },
+              null,
+              2,
+            ) + "\n",
+            "utf8",
+          );
+          await writeConfig({
+            retrieval: { bm25Ranking: true },
+            sharedAgents: ["codex"],
+          });
+          const sharedStatus = await withCwd(workspace.root, async () =>
+            runCLI(["status", "claude", "--workspace-root", workspace.root]),
+          );
+          expect(sharedStatus.stdout).toContain("- shared reads: codex");
+          expect(sharedStatus.stdout).toContain(
+            "- injection (last 2): injected 1, gated 1, avg recall 30ms",
+          );
+
+          await writeConfig({});
+          const floorStatus = await withCwd(workspace.root, async () =>
+            runCLI([
+              "status",
+              "claude",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const floorPayload = JSON.parse(floorStatus.stdout) as {
+            hosts: Array<{ retrievalTier?: string }>;
+          };
+          expect(floorPayload.hosts[0]?.retrievalTier).toBe("rules-only");
+
+          // preset "recommended" without an embedding provider throws inside
+          // the fail-open hooks (silent no-context); doctor must say so.
+          await writeConfig({ retrieval: { preset: "recommended" } });
+          const doctor = await withCwd(workspace.root, async () =>
+            runCLI([
+              "doctor",
+              "claude",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const doctorPayload = JSON.parse(doctor.stdout) as {
+            hosts: Array<{ warnings: string[] }>;
+          };
+          expect(
+            doctorPayload.hosts[0]?.warnings.some(
+              (warning) =>
+                warning.includes("retrieval.preset") &&
+                warning.includes("embedding") &&
+                warning.includes("failing open"),
+            ),
+          ).toBe(true);
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("composes recommended setup behind an explicit consent gate", async () => {
+    const home = await createTempWorkspace("goodmemory-recommended-home");
+    const workspace = await createTempWorkspace("goodmemory-recommended-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          // Without consent (no --yes, non-interactive): refuse with guidance,
+          // write nothing.
+          const refused = await withCwd(workspace.root, async () =>
+            runCLI(["setup", "--recommended", "--host", "claude"]),
+          );
+          expect(refused.exitCode).toBe(1);
+          expect(refused.stderr).toContain("--yes");
+          await expect(
+            readFile(join(home.root, ".goodmemory/claude.json"), "utf8"),
+          ).rejects.toThrow();
+
+          // Explicit --yes: applies global activation + selective writeback
+          // and prints the capture commitments.
+          const applied = await withCwd(workspace.root, async () =>
+            runCLI([
+              "setup",
+              "--recommended",
+              "--host",
+              "claude",
+              "--user-id",
+              "recommended-user",
+              "--yes",
+            ]),
+          );
+          expect(applied.exitCode).toBe(0);
+          expect(applied.stdout).toContain("never persist raw transcripts");
+          expect(applied.stdout).toContain("writeback inspect");
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/claude.json"), "utf8"),
+          ) as {
+            activationMode?: string;
+            writeback?: { mode?: string };
+          };
+          expect(config.activationMode).toBe("global");
+          expect(config.writeback?.mode).toBe("selective");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("recommends selective writeback in the interactive fresh-install prompt", async () => {
+    const home = await createTempWorkspace("goodmemory-interactive-selective-home");
+    const workspace = await createTempWorkspace(
+      "goodmemory-interactive-selective-workspace",
+    );
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          // All-default interactive answers: the fresh-install writeback
+          // question now recommends selective.
+          const answers: string[] = [];
+          const result = await withCwd(workspace.root, async () =>
+            runCLI(
+              ["install", "claude", "--user-id", "interactive-user"],
+              {
+                interactive: true,
+                prompt: {
+                  ask: async () => answers.shift() ?? "",
+                  askSecret: async () => answers.shift() ?? "",
+                },
+              },
+            ),
+          );
+          expect(result.exitCode).toBe(0);
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/claude.json"), "utf8"),
+          ) as { writeback?: { mode?: string } };
+          expect(config.writeback?.mode).toBe("selective");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("captures a codex rollout via writeback --from-rollout", async () => {
+    const home = await createTempWorkspace("goodmemory-rollout-home");
+    const workspace = await createTempWorkspace("goodmemory-rollout-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          await mkdir(join(home.root, ".goodmemory"), { recursive: true });
+          await writeFile(
+            join(home.root, ".goodmemory/codex.json"),
+            JSON.stringify(
+              {
+                activationMode: "global",
+                host: "codex",
+                maxTokens: 256,
+                retrievalProfile: "coding_agent",
+                storage: {
+                  path: join(home.root, ".goodmemory/memory.sqlite"),
+                  provider: "sqlite",
+                },
+                userId: "rollout-user",
+                version: 1,
+                writeback: { mode: "selective" },
+              },
+              null,
+              2,
+            ) + "\n",
+            "utf8",
+          );
+
+          // Nested sessions layout with two rollouts; --from-rollout picks
+          // the newest by mtime.
+          const sessionsRoot = join(home.root, ".codex/sessions/2026/07/05");
+          await mkdir(sessionsRoot, { recursive: true });
+          const oldRollout = join(
+            sessionsRoot,
+            "rollout-2026-07-05T09-00-00-11111111-1111-1111-1111-111111111111.jsonl",
+          );
+          const newRollout = join(
+            sessionsRoot,
+            "rollout-2026-07-05T10-00-00-22222222-2222-2222-2222-222222222222.jsonl",
+          );
+          const rolloutLine = (text: string) =>
+            JSON.stringify({
+              payload: {
+                content: [{ text, type: "input_text" }],
+                role: "user",
+                type: "message",
+              },
+              timestamp: "2026-07-05T10:00:00.000Z",
+              type: "response_item",
+            }) + "\n";
+          await writeFile(oldRollout, rolloutLine("Old rollout decision noted."), "utf8");
+          await writeFile(
+            newRollout,
+            rolloutLine("Next step is to publish the codex rollout capture."),
+            "utf8",
+          );
+          const future = new Date(Date.now() + 5_000);
+          const { utimes } = await import("node:fs/promises");
+          await utimes(newRollout, future, future);
+
+          const result = await withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "writeback",
+              "--from-rollout",
+              "--sessions-root",
+              join(home.root, ".codex/sessions"),
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(result.exitCode).toBe(0);
+          const payload = JSON.parse(result.stdout) as {
+            reason: string;
+            trace: Record<string, unknown>;
+            wrote: boolean;
+          };
+          expect(payload.reason).toBe("written");
+          expect(payload.wrote).toBe(true);
+          expect(payload.trace.transcriptPathUsed).toBe(true);
+
+          // Second run: the cursor makes it a no-op instead of a duplicate.
+          const second = await withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "writeback",
+              "--from-rollout",
+              "--sessions-root",
+              join(home.root, ".codex/sessions"),
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          const secondPayload = JSON.parse(second.stdout) as { reason: string };
+          expect(secondPayload.reason).toBe("empty_transcript");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("enables the MCP write tool via enable --mcp-allow-write", async () => {
+    const home = await createTempWorkspace("goodmemory-mcp-allowwrite-home");
+    const workspace = await createTempWorkspace("goodmemory-mcp-allowwrite-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const setup = await withCwd(workspace.root, async () =>
+            runCLI([
+              "setup",
+              "--host",
+              "claude",
+              "--user-id",
+              "allowwrite-user",
+              "--json",
+            ]),
+          );
+          expect(setup.exitCode).toBe(0);
+
+          const enable = await withCwd(workspace.root, async () =>
+            runCLI([
+              "enable",
+              "claude",
+              "--mcp-allow-write",
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(enable.exitCode).toBe(0);
+
+          const config = JSON.parse(
+            await readFile(join(home.root, ".goodmemory/claude.json"), "utf8"),
+          ) as { mcp?: { allowWrite?: boolean } };
+          expect(config.mcp).toEqual({ allowWrite: true });
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
   it("recognizes Codex MCP registration with TOML-spaced managed args", async () => {
     const home = await createTempWorkspace("goodmemory-codex-spaced-mcp-home");
     const workspace = await createTempWorkspace("goodmemory-codex-spaced-mcp-workspace");
@@ -3832,7 +4383,7 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
-  it("uses observe for new interactive setup when the prompt default is accepted", async () => {
+  it("uses selective for new interactive setup when the prompt default is accepted", async () => {
     const home = await createTempWorkspace("goodmemory-setup-default-writeback-home");
     const workspace = await createTempWorkspace(
       "goodmemory-setup-default-writeback-workspace",
@@ -3878,14 +4429,14 @@ describe("goodmemory cli installed host config", () => {
           };
           expect(payload.hosts).toHaveLength(1);
           expect(payload.hosts[0]?.host).toBe("codex");
-          expect(payload.hosts[0]?.writeback.mode).toBe("observe");
+          expect(payload.hosts[0]?.writeback.mode).toBe("selective");
 
           const config = JSON.parse(
             await readFile(join(home.root, ".goodmemory/codex.json"), "utf8"),
           ) as {
             writeback: { mode: string };
           };
-          expect(config.writeback.mode).toBe("observe");
+          expect(config.writeback.mode).toBe("selective");
         },
       );
     } finally {

@@ -52,6 +52,16 @@ like LoCoMo's neural-embedding path.
 Current verdict after BEAM/LoCoMo promotion (2026-07-05): BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable and README-promoted through `benchmark-claims/*.json` plus `gate:public-benchmark-claim --strict`.
 ImplicitMemBench remains internal / blocked evidence because reproducibility,
 dataset-source/license, and same-model judge-bias blockers are still present.
+Phase 61 Full-300 rerun evidence is now protected by strict scalar parsing:
+`eval:phase-61-full300` rejects duplicate benchmark/output/run/budget selectors,
+requires a single path-segment `--run-id`, requires canonical positive integer
+budgets, and rejects empty or whitespace-padded ImplicitMemBench root/env
+fallbacks before launching live shards. This hardens internal reruns only; it
+does not remove the ImplicitMemBench public-claim blockers.
+The 2026-07-06 ad hoc rerun `run-phase61-full300-rerun-20260706-current`
+completed against the repo fixture root because the current environment did not
+provide the full external root; it covered 4 cases, not 300, and is not
+comparable to the older Full-300 declaration.
 
 
 Tasks
@@ -79,17 +89,20 @@ Tasks
   It also rejects benchmark-incompatible source selectors before loading reports:
   `--reference` is LongMemEval-only, `--root` is LoCoMo-only, and `--rubrics`
   is BEAM-only.
-  Each output run directory now persists `run-identity.json` and refuses to
-  reuse an existing `progress.jsonl` cache when the benchmark, run id, source
-  input paths, source input SHA-256 fingerprints, judge model, slice limit, or
-  stored-answer boundary no longer match.
-  Resumable progress rows now reject malformed cached verdicts/scores,
+  Each output run directory now persists `run-identity.json`, rejects malformed
+  or unknown-field existing identity files, rejects non-SHA-256 source
+  fingerprints, and refuses to reuse an existing `progress.jsonl` cache when
+  the benchmark, run id, source input paths, source input SHA-256 fingerprints,
+  judge model, slice limit, or stored-answer boundary no longer match.
+  Resumable progress rows now reject malformed or unknown-field cached verdicts/scores,
   malformed BEAM rubric keys whose `<questionId>#<itemIndex>` prefix disagrees
   with row `questionId`, duplicate cached question/rubric keys, and cached rows
   outside the selected case/rubric scope instead of silently counting
   non-boolean correctness, invalid BEAM rubric scores, last-write-wins summary
   drift, or stale out-of-scope slice rows, while still tolerating a killed-run
-  final partial JSON line.
+  final partial JSON line. Unit coverage now proves that tolerance for both
+  question-level and BEAM rubric progress caches, while still rejecting broken
+  JSON lines before the final tail.
   Generated `rescore-summary.json` files also persist `generatedAt`,
   `outputPath`, `sourceInputs`, `sourceInputFingerprints` (bytes + SHA-256),
   `judgeModel`, `limit` (number for a sliced rescore, `null` for full scope),
@@ -102,10 +115,11 @@ Tasks
   official-rescore output run directory, so stored answers, benchmark reference
   roots, and BEAM rubrics cannot be mixed with derived `run-identity.json`,
   `progress.jsonl`, or `rescore-summary.json` artifacts. This is input,
-  source-family, run-directory, source/output isolation, slice-budget,
-  progress-cache, and source-lineage hardening for the planned independent
-  judge comparability rescore only; it does not regenerate answers, run a judge
-  in this guard step, change scores, or change public-claim boundaries.
+  source-family, run-directory, source/output isolation, malformed or
+  unknown-field identity, non-SHA-256 source fingerprints, slice-budget,
+  progress-cache, and source-lineage hardening for the planned independent judge
+  comparability rescore only; it does not regenerate answers, run a judge in
+  this guard step, change scores, or change public-claim boundaries.
   Judge gateway environment is now preflighted before creating the output run
   directory or writing `run-identity.json`: `GOODMEMORY_JUDGE_BASE_URL`,
   `GOODMEMORY_JUDGE_API_KEY`, and `GOODMEMORY_JUDGE_MODEL` must be present,
@@ -116,6 +130,26 @@ Tasks
   `progress.jsonl` stays resumable under the same run id until the selected
   scope completes without judge failures. This prevents partial official-judge
   batches from being mistaken for complete comparability evidence.
+  Follow-up hardening (2026-07-06): the rescore writer now serializes
+  question-level progress rows in the same strict `{correct, questionId}` shape
+  that the resume parser accepts, and serializes BEAM rubric rows through the
+  canonical rubric serializer covered by unit tests. This prevents a new
+  LongMemEval/LoCoMo judge batch from writing `category` / raw judge text fields
+  that a later strict resume would reject as unknown-field cache drift.
+  `rescore-summary.json` is also schema-validated before write: stale summaries
+  without stored-answer comparability metadata, source fingerprints,
+  selected/source scope counts, complete judged coverage, or in-range score
+  fields now fail instead of replacing auditable evidence; summaries whose
+  category aggregates do not match the headline counts and scores also fail.
+  The validator recomputes
+  LongMemEval/LoCoMo category totals, correct counts, per-category accuracy,
+  and overall accuracy; for BEAM it recomputes category question totals,
+  macro-by-category, and question-weighted micro scores. The existing
+  LongMemEval, LoCoMo, and BEAM official-rescore local artifacts were
+  refreshed from complete cached progress with `0 to judge`: each now has a
+  matching `run-identity.json`, source input SHA-256 fingerprints,
+  source-vs-selected scope counts, and an explicit stored-answer comparability
+  `claimBoundary` in `rescore-summary.json`, with the same published scores.
 
 [DONE 2026-07-02] P67-B LongMemEval public-claim replay. The v0.3.5
   `goodmemory-rules-only` replay produced a judge-free deterministic-subset

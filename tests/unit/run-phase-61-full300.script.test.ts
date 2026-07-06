@@ -217,6 +217,69 @@ describe("run-phase-61 full300 script", () => {
     });
   });
 
+  it("rejects ambiguous or unsafe Phase 61 full-300 selectors", () => {
+    const env = buildRequiredEnv();
+    expect(() =>
+      parsePhase61Full300CliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/run-phase-61-full300.ts",
+          "--benchmark-root",
+          "/tmp/bench-a",
+          "--benchmark-root",
+          "/tmp/bench-b",
+        ],
+        { env },
+      ),
+    ).toThrow("--benchmark-root cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase61Full300CliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/run-phase-61-full300.ts",
+          "--run-id",
+          "../escape",
+        ],
+        { env },
+      ),
+    ).toThrow("--run-id must be a single path segment.");
+
+    expect(() =>
+      parsePhase61Full300CliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/run-phase-61-full300.ts",
+          "--shards",
+          "01",
+        ],
+        { env },
+      ),
+    ).toThrow("--shards must be a positive integer.");
+
+    expect(() =>
+      parsePhase61Full300CliOptions(
+        ["bun", "run", "scripts/run-phase-61-full300.ts"],
+        {
+          env: {
+            ...env,
+            GOODMEMORY_IMPLICITMEMBENCH_ROOT: " /tmp/bench",
+          },
+        },
+      ),
+    ).toThrow("GOODMEMORY_IMPLICITMEMBENCH_ROOT cannot be empty or whitespace-padded.");
+
+    expect(() =>
+      resolvePhase61Full300Options({
+        benchmarkRoot: "/tmp/bench",
+        runId: "nested/run",
+      }),
+    ).toThrow("--run-id must be a single path segment.");
+  });
+
   it("configures Postgres-backed storage and priming timeout without exposing secrets", () => {
     const env = buildRequiredEnv();
 

@@ -159,4 +159,89 @@ describe("installed host writeback config", () => {
     expect(parsed.config.writeback.mode).toBe("selective");
     expect(parsed.config.writeback.persistRawTranscript).toBe(false);
   });
+  it("parses writeback.extractionStrategy and rejects unknown values", () => {
+    const parsed = parseInstalledHostRuntimeConfig(
+      {
+        host: "codex",
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+        writeback: {
+          extractionStrategy: "rules-only",
+          mode: "selective",
+        },
+      },
+      "codex",
+    );
+
+    expect(parsed.status).toBe("ok");
+    if (parsed.status !== "ok") {
+      return;
+    }
+    expect(parsed.config.writeback.extractionStrategy).toBe("rules-only");
+
+    expect(
+      parseInstalledHostRuntimeConfig(
+        {
+          host: "codex",
+          storage: {
+            path: "/tmp/goodmemory.sqlite",
+            provider: "sqlite",
+          },
+          userId: "user-1",
+          version: 1,
+          writeback: {
+            extractionStrategy: "batch",
+            mode: "selective",
+          },
+        },
+        "codex",
+      ),
+    ).toEqual({
+      detail:
+        "writeback.extractionStrategy must be auto, rules-only, or llm-assisted",
+      status: "invalid",
+    });
+  });
+  it("parses mcp.allowWrite with a false default", () => {
+    const base = {
+      host: "codex" as const,
+      storage: {
+        path: "/tmp/goodmemory.sqlite",
+        provider: "sqlite",
+      },
+      userId: "user-1",
+      version: 1,
+    };
+
+    const absent = parseInstalledHostRuntimeConfig(base, "codex");
+    expect(absent.status).toBe("ok");
+    if (absent.status !== "ok") {
+      return;
+    }
+    expect(absent.config.mcp).toBeUndefined();
+
+    const enabled = parseInstalledHostRuntimeConfig(
+      { ...base, mcp: { allowWrite: true } },
+      "codex",
+    );
+    expect(enabled.status).toBe("ok");
+    if (enabled.status !== "ok") {
+      return;
+    }
+    expect(enabled.config.mcp).toEqual({ allowWrite: true });
+
+    expect(
+      parseInstalledHostRuntimeConfig(
+        { ...base, mcp: { allowWrite: "yes" } },
+        "codex",
+      ),
+    ).toEqual({
+      detail: "mcp.allowWrite must be a boolean",
+      status: "invalid",
+    });
+  });
 });

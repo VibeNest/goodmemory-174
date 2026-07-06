@@ -43,6 +43,26 @@ function category(
   return entry;
 }
 
+function locomoProgressRow(
+  overrides: Partial<LocomoQuestionRetrieval> = {},
+): LocomoQuestionRetrieval {
+  return {
+    answerCorrect: null,
+    caseId: "c1",
+    category: "single_hop",
+    evidenceRecall: 1,
+    evidenceTurnIds: ["D1:1"],
+    generatedAnswer: null,
+    goldEvidenceFullyRetrieved: true,
+    missingEvidenceTurnIds: [],
+    noiseTurnCount: 0,
+    noiseTurnIds: [],
+    questionId: "q1",
+    retrievedTurnIds: ["D1:1"],
+    ...overrides,
+  };
+}
+
 describe("phase-65 LoCoMo smoke adapter", () => {
   it("parses smoke cli flags and rejects a non-positive limit", () => {
     expect(
@@ -3536,11 +3556,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     const { parseLocomoProgressLines } = await import(
       "../../scripts/run-phase-65-locomo-smoke"
     );
-    const good: Partial<LocomoQuestionRetrieval> = {
-      caseId: "c1",
-      evidenceRecall: 1,
-      questionId: "q1",
-    };
+    const good = locomoProgressRow();
     const parsed = parseLocomoProgressLines(
       `${JSON.stringify(good)}\n{"caseId":"c1","questionId":"q2","evi`,
     );
@@ -3552,11 +3568,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     const { parseLocomoProgressLines } = await import(
       "../../scripts/run-phase-65-locomo-smoke"
     );
-    const good: Partial<LocomoQuestionRetrieval> = {
-      caseId: "c1",
-      evidenceRecall: 1,
-      questionId: "q1",
-    };
+    const good = locomoProgressRow();
     expect(() =>
       parseLocomoProgressLines(
         `${JSON.stringify(good)}\n{"caseId":"c1","questionId":"q2","evi\n${JSON.stringify({
@@ -3576,11 +3588,7 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
       configFingerprint: "config-sha",
       kind: "locomo-progress-config",
     };
-    const good: Partial<LocomoQuestionRetrieval> = {
-      caseId: "c1",
-      evidenceRecall: 1,
-      questionId: "q1",
-    };
+    const good = locomoProgressRow();
 
     const parsed = parseLocomoProgressLines(
       `${JSON.stringify(header)}\n${JSON.stringify(good)}\n`,
@@ -3592,6 +3600,15 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     expect(() =>
       parseLocomoProgressLines(
         `${JSON.stringify(header)}\n{}\n${JSON.stringify(good)}\n`,
+      ),
+    ).toThrow("malformed LoCoMo progress line 2");
+
+    expect(() =>
+      parseLocomoProgressLines(
+        `${JSON.stringify(header)}\n${JSON.stringify({
+          ...good,
+          evidenceTurnIds: undefined,
+        })}\n`,
       ),
     ).toThrow("malformed LoCoMo progress line 2");
   });

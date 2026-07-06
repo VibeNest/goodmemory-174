@@ -2378,8 +2378,9 @@ Tasks
   path instead of treating provider retrieval as cheap deterministic replay.
   Resume now rejects duplicate checkpoint rows, checkpoint rows outside the
   selected question scope, malformed non-tail checkpoint JSON, and non-header
-  JSON objects that do not match the progress-row shape before replaying cached
-  results, while still tolerating a killed-run final partial JSON line.
+  JSON objects that do not match the full progress-row shape before replaying
+  cached results, while still tolerating a killed-run final partial JSON line
+  and legacy checkpoints that omit `answerTokenF1`.
   Hand-edited or spliced progress files therefore cannot silently overwrite a
   completed question, widen the selected evidence scope, hide corrupted middle
   rows, or smuggle malformed row objects into a resumed run.
@@ -3000,6 +3001,38 @@ Tasks
   compatible. This is evidence-contract hardening only; it does not change
   LoCoMo retrieval, answer scores, default status, or public-claim boundaries.
   Unit coverage lives in tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004gwi Rel0.8 multi-hop near-miss queue expansion.
+  `/private/tmp/LOCOMO-full/cases.json` was regenerated through
+  `prepare:phase-65-locomo` with 10 cases, 1986 questions, and 5882 turns, then
+  `locomo-multihop-candidate-admission-rel08-near-miss-label-analysis-current`
+  labeled all 10 `answerTokenF1NearMisses` from
+  `locomo-multihop-candidate-admission-rel08-token-f1-delta-current`: average
+  candidate token-F1 0.2429793770, 7 balanced partial overlaps,
+  1 over-specified answer, 2 under-specified answers, 0
+  rationale-bearing/numeric/zero-overlap rows, with 2 full-recall, 5
+  partial-recall, and 3 zero-recall rows. The artifact emits six repair jobs:
+  balanced-partial-overlap full/partial/zero, over-specified partial, and
+  under-specified partial/zero.
+
+  File-loader proof
+  `locomo-multihop-candidate-admission-rel08-near-miss-label-file-loader-smoke-current`
+  consumed the 10-question artifact with `executionFailures: 0`; default
+  retrieval found 0/10 fully retrieved, average evidence recall 0, and 44 noise
+  turns. This expands the actionable multi_hop queue from the subset replay to
+  the full rel0.8 near-miss set, but it is still candidate-pool admission plus
+  label/answer-contract queue evidence, not retrieval recovery, default-profile
+  promotion, or a public-claim boundary change.
+
+[DONE] P65-T004gwj Targeted no-floor provider retry caveat.
+  `locomo-multihop-near-miss-top32-add8-current` attempted to rerun the 10-row
+  near-miss queue on the refreshed `/private/tmp/LOCOMO-full/cases.json` with
+  provider embeddings, topK32/maxAdditions8, no relative-score floor, a 5s
+  provider request timeout, and a 120s run watchdog. The run ended with
+  `executionFailures: 10`, 0 retrieved turns, and report-level watchdog
+  metadata. Treat it as a failed run only: it is not a no-floor retrieval
+  comparison, not a reusable source report, not recovery evidence, and not a
+  default-profile or public-claim boundary change.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

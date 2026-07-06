@@ -18,11 +18,23 @@ import {
   writeInstalledHostProgressiveRecordCache,
 } from "./hostProgressiveRecall";
 import { recordInstalledHostWritebackRecallHits } from "./hostWritebackAuditRuntime";
+import { shouldInjectPromptContext } from "./hostInjectionGate";
+import {
+  hashInjectionContent,
+  isDuplicateInjection,
+  readInstalledHostInjectionSession,
+  readInstalledHostMaintenanceMark,
+  recordInstalledHostInjection,
+  resetInstalledHostInjectionSession,
+  writeInstalledHostMaintenanceMark,
+} from "./hostInjectionState";
+import { buildWritebackSessionDigest } from "./hostWritebackAuditLedger";
 import {
   executeInstalledHostWriteback,
   type InstalledHostWritebackResult,
 } from "./hostWritebackRuntime";
 import { parseGoodMemoryRecordRef } from "../progressive/recall";
+import { basename } from "node:path";
 
 export type InstalledHostHookCommand =
   | "pre-tool-use"
@@ -51,10 +63,12 @@ export interface InstalledHostHookExecutionResult {
     | "assessment_failed"
     | "applied"
     | "disabled"
+    | "duplicate_context"
     | "empty_context"
     | "empty_prompt"
     | "invalid_global_config"
     | "invalid_repo_config"
+    | "low_relevance"
     | "managed_command"
     | "missing_command"
     | "missing_global_config"
@@ -150,15 +164,26 @@ export async function executeInstalledHostHook(
   }
 
   if (input.command === "session-stop") {
+    // Claude Code's Stop hook fires once per assistant turn, so writeback
+    // provenance is per-turn; the transcript cursor keeps each firing O(delta).
     const writeback = await executeInstalledHostWriteback(
       {
-        command: "session-end",
+        command: "turn-end",
         homeRoot: input.homeRoot,
         host: input.host,
         payload: input.payload,
       },
       dependencies,
     );
+
+    // Writeback first, opportunistic maintenance second: capture must never
+    // wait behind a maintenance pass.
+    await runOpportunisticMaintenance({
+      context: resolved.context,
+      dependencies,
+      homeRoot: input.homeRoot,
+      host: input.host,
+    });
 
     return {
       applied: false,
@@ -177,7 +202,7 @@ export async function executeInstalledHostHook(
     };
   }
 
-  const query = deriveHookQuery(input.command, input.payload);
+  const query = deriveHookQuery(input.command, input.payload, workspaceRootOf(resolved.context));
   if (!query) {
     return buildHookSkipResult({
       debug: resolved.context.debug,
@@ -188,8 +213,31 @@ export async function executeInstalledHostHook(
   }
 
   const context = resolved.context;
+  // The once-per-session brief may spend more than per-prompt injection.
+  const effectiveMaxTokens =
+    input.command === "session-start"
+      ? context.sessionStartMaxTokens ?? context.maxTokens
+      : context.maxTokens;
+  const sessionDigest = buildWritebackSessionDigest(context.scope.sessionId);
+
+  // clear/compact rebuild the host context window from scratch, so the
+  // duplicate-suppression state for this session must start over too.
+  const sessionStartSource = normalizeText(readOptionalText(input.payload, "source"));
+  if (
+    input.command === "session-start" &&
+    sessionDigest &&
+    (sessionStartSource === "clear" || sessionStartSource === "compact")
+  ) {
+    await resetInstalledHostInjectionSession({
+      homeRoot: input.homeRoot,
+      host: input.host,
+      now: new Date().toISOString(),
+      sessionDigest,
+    });
+  }
 
   try {
+    const recallStartedAt = performance.now();
     const hookContext =
       context.contextMode === "progressive"
         ? await buildProgressiveHookContext({
@@ -197,14 +245,17 @@ export async function executeInstalledHostHook(
             dependencies,
             homeRoot: input.homeRoot,
             host: input.host,
+            maxTokens: effectiveMaxTokens,
             query,
           }).catch(() => null)
         : null;
     const built = hookContext ?? await buildFragmentHookContext({
       context,
       dependencies,
+      maxTokens: effectiveMaxTokens,
       query,
     });
+    const recallLatencyMs = Math.round(performance.now() - recallStartedAt);
 
     if (!built) {
       return buildHookSkipResult({
@@ -212,13 +263,35 @@ export async function executeInstalledHostHook(
         host: input.host,
         reason: "empty_context",
         command: input.command,
-        maxTokens: resolved.context.maxTokens,
+        maxTokens: effectiveMaxTokens,
         query,
         scope: resolved.context.scope,
       });
     }
 
     const boundedContext = clampText(built.content, MAX_HOOK_CONTEXT_CHARS);
+    const injectionDecision = await decidePromptInjection({
+      boundedContext,
+      built,
+      command: input.command,
+      context,
+      homeRoot: input.homeRoot,
+      host: input.host,
+      recallLatencyMs,
+      sessionDigest,
+    });
+    if (injectionDecision) {
+      return buildHookSkipResult({
+        debug: resolved.context.debug,
+        host: input.host,
+        reason: injectionDecision,
+        command: input.command,
+        maxTokens: effectiveMaxTokens,
+        query,
+        scope: resolved.context.scope,
+      });
+    }
+
     await recordInstalledHostWritebackRecallHits({
       homeRoot: input.homeRoot,
       host: input.host,
@@ -226,11 +299,32 @@ export async function executeInstalledHostHook(
       scope: context.scope,
       sessionId: context.scope.sessionId,
     }).catch(() => undefined);
+    // pre-tool-use never reaches here (deriveHookQuery returns null for it),
+    // so the surviving commands are exactly the two injection events.
+    if (sessionDigest) {
+      await recordInstalledHostInjection({
+        contentHash: hashInjectionContent(boundedContext),
+        event: {
+          command: input.command === "session-start"
+            ? "session-start"
+            : "user-prompt-submit",
+          decision: "injected",
+          estimatedTokens: Math.ceil(boundedContext.length / 4),
+          recallLatencyMs,
+          recordIds: built.recalledRecordIds,
+        },
+        homeRoot: input.homeRoot,
+        host: input.host,
+        now: new Date().toISOString(),
+        recordIds: built.recalledRecordIds,
+        sessionDigest,
+      });
+    }
 
     return {
       applied: true,
       context: boundedContext,
-      maxTokens: resolved.context.maxTokens,
+      maxTokens: effectiveMaxTokens,
       output: {
         hookSpecificOutput: {
           hookEventName: mapHookEventName(input.command),
@@ -253,15 +347,137 @@ export async function executeInstalledHostHook(
       host: input.host,
       reason: "recall_failed",
       command: input.command,
-      maxTokens: resolved.context.maxTokens,
+      maxTokens: effectiveMaxTokens,
       query,
       scope: resolved.context.scope,
     });
   }
 }
 
+// Per-prompt injection control (promptInjection: "relevance_gated"): skip
+// continuity-only recalls (the session-start brief already covered them) and
+// exact repeats of already-injected content. Session-start is never gated.
+// Skips are recorded to the injection event ring; state failures fail open.
+async function decidePromptInjection(input: {
+  boundedContext: string;
+  built: HookContextBuildResult;
+  command: InstalledHostHookCommand;
+  context: InstalledHostResolvedContext;
+  homeRoot?: string;
+  host: InstalledHostKind;
+  recallLatencyMs: number;
+  sessionDigest: string | undefined;
+}): Promise<"duplicate_context" | "low_relevance" | null> {
+  if (
+    input.command !== "user-prompt-submit" ||
+    input.context.promptInjection !== "relevance_gated"
+  ) {
+    return null;
+  }
+
+  const recordSkip = async (
+    decision: "duplicate_context" | "low_relevance",
+  ): Promise<void> => {
+    if (!input.sessionDigest) {
+      return;
+    }
+    await recordInstalledHostInjection({
+      event: {
+        command: "user-prompt-submit",
+        decision,
+        estimatedTokens: 0,
+        recallLatencyMs: input.recallLatencyMs,
+        recordIds: input.built.recalledRecordIds,
+      },
+      homeRoot: input.homeRoot,
+      host: input.host,
+      now: new Date().toISOString(),
+      sessionDigest: input.sessionDigest,
+    });
+  };
+
+  // The progressive path has no RecallResult to gate on; only the fragment
+  // path carries one.
+  if (input.built.recall && !shouldInjectPromptContext(input.built.recall).inject) {
+    await recordSkip("low_relevance");
+    return "low_relevance";
+  }
+
+  if (input.sessionDigest) {
+    const session = await readInstalledHostInjectionSession({
+      homeRoot: input.homeRoot,
+      host: input.host,
+      sessionDigest: input.sessionDigest,
+    });
+    if (
+      isDuplicateInjection({
+        contentHash: hashInjectionContent(input.boundedContext),
+        recordIds: input.built.recalledRecordIds,
+        session,
+      })
+    ) {
+      await recordSkip("duplicate_context");
+      return "duplicate_context";
+    }
+  }
+
+  return null;
+}
+
+function workspaceRootOf(context: InstalledHostResolvedContext): string {
+  return context.workspaceRoot;
+}
+
+// Opportunistic session-stop maintenance (config maintenance.auto). Jobs are
+// the non-synthesizing set — consolidation stays off (LLM rewriting of
+// memories is deliberately not automated). The dream orchestrator enforces
+// its own thresholds and a per-scope concurrency gate on top of the
+// min-hours cooldown tracked here. Entirely fail-open: results land in the
+// state file, never in the hook output.
+async function runOpportunisticMaintenance(input: {
+  context: InstalledHostResolvedContext;
+  dependencies: InstalledHostHookDependencies;
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<void> {
+  if (input.context.maintenance?.auto !== true) {
+    return;
+  }
+  try {
+    const lastRunAt = await readInstalledHostMaintenanceMark(
+      input.host,
+      input.homeRoot,
+    );
+    const memory = createInstalledHostMemory(input.context, input.dependencies);
+    const { sessionId: _sessionId, ...durableScope } = input.context.scope;
+    const result = await memory.runMaintenance({
+      jobs: [
+        "dedupe",
+        "contradiction",
+        "qualityRepair",
+        "ttlExpiry",
+        ...(input.context.providers?.embedding ? ["embeddingRepair" as const] : []),
+      ],
+      ...(lastRunAt ? { lastRunAt } : {}),
+      minHoursBetweenRuns: input.context.maintenance.minHoursBetweenRuns ?? 24,
+      scope: durableScope,
+    });
+    if (result.ran) {
+      await writeInstalledHostMaintenanceMark({
+        homeRoot: input.homeRoot,
+        host: input.host,
+        lastRunAt: new Date().toISOString(),
+      });
+    }
+  } catch {
+    // Fail open.
+  }
+}
+
 interface HookContextBuildResult {
   content: string;
+  // Present on the fragment path only; the relevance gate reads it.
+  recall?: RecallResult;
   recalledRecordIds: string[];
 }
 
@@ -270,6 +486,7 @@ async function buildProgressiveHookContext(input: {
   dependencies: InstalledHostHookDependencies;
   homeRoot?: string;
   host: InstalledHostKind;
+  maxTokens: number;
   query: string;
 }): Promise<HookContextBuildResult | null> {
   const mcpRegistered = await isInstalledHostMcpRegistered({
@@ -299,7 +516,7 @@ async function buildProgressiveHookContext(input: {
   const rendered = service.renderProgressiveContext({
     index,
     maxRecords: MAX_PROGRESSIVE_HOOK_RECORDS,
-    maxTokens: input.context.maxTokens,
+    maxTokens: input.maxTokens,
     query: input.query,
     retrievalProfile: input.context.retrievalProfile,
   });
@@ -330,6 +547,7 @@ async function buildProgressiveHookContext(input: {
 async function buildFragmentHookContext(input: {
   context: InstalledHostResolvedContext;
   dependencies: InstalledHostHookDependencies;
+  maxTokens: number;
   query: string;
 }): Promise<HookContextBuildResult | null> {
   const memory = createInstalledHostMemory(input.context, input.dependencies);
@@ -341,7 +559,7 @@ async function buildFragmentHookContext(input: {
   const builtContext = await memory.buildContext({
     recall,
     output: "developer_prompt_fragment",
-    maxTokens: input.context.maxTokens,
+    maxTokens: input.maxTokens,
   });
   const fragment = normalizeText(builtContext.content);
   if (!fragment) {
@@ -350,6 +568,7 @@ async function buildFragmentHookContext(input: {
 
   return {
     content: fragment,
+    recall,
     recalledRecordIds: collectRecallRecordIds(recall),
   };
 }
@@ -387,6 +606,7 @@ function buildHookSkipResult(input: {
 function deriveHookQuery(
   command: InstalledHostHookCommand,
   payload: Record<string, unknown>,
+  workspaceRoot?: string,
 ): string | null {
   if (command === "pre-tool-use") {
     return null;
@@ -400,9 +620,15 @@ function deriveHookQuery(
   }
 
   const source = normalizeText(readOptionalText(payload, "source")) ?? "startup";
-  return source === "resume"
-    ? "What continuity, active context, and open loops should I resume for this coding session?"
-    : "What active context, continuity, and open loops should I know at the start of this coding session?";
+  const baseQuery =
+    source === "resume"
+      ? "What continuity, active context, and open loops should I resume for this coding session?"
+      : "What active context, continuity, and open loops should I know at the start of this coding session?";
+  // The workspace name is a discriminative lexical anchor (BM25 IDF) for
+  // project-tagged facts; the generic brief question alone has almost no
+  // overlap with stored content.
+  const workspaceName = workspaceRoot ? basename(workspaceRoot) : "";
+  return workspaceName ? `${baseQuery} Workspace: ${workspaceName}.` : baseQuery;
 }
 
 function mapHookEventName(

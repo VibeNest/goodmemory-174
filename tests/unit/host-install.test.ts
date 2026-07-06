@@ -1671,4 +1671,106 @@ describe("host install", () => {
       await rm(workspaceRoot, { force: true, recursive: true });
     }
   });
+  it("opts fresh installs into bm25 retrieval and preserves existing retrieval settings", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-retrieval-");
+    const configPath = join(homeRoot, ".goodmemory/codex.json");
+
+    try {
+      await installHost({ homeRoot, host: "codex", userId: "retrieval-user" });
+      const fresh = JSON.parse(await readFile(configPath, "utf8")) as {
+        retrieval?: Record<string, unknown>;
+      };
+      // Fresh stores start on the measured BM25 hybrid tier (deterministic,
+      // zero egress, no embedding needed).
+      expect(fresh.retrieval).toEqual({ bm25Ranking: true });
+      // Injection right-sizing defaults for new installs: a 1024-token
+      // session-start brief, 512 per prompt behind the relevance gate.
+      const freshFull = JSON.parse(await readFile(configPath, "utf8")) as {
+        maxTokens?: number;
+        promptInjection?: string;
+        sessionStartMaxTokens?: number;
+      };
+      expect(freshFull.maxTokens).toBe(512);
+      expect(freshFull.sessionStartMaxTokens).toBe(1024);
+      expect(freshFull.promptInjection).toBe("relevance_gated");
+      // Opportunistic maintenance (dedupe/quality/TTL — never consolidation)
+      // is on for fresh stores, gated by the dream orchestrator's guards.
+      const freshMaintenance = JSON.parse(await readFile(configPath, "utf8")) as {
+        maintenance?: Record<string, unknown>;
+      };
+      expect(freshMaintenance.maintenance).toEqual({ auto: true });
+
+      // Pre-upgrade configs (no retrieval section) must stay on the lexical
+      // floor across reinstalls: absence is preserved, not upgraded.
+      const { retrieval: _retrieval, ...withoutRetrieval } = JSON.parse(
+        await readFile(configPath, "utf8"),
+      ) as Record<string, unknown>;
+      await writeFile(
+        configPath,
+        JSON.stringify(withoutRetrieval, null, 2) + "\n",
+        "utf8",
+      );
+      await installHost({ homeRoot, host: "codex", userId: "retrieval-user" });
+      const reinstalled = JSON.parse(await readFile(configPath, "utf8")) as {
+        retrieval?: Record<string, unknown>;
+      };
+      expect("retrieval" in reinstalled).toBe(false);
+
+      // Custom retrieval settings survive reinstall verbatim.
+      const custom = JSON.parse(await readFile(configPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      custom.retrieval = { bm25Ranking: false, semanticCandidates: { topK: 8 } };
+      await writeFile(configPath, JSON.stringify(custom, null, 2) + "\n", "utf8");
+      await installHost({ homeRoot, host: "codex", userId: "retrieval-user" });
+      const preserved = JSON.parse(await readFile(configPath, "utf8")) as {
+        retrieval?: Record<string, unknown>;
+      };
+      expect(preserved.retrieval).toEqual({
+        bm25Ranking: false,
+        semanticCandidates: { topK: 8 },
+      });
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+  it("writes a directive memory-protocol instruction block per host", async () => {
+    const homeRoot = await createWorkspace("goodmemory-host-install-protocol-");
+    const claudeWorkspace = await createWorkspace("goodmemory-protocol-claude-ws-");
+    const codexWorkspace = await createWorkspace("goodmemory-protocol-codex-ws-");
+
+    try {
+      await installHost({ homeRoot, host: "claude", userId: "protocol-user" });
+      await installHost({ homeRoot, host: "codex", userId: "protocol-user" });
+      await enableHostWorkspace({
+        homeRoot,
+        host: "claude",
+        workspaceRoot: claudeWorkspace,
+      });
+      await enableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceRoot: codexWorkspace,
+      });
+
+      const claudeBlock = await readFile(join(claudeWorkspace, "CLAUDE.md"), "utf8");
+      expect(claudeBlock).toContain("<!-- GOODMEMORY-INSTALL:CLAUDE START -->");
+      expect(claudeBlock).toContain("Memory protocol:");
+      expect(claudeBlock).toContain("goodmemory_get_context");
+      expect(claudeBlock).toContain("goodmemory_trace_recall");
+      expect(claudeBlock).toContain("goodmemory_remember");
+      // Claude-only: division of labor vs Claude Code native auto-memory.
+      expect(claudeBlock).toContain("MEMORY.md");
+      expect(claudeBlock).toContain("<!-- GOODMEMORY-INSTALL:CLAUDE END -->");
+
+      const codexBlock = await readFile(join(codexWorkspace, "AGENTS.md"), "utf8");
+      expect(codexBlock).toContain("Memory protocol:");
+      expect(codexBlock).not.toContain("MEMORY.md");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(claudeWorkspace, { force: true, recursive: true });
+      await rm(codexWorkspace, { force: true, recursive: true });
+    }
+  });
 });

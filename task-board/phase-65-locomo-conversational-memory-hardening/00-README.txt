@@ -95,26 +95,24 @@ Next
   focused repair: validate source-report lineage, isolate one bucket/category at
   a time, rerun the paired live/reanswer comparison, and record answer changes
   with the live-delta tooling.
-- Keep category-filtered replay strict: every source-report row selected by a
-  `--reanswer-job-category` manifest job must itself have a matching QA
-  category, or the replay should fail before loading the benchmark root.
+- Category-filtered replay strictness is now banked in P65-T004gwb:
+  `eval:phase-65-reanswer-report` rejects selected source-report rows whose
+  actual QA category falls outside the requested `--reanswer-job-category`
+  filter. Future repair work can rely on those manifests as isolated
+  category-specific queues instead of re-proving this guard.
 - Treat open_domain commonsense/strict-no-evidence probes as opt-in evidence
   until broader category validation proves they do not regress single_hop,
   multi_hop, temporal, or adversarial slices.
-- Keep evidence-pack category routing explicit: LoCoMo `multi_hop` live/reanswer
-  evidence-pack contexts should use the shared `multi_session_reasoning`
-  framing, and `adversarial` contexts should use the shared `abstention`
-  framing. This is deterministic answer-context hardening until a focused live
-  slice proves whether it changes scores.
-- Keep multi_hop answer synthesis explicit: category-scoped live/reanswer
-  prompts should compose across all required evidence links and avoid returning
-  a first clue or partial chain as the final answer. The focused three-row
-  noisy-full-recall replay has run and retained the existing 1/3 narrow win, but
-  did not add score movement beyond the frequency-contract replay. The two
-  remaining synthesis near-misses are now classified as balanced partial-overlap
-  full-recall candidate rows; default retrieval can consume the artifact but
-  still retrieves 0/2, so this remains answer-synthesis / label-compatibility
-  queue evidence rather than default promotion.
+- Evidence-pack category routing and multi_hop synthesis prompt hardening are
+  banked in P65-T004gwa/P65-T004gwc/P65-T004gwd: LoCoMo `multi_hop` contexts use
+  the shared `multi_session_reasoning` framing, `adversarial` contexts use the
+  shared `abstention` framing, and category-scoped multi_hop prompts now ask for
+  the final synthesized answer rather than the first matching clue. The focused
+  three-row noisy-full-recall replay retained the existing 1/3 narrow win, and
+  the two remaining synthesis near-misses are classified as balanced
+  partial-overlap full-recall candidate rows; default retrieval still retrieves
+  0/2. Treat this as answer-synthesis / label-compatibility queue evidence, not
+  default promotion.
 - For open_domain full-recall wrong rows, treat gold-evidence-only replay as a
   diagnostic, not a fix: the current 13-row strict source scored 3/13, normal
   reanswer fell to 1/13, and gold-evidence-only rose only to 4/13 with one
@@ -141,6 +139,25 @@ Next
   This points to noise/context organization, rationale-bearing gold label work,
   default-retrieval gaps, and live-repeatability risk, not a defaultable
   answer-policy change.
+- The rel0.8 multi_hop near-miss queue has also been expanded directly from the
+  full 28-row candidate-admission token-F1 delta: 10 near misses, 7 balanced
+  partial overlaps, 1 over-specified answer, 2 under-specified answers, with
+  2 full-recall, 5 partial-recall, and 3 zero-recall rows. The 10-row loader
+  proof consumed the artifact with `executionFailures: 0`, but default retrieval
+  found 0/10 evidence recall and 44 noise turns. Use this as the fuller
+  multi_hop repair queue; it points to candidate-pool admission plus
+  label/answer-contract work, not a default-retrieval recovery.
+- Do not use `locomo-multihop-near-miss-top32-add8-current` as a no-floor
+  comparison. It attempted the 10-row queue with provider embeddings and no
+  relative-score floor, but all 10 rows failed under the 120s run watchdog and
+  retrieved no turns.
+- The next useful LoCoMo performance movement is therefore not another guard
+  pass over the same artifacts. It is a focused repair loop over the banked
+  queues: candidate-pool admission for missing-evidence rows, noise/context
+  organization for full-recall noisy wrong rows, and label-compatibility review
+  for rationale-bearing or balanced-partial-overlap near misses. Any lift still
+  needs paired live/reanswer evidence and category-slice regression checks before
+  default-profile promotion.
 - Coordinate any shared recall-routing change with the BEAM workstream and
   verify a BEAM rules-only recall diagnostic spot-check (`caseDeltaCount: 0`)
   before treating it as safe cross-benchmark evidence.

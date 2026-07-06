@@ -7,6 +7,11 @@ import type {
 import type { HostKind } from "../domain/hostTypes";
 import { normalizeScope, type MemoryScope } from "../domain/scope";
 import { resolveWorkspaceId } from "../host/managedFiles";
+import type { DocumentStore } from "../storage/contracts";
+import { createInMemoryDocumentStore } from "../storage/memory";
+import { createPostgresDocumentStore } from "../storage/postgres";
+import { createSQLiteDocumentStore } from "../storage/sqlite";
+import { wrapDocumentStoreForSharedAgents } from "./hostSharedAgentStores";
 import {
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
@@ -16,7 +21,10 @@ import {
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
   type InstalledHostActivationMode,
   type InstalledHostContextMode,
+  type InstalledHostMaintenanceConfig,
+  type InstalledHostPromptInjectionMode,
   type InstalledHostProviderConfig,
+  type InstalledHostRetrievalConfig,
   type InstalledHostWritebackConfig,
   type WorkspaceHostOptInConfig,
 } from "./hostConfigValidation";
@@ -46,10 +54,15 @@ export interface InstalledHostResolvedContext {
   contextMode: InstalledHostContextMode;
   debug: boolean;
   host: InstalledHostKind;
+  maintenance?: InstalledHostMaintenanceConfig;
   maxTokens: number;
+  promptInjection?: InstalledHostPromptInjectionMode;
   providers?: InstalledHostProviderConfig;
+  retrieval?: InstalledHostRetrievalConfig;
   retrievalProfile: "coding_agent" | "general_chat";
   scope: MemoryScope;
+  sessionStartMaxTokens?: number;
+  sharedAgents?: string[];
   storage: GoodMemoryConfig["storage"];
   writeback: InstalledHostWritebackConfig;
   workspaceRoot: string;
@@ -152,8 +165,28 @@ export async function resolveInstalledHostContext(
         workspaceConfig.retrievalProfile ??
         globalConfig.config.retrievalProfile ??
         DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
+      ...(globalConfig.config.promptInjection
+        ? { promptInjection: globalConfig.config.promptInjection }
+        : {}),
       ...(globalConfig.config.providers
         ? { providers: globalConfig.config.providers }
+        : {}),
+      ...(globalConfig.config.retrieval
+        ? { retrieval: globalConfig.config.retrieval }
+        : {}),
+      ...(workspaceConfig.sessionStartMaxTokens ??
+      globalConfig.config.sessionStartMaxTokens
+        ? {
+            sessionStartMaxTokens:
+              workspaceConfig.sessionStartMaxTokens ??
+              globalConfig.config.sessionStartMaxTokens,
+          }
+        : {}),
+      ...(globalConfig.config.sharedAgents?.length
+        ? { sharedAgents: globalConfig.config.sharedAgents }
+        : {}),
+      ...(globalConfig.config.maintenance
+        ? { maintenance: globalConfig.config.maintenance }
         : {}),
       scope: normalizeScope({
         agentId: input.host,
@@ -183,9 +216,19 @@ export function createInstalledHostMemory(
   context: HostMemoryRuntimeContext,
   dependencies: InstalledHostContextDependencies = {},
 ): GoodMemory {
-  const adapters = buildInstalledHostProviderAdapters(context.providers);
+  const providerAdapters = buildInstalledHostProviderAdapters(context.providers);
+  const sharedDocumentStore = buildSharedAgentDocumentStore(context);
+  const adapters =
+    providerAdapters || sharedDocumentStore
+      ? {
+          ...(providerAdapters ?? {}),
+          ...(sharedDocumentStore ? { documentStore: sharedDocumentStore } : {}),
+        }
+      : undefined;
   return (dependencies.createMemory ?? createGoodMemory)({
     ...(adapters ? { adapters } : {}),
+    // 1:1 with GoodMemoryRetrievalConfig; absence keeps rules-only parity.
+    ...(context.retrieval ? { retrieval: context.retrieval } : {}),
     remember: {
       preset: "coding_agent",
       profiles: [
@@ -195,9 +238,11 @@ export function createInstalledHostMemory(
           },
           extends: "coding_agent",
           id: `installed-host-${context.host}-writeback`,
-          when: {
-            agentId: context.host,
-          },
+          // No `when` matcher: this memory instance is dedicated to the
+          // resolved context, so the writeback assistant policy must govern
+          // every write through it. Installed scopes carry agentId=<host>,
+          // but standalone scopes default to agentId undefined and a
+          // host-keyed matcher would silently fall back to mode "ignore".
         },
       ],
     },
@@ -223,6 +268,30 @@ function mapWritebackAssistantPolicy(
   }
 
   return "ignore";
+}
+
+// sharedAgents read union rides a decorated document store built from the
+// same storage config createGoodMemory would use. Session and vector stores
+// stay auto-built: runtime continuity is per host+session, and the vector
+// path does not union shared agents in v1 (doctor surfaces that limitation
+// when an embedding provider is configured alongside sharedAgents).
+function buildSharedAgentDocumentStore(
+  context: HostMemoryRuntimeContext,
+): DocumentStore | undefined {
+  const sharedAgentIds = context.sharedAgents ?? [];
+  const ownAgentId = context.scope.agentId;
+  if (sharedAgentIds.length === 0 || !ownAgentId) {
+    return undefined;
+  }
+
+  const storage = context.storage;
+  const base =
+    storage?.provider === "sqlite" && storage.url
+      ? createSQLiteDocumentStore(storage.url)
+      : storage?.provider === "postgres" && storage.url
+        ? createPostgresDocumentStore({ url: storage.url })
+        : createInMemoryDocumentStore();
+  return wrapDocumentStoreForSharedAgents(base, { ownAgentId, sharedAgentIds });
 }
 
 function buildInstalledHostProviderAdapters(

@@ -127,7 +127,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_get_context",
     {
       description:
-        "Use this when you need a compact GoodMemory context fragment for the current workspace and prompt.",
+        "Fetch a compact memory context fragment for a specific question about this workspace. Call it when hook-injected context is missing or insufficient, or when you need memory for a different question than the current prompt.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         maxTokens: z.number().int().positive().optional(),
@@ -208,7 +208,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_trace_recall",
     {
       description:
-        "Use this when you need the raw recall routing, hit, candidate, and verification trace for a prompt.",
+        "Explain a recall: routing, hits, per-candidate scores, and suppression reasons. Call it when a memory that should exist did not surface, or when a surfaced memory looks wrong.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         query: z.string().min(1),
@@ -246,7 +246,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_search_index",
     {
       description:
-        "Use this for progressive GoodMemory recall: first fetch a compact recordRef index before requesting details.",
+        "Progressive GoodMemory recall step 1: fetch a compact recordRef index for a query, then call goodmemory_get_records for detail. Prefer this over goodmemory_get_context when you need specific records rather than a rendered summary.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -419,7 +419,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_stats",
     {
       description:
-        "Use this when you need stable record counts and runtime metadata for the current installed GoodMemory scope.",
+        "Record counts and runtime metadata for the current GoodMemory scope. Call it to check whether memory exists here before assuming an empty store.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -475,16 +475,20 @@ export function createGoodMemoryMcpServer(
           readOnlyHint: false,
         },
         description:
-          "Use this to persist a memory-worthy statement as durable GoodMemory. The write is governed: classification and dedupe may reject or merge it (see accepted/rejected in the result).",
+          "Use this to persist a memory-worthy statement as durable GoodMemory. The write is governed: classification and dedupe may reject or merge it (see accepted/rejected and per-event outcomes in the result). If accepted is 0, the explanation field says why.",
         inputSchema: {
           ...TOOL_SCOPE_SCHEMA,
           content: z.string().min(1).describe("The memory-worthy statement to persist."),
           extractionStrategy: z.enum(["auto", "rules-only", "llm-assisted"]).optional(),
+          kindHint: z
+            .enum(["preference", "fact", "feedback", "reference"])
+            .optional()
+            .describe("Optional memory kind for the statement; classification infers one otherwise."),
           locale: z.string().optional(),
           role: z
             .enum(["user", "assistant"])
             .optional()
-            .describe("Message role for governance. Defaults to assistant; pass user only for user-originated content."),
+            .describe("Message role for governance provenance. Defaults to assistant (the caller); pass user only for user-originated content."),
         },
       },
       async (args) => {
@@ -497,6 +501,19 @@ export function createGoodMemoryMcpServer(
         }
 
         const result = await context.memory.remember({
+          // The explicit tool call is the deliberate confirming act: the
+          // remember-always annotation force-adds the statement even where
+          // the deterministic extractor would skip it (assistant role), and
+          // confirmed satisfies the assistant-output policy honestly.
+          annotations: [
+            {
+              confirmed: true,
+              ...(args.kindHint ? { kindHint: args.kindHint } : {}),
+              messageIndex: 0,
+              reason: "explicit goodmemory_remember tool call",
+              remember: "always",
+            },
+          ],
           extractionStrategy: args.extractionStrategy,
           locale: args.locale,
           messages: [
@@ -507,12 +524,29 @@ export function createGoodMemoryMcpServer(
           ],
           scope: context.scope,
         });
+        const outcomes = result.events.map((event) => ({
+          ...(event.memoryId !== undefined ? { memoryId: event.memoryId } : {}),
+          memoryType: event.memoryType,
+          outcome: event.outcome,
+          ...(event.reason !== undefined ? { reason: event.reason } : {}),
+        }));
         return buildMcpStructuredResult({
           accepted: result.accepted,
           events: result.events,
+          ...(result.accepted === 0
+            ? {
+                explanation:
+                  outcomes.length === 0
+                    ? "No candidate survived extraction; the statement may have been filtered as noise before classification."
+                    : `Nothing was written: ${outcomes
+                        .map((outcome) => `${outcome.outcome}${outcome.reason ? ` (${outcome.reason})` : ""}`)
+                        .join(", ")}.`,
+              }
+            : {}),
           memoryIds: result.events
             .map((event) => event.memoryId)
             .filter((memoryId): memoryId is string => memoryId !== undefined),
+          outcomes,
           rejected: result.rejected,
           scope: context.scope,
           storage: {

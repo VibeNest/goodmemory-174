@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { DEFAULT_INSTALLED_HOST_WRITEBACK } from "../../src/install/hostConfigValidation";
 import {
   ensureStandaloneStorageReady,
+  resolveInstalledHostMcpAllowWrite,
   resolveMcpServeOptions,
   resolveStandaloneMcpContext,
 } from "../../src/install/standaloneMcpContext";
@@ -416,5 +417,44 @@ describe("ensureStandaloneStorageReady", () => {
       storage: { provider: "postgres", url: "postgres://localhost:5432/gm" },
       userId: "u-1",
     });
+  });
+});
+describe("resolveInstalledHostMcpAllowWrite", () => {
+  const config = (mcp?: Record<string, unknown>) =>
+    JSON.stringify({
+      host: "claude",
+      ...(mcp ? { mcp } : {}),
+      storage: { path: "/tmp/goodmemory.sqlite", provider: "sqlite" },
+      userId: "user-1",
+      version: 1,
+    });
+
+  it("reads mcp.allowWrite from the installed host config", async () => {
+    expect(
+      await resolveInstalledHostMcpAllowWrite({
+        dependencies: { readFile: async () => config({ allowWrite: true }) },
+        host: "claude",
+      }),
+    ).toBe(true);
+
+    expect(
+      await resolveInstalledHostMcpAllowWrite({
+        dependencies: { readFile: async () => config() },
+        host: "claude",
+      }),
+    ).toBe(false);
+
+    expect(
+      await resolveInstalledHostMcpAllowWrite({
+        dependencies: {
+          readFile: async (path: string) => {
+            throw Object.assign(new Error(`missing ${path}`), {
+              code: "ENOENT" as const,
+            });
+          },
+        },
+        host: "claude",
+      }),
+    ).toBe(false);
   });
 });

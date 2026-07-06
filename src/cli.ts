@@ -42,6 +42,15 @@ import {
   type InstalledHostResolvedContext,
 } from "./install/hostExecutionContext";
 import {
+  codexRolloutSessionId,
+  resolveLatestCodexRolloutPath,
+} from "./install/hostCodexRollout";
+import { readInstalledHostInjectionEvents } from "./install/hostInjectionState";
+import {
+  buildWritebackScopeDigest,
+  readInstalledHostWritebackLedger,
+} from "./install/hostWritebackAuditLedger";
+import {
   forgetInstalledHostWritebackAuditEvent,
   inspectInstalledHostWritebackAudit,
 } from "./install/hostWritebackAuditRuntime";
@@ -77,6 +86,7 @@ import {
 import { serveGoodMemoryMcp } from "./install/hostMcpServer";
 import {
   ensureStandaloneStorageReady,
+  resolveInstalledHostMcpAllowWrite,
   resolveMcpServeOptions,
 } from "./install/standaloneMcpContext";
 import {
@@ -748,15 +758,22 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "",
   "Usage",
   "  goodmemory codex writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "  goodmemory codex writeback --from-rollout [--rollout-path <path>] [--sessions-root <path>] [--workspace-root <path>] [--json]",
   "  goodmemory codex writeback inspect [--limit <n>] [--json]",
   "  goodmemory codex writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
+  "",
+  "Rollout capture",
+  "  --from-rollout          Read a Codex rollout JSONL instead of hook JSON from stdin",
+  "  --rollout-path <path>   Read one explicit rollout file",
+  "  --sessions-root <path>  Search this Codex sessions root for the latest rollout",
+  "  --workspace-root <path> Scope latest-rollout search to this workspace",
   "",
   "Modes",
   "  off        recall-only; no after-response candidate extraction",
   "  observe    stores local bounded/redacted candidate previews for review; no raw transcripts or durable memory writes",
   "  selective  writes selected candidates through public remember()",
   "",
-  "Reads Codex after-response/session-end JSON from stdin and runs installed-host writeback.",
+  "Reads Codex after-response/session-end JSON from stdin, or a Codex rollout JSONL when --from-rollout is set.",
   "Inspect lists recent audit events. Forget deletes linked durable records, or dismisses observe-only events.",
 ].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
@@ -2278,6 +2295,18 @@ function renderStatusPayload(payload: {
     lines.push(`  - config: ${String(host.config)}`);
     lines.push(`  - activation: ${String(host.activationMode ?? "unknown")}`);
     lines.push(`  - context: ${String(host.contextMode ?? "unknown")}`);
+    if (host.retrievalTier) {
+      lines.push(`  - retrieval: ${String(host.retrievalTier)}`);
+    }
+    if (Array.isArray(host.sharedAgents) && host.sharedAgents.length > 0) {
+      lines.push(`  - shared reads: ${host.sharedAgents.join(", ")}`);
+    }
+    if (host.injectionActivity) {
+      const injection = host.injectionActivity as HostInjectionActivity;
+      lines.push(
+        `  - injection (last ${injection.total}): injected ${injection.injected}, gated ${injection.gated}, avg recall ${injection.avgRecallLatencyMs}ms`,
+      );
+    }
     const writeback = host.writeback as InstalledHostWritebackConfig | null;
     lines.push(
       `  - writeback: ${writeback?.mode ?? "off"}`,
@@ -2307,9 +2336,52 @@ function renderStatusPayload(payload: {
       const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
       lines.push(`  - memories: ${total} (${formatCountBreakdown(counts) ?? "empty"})`);
     }
+    lines.push(
+      ...formatWritebackActivityLines(
+        hostName,
+        writeback?.mode ?? "off",
+        host.writebackActivity as
+          | {
+              committedTotal: number;
+              lastCapturedAt: string | null;
+              lastSessionCaptured: number;
+              recallHitEvents: number;
+            }
+          | undefined,
+      ),
+    );
   }
 
   return lines.join("\n");
+}
+
+function formatWritebackActivityLines(
+  hostName: string,
+  mode: string,
+  activity:
+    | {
+        committedTotal: number;
+        lastCapturedAt: string | null;
+        lastSessionCaptured: number;
+        recallHitEvents: number;
+      }
+    | undefined,
+): string[] {
+  if (mode === "off") {
+    return [
+      `  - capture: off — enable: goodmemory enable ${hostName} --writeback selective`,
+    ];
+  }
+  if (!activity || activity.committedTotal === 0) {
+    return [
+      `  - captured: nothing yet — capture runs after each ${hostName} turn once sessions produce durable signals`,
+    ];
+  }
+
+  const sessionNoun = activity.lastSessionCaptured === 1 ? "memory" : "memories";
+  return [
+    `  - captured: ${activity.lastSessionCaptured} ${sessionNoun} last session (${activity.recallHitEvents} recalled in later sessions), ${activity.committedTotal} total — inspect: goodmemory ${hostName} writeback inspect`,
+  ];
 }
 
 function renderInstallerPlanPayload(
@@ -2955,10 +3027,19 @@ async function promptWritebackInstallConfig(input: {
     return buildWritebackConfig(mode as InstalledHostWritebackMode);
   }
 
+  // Fresh installs recommend selective: it is the only mode that actually
+  // accumulates durable memory, and every write stays auditable via
+  // `writeback inspect` and reversible via `writeback forget`.
   const mode = await askChoice({
-    choices: ["off", "observe", "selective"],
-    defaultValue: "observe",
-    message: `Installed-host writeback mode for ${input.host}? [off/observe/selective]`,
+    choices: ["selective", "observe", "off"],
+    defaultValue: "selective",
+    message: [
+      `Auto-save durable memory from ${input.host} sessions?`,
+      "  selective - save high-signal statements (auditable, reversible) [recommended]",
+      "  observe   - only log redacted candidates for review, write nothing",
+      "  off       - recall only",
+      "[selective/observe/off]",
+    ].join("\n"),
     prompt: input.prompt,
   });
 
@@ -3766,10 +3847,21 @@ async function handleHostInstall(
   );
 }
 
+const RECOMMENDED_SETUP_COMMITMENTS = [
+  "GoodMemory recommended setup will:",
+  "  - activate memory globally (hooks inject a session brief and per-prompt context in every workspace)",
+  "  - enable selective writeback: durable memory extracted from your sessions after each turn, auditable and reversible",
+  "  - never persist raw transcripts; secret-like content is redacted; assistant output stays non-durable unless explicitly confirmed",
+  "  - review captures: goodmemory <host> writeback inspect · undo: goodmemory <host> writeback forget --event-id <id> · turn off: goodmemory enable <host> --writeback off",
+].join("\n");
+
 async function handleSetup(
   flags: ParsedFlags,
   dependencies: CLIRunDependencies = {},
 ): Promise<CLICommandOutput> {
+  if (flagEnabled(flags, "recommended")) {
+    return handleRecommendedSetup(flags, dependencies);
+  }
   const setup = await resolveSetupOptions(flags, dependencies);
   const workspaceRoot =
     setup.activationSelection === "current-workspace"
@@ -3973,6 +4065,57 @@ function resolveHostRepairMutationPaths(
   });
 
   return [...new Set(paths)];
+}
+
+// `setup --recommended`: one comprehensible consent decision. The explicit
+// gate (--yes, --json, or an interactive Y) is the consent act; the shipped
+// defaults stay untouched — nothing flips silently.
+async function handleRecommendedSetup(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies = {},
+): Promise<CLICommandOutput> {
+  const consented =
+    flagEnabled(flags, "yes") ||
+    flagEnabled(flags, "json") ||
+    (await askRecommendedSetupConsent(flags, dependencies));
+  if (!consented) {
+    throw new Error(
+      `Recommended setup enables global activation and selective writeback.\n${RECOMMENDED_SETUP_COMMITMENTS}\nRe-run with --yes to confirm (or answer y interactively).`,
+    );
+  }
+
+  const composedFlags: ParsedFlags = {
+    ...flags,
+    "activation-mode": "global",
+    writeback: "selective",
+  };
+  delete composedFlags.recommended;
+  const result = await handleSetup(composedFlags, {
+    ...dependencies,
+    // Consent given: run the composed install non-interactively.
+    interactive: false,
+  });
+  return {
+    ...result,
+    text: `${RECOMMENDED_SETUP_COMMITMENTS}\n\n${result.text}`,
+  };
+}
+
+async function askRecommendedSetupConsent(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies,
+): Promise<boolean> {
+  const prompt = resolveInstallPrompt(flags, dependencies);
+  if (!prompt) {
+    return false;
+  }
+  const answer = await askChoice({
+    choices: ["y", "n"],
+    defaultValue: "y",
+    message: `${RECOMMENDED_SETUP_COMMITMENTS}\nApply recommended setup? [Y/n]`,
+    prompt,
+  });
+  return answer === "y";
 }
 
 async function resolveSetupOptions(
@@ -4535,6 +4678,23 @@ async function buildInstallerHostPlan(input: {
   if (config === "invalid") {
     warnings.push(`Installed ${input.host} config is invalid and must be fixed manually.`);
   }
+  if (
+    existingConfig?.retrieval?.preset === "recommended" &&
+    !existingConfig.providers?.embedding &&
+    !process.env.GOODMEMORY_EMBEDDING_MODEL
+  ) {
+    warnings.push(
+      `retrieval.preset "recommended" requires an embedding endpoint (providers.embedding or GOODMEMORY_EMBEDDING_*); ${input.host} hooks are currently failing open with no context.`,
+    );
+  }
+  if (
+    (existingConfig?.sharedAgents?.length ?? 0) > 0 &&
+    existingConfig?.providers?.embedding
+  ) {
+    warnings.push(
+      "sharedAgents unions document reads only; semantic vector search does not include shared agents yet.",
+    );
+  }
   if (hookInspection.status === "blocked") {
     warnings.push(
       `Hook registration requires manual repair: ${hookInspection.detail ?? "blocked"}`,
@@ -4813,6 +4973,9 @@ async function buildHostStatus(
     activationMode:
       globalConfig.status === "ok" ? globalConfig.config.activationMode : null,
     config: globalConfig.status,
+    ...(globalConfig.status === "ok"
+      ? { retrievalTier: resolveHostRetrievalTier(globalConfig.config) }
+      : {}),
     contextMode:
       resolved.status === "ok"
         ? resolved.context.contextMode
@@ -4834,23 +4997,134 @@ async function buildHostStatus(
     return base;
   }
 
+  const writebackActivity = await buildHostWritebackActivity(
+    host,
+    resolved.context,
+  );
+  const injectionActivity = await buildHostInjectionActivity(host);
+  const sharedAgents = resolved.context.sharedAgents ?? [];
+
   try {
     const memoryStatus = await exportInstalledHostMemoryStatus(resolved.context);
     return {
       ...base,
       ...memoryStatus,
+      ...(injectionActivity ? { injectionActivity } : {}),
       scope: resolved.context.scope,
+      ...(sharedAgents.length > 0 ? { sharedAgents } : {}),
       storage: resolved.context.storage,
       workspaceRoot: resolved.context.workspaceRoot,
+      writebackActivity,
     };
   } catch (error) {
     return {
       ...base,
       countsError: error instanceof Error ? error.message : String(error),
+      ...(injectionActivity ? { injectionActivity } : {}),
       scope: resolved.context.scope,
+      ...(sharedAgents.length > 0 ? { sharedAgents } : {}),
       storage: resolved.context.storage,
       workspaceRoot: resolved.context.workspaceRoot,
+      writebackActivity,
     };
+  }
+}
+
+interface HostInjectionActivity {
+  avgRecallLatencyMs: number;
+  gated: number;
+  injected: number;
+  total: number;
+}
+
+// Injection telemetry from the event ring: how often hook context actually
+// lands versus gets gated, and what recall latency the hooks are paying.
+async function buildHostInjectionActivity(
+  host: InstalledHostKind,
+): Promise<HostInjectionActivity | null> {
+  try {
+    const events = await readInstalledHostInjectionEvents(host, undefined);
+    if (events.length === 0) {
+      return null;
+    }
+    const recent = events.slice(-20);
+    const injected = recent.filter((event) => event.decision === "injected").length;
+    return {
+      avgRecallLatencyMs: Math.round(
+        recent.reduce((sum, event) => sum + event.recallLatencyMs, 0) /
+          recent.length,
+      ),
+      gated: recent.length - injected,
+      injected,
+      total: recent.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// The effective retrieval quality tier for an installed host, derived from
+// its managed config. Env-only embedding (GOODMEMORY_EMBEDDING_*) also
+// upgrades recall at runtime but is not visible here; doctor covers the one
+// dangerous combination (preset without any embedding source).
+function resolveHostRetrievalTier(config: InstalledHostRuntimeConfig): string {
+  const retrieval = config.retrieval;
+  if (retrieval?.preset === "recommended") {
+    return "preset-recommended";
+  }
+  if (config.providers?.embedding && retrieval?.semanticCandidates) {
+    return retrieval.bm25Ranking ? "semantic-union+bm25" : "semantic-union";
+  }
+  if (retrieval?.bm25Ranking) {
+    return "bm25-hybrid";
+  }
+  return "rules-only";
+}
+
+interface HostWritebackActivity {
+  committedTotal: number;
+  lastCapturedAt: string | null;
+  lastSessionCaptured: number;
+  recallHitEvents: number;
+}
+
+// Proof-of-life for capture: committed writeback events in the current
+// scope, read straight from the audit ledger. Pure read; failures degrade to
+// an empty summary instead of breaking status.
+async function buildHostWritebackActivity(
+  host: InstalledHostKind,
+  context: InstalledHostResolvedContext,
+): Promise<HostWritebackActivity> {
+  const empty: HostWritebackActivity = {
+    committedTotal: 0,
+    lastCapturedAt: null,
+    lastSessionCaptured: 0,
+    recallHitEvents: 0,
+  };
+  try {
+    const ledger = await readInstalledHostWritebackLedger(host, undefined);
+    const scopeDigest = buildWritebackScopeDigest(context.scope);
+    const committed = ledger.auditEvents.filter(
+      (event) => event.scopeDigest === scopeDigest && event.status === "committed",
+    );
+    if (committed.length === 0) {
+      return empty;
+    }
+
+    const latest = committed.reduce((left, right) =>
+      left.occurredAt >= right.occurredAt ? left : right,
+    );
+    return {
+      committedTotal: committed.length,
+      lastCapturedAt: latest.occurredAt,
+      lastSessionCaptured: latest.sessionDigest
+        ? committed.filter((event) => event.sessionDigest === latest.sessionDigest)
+            .length
+        : 1,
+      recallHitEvents: committed.filter((event) => event.recallHitCount > 0).length,
+    };
+  } catch {
+    return empty;
   }
 }
 
@@ -4988,6 +5262,10 @@ async function handleHostEnable(
   const result = await enableHostWorkspace({
     contextMode: readContextModeFlag(flags["context-mode"]),
     host,
+    mcpAllowWrite:
+      flags["mcp-allow-write"] === undefined
+        ? undefined
+        : flagEnabled(flags, "mcp-allow-write"),
     writebackMode:
       flags.writeback === undefined ? undefined : readWritebackModeFlag(flags.writeback),
     workspaceId: flags["workspace-id"],
@@ -5277,10 +5555,34 @@ async function handleHostWriteback(
     throw new Error(`Unknown ${host} writeback command: ${command}.`);
   }
 
-  const rawInput = await new Response(Bun.stdin.stream()).text();
-  const payload = rawInput.trim().length > 0
-    ? JSON.parse(rawInput) as Record<string, unknown>
-    : {};
+  // Codex has no working hook surface today; --from-rollout feeds a session
+  // rollout file through the same transcript-hydration pipeline instead.
+  let payload: Record<string, unknown>;
+  if (flagEnabled(flags, "from-rollout")) {
+    if (host !== "codex") {
+      throw new Error("--from-rollout is only supported for the codex host.");
+    }
+    const rolloutPath =
+      flags["rollout-path"] ??
+      (await resolveLatestCodexRolloutPath({
+        ...(flags["sessions-root"] ? { sessionsRoot: flags["sessions-root"] } : {}),
+      }));
+    if (!rolloutPath) {
+      throw new Error(
+        "No codex rollout files found under ~/.codex/sessions. Pass --rollout-path <file> explicitly.",
+      );
+    }
+    payload = {
+      cwd: flags["workspace-root"] ? resolve(flags["workspace-root"]) : process.cwd(),
+      session_id: codexRolloutSessionId(rolloutPath),
+      transcript_path: resolve(rolloutPath),
+    };
+  } else {
+    const rawInput = await new Response(Bun.stdin.stream()).text();
+    payload = rawInput.trim().length > 0
+      ? JSON.parse(rawInput) as Record<string, unknown>
+      : {};
+  }
   const result = await executeInstalledHostWriteback({
     command: "session-end",
     dryRun: flagEnabled(flags, "dry-run"),
@@ -5340,7 +5642,11 @@ async function handleMcpServe(flags: ParsedFlags): Promise<void> {
   }
 
   await serveGoodMemoryMcp({
-    allowWrite: options.allowWrite,
+    // Installed hosts opt into the write tool via mcp.allowWrite in the host
+    // config (flag/env still win); managed registration args stay untouched.
+    allowWrite:
+      options.allowWrite ||
+      (await resolveInstalledHostMcpAllowWrite({ host: options.host })),
     host: options.host,
   });
 }

@@ -59,6 +59,72 @@ const OFFICIAL_RESCORE_SOURCE_INPUT_KEYS = [
   "rootPath",
   "rubricsPath",
 ] as const;
+const OFFICIAL_RESCORE_SOURCE_INPUT_KEY_SET: ReadonlySet<string> = new Set(
+  OFFICIAL_RESCORE_SOURCE_INPUT_KEYS,
+);
+const OFFICIAL_RESCORE_SOURCE_INPUT_FINGERPRINT_KEY_SET: ReadonlySet<string> =
+  new Set(["bytes", "sha256"]);
+const OFFICIAL_RESCORE_RUN_IDENTITY_KEY_SET: ReadonlySet<string> = new Set([
+  "benchmark",
+  "generatedBy",
+  "judgeModel",
+  "limit",
+  "runId",
+  "sourceAnswersUnchanged",
+  "sourceInputFingerprints",
+  "sourceInputs",
+]);
+const OFFICIAL_RESCORE_PROGRESS_ROW_KEY_SET: ReadonlySet<string> = new Set([
+  "correct",
+  "questionId",
+]);
+const OFFICIAL_RESCORE_RUBRIC_PROGRESS_ROW_KEY_SET: ReadonlySet<string> =
+  new Set(["key", "questionId", "score"]);
+const OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET: ReadonlySet<string> = new Set([
+  "benchmark",
+  "categories",
+  "claimBoundary",
+  "generatedAt",
+  "generatedBy",
+  "judgeFailures",
+  "judgeModel",
+  "limit",
+  "limitUnit",
+  "outputPath",
+  "protocol",
+  "runId",
+  "sourceAnswersUnchanged",
+  "sourceInputFingerprints",
+  "sourceInputs",
+]);
+const OFFICIAL_RESCORE_CASE_SUMMARY_KEY_SET: ReadonlySet<string> = new Set([
+  ...OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET,
+  "judgedCases",
+  "overallAccuracy",
+  "overallCorrect",
+  "selectedCases",
+  "sourceCases",
+  "totalCases",
+]);
+const OFFICIAL_RESCORE_BEAM_SUMMARY_KEY_SET: ReadonlySet<string> = new Set([
+  ...OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET,
+  "overallMacroByCategory",
+  "overallMicroByQuestion",
+  "rubricItemsJudged",
+  "scoredQuestions",
+  "selectedQuestions",
+  "selectedRubricItems",
+  "sourceQuestions",
+  "sourceRubricItems",
+  "totalQuestions",
+  "totalRubricItems",
+]);
+const OFFICIAL_RESCORE_CASE_CATEGORY_SUMMARY_KEY_SET: ReadonlySet<string> =
+  new Set(["accuracy", "correct", "total"]);
+const OFFICIAL_RESCORE_BEAM_CATEGORY_SUMMARY_KEY_SET: ReadonlySet<string> =
+  new Set(["meanScore", "questions"]);
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/u;
+const OFFICIAL_RESCORE_FLOAT_TOLERANCE = 1e-12;
 
 type OfficialRescoreSourceInputKey = (typeof OFFICIAL_RESCORE_SOURCE_INPUT_KEYS)[number];
 
@@ -136,12 +202,12 @@ interface JudgeVerdict {
   raw: string;
 }
 
-interface OfficialRescoreProgressRow {
+export interface OfficialRescoreProgressRow {
   correct: boolean;
   questionId: string;
 }
 
-interface OfficialRescoreRubricProgressRow {
+export interface OfficialRescoreRubricProgressRow {
   key: string;
   questionId: string;
   score: 0 | 0.5 | 1;
@@ -150,6 +216,144 @@ interface OfficialRescoreRubricProgressRow {
 const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
 const OFFICIAL_RESCORE_CLAIM_BOUNDARY =
   "Official-protocol comparability rescore of stored answers; not answer regeneration or a public benchmark claim unless promoted by the benchmark-claim gate.";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasOnlyKnownKeys(
+  value: Record<string, unknown>,
+  knownKeys: ReadonlySet<string>,
+): boolean {
+  return Object.keys(value).every((key) => knownKeys.has(key));
+}
+
+function isOfficialRescoreBenchmark(value: unknown): value is OfficialRescoreBenchmark {
+  return value === "beam" || value === "locomo" || value === "longmemeval";
+}
+
+function isNonEmptyUnpaddedString(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.trim() === value
+  );
+}
+
+function isSha256HexString(value: unknown): value is string {
+  return typeof value === "string" && SHA256_HEX_PATTERN.test(value);
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isUnitIntervalNumber(value: unknown): value is number {
+  return typeof value === "number" && value >= 0 && value <= 1;
+}
+
+function isUnitIntervalNumberOrNull(value: unknown): boolean {
+  return value === null || isUnitIntervalNumber(value);
+}
+
+function numbersClose(left: number, right: number): boolean {
+  return Math.abs(left - right) <= OFFICIAL_RESCORE_FLOAT_TOLERANCE;
+}
+
+function isOfficialRescoreSourceInputs(
+  value: unknown,
+): value is OfficialRescoreSourceInputs {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKnownKeys(value, OFFICIAL_RESCORE_SOURCE_INPUT_KEY_SET)) {
+    return false;
+  }
+  return OFFICIAL_RESCORE_SOURCE_INPUT_KEYS.every((key) => {
+    const inputPath = value[key];
+    return inputPath === undefined || isNonEmptyUnpaddedString(inputPath);
+  });
+}
+
+function isOfficialRescoreSourceInputFingerprint(
+  value: unknown,
+): value is OfficialRescoreSourceInputFingerprint {
+  return (
+    isRecord(value) &&
+    hasOnlyKnownKeys(value, OFFICIAL_RESCORE_SOURCE_INPUT_FINGERPRINT_KEY_SET) &&
+    typeof value.bytes === "number" &&
+    Number.isInteger(value.bytes) &&
+    value.bytes >= 0 &&
+    isSha256HexString(value.sha256)
+  );
+}
+
+function isOfficialRescoreSourceInputFingerprints(
+  value: unknown,
+): value is OfficialRescoreSourceInputFingerprints {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKnownKeys(value, OFFICIAL_RESCORE_SOURCE_INPUT_KEY_SET)) {
+    return false;
+  }
+  return OFFICIAL_RESCORE_SOURCE_INPUT_KEYS.every((key) => {
+    const fingerprint = value[key];
+    return (
+      fingerprint === undefined ||
+      isOfficialRescoreSourceInputFingerprint(fingerprint)
+    );
+  });
+}
+
+function isOfficialRescoreRunIdentity(
+  value: unknown,
+): value is OfficialRescoreRunIdentity {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (!hasOnlyKnownKeys(value, OFFICIAL_RESCORE_RUN_IDENTITY_KEY_SET)) {
+    return false;
+  }
+  return (
+    isOfficialRescoreBenchmark(value.benchmark) &&
+    value.generatedBy === "scripts/rescore-official-protocols.ts" &&
+    (value.judgeModel === undefined ||
+      isNonEmptyUnpaddedString(value.judgeModel)) &&
+    (value.limit === undefined ||
+      (typeof value.limit === "number" &&
+        Number.isInteger(value.limit) &&
+        value.limit > 0)) &&
+    isNonEmptyUnpaddedString(value.runId) &&
+    value.sourceAnswersUnchanged === true &&
+    isOfficialRescoreSourceInputFingerprints(value.sourceInputFingerprints) &&
+    isOfficialRescoreSourceInputs(value.sourceInputs)
+  );
+}
+
+function parseOfficialRescoreRunIdentity(
+  raw: string,
+  identityPath: string,
+): OfficialRescoreRunIdentity {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw) as unknown;
+  } catch {
+    throw new Error(
+      `malformed official rescore run identity at ${identityPath}`,
+    );
+  }
+  if (!isOfficialRescoreRunIdentity(value)) {
+    throw new Error(
+      `malformed official rescore run identity at ${identityPath}`,
+    );
+  }
+  return value;
+}
 
 function sourceInputFingerprintsFingerprint(
   input: OfficialRescoreSourceInputFingerprints,
@@ -304,6 +508,321 @@ export function buildOfficialRescoreMetadata(
   };
 }
 
+export function validateOfficialRescoreSummary(value: unknown): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) {
+    return ["official rescore summary must be an object"];
+  }
+  const benchmark = value.benchmark;
+  if (!isOfficialRescoreBenchmark(benchmark)) {
+    errors.push("benchmark must be beam, locomo, or longmemeval");
+    return errors;
+  }
+  const knownKeys =
+    benchmark === "beam"
+      ? OFFICIAL_RESCORE_BEAM_SUMMARY_KEY_SET
+      : OFFICIAL_RESCORE_CASE_SUMMARY_KEY_SET;
+  if (!hasOnlyKnownKeys(value, knownKeys)) {
+    errors.push("summary contains unknown fields");
+  }
+  if (value.claimBoundary !== OFFICIAL_RESCORE_CLAIM_BOUNDARY) {
+    errors.push("claimBoundary must describe stored-answer comparability");
+  }
+  if (!isNonEmptyUnpaddedString(value.generatedAt)) {
+    errors.push("generatedAt must be a non-empty unpadded string");
+  }
+  if (value.generatedBy !== "scripts/rescore-official-protocols.ts") {
+    errors.push("generatedBy must be scripts/rescore-official-protocols.ts");
+  }
+  if (!isNonEmptyUnpaddedString(value.judgeModel)) {
+    errors.push("judgeModel must be a non-empty unpadded string");
+  }
+  if (
+    !(
+      value.limit === null ||
+      (typeof value.limit === "number" &&
+        Number.isInteger(value.limit) &&
+        value.limit > 0)
+    )
+  ) {
+    errors.push("limit must be null or a positive integer");
+  }
+  if (value.limitUnit !== officialRescoreLimitUnit(benchmark)) {
+    errors.push(`limitUnit must be ${officialRescoreLimitUnit(benchmark)}`);
+  }
+  if (!isNonEmptyUnpaddedString(value.outputPath)) {
+    errors.push("outputPath must be a non-empty unpadded string");
+  }
+  if (!isNonEmptyUnpaddedString(value.protocol)) {
+    errors.push("protocol must be a non-empty unpadded string");
+  }
+  if (!isNonEmptyUnpaddedString(value.runId)) {
+    errors.push("runId must be a non-empty unpadded string");
+  }
+  if (value.sourceAnswersUnchanged !== true) {
+    errors.push("sourceAnswersUnchanged must be true");
+  }
+  if (!isOfficialRescoreSourceInputFingerprints(value.sourceInputFingerprints)) {
+    errors.push("sourceInputFingerprints must be canonical source fingerprints");
+  }
+  if (!isOfficialRescoreSourceInputs(value.sourceInputs)) {
+    errors.push("sourceInputs must be canonical source input paths");
+  }
+  if (!isRecord(value.categories) || Object.keys(value.categories).length === 0) {
+    errors.push("categories must be a non-empty object");
+  }
+  if (!isNonNegativeInteger(value.judgeFailures)) {
+    errors.push("judgeFailures must be a non-negative integer");
+  }
+
+  if (benchmark === "beam") {
+    if (!isPositiveInteger(value.sourceQuestions)) {
+      errors.push("sourceQuestions must be a positive integer");
+    }
+    if (!isPositiveInteger(value.selectedQuestions)) {
+      errors.push("selectedQuestions must be a positive integer");
+    }
+    if (!isPositiveInteger(value.sourceRubricItems)) {
+      errors.push("sourceRubricItems must be a positive integer");
+    }
+    if (!isPositiveInteger(value.selectedRubricItems)) {
+      errors.push("selectedRubricItems must be a positive integer");
+    }
+    if (!isNonNegativeInteger(value.scoredQuestions)) {
+      errors.push("scoredQuestions must be a non-negative integer");
+    }
+    if (!isNonNegativeInteger(value.rubricItemsJudged)) {
+      errors.push("rubricItemsJudged must be a non-negative integer");
+    }
+    if (value.totalQuestions !== value.selectedQuestions) {
+      errors.push("totalQuestions must equal selectedQuestions");
+    }
+    if (value.totalRubricItems !== value.selectedRubricItems) {
+      errors.push("totalRubricItems must equal selectedRubricItems");
+    }
+    if (
+      isPositiveInteger(value.selectedQuestions) &&
+      isPositiveInteger(value.sourceQuestions) &&
+      value.selectedQuestions > value.sourceQuestions
+    ) {
+      errors.push("selectedQuestions cannot exceed sourceQuestions");
+    }
+    if (
+      isPositiveInteger(value.selectedRubricItems) &&
+      isPositiveInteger(value.sourceRubricItems) &&
+      value.selectedRubricItems > value.sourceRubricItems
+    ) {
+      errors.push("selectedRubricItems cannot exceed sourceRubricItems");
+    }
+    if (
+      isNonNegativeInteger(value.rubricItemsJudged) &&
+      isPositiveInteger(value.selectedRubricItems) &&
+      value.rubricItemsJudged !== value.selectedRubricItems
+    ) {
+      errors.push("rubricItemsJudged must equal selectedRubricItems");
+    }
+    if (
+      value.limit === null &&
+      isNonNegativeInteger(value.scoredQuestions) &&
+      isPositiveInteger(value.selectedQuestions) &&
+      value.scoredQuestions !== value.selectedQuestions
+    ) {
+      errors.push("full-scope scoredQuestions must equal selectedQuestions");
+    }
+    if (!isUnitIntervalNumberOrNull(value.overallMacroByCategory)) {
+      errors.push("overallMacroByCategory must be null or a number in [0, 1]");
+    }
+    if (!isUnitIntervalNumberOrNull(value.overallMicroByQuestion)) {
+      errors.push("overallMicroByQuestion must be null or a number in [0, 1]");
+    }
+    validateOfficialRescoreBeamSummaryAggregates(value, errors);
+  } else {
+    if (!isPositiveInteger(value.sourceCases)) {
+      errors.push("sourceCases must be a positive integer");
+    }
+    if (!isPositiveInteger(value.selectedCases)) {
+      errors.push("selectedCases must be a positive integer");
+    }
+    if (!isNonNegativeInteger(value.judgedCases)) {
+      errors.push("judgedCases must be a non-negative integer");
+    }
+    if (!isNonNegativeInteger(value.overallCorrect)) {
+      errors.push("overallCorrect must be a non-negative integer");
+    }
+    if (value.totalCases !== value.selectedCases) {
+      errors.push("totalCases must equal selectedCases");
+    }
+    if (
+      isPositiveInteger(value.selectedCases) &&
+      isPositiveInteger(value.sourceCases) &&
+      value.selectedCases > value.sourceCases
+    ) {
+      errors.push("selectedCases cannot exceed sourceCases");
+    }
+    if (
+      isNonNegativeInteger(value.judgedCases) &&
+      isPositiveInteger(value.selectedCases) &&
+      value.judgedCases !== value.selectedCases
+    ) {
+      errors.push("judgedCases must equal selectedCases");
+    }
+    if (
+      isNonNegativeInteger(value.overallCorrect) &&
+      isPositiveInteger(value.selectedCases) &&
+      value.overallCorrect > value.selectedCases
+    ) {
+      errors.push("overallCorrect cannot exceed selectedCases");
+    }
+    if (!isUnitIntervalNumberOrNull(value.overallAccuracy)) {
+      errors.push("overallAccuracy must be null or a number in [0, 1]");
+    }
+    validateOfficialRescoreCaseSummaryAggregates(value, errors);
+  }
+
+  return errors;
+}
+
+function validateOfficialRescoreCaseSummaryAggregates(
+  value: Record<string, unknown>,
+  errors: string[],
+): void {
+  if (!isRecord(value.categories)) {
+    return;
+  }
+
+  let categoryCorrect = 0;
+  let categoryTotal = 0;
+  for (const [category, bucket] of Object.entries(value.categories)) {
+    if (!isNonEmptyUnpaddedString(category)) {
+      errors.push("case category names must be non-empty unpadded strings");
+    }
+    if (!isRecord(bucket)) {
+      errors.push(`case category ${category} must be an object`);
+      continue;
+    }
+    if (!hasOnlyKnownKeys(bucket, OFFICIAL_RESCORE_CASE_CATEGORY_SUMMARY_KEY_SET)) {
+      errors.push(`case category ${category} contains unknown fields`);
+    }
+
+    const { accuracy, correct, total } = bucket;
+    const totalIsValid = isPositiveInteger(total);
+    const correctIsValid = isNonNegativeInteger(correct);
+    const accuracyIsValid = isUnitIntervalNumber(accuracy);
+    if (!totalIsValid) {
+      errors.push(`case category ${category} total must be a positive integer`);
+    }
+    if (!correctIsValid) {
+      errors.push(`case category ${category} correct must be a non-negative integer`);
+    }
+    if (!accuracyIsValid) {
+      errors.push(`case category ${category} accuracy must be a number in [0, 1]`);
+    }
+    if (correctIsValid && totalIsValid && correct > total) {
+      errors.push(`case category ${category} correct cannot exceed total`);
+    }
+    if (correctIsValid && totalIsValid && accuracyIsValid) {
+      categoryCorrect += correct;
+      categoryTotal += total;
+      if (!numbersClose(accuracy, correct / total)) {
+        errors.push(`case category ${category} accuracy must equal correct / total`);
+      }
+    }
+  }
+
+  if (isPositiveInteger(value.selectedCases) && categoryTotal !== value.selectedCases) {
+    errors.push("case category totals must equal selectedCases");
+  }
+  if (
+    isNonNegativeInteger(value.overallCorrect) &&
+    categoryCorrect !== value.overallCorrect
+  ) {
+    errors.push("case category correct sum must equal overallCorrect");
+  }
+  if (
+    isUnitIntervalNumber(value.overallAccuracy) &&
+    isNonNegativeInteger(value.overallCorrect) &&
+    isPositiveInteger(value.selectedCases) &&
+    !numbersClose(value.overallAccuracy, value.overallCorrect / value.selectedCases)
+  ) {
+    errors.push("overallAccuracy must equal overallCorrect / selectedCases");
+  }
+}
+
+function validateOfficialRescoreBeamSummaryAggregates(
+  value: Record<string, unknown>,
+  errors: string[],
+): void {
+  if (!isRecord(value.categories)) {
+    return;
+  }
+
+  let categoryCount = 0;
+  let categoryQuestionTotal = 0;
+  let categoryMeanSum = 0;
+  let weightedMeanSum = 0;
+  for (const [category, bucket] of Object.entries(value.categories)) {
+    if (!isNonEmptyUnpaddedString(category)) {
+      errors.push("BEAM category names must be non-empty unpadded strings");
+    }
+    if (!isRecord(bucket)) {
+      errors.push(`BEAM category ${category} must be an object`);
+      continue;
+    }
+    if (!hasOnlyKnownKeys(bucket, OFFICIAL_RESCORE_BEAM_CATEGORY_SUMMARY_KEY_SET)) {
+      errors.push(`BEAM category ${category} contains unknown fields`);
+    }
+
+    const { meanScore, questions } = bucket;
+    const questionsIsValid = isPositiveInteger(questions);
+    const meanScoreIsValid = isUnitIntervalNumber(meanScore);
+    if (!questionsIsValid) {
+      errors.push(`BEAM category ${category} questions must be a positive integer`);
+    }
+    if (!meanScoreIsValid) {
+      errors.push(`BEAM category ${category} meanScore must be a number in [0, 1]`);
+    }
+    if (questionsIsValid && meanScoreIsValid) {
+      categoryCount += 1;
+      categoryQuestionTotal += questions;
+      categoryMeanSum += meanScore;
+      weightedMeanSum += meanScore * questions;
+    }
+  }
+
+  if (
+    isNonNegativeInteger(value.scoredQuestions) &&
+    categoryQuestionTotal !== value.scoredQuestions
+  ) {
+    errors.push("BEAM category question totals must equal scoredQuestions");
+  }
+  if (categoryCount === 0) {
+    return;
+  }
+  if (
+    isUnitIntervalNumber(value.overallMacroByCategory) &&
+    !numbersClose(value.overallMacroByCategory, categoryMeanSum / categoryCount)
+  ) {
+    errors.push("overallMacroByCategory must equal the mean of category meanScore values");
+  }
+  if (
+    isUnitIntervalNumber(value.overallMicroByQuestion) &&
+    categoryQuestionTotal > 0 &&
+    !numbersClose(value.overallMicroByQuestion, weightedMeanSum / categoryQuestionTotal)
+  ) {
+    errors.push(
+      "overallMicroByQuestion must equal the question-weighted mean of category meanScore values",
+    );
+  }
+}
+
+export function assertOfficialRescoreSummaryValid(value: unknown): void {
+  const errors = validateOfficialRescoreSummary(value);
+  if (errors.length === 0) {
+    return;
+  }
+  throw new Error(`malformed official rescore summary: ${errors.join("; ")}`);
+}
+
 export function requireOfficialRescoreCompleteJudging(input: {
   failureCount: number;
   label: string;
@@ -338,14 +857,14 @@ export function parseOfficialRescoreProgressLine(
 ): OfficialRescoreProgressRow {
   const parsed = parseJsonLine(line);
   if (
-    typeof parsed !== "object" ||
-    parsed === null ||
+    !isRecord(parsed) ||
+    !hasOnlyKnownKeys(parsed, OFFICIAL_RESCORE_PROGRESS_ROW_KEY_SET) ||
     !("correct" in parsed) ||
     !("questionId" in parsed)
   ) {
     throw new Error(`malformed official rescore progress row at ${label}`);
   }
-  const row = parsed as { correct: unknown; questionId: unknown };
+  const row = parsed;
   if (
     typeof row.correct !== "boolean" ||
     typeof row.questionId !== "string" ||
@@ -360,21 +879,40 @@ export function parseOfficialRescoreProgressLine(
   };
 }
 
+export function serializeOfficialRescoreProgressRow(
+  row: OfficialRescoreProgressRow,
+): string {
+  return JSON.stringify({
+    correct: row.correct,
+    questionId: row.questionId,
+  });
+}
+
+export function serializeOfficialRescoreRubricProgressRow(
+  row: OfficialRescoreRubricProgressRow,
+): string {
+  return JSON.stringify({
+    key: row.key,
+    questionId: row.questionId,
+    score: row.score,
+  });
+}
+
 export function parseOfficialRescoreRubricProgressLine(
   line: string,
   label: string,
 ): OfficialRescoreRubricProgressRow {
   const parsed = parseJsonLine(line);
   if (
-    typeof parsed !== "object" ||
-    parsed === null ||
+    !isRecord(parsed) ||
+    !hasOnlyKnownKeys(parsed, OFFICIAL_RESCORE_RUBRIC_PROGRESS_ROW_KEY_SET) ||
     !("key" in parsed) ||
     !("questionId" in parsed) ||
     !("score" in parsed)
   ) {
     throw new Error(`malformed official rescore rubric progress row at ${label}`);
   }
-  const row = parsed as { key: unknown; questionId: unknown; score: unknown };
+  const row = parsed;
   if (
     typeof row.key !== "string" ||
     row.key.trim() !== row.key ||
@@ -742,7 +1280,7 @@ Return your evaluation in JSON format with two fields:
 NOTE: ONLY output the json object, without any explanation before or after that
 `;
 
-function parseBeamScore(raw: string): number {
+function parseBeamScore(raw: string): OfficialRescoreRubricProgressRow["score"] {
   const jsonMatch = /\{[\s\S]*\}/u.exec(raw);
   if (jsonMatch) {
     try {
@@ -757,7 +1295,10 @@ function parseBeamScore(raw: string): number {
   }
   const numeric = /\b(1(?:\.0)?|0\.5|0(?:\.0)?)\b/u.exec(raw);
   if (numeric) {
-    return Number(numeric[1]);
+    const score = Number(numeric[1]);
+    if (score === 1 || score === 0.5 || score === 0) {
+      return score;
+    }
   }
   throw new Error(`unparseable BEAM judge score: ${raw.slice(0, 120)}`);
 }
@@ -1071,7 +1612,11 @@ async function runBeamRubricRescore(input: {
         done.set(unit.key, score);
         await appendFile(
           input.progressPath,
-          `${JSON.stringify({ key: unit.key, questionId: unit.questionId, score })}\n`,
+          `${serializeOfficialRescoreRubricProgressRow({
+            key: unit.key,
+            questionId: unit.questionId,
+            score,
+          })}\n`,
         );
       } catch (error) {
         failures += 1;
@@ -1159,6 +1704,7 @@ async function runBeamRubricRescore(input: {
     totalQuestions: questionMeta.size,
     totalRubricItems: units.length,
   };
+  assertOfficialRescoreSummaryValid(summary);
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
 }
@@ -1178,9 +1724,10 @@ export async function ensureOfficialRescoreRunIdentity(
   expected: OfficialRescoreRunIdentity,
 ): Promise<void> {
   try {
-    const existing = JSON.parse(
+    const existing = parseOfficialRescoreRunIdentity(
       await readFile(identityPath, "utf8"),
-    ) as OfficialRescoreRunIdentity;
+      identityPath,
+    );
     assertOfficialRescoreRunIdentityCompatible(existing, expected);
   } catch (error) {
     if (isMissingFileError(error)) {
@@ -1391,7 +1938,10 @@ async function main(): Promise<void> {
         done.set(c.questionId, correct);
         await appendFile(
           progressPath,
-          `${JSON.stringify({ category: c.category, correct, questionId: c.questionId, raw: raw.slice(0, 400) })}\n`,
+          `${serializeOfficialRescoreProgressRow({
+            correct,
+            questionId: c.questionId,
+          })}\n`,
         );
       } catch (error) {
         failures += 1;
@@ -1460,6 +2010,7 @@ async function main(): Promise<void> {
           : "official BEAM judge prompt",
     totalCases: cases.length,
   };
+  assertOfficialRescoreSummaryValid(summary);
   await writeFile(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
 }

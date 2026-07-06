@@ -1935,6 +1935,60 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}
+
+function isNullableBoolean(value: unknown): value is boolean | null {
+  return typeof value === "boolean" || value === null;
+}
+
+function isLocomoProgressCategory(value: unknown): value is LocomoQaCategory {
+  return typeof value === "string" && LOCOMO_QA_CATEGORY_SET.has(value);
+}
+
+function isLocomoProgressRow(value: unknown): value is LocomoQuestionRetrieval {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const answerTokenF1 = value.answerTokenF1;
+  return (
+    isNullableBoolean(value.answerCorrect) &&
+    typeof value.caseId === "string" &&
+    value.caseId.trim() === value.caseId &&
+    value.caseId.length > 0 &&
+    isLocomoProgressCategory(value.category) &&
+    typeof value.evidenceRecall === "number" &&
+    Number.isFinite(value.evidenceRecall) &&
+    value.evidenceRecall >= 0 &&
+    value.evidenceRecall <= 1 &&
+    isStringArray(value.evidenceTurnIds) &&
+    isNullableString(value.generatedAnswer) &&
+    typeof value.goldEvidenceFullyRetrieved === "boolean" &&
+    isStringArray(value.missingEvidenceTurnIds) &&
+    typeof value.noiseTurnCount === "number" &&
+    Number.isInteger(value.noiseTurnCount) &&
+    value.noiseTurnCount >= 0 &&
+    isStringArray(value.noiseTurnIds) &&
+    typeof value.questionId === "string" &&
+    value.questionId.trim() === value.questionId &&
+    value.questionId.length > 0 &&
+    isStringArray(value.retrievedTurnIds) &&
+    (answerTokenF1 === undefined ||
+      answerTokenF1 === null ||
+      (typeof answerTokenF1 === "number" &&
+        Number.isFinite(answerTokenF1) &&
+        answerTokenF1 >= 0 &&
+        answerTokenF1 <= 1))
+  );
+}
+
 function stableJsonStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableJsonStringify).join(",")}]`;
@@ -2813,13 +2867,8 @@ export function parseLocomoProgressLines(raw: string): LocomoQuestionRetrieval[]
       // skip a partial tail line from a killed run
       continue;
     }
-    if (
-      isRecord(value) &&
-      typeof value.caseId === "string" &&
-      typeof value.questionId === "string" &&
-      typeof value.evidenceRecall === "number"
-    ) {
-      results.push(value as unknown as LocomoQuestionRetrieval);
+    if (isLocomoProgressRow(value)) {
+      results.push(value);
       continue;
     }
     if (

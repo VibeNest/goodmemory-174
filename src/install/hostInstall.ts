@@ -27,6 +27,9 @@ import {
   type InstalledHostEmbeddingProviderConfig,
   type InstalledHostModelProviderConfig,
   type InstalledHostProviderConfig,
+  type InstalledHostMaintenanceConfig,
+  type InstalledHostPromptInjectionMode,
+  type InstalledHostRetrievalConfig,
   type InstalledHostWritebackConfig,
   type InstalledHostWritebackMode,
 } from "./hostConfigValidation";
@@ -93,6 +96,7 @@ export interface EnableHostWorkspaceInput {
   contextMode?: InstalledHostContextMode;
   homeRoot?: string;
   host: InstalledHostKind;
+  mcpAllowWrite?: boolean;
   writebackMode?: InstalledHostWritebackMode;
   workspaceId?: string;
   workspaceRoot?: string;
@@ -138,9 +142,13 @@ interface HostInstallConfigRecord {
   contextMode: InstalledHostContextMode;
   debug: boolean;
   host: InstalledHostKind;
+  maintenance?: InstalledHostMaintenanceConfig;
   maxTokens: number;
+  promptInjection?: InstalledHostPromptInjectionMode;
   providers?: InstalledHostProviderConfig;
+  retrieval?: InstalledHostRetrievalConfig;
   retrievalProfile: "coding_agent" | "general_chat";
+  sessionStartMaxTokens?: number;
   storage: HostInstallStorageConfigRecord;
   userId: string;
   version: 1;
@@ -180,6 +188,12 @@ const HOST_INSTALL_BLUEPRINTS: Record<InstalledHostKind, HostInstallBlueprint> =
 };
 
 const DEFAULT_MAX_TOKENS = DEFAULT_INSTALLED_HOST_MAX_TOKENS;
+// Fresh-install injection budgets: the runtime fallback stays 256 (hand
+// written configs unchanged), but new installs write explicit right-sized
+// values — a once-per-session 1024-token brief and 512 per prompt behind the
+// relevance gate.
+const INSTALL_DEFAULT_MAX_TOKENS = 512;
+const INSTALL_DEFAULT_SESSION_START_MAX_TOKENS = 1024;
 const DEFAULT_RETRIEVAL_PROFILE = DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE;
 const PRIVATE_INSTALL_CONFIG_MODE = 0o600;
 const PRIVATE_INSTALL_DIRECTORY_MODE = 0o700;
@@ -410,12 +424,21 @@ export async function enableHostWorkspace(
           mode: input.writebackMode,
         })
       : null;
+    const mcpChange =
+      input.mcpAllowWrite === undefined
+        ? null
+        : await updateInstalledHostMcpAllowWrite({
+            allowWrite: input.mcpAllowWrite,
+            homeRoot: input.homeRoot,
+            host: input.host,
+          });
 
     return {
       changes: [
         workspaceConfigChange,
         instructionChange,
         ...(writebackChange ? [writebackChange.change] : []),
+        ...(mcpChange ? [mcpChange] : []),
       ],
       configPath,
       host: input.host,
@@ -600,11 +623,20 @@ async function mergeInstallConfig(input: {
       contextMode: input.contextMode ?? DEFAULT_INSTALLED_HOST_CONTEXT_MODE,
       debug: false,
       host: input.host,
-      maxTokens: DEFAULT_MAX_TOKENS,
+      maintenance: { auto: true },
+      maxTokens: INSTALL_DEFAULT_MAX_TOKENS,
+      promptInjection: "relevance_gated",
+      sessionStartMaxTokens: INSTALL_DEFAULT_SESSION_START_MAX_TOKENS,
       ...mergeProviderConfig(undefined, {
         assistedExtractor: input.assistedExtractor,
         embedding: input.embedding,
       }),
+      // Fresh stores start on the measured BM25 hybrid retrieval tier
+      // (deterministic, zero egress, activates via the coding_agent hybrid
+      // signal without any embedding). Written explicitly so reinstalls of
+      // pre-existing configs never change behavior: the merge branch below
+      // preserves whatever retrieval setting (or absence) is already there.
+      retrieval: { bm25Ranking: true },
       retrievalProfile: DEFAULT_RETRIEVAL_PROFILE,
       storage: resolveInstallStorageConfig({
         memoryPath: input.memoryPath,
@@ -768,6 +800,67 @@ async function updateInstalledHostWritebackMode(input: {
     ),
     writeback,
   };
+}
+
+// Toggles the goodmemory_remember write-tool exposure in the managed global
+// config. Mirrors updateInstalledHostWritebackMode: validate, then rewrite
+// the file with only the mcp section changed. The MCP registration args
+// stay untouched — the serve entrypoints read this at startup.
+async function updateInstalledHostMcpAllowWrite(input: {
+  allowWrite: boolean;
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<InstalledHostFileChange> {
+  const blueprint = HOST_INSTALL_BLUEPRINTS[input.host];
+  const installRoot = resolveInstallRoot(input.homeRoot);
+  const configPath = join(installRoot, blueprint.configFileName);
+  const existing = await readFileIfPresent(configPath);
+  if (existing === null || existing.trim().length === 0) {
+    throw new Error(
+      `Run 'goodmemory install ${input.host}' first to create ${configPath} before enabling the MCP write tool.`,
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(existing);
+  } catch {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      "file is not valid JSON",
+    );
+  }
+  if (!isRecord(parsed)) {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      "root value must be a JSON object",
+    );
+  }
+  const validation = parseInstalledHostRuntimeConfig(parsed, input.host);
+  if (validation.status !== "ok") {
+    throw buildInvalidManagedConfigError(
+      relativeToRoot(configPath, installRoot),
+      validation.detail,
+    );
+  }
+
+  const nextConfig = {
+    ...parsed,
+    host: input.host,
+    mcp: { allowWrite: input.allowWrite },
+    version: 1,
+  };
+
+  return writeManagedFile(
+    configPath,
+    installRoot,
+    JSON.stringify(nextConfig, null, 2) + "\n",
+    {
+      directoryMode: PRIVATE_INSTALL_DIRECTORY_MODE,
+      existingContent: existing,
+      mode: PRIVATE_INSTALL_CONFIG_MODE,
+    },
+  );
 }
 
 async function shouldWriteDisableOverrideForGlobalMode(
@@ -1059,16 +1152,29 @@ async function mergeWorkspaceConfig(input: {
   } as WorkspaceOptInConfigRecord;
 }
 
+// The managed instruction block is the agent-facing memory protocol: it is
+// what makes the host actually read injected context and use the MCP tools
+// instead of re-deriving project facts every session. Markers stay stable so
+// repair/enable can refresh the prose between them on existing repos.
 function buildInstallInstructionBlock(blueprint: HostInstallBlueprint): string {
   const hostLabel = blueprint.host === "codex" ? "Codex" : "Claude Code";
   return [
     `## GoodMemory ${hostLabel}`,
     "",
-    `This repository opts into the installed GoodMemory ${hostLabel} host-config path.`,
+    `This repository uses GoodMemory (installed ${hostLabel} host path) for durable, governed memory.`,
     "",
-    "Prefer hook-injected GoodMemory context when the installed host runtime provides it.",
-    "Use GoodMemory MCP for deep memory inspection or recall debugging when the installed host runtime exposes it.",
-    "Treat exported artifact files as projections, not canonical truth.",
+    "Memory protocol:",
+    "- Hook-injected \"Developer memory notes\" blocks are memory retrieved for the current prompt. Read them before planning and prefer them over re-deriving project facts; verify time-sensitive facts against the repo before acting on them.",
+    "- When injected context is missing or insufficient, call goodmemory_get_context with a specific question (any question, not just the current prompt).",
+    "- When you need specific records rather than a rendered summary, call goodmemory_search_index and then goodmemory_get_records. When a memory looks wrong or is unexpectedly missing, call goodmemory_trace_recall to see why it was or was not selected.",
+    "- When you learn a durable fact, decision, preference, or blocker worth keeping and the goodmemory_remember tool is available, persist it with one clear statement per call. Writes are governed and auditable; the result explains any rejection.",
+    "- Treat exported artifact files as projections, not canonical truth, and do not restate injected memory verbatim into files or commit messages.",
+    ...(blueprint.host === "claude"
+      ? [
+          "",
+          "GoodMemory complements Claude Code auto-memory: keep your own session working notes in MEMORY.md; keep durable project facts, decisions, and preferences in GoodMemory so they surface per-prompt with provenance. Do not copy hook-injected GoodMemory content into MEMORY.md.",
+        ]
+      : []),
   ].join("\n");
 }
 

@@ -7,7 +7,25 @@ export interface InstalledHostRuntimeConfig {
   contextMode: InstalledHostContextMode;
   debug: boolean;
   maxTokens: number;
+  // Opt-in exposure of the goodmemory_remember write tool on the installed
+  // MCP surface; absent → read-only tools (today's behavior).
+  mcp?: InstalledHostMcpConfig;
+  // Session-start injection may spend more than per-prompt injection (the
+  // brief runs once per session); absent → maxTokens governs both.
+  sessionStartMaxTokens?: number;
+  // Opt-in cross-host READ union: this host may read records tagged with
+  // these agentIds (writes keep their own agentId). Symmetric sharing means
+  // both hosts opt in. Normalized: self stripped, deduped.
+  sharedAgents?: string[];
+  // Opportunistic session-stop maintenance (dedupe/contradiction/quality/TTL
+  // — never consolidation). Guarded by the dream orchestrator's thresholds
+  // plus a min-hours cooldown (default 24h when auto is on).
+  maintenance?: InstalledHostMaintenanceConfig;
+  // relevance_gated skips user-prompt-submit injection when recall carries
+  // no query-specific signal; absent → always (today's behavior).
+  promptInjection?: InstalledHostPromptInjectionMode;
   providers?: InstalledHostProviderConfig;
+  retrieval?: InstalledHostRetrievalConfig;
   retrievalProfile: "coding_agent" | "general_chat";
   storage: {
     provider: "memory" | "postgres" | "sqlite";
@@ -15,6 +33,33 @@ export interface InstalledHostRuntimeConfig {
   };
   userId: string;
   writeback: InstalledHostWritebackConfig;
+}
+
+export type InstalledHostPromptInjectionMode = "always" | "relevance_gated";
+
+export interface InstalledHostMcpConfig {
+  allowWrite: boolean;
+}
+
+export interface InstalledHostMaintenanceConfig {
+  auto?: boolean;
+  minHoursBetweenRuns?: number;
+}
+
+// Mirrors GoodMemoryRetrievalConfig field-for-field so the resolved context
+// can hand it to createGoodMemory unchanged. Absence keeps today's
+// rules-only behavior byte-identical; fresh installs opt new stores into
+// the measured BM25 hybrid tier at install time instead of changing this
+// runtime default.
+export interface InstalledHostRetrievalConfig {
+  bm25Ranking?: boolean;
+  preset?: "recommended";
+  semanticCandidates?: {
+    maxAdditions?: number;
+    minRelativeScore?: number;
+    minSimilarity?: number;
+    topK?: number;
+  };
 }
 
 export type InstalledHostActivationMode = "global" | "workspace_opt_in";
@@ -41,6 +86,10 @@ export type InstalledHostWritebackAssistantPolicy =
 export interface InstalledHostWritebackConfig {
   allowAssistantOutput: InstalledHostWritebackAssistantPolicy;
   dryRun: boolean;
+  // Batch pre-extraction control: absent/auto = batch LLM when an assisted
+  // provider is configured; rules-only pins the regex floor; llm-assisted is
+  // an explicit request (still requires the provider).
+  extractionStrategy?: InstalledHostAutoLearnExtractionStrategy;
   maxChars: number;
   maxMessages: number;
   minConfidence: number;
@@ -73,6 +122,7 @@ export interface WorkspaceHostOptInConfig {
   enabled: boolean;
   maxTokens?: number;
   retrievalProfile?: "coding_agent" | "general_chat";
+  sessionStartMaxTokens?: number;
   workspaceId: string;
 }
 
@@ -167,6 +217,27 @@ export function parseInstalledHostRuntimeConfig(
     };
   }
 
+  const sessionStartMaxTokens = readOptionalPositiveInteger(
+    parsed.sessionStartMaxTokens,
+  );
+  if (parsed.sessionStartMaxTokens !== undefined && sessionStartMaxTokens === undefined) {
+    return {
+      detail: "sessionStartMaxTokens must be a positive integer",
+      status: "invalid",
+    };
+  }
+
+  if (
+    parsed.promptInjection !== undefined &&
+    parsed.promptInjection !== "always" &&
+    parsed.promptInjection !== "relevance_gated"
+  ) {
+    return {
+      detail: "promptInjection must be always or relevance_gated",
+      status: "invalid",
+    };
+  }
+
   const storage = isRecord(parsed.storage) ? parsed.storage : null;
   const provider = readStorageProvider(storage?.provider);
   if (provider === undefined) {
@@ -197,6 +268,77 @@ export function parseInstalledHostRuntimeConfig(
     };
   }
 
+  const retrieval = readInstalledHostRetrievalConfig(parsed.retrieval);
+  if (retrieval.status === "invalid") {
+    return {
+      detail: retrieval.detail,
+      status: "invalid",
+    };
+  }
+
+  let sharedAgents: string[] | undefined;
+  if (parsed.sharedAgents !== undefined) {
+    if (
+      !Array.isArray(parsed.sharedAgents) ||
+      parsed.sharedAgents.some(
+        (agent) => typeof agent !== "string" || agent.trim().length === 0,
+      )
+    ) {
+      return {
+        detail: "sharedAgents must be an array of non-empty strings",
+        status: "invalid",
+      };
+    }
+    sharedAgents = [
+      ...new Set(
+        parsed.sharedAgents
+          .map((agent) => (agent as string).trim())
+          .filter((agent) => agent !== host),
+      ),
+    ];
+  }
+
+  let maintenance: InstalledHostMaintenanceConfig | undefined;
+  if (parsed.maintenance !== undefined) {
+    if (!isRecord(parsed.maintenance)) {
+      return { detail: "maintenance must be a JSON object", status: "invalid" };
+    }
+    if (
+      parsed.maintenance.auto !== undefined &&
+      typeof parsed.maintenance.auto !== "boolean"
+    ) {
+      return { detail: "maintenance.auto must be a boolean", status: "invalid" };
+    }
+    const minHours =
+      parsed.maintenance.minHoursBetweenRuns === undefined
+        ? undefined
+        : readPositiveInteger(parsed.maintenance.minHoursBetweenRuns);
+    if (parsed.maintenance.minHoursBetweenRuns !== undefined && minHours === undefined) {
+      return {
+        detail: "maintenance.minHoursBetweenRuns must be a positive integer",
+        status: "invalid",
+      };
+    }
+    maintenance = {
+      ...(typeof parsed.maintenance.auto === "boolean"
+        ? { auto: parsed.maintenance.auto }
+        : {}),
+      ...(minHours !== undefined ? { minHoursBetweenRuns: minHours } : {}),
+    };
+  }
+
+  if (parsed.mcp !== undefined) {
+    if (!isRecord(parsed.mcp)) {
+      return { detail: "mcp must be a JSON object", status: "invalid" };
+    }
+    if (
+      parsed.mcp.allowWrite !== undefined &&
+      typeof parsed.mcp.allowWrite !== "boolean"
+    ) {
+      return { detail: "mcp.allowWrite must be a boolean", status: "invalid" };
+    }
+  }
+
   return {
     status: "ok",
     config: {
@@ -204,8 +346,19 @@ export function parseInstalledHostRuntimeConfig(
       contextMode,
       debug: parsed.debug === true,
       maxTokens,
+      ...(isRecord(parsed.mcp)
+        ? { mcp: { allowWrite: parsed.mcp.allowWrite === true } }
+        : {}),
       ...(providers.config ? { providers: providers.config } : {}),
+      ...(parsed.promptInjection === "always" ||
+      parsed.promptInjection === "relevance_gated"
+        ? { promptInjection: parsed.promptInjection }
+        : {}),
+      ...(retrieval.config ? { retrieval: retrieval.config } : {}),
       retrievalProfile,
+      ...(sessionStartMaxTokens !== undefined ? { sessionStartMaxTokens } : {}),
+      ...(sharedAgents !== undefined ? { sharedAgents } : {}),
+      ...(maintenance !== undefined ? { maintenance } : {}),
       storage: {
         provider,
         url,
@@ -369,10 +522,23 @@ function readWritebackConfig(input: {
     };
   }
 
+  const extractionStrategy =
+    input.value.extractionStrategy === undefined
+      ? undefined
+      : readAutoLearnExtractionStrategy(input.value.extractionStrategy);
+  if (input.value.extractionStrategy !== undefined && extractionStrategy === undefined) {
+    return {
+      detail:
+        "writeback.extractionStrategy must be auto, rules-only, or llm-assisted",
+      status: "invalid",
+    };
+  }
+
   return {
     config: {
       allowAssistantOutput,
       dryRun: input.value.dryRun === true,
+      ...(extractionStrategy !== undefined ? { extractionStrategy } : {}),
       maxChars,
       maxMessages,
       minConfidence,
@@ -484,6 +650,16 @@ export function parseWorkspaceHostOptInConfig(
     return { detail: "maxTokens must be a positive integer", status: "invalid" };
   }
 
+  const sessionStartMaxTokens = readOptionalPositiveInteger(
+    parsed.sessionStartMaxTokens,
+  );
+  if (parsed.sessionStartMaxTokens !== undefined && sessionStartMaxTokens === undefined) {
+    return {
+      detail: "sessionStartMaxTokens must be a positive integer",
+      status: "invalid",
+    };
+  }
+
   const retrievalProfile = readOptionalRetrievalProfile(parsed.retrievalProfile);
   if (parsed.retrievalProfile !== undefined && retrievalProfile === undefined) {
     return {
@@ -509,6 +685,7 @@ export function parseWorkspaceHostOptInConfig(
       contextMode,
       maxTokens,
       retrievalProfile,
+      sessionStartMaxTokens,
       workspaceId:
         normalizeText(readOptionalText(parsed, "workspaceId")) ??
         resolveWorkspaceId(workspaceRoot, undefined),
@@ -534,8 +711,8 @@ export function readOptionalText(
 }
 
 export function readPositiveInteger(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? Math.floor(value)
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
     : undefined;
 }
 
@@ -580,6 +757,106 @@ export function readStorageUrl(storage: Record<string, unknown> | null): string 
         ? storage.url
         : undefined,
   );
+}
+
+function readInstalledHostRetrievalConfig(
+  value: unknown,
+):
+  | { config?: InstalledHostRetrievalConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (value === undefined) {
+    return { status: "ok" };
+  }
+  if (!isRecord(value)) {
+    return { detail: "retrieval must be a JSON object", status: "invalid" };
+  }
+
+  if (value.bm25Ranking !== undefined && typeof value.bm25Ranking !== "boolean") {
+    return {
+      detail: "retrieval.bm25Ranking must be a boolean",
+      status: "invalid",
+    };
+  }
+
+  if (value.preset !== undefined && value.preset !== "recommended") {
+    return { detail: "retrieval.preset must be recommended", status: "invalid" };
+  }
+
+  let semanticCandidates:
+    | InstalledHostRetrievalConfig["semanticCandidates"]
+    | undefined;
+  if (value.semanticCandidates !== undefined) {
+    if (!isRecord(value.semanticCandidates)) {
+      return {
+        detail: "retrieval.semanticCandidates must be a JSON object",
+        status: "invalid",
+      };
+    }
+    const candidates = value.semanticCandidates;
+    const topK =
+      candidates.topK === undefined
+        ? undefined
+        : readPositiveInteger(candidates.topK);
+    if (candidates.topK !== undefined && topK === undefined) {
+      return {
+        detail: "retrieval.semanticCandidates.topK must be a positive integer",
+        status: "invalid",
+      };
+    }
+    const maxAdditions =
+      candidates.maxAdditions === undefined
+        ? undefined
+        : readPositiveInteger(candidates.maxAdditions);
+    if (candidates.maxAdditions !== undefined && maxAdditions === undefined) {
+      return {
+        detail:
+          "retrieval.semanticCandidates.maxAdditions must be a positive integer",
+        status: "invalid",
+      };
+    }
+    const minSimilarity =
+      candidates.minSimilarity === undefined
+        ? undefined
+        : readConfidence(candidates.minSimilarity);
+    if (candidates.minSimilarity !== undefined && minSimilarity === undefined) {
+      return {
+        detail:
+          "retrieval.semanticCandidates.minSimilarity must be a number between 0 and 1",
+        status: "invalid",
+      };
+    }
+    const minRelativeScore =
+      candidates.minRelativeScore === undefined
+        ? undefined
+        : readConfidence(candidates.minRelativeScore);
+    if (
+      candidates.minRelativeScore !== undefined &&
+      minRelativeScore === undefined
+    ) {
+      return {
+        detail:
+          "retrieval.semanticCandidates.minRelativeScore must be a number between 0 and 1",
+        status: "invalid",
+      };
+    }
+    semanticCandidates = {
+      ...(maxAdditions !== undefined ? { maxAdditions } : {}),
+      ...(minRelativeScore !== undefined ? { minRelativeScore } : {}),
+      ...(minSimilarity !== undefined ? { minSimilarity } : {}),
+      ...(topK !== undefined ? { topK } : {}),
+    };
+  }
+
+  return {
+    config: {
+      ...(typeof value.bm25Ranking === "boolean"
+        ? { bm25Ranking: value.bm25Ranking }
+        : {}),
+      ...(value.preset === "recommended" ? { preset: value.preset } : {}),
+      ...(semanticCandidates !== undefined ? { semanticCandidates } : {}),
+    },
+    status: "ok",
+  };
 }
 
 function readInstalledHostProviders(

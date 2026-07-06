@@ -12,7 +12,11 @@ import {
 } from "./hostConfigValidation";
 import type { HostMemoryRuntimeContext } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
-import { resolveInstallRoot } from "./hostRuntimeConfig";
+import {
+  readInstalledHostRuntimeConfig,
+  resolveInstallRoot,
+  type InstalledHostRuntimeConfigDependencies,
+} from "./hostRuntimeConfig";
 
 // Shared option resolver for the two MCP serve entrypoints (the
 // scripts/goodmemory-mcp.ts bin and CLI `goodmemory mcp serve`). Installed
@@ -200,6 +204,28 @@ function resolveStandaloneSqliteUrl(url: string): string {
 // Structurally identical to InstalledHostResolvedContext except the host label
 // widens to HostKind so standalone can use the existing "generic" host.
 export type McpRuntimeContext = HostMemoryRuntimeContext;
+
+// Config-level write-tool opt-in for installed hosts. The managed MCP
+// registration args never change (isManagedHostArgs stays satisfied); both
+// serve entrypoints OR this into the flag/env allowWrite after resolving
+// installed mode. Missing or invalid config reads as false — the read-only
+// surface is always the safe default.
+export async function resolveInstalledHostMcpAllowWrite(input: {
+  dependencies?: InstalledHostRuntimeConfigDependencies;
+  homeRoot?: string;
+  host: InstalledHostKind;
+}): Promise<boolean> {
+  try {
+    const config = await readInstalledHostRuntimeConfig(
+      input.host,
+      input.homeRoot,
+      input.dependencies ?? {},
+    );
+    return config.status === "ok" && config.config.mcp?.allowWrite === true;
+  } catch {
+    return false;
+  }
+}
 
 export interface StandaloneMcpPerCallInput {
   cwd?: string;

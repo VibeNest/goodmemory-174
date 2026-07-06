@@ -6,6 +6,7 @@ import type {
   MessageAnnotation,
   MemoryExtractionStrategy,
   MemoryCandidateKindHint,
+  MemoryExtractor,
 } from "../remember/candidates";
 import {
   buildWritebackAuditEventId,
@@ -22,13 +23,16 @@ import {
   writeInstalledHostWritebackLedger,
   type InstalledHostWritebackLinkedRecordId,
 } from "./hostWritebackAuditLedger";
+import { createProviderMemoryExtractor } from "../provider/layer";
 import {
   isRecord,
   normalizeText,
   readOptionalText,
+  type InstalledHostModelProviderConfig,
   type InstalledHostWritebackConfig,
   type InstalledHostWritebackMode,
 } from "./hostConfigValidation";
+import { buildAssistedWritebackCandidates } from "./hostWritebackExtraction";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
@@ -36,11 +40,27 @@ import {
   type InstalledHostResolvedContext,
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
+import {
+  readInstalledHostTranscriptCursor,
+  withInstalledHostTranscriptCursorLock,
+  writeInstalledHostTranscriptCursor,
+} from "./hostTranscriptCursor";
+import {
+  readClaudeTranscriptDelta,
+  readCodexRolloutDelta,
+  type HostTranscriptReadStatus,
+} from "./hostTranscriptReader";
 
 export type InstalledHostWritebackCommand = "turn-end" | "session-end";
 
 export interface InstalledHostWritebackDependencies
-  extends InstalledHostContextDependencies {}
+  extends InstalledHostContextDependencies {
+  // Injectable batch-extractor factory so tests stay hermetic; the default
+  // builds the provider-backed extractor from providers.assistedExtractor.
+  createWritebackExtractor?: (
+    config: InstalledHostModelProviderConfig,
+  ) => MemoryExtractor;
+}
 
 export interface InstalledHostWritebackInput {
   command: InstalledHostWritebackCommand;
@@ -95,7 +115,10 @@ interface HostPayloadAnnotation {
   verified?: boolean;
 }
 
-interface CandidateWithKey extends InstalledHostWritebackCandidate {
+// Exported for hostWritebackExtraction.ts (batch LLM pre-extraction),
+// which maps extractor candidates onto the same governed candidate shape
+// so downstream reserve/remember/commit stays single-sourced.
+export interface CandidateWithKey extends InstalledHostWritebackCandidate {
   key: string;
   message: {
     content: string;
@@ -104,8 +127,8 @@ interface CandidateWithKey extends InstalledHostWritebackCandidate {
   messageAnnotation: MessageAnnotation;
 }
 
-const MAX_WRITEBACK_MESSAGE_CHARS = 1_500;
-const SECRET_PATTERN =
+export const MAX_WRITEBACK_MESSAGE_CHARS = 1_500;
+export const SECRET_PATTERN =
   /\b(api[_-]?key|secret|token|password)\b\s*[:=]|sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}/iu;
 const PREFERENCE_PATTERN =
   /\b(always|remember to|remember that|prefer|please keep|please use|use .+ instead of|do not use|don't use|never use|以后|不要|不希望|优先)\b/iu;
@@ -164,7 +187,35 @@ export async function executeInstalledHostWriteback(
     });
   }
 
-  const messages = normalizeWritebackMessages(input.payload, config);
+  // Real host hook payloads (Claude Code Stop/SessionEnd) reference the
+  // session transcript by path instead of carrying inline messages; hydrate
+  // that path into the same bounded message window. Inline payloads always
+  // win, and hydration runs only after the mode gate so `off` never touches
+  // the transcript file.
+  const hydration = await hydrateTranscriptPayload({
+    homeRoot: input.homeRoot,
+    host: input.host,
+    payload: input.payload,
+  });
+  const result = await executeResolvedWriteback({
+    config,
+    dependencies,
+    hydratedPayload: hydration.payload,
+    input,
+    resolved: { context: resolved.context },
+  });
+  return applyTranscriptHydrationOutcome({ hydration, input, result });
+}
+
+async function executeResolvedWriteback(args: {
+  config: InstalledHostWritebackConfig;
+  dependencies: InstalledHostWritebackDependencies;
+  hydratedPayload: Record<string, unknown>;
+  input: InstalledHostWritebackInput;
+  resolved: { context: InstalledHostResolvedContext };
+}): Promise<InstalledHostWritebackResult> {
+  const { config, dependencies, hydratedPayload, input, resolved } = args;
+  const messages = normalizeWritebackMessages(hydratedPayload, config);
   if (messages.length === 0) {
     return {
       applied: false,
@@ -180,13 +231,27 @@ export async function executeInstalledHostWriteback(
   }
 
   const durableScope = toDurableWritebackScope(resolved.context.scope);
-  const candidates = buildWritebackCandidates({
+  // Batch LLM pre-extraction over the whole window (when configured); the
+  // regex rules stay the floor and the union is deduped by candidate key.
+  const batch = await runBatchWritebackExtraction({
     command: input.command,
     config,
+    context: resolved.context,
+    dependencies,
     host: input.host,
-    scope: durableScope,
     messages,
+    scope: durableScope,
   });
+  const candidates = mergeWritebackCandidateSets(
+    buildWritebackCandidates({
+      command: input.command,
+      config,
+      host: input.host,
+      scope: durableScope,
+      messages,
+    }),
+    batch.candidates,
+  );
   if (candidates.length === 0) {
     return {
       applied: true,
@@ -220,6 +285,7 @@ export async function executeInstalledHostWriteback(
       reason: observed.failed ? "audit_failed" : "observed",
       trace: {
         auditWriteFailed: observed.failed,
+        batchExtraction: batch.status,
         command: input.command,
         durableCandidateCount: candidates.filter((candidate) => candidate.durable)
           .length,
@@ -250,7 +316,14 @@ export async function executeInstalledHostWriteback(
 
   try {
     const memory = createInstalledHostMemory(resolved.context, dependencies);
-    const extractionStrategy = resolveWritebackExtractionStrategy(resolved.context);
+    // When the batch stage already ran the LLM over the window, the inner
+    // per-candidate remember stays rules-only: the remember-always annotation
+    // force-adds the extracted content verbatim, so a second LLM pass would
+    // only add cost and drift.
+    const extractionStrategy =
+      batch.status === "ok" && batch.attempted
+        ? "rules-only"
+        : resolveWritebackExtractionStrategy(resolved.context);
     const scopeDigest = buildWritebackScopeDigest(durableScope);
     const toScopedKey = (candidate: CandidateWithKey): string =>
       buildScopedWritebackCandidateKey({
@@ -297,6 +370,7 @@ export async function executeInstalledHostWriteback(
           ? "written"
           : "no_candidates",
       trace: {
+        batchExtraction: batch.status,
         command: input.command,
         duplicateCandidateCount: writeResult.duplicateCount,
         durableCandidateCount: durableCandidates.length,
@@ -357,6 +431,121 @@ function buildSkippedWritebackResult(input: {
       ...input.trace,
     },
     wrote: false,
+  };
+}
+
+// Cursor advance only after outcomes that fully consumed the delta; failed
+// writes leave the cursor so the next turn retries the same window (the
+// ledger's scoped content-key dedupe keeps retries idempotent).
+const CURSOR_ADVANCE_REASONS: ReadonlySet<InstalledHostWritebackResult["reason"]> =
+  new Set(["empty_transcript", "no_candidates", "observed", "written"]);
+
+interface TranscriptHydration {
+  attempted: boolean;
+  deltaMessageCount: number;
+  nextOffset: number;
+  payload: Record<string, unknown>;
+  readStatus: HostTranscriptReadStatus | undefined;
+  sessionDigest: string | undefined;
+}
+
+async function hydrateTranscriptPayload(input: {
+  homeRoot?: string;
+  host: InstalledHostKind;
+  payload: Record<string, unknown>;
+}): Promise<TranscriptHydration> {
+  const skipped: TranscriptHydration = {
+    attempted: false,
+    deltaMessageCount: 0,
+    nextOffset: 0,
+    payload: input.payload,
+    readStatus: undefined,
+    sessionDigest: undefined,
+  };
+  const hasInlineContent =
+    Array.isArray(input.payload.messages) || input.payload.transcript !== undefined;
+  const transcriptPath = readOptionalText(input.payload, "transcript_path");
+  if (hasInlineContent || !transcriptPath) {
+    return skipped;
+  }
+
+  const sessionDigest = buildWritebackSessionDigest(
+    readOptionalText(input.payload, "session_id"),
+  );
+  const fromOffset = sessionDigest
+    ? await readInstalledHostTranscriptCursor({
+        homeRoot: input.homeRoot,
+        host: input.host,
+        sessionDigest,
+      })
+    : undefined;
+  // Host-specific transcript formats: claude Stop payloads reference the
+  // session JSONL; codex transcript_path values come from the
+  // --from-rollout CLI and point at rollout files.
+  const readDelta =
+    input.host === "codex" ? readCodexRolloutDelta : readClaudeTranscriptDelta;
+  const delta = await readDelta({
+    ...(fromOffset !== undefined ? { fromOffset } : {}),
+    transcriptPath,
+  });
+
+  return {
+    attempted: true,
+    deltaMessageCount: delta.messages.length,
+    nextOffset: delta.nextOffset,
+    payload: { ...input.payload, messages: delta.messages },
+    readStatus: delta.status,
+    sessionDigest,
+  };
+}
+
+async function applyTranscriptHydrationOutcome(args: {
+  hydration: TranscriptHydration;
+  input: InstalledHostWritebackInput;
+  result: InstalledHostWritebackResult;
+}): Promise<InstalledHostWritebackResult> {
+  const { hydration, input, result } = args;
+  if (!hydration.attempted) {
+    return result;
+  }
+
+  const sessionDigest = hydration.sessionDigest;
+  let cursorAdvanced = false;
+  if (
+    sessionDigest &&
+    hydration.readStatus === "ok" &&
+    CURSOR_ADVANCE_REASONS.has(result.reason)
+  ) {
+    try {
+      await withInstalledHostTranscriptCursorLock(
+        input.host,
+        input.homeRoot,
+        async () => {
+          await writeInstalledHostTranscriptCursor({
+            homeRoot: input.homeRoot,
+            host: input.host,
+            now: new Date().toISOString(),
+            offset: hydration.nextOffset,
+            sessionDigest,
+          });
+        },
+      );
+      cursorAdvanced = true;
+    } catch {
+      // Fail open: a lost cursor write only means the next turn re-reads the
+      // same delta, which the ledger dedupe absorbs.
+    }
+  }
+
+  return {
+    ...result,
+    trace: {
+      ...result.trace,
+      transcriptCursorAdvanced: cursorAdvanced,
+      transcriptDeltaMessageCount: hydration.deltaMessageCount,
+      transcriptPathUsed: true,
+      transcriptReadStatus: hydration.readStatus,
+    },
   };
 }
 
@@ -637,6 +826,68 @@ function resolveWritebackExtractionStrategy(
   return context.providers?.assistedExtractor ? "llm-assisted" : "rules-only";
 }
 
+// Runs the batch LLM pre-extraction stage when the writeback config and the
+// configured provider allow it. "skipped" is not a failure: rules-only
+// configs and provider-less installs simply never attempt the stage.
+async function runBatchWritebackExtraction(input: {
+  command: InstalledHostWritebackCommand;
+  config: InstalledHostWritebackConfig;
+  context: InstalledHostResolvedContext;
+  dependencies: InstalledHostWritebackDependencies;
+  host: InstalledHostKind;
+  messages: NormalizedWritebackMessage[];
+  scope: MemoryScope;
+}): Promise<{
+  attempted: boolean;
+  candidates: CandidateWithKey[];
+  status: "extractor_failed" | "ok" | "skipped";
+}> {
+  const strategy = input.config.extractionStrategy ?? "auto";
+  const provider = input.context.providers?.assistedExtractor;
+  if (strategy === "rules-only" || !provider || input.messages.length === 0) {
+    return { attempted: false, candidates: [], status: "skipped" };
+  }
+
+  const extractor = (
+    input.dependencies.createWritebackExtractor ??
+    ((model: InstalledHostModelProviderConfig) =>
+      createProviderMemoryExtractor({ model }))
+  )(provider);
+  const result = await buildAssistedWritebackCandidates({
+    command: input.command,
+    config: input.config,
+    extractor,
+    host: input.host,
+    messages: input.messages.map((message) => ({
+      content: message.content,
+      role: message.role,
+    })),
+    scope: input.scope,
+  });
+  return { attempted: true, candidates: result.candidates, status: result.status };
+}
+
+// Rules candidates stay first (they are the deterministic floor); batch
+// candidates join only when their scoped content key is new.
+function mergeWritebackCandidateSets(
+  rules: CandidateWithKey[],
+  batch: CandidateWithKey[],
+): CandidateWithKey[] {
+  if (batch.length === 0) {
+    return rules;
+  }
+  const seen = new Set(rules.map((candidate) => candidate.key));
+  const merged = [...rules];
+  for (const candidate of batch) {
+    if (seen.has(candidate.key)) {
+      continue;
+    }
+    seen.add(candidate.key);
+    merged.push(candidate);
+  }
+  return merged;
+}
+
 function buildMessageCandidate(
   message: NormalizedWritebackMessage,
   runtime: {
@@ -779,7 +1030,7 @@ function classifyDurableSignal(
   return null;
 }
 
-function isAssistantOutputAllowed(
+export function isAssistantOutputAllowed(
   annotation: HostPayloadAnnotation | undefined,
   policy: InstalledHostWritebackConfig["allowAssistantOutput"],
 ): boolean {
@@ -1222,7 +1473,7 @@ function stripCandidateKey(
   };
 }
 
-function buildCandidateKey(input: {
+export function buildCandidateKey(input: {
   candidate: InstalledHostWritebackCandidate;
   scope: MemoryScope;
 }): string {
@@ -1253,13 +1504,13 @@ function readCandidateKind(
     : undefined;
 }
 
-function toMessageAnnotationKind(
+export function toMessageAnnotationKind(
   kind: InstalledHostWritebackCandidate["kind"],
 ): Exclude<MemoryCandidateKindHint, "episode" | "noise"> {
   return kind === "episode" ? "fact" : kind;
 }
 
-function clampText(value: string, maxLength: number): string {
+export function clampText(value: string, maxLength: number): string {
   if (maxLength <= 0) {
     return "";
   }

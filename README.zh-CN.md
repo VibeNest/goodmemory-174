@@ -134,13 +134,22 @@ GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory
 
 已安装 host 的流程是：
 
-1. `session-start` 和 `user-prompt-submit` hooks 召回 scoped memory。
-2. GoodMemory 把压缩后的上下文注入 Codex 或 Claude Code。
+1. `session-start` 注入会话开场简报；`user-prompt-submit` 注入逐 prompt 上下文
+   （新安装带相关性闸，低信号 prompt 不打扰）。
+2. Claude Code 的 `Stop` hook 从会话 transcript（`transcript_path`）逐轮捕获受
+   治理的 writeback 候选——有界、脱敏、绝不落原始 transcript；Codex 侧用
+   `goodmemory codex writeback --from-rollout` 把最新会话 rollout 喂进同一条管线。
 3. Codex 的 `pre-tool-use` 会把高风险 Bash 拦到同一条 installed config 和
    storage 路径上的 `goodmemory codex action`。
-4. 只读 MCP 提供 trace、context、stats 和 artifact inspection。
-5. 可选 writeback 默认是 `off`；先用 `observe` 查看候选，再决定是否进入
-   `selective` durable writes。
+4. MCP 提供 trace、context、stats 和 artifact inspection；`goodmemory_remember`
+   写工具通过 `mcp.allowWrite`（或 `goodmemory enable <host> --mcp-allow-write`）
+   显式开启。
+5. 脚本化安装的 writeback 保持 `off`；交互安装与 `goodmemory setup --recommended`
+   （一次同意确认）启用 `selective` 持久写——`writeback inspect` 可审计、
+   `writeback forget --event-id` 可撤销。
+6. 新安装默认踩上实测的 BM25 hybrid 检索档，会话简报 1024 token、逐 prompt
+   512 token 带闸注入；`goodmemory status` 展示检索档位、捕获实况与注入遥测。
+   可选 `sharedAgents` 配置让一个 host 读到另一个 host 的记录（写入保持归属）。
 
 先看 [快速开始：让 Codex 或 Claude Code 拥有记忆](#快速开始让-codex-或-claude-code-拥有记忆)。
 准备 review 或启用写入时，再看 [Installed Host Writeback：已安装主机写回](#installed-host-writeback已安装主机写回)。

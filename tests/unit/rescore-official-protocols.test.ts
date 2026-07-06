@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   assertOfficialRescoreRunIdentityCompatible,
   assertOfficialRescoreSourceInputsOutsideOutputDir,
+  assertOfficialRescoreSummaryValid,
   buildOfficialRescoreRunIdentity,
   buildOfficialRescoreMetadata,
   buildOfficialRescoreScopeMetadata,
@@ -19,6 +20,9 @@ import {
   requireOfficialRescoreProgressRowsWithinSelection,
   requireOfficialRescoreRubricProgressRowsWithinSelection,
   resolveOfficialRescoreJudgeEnvironment,
+  serializeOfficialRescoreProgressRow,
+  serializeOfficialRescoreRubricProgressRow,
+  validateOfficialRescoreSummary,
 } from "../../scripts/rescore-official-protocols";
 
 describe("official protocol rescore CLI", () => {
@@ -293,6 +297,286 @@ describe("official protocol rescore CLI", () => {
     ).toBe("cases");
   });
 
+  it("validates complete official-rescore case and BEAM summaries before writing", () => {
+    const locomoSummary = {
+      ...buildOfficialRescoreMetadata({
+        benchmark: "locomo",
+        generatedAt: "2026-07-06T02:48:27.294Z",
+        judgeModel: "gpt-5.4",
+        outputPath:
+          "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
+        runId: "locomo-current",
+        sourceInputs: {
+          reportPath: "/reports/locomo/union-live-report.json",
+          rootPath: "/private/tmp/LOCOMO-full/cases.json",
+        },
+        sourceInputFingerprints: {
+          reportPath: {
+            bytes: 17,
+            sha256: "a".repeat(64),
+          },
+          rootPath: {
+            bytes: 23,
+            sha256: "b".repeat(64),
+          },
+        },
+      }),
+      ...buildOfficialRescoreScopeMetadata({
+        benchmark: "locomo",
+        selectedCaseCount: 2,
+        sourceCaseCount: 2,
+      }),
+      categories: {
+        single_hop: {
+          accuracy: 1,
+          correct: 2,
+          total: 2,
+        },
+      },
+      judgeFailures: 0,
+      judgedCases: 2,
+      overallAccuracy: 1,
+      overallCorrect: 2,
+      protocol: "mem0ai/memory-benchmarks LoCoMo judge",
+      totalCases: 2,
+    };
+    expect(validateOfficialRescoreSummary(locomoSummary)).toEqual([]);
+    expect(() => assertOfficialRescoreSummaryValid(locomoSummary)).not.toThrow();
+
+    const beamSummary = {
+      ...buildOfficialRescoreMetadata({
+        benchmark: "beam",
+        generatedAt: "2026-07-06T02:48:36.219Z",
+        judgeModel: "gpt-5.4",
+        outputPath:
+          "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
+        runId: "beam-current",
+        sourceInputs: {
+          reportPath: "/reports/beam/live-slice-report.json",
+          rubricsPath: "/tmp/BEAM/rubrics-by-question-id.json",
+        },
+        sourceInputFingerprints: {
+          reportPath: {
+            bytes: 19,
+            sha256: "c".repeat(64),
+          },
+          rubricsPath: {
+            bytes: 29,
+            sha256: "d".repeat(64),
+          },
+        },
+      }),
+      ...buildOfficialRescoreScopeMetadata({
+        benchmark: "beam",
+        selectedQuestionCount: 2,
+        selectedRubricItemCount: 3,
+        sourceQuestionCount: 2,
+        sourceRubricItemCount: 3,
+      }),
+      categories: {
+        contradiction_resolution: {
+          meanScore: 0.75,
+          questions: 2,
+        },
+      },
+      judgeFailures: 0,
+      overallMacroByCategory: 0.75,
+      overallMicroByQuestion: 0.75,
+      protocol: "official BEAM unified rubric judge",
+      rubricItemsJudged: 3,
+      scoredQuestions: 2,
+      totalQuestions: 2,
+      totalRubricItems: 3,
+    };
+    expect(validateOfficialRescoreSummary(beamSummary)).toEqual([]);
+    expect(() => assertOfficialRescoreSummaryValid(beamSummary)).not.toThrow();
+  });
+
+  it("rejects stale or internally inconsistent official-rescore summaries", () => {
+    const staleSummary = {
+      benchmark: "longmemeval",
+      categories: {
+        "single-session-user": {
+          accuracy: 1,
+          correct: 1,
+          total: 1,
+        },
+      },
+      generatedBy: "scripts/rescore-official-protocols.ts",
+      judgeFailures: 0,
+      judgeModel: "gpt-5.4",
+      judgedCases: 1,
+      overallAccuracy: 1,
+      overallCorrect: 1,
+      protocol: "official LongMemEval evaluate_qa.py anscheck prompts",
+      runId: "rescore-longmemeval-official-judge",
+      sourceAnswersUnchanged: true,
+      totalCases: 1,
+    };
+    const staleErrors = validateOfficialRescoreSummary(staleSummary);
+    expect(staleErrors).toContain("claimBoundary must describe stored-answer comparability");
+    expect(staleErrors).toContain("sourceInputFingerprints must be canonical source fingerprints");
+    expect(staleErrors).toContain("sourceInputs must be canonical source input paths");
+
+    const mismatchedSummary = {
+      ...buildOfficialRescoreMetadata({
+        benchmark: "longmemeval",
+        generatedAt: "2026-07-06T02:48:27.294Z",
+        judgeModel: "gpt-5.4",
+        outputPath:
+          "/repo/reports/eval/research/official-rescore/longmemeval-current/rescore-summary.json",
+        runId: "longmemeval-current",
+        sourceInputs: {
+          referencePath: "/tmp/longmemeval_s.json",
+          reportPath: "/reports/longmemeval/report.json",
+        },
+        sourceInputFingerprints: {
+          referencePath: {
+            bytes: 31,
+            sha256: "e".repeat(64),
+          },
+          reportPath: {
+            bytes: 37,
+            sha256: "f".repeat(64),
+          },
+        },
+      }),
+      ...buildOfficialRescoreScopeMetadata({
+        benchmark: "longmemeval",
+        selectedCaseCount: 5,
+        sourceCaseCount: 5,
+      }),
+      categories: {
+        "single-session-user": {
+          accuracy: 1,
+          correct: 4,
+          total: 4,
+        },
+      },
+      judgeFailures: 0,
+      judgedCases: 4,
+      overallAccuracy: 1,
+      overallCorrect: 6,
+      protocol: "official LongMemEval evaluate_qa.py anscheck prompts",
+      totalCases: 5,
+    };
+    const mismatchErrors = validateOfficialRescoreSummary(mismatchedSummary);
+    expect(mismatchErrors).toContain("judgedCases must equal selectedCases");
+    expect(mismatchErrors).toContain("overallCorrect cannot exceed selectedCases");
+    expect(mismatchErrors).toContain("case category totals must equal selectedCases");
+    expect(mismatchErrors).toContain(
+      "case category correct sum must equal overallCorrect",
+    );
+    expect(mismatchErrors).toContain(
+      "overallAccuracy must equal overallCorrect / selectedCases",
+    );
+
+    const categoryAccuracyMismatch = {
+      ...buildOfficialRescoreMetadata({
+        benchmark: "locomo",
+        generatedAt: "2026-07-06T02:48:27.294Z",
+        judgeModel: "gpt-5.4",
+        outputPath:
+          "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
+        runId: "locomo-current",
+        sourceInputs: {
+          reportPath: "/reports/locomo/union-live-report.json",
+          rootPath: "/private/tmp/LOCOMO-full/cases.json",
+        },
+        sourceInputFingerprints: {
+          reportPath: {
+            bytes: 17,
+            sha256: "a".repeat(64),
+          },
+          rootPath: {
+            bytes: 23,
+            sha256: "b".repeat(64),
+          },
+        },
+      }),
+      ...buildOfficialRescoreScopeMetadata({
+        benchmark: "locomo",
+        selectedCaseCount: 2,
+        sourceCaseCount: 2,
+      }),
+      categories: {
+        single_hop: {
+          accuracy: 1,
+          correct: 1,
+          total: 2,
+        },
+      },
+      judgeFailures: 0,
+      judgedCases: 2,
+      overallAccuracy: 0.5,
+      overallCorrect: 1,
+      protocol: "mem0ai/memory-benchmarks LoCoMo judge",
+      totalCases: 2,
+    };
+    expect(validateOfficialRescoreSummary(categoryAccuracyMismatch)).toContain(
+      "case category single_hop accuracy must equal correct / total",
+    );
+
+    const beamAggregateMismatch = {
+      ...buildOfficialRescoreMetadata({
+        benchmark: "beam",
+        generatedAt: "2026-07-06T02:48:36.219Z",
+        judgeModel: "gpt-5.4",
+        outputPath:
+          "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
+        runId: "beam-current",
+        sourceInputs: {
+          reportPath: "/reports/beam/live-slice-report.json",
+          rubricsPath: "/tmp/BEAM/rubrics-by-question-id.json",
+        },
+        sourceInputFingerprints: {
+          reportPath: {
+            bytes: 19,
+            sha256: "c".repeat(64),
+          },
+          rubricsPath: {
+            bytes: 29,
+            sha256: "d".repeat(64),
+          },
+        },
+      }),
+      ...buildOfficialRescoreScopeMetadata({
+        benchmark: "beam",
+        selectedQuestionCount: 3,
+        selectedRubricItemCount: 3,
+        sourceQuestionCount: 3,
+        sourceRubricItemCount: 3,
+      }),
+      categories: {
+        contradiction_resolution: {
+          meanScore: 1,
+          questions: 2,
+        },
+        temporal_order: {
+          meanScore: 0,
+          questions: 1,
+        },
+      },
+      judgeFailures: 0,
+      overallMacroByCategory: 0.25,
+      overallMicroByQuestion: 0.5,
+      protocol: "official BEAM unified rubric judge",
+      rubricItemsJudged: 3,
+      scoredQuestions: 3,
+      totalQuestions: 3,
+      totalRubricItems: 3,
+    };
+    const beamAggregateErrors = validateOfficialRescoreSummary(
+      beamAggregateMismatch,
+    );
+    expect(beamAggregateErrors).toContain(
+      "overallMacroByCategory must equal the mean of category meanScore values",
+    );
+    expect(beamAggregateErrors).toContain(
+      "overallMicroByQuestion must equal the question-weighted mean of category meanScore values",
+    );
+  });
+
   it("builds stable source input content fingerprints", () => {
     expect(
       buildOfficialRescoreSourceInputFingerprints({
@@ -432,10 +716,17 @@ describe("official protocol rescore CLI", () => {
       ),
     ).toThrow("malformed official rescore progress row at progress.jsonl:3");
 
+    expect(() =>
+      parseOfficialRescoreProgressLine(
+        '{"questionId":"q1","correct":true,"ignored":1}',
+        "progress.jsonl:4",
+      ),
+    ).toThrow("malformed official rescore progress row at progress.jsonl:4");
+
     expect(
       parseOfficialRescoreRubricProgressLine(
         '{"key":"q1#0","questionId":"q1","score":0.5}',
-        "progress.jsonl:4",
+        "progress.jsonl:5",
       ),
     ).toEqual({
       key: "q1#0",
@@ -446,16 +737,54 @@ describe("official protocol rescore CLI", () => {
     expect(() =>
       parseOfficialRescoreRubricProgressLine(
         '{"key":"q1#0","questionId":"q1","score":0.25}',
-        "progress.jsonl:5",
+        "progress.jsonl:6",
       ),
-    ).toThrow("malformed official rescore rubric progress row at progress.jsonl:5");
+    ).toThrow("malformed official rescore rubric progress row at progress.jsonl:6");
 
     expect(() =>
       parseOfficialRescoreRubricProgressLine(
         '{"key":"q1#0","questionId":"q2","score":0.5}',
-        "progress.jsonl:6",
+        "progress.jsonl:7",
       ),
-    ).toThrow("malformed official rescore rubric progress row at progress.jsonl:6");
+    ).toThrow("malformed official rescore rubric progress row at progress.jsonl:7");
+
+    expect(() =>
+      parseOfficialRescoreRubricProgressLine(
+        '{"key":"q1#0","questionId":"q1","score":1,"ignored":1}',
+        "progress.jsonl:8",
+      ),
+    ).toThrow("malformed official rescore rubric progress row at progress.jsonl:8");
+  });
+
+  it("serializes progress rows in the same strict shape the cache parser accepts", () => {
+    const questionRow = serializeOfficialRescoreProgressRow({
+      correct: true,
+      questionId: "q1",
+    });
+    expect(JSON.parse(questionRow)).toEqual({
+      correct: true,
+      questionId: "q1",
+    });
+    expect(parseOfficialRescoreProgressLine(questionRow, "progress.jsonl:1")).toEqual({
+      correct: true,
+      questionId: "q1",
+    });
+
+    const rubricRow = serializeOfficialRescoreRubricProgressRow({
+      key: "q1#0",
+      questionId: "q1",
+      score: 0.5,
+    });
+    expect(JSON.parse(rubricRow)).toEqual({
+      key: "q1#0",
+      questionId: "q1",
+      score: 0.5,
+    });
+    expect(parseOfficialRescoreRubricProgressLine(rubricRow, "progress.jsonl:2")).toEqual({
+      key: "q1#0",
+      questionId: "q1",
+      score: 0.5,
+    });
   });
 
   it("rejects duplicate rescore progress rows", () => {
@@ -478,6 +807,50 @@ describe("official protocol rescore CLI", () => {
         "progress.jsonl",
       ),
     ).toThrow("duplicate official rescore rubric progress row for q1#0 at progress.jsonl:2");
+  });
+
+  it("skips only final torn-tail official rescore progress lines", () => {
+    expect(
+      readOfficialRescoreProgressRows(
+        [
+          '{"questionId":"q1","correct":true}',
+          '{"questionId":"q2","correct"',
+        ].join("\n"),
+        "progress.jsonl",
+      ),
+    ).toEqual([{ correct: true, questionId: "q1" }]);
+
+    expect(() =>
+      readOfficialRescoreProgressRows(
+        [
+          '{"questionId":"q1","correct":true}',
+          '{"questionId":"q2","correct"',
+          '{"questionId":"q3","correct":false}',
+        ].join("\n"),
+        "progress.jsonl",
+      ),
+    ).toThrow(SyntaxError);
+
+    expect(
+      readOfficialRescoreRubricProgressRows(
+        [
+          '{"key":"q1#0","questionId":"q1","score":1}',
+          '{"key":"q1#1","questionId"',
+        ].join("\n"),
+        "progress.jsonl",
+      ),
+    ).toEqual([{ key: "q1#0", questionId: "q1", score: 1 }]);
+
+    expect(() =>
+      readOfficialRescoreRubricProgressRows(
+        [
+          '{"key":"q1#0","questionId":"q1","score":1}',
+          '{"key":"q1#1","questionId"',
+          '{"key":"q1#2","questionId":"q1","score":0}',
+        ].join("\n"),
+        "progress.jsonl",
+      ),
+    ).toThrow(SyntaxError);
   });
 
   it("rejects cached progress rows outside the selected rescore scope", () => {
@@ -516,11 +889,11 @@ describe("official protocol rescore CLI", () => {
         sourceInputFingerprints: {
           reportPath: {
             bytes: 7,
-            sha256: "report-sha",
+            sha256: "a".repeat(64),
           },
           rootPath: {
             bytes: 6,
-            sha256: "root-sha",
+            sha256: "b".repeat(64),
           },
         },
         sourceInputs: {
@@ -537,6 +910,101 @@ describe("official protocol rescore CLI", () => {
       await expect(
         ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
       ).rejects.toThrow("progress cache exists without run-identity.json");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects malformed existing rescore run identity files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gm-rescore-identity-"));
+    try {
+      const identityPath = join(root, "run-identity.json");
+      const progressPath = join(root, "progress.jsonl");
+      const identity = buildOfficialRescoreRunIdentity({
+        benchmark: "locomo",
+        judgeModel: "gpt-5.4-mini",
+        runId: "locomo-official-rescore-current",
+        sourceInputFingerprints: {
+          reportPath: {
+            bytes: 7,
+            sha256: "a".repeat(64),
+          },
+          rootPath: {
+            bytes: 6,
+            sha256: "b".repeat(64),
+          },
+        },
+        sourceInputs: {
+          reportPath: "/reports/locomo/union-live-report.json",
+          rootPath: "/private/tmp/LOCOMO-full10/cases.json",
+        },
+      });
+
+      await writeFile(identityPath, "[]\n");
+
+      await expect(
+        ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
+      ).rejects.toThrow("malformed official rescore run identity at");
+
+      await writeFile(
+        identityPath,
+        `${JSON.stringify({ ...identity, ignored: true })}\n`,
+      );
+
+      await expect(
+        ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
+      ).rejects.toThrow("malformed official rescore run identity at");
+
+      await writeFile(
+        identityPath,
+        `${JSON.stringify({
+          ...identity,
+          sourceInputs: {
+            ...identity.sourceInputs,
+            ignoredPath: "/tmp/other.json",
+          },
+        })}\n`,
+      );
+
+      await expect(
+        ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
+      ).rejects.toThrow("malformed official rescore run identity at");
+
+      await writeFile(
+        identityPath,
+        `${JSON.stringify({
+          ...identity,
+          sourceInputFingerprints: {
+            ...identity.sourceInputFingerprints,
+            ignoredPath: {
+              bytes: 1,
+              sha256: "c".repeat(64),
+            },
+          },
+        })}\n`,
+      );
+
+      await expect(
+        ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
+      ).rejects.toThrow("malformed official rescore run identity at");
+
+      await writeFile(
+        identityPath,
+        `${JSON.stringify({
+          ...identity,
+          sourceInputFingerprints: {
+            ...identity.sourceInputFingerprints,
+            reportPath: {
+              bytes: 7,
+              sha256: "not-a-sha256",
+            },
+          },
+        })}\n`,
+      );
+
+      await expect(
+        ensureOfficialRescoreRunIdentity(identityPath, progressPath, identity),
+      ).rejects.toThrow("malformed official rescore run identity at");
     } finally {
       await rm(root, { force: true, recursive: true });
     }

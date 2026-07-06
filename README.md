@@ -173,13 +173,27 @@ context without changing the agent itself. Install the global CLI and run
 
 The installed-host flow is:
 
-1. `session-start` and `user-prompt-submit` hooks recall scoped memory.
-2. GoodMemory injects a compact context block into Codex or Claude Code.
+1. `session-start` injects a session brief; `user-prompt-submit` injects
+   per-prompt context (relevance-gated on fresh installs so low-signal prompts
+   stay clean).
+2. The Claude Code `Stop` hook captures each turn from the session transcript
+   (`transcript_path`) into governed writeback candidates — bounded, redacted,
+   never raw transcripts; for Codex, `goodmemory codex writeback --from-rollout`
+   feeds the newest session rollout through the same pipeline.
 3. Codex `pre-tool-use` can deny or redirect risky Bash through
    `goodmemory codex action` on the same installed config and storage path.
-4. Read-only MCP gives trace, context, stats, and artifact inspection.
-5. Optional writeback stays `off` by default; use `observe` to inspect
-   candidates before moving to `selective` durable writes.
+4. MCP gives trace, context, stats, and artifact inspection; the
+   `goodmemory_remember` write tool is opt-in via `mcp.allowWrite` (or
+   `goodmemory enable <host> --mcp-allow-write`).
+5. Writeback stays `off` for scripted installs; interactive install and
+   `goodmemory setup --recommended` (one consent prompt) enable `selective`
+   durable writes — auditable via `writeback inspect`, reversible via
+   `writeback forget --event-id`.
+6. Fresh installs start on the measured BM25 hybrid retrieval tier with a
+   1024-token session brief and 512-token gated prompt injection; `goodmemory
+   status` shows the retrieval tier, capture proof-of-life, and injection
+   telemetry. Optional `sharedAgents` config lets one host read the other
+   host's records (writes stay attributed).
 
 Start with [Quickstart: Codex Or Claude Code Memory](#quickstart-codex-or-claude-code-memory).
 Use [Installed Host Writeback](#installed-host-writeback) when you are ready to
