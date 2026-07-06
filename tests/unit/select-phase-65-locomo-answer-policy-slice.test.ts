@@ -3,6 +3,7 @@ import {
   LOCOMO_ANSWER_POLICY_SLICE_FILE_NAME,
   runLocomoAnswerPolicySliceSelection,
   selectLocomoAnswerPolicySlice,
+  upgradeLocomoAnswerPolicySliceReanswerJobs,
 } from "../../scripts/select-phase-65-locomo-answer-policy-slice";
 import type { LocomoSmokeReport } from "../../scripts/run-phase-65-locomo-smoke";
 import { deriveLocomoMatchMode } from "../../src/eval/locomo";
@@ -220,24 +221,50 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     expect(analysis.overall.selectedQuestionCount).toBe(6);
     expect(analysis.reanswerJobs).toEqual([
       {
+        bucket: "baselineCorrectHighNoise",
         category: "single_hop",
-        questionCount: 3,
-        questionIds: [
-          "single-correct-high-noise",
-          "single-wrong-full-noisy",
-          "single-wrong-missing",
-        ],
+        questionCount: 1,
+        questionIds: ["single-correct-high-noise"],
         sourceReportPath: "/reports/single/smoke-report.json",
         sourceRunId: "single-hop-live",
       },
       {
+        bucket: "wrongFullRecallNoisy",
+        category: "single_hop",
+        questionCount: 1,
+        questionIds: ["single-wrong-full-noisy"],
+        sourceReportPath: "/reports/single/smoke-report.json",
+        sourceRunId: "single-hop-live",
+      },
+      {
+        bucket: "wrongMissingEvidence",
+        category: "single_hop",
+        questionCount: 1,
+        questionIds: ["single-wrong-missing"],
+        sourceReportPath: "/reports/single/smoke-report.json",
+        sourceRunId: "single-hop-live",
+      },
+      {
+        bucket: "baselineCorrectHighNoise",
         category: "temporal",
-        questionCount: 3,
-        questionIds: [
-          "temporal-correct",
-          "temporal-wrong-full-noisy",
-          "temporal-wrong-missing",
-        ],
+        questionCount: 1,
+        questionIds: ["temporal-correct"],
+        sourceReportPath: "/reports/temporal/smoke-report.json",
+        sourceRunId: "temporal-live",
+      },
+      {
+        bucket: "wrongFullRecallNoisy",
+        category: "temporal",
+        questionCount: 1,
+        questionIds: ["temporal-wrong-full-noisy"],
+        sourceReportPath: "/reports/temporal/smoke-report.json",
+        sourceRunId: "temporal-live",
+      },
+      {
+        bucket: "wrongMissingEvidence",
+        category: "temporal",
+        questionCount: 1,
+        questionIds: ["temporal-wrong-missing"],
         sourceReportPath: "/reports/temporal/smoke-report.json",
         sourceRunId: "temporal-live",
       },
@@ -394,6 +421,7 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     ]);
     expect(analysis.reanswerJobs).toEqual([
       {
+        bucket: "baselineCorrectHighNoise",
         category: "single_hop",
         questionCount: 1,
         questionIds: ["single-a-high-noise"],
@@ -401,6 +429,7 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
         sourceRunId: "single-hop-live-a",
       },
       {
+        bucket: "baselineCorrectHighNoise",
         category: "single_hop",
         questionCount: 1,
         questionIds: ["single-b-high-noise"],
@@ -458,6 +487,219 @@ describe("phase-65 LoCoMo answer-policy slice selector", () => {
     expect(outputPath).toBe("/reports/slice/answer-policy-slice.json");
     expect(analysis.runId).toBe("slice-run");
     expect(writes.get(outputPath)).toContain(LOCOMO_ANSWER_POLICY_SLICE_FILE_NAME);
+  });
+
+  it("upgrades legacy answer-policy slice jobs without re-reading source reports", async () => {
+    const legacy = {
+      benchmark: "locomo",
+      categories: {
+        single_hop: {
+          buckets: {
+            baselineCorrectHighNoise: { availableCount: 2, selectedCount: 1 },
+            wrongFullRecallNoisy: { availableCount: 1, selectedCount: 1 },
+            wrongMissingEvidence: { availableCount: 1, selectedCount: 1 },
+          },
+          questionCount: 3,
+          questionIds: ["single-correct", "single-noisy", "single-missing"],
+          selectedQuestions: [
+            {
+              bucket: "baselineCorrectHighNoise",
+              questionId: "single-correct",
+            },
+            {
+              bucket: "wrongFullRecallNoisy",
+              questionId: "single-noisy",
+            },
+            {
+              bucket: "wrongMissingEvidence",
+              questionId: "single-missing",
+            },
+          ],
+          sourceReportPath: "/reports/single/smoke-report.json",
+          sourceRunId: "single-source",
+        },
+      },
+      claimBoundary:
+        "Research diagnostic only; not a public release or benchmark claim.",
+      generatedAt: "2026-07-03T00:00:00.000Z",
+      generatedBy: "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+      outputPath: "/reports/slice/answer-policy-slice.json",
+      overall: {
+        categoryCount: 1,
+        perBucket: 1,
+        selectedQuestionCount: 3,
+      },
+      phase: "phase-65",
+      reanswerJobs: [
+        {
+          category: "single_hop",
+          questionCount: 3,
+          questionIds: ["single-correct", "single-noisy", "single-missing"],
+          sourceReportPath: "/reports/single/smoke-report.json",
+          sourceRunId: "single-source",
+        },
+      ],
+      runId: "legacy-answer-policy-slice",
+      sourceReports: [
+        {
+          path: "/reports/single/smoke-report.json",
+          questionCount: 3,
+          runId: "single-source",
+        },
+      ],
+    };
+
+    const upgraded = upgradeLocomoAnswerPolicySliceReanswerJobs({
+      generatedAt: "2026-07-06T12:00:00.000Z",
+      outputPath: "/reports/slice/answer-policy-slice.json",
+      slice: legacy,
+    });
+
+    expect(upgraded.generatedAt).toBe("2026-07-06T12:00:00.000Z");
+    expect(upgraded.reanswerJobs).toEqual([
+      {
+        bucket: "baselineCorrectHighNoise",
+        category: "single_hop",
+        questionCount: 1,
+        questionIds: ["single-correct"],
+        sourceReportPath: "/reports/single/smoke-report.json",
+        sourceRunId: "single-source",
+      },
+      {
+        bucket: "wrongFullRecallNoisy",
+        category: "single_hop",
+        questionCount: 1,
+        questionIds: ["single-noisy"],
+        sourceReportPath: "/reports/single/smoke-report.json",
+        sourceRunId: "single-source",
+      },
+      {
+        bucket: "wrongMissingEvidence",
+        category: "single_hop",
+        questionCount: 1,
+        questionIds: ["single-missing"],
+        sourceReportPath: "/reports/single/smoke-report.json",
+        sourceRunId: "single-source",
+      },
+    ]);
+  });
+
+  it("writes an upgraded existing answer-policy slice in place", async () => {
+    const writes = new Map<string, string>();
+    const { analysis, outputPath } = await runLocomoAnswerPolicySliceSelection(
+      [
+        "bun",
+        "run",
+        "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+        "--existing-slice",
+        "/reports/slice/answer-policy-slice.json",
+      ],
+      {
+        mkdir: async () => undefined,
+        now: () => new Date("2026-07-06T12:00:00.000Z"),
+        readFile: async (path) => {
+          if (path !== "/reports/slice/answer-policy-slice.json") {
+            throw new Error(`unexpected read: ${path}`);
+          }
+          return JSON.stringify({
+            benchmark: "locomo",
+            categories: {
+              temporal: {
+                questionCount: 1,
+                questionIds: ["temporal-noisy"],
+                selectedQuestions: [
+                  {
+                    bucket: "wrongFullRecallNoisy",
+                    questionId: "temporal-noisy",
+                    sourceReportPath: "/reports/temporal/smoke-report.json",
+                    sourceRunId: "temporal-source",
+                  },
+                ],
+              },
+            },
+            generatedAt: "2026-07-03T00:00:00.000Z",
+            generatedBy: "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+            overall: {
+              categoryCount: 1,
+              perBucket: 1,
+              selectedQuestionCount: 1,
+            },
+            phase: "phase-65",
+            reanswerJobs: [
+              {
+                category: "temporal",
+                questionCount: 1,
+                questionIds: ["temporal-noisy"],
+                sourceReportPath: "/reports/temporal/smoke-report.json",
+                sourceRunId: "temporal-source",
+              },
+            ],
+            runId: "legacy-slice",
+          });
+        },
+        writeFile: async (path, value) => {
+          writes.set(path, value);
+        },
+      },
+    );
+
+    expect(outputPath).toBe("/reports/slice/answer-policy-slice.json");
+    expect(analysis.reanswerJobs).toEqual([
+      {
+        bucket: "wrongFullRecallNoisy",
+        category: "temporal",
+        questionCount: 1,
+        questionIds: ["temporal-noisy"],
+        sourceReportPath: "/reports/temporal/smoke-report.json",
+        sourceRunId: "temporal-source",
+      },
+    ]);
+    expect(writes.get(outputPath)).toContain("\"bucket\": \"wrongFullRecallNoisy\"");
+  });
+
+  it("rejects existing-slice upgrades when source lineage is missing", () => {
+    expect(() =>
+      upgradeLocomoAnswerPolicySliceReanswerJobs({
+        slice: {
+          benchmark: "locomo",
+          categories: {
+            multi_hop: {
+              questionCount: 1,
+              questionIds: ["multi-q1"],
+              selectedQuestions: [
+                {
+                  bucket: "wrongMissingEvidence",
+                  questionId: "multi-q1",
+                },
+              ],
+            },
+          },
+          phase: "phase-65",
+          runId: "legacy-slice",
+        },
+      }),
+    ).toThrow("missing sourceReportPath/sourceRunId");
+  });
+
+  it("rejects existing-slice mode combined with source reports", async () => {
+    await expect(
+      runLocomoAnswerPolicySliceSelection(
+        [
+          "bun",
+          "run",
+          "scripts/select-phase-65-locomo-answer-policy-slice.ts",
+          "--existing-slice",
+          "/reports/slice/answer-policy-slice.json",
+          "--report",
+          "/reports/source/smoke-report.json",
+        ],
+        {
+          readFile: async () => {
+            throw new Error("should not read reports");
+          },
+        },
+      ),
+    ).rejects.toThrow("--existing-slice cannot be combined with --report.");
   });
 
   it("rejects non-integer per-bucket flag values", async () => {

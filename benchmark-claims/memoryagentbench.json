@@ -17,6 +17,99 @@
     "judgeModel": null,
     "sameModelJudge": false
   },
+  "publicClaim": {
+    "readmeDisclosureFragments": [
+      "AR 0.926",
+      "LRU 0.632",
+      "0.890",
+      "0.518"
+    ],
+    "readmeRequiredFragments": [
+      "CR 0.959",
+      "TTL 0.767",
+      "0.000"
+    ]
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-phase67c-mab-harness-resumed-current"
+          },
+          {
+            "path": ["executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["questionCount"],
+            "equals": 259
+          },
+          {
+            "path": ["noMemoryBaseline"],
+            "equals": false
+          },
+          {
+            "path": ["competencies", 1, "competency"],
+            "equals": "TTL"
+          },
+          {
+            "path": ["competencies", 1, "answerAccuracy"],
+            "equals": 0.7666666666666667
+          },
+          {
+            "path": ["competencies", 3, "competency"],
+            "equals": "CR"
+          },
+          {
+            "path": ["competencies", 3, "answerAccuracy"],
+            "equals": 0.958904109589041
+          }
+        ],
+        "description": "Full MemoryAgentBench task-specific live harness report with zero execution failures",
+        "path": "reports/eval/research/phase-64/mab/run-phase67c-mab-harness-resumed-current/smoke-report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-phase67c-mab-baseline-current"
+          },
+          {
+            "path": ["executionFailures"],
+            "equals": 43
+          },
+          {
+            "path": ["questionCount"],
+            "equals": 216
+          },
+          {
+            "path": ["noMemoryBaseline"],
+            "equals": true
+          },
+          {
+            "path": ["competencies", 1, "competency"],
+            "equals": "TTL"
+          },
+          {
+            "path": ["competencies", 1, "answerAccuracy"],
+            "equals": 0
+          },
+          {
+            "path": ["competencies", 3, "competency"],
+            "equals": "CR"
+          },
+          {
+            "path": ["competencies", 3, "answerAccuracy"],
+            "equals": 0
+          }
+        ],
+        "description": "No-memory baseline report used to scope public claims to CR and TTL",
+        "path": "reports/eval/research/phase-64/mab/run-phase67c-mab-baseline-current/smoke-report.json"
+      }
+    ]
+  },
   "metrics": {
     "primary": "Conflict Resolution answer accuracy (deterministic upstream match-mode, judge-free)",
     "score": 0.959,

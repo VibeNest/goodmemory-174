@@ -2,7 +2,7 @@
 
 Initial run date: `2026-04-28`
 
-Latest rerun update: `2026-05-05`
+Latest rerun update: `2026-07-06`
 
 Status: internal research evidence only. This document does not reopen or
 change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
@@ -1450,6 +1450,126 @@ same-day full-root run that had one distilled execution failure. The claim
 boundary remains unchanged: this is internal research evidence only, not a
 public README claim, because the Full-300 score still relies on same-model
 LLM-judge scoring for most scorer families.
+
+## 2026-07-06 Postchanges Full-Root Rerun
+
+The follow-up current-worktree rerun completed under
+`run-phase61-full300-rerun-20260706-postchanges-current` after recent local
+changes:
+
+- benchmark root:
+  - `/tmp/ImplicitMemBench`
+  - upstream commit `927413bf3f5389bb47c94c2a0ba987e435b101b8`
+- command shape:
+  - `GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai GOODMEMORY_EVAL_MAX_CONCURRENCY=1 bun run eval:phase-61-full300 -- --benchmark-root /tmp/ImplicitMemBench --run-id run-phase61-full300-rerun-20260706-postchanges-current --shards 10 --shard-concurrency 6 --max-concurrency 1 --priming-timeout-ms 180000`
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `131 / 300 = 43.67%`
+- target GoodMemory profile:
+  - `goodmemory-distilled-feedback+controlled-priming`
+- best official-comparable GoodMemory full-300 score:
+  - `209.05 / 300 = 69.68%`
+- GoodMemory raw-experience full-300 score:
+  - `175.05 / 300 = 58.35%`
+- GoodMemory distilled blocking:
+  - `153 / 200 = 76.50%`
+- GoodMemory priming contribution:
+  - `94 / 100` credited cases
+  - average credited influence `56.05`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `2`
+  - both failures were `text_answer_generation timed out after 180000ms` on
+    `classical_conditioning/conditioned_api_aversion.json#007` and
+    `classical_conditioning/conditioned_api_distrust.json#007`
+
+This postchanges rerun is useful drift evidence but should not replace the
+0-failure `run-phase61-full300-rerun-20260706-codex-current` canonical internal
+score. The measured score is lower by `3.40` passed-equivalent points
+(`0.6968333333` vs `0.7081666667`), and the two timeout failures mean it is not
+a clean public-claim candidate. The claim boundary remains unchanged:
+ImplicitMemBench is still internal research evidence blocked by same-model
+judge scoring.
+
+## 2026-07-06 Latest Full-Root Rerun
+
+The latest current-worktree rerun completed under
+`run-phase61-full300-rerun-20260706-latest-current` after the current benchmark
+hardening work:
+
+- benchmark root:
+  - `/tmp/ImplicitMemBench`
+  - upstream commit `927413bf3f5389bb47c94c2a0ba987e435b101b8`
+- command shape:
+  - `GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai GOODMEMORY_EVAL_MAX_CONCURRENCY=1 bun run eval:phase-61-full300 -- --benchmark-root /tmp/ImplicitMemBench --run-id run-phase61-full300-rerun-20260706-latest-current --shards 10 --shard-concurrency 6 --max-concurrency 1 --priming-timeout-ms 180000`
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `130 / 300 = 43.33%`
+- target GoodMemory profile:
+  - `goodmemory-distilled-feedback+controlled-priming`
+- best official-comparable GoodMemory full-300 score:
+  - `211.06 / 300 = 70.35%`
+- GoodMemory raw-experience full-300 score:
+  - `179.06 / 300 = 59.69%`
+- GoodMemory distilled blocking:
+  - `155 / 200 = 77.50%`
+- GoodMemory priming contribution:
+  - `92 / 100` credited cases
+  - average credited influence `56.06`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `1`
+
+This rerun improves on the failed postchanges drift check by `2.01`
+passed-equivalent points (`0.7035333333` vs `0.6968333333`) and lowers the
+distilled execution-failure count from `2` to `1`, but it is still not a clean
+replacement for the 0-failure `run-phase61-full300-rerun-20260706-codex-current`
+canonical internal score. It remains lower by `1.39` passed-equivalent points
+(`0.7035333333` vs `0.7081666667`) and keeps the same public-claim blocker:
+ImplicitMemBench is internal research evidence until same-model judge scoring is
+replaced by an independent judge or deterministic scorer.
+
+## 2026-07-06 Stored-Answer Rescore Readiness
+
+`audit:phase-61-implicitmembench-rescore-readiness` now checks whether the
+canonical 0-failure Full-300 reports can be rescored without regenerating
+answers. The current readiness artifact is:
+
+- `reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-20260706-current/rescore-readiness.json`
+
+It validates:
+
+- baseline stored answers:
+  - `300 / 300` rows ready
+- GoodMemory composite profile:
+  - `300 / 300` rows ready
+  - blocking source profile: `goodmemory-distilled-feedback`
+  - priming source profile: `goodmemory-raw-experience`
+- scorer split:
+  - `35` deterministic `structured_first_action` rows
+  - `165` `text_behavior_judge` rows
+  - `100` `priming_pair_judge` rows
+  - `265` rows still need a judge replacement
+- source score pinned from the canonical report:
+  - baseline `0.41`
+  - GoodMemory `0.7081666667`
+
+The artifact also records the current loaded judge environment as same-model:
+answer model `gpt-5.5`, judge model `gpt-5.5`, `sameModelJudge: true`.
+Therefore `storedAnswersReady: true`, but
+`readyForIndependentJudgeRescore: false`. This proves the next public-claim
+step does not need answer regeneration, but it still needs an actually
+independent judge or a broader deterministic scorer.
 
 ## Recommended Next Work
 

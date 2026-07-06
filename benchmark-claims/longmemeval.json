@@ -17,6 +17,128 @@
     "judgeModel": null,
     "sameModelJudge": false
   },
+  "publicClaim": {
+    "readmeDisclosureFragments": [
+      "semantic",
+      "0.896",
+      "0.908",
+      "gpt-5.5"
+    ],
+    "readmeRequiredFragments": [
+      "0.720",
+      "360/500",
+      "0.888",
+      "444/500",
+      "0.068",
+      "goodmemory-rules-only"
+    ]
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-phase67b-longmemeval-rules-deterministic-current"
+          },
+          {
+            "path": ["summary", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["summary", "totalCases"],
+            "equals": 500
+          },
+          {
+            "path": ["profiles", "goodmemory-rules-only", "summary", "accuracy"],
+            "equals": 0.896
+          },
+          {
+            "path": ["profiles", "goodmemory-rules-only", "summary", "totalCases"],
+            "equals": 500
+          },
+          {
+            "path": ["profiles", "baseline-no-memory", "summary", "accuracy"],
+            "equals": 0.068
+          }
+        ],
+        "description": "Full 500-question stored-answer report for the judge-free deterministic-subset claim",
+        "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["sourceReportRunId"],
+            "equals": "run-phase67b-longmemeval-rules-deterministic-current"
+          },
+          {
+            "path": ["claim", "profile"],
+            "equals": "goodmemory-rules-only"
+          },
+          {
+            "path": ["claim", "deterministicSubsetAccuracy"],
+            "equals": 0.72
+          },
+          {
+            "path": ["claim", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["claim", "judgeFree"],
+            "equals": true
+          },
+          {
+            "path": ["baseline", "deterministicSubsetAccuracy"],
+            "equals": 0.068
+          },
+          {
+            "path": ["memoryLift"],
+            "equals": 0.6519999999999999
+          }
+        ],
+        "description": "Deterministic-subset analyzer output for the public 0.720 judge-free claim",
+        "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current-deterministic-subset/deterministic-subset.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "rescore-longmemeval-official-judge"
+          },
+          {
+            "path": ["benchmark"],
+            "equals": "longmemeval"
+          },
+          {
+            "path": ["judgedCases"],
+            "equals": 500
+          },
+          {
+            "path": ["selectedCases"],
+            "equals": 500
+          },
+          {
+            "path": ["sourceCases"],
+            "equals": 500
+          },
+          {
+            "path": ["judgeFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["sourceAnswersUnchanged"],
+            "equals": true
+          },
+          {
+            "path": ["overallAccuracy"],
+            "equals": 0.888
+          }
+        ],
+        "description": "Official-protocol comparable rescore of the same stored LongMemEval answers",
+        "path": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/rescore-summary.json"
+      }
+    ]
+  },
   "metrics": {
     "primary": "Judge-free deterministic-subset answer accuracy, goodmemory-rules-only profile, full 500 questions: a case counts correct ONLY when scored by a deterministic method (abstention/exact/contains/expected_alternative/numeric_count); semantic_judge is excluded by construction. Strict lower bound on overall accuracy.",
     "score": 0.72,

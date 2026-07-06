@@ -17,6 +17,104 @@
     "judgeModel": "gpt-5.5",
     "sameModelJudge": true
   },
+  "evidence": {
+    "artifacts": [
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-phase61-full300-rerun-20260706-codex-current"
+          },
+          {
+            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "full300OverallScore", "rate"],
+            "equals": 0.7081666666666666
+          },
+          {
+            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "blockingScore", "rate"],
+            "equals": 0.77
+          },
+          {
+            "path": ["profiles", "baseline-upstream-chat", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["profiles", "baseline-upstream-chat", "full300OverallScore", "rate"],
+            "equals": 0.41
+          }
+        ],
+        "description": "Canonical 2026-07-06 Full-300 internal rerun report with zero execution failures",
+        "path": "reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["comparison", "baselineOverallRate"],
+            "equals": 0.41
+          },
+          {
+            "path": ["comparison", "bestGoodMemoryOverallRate"],
+            "equals": 0.7081666666666666
+          },
+          {
+            "path": ["comparison", "bestGoodMemoryBlockingOnlyRate"],
+            "equals": 0.77
+          },
+          {
+            "path": ["comparison", "goodmemoryImprovesBaselineOverall"],
+            "equals": true
+          },
+          {
+            "path": ["comparison", "referenceLine"],
+            "equals": 0.66
+          }
+        ],
+        "description": "Canonical 2026-07-06 Full-300 internal rerun overall summary",
+        "path": "reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/overall-summary.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "implicitmembench-rescore-readiness-20260706-current"
+          },
+          {
+            "path": ["readiness", "storedAnswersReady"],
+            "equals": true
+          },
+          {
+            "path": ["readiness", "readyForIndependentJudgeRescore"],
+            "equals": false
+          },
+          {
+            "path": ["environment", "sameModelJudge"],
+            "equals": true
+          },
+          {
+            "path": ["caseScope", "goodmemoryCompositeCaseCount"],
+            "equals": 300
+          },
+          {
+            "path": ["caseScope", "judgeRequiredCaseCount"],
+            "equals": 265
+          },
+          {
+            "path": ["caseScope", "deterministicCaseCount"],
+            "equals": 35
+          },
+          {
+            "path": ["sourceScore", "bestGoodMemoryOverallRate"],
+            "equals": 0.7081666666666666
+          }
+        ],
+        "description": "Stored-answer rescore readiness audit: source answers are complete, but current judge env is same-model and not independent",
+        "path": "reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-20260706-current/rescore-readiness.json"
+      }
+    ]
+  },
   "metrics": {
     "primary": "overall score (Full-300)",
     "score": 0.7081666666666666,

@@ -195,6 +195,15 @@ const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS = [
 const LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKET_SET: ReadonlySet<string> = new Set(
   LOCOMO_REPAIR_JOB_RETRIEVAL_BUCKETS,
 );
+const LOCOMO_EXECUTION_FAILURE_STAGES = [
+  "answer",
+  "provider-run-timeout",
+  "recall",
+  "seed",
+] as const;
+const LOCOMO_EXECUTION_FAILURE_STAGE_SET: ReadonlySet<string> = new Set(
+  LOCOMO_EXECUTION_FAILURE_STAGES,
+);
 
 function normalizedMetadataValue(
   report: LocomoSmokeReport,
@@ -2562,6 +2571,62 @@ export function assertLocomoReportQuestionCountMatchesCases(
         runId,
         value: question.answerTokenF1,
       });
+    }
+    const executionFailureStage = question.executionFailureStage;
+    const executionFailureMessage = question.executionFailureMessage;
+    const hasExecutionFailureStage =
+      executionFailureStage !== undefined && executionFailureStage !== null;
+    const hasExecutionFailureMessage =
+      executionFailureMessage !== undefined && executionFailureMessage !== null;
+    if (executionFailureStage !== undefined) {
+      assertNullableNonEmptyStringField({
+        field: `row ${identity} executionFailureStage`,
+        path: input.path,
+        runId,
+        value: executionFailureStage,
+      });
+      assertNoEdgeWhitespaceStringField({
+        field: `row ${identity} executionFailureStage`,
+        path: input.path,
+        runId,
+        value: executionFailureStage,
+      });
+      if (
+        hasExecutionFailureStage &&
+        !LOCOMO_EXECUTION_FAILURE_STAGE_SET.has(executionFailureStage)
+      ) {
+        throw new Error(
+          `Report ${input.path} (${input.report.runId}) row ${identity} ` +
+            `executionFailureStage ${JSON.stringify(executionFailureStage)} ` +
+            "is not supported.",
+        );
+      }
+    }
+    if (executionFailureMessage !== undefined) {
+      assertNullableNonEmptyStringField({
+        field: `row ${identity} executionFailureMessage`,
+        path: input.path,
+        runId,
+        value: executionFailureMessage,
+      });
+      assertNoEdgeWhitespaceStringField({
+        field: `row ${identity} executionFailureMessage`,
+        path: input.path,
+        runId,
+        value: executionFailureMessage,
+      });
+    }
+    if (hasExecutionFailureStage !== hasExecutionFailureMessage) {
+      throw new Error(
+        `Report ${input.path} (${input.report.runId}) row ${identity} ` +
+          "must carry executionFailureStage and executionFailureMessage together.",
+      );
+    }
+    if (input.report.executionFailures === 0 && hasExecutionFailureStage) {
+      throw new Error(
+        `Report ${input.path} (${input.report.runId}) zero-failure row ` +
+          `${identity} carries execution failure metadata.`,
+      );
     }
     assertNullableNonEmptyStringField({
       field: `row ${identity} generatedAnswer`,

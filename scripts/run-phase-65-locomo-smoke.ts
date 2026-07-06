@@ -391,6 +391,12 @@ interface LocomoProviderEmbeddingRunDeadline {
   timeoutMs: number;
 }
 
+export type LocomoExecutionFailureStage =
+  | "answer"
+  | "provider-run-timeout"
+  | "recall"
+  | "seed";
+
 // Per-question result. Retrieval fields are always populated; answer fields are
 // null unless a live-answer generator is supplied.
 export interface LocomoQuestionRetrieval {
@@ -404,6 +410,8 @@ export interface LocomoQuestionRetrieval {
   category: LocomoQaCategory;
   evidenceRecall: number;
   evidenceTurnIds: string[];
+  executionFailureMessage?: string | null;
+  executionFailureStage?: LocomoExecutionFailureStage | null;
   generatedAnswer: string | null;
   goldEvidenceFullyRetrieved: boolean;
   missingEvidenceTurnIds: string[];
@@ -1949,6 +1957,18 @@ function isNullableBoolean(value: unknown): value is boolean | null {
   return typeof value === "boolean" || value === null;
 }
 
+function isNullableFailureStage(
+  value: unknown,
+): value is LocomoExecutionFailureStage | null {
+  return (
+    value === null ||
+    value === "answer" ||
+    value === "provider-run-timeout" ||
+    value === "recall" ||
+    value === "seed"
+  );
+}
+
 function isLocomoProgressCategory(value: unknown): value is LocomoQaCategory {
   return typeof value === "string" && LOCOMO_QA_CATEGORY_SET.has(value);
 }
@@ -1958,6 +1978,8 @@ function isLocomoProgressRow(value: unknown): value is LocomoQuestionRetrieval {
     return false;
   }
   const answerTokenF1 = value.answerTokenF1;
+  const executionFailureMessage = value.executionFailureMessage;
+  const executionFailureStage = value.executionFailureStage;
   return (
     isNullableBoolean(value.answerCorrect) &&
     typeof value.caseId === "string" &&
@@ -1969,6 +1991,13 @@ function isLocomoProgressRow(value: unknown): value is LocomoQuestionRetrieval {
     value.evidenceRecall >= 0 &&
     value.evidenceRecall <= 1 &&
     isStringArray(value.evidenceTurnIds) &&
+    (executionFailureMessage === undefined ||
+      executionFailureMessage === null ||
+      (typeof executionFailureMessage === "string" &&
+        executionFailureMessage.trim().length > 0 &&
+        executionFailureMessage.trim() === executionFailureMessage)) &&
+    (executionFailureStage === undefined ||
+      isNullableFailureStage(executionFailureStage)) &&
     isNullableString(value.generatedAnswer) &&
     typeof value.goldEvidenceFullyRetrieved === "boolean" &&
     isStringArray(value.missingEvidenceTurnIds) &&
@@ -1987,6 +2016,24 @@ function isLocomoProgressRow(value: unknown): value is LocomoQuestionRetrieval {
         answerTokenF1 >= 0 &&
         answerTokenF1 <= 1))
   );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function withLocomoExecutionFailure(
+  result: LocomoQuestionRetrieval,
+  failure: {
+    message: string;
+    stage: LocomoExecutionFailureStage;
+  },
+): LocomoQuestionRetrieval {
+  return {
+    ...result,
+    executionFailureMessage: failure.message,
+    executionFailureStage: failure.stage,
+  };
 }
 
 function stableJsonStringify(value: unknown): string {
@@ -3239,13 +3286,20 @@ export async function runLocomoSmoke(
   const recordFailedResult = (
     testCase: LocomoCase,
     question: LocomoQuestion,
+    failure: {
+      message: string;
+      stage: LocomoExecutionFailureStage;
+    },
   ): void => {
     pushResult(
-      scoreLocomoRetrieval({
-        question,
-        retrievedTurnIds: [],
-        testCase,
-      }),
+      withLocomoExecutionFailure(
+        scoreLocomoRetrieval({
+          question,
+          retrievedTurnIds: [],
+          testCase,
+        }),
+        failure,
+      ),
     );
   };
   const replayCompletedForCase = (testCase: LocomoCase): void => {
@@ -3260,7 +3314,10 @@ export async function runLocomoSmoke(
       }
     }
   };
-  const recordProviderTimeoutRemainder = (startCaseIndex: number): void => {
+  const recordProviderTimeoutRemainder = (
+    startCaseIndex: number,
+    error: LocomoProviderEmbeddingRunTimeoutError,
+  ): void => {
     for (const remainingCase of cases.slice(startCaseIndex)) {
       replayCompletedForCase(remainingCase);
       for (const question of remainingCase.questions) {
@@ -3272,7 +3329,10 @@ export async function runLocomoSmoke(
           continue;
         }
         executionFailures += 1;
-        recordFailedResult(remainingCase, question);
+        recordFailedResult(remainingCase, question, {
+          message: error.message,
+          stage: "provider-run-timeout",
+        });
       }
     }
   };
@@ -3282,7 +3342,7 @@ export async function runLocomoSmoke(
       assertProviderRunDeadline(`starting case ${testCase.caseId}`);
     } catch (error) {
       if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
-        recordProviderTimeoutRemainder(caseIndex);
+        recordProviderTimeoutRemainder(caseIndex, error);
         providerTimedOut = true;
         break;
       }
@@ -3330,14 +3390,17 @@ export async function runLocomoSmoke(
       assertProviderRunDeadline(`seeding case ${testCase.caseId}`);
     } catch (error) {
       if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
-        recordProviderTimeoutRemainder(caseIndex);
+        recordProviderTimeoutRemainder(caseIndex, error);
         providerTimedOut = true;
         break;
       }
       executionFailures += pendingQuestions.length;
       replayCompletedForCase(testCase);
       for (const question of pendingQuestions) {
-        recordFailedResult(testCase, question);
+        recordFailedResult(testCase, question, {
+          message: errorMessage(error),
+          stage: "seed",
+        });
       }
       continue;
     }
@@ -3411,15 +3474,23 @@ export async function runLocomoSmoke(
         }
       } catch (error) {
         if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
-          recordProviderTimeoutRemainder(caseIndex);
+          recordProviderTimeoutRemainder(caseIndex, error);
           providerTimedOut = true;
           break;
         }
         executionFailures += 1;
         if (retrieval) {
-          pushResult(retrieval);
+          pushResult(
+            withLocomoExecutionFailure(retrieval, {
+              message: errorMessage(error),
+              stage: "answer",
+            }),
+          );
         } else {
-          recordFailedResult(testCase, question);
+          recordFailedResult(testCase, question, {
+            message: errorMessage(error),
+            stage: "recall",
+          });
         }
       }
     }

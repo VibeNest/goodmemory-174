@@ -2,9 +2,12 @@ export const LOCOMO_REANSWER_JOB_BUCKETS = [
   "answerImprovements",
   "answerRegressions",
   "answerTokenF1NearMiss",
+  "baselineCorrectHighNoise",
   "noisyFullRecallWrong",
   "residualLiveAnswerChanges",
   "topUnconvertedRetrievalGains",
+  "wrongFullRecallNoisy",
+  "wrongMissingEvidence",
 ] as const;
 
 export type LocomoReanswerJobBucket =

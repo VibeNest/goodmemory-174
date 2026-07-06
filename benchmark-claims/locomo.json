@@ -17,6 +17,115 @@
     "judgeModel": null,
     "sameModelJudge": false
   },
+  "publicClaim": {
+    "readmeDisclosureFragments": [
+      "CC BY-NC 4.0",
+      "0.020",
+      "0.998",
+      "0.648"
+    ],
+    "readmeRequiredFragments": [
+      "0.6117",
+      "942/1540",
+      "0.837",
+      "1289/1540",
+      "0.0045"
+    ]
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-p4-full10-union16-ext-live"
+          },
+          {
+            "path": ["executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["questionCount"],
+            "equals": 1986
+          },
+          {
+            "path": ["answerAccuracyOverall"],
+            "equals": 0.6198388721047331
+          },
+          {
+            "path": ["noMemory"],
+            "equals": false
+          }
+        ],
+        "description": "Full public LoCoMo-10 opt-in union/extraction live report for the judge-free token-F1 claim",
+        "path": "reports/eval/research/phase-65/locomo/run-p4-full10-union16-ext-live/union-live-report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-p4-full10-no-memory-baseline"
+          },
+          {
+            "path": ["executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["questionCount"],
+            "equals": 1986
+          },
+          {
+            "path": ["answerAccuracyOverall"],
+            "equals": 0.22759315206445116
+          },
+          {
+            "path": ["noMemory"],
+            "equals": true
+          }
+        ],
+        "description": "No-memory baseline live report on the same LoCoMo root and scorer",
+        "path": "reports/eval/research/phase-65/locomo/run-p4-full10-no-memory-baseline/union-live-report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "rescore-locomo-official-judge"
+          },
+          {
+            "path": ["benchmark"],
+            "equals": "locomo"
+          },
+          {
+            "path": ["judgedCases"],
+            "equals": 1540
+          },
+          {
+            "path": ["selectedCases"],
+            "equals": 1540
+          },
+          {
+            "path": ["sourceCases"],
+            "equals": 1540
+          },
+          {
+            "path": ["judgeFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["sourceAnswersUnchanged"],
+            "equals": true
+          },
+          {
+            "path": ["overallAccuracy"],
+            "equals": 0.837012987012987
+          }
+        ],
+        "description": "Official-protocol comparable rescore of the same stored non-adversarial LoCoMo answers",
+        "path": "reports/eval/research/official-rescore/rescore-locomo-official-judge/rescore-summary.json"
+      }
+    ]
+  },
   "metrics": {
     "primary": "answer accuracy, deterministic token-F1 scoring (judge-free), full 10-conversation LoCoMo set (1986 questions)",
     "score": 0.6198,

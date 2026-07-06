@@ -1309,6 +1309,12 @@ describe("phase-65 LoCoMo live delta analyzer", () => {
     });
     baseline.generatedAt = "2026-07-02T00:00:00.000Z";
     baseline.questionIds = ["q-source-only", "q-near-miss"];
+    baseline.questionSelection = {
+      explicitQuestionIds: ["q-source-only", "q-near-miss"],
+      questionIdFile: null,
+      repairJobDiagnoses: null,
+      repairJobRetrievalBuckets: null,
+    };
     const candidate = report({
       answerContextMode: "evidence-pack",
       cases: [

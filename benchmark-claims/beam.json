@@ -17,6 +17,179 @@
     "judgeModel": "gpt-5.4 (cross-version, SAME family as the answer model - not a cross-family judge)",
     "sameModelJudge": false
   },
+  "publicClaim": {
+    "readmeDisclosureFragments": [
+      "gpt-5.4",
+      "gpt-5.5",
+      "0.9621",
+      "0.6822",
+      "0.8529",
+      "event_ordering",
+      "CC BY-SA 4.0"
+    ],
+    "readmeRequiredFragments": [
+      "1051",
+      "0.802",
+      "0.7225",
+      "289/400",
+      "0.5725",
+      "0.49"
+    ]
+  },
+  "evidence": {
+    "artifacts": [
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-p5-beam-closure-rules-abstfmt-gpt54judge"
+          },
+          {
+            "path": ["profile"],
+            "equals": "goodmemory-rules-only"
+          },
+          {
+            "path": ["summary", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["summary", "totalCases"],
+            "equals": 400
+          },
+          {
+            "path": ["summary", "answerAccuracy"],
+            "equals": 0.7225
+          },
+          {
+            "path": ["summary", "correctCases"],
+            "equals": 289
+          }
+        ],
+        "description": "Full BEAM 100K rules-only evidence-pack closure report with the abstention-format prompt",
+        "path": "reports/eval/research/phase-63/beam/run-p5-beam-closure-rules-abstfmt-gpt54judge/phase-63-beam-closure-report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-p5-beam-closure-rules-nopack-gpt54judge"
+          },
+          {
+            "path": ["profile"],
+            "equals": "goodmemory-rules-only"
+          },
+          {
+            "path": ["summary", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["summary", "totalCases"],
+            "equals": 400
+          },
+          {
+            "path": ["summary", "answerAccuracy"],
+            "equals": 0.5725
+          },
+          {
+            "path": ["summary", "correctCases"],
+            "equals": 229
+          }
+        ],
+        "description": "No-pack BEAM ablation report used for the internal binary-track disclosure",
+        "path": "reports/eval/research/phase-63/beam/run-p5-beam-closure-rules-nopack-gpt54judge/phase-63-beam-closure-report.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-p5-beam-rules-fitted-recall"
+          },
+          {
+            "path": ["summary", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["summary", "totalCases"],
+            "equals": 400
+          },
+          {
+            "path": ["profiles", "goodmemory-rules-only", "summary", "evidenceChatRecall"],
+            "equals": 0.9620612564274538
+          }
+        ],
+        "description": "Rules-only fitted recall diagnostic used for ADR-005 fitted/generalization disclosure",
+        "path": "reports/eval/research/phase-63/beam/run-p5-beam-rules-fitted-recall/recall-diagnostic.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "generalization"
+          },
+          {
+            "path": ["summary", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["summary", "totalCases"],
+            "equals": 400
+          },
+          {
+            "path": ["profiles", "goodmemory-rules-only", "summary", "evidenceChatRecall"],
+            "equals": 0.6821953945897609
+          }
+        ],
+        "description": "Rules-only generalization-floor recall diagnostic used beside fitted recall",
+        "path": "reports/eval/research/phase-63/beam/generalization/recall-diagnostic.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "rescore-beam-official-judge"
+          },
+          {
+            "path": ["benchmark"],
+            "equals": "beam"
+          },
+          {
+            "path": ["selectedQuestions"],
+            "equals": 400
+          },
+          {
+            "path": ["sourceQuestions"],
+            "equals": 400
+          },
+          {
+            "path": ["selectedRubricItems"],
+            "equals": 1051
+          },
+          {
+            "path": ["sourceRubricItems"],
+            "equals": 1051
+          },
+          {
+            "path": ["judgeFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["sourceAnswersUnchanged"],
+            "equals": true
+          },
+          {
+            "path": ["overallMicroByQuestion"],
+            "equals": 0.8022569444444446
+          },
+          {
+            "path": ["overallMacroByCategory"],
+            "equals": 0.806821355085244
+          }
+        ],
+        "description": "Official BEAM unified-rubric rescore of the same stored answers",
+        "path": "reports/eval/research/official-rescore/rescore-beam-official-judge/rescore-summary.json"
+      }
+    ]
+  },
   "metrics": {
     "primary": "OFFICIAL BEAM unified rubric-judge score (1.0/0.5/0.0 per rubric item, question = mean over its items; 100K split, 400 questions, all 1051 rubric items judged, judgeFailures 0; judge gpt-5.4 - cross-version, same GPT family as the answerer, disclosed). Strict internal binary-judge track: 0.7225 (289/400). Cross-family gemini anchor (union16 profile, pre-abstention-fix prompt): 0.680.",
     "score": 0.8023,

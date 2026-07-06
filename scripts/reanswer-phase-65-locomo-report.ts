@@ -1346,6 +1346,7 @@ export async function runLocomoReportReanswer(
     }),
     questionCount: results.length,
     questionIds: reportQuestionIds,
+    questionSelection: undefined,
     reanswerSelection: {
       explicitQuestionIds: reanswerSelectionExplicitQuestionIds,
       questionIdFile: options.questionIdFile ?? null,

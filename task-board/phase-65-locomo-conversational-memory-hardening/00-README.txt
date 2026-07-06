@@ -100,6 +100,30 @@ Next
   actual QA category falls outside the requested `--reanswer-job-category`
   filter. Future repair work can rely on those manifests as isolated
   category-specific queues instead of re-proving this guard.
+- Answer-policy manifests are now bucket-aware for current runs:
+  `baselineCorrectHighNoise`, `wrongFullRecallNoisy`, and
+  `wrongMissingEvidence` can be selected through `--reanswer-job-bucket` while
+  legacy bucketless answer-policy manifests remain category-filterable. Use
+  `analyze:phase-65-locomo-answer-policy-slice -- --existing-slice <path>` to
+  upgrade already-selected legacy slices without re-reading legacy source
+  reports that predate current answer-context lineage requirements.
+- Before launching manifest-driven reanswer replay, run
+  `analyze:phase-65-locomo-reanswer-readiness -- --manifest <path>`. The legacy
+  audit over `locomo-cross-category-answer-policy-slice-current` correctly
+  reports 9/9 replay jobs blocked because the old single_hop, multi_hop, and
+  temporal source reports predate required `answerContextMode` lineage. The
+  refreshed path is now the current replay source: the three source refreshes
+  completed with 45/45 answered, 19/45 correct, and `executionFailures: 0`;
+  `locomo-cross-category-answer-policy-reanswer-readiness-current-slice-refresh-current`
+  selected 40 rows across 9 bucket/category jobs; and
+  `locomo-cross-category-answer-policy-reanswer-readiness-after-source-refresh-current`
+  reports 9/9 ready, 0 blocked, with explicit-id replay commands and ready
+  live-answer/provider-embedding env preflight. The regenerated replay reports
+  cover 40/40 rows, score 15/40 with `executionFailures: 0`, and their deltas
+  are net 0 versus the refreshed source subsets (2 improvements, 2 regressions,
+  13 same-correct, 23 same-wrong, 7 token-F1 near misses). Use that refreshed
+  slice/readiness pair for follow-up bucket/category replay; treat missing-
+  evidence buckets as still open quality work.
 - Treat open_domain commonsense/strict-no-evidence probes as opt-in evidence
   until broader category validation proves they do not regress single_hop,
   multi_hop, temporal, or adversarial slices.
@@ -159,9 +183,50 @@ Next
   proof consumed the artifact with `executionFailures: 0`, but default retrieval
   found 0/10 evidence recall and 44 noise turns. Its `goldEvidenceSupport`
   diagnostic averages 0.6368856634 declared-evidence support recall, with
-  1 full-support and 9 partial-support rows. Use this as the fuller
-  multi_hop repair queue; it points to candidate-pool admission plus
-  label/answer-contract work, not a default-retrieval recovery.
+  1 full-support and 9 partial-support rows. A same-provider timeout15 focused
+  retry now gives this queue a clean admission comparison: provider-only
+  baseline `locomo-multihop-near-miss-provider-baseline-10row-timeout15-current`
+  stayed at 0 recall / 0 fully retrieved / 44 noise, while rel0.8 semantic
+  admission `locomo-multihop-near-miss-rel08-retrieval-10row-timeout15-current`
+  reached 0.4142857143 recall, 2/10 fully retrieved, and 107 noise with
+  `executionFailures: 0`; paired delta
+  `locomo-multihop-near-miss-provider-vs-rel08-timeout15-retrieval-delta-current`
+  records +63 noise turns. The same queue's live-answer validation keeps the
+  answer boundary negative: provider-only live baseline
+  `locomo-multihop-near-miss-provider-baseline-live-10row-timeout15-current`
+  scored 0/10, and rel0.8 live
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-current` also scored
+  0/10 while preserving the +0.4142857143 recall / +2 fully retrieved gain.
+  Live-delta
+  `locomo-multihop-near-miss-provider-vs-rel08-live-10row-timeout15-delta-current`
+  records 10 same-wrong rows, 7 unconverted retrieval gains, 2 full-recall
+  noisy wrong rows, and 9 token-F1 near misses. The follow-up label artifact
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-label-analysis-current`
+  classifies those 9 near misses as 6 balanced partial overlaps, 1
+  numeric/frequency-format, 1 over-specified, and 1 under-specified. Use this
+  as the fuller multi_hop repair queue; it points to candidate-pool admission
+  plus answer synthesis, noise, and label/answer-contract work, not a
+  default-profile promotion. Gold-evidence-only replay over those 9 near-miss
+  rows, `locomo-multihop-near-miss-rel08-live-10row-timeout15-gold-only-current`,
+  scored 1/9 with `executionFailures: 0`; paired delta
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-normal-vs-gold-only-delta-current`
+  shows +1 answer, 0 regressions, no retrieval/noise delta, and a single
+  partial-evidence improvement (`conv-42:q76`) attributed to answer context
+  change. Residual label analysis
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-gold-only-label-analysis-current`
+  leaves 6 near misses: 5 balanced partial overlaps and 1 under-specified
+  answer. Treat gold-only context as a narrow diagnostic win, not a broad repair.
+  The residual label artifact is now also loader-proven for follow-up repair:
+  broad loader `locomo-multihop-near-miss-gold-only-label-file-loader-smoke-current`
+  consumed all 6 rows with `executionFailures: 0` but default retrieval found
+  0 recall, 0/6 fully retrieved, and 29 noise turns. Filtered repair-job loaders
+  cover every emitted queue: balanced/full 2 rows
+  `locomo-multihop-near-miss-gold-only-label-balanced-full-loader-smoke-current`
+  at 0 recall / 9 noise, balanced/partial 3 rows
+  `locomo-multihop-near-miss-gold-only-label-balanced-partial-loader-smoke-current`
+  at 0 recall / 14 noise, and under-specified/partial 1 row
+  `locomo-multihop-near-miss-gold-only-label-under-specified-partial-loader-smoke-current`
+  at 0 recall / 6 noise.
 - Do not use `locomo-multihop-near-miss-top32-add8-current` as a no-floor
   comparison. It attempted the 10-row queue with provider embeddings and no
   relative-score floor, but all 10 rows failed under the 120s run watchdog and

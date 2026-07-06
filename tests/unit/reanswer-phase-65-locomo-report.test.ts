@@ -687,6 +687,77 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
     });
   });
 
+  it("can replay a bucketed answer-policy reanswer job by bucket and category", async () => {
+    const answeredQuestionIds: string[] = [];
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: false,
+        outputDir: "/reports/out",
+        questionIdFile: "/reports/answer-policy-slice.json",
+        reanswerJobBuckets: ["wrongFullRecallNoisy"],
+        reanswerJobCategories: ["open_domain"],
+        runId: "reanswer-open-domain-wrong-full-recall-noisy",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async ({ question }) => {
+          answeredQuestionIds.push(question.questionId);
+          return question.questionId === "conv-test:q2"
+            ? "Connecticut"
+            : "I do not know";
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(sourceReport());
+          }
+          if (path === "/reports/answer-policy-slice.json") {
+            return JSON.stringify({
+              reanswerJobs: [
+                {
+                  bucket: "baselineCorrectHighNoise",
+                  category: "open_domain",
+                  questionIds: ["conv-test:q1"],
+                  sourceReportPath: "/reports/source/smoke-report.json",
+                  sourceRunId: "source-report",
+                },
+                {
+                  bucket: "wrongFullRecallNoisy",
+                  category: "open_domain",
+                  questionIds: ["conv-test:q2"],
+                  sourceReportPath: "/reports/source/smoke-report.json",
+                  sourceRunId: "source-report",
+                },
+              ],
+              sourceReports: [
+                {
+                  path: "/reports/source/smoke-report.json",
+                  runId: "source-report",
+                },
+              ],
+            });
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(answeredQuestionIds).toEqual(["conv-test:q2"]);
+    expect(report.questionCount).toBe(1);
+    expect(report.questionIds).toEqual(["conv-test:q2"]);
+    expect(report.reanswerSelection).toEqual({
+      explicitQuestionIds: null,
+      questionIdFile: "/reports/answer-policy-slice.json",
+      reanswerJobBuckets: ["wrongFullRecallNoisy"],
+      reanswerJobCategories: ["open_domain"],
+    });
+  });
+
   it("rejects unfiltered reanswer jobs without source provenance", async () => {
     await expect(
       runLocomoReportReanswer(
@@ -2784,7 +2855,16 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
         mkdir: async () => undefined,
         readFile: async (path) => {
           if (path === "/reports/source/smoke-report.json") {
-            return JSON.stringify(sourceReport());
+            return JSON.stringify({
+              ...sourceReport(),
+              questionIds: ["conv-test:q1", "conv-test:q2"],
+              questionSelection: {
+                explicitQuestionIds: ["conv-test:q1", "conv-test:q2"],
+                questionIdFile: null,
+                repairJobDiagnoses: null,
+                repairJobRetrievalBuckets: null,
+              },
+            });
           }
           if (path === "/tmp/LOCOMO/cases.json") {
             return JSON.stringify({ cases: [testCase] });
@@ -2818,6 +2898,7 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
       runId: "source-report",
     });
     expect(report.executionFailures).toBe(0);
+    expect(report.questionSelection).toBeUndefined();
     expect(report.questionCount).toBe(1);
     expect(report.questionIds).toEqual(["conv-test:q1"]);
     expect(report.cases[0]).toMatchObject({

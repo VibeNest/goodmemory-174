@@ -1899,6 +1899,18 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(report.cases.every((entry) => entry.retrievedTurnIds.length === 0)).toBe(
       true,
     );
+    expect(
+      report.cases.every(
+        (entry) => entry.executionFailureStage === "provider-run-timeout",
+      ),
+    ).toBe(true);
+    expect(
+      report.cases.every((entry) =>
+        entry.executionFailureMessage?.includes(
+          "LoCoMo provider embedding run timeout",
+        ),
+      ),
+    ).toBe(true);
     expect(report.semanticCandidateEmbeddingSource).toBe("provider");
   });
 
@@ -3158,6 +3170,14 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     expect(report.cases.every((entry) => entry.retrievedTurnIds.length === 0)).toBe(
       true,
     );
+    expect(
+      report.cases.every((entry) => entry.executionFailureStage === "seed"),
+    ).toBe(true);
+    expect(
+      report.cases.every((entry) =>
+        entry.executionFailureMessage?.includes("synthetic extraction failure"),
+      ),
+    ).toBe(true);
   });
 
   it("retains failed answer rows with retrieval metrics without checkpointing them", async () => {
@@ -3198,6 +3218,14 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
       true,
     );
     expect(report.cases.every((entry) => entry.answerCorrect === null)).toBe(true);
+    expect(
+      report.cases.every((entry) => entry.executionFailureStage === "answer"),
+    ).toBe(true);
+    expect(
+      report.cases.every((entry) =>
+        entry.executionFailureMessage?.includes("synthetic answer failure"),
+      ),
+    ).toBe(true);
     expect(() =>
       assertLocomoReportQuestionCountMatchesCases({
         path: join(outputDir, failedRunId, "smoke-report.json"),
@@ -3215,6 +3243,37 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     if (!firstFailedCase) {
       throw new Error("expected at least one failed LoCoMo case");
     }
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: join(outputDir, failedRunId, "smoke-report.json"),
+        report: {
+          ...report,
+          cases: [
+            {
+              ...firstFailedCase,
+              executionFailureMessage: "synthetic answer failure",
+              executionFailureStage: "unknown-stage" as never,
+            },
+          ],
+          questionCount: 1,
+        },
+      }),
+    ).toThrow("executionFailureStage");
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: join(outputDir, failedRunId, "smoke-report.json"),
+        report: {
+          ...report,
+          cases: [
+            {
+              ...firstFailedCase,
+              executionFailureMessage: null,
+            },
+          ],
+          questionCount: 1,
+        },
+      }),
+    ).toThrow("must carry executionFailureStage and executionFailureMessage together");
     expect(() =>
       assertLocomoReportQuestionCountMatchesCases({
         path: join(outputDir, failedRunId, "smoke-report.json"),
@@ -3244,6 +3303,8 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
             {
               ...firstFailedCase,
               answerTokenF1: 0.75,
+              executionFailureMessage: null,
+              executionFailureStage: null,
             },
           ],
           executionFailures: 0,

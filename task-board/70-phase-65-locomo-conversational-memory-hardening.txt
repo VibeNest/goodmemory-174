@@ -3074,6 +3074,91 @@ Tasks
   label/answer-contract queue evidence, not retrieval recovery, default-profile
   promotion, or a public-claim boundary change.
 
+[DONE] P65-T004gwo Near-miss provider admission retry evidence.
+  The 10-row rel0.8 multi_hop near-miss queue now has a same-provider focused
+  retrieval comparison. Provider-only baseline
+  `locomo-multihop-near-miss-provider-baseline-10row-timeout15-current`
+  completed with `executionFailures: 0`, average evidence recall 0, 0/10 fully
+  retrieved, and 44 noise turns. The rel0.8 semantic-admission retry
+  `locomo-multihop-near-miss-rel08-retrieval-10row-timeout15-current` used the
+  same queue with `--semantic-candidates --semantic-candidate-top-k 32
+  --semantic-candidate-max-additions 8 --semantic-candidate-min-relative-score
+  0.8`, 15s provider request timeout, and a 900s run watchdog; it completed
+  with `executionFailures: 0`, average evidence recall 0.4142857143, 2/10 fully
+  retrieved, and 107 noise turns. The paired budget delta
+  `locomo-multihop-near-miss-provider-vs-rel08-timeout15-retrieval-delta-current/budget-delta.json`
+  records +0.4142857143 recall, +2 fully retrieved, +63 noise turns, and
+  0.6575963719 recall per 100 added noise turns. This is positive targeted
+  candidate-admission evidence for the near-miss queue, not answer-score
+  movement or default-profile promotion.
+
+[DONE] P65-T004gwq Near-miss rel0.8 live-answer validation.
+  The same 10-row multi_hop near-miss queue now has a focused same-provider
+  live-answer comparison. Provider-only live baseline
+  `locomo-multihop-near-miss-provider-baseline-live-10row-timeout15-current`
+  completed with `executionFailures: 0`, 0/10 answer accuracy, average evidence
+  recall 0, 0/10 fully retrieved, and 44 noise turns. Rel0.8 semantic admission
+  live run `locomo-multihop-near-miss-rel08-live-10row-timeout15-current`
+  completed with `executionFailures: 0`, 0/10 answer accuracy, average evidence
+  recall 0.4142857143, 2/10 fully retrieved, and 107 noise turns.
+
+  The paired live-delta
+  `locomo-multihop-near-miss-provider-vs-rel08-live-10row-timeout15-delta-current/live-delta.json`
+  records answer delta 0, 10 same-wrong rows, +2 fully retrieved, +63 noise
+  turns, 7 unconverted retrieval gains, 2 full-recall noisy wrong rows, and 9
+  `answerTokenF1NearMisses`. The follow-up label artifact
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-label-analysis-current/near-miss-label-analysis.json`
+  classifies those 9 near misses at average token-F1 0.2652996301 and average
+  declared-evidence support 0.6553631554: 6 balanced partial overlaps, 1
+  numeric/frequency-format, 1 over-specified, 1 under-specified, with 2
+  full-recall, 5 partial-recall, and 2 zero-recall rows. This confirms rel0.8
+  candidate admission helps retrieval on the selected queue but does not yet
+  convert answer correctness. Next work should target answer synthesis,
+  label-compatibility, and noise control; this is not default-profile promotion
+  or public-claim movement.
+
+[DONE] P65-T004gwr Near-miss gold-evidence-only noise isolation.
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-gold-only-current`
+  replayed the 9 token-F1 near-miss rows from
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-label-analysis-current`
+  against the same rel0.8 source report, but with `--gold-evidence-only-context`
+  so answer generation saw only retrieved gold evidence turns. It completed with
+  `executionFailures: 0`, scored 1/9 (0.1111111111), and preserved the selected
+  source subset's retrieval metrics: average evidence recall 0.4603174603, 2/9
+  fully retrieved, and 95 noise turns.
+
+  The paired delta
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-normal-vs-gold-only-delta-current/live-delta.json`
+  records +1 answer, 0 regressions, no retrieval/noise delta, and the lone
+  improvement `conv-42:q76` under `partial->partial` recall. The answer-change
+  attribution is answer-context-only, not prompt-policy or retrieval movement.
+  Residual label artifact
+  `locomo-multihop-near-miss-rel08-live-10row-timeout15-gold-only-label-analysis-current/near-miss-label-analysis.json`
+  leaves 6 near misses at average token-F1 0.3473556944 and average
+  declared-evidence support 0.5997113997: 5 balanced partial overlaps and 1
+  under-specified answer, with 2 full-recall and 4 partial-recall rows. This is
+  a narrow noise/context diagnostic win only; it does not solve the near-miss
+  queue or justify default-profile promotion.
+
+[DONE] P65-T004gws Residual near-miss repair-job loader proof.
+  The residual gold-only label artifact now has broad and bucket-filtered loader
+  proofs for follow-up candidate-admission repair. Broad loader
+  `locomo-multihop-near-miss-gold-only-label-file-loader-smoke-current`
+  consumed all 6 selected rows with `executionFailures: 0`; default retrieval
+  found average evidence recall 0, 0/6 fully retrieved, and 29 noise turns.
+
+  Each emitted repair job is also directly runnable:
+  `locomo-multihop-near-miss-gold-only-label-balanced-full-loader-smoke-current`
+  selected the 2 balanced/full rows with 0 recall and 9 noise turns;
+  `locomo-multihop-near-miss-gold-only-label-balanced-partial-loader-smoke-current`
+  selected the 3 balanced/partial rows with 0 recall and 14 noise turns; and
+  `locomo-multihop-near-miss-gold-only-label-under-specified-partial-loader-smoke-current`
+  selected the 1 under-specified/partial row with 0 recall and 6 noise turns.
+  This turns the residual queue into reproducible targeted repair input and
+  confirms default retrieval cannot recover it without further candidate
+  admission. It does not change LoCoMo scores, default status, or public-claim
+  boundaries.
+
 [DONE] P65-T004gwj Targeted no-floor provider retry caveat.
   `locomo-multihop-near-miss-top32-add8-current` attempted to rerun the 10-row
   near-miss queue on the refreshed `/private/tmp/LOCOMO-full/cases.json` with
@@ -3083,6 +3168,104 @@ Tasks
   metadata. Treat it as a failed run only: it is not a no-floor retrieval
   comparison, not a reusable source report, not recovery evidence, and not a
   default-profile or public-claim boundary change.
+
+[DONE] P65-T004gwp Failed-row execution metadata.
+  `eval:phase-65-smoke` now annotates new failed rows with optional
+  `executionFailureStage` (`seed`, `recall`, `answer`, or
+  `provider-run-timeout`) plus `executionFailureMessage`. Shared LoCoMo report
+  validation rejects malformed stage/message pairs and zero-failure rows that
+  still carry execution-failure metadata. This keeps provider and live-answer
+  partial artifacts diagnosable while preserving compatibility with older
+  reports that omit the optional fields. Unit coverage lives in
+  tests/unit/run-phase-65.locomo-smoke.test.ts.
+
+[DONE] P65-T004gwk Answer-policy bucketed reanswer jobs.
+  `analyze:phase-65-locomo-answer-policy-slice` now emits `reanswerJobs` split
+  by source report, QA category, and answer-policy risk bucket:
+  `baselineCorrectHighNoise`, `wrongFullRecallNoisy`, and
+  `wrongMissingEvidence`. `eval:phase-65-reanswer-report` accepts those bucket
+  names through the shared `--reanswer-job-bucket` contract while preserving
+  legacy bucketless answer-policy manifests as category-filterable. This lets
+  follow-up replay isolate one answer-policy risk bucket and one category
+  without manual question-id copying. The selector also supports
+  `--existing-slice` to upgrade an already-selected answer-policy slice's
+  replay-job metadata in place without re-reading legacy source reports that
+  predate current `answerContextMode` compatibility requirements; the local
+  `locomo-cross-category-answer-policy-slice-current/answer-policy-slice.json`
+  artifact has been upgraded to 9 bucketed jobs covering the same 45 selected
+  rows. Unit coverage lives in
+  tests/unit/select-phase-65-locomo-answer-policy-slice.test.ts and
+  tests/unit/reanswer-phase-65-locomo-report.test.ts. This is replay-routing
+  and auditability hardening only; it does not change LoCoMo retrieval scores,
+  answer scores, default status, or public-claim boundaries.
+
+[DONE] P65-T004gwl Reanswer manifest source-readiness audit.
+  `analyze:phase-65-locomo-reanswer-readiness` now reads a manifest's
+  `reanswerJobs`, loads each declared source report, and reports ready vs
+  blocked replay jobs before any live answer replay is launched. It rejects
+  non-LoCoMo manifests and malformed source provenance, and classifies missing
+  source provenance, unreadable or invalid source reports, missing
+  `answerContextMode`, reanswer-generated sources, gold-evidence-only sources,
+  execution failures, incomplete live answers, and source run-id mismatches.
+  The legacy audit
+  `locomo-cross-category-answer-policy-reanswer-readiness-current/reanswer-readiness.json`
+  over `locomo-cross-category-answer-policy-slice-current/answer-policy-slice.json`
+  reports 9/9 answer-policy replay jobs blocked across 3 legacy source reports:
+  single_hop, multi_hop, and temporal sources all have `executionFailures: 0`
+  but predate required `answerContextMode` lineage. This means the next live-env
+  repair loop must first refresh those category source reports with current
+  smoke/live output before bucket/category reanswer replay can be valid source
+  evidence. The current readiness artifact now includes concrete
+  `refreshPlan.sourceReports[].command` entries for those three source refreshes
+  and `refreshPlan.manifest.command` for rebuilding the answer-policy slice
+  after refreshed reports exist, plus `replayPlan.commands` for
+  readiness-proven jobs. That legacy artifact remains the blocker proof for
+  stale source lineage; refreshed readiness and replay execution are tracked in
+  P65-T004gwm below. Ready-job commands use explicit question ids so blocked
+  rows in the same manifest cannot be swept into a bucket/category replay. Unit
+  coverage lives in
+  tests/unit/audit-phase-65-locomo-reanswer-readiness.test.ts. This is
+  source-readiness routing evidence only; it does not change LoCoMo retrieval
+  scores, answer scores, default status, or public-claim boundaries.
+
+[DONE] P65-T004gwm Reanswer readiness source refresh and bucket replay.
+  The readiness-emitted refresh path has now been executed for the current
+  answer-policy slice. Current-lineage source reports for single_hop,
+  multi_hop, and temporal completed 45/45 answered, 19/45 correct, and
+  `executionFailures: 0`; the rebuilt slice
+  `locomo-cross-category-answer-policy-reanswer-readiness-current-slice-refresh-current/answer-policy-slice.json`
+  selected 40 rows across 9 bucket/category jobs. The post-refresh readiness
+  artifact
+  `locomo-cross-category-answer-policy-reanswer-readiness-after-source-refresh-current/reanswer-readiness.json`
+  reports 9/9 jobs ready, 0 blocked, and ready live-answer/provider-embedding
+  env preflight. Regenerated explicit-id replay reports cover 40/40 rows, score
+  15/40, have `executionFailures: 0`, and no longer inherit source
+  `questionSelection`. The nine subset-aware deltas
+  `locomo-cross-category-answer-policy-reanswer-readiness-after-source-refresh-current-ready-job-*-reanswer-current-delta-current/live-delta.json`
+  aggregate to baseline 15 correct vs replay 15 correct: net 0, with 2
+  improvements, 2 regressions, 13 same-correct rows, 23 same-wrong rows, and 7
+  token-F1 near misses. The only positive bucket is multi_hop
+  `wrongFullRecallNoisy` (+2); missing-evidence buckets remain unrecovered, and
+  single_hop/temporal baseline-correct buckets each show one live-answer
+  regression. This unblocks the answer-policy replay chain and confirms the
+  remaining quality work is real retrieval/answer synthesis, not source-lineage
+  plumbing.
+
+[DONE] P65-T004gwn Reanswer delta aggregate artifact.
+  `summarize:phase-65-locomo-reanswer-deltas` now reads the post-refresh
+  readiness artifact plus the nine subset-aware live-delta artifacts and writes
+  a reproducible rollup at
+  `locomo-cross-category-answer-policy-reanswer-delta-aggregate-current/reanswer-delta-aggregate.json`.
+  The current aggregate covers 9/9 ready jobs and 40 replayed rows: baseline 15
+  correct vs replay 15 correct, net 0, with 2 improvements, 2 regressions, 13
+  same-correct rows, 23 same-wrong rows, and 7 token-F1 near misses. Bucket
+  totals isolate `wrongFullRecallNoisy` at +2 over 10 rows, while
+  `baselineCorrectHighNoise` regresses -2 over 15 rows and
+  `wrongMissingEvidence` stays 0 over 15 rows; category totals are multi_hop
+  +2, single_hop -1, and temporal -1. Unit coverage lives in
+  tests/unit/summarize-phase-65-locomo-reanswer-deltas.test.ts. This turns the
+  manual replay-delta summary into auditable evidence and does not change
+  LoCoMo scores, default status, or public-claim boundaries.
 
 [DONE] P65-T005 Live answer generator + external-root pressure (infrastructure
   complete and measured, NOT LoCoMo performance closure).

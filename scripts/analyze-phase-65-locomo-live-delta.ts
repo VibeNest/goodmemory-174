@@ -404,6 +404,25 @@ function filteredBaselineForReanswerSubset(input: {
     );
   }
 
+  const questionIds =
+    input.candidate.report.questionIds === undefined ||
+    input.candidate.report.questionIds === null
+      ? null
+      : [...input.candidate.report.questionIds];
+  const questionSelection =
+    input.baseline.report.questionSelection === undefined
+      ? undefined
+      : {
+          ...input.baseline.report.questionSelection,
+          explicitQuestionIds:
+            input.baseline.report.questionSelection.explicitQuestionIds === null
+              ? null
+              : input.baseline.report.questionSelection.explicitQuestionIds.filter(
+                  (questionId) =>
+                    questionIds === null ? false : questionIds.includes(questionId),
+                ),
+        };
+
   return {
     path: input.baseline.path,
     report: {
@@ -417,11 +436,8 @@ function filteredBaselineForReanswerSubset(input: {
           ? null
           : [...input.candidate.report.questionCategories],
       questionCount: input.candidate.report.questionCount,
-      questionIds:
-        input.candidate.report.questionIds === undefined ||
-        input.candidate.report.questionIds === null
-          ? null
-          : [...input.candidate.report.questionIds],
+      questionIds,
+      ...(questionSelection === undefined ? {} : { questionSelection }),
     },
   };
 }
