@@ -17,6 +17,7 @@ const HTTP_BRIDGE_HOST_ENV = "GOODMEMORY_HTTP_BRIDGE_HOST";
 const HTTP_BRIDGE_PORT_ENV = "GOODMEMORY_HTTP_BRIDGE_PORT";
 const HTTP_BRIDGE_TOKEN_ENV = "GOODMEMORY_HTTP_BRIDGE_TOKEN";
 const HTTP_BRIDGE_AUTH_ENV = "GOODMEMORY_HTTP_BRIDGE_AUTH";
+const HTTP_BRIDGE_AUTH_HEADER = "x-goodmemory-bridge-auth";
 const HTTP_BRIDGE_PROFILE_ENV = "GOODMEMORY_HTTP_BRIDGE_PROFILE";
 const HTTP_BRIDGE_ALLOW_INSECURE_ENV =
   "GOODMEMORY_HTTP_BRIDGE_ALLOW_INSECURE";
@@ -49,7 +50,8 @@ Environment:
   ${HTTP_BRIDGE_PROFILE_ENV}            default or life-coach
   ${HTTP_BRIDGE_ALLOW_INSECURE_ENV}=1   Allow header-only auth for local development
 
-Requests authenticate with Authorization: Bearer <token> and still pass caller scope through x-goodmemory-* headers.`);
+Requests authenticate with Authorization: Bearer <token> (or ${HTTP_BRIDGE_AUTH_HEADER}: Bearer <token> behind proxies)
+and still pass caller scope through x-goodmemory-* headers or the JSON caller field.`);
 }
 
 function readFlagValue(argv: string[], index: number, flag: string): string {
@@ -149,6 +151,33 @@ function parseOperationsHeader(
     : (operations as GoodMemoryHttpBridgeOperation[] | undefined) ?? [];
 }
 
+function parseOperationsValue(value: unknown): GoodMemoryHttpBridgeOperation[] | "*" {
+  if (value === "*") {
+    return "*";
+  }
+  if (typeof value === "string") {
+    return parseOperationsHeader(value);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .filter((operation): operation is string => typeof operation === "string")
+      .map((operation) => operation.trim())
+      .filter(Boolean) as GoodMemoryHttpBridgeOperation[];
+  }
+
+  return [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
+}
+
 function resolveHeaderCaller(
   request: Request,
 ): GoodMemoryHttpBridgeCaller | null {
@@ -168,17 +197,49 @@ function resolveHeaderCaller(
   };
 }
 
+function resolveBodyCaller(
+  body: Record<string, unknown> | undefined,
+): GoodMemoryHttpBridgeCaller | null {
+  if (!body || !isRecord(body.caller)) {
+    return null;
+  }
+
+  const userId = readOptionalString(body.caller.userId);
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    authorizedOperations: parseOperationsValue(body.caller.authorizedOperations),
+    tenantId: readOptionalString(body.caller.tenantId),
+    userId,
+    workspaceId: readOptionalString(body.caller.workspaceId),
+  };
+}
+
+function requestCarriesBridgeToken(request: Request, token: string): boolean {
+  const authorization = request.headers.get("authorization")?.trim();
+  if (authorization === `Bearer ${token}`) {
+    return true;
+  }
+
+  const bridgeAuth = request.headers.get(HTTP_BRIDGE_AUTH_HEADER)?.trim();
+  return bridgeAuth === token || bridgeAuth === `Bearer ${token}`;
+}
+
 function createTokenAwareCallerResolver(
   options: Pick<GoodMemoryHttpBridgeServeOptions, "allowInsecure" | "token">,
-): (request: Request) => GoodMemoryHttpBridgeCaller | null {
-  return (request) => {
+): (
+  request: Request,
+  body?: Record<string, unknown>,
+) => GoodMemoryHttpBridgeCaller | null {
+  return (request, body) => {
     if (options.token) {
-      const authorization = request.headers.get("authorization")?.trim();
-      if (authorization !== `Bearer ${options.token}`) {
+      if (!requestCarriesBridgeToken(request, options.token)) {
         return null;
       }
 
-      return resolveHeaderCaller(request);
+      return resolveHeaderCaller(request) ?? resolveBodyCaller(body);
     }
 
     if (options.allowInsecure) {

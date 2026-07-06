@@ -7,6 +7,8 @@ Stdlib only — urllib is the transport; no third-party dependencies.
 Design rules mirrored from the bridge:
 - Caller identity travels in x-goodmemory-* headers and must agree with the
   body scope; the client derives both from one Scope object.
+- The same caller and bearer auth are mirrored in body/fallback headers for
+  hosted proxies that strip Authorization or custom caller headers.
 - Idempotency keys are required per endpoint the way the server requires them:
   always for feedback/revise, only for async remember.
 - HTTP-status errors are never retried (a 409 idempotency conflict must
@@ -301,7 +303,25 @@ class GoodMemoryClient:
             headers["x-goodmemory-workspace-id"] = scope.workspace_id
         if self.token is not None:
             headers["authorization"] = f"Bearer {self.token}"
+            headers["x-goodmemory-bridge-auth"] = f"Bearer {self.token}"
         return headers
+
+    def _caller_payload(self, scope: Scope) -> Dict[str, Any]:
+        operations: Union[str, List[str]]
+        if isinstance(self.operations, str):
+            operations = self.operations
+        else:
+            operations = list(self.operations)
+
+        payload: Dict[str, Any] = {
+            "authorizedOperations": operations,
+            "userId": scope.user_id,
+        }
+        if scope.tenant_id is not None:
+            payload["tenantId"] = scope.tenant_id
+        if scope.workspace_id is not None:
+            payload["workspaceId"] = scope.workspace_id
+        return payload
 
     def _post(
         self,
@@ -312,6 +332,7 @@ class GoodMemoryClient:
     ) -> Dict[str, Any]:
         effective_scope = scope or self.scope
         payload = dict(body)
+        payload["caller"] = self._caller_payload(effective_scope)
         payload["scope"] = effective_scope.to_payload()
         request = Request(
             f"{self.base_url}{path}",

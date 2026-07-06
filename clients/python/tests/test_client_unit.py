@@ -81,6 +81,7 @@ class HeaderDerivationTests(unittest.TestCase):
             build_client(token="secret", operations=["recall-context", "forget"]),
         )
         self.assertEqual(headers["authorization"], "Bearer secret")
+        self.assertEqual(headers["x-goodmemory-bridge-auth"], "Bearer secret")
         self.assertEqual(
             headers["x-goodmemory-operations"], "recall-context,forget"
         )
@@ -102,6 +103,14 @@ class HeaderDerivationTests(unittest.TestCase):
         self.assertNotIn("x-goodmemory-workspace-id", headers)
         body = json.loads(request.data.decode("utf-8"))
         self.assertEqual(body["scope"], {"userId": "u-2", "tenantId": "tenant-b"})
+        self.assertEqual(
+            body["caller"],
+            {
+                "authorizedOperations": "*",
+                "tenantId": "tenant-b",
+                "userId": "u-2",
+            },
+        )
 
 
 class IdempotencyRuleTests(unittest.TestCase):

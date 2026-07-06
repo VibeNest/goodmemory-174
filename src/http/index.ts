@@ -62,7 +62,10 @@ export interface CreateGoodMemoryHttpMemoryBridgeInput {
   // keep the healthz body minimal in hardened deployments.
   healthMetadata?: Record<string, string>;
   memory: GoodMemory;
-  resolveCaller?(request: Request): GoodMemoryHttpBridgeCaller | null;
+  resolveCaller?(
+    request: Request,
+    body?: Record<string, unknown>,
+  ): GoodMemoryHttpBridgeCaller | null;
 }
 
 export interface GoodMemoryHttpHealthzResponse {
@@ -1568,7 +1571,7 @@ export function createGoodMemoryHttpMemoryBridge(
 
     const authorization = await authorize({
       body: body.value,
-      caller: resolveCaller(request),
+      caller: resolveCaller(request, body.value),
       operation,
       request,
       scope: scope.value,

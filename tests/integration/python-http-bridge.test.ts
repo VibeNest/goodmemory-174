@@ -1159,12 +1159,22 @@ describe("Phase 39 Python HTTP memory bridge", () => {
       try {
         await waitForBridgeReady({ token, url });
 
+        const scope = {
+          userId: "python-user",
+          workspaceId: "life-workspace",
+        };
         const response = await fetch(`${url}/memory/recall-context`, {
-          body: JSON.stringify(scopedBody({ query: "today" })),
+          body: JSON.stringify({
+            caller: {
+              ...scope,
+              authorizedOperations: ["recall-context"],
+            },
+            query: "today",
+            scope,
+          }),
           headers: {
-            ...AUTH_HEADERS,
-            authorization: `Bearer ${token}`,
             "content-type": "application/json",
+            "x-goodmemory-bridge-auth": `Bearer ${token}`,
           },
           method: "POST",
         });
