@@ -16,6 +16,7 @@ const DEFAULT_PORT = 8739;
 const HTTP_BRIDGE_HOST_ENV = "GOODMEMORY_HTTP_BRIDGE_HOST";
 const HTTP_BRIDGE_PORT_ENV = "GOODMEMORY_HTTP_BRIDGE_PORT";
 const HTTP_BRIDGE_TOKEN_ENV = "GOODMEMORY_HTTP_BRIDGE_TOKEN";
+const HTTP_BRIDGE_AUTH_ENV = "GOODMEMORY_HTTP_BRIDGE_AUTH";
 const HTTP_BRIDGE_PROFILE_ENV = "GOODMEMORY_HTTP_BRIDGE_PROFILE";
 const HTTP_BRIDGE_ALLOW_INSECURE_ENV =
   "GOODMEMORY_HTTP_BRIDGE_ALLOW_INSECURE";
@@ -42,6 +43,7 @@ Usage:
 
 Environment:
   ${HTTP_BRIDGE_TOKEN_ENV}              Bearer token required by default
+  ${HTTP_BRIDGE_AUTH_ENV}               Bearer token alias for hosts that reserve TOKEN variable names
   ${HTTP_BRIDGE_HOST_ENV}               Hostname, defaults to ${DEFAULT_HOST}
   ${HTTP_BRIDGE_PORT_ENV}               Port, defaults to ${DEFAULT_PORT}
   ${HTTP_BRIDGE_PROFILE_ENV}            default or life-coach
@@ -91,7 +93,10 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
     host: env[HTTP_BRIDGE_HOST_ENV] ?? DEFAULT_HOST,
     port: parsePort(env[HTTP_BRIDGE_PORT_ENV]),
     profile: parseProfile(env[HTTP_BRIDGE_PROFILE_ENV]),
-    token: env[HTTP_BRIDGE_TOKEN_ENV]?.trim() || undefined,
+    token:
+      env[HTTP_BRIDGE_TOKEN_ENV]?.trim() ||
+      env[HTTP_BRIDGE_AUTH_ENV]?.trim() ||
+      undefined,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -199,7 +204,7 @@ function createMemoryConfig(
 function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
   if (!options.token && !options.allowInsecure) {
     throw new Error(
-      `Refusing to start without ${HTTP_BRIDGE_TOKEN_ENV}; set a token or pass --allow-insecure for local development.`,
+      `Refusing to start without ${HTTP_BRIDGE_TOKEN_ENV} or ${HTTP_BRIDGE_AUTH_ENV}; set a token or pass --allow-insecure for local development.`,
     );
   }
 

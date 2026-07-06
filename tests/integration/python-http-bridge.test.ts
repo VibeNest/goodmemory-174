@@ -1127,4 +1127,62 @@ describe("Phase 39 Python HTTP memory bridge", () => {
     },
     15_000,
   );
+
+  it(
+    "accepts the VibeNest-compatible bridge auth env alias",
+    async () => {
+      const port = allocateBridgePort();
+      const token = "phase-39-http-bridge-auth-alias-token";
+      const url = `http://127.0.0.1:${port}`;
+      const serverProcess = Bun.spawn({
+        cmd: [
+          "bun",
+          "--no-env-file",
+          "run",
+          "scripts/goodmemory-http-bridge.ts",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          String(port),
+        ],
+        env: {
+          ...process.env,
+          GOODMEMORY_HTTP_BRIDGE_AUTH: token,
+          GOODMEMORY_STORAGE_PROVIDER: "memory",
+        },
+        stderr: "pipe",
+        stdout: "pipe",
+      });
+      const stdoutPromise = new Response(serverProcess.stdout).text();
+      const stderrPromise = new Response(serverProcess.stderr).text();
+
+      try {
+        await waitForBridgeReady({ token, url });
+
+        const response = await fetch(`${url}/memory/recall-context`, {
+          body: JSON.stringify(scopedBody({ query: "today" })),
+          headers: {
+            ...AUTH_HEADERS,
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+          },
+          method: "POST",
+        });
+
+        expect(response.status).toBe(200);
+      } finally {
+        serverProcess.kill("SIGTERM");
+        await serverProcess.exited;
+      }
+
+      const [serverStdout, serverStderr] = await Promise.all([
+        stdoutPromise,
+        stderrPromise,
+      ]);
+      expect(serverStderr).toBe("");
+      expect(serverStdout).toContain('"event":"ready"');
+      expect(serverStdout).toContain('"auth":"bearer"');
+    },
+    15_000,
+  );
 });
