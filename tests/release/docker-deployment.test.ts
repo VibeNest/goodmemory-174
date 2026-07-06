@@ -42,6 +42,7 @@ describe("docker deployment artifacts", () => {
     // bridge service only.
     expect(compose).toContain("profiles");
     expect(compose).toContain('"8739:8739"');
+    expect(compose).toContain("SERVICE_URL_GOODMEMORY-BRIDGE_8739");
   });
 
   it("keeps the build context whitelisted", async () => {

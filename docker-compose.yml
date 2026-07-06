@@ -16,12 +16,15 @@ services:
     ports:
       - "8739:8739"
     environment:
-      GOODMEMORY_HTTP_BRIDGE_TOKEN: ${GOODMEMORY_HTTP_BRIDGE_TOKEN:?Set a bearer token for the bridge}
-      GOODMEMORY_HTTP_BRIDGE_PROFILE: ${GOODMEMORY_HTTP_BRIDGE_PROFILE:-default}
+      - GOODMEMORY_HTTP_BRIDGE_TOKEN=${GOODMEMORY_HTTP_BRIDGE_TOKEN:?Set a bearer token for the bridge}
+      - GOODMEMORY_HTTP_BRIDGE_PROFILE=${GOODMEMORY_HTTP_BRIDGE_PROFILE:-default}
       # Empty string behaves as unset (the runtime resolver normalizes it), so
       # plain `docker compose up` keeps the SQLite default.
-      GOODMEMORY_STORAGE_PROVIDER: ${GOODMEMORY_STORAGE_PROVIDER:-}
-      GOODMEMORY_STORAGE_URL: ${GOODMEMORY_STORAGE_URL:-}
+      - GOODMEMORY_STORAGE_PROVIDER=${GOODMEMORY_STORAGE_PROVIDER:-}
+      - GOODMEMORY_STORAGE_URL=${GOODMEMORY_STORAGE_URL:-}
+      # Coolify/VibeNest compose routing: the bridge listens on container port
+      # 8739, so declare the service URL with an explicit port for the proxy.
+      - SERVICE_URL_GOODMEMORY-BRIDGE_8739
     volumes:
       - goodmemory-data:/app/.goodmemory
 
