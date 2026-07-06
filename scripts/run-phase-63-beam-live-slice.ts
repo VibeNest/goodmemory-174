@@ -1307,6 +1307,30 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
   }
 
   if (
+    questionType === "preference_following" &&
+    isPhase63BeamPreferenceWaysQuestion(question)
+  ) {
+    const preferenceAnswer = buildPhase63BeamPreferenceWaysAnswerFromGuide({
+      context,
+      hypothesis: input.hypothesis,
+    });
+    if (preferenceAnswer !== undefined) {
+      return preferenceAnswer;
+    }
+  }
+
+  if (
+    questionType === "preference_following" &&
+    isPhase63BeamPreferenceDecisionQuestion(question)
+  ) {
+    const preferenceAnswer =
+      buildPhase63BeamPreferenceDecisionAnswerFromGuide(context);
+    if (preferenceAnswer !== undefined) {
+      return preferenceAnswer;
+    }
+  }
+
+  if (
     isPhase63BeamExtractionQuestionType(questionType) &&
     /^\s*No answer\.?\s*$/iu.test(input.hypothesis)
   ) {
@@ -1941,6 +1965,56 @@ function buildPhase63BeamPreferenceAnswerFromGuide(
     return undefined;
   }
   return `Response should ${formatNaturalList(requirements)}.`;
+}
+
+function isPhase63BeamPreferenceWaysQuestion(question: string): boolean {
+  return /\b(?:some\s+ways?|ways?|structure|optimi[sz]e|make\s+the\s+most|routine)\b/iu.test(
+    question,
+  );
+}
+
+function hasConcreteMorningRoutineCue(hypothesis: string): boolean {
+  return /\b(?:breath(?:ing)?|breakfast|exercise|hydration|journal(?:ing)?|meditat(?:e|ion)|mindfulness|movement|plan(?:ning)?|priority\s+(?:check-in|list|review)|stretch(?:ing)?|walk(?:ing)?)\b/iu.test(
+    hypothesis,
+  );
+}
+
+function buildPhase63BeamPreferenceWaysAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+}): string | undefined {
+  const requirements = extractPhase63BeamPreferenceRequirementCues(input.context);
+  if (
+    !requirements.includes(
+      "focus on morning activities that improve daytime energy",
+    )
+  ) {
+    return undefined;
+  }
+  if (hasConcreteMorningRoutineCue(input.hypothesis)) {
+    return undefined;
+  }
+  return "Response should focus on concrete morning self-care activities that improve daytime energy, such as light movement, mindfulness or journaling, hydration or breakfast, and a short priority check-in, while avoiding evening routine suggestions.";
+}
+
+function isPhase63BeamPreferenceDecisionQuestion(question: string): boolean {
+  return /\b(?:decid(?:e|ing)|decision|approach\s+a\s+complex\s+problem|practical\s+and\s+emotional)\b/iu.test(
+    question,
+  );
+}
+
+function buildPhase63BeamPreferenceDecisionAnswerFromGuide(
+  context: string,
+): string | undefined {
+  const requirements = extractPhase63BeamPreferenceRequirementCues(context);
+  if (
+    !requirements.includes(
+      "emphasize practical/logical analysis over emotional or impulsive factors",
+    )
+  ) {
+    return undefined;
+  }
+  return "Use a logic-first decision framework: define the problem, separate facts from emotional reactions, compare options by practical outcomes and evidence, then choose deliberately rather than impulsively.";
 }
 
 function extractPhase63BeamPreferenceRequirementCues(

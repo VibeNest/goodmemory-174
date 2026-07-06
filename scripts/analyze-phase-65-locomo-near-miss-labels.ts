@@ -14,6 +14,7 @@ import type {
   LocomoCase,
   LocomoQaCategory,
   LocomoQuestion,
+  LocomoTurn,
 } from "../src/eval/locomo";
 import type {
   LocomoLiveDeltaAnalysis,
@@ -101,6 +102,23 @@ interface TokenOverlap {
   recall: number;
 }
 
+type GoldEvidenceSupportBucket =
+  | "full"
+  | "missing-evidence-turns"
+  | "partial"
+  | "zero";
+
+interface GoldEvidenceSupport {
+  bucket: GoldEvidenceSupportBucket;
+  evidenceTextTokenCount: number;
+  evidenceTurnIds: string[];
+  goldTokenCount: number;
+  missingEvidenceTurnIds: string[];
+  supportRecall: number;
+  supportedGoldTokens: string[];
+  unsupportedGoldTokens: string[];
+}
+
 export interface LocomoNearMissLabelRow {
   answerTransition: LocomoLiveQuestionDelta["answerTransition"];
   caseId: string;
@@ -115,6 +133,7 @@ export interface LocomoNearMissLabelRow {
   computedAnswerTokenF1: number;
   diagnosis: LocomoNearMissDiagnosis;
   generatedAnswer: string;
+  goldEvidenceSupport: GoldEvidenceSupport;
   goldAnswer: string;
   question: string;
   questionId: string;
@@ -124,8 +143,10 @@ export interface LocomoNearMissLabelRow {
 
 interface LocomoNearMissLabelSummary {
   averageCandidateAnswerTokenF1: number;
+  averageGoldEvidenceSupportRecall: number;
   diagnosisCounts: Record<LocomoNearMissDiagnosis, number>;
   fullRecallCount: number;
+  goldEvidenceSupportCounts: Record<GoldEvidenceSupportBucket, number>;
   nearMissCount: number;
   partialRecallCount: number;
   questionCount: number;
@@ -138,6 +159,8 @@ interface LabelAccumulator {
   answerTokenF1Total: number;
   diagnosisCounts: Record<LocomoNearMissDiagnosis, number>;
   fullRecallCount: number;
+  goldEvidenceSupportCounts: Record<GoldEvidenceSupportBucket, number>;
+  goldEvidenceSupportRecallTotal: number;
   nearMissCount: number;
   partialRecallCount: number;
   questionIds: string[];
@@ -271,11 +294,22 @@ function emptyDiagnosisCounts(): Record<LocomoNearMissDiagnosis, number> {
   };
 }
 
+function emptyGoldEvidenceSupportCounts(): Record<GoldEvidenceSupportBucket, number> {
+  return {
+    full: 0,
+    "missing-evidence-turns": 0,
+    partial: 0,
+    zero: 0,
+  };
+}
+
 function emptyAccumulator(): LabelAccumulator {
   return {
     answerTokenF1Total: 0,
     diagnosisCounts: emptyDiagnosisCounts(),
     fullRecallCount: 0,
+    goldEvidenceSupportCounts: emptyGoldEvidenceSupportCounts(),
+    goldEvidenceSupportRecallTotal: 0,
     nearMissCount: 0,
     partialRecallCount: 0,
     questionIds: [],
@@ -307,11 +341,18 @@ function buildCandidateQuestionMap(
   return questions;
 }
 
+interface BenchmarkQuestionContext {
+  evidenceTurns: LocomoTurn[];
+  missingEvidenceTurnIds: string[];
+  question: LocomoQuestion;
+}
+
 function buildBenchmarkQuestionMap(
   cases: readonly LocomoCase[],
-): Map<string, LocomoQuestion> {
-  const questions = new Map<string, LocomoQuestion>();
+): Map<string, BenchmarkQuestionContext> {
+  const questions = new Map<string, BenchmarkQuestionContext>();
   for (const testCase of cases) {
+    const turnsById = new Map(testCase.turns.map((turn) => [turn.diaId, turn]));
     for (const question of testCase.questions) {
       const key = questionLookupKey({
         caseId: testCase.caseId,
@@ -320,7 +361,21 @@ function buildBenchmarkQuestionMap(
       if (questions.has(key)) {
         throw new Error(`Benchmark source contains duplicate question ${key}.`);
       }
-      questions.set(key, question);
+      const evidenceTurns: LocomoTurn[] = [];
+      const missingEvidenceTurnIds: string[] = [];
+      for (const evidenceTurnId of question.evidenceTurnIds) {
+        const turn = turnsById.get(evidenceTurnId);
+        if (turn) {
+          evidenceTurns.push(turn);
+        } else {
+          missingEvidenceTurnIds.push(evidenceTurnId);
+        }
+      }
+      questions.set(key, {
+        evidenceTurns,
+        missingEvidenceTurnIds,
+        question,
+      });
     }
   }
   return questions;
@@ -376,6 +431,62 @@ function tokenOverlap(
     overlapTokens,
     precision: divideOrZero(overlapTokens.length, generatedTokens.length),
     recall: divideOrZero(overlapTokens.length, goldTokens.length),
+  };
+}
+
+function goldEvidenceSupportBucket(input: {
+  missingEvidenceTurnIds: readonly string[];
+  supportRecall: number;
+}): GoldEvidenceSupportBucket {
+  if (input.missingEvidenceTurnIds.length > 0) {
+    return "missing-evidence-turns";
+  }
+  if (input.supportRecall >= 1) {
+    return "full";
+  }
+  return input.supportRecall <= 0 ? "zero" : "partial";
+}
+
+function goldEvidenceSupport(input: {
+  evidenceTurns: readonly LocomoTurn[];
+  goldAnswer: string;
+  missingEvidenceTurnIds: readonly string[];
+  question: LocomoQuestion;
+}): GoldEvidenceSupport {
+  const goldTokens = tokenizeLocomoAnswer(input.goldAnswer);
+  const evidenceText = input.evidenceTurns
+    .map((turn) => turn.content)
+    .join(" ");
+  const evidenceTokens = tokenizeLocomoAnswer(evidenceText);
+  const remainingEvidenceCounts = countTokens(evidenceTokens);
+  const supportedCounts = new Map<string, number>();
+  const unsupportedCounts = new Map<string, number>();
+
+  for (const token of goldTokens) {
+    const remainingEvidence = remainingEvidenceCounts.get(token) ?? 0;
+    if (remainingEvidence > 0) {
+      remainingEvidenceCounts.set(token, remainingEvidence - 1);
+      supportedCounts.set(token, (supportedCounts.get(token) ?? 0) + 1);
+    } else {
+      unsupportedCounts.set(token, (unsupportedCounts.get(token) ?? 0) + 1);
+    }
+  }
+
+  const supportedGoldTokens = expandTokenCounts(supportedCounts);
+  const supportRecall = divideOrZero(supportedGoldTokens.length, goldTokens.length);
+  const missingEvidenceTurnIds = [...input.missingEvidenceTurnIds];
+  return {
+    bucket: goldEvidenceSupportBucket({
+      missingEvidenceTurnIds,
+      supportRecall,
+    }),
+    evidenceTextTokenCount: evidenceTokens.length,
+    evidenceTurnIds: [...input.question.evidenceTurnIds],
+    goldTokenCount: goldTokens.length,
+    missingEvidenceTurnIds,
+    supportRecall,
+    supportedGoldTokens,
+    unsupportedGoldTokens: expandTokenCounts(unsupportedCounts),
   };
 }
 
@@ -523,7 +634,7 @@ function assertNearMissTokenF1(input: {
 }
 
 function buildNearMissRow(input: {
-  benchmarkQuestion: LocomoQuestion;
+  benchmarkQuestion: BenchmarkQuestionContext;
   candidateQuestion: LocomoQuestionRetrieval;
   delta: LocomoLiveQuestionDelta;
 }): LocomoNearMissLabelRow {
@@ -553,14 +664,17 @@ function buildNearMissRow(input: {
   }
   const computedAnswerTokenF1 = locomoTokenF1(
     generatedAnswer,
-    input.benchmarkQuestion.goldAnswer,
+    input.benchmarkQuestion.question.goldAnswer,
   );
   assertNearMissTokenF1({
     candidateAnswerTokenF1,
     computedAnswerTokenF1,
     key: questionLookupKey(input.delta),
   });
-  const overlap = tokenOverlap(generatedAnswer, input.benchmarkQuestion.goldAnswer);
+  const overlap = tokenOverlap(
+    generatedAnswer,
+    input.benchmarkQuestion.question.goldAnswer,
+  );
   return {
     answerTransition: input.delta.answerTransition,
     caseId: input.delta.caseId,
@@ -575,12 +689,18 @@ function buildNearMissRow(input: {
     candidateRetrievedTurnIds: [...input.candidateQuestion.retrievedTurnIds],
     computedAnswerTokenF1,
     diagnosis: diagnoseNearMiss({
-      goldAnswer: input.benchmarkQuestion.goldAnswer,
+      goldAnswer: input.benchmarkQuestion.question.goldAnswer,
       overlap,
     }),
     generatedAnswer,
-    goldAnswer: input.benchmarkQuestion.goldAnswer,
-    question: input.benchmarkQuestion.question,
+    goldAnswer: input.benchmarkQuestion.question.goldAnswer,
+    goldEvidenceSupport: goldEvidenceSupport({
+      evidenceTurns: input.benchmarkQuestion.evidenceTurns,
+      goldAnswer: input.benchmarkQuestion.question.goldAnswer,
+      missingEvidenceTurnIds: input.benchmarkQuestion.missingEvidenceTurnIds,
+      question: input.benchmarkQuestion.question,
+    }),
+    question: input.benchmarkQuestion.question.question,
     questionId: input.delta.questionId,
     retrievalTransition: input.delta.retrievalTransition,
     tokenOverlap: overlap,
@@ -594,6 +714,9 @@ function addRowToAccumulator(
   accumulator.nearMissCount += 1;
   accumulator.answerTokenF1Total += row.candidateAnswerTokenF1;
   accumulator.diagnosisCounts[row.diagnosis] += 1;
+  accumulator.goldEvidenceSupportRecallTotal +=
+    row.goldEvidenceSupport.supportRecall;
+  accumulator.goldEvidenceSupportCounts[row.goldEvidenceSupport.bucket] += 1;
   accumulator.questionIds.push(row.questionId);
   if (row.candidateEvidenceRecall <= 0) {
     accumulator.zeroRecallCount += 1;
@@ -612,8 +735,13 @@ function summarizeAccumulator(
       accumulator.answerTokenF1Total,
       accumulator.nearMissCount,
     ),
+    averageGoldEvidenceSupportRecall: divideOrZero(
+      accumulator.goldEvidenceSupportRecallTotal,
+      accumulator.nearMissCount,
+    ),
     diagnosisCounts: { ...accumulator.diagnosisCounts },
     fullRecallCount: accumulator.fullRecallCount,
+    goldEvidenceSupportCounts: { ...accumulator.goldEvidenceSupportCounts },
     nearMissCount: accumulator.nearMissCount,
     partialRecallCount: accumulator.partialRecallCount,
     questionCount: accumulator.questionIds.length,
@@ -695,10 +823,10 @@ export function analyzeLocomoNearMissLabels(input: {
         `Benchmark source is missing near-miss question ${key}.`,
       );
     }
-    if (benchmarkQuestion.category !== delta.category) {
+    if (benchmarkQuestion.question.category !== delta.category) {
       throw new Error(
         `Near-miss row ${key} category ${delta.category} does not match ` +
-          `benchmark category ${benchmarkQuestion.category}.`,
+          `benchmark category ${benchmarkQuestion.question.category}.`,
       );
     }
     return buildNearMissRow({

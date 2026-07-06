@@ -37,7 +37,7 @@ export interface InstalledHostWritebackAuditRecallHit {
 
 export interface InstalledHostWritebackAuditEvent {
   candidateKey: string;
-  command: "session-end" | "turn-end";
+  command: "remember-tool" | "session-end" | "turn-end";
   contentPreview: string;
   eventId: string;
   forgottenLinkedRecordIds: InstalledHostWritebackLinkedRecordId[];
@@ -561,7 +561,9 @@ function readAuditEvent(value: unknown): InstalledHostWritebackAuditEvent[] {
   return [
     {
       candidateKey,
-      command: value.command === "turn-end" ? "turn-end" : "session-end",
+      command: value.command === "turn-end" || value.command === "remember-tool"
+        ? value.command
+        : "session-end",
       contentPreview: createAuditPreview(contentPreview, source),
       eventId,
       forgottenLinkedRecordIds: readLinkedRecordIds(value.forgottenLinkedRecordIds),

@@ -14,7 +14,10 @@ import {
   readInstalledHostWritebackLedger,
   withInstalledHostWritebackLedgerLock,
 } from "../../src/install/hostWritebackAuditLedger";
-import { executeInstalledHostWriteback } from "../../src/install/hostWritebackRuntime";
+import {
+  executeInstalledHostWriteback,
+  recordRememberToolWriteback,
+} from "../../src/install/hostWritebackRuntime";
 
 async function createWorkspace(prefix: string): Promise<string> {
   return mkdtemp(join(tmpdir(), prefix));
@@ -2719,6 +2722,152 @@ describe("installed host writeback transcript hydration", () => {
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+});
+
+describe("recordRememberToolWriteback", () => {
+  const scope = {
+    agentId: "claude",
+    userId: "tool-user",
+    workspaceId: "workspace-a",
+  };
+
+  it("records a committed remember-tool audit event and returns its event id", async () => {
+    const homeRoot = await mkdtemp(join(tmpdir(), "goodmemory-remember-tool-"));
+    try {
+      const recorded = await recordRememberToolWriteback({
+        content: "The staging endpoint is db.internal.example.com.",
+        events: [
+          {
+            candidateId: "candidate-1",
+            evidenceIds: ["ev-1"],
+            memoryId: "mem-1",
+            memoryType: "fact",
+            outcome: "written",
+          },
+        ],
+        homeRoot,
+        host: "claude",
+        mode: "off",
+        scope,
+        sessionId: "session-9",
+        source: "assistant",
+      });
+
+      expect(recorded?.eventId).toMatch(/^wb_/);
+      const ledger = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(ledger.auditEvents).toEqual([
+        expect.objectContaining({
+          command: "remember-tool",
+          kind: "fact",
+          linkedRecordIds: [
+            { id: "mem-1", type: "memory" },
+            { id: "ev-1", type: "evidence" },
+          ],
+          memoryIds: ["mem-1"],
+          mode: "off",
+          reason: "remember_tool",
+          source: "assistant",
+          status: "committed",
+        }),
+      ]);
+      expect(ledger.auditEvents[0]?.eventId).toBe(recorded?.eventId ?? "");
+      expect(ledger.auditEvents[0]?.sessionDigest).toMatch(/^session:/);
+      // Assistant-originated previews stay redacted (the write tool defaults to
+      // role=assistant); the content remains recoverable via linkedRecordIds.
+      expect(ledger.auditEvents[0]?.contentPreview).toBe(
+        "[redacted assistant-originated candidate]",
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("shows the content preview when the tool write is user-originated", async () => {
+    const homeRoot = await mkdtemp(join(tmpdir(), "goodmemory-remember-tool-user-"));
+    try {
+      await recordRememberToolWriteback({
+        content: "The staging endpoint is db.internal.example.com.",
+        events: [
+          {
+            candidateId: "candidate-1",
+            memoryId: "mem-1",
+            memoryType: "fact",
+            outcome: "written",
+          },
+        ],
+        homeRoot,
+        host: "claude",
+        mode: "selective",
+        scope,
+        source: "user",
+      });
+
+      const ledger = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(ledger.auditEvents[0]?.contentPreview).toContain("staging endpoint");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("stays idempotent for repeated identical tool writes", async () => {
+    const homeRoot = await mkdtemp(join(tmpdir(), "goodmemory-remember-tool-dup-"));
+    try {
+      const input = {
+        content: "Prefer bun test over npm test in this repo.",
+        events: [
+          {
+            candidateId: "candidate-1",
+            memoryId: "mem-1",
+            memoryType: "preference" as const,
+            outcome: "written" as const,
+          },
+        ],
+        homeRoot,
+        host: "claude" as const,
+        mode: "selective" as const,
+        scope,
+        source: "user" as const,
+      };
+      const first = await recordRememberToolWriteback(input);
+      const second = await recordRememberToolWriteback(input);
+
+      expect(second?.eventId).toBe(first?.eventId ?? "");
+      const ledger = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(ledger.auditEvents).toHaveLength(1);
+      expect(ledger.auditEvents[0]?.kind).toBe("preference");
+      expect(ledger.events).toHaveLength(1);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("records nothing when the write produced no durable records", async () => {
+    const homeRoot = await mkdtemp(join(tmpdir(), "goodmemory-remember-tool-noop-"));
+    try {
+      const recorded = await recordRememberToolWriteback({
+        content: "noise that was rejected",
+        events: [
+          {
+            candidateId: "candidate-1",
+            memoryType: "fact",
+            outcome: "rejected",
+          },
+        ],
+        homeRoot,
+        host: "claude",
+        mode: "selective",
+        scope,
+        source: "assistant",
+      });
+
+      expect(recorded).toBeNull();
+      const ledger = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(ledger.auditEvents).toEqual([]);
+      expect(ledger.events).toEqual([]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
     }
   });
 });

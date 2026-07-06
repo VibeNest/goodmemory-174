@@ -1383,6 +1383,88 @@ async function clearRejectedWritebackCandidate(input: {
   });
 }
 
+export interface RecordRememberToolWritebackInput {
+  content: string;
+  events: RememberEvent[];
+  homeRoot?: string;
+  host: InstalledHostKind;
+  mode: InstalledHostWritebackMode;
+  scope: MemoryScope;
+  sessionId?: string;
+  source: "assistant" | "user";
+}
+
+// Explicit goodmemory_remember tool writes share the writeback audit surface
+// (`goodmemory <host> writeback inspect` / `forget --event-id`) instead of
+// being auditable only through exportMemory. Recorded as an already-committed
+// remember-tool event: there is no reserve phase because the durable write has
+// already happened by the time this runs.
+export async function recordRememberToolWriteback(
+  input: RecordRememberToolWritebackInput,
+): Promise<{ eventId: string } | null> {
+  const linkedRecordIds = collectWritebackLinkedRecordIds(input.events);
+  if (linkedRecordIds.length === 0) {
+    return null;
+  }
+  const memoryIds = linkedRecordIds
+    .filter((record) => record.type === "memory")
+    .map((record) => record.id);
+  const kind = input.events
+    .filter((event) => event.outcome !== "rejected")
+    .map((event) => readCandidateKind(event.memoryType))
+    .find((value) => value !== undefined) ?? "fact";
+  const scopeDigest = buildWritebackScopeDigest(input.scope);
+  const scopedKey = buildScopedWritebackCandidateKey({
+    candidateKey: buildCandidateKey({
+      candidate: {
+        confidence: 1,
+        content: input.content,
+        durable: true,
+        kind,
+        reason: "remember_tool",
+        source: input.source,
+      },
+      scope: input.scope,
+    }),
+    scopeDigest,
+  });
+  const eventId = buildWritebackAuditEventId({
+    candidateKey: scopedKey,
+    scopeDigest,
+  });
+  const now = new Date().toISOString();
+  const sessionDigest = input.sessionId
+    ? buildWritebackSessionDigest(input.sessionId)
+    : undefined;
+
+  await withInstalledHostWritebackLedgerLock(input.host, input.homeRoot, async () => {
+    let ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
+    ledger = markWritebackAuditPending(ledger, {
+      candidateKey: scopedKey,
+      command: "remember-tool",
+      content: input.content,
+      eventId,
+      host: input.host,
+      kind,
+      mode: input.mode,
+      now,
+      reason: "remember_tool",
+      scopeDigest,
+      source: input.source,
+      ...(sessionDigest ? { sessionDigest } : {}),
+    });
+    ledger = markWritebackAuditCommitted(ledger, {
+      candidateKey: scopedKey,
+      eventId,
+      linkedRecordIds,
+      memoryIds,
+      now,
+    });
+    await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
+  });
+  return { eventId };
+}
+
 async function failWritebackCandidate(input: {
   eventId: string;
   homeRoot: string | undefined;

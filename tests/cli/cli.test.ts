@@ -3290,6 +3290,60 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
+  it("labels the preAction hook in doctor output only for hosts that register one", async () => {
+    const home = await createTempWorkspace("goodmemory-doctor-preaction-home");
+    const workspace = await createTempWorkspace("goodmemory-doctor-preaction-workspace");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          for (const host of ["claude", "codex"] as const) {
+            const install = await runCLI([
+              "install",
+              host,
+              "--activation-mode",
+              "global",
+              "--writeback",
+              "off",
+              "--user-id",
+              `${host}-user`,
+              "--json",
+            ]);
+            expect(install.exitCode).toBe(0);
+          }
+
+          const claudeDoctor = await withCwd(workspace.root, async () =>
+            runCLI(["doctor", "claude", "--workspace-root", workspace.root]),
+          );
+          expect(claudeDoctor.exitCode).toBe(0);
+          const claudeHooksLine = claudeDoctor.stdout
+            .split("\n")
+            .find((line) => line.includes("- hooks:"));
+          expect(claudeHooksLine).toContain("recall=registered");
+          expect(claudeHooksLine).toContain("mcp=registered");
+          // Claude never registers a preAction hook, so the label would only
+          // read as a false "missing" defect.
+          expect(claudeHooksLine).not.toContain("preAction");
+
+          const codexDoctor = await withCwd(workspace.root, async () =>
+            runCLI(["doctor", "codex", "--workspace-root", workspace.root]),
+          );
+          expect(codexDoctor.exitCode).toBe(0);
+          const codexHooksLine = codexDoctor.stdout
+            .split("\n")
+            .find((line) => line.includes("- hooks:"));
+          expect(codexHooksLine).toContain("preAction=registered");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
   it("returns nonzero when repair cannot fix an explicit missing host install", async () => {
     const home = await createTempWorkspace("goodmemory-repair-missing-home");
     const workspace = await createTempWorkspace("goodmemory-repair-missing-workspace");

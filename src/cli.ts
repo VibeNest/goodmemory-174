@@ -2392,7 +2392,15 @@ function renderInstallerPlanPayload(
   for (const host of payload.hosts) {
     lines.push(`- ${host.host}: config=${host.config}, workspace=${host.workspaceStatus}`);
     lines.push(
-      `  - hooks: recall=${host.hookRegistered ? "registered" : "missing"}, preAction=${host.preActionRegistered ? "registered" : "missing"}, mcp=${host.mcpRegistered ? "registered" : "missing"}`,
+      `  - hooks: ${[
+        `recall=${host.hookRegistered ? "registered" : "missing"}`,
+        // Only codex registers a preAction hook; labelling it "missing" on
+        // other hosts reads as a defect that does not exist.
+        ...(host.host === "codex"
+          ? [`preAction=${host.preActionRegistered ? "registered" : "missing"}`]
+          : []),
+        `mcp=${host.mcpRegistered ? "registered" : "missing"}`,
+      ].join(", ")}`,
     );
     lines.push(`  - repairable: ${host.repairable}`);
     if (host.contextMode) {

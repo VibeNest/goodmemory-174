@@ -119,6 +119,34 @@ Answer-Gap Evidence And Tooling
   `run-phase63-beam-live-answer-gap-answer-hardening-current` analyzes the
   0.695 answer-hardening run: 122 wrong, including 58 full-recall-clean, 37
   full-recall-noisy, 15 missing-evidence, 7 abstention, and 5 unknown cases.
+- Latest source-covered preference/summarization slice:
+  `run-phase63-beam-live-slice-pref-summary-source-covered-20260706-current`
+  rebuilt `/private/tmp/BEAM/100K.json` from GitHub raw, then filtered
+  `run-phase63-beam-live-answer-gap-answer-hardening-source-coverage-current`
+  to `preference_following` and `summarization` rows with
+  `covered-or-no-warning` source coverage. It measured 7/9 correct,
+  evidence-chat recall 1.0, and `executionFailures: 0`; analyzer
+  `run-phase63-beam-live-answer-gap-pref-summary-source-covered-20260706-current`
+  leaves two full-recall-clean residuals: `18:preference_following:2` for
+  preference-constraint answer framing, and `14:summarization:2` for structured
+  summary / expected-answer compatibility. Follow-up preference guardrails now
+  cover generic morning-routine "ways" answers and noisy practical/logical
+  decision-preference answers. The full 9-row rerun
+  `run-phase63-beam-live-slice-pref-summary-source-covered-preference-ways-current`
+  stayed 7/9 because live variance introduced a new
+  `12:preference_following:1` regression while `18:preference_following:2`
+  passed. The targeted two-row validation
+  `run-phase63-beam-live-slice-preference-two-row-guardrails-current` scored
+  2/2 with evidence-chat recall 1.0 and `executionFailures: 0`; analyzer
+  `run-phase63-beam-live-answer-gap-preference-two-row-guardrails-current` had
+  zero wrong rows. Follow-up analyzer
+  `run-phase63-beam-live-answer-gap-pref-summary-source-covered-source-audit-current`
+  keeps `12:preference_following:1` in the answer-time preference lane, but
+  reroutes `14:summarization:2` to the evidence-source selection lane:
+  `dominantSourceCoverageStatus=expected-cues-outside-source`, one
+  source-coverage warning, and expected cue `planning resource` found at chat
+  143 outside the declared evidence ids [4, 9, 13]. This is focused routing
+  evidence only, not a new closure checkpoint or full-rerun trigger.
 - `scripts/run-phase-63-beam-live-ablation.ts` is available for LLM-ready
   ablations. Existing artifacts show `retrieved-evidence-pack` at 0.6625 and
   `full-context` at 0.195 with many failures, so dumping the whole conversation

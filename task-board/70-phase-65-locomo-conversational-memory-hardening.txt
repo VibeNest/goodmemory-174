@@ -338,6 +338,25 @@ answer versus the original rel0.8 source report, 0 regressions, no
 retrieval/noise delta, and two remaining token-F1 near misses. This preserves
 the narrow full-recall win but does not close the answer-synthesis /
 label-compatibility queue or justify default promotion.
+The two remaining full-recall balanced near-misses were then replayed directly
+from the normalized rel0.8 source report:
+`locomo-multihop-full-recall-balanced-near-miss-reanswer-current` scored 0/2,
+and `locomo-multihop-full-recall-balanced-near-miss-reanswer-gold-only-current`
+also scored 0/2, both with average evidence recall 1, 2/2 fully retrieved, and
+`executionFailures: 0`. Delta
+`locomo-multihop-full-recall-balanced-normal-vs-gold-only-delta-current` shows
+0 improvements, 0 regressions, both rows staying `full->full` and same-wrong,
+and no noise delta; the follow-up label analysis
+`locomo-multihop-full-recall-balanced-near-miss-label-analysis-current`
+classifies both rows as balanced partial-overlap full-recall near misses. The
+same analyzer now records row-level `goldEvidenceSupport`, an exact-token
+diagnostic comparing the gold answer against its declared evidence turns:
+`conv-48:q83` has 0.636 gold-evidence support recall and unsupported gold tokens
+`attend`, `firms`, `intern`, `work`; `conv-49:q29` has 0.583 support recall
+and unsupported gold tokens `evan`, `fell`, `he`, `love`, `returned`. This rules
+out plain gold-evidence-only noise stripping for this two-row queue and routes
+the remaining work to source-support / answer-contract / label-compatibility
+review.
 The same normalized live-delta also exported a five-row
 `topUnconvertedRetrievalGains` multi_hop replay queue. These are all
 partial-recall gains, not fully retrieved rows. Normal replay over the rel0.8
@@ -2910,6 +2929,29 @@ Tasks
   evidence for answer-synthesis and label-compatibility work, not a score lift,
   default promotion, or public-claim boundary change.
 
+[DONE] P65-T004gwf Multi-hop full-recall balanced near-miss noise isolation.
+  `locomo-multihop-full-recall-balanced-near-miss-reanswer-current` replayed
+  `conv-48:q83` and `conv-49:q29` from
+  `locomo-multihop-candidate-admission-rel08-live-evidence-normalized-current`
+  with the normal evidence-pack context. It scored 0/2 with average evidence
+  recall 1, 2/2 fully retrieved, 21 noise turns, and `executionFailures: 0`.
+  `locomo-multihop-full-recall-balanced-near-miss-reanswer-gold-only-current`
+  reran the same two rows with `--gold-evidence-only-context` and also scored
+  0/2. Delta
+  `locomo-multihop-full-recall-balanced-normal-vs-gold-only-delta-current`
+  shows 0 improvements, 0 regressions, both rows staying same-wrong and
+  `full->full`, no retrieval/noise delta, and two token-F1 near misses. The
+  follow-up label artifact
+  `locomo-multihop-full-recall-balanced-near-miss-label-analysis-current`
+  labels both rows as balanced partial-overlap full-recall near misses and now
+  emits `goldEvidenceSupport` for each row. Exact-token support from declared
+  evidence turns is partial, not complete: `conv-48:q83` support recall 0.636
+  with unsupported gold tokens `attend`, `firms`, `intern`, `work`; `conv-49:q29`
+  support recall 0.583 with unsupported gold tokens `evan`, `fell`, `he`,
+  `love`, `returned`. This rules out plain retrieved-noise stripping for the
+  remaining synthesis queue and keeps it in the source-support /
+  answer-contract / label-compatibility lane, not default promotion.
+
 [DONE] P65-T004gwe Open-domain full-recall noise isolation and whole-report
   reanswer lineage.
   `locomo-open-domain-full-recall-wrong-live-strict-current` reran 13 strict
@@ -2944,6 +2986,11 @@ Tasks
   artifact now emits full-recall `repairJobs`: a
   3-row rationale-bearing-gold-answer job (`conv-26:q64`, `conv-42:q60`,
   `conv-26:q22`) and a 1-row balanced-partial-overlap job (`conv-26:q30`).
+  The refreshed artifact also records `goldEvidenceSupport`: average
+  declared-evidence support recall is 0.2352272727, with 0 full-support rows,
+  3 partial-support rows, and 1 zero-support row. This keeps the open_domain
+  queue in source-support / label-compatibility review rather than prompt-only
+  repair.
   File-loader proof
   `locomo-open-domain-full-recall-wrong-gold-only-near-miss-label-file-loader-smoke-current`
   consumed that 4-question queue with `executionFailures: 0`; default retrieval
@@ -3011,9 +3058,12 @@ Tasks
   candidate token-F1 0.2429793770, 7 balanced partial overlaps,
   1 over-specified answer, 2 under-specified answers, 0
   rationale-bearing/numeric/zero-overlap rows, with 2 full-recall, 5
-  partial-recall, and 3 zero-recall rows. The artifact emits six repair jobs:
-  balanced-partial-overlap full/partial/zero, over-specified partial, and
-  under-specified partial/zero.
+  partial-recall, and 3 zero-recall rows. Its `goldEvidenceSupport` diagnostic
+  averages 0.6368856634 support recall, with 1 full-support row and 9
+  partial-support rows, so most near misses still have source-support or
+  label-contract ambiguity even before default retrieval is retried. The
+  artifact emits six repair jobs: balanced-partial-overlap full/partial/zero,
+  over-specified partial, and under-specified partial/zero.
 
   File-loader proof
   `locomo-multihop-candidate-admission-rel08-near-miss-label-file-loader-smoke-current`

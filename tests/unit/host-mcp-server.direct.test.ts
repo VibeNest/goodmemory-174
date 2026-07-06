@@ -1,4 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   BuildContextInput,
   ExportMemoryInput,
@@ -9,6 +12,7 @@ import type {
 } from "../../src/api/contracts";
 import type { GoodMemoryMcpServerDependencies } from "../../src/install/hostMcpServer";
 import { createGoodMemoryMcpServer } from "../../src/install/hostMcpServer";
+import { readInstalledHostWritebackLedger } from "../../src/install/hostWritebackAuditLedger";
 
 interface RegisteredMcpTool {
   description?: string;
@@ -277,5 +281,56 @@ describe("goodmemory mcp server direct handlers", () => {
     expect(result.structuredContent?.error).toBe(
       "GoodMemory codex context is unavailable: missing_global_config.",
     );
+  });
+
+  it("records accepted installed-mode writes in the writeback audit ledger", async () => {
+    const homeRoot = await mkdtemp(join(tmpdir(), "goodmemory-mcp-remember-audit-"));
+    try {
+      const memory = createFakeMemory();
+      (memory as { remember?: unknown }).remember = async () => ({
+        accepted: 1,
+        events: [
+          {
+            candidateId: "candidate-1",
+            evidenceIds: ["ev-1"],
+            memoryId: "mem-1",
+            memoryType: "fact",
+            outcome: "written",
+          },
+        ],
+        rejected: 0,
+      });
+      const server = inspectServer(
+        createGoodMemoryMcpServer({
+          allowWrite: true,
+          dependencies: { ...createDependencies(memory), homeRoot },
+          host: "codex",
+        }),
+      );
+
+      const result = await server._registeredTools.goodmemory_remember!.handler({
+        content: "The staging endpoint is db.internal.example.com.",
+        cwd: WORKSPACE_ROOT,
+        sessionId: "sess-1",
+      });
+
+      expect(result.isError).toBeUndefined();
+      const auditEventId = result.structuredContent?.auditEventId;
+      expect(typeof auditEventId).toBe("string");
+
+      const ledger = await readInstalledHostWritebackLedger("codex", homeRoot);
+      expect(ledger.auditEvents).toEqual([
+        expect.objectContaining({
+          command: "remember-tool",
+          eventId: auditEventId,
+          kind: "fact",
+          memoryIds: ["mem-1"],
+          status: "committed",
+        }),
+      ]);
+      expect(ledger.auditEvents[0]?.sessionDigest).toMatch(/^session:/);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
   });
 });

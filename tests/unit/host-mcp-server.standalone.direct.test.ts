@@ -285,6 +285,9 @@ describe("goodmemory mcp server standalone direct handlers", () => {
       memoryIds: ["fact-new"],
       rejected: 0,
     });
+    // Standalone mode has no installed-host ledger; the audit surface for
+    // standalone writes stays exportMemory, so no auditEventId is reported.
+    expect(result.structuredContent?.auditEventId).toBeUndefined();
     expect(calls.remember[0]?.messages).toEqual([
       {
         content: "The deploy is blocked on smoke verification.",

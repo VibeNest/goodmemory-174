@@ -1408,6 +1408,49 @@ this workstream to exceed the paper's `66%` reference line. The claim boundary
 does not change: the result is internal research evidence, not a release hard
 gate, not a public API/config change, and not a README-level leaderboard claim.
 
+## 2026-07-06 Full-Root Refresh
+
+The current-checkout rerun completed under
+`run-phase61-full300-rerun-20260706-codex-current`:
+
+- benchmark root:
+  - `/tmp/ImplicitMemBench`
+  - upstream commit `927413bf3f5389bb47c94c2a0ba987e435b101b8`
+  - dataset license `CC BY 4.0`; code license `MIT`
+- command shape:
+  - `GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai bun run eval:phase-61-full300 -- --benchmark-root /tmp/ImplicitMemBench --run-id run-phase61-full300-rerun-20260706-codex-current --shards 10 --shard-concurrency 6 --max-concurrency 1 --priming-timeout-ms 180000`
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `123 / 300 = 41.00%`
+- target GoodMemory profile:
+  - `goodmemory-distilled-feedback+controlled-priming`
+- best official-comparable GoodMemory full-300 score:
+  - `212.45 / 300 = 70.82%`
+- reference line:
+  - exceeds the paper's `66%` line by `4.82` percentage points
+- GoodMemory raw-experience full-300 score:
+  - `179.45 / 300 = 59.82%`
+- GoodMemory distilled blocking:
+  - `154 / 200 = 77.00%`
+- GoodMemory priming contribution:
+  - `94 / 100` credited cases
+  - average credited influence `58.45`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `0`
+
+This refresh is slightly below the May 2026 high-water mark
+(`213.26 / 300 = 71.09%`) but within the same band and cleaner than the earlier
+same-day full-root run that had one distilled execution failure. The claim
+boundary remains unchanged: this is internal research evidence only, not a
+public README claim, because the Full-300 score still relies on same-model
+LLM-judge scoring for most scorer families.
+
 ## Recommended Next Work
 
 If the goal is to improve GoodMemory itself rather than chase one benchmark, the

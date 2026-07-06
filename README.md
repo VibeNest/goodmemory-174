@@ -129,7 +129,7 @@ reproducible from the run commands recorded in the declarations.
 
 | Benchmark | Internal number | Why it is not claimable | Declaration |
 |---|---|---|---|
-| ImplicitMemBench Full-300 | overall 213.26 / 300 (0.7109) with `goodmemory-distilled-feedback+controlled-priming` vs 128 / 300 (0.4267) upstream-chat baseline | same-model judge (gpt-5.5 judging gpt-5.5) on most scorer families; dataset source/license unverified | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
+| ImplicitMemBench Full-300 | latest full-root rerun: 212.45 / 300 (0.7082) with `goodmemory-distilled-feedback+controlled-priming` vs 123 / 300 (0.4100) upstream-chat baseline; May high-water was 213.26 / 300 (0.7109) | same-model judge (gpt-5.5 judging gpt-5.5) on most scorer families; internal research only despite pinned upstream dataset source/license | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order
 and

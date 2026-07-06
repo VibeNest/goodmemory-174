@@ -96,7 +96,7 @@ declaration 里记录了确切的 blocker；底层运行报告位于 gitignored 
 
 | 基准 | 内部数字 | 为何不可声明 | Declaration |
 |---|---|---|---|
-| ImplicitMemBench Full-300 | overall 213.26 / 300（0.7109），`goodmemory-distilled-feedback+controlled-priming`，对照 upstream-chat 基线 128 / 300（0.4267） | 大多数 scorer family 用同模型判官（gpt-5.5 评 gpt-5.5）；数据集来源/license 未核实 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
+| ImplicitMemBench Full-300 | 最新 full-root rerun：212.45 / 300（0.7082），`goodmemory-distilled-feedback+controlled-priming`，对照 upstream-chat 基线 123 / 300（0.4100）；5 月高点为 213.26 / 300（0.7109） | 大多数 scorer family 用同模型判官（gpt-5.5 评 gpt-5.5）；即使 upstream 数据源/license 已 pinned，仍只能作为内部研究证据 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 
 执行顺序见 [task-board/00-README.txt](./task-board/00-README.txt)，claim boundary 见
 [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)。

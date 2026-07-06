@@ -50,6 +50,7 @@ export type Phase63AnswerGapSourceCoverageStatus =
   | "not-audited"
   | "covered-or-no-warning"
   | "expected-cues-outside-source"
+  | "expected-cues-missing-from-source"
   | "no-declared-source-ids";
 
 export interface Phase63LiveSliceCaseInput {
@@ -105,7 +106,9 @@ export interface Phase63AnswerGapRepairFamily {
   bucket: Phase63AnswerGapBucket;
   count: number;
   dominantRecallStatus: Phase63AnswerGapRecallStatus;
+  dominantSourceCoverageStatus: Phase63AnswerGapSourceCoverageStatus;
   sampleQuestionIds: string[];
+  sourceCoverageWarningCases: number;
   suggestedLane: string;
 }
 
@@ -186,6 +189,7 @@ const SOURCE_COVERAGE_SIGNAL_TOKENS = new Set([
   "contract",
   "cost",
   "deadline",
+  "development",
   "decision",
   "dietary",
   "discount",
@@ -207,15 +211,19 @@ const SOURCE_COVERAGE_SIGNAL_TOKENS = new Set([
   "money",
   "preference",
   "prepared",
+  "planning",
   "prototype",
+  "project",
   "registered",
   "rental",
   "resource",
   "responsibility",
+  "review",
   "saving",
   "scheduled",
   "strategy",
   "subscription",
+  "testing",
   "tool",
   "verified",
   "webinar",
@@ -267,12 +275,18 @@ const SOURCE_COVERAGE_TOKEN_ALIASES = new Map<string, string>([
   ["contracts", "contract"],
   ["costs", "cost"],
   ["decisions", "decision"],
+  ["developed", "development"],
+  ["developing", "development"],
+  ["developments", "development"],
   ["duties", "duty"],
   ["expenses", "expense"],
   ["fees", "fee"],
   ["meetings", "meeting"],
   ["metrics", "metric"],
   ["preferences", "preference"],
+  ["planned", "planning"],
+  ["plans", "planning"],
+  ["projects", "project"],
   ["prototypes", "prototype"],
   ["registered", "registered"],
   ["registering", "registered"],
@@ -282,10 +296,14 @@ const SOURCE_COVERAGE_TOKEN_ALIASES = new Map<string, string>([
   ["renting", "rental"],
   ["resources", "resource"],
   ["responsibilities", "responsibility"],
+  ["reviewed", "review"],
+  ["reviews", "review"],
   ["savings", "saving"],
   ["scheduled", "scheduled"],
   ["scheduling", "scheduled"],
   ["subscriptions", "subscription"],
+  ["tested", "testing"],
+  ["tests", "testing"],
   ["tools", "tool"],
   ["verified", "verified"],
   ["verifying", "verified"],
@@ -305,6 +323,7 @@ const SOURCE_COVERAGE_STATUSES: Phase63AnswerGapSourceCoverageStatus[] = [
   "not-audited",
   "covered-or-no-warning",
   "expected-cues-outside-source",
+  "expected-cues-missing-from-source",
   "no-declared-source-ids",
 ];
 
@@ -340,6 +359,15 @@ const BUCKET_LANES: Record<Phase63AnswerGapBucket, string> = {
   judge_or_expected_answer:
     "separate judge model and review expected-answer compatibility (possible false negative)",
   other: "manual review",
+};
+
+const SOURCE_COVERAGE_STATUS_LANES: Partial<
+  Record<Phase63AnswerGapSourceCoverageStatus, string>
+> = {
+  "expected-cues-outside-source":
+    "evidence-source selection lane (expected cues exist outside declared evidence IDs; repair retrieval/evidence pack before answer formatting)",
+  "expected-cues-missing-from-source":
+    "source/label audit lane (expected cues are absent from the whole benchmark source; verify source alignment before runtime changes)",
 };
 
 export function uniqueNoiseChatCount(input: {
@@ -485,7 +513,8 @@ export function findPhase63SourceCoverageWarnings(input: {
   const evidenceTokens = input.sourceCase.evidenceChatIds.flatMap(
     (id) => tokensById.get(id) ?? [],
   );
-  const warnings: Phase63AnswerGapSourceCoverageWarning[] = [];
+  const outsideEvidenceWarnings: Phase63AnswerGapSourceCoverageWarning[] = [];
+  const missingSourceWarnings: Phase63AnswerGapSourceCoverageWarning[] = [];
   for (const cue of extractExpectedCoverageCues(input.expectedAnswer)) {
     if (coverageTokensContain(evidenceTokens, cue.tokens)) {
       continue;
@@ -497,18 +526,25 @@ export function findPhase63SourceCoverageWarnings(input: {
       )
       .map(([id]) => id)
       .slice(0, 8);
-    if (matchingChatIdsOutsideEvidence.length === 0) {
-      continue;
-    }
-    warnings.push({
+    const warning = {
       cue: cue.cue,
       matchingChatIdsOutsideEvidence,
-    });
-    if (warnings.length >= SOURCE_COVERAGE_MAX_WARNINGS_PER_CASE) {
+    };
+    if (matchingChatIdsOutsideEvidence.length > 0) {
+      outsideEvidenceWarnings.push(warning);
+    } else {
+      missingSourceWarnings.push(warning);
+    }
+    if (
+      outsideEvidenceWarnings.length >= SOURCE_COVERAGE_MAX_WARNINGS_PER_CASE
+    ) {
       break;
     }
   }
-  return warnings;
+  if (outsideEvidenceWarnings.length > 0) {
+    return outsideEvidenceWarnings.slice(0, SOURCE_COVERAGE_MAX_WARNINGS_PER_CASE);
+  }
+  return missingSourceWarnings.slice(0, SOURCE_COVERAGE_MAX_WARNINGS_PER_CASE);
 }
 
 export function resolvePhase63SourceCoverageStatus(input: {
@@ -523,6 +559,13 @@ export function resolvePhase63SourceCoverageStatus(input: {
   }
   if (input.sourceCoverageWarnings.length === 0) {
     return "covered-or-no-warning";
+  }
+  if (
+    input.sourceCoverageWarnings.every(
+      (warning) => warning.matchingChatIdsOutsideEvidence.length === 0,
+    )
+  ) {
+    return "expected-cues-missing-from-source";
   }
   return "expected-cues-outside-source";
 }
@@ -767,16 +810,46 @@ export async function analyzePhase63LiveAnswerGap(
     (bucket) => bucket !== "other" && bucketCounts[bucket] > 0,
   )
     .map((bucket) => {
+      const bucketCases = cases.filter((testCase) => testCase.bucket === bucket);
       const statusCounts = bucketRecallStatus[bucket];
       const dominantRecallStatus = RECALL_STATUSES.reduce((best, status) =>
         statusCounts[status] > statusCounts[best] ? status : best,
       );
+      const sourceCoverageCounts = emptyCountRecord(SOURCE_COVERAGE_STATUSES);
+      const warningSourceCoverageCounts = emptyCountRecord(SOURCE_COVERAGE_STATUSES);
+      let sourceCoverageWarningCases = 0;
+      for (const testCase of bucketCases) {
+        sourceCoverageCounts[testCase.sourceCoverageStatus] += 1;
+        if (testCase.sourceCoverageWarnings.length > 0) {
+          sourceCoverageWarningCases += 1;
+          warningSourceCoverageCounts[testCase.sourceCoverageStatus] += 1;
+        }
+      }
+      const dominantSourceCoverageStatus =
+        sourceCoverageWarningCases > 0
+          ? SOURCE_COVERAGE_STATUSES.reduce((best, status) =>
+              warningSourceCoverageCounts[status] >
+              warningSourceCoverageCounts[best]
+                ? status
+                : best,
+            )
+          : SOURCE_COVERAGE_STATUSES.reduce((best, status) =>
+              sourceCoverageCounts[status] > sourceCoverageCounts[best]
+                ? status
+                : best,
+            );
       return {
         bucket,
         count: bucketCounts[bucket],
         dominantRecallStatus,
+        dominantSourceCoverageStatus,
         sampleQuestionIds: buckets[bucket].slice(0, 5),
-        suggestedLane: BUCKET_LANES[bucket],
+        sourceCoverageWarningCases,
+        suggestedLane:
+          sourceCoverageWarningCases > 0
+            ? SOURCE_COVERAGE_STATUS_LANES[dominantSourceCoverageStatus] ??
+              BUCKET_LANES[bucket]
+            : BUCKET_LANES[bucket],
       };
     })
     .sort((left, right) => right.count - left.count);

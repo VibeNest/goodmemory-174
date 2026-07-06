@@ -1131,6 +1131,58 @@ describe("phase-63 BEAM live slice runner", () => {
     );
   });
 
+  it("repairs generic preference ways answers from response requirements", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis:
+        "Structure your daily self-care routine around morning activities that are specifically aimed at improving daytime energy.",
+      memoryContext: [
+        "Preference constraints:",
+        "- [t=Apr | #164 | user] I prefer morning self-care routines, like the ones I've been doing, to boost my daytime energy.",
+        "Preference response requirements:",
+        "- Make the stated preference visible in the answer; do not only answer the base task.",
+        "- focus on morning activities that improve daytime energy",
+        "Supporting evidence for the requested answer:",
+        "- Requested task: What are some ways I can structure my daily self-care routine to feel more energized throughout the day?",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "What are some ways I can structure my daily self-care routine to feel more energized throughout the day?",
+        questionType: "preference_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Response should focus on concrete morning self-care activities that improve daytime energy, such as light movement, mindfulness or journaling, hydration or breakfast, and a short priority check-in, while avoiding evening routine suggestions.",
+    );
+  });
+
+  it("repairs noisy decision-preference answers from response requirements", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: [
+        "Proceed in a practical, logic-first way: separate the facts, options, and likely consequences from the emotional reactions.",
+        "Since you prefer logical reasoning, talk it through with Stephen and create a new tradition together while considering your views on free will.",
+      ].join("\n\n"),
+      memoryContext: [
+        "Preference constraints:",
+        "- [t=Apr | #54 | user] I prefer making decisions based on logical reasoning rather than emotional impulses, reflecting my practical nature.",
+        "Preference response requirements:",
+        "- Make the stated preference visible in the answer; do not only answer the base task.",
+        "- emphasize practical/logical analysis over emotional or impulsive factors",
+        "Supporting evidence for the requested answer:",
+        "- Requested task: I'm trying to decide how to approach a complex problem that has both practical and emotional aspects. How would you suggest I proceed?",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question:
+          "I'm trying to decide how to approach a complex problem that has both practical and emotional aspects. How would you suggest I proceed?",
+        questionType: "preference_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "Use a logic-first decision framework: define the problem, separate facts from emotional reactions, compare options by practical outcomes and evidence, then choose deliberately rather than impulsively.",
+    );
+  });
+
   it("keeps no-answer preference outputs without concrete requirements", () => {
     const answer = applyPhase63BeamAnswerOperationGuardrails({
       hypothesis: "No answer.",

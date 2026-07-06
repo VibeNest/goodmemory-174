@@ -346,6 +346,7 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       },
     ]);
     expect(analysis.overall.nearMissCount).toBe(4);
+    expect(analysis.overall.averageGoldEvidenceSupportRecall).toBe(0.575);
     expect(analysis.overall.diagnosisCounts["under-specified-answer"]).toBe(1);
     expect(analysis.overall.diagnosisCounts["numeric-or-frequency-format"]).toBe(
       1,
@@ -354,6 +355,12 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
     expect(analysis.overall.diagnosisCounts["rationale-bearing-gold-answer"]).toBe(
       1,
     );
+    expect(analysis.overall.goldEvidenceSupportCounts).toEqual({
+      full: 2,
+      "missing-evidence-turns": 0,
+      partial: 1,
+      zero: 1,
+    });
     expect(analysis.overall.fullRecallCount).toBe(3);
     expect(analysis.overall.partialRecallCount).toBe(1);
     expect(analysis.overall.questionIds).toEqual([
@@ -369,6 +376,12 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       "q-over",
     ]);
     expect(analysis.categories.multi_hop?.nearMissCount).toBe(4);
+    expect(analysis.categories.multi_hop?.goldEvidenceSupportCounts).toEqual({
+      full: 2,
+      "missing-evidence-turns": 0,
+      partial: 1,
+      zero: 1,
+    });
     expect(analysis.categories.multi_hop?.questionIds).toEqual([
       "q-under",
       "q-rationale-only",
@@ -418,6 +431,14 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       "nintendo",
       "oled",
     ]);
+    expect(analysis.rows[0]?.goldEvidenceSupport).toMatchObject({
+      bucket: "full",
+      evidenceTurnIds: ["D1:1"],
+      goldTokenCount: 4,
+      missingEvidenceTurnIds: [],
+      supportRecall: 1,
+      unsupportedGoldTokens: [],
+    });
     expect(analysis.rows[1]?.tokenOverlap.missingGoldTokens).toEqual([
       "2",
       "console",
@@ -428,6 +449,23 @@ describe("phase-65 LoCoMo near-miss label analyzer", () => {
       "this",
       "xenoblade",
     ]);
+    expect(analysis.rows[1]?.goldEvidenceSupport).toMatchObject({
+      bucket: "partial",
+      evidenceTurnIds: ["D1:1"],
+      goldTokenCount: 10,
+      missingEvidenceTurnIds: [],
+      supportRecall: 0.3,
+      supportedGoldTokens: ["console", "nintendo", "switch"],
+      unsupportedGoldTokens: [
+        "2",
+        "for",
+        "is",
+        "made",
+        "since",
+        "this",
+        "xenoblade",
+      ],
+    });
     expect(analysis.rows[2]?.tokenOverlap.overlapTokens).toEqual(["times"]);
     expect(analysis.rows[3]?.tokenOverlap.extraGeneratedTokens).toEqual([
       "best",

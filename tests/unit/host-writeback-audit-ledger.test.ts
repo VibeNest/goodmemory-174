@@ -973,4 +973,55 @@ describe("installed host writeback audit ledger", () => {
       "[redacted transcript-like content]",
     );
   });
+
+  it("keeps the remember-tool command across a ledger write/read roundtrip", async () => {
+    const homeRoot = await createHome("goodmemory-remember-tool-ledger-");
+    try {
+      const eventId = buildWritebackAuditEventId({
+        candidateKey: "candidate:remember-tool",
+        scopeDigest: "scope:demo",
+      });
+      let ledger = markWritebackAuditPending(
+        {
+          auditEvents: [],
+          events: [],
+          pending: [],
+          version: 4,
+        },
+        {
+          candidateKey: "candidate:remember-tool",
+          command: "remember-tool",
+          content: "The staging endpoint is db.internal.example.com.",
+          eventId,
+          host: "claude",
+          kind: "fact",
+          mode: "off",
+          now: "2026-07-06T00:00:00.000Z",
+          reason: "remember_tool",
+          scopeDigest: "scope:demo",
+          source: "assistant",
+        },
+      );
+      ledger = markWritebackAuditCommitted(ledger, {
+        candidateKey: "candidate:remember-tool",
+        eventId,
+        memoryIds: ["mem-1"],
+        now: "2026-07-06T00:00:01.000Z",
+      });
+      await writeInstalledHostWritebackLedger("claude", homeRoot, ledger);
+
+      const reread = await readInstalledHostWritebackLedger("claude", homeRoot);
+      expect(reread.auditEvents).toEqual([
+        expect.objectContaining({
+          command: "remember-tool",
+          eventId,
+          memoryIds: ["mem-1"],
+          mode: "off",
+          status: "committed",
+        }),
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+    }
+  });
 });

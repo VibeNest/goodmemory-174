@@ -50,18 +50,27 @@ Those were the fastest honest paths; the independent-judge path was infra-blocke
 like LoCoMo's neural-embedding path.
 
 Current verdict after BEAM/LoCoMo promotion (2026-07-05): BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable and README-promoted through `benchmark-claims/*.json` plus `gate:public-benchmark-claim --strict`.
-ImplicitMemBench remains internal / blocked evidence because reproducibility,
-dataset-source/license, and same-model judge-bias blockers are still present.
+ImplicitMemBench remains internal / blocked evidence because the same-model
+judge-bias blocker is still present.
 Phase 61 Full-300 rerun evidence is now protected by strict scalar parsing:
 `eval:phase-61-full300` rejects duplicate benchmark/output/run/budget selectors,
 requires a single path-segment `--run-id`, requires canonical positive integer
 budgets, and rejects empty or whitespace-padded ImplicitMemBench root/env
 fallbacks before launching live shards. This hardens internal reruns only; it
 does not remove the ImplicitMemBench public-claim blockers.
-The 2026-07-06 ad hoc rerun `run-phase61-full300-rerun-20260706-current`
-completed against the repo fixture root because the current environment did not
-provide the full external root; it covered 4 cases, not 300, and is not
-comparable to the older Full-300 declaration.
+The 2026-07-06 fixture-root ad hoc rerun
+`run-phase61-full300-rerun-20260706-current` covered only 4 cases, not 300, and
+is smoke-scale only. The same-day full-root rerun
+`run-phase61-full300-rerun-20260706-codex-current` used `/tmp/ImplicitMemBench`
+at upstream `927413bf3f5389bb47c94c2a0ba987e435b101b8` (dataset CC BY 4.0,
+code MIT), completed all 300 benchmark cases with 0 execution failures, and
+measured best
+official-comparable GoodMemory full-300 score 212.45/300 = 0.7081666667
+(`goodmemory-distilled-feedback+controlled-priming`), raw 179.45/300 =
+0.5981666667, distilled blocking 154/200 = 0.77, and baseline 123/300 = 0.41.
+This refreshes internal research evidence only; it clears the old
+dataset-source/license uncertainty but leaves the same-model judge blocker, so
+ImplicitMemBench is still not README-promotable.
 
 
 Tasks

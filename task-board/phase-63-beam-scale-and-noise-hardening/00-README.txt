@@ -96,22 +96,44 @@ Current Task Queue
    Local pre-live contradiction wording now also preserves weak affirmative
    actions such as registered/recommended/planned/invited instead of upgrading
    them to completion.
-5. Revisit instruction_following 27 through noise budgeting because the latest
+5. Source-covered preference/summarization follow-up is now narrowed by
+   `run-phase63-beam-live-slice-pref-summary-source-covered-20260706-current`:
+   7/9 correct, evidence recall 1.0, `executionFailures: 0`. Analyzer
+   `run-phase63-beam-live-answer-gap-pref-summary-source-covered-20260706-current`
+   leaves `18:preference_following:2` as a preference-constraint framing row
+   and `14:summarization:2` as a structured summary / expected-answer
+   compatibility row. Preference guardrails now cover generic morning-routine
+   "ways" answers and noisy practical/logical decision-preference answers. The
+   full 9-row rerun
+   `run-phase63-beam-live-slice-pref-summary-source-covered-preference-ways-current`
+   stayed 7/9 because of live variance, while targeted validation
+   `run-phase63-beam-live-slice-preference-two-row-guardrails-current` scored
+   2/2 with `executionFailures: 0` and analyzer
+   `run-phase63-beam-live-answer-gap-preference-two-row-guardrails-current`
+   had zero wrong rows. Follow-up analyzer
+   `run-phase63-beam-live-answer-gap-pref-summary-source-covered-source-audit-current`
+   keeps `12:preference_following:1` in the answer-time preference lane, but
+   reroutes `14:summarization:2` to evidence-source selection:
+   `dominantSourceCoverageStatus=expected-cues-outside-source`, one
+   source-coverage warning, and expected cue `planning resource` at chat 143
+   outside declared evidence ids [4, 9, 13]. Do not promote this to closure or
+   trigger a full rerun.
+6. Revisit instruction_following 27 through noise budgeting because the latest
    analyzer still shows full-recall-noisy failures after the instruction
    constraint framing.
-6. Return to recall selection only for missing-evidence families.
-7. Validate answer-time gains against Phase 64 MemoryAgentBench CR before
+7. Return to recall selection only for missing-evidence families.
+8. Validate answer-time gains against Phase 64 MemoryAgentBench CR before
    treating any BEAM gain as general.
-8. Keep missing-context abstention wording topic-specific in focused live
+9. Keep missing-context abstention wording topic-specific in focused live
    prompts, and keep it ASCII-only so prompt text remains stable across local
    tooling and logs.
-9. Keep base `eval:phase-63` selectors strict: scalar source/output/run flags
+10. Keep base `eval:phase-63` selectors strict: scalar source/output/run flags
    such as `--benchmark-root`, `--limit`, `--mode`, `--offset`, `--output-dir`,
    `--run-id`, and `--scale` must stay single-valued before smoke/full report
    generation, while `--case-id`, `--profile`, and `--question-type` remain
    repeatable. Output `--run-id` values must also be a single path segment
    before deriving smoke/full report directories.
-10. Keep focused live-slice selectors strict: repeated `--answer-gap-bucket`,
+11. Keep focused live-slice selectors strict: repeated `--answer-gap-bucket`,
    `--answer-gap-source-coverage-status`, and `--case-id` values must be
    present, unique, canonical, and validated before reading answer-gap or
    benchmark files. Live-slice and live-closure scalar source/output flags such

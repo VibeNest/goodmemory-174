@@ -111,8 +111,18 @@ Next
   three-row noisy-full-recall replay retained the existing 1/3 narrow win, and
   the two remaining synthesis near-misses are classified as balanced
   partial-overlap full-recall candidate rows; default retrieval still retrieves
-  0/2. Treat this as answer-synthesis / label-compatibility queue evidence, not
-  default promotion.
+  0/2. The direct two-row normal-context replay
+  `locomo-multihop-full-recall-balanced-near-miss-reanswer-current` and
+  gold-evidence-only replay
+  `locomo-multihop-full-recall-balanced-near-miss-reanswer-gold-only-current`
+  both scored 0/2 with full evidence recall and `executionFailures: 0`; delta
+  `locomo-multihop-full-recall-balanced-normal-vs-gold-only-delta-current`
+  shows no improvements or regressions, and the follow-up label artifact keeps
+  both rows in balanced partial-overlap full-recall near misses. Its row-level
+  `goldEvidenceSupport` exact-token diagnostic shows partial declared-evidence
+  support, not full support: `conv-48:q83` support recall 0.636 and `conv-49:q29`
+  support recall 0.583. Treat this as source-support / answer-synthesis /
+  label-compatibility queue evidence, not default promotion.
 - For open_domain full-recall wrong rows, treat gold-evidence-only replay as a
   diagnostic, not a fix: the current 13-row strict source scored 3/13, normal
   reanswer fell to 1/13, and gold-evidence-only rose only to 4/13 with one
@@ -124,7 +134,10 @@ Next
   separate label-compatibility bucket. The near-miss artifact now emits full-recall
   `repairJobs` for the 3-row rationale-bearing bucket and the
   1-row balanced bucket, and `eval:phase-65-smoke` can filter those jobs by
-  `--repair-job-diagnosis` and `--repair-job-retrieval-bucket`. The
+  `--repair-job-diagnosis` and `--repair-job-retrieval-bucket`. Its
+  `goldEvidenceSupport` diagnostic averages 0.2352272727 declared-evidence
+  support recall across those 4 rows, with 0 full-support, 3 partial-support,
+  and 1 zero-support row, so the residual queue is not prompt-only. The
   near-miss artifact's `sourceReports[].questionCount` records the selected
   near-miss row count, not the full candidate report size, so lineage matches the
   emitted `questionIds`. The
@@ -144,7 +157,9 @@ Next
   partial overlaps, 1 over-specified answer, 2 under-specified answers, with
   2 full-recall, 5 partial-recall, and 3 zero-recall rows. The 10-row loader
   proof consumed the artifact with `executionFailures: 0`, but default retrieval
-  found 0/10 evidence recall and 44 noise turns. Use this as the fuller
+  found 0/10 evidence recall and 44 noise turns. Its `goldEvidenceSupport`
+  diagnostic averages 0.6368856634 declared-evidence support recall, with
+  1 full-support and 9 partial-support rows. Use this as the fuller
   multi_hop repair queue; it points to candidate-pool admission plus
   label/answer-contract work, not a default-retrieval recovery.
 - Do not use `locomo-multihop-near-miss-top32-add8-current` as a no-floor

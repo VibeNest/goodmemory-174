@@ -28,6 +28,7 @@ import {
   readInstalledHostProgressiveRecordCache,
   resolveInstalledHostProgressiveScopeDigest,
 } from "./hostProgressiveRecall";
+import { recordRememberToolWriteback } from "./hostWritebackRuntime";
 import {
   resolveStandaloneMcpContext,
   type StandaloneMcpConfig,
@@ -62,6 +63,9 @@ function readPackageVersion(): string {
 export interface GoodMemoryMcpServerDependencies
   extends InstalledHostContextDependencies {
   createMemory?: (config: GoodMemoryConfig) => GoodMemory;
+  // Overrides the installed-host root (config + writeback audit ledger).
+  // Defaults to the GOODMEMORY_HOME/home-directory chain.
+  homeRoot?: string;
 }
 
 const TOOL_SCOPE_SCHEMA = {
@@ -118,7 +122,11 @@ export function createGoodMemoryMcpServer(
       };
     }
     return loadInstalledHostExecutionContext(
-      { ...args, host: input.host },
+      {
+        ...args,
+        ...(dependencies.homeRoot ? { homeRoot: dependencies.homeRoot } : {}),
+        host: input.host,
+      },
       dependencies,
     );
   };
@@ -475,7 +483,7 @@ export function createGoodMemoryMcpServer(
           readOnlyHint: false,
         },
         description:
-          "Use this to persist a memory-worthy statement as durable GoodMemory. The write is governed: classification and dedupe may reject or merge it (see accepted/rejected and per-event outcomes in the result). If accepted is 0, the explanation field says why.",
+          "Use this to persist a memory-worthy statement as durable GoodMemory. The write is governed: classification and dedupe may reject or merge it (see accepted/rejected and per-event outcomes in the result). If accepted is 0, the explanation field says why. Accepted installed-mode writes are also recorded in the writeback audit ledger; the result's auditEventId works with `goodmemory <host> writeback inspect` and `goodmemory <host> writeback forget --event-id <id>`.",
         inputSchema: {
           ...TOOL_SCOPE_SCHEMA,
           content: z.string().min(1).describe("The memory-worthy statement to persist."),
@@ -524,6 +532,25 @@ export function createGoodMemoryMcpServer(
           ],
           scope: context.scope,
         });
+        let auditEventId: string | undefined;
+        if (input.standalone === undefined && result.accepted > 0) {
+          try {
+            const recorded = await recordRememberToolWriteback({
+              content: args.content,
+              events: result.events,
+              ...(dependencies.homeRoot ? { homeRoot: dependencies.homeRoot } : {}),
+              host: input.host,
+              mode: context.writeback.mode,
+              scope: context.scope,
+              ...(args.sessionId ? { sessionId: args.sessionId } : {}),
+              source: args.role ?? "assistant",
+            });
+            auditEventId = recorded?.eventId;
+          } catch {
+            // Fail-open: the durable write already succeeded; a ledger
+            // hiccup must not fail the tool call.
+          }
+        }
         const outcomes = result.events.map((event) => ({
           ...(event.memoryId !== undefined ? { memoryId: event.memoryId } : {}),
           memoryType: event.memoryType,
@@ -532,6 +559,7 @@ export function createGoodMemoryMcpServer(
         }));
         return buildMcpStructuredResult({
           accepted: result.accepted,
+          ...(auditEventId ? { auditEventId } : {}),
           events: result.events,
           ...(result.accepted === 0
             ? {

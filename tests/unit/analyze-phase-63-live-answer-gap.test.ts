@@ -381,10 +381,55 @@ describe("phase-63 live answer-gap analyzer", () => {
     });
   });
 
+  it("warns when expected cues are missing from the whole source case", () => {
+    const turn = (id: number, content: string): BeamChatTurn => ({
+      content,
+      id,
+      index: "1,1",
+      questionType: "summarization",
+      role: "assistant",
+      timeAnchor: "March-15-2024",
+    });
+    const warnings = findPhase63SourceCoverageWarnings({
+      expectedAnswer:
+        "The project started with initial planning and resource gathering, then moved into development, testing, and review.",
+      sourceCase: {
+        chat: [
+          [
+            turn(
+              4,
+              "Crystal wanted morning movie recommendations for family viewing.",
+            ),
+            turn(
+              9,
+              "The assistant suggested classic musicals and family-friendly films.",
+            ),
+          ],
+        ],
+        evidenceChatIds: [4, 9],
+      },
+    });
+
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings.every((warning) => warning.matchingChatIdsOutsideEvidence.length === 0)).toBe(
+      true,
+    );
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [4, 9] },
+        sourceCoverageWarnings: warnings,
+      }),
+    ).toBe("expected-cues-missing-from-source");
+  });
+
   it("classifies source coverage audit status", () => {
     const warning = {
       cue: "freelance contract",
       matchingChatIdsOutsideEvidence: [11],
+    };
+    const missingWarning = {
+      cue: "project development",
+      matchingChatIdsOutsideEvidence: [],
     };
     expect(
       resolvePhase63SourceCoverageStatus({
@@ -403,6 +448,12 @@ describe("phase-63 live answer-gap analyzer", () => {
         sourceCoverageWarnings: [warning],
       }),
     ).toBe("expected-cues-outside-source");
+    expect(
+      resolvePhase63SourceCoverageStatus({
+        sourceCase: { chat: [], evidenceChatIds: [10] },
+        sourceCoverageWarnings: [missingWarning],
+      }),
+    ).toBe("expected-cues-missing-from-source");
     expect(
       resolvePhase63SourceCoverageStatus({
         sourceCase: { chat: [], evidenceChatIds: [] },
@@ -572,6 +623,7 @@ describe("phase-63 live answer-gap analyzer", () => {
     expect(report.recallStatusCounts.abstention).toBe(1);
     expect(report.sourceCoverageStatusCounts).toMatchObject({
       "covered-or-no-warning": 0,
+      "expected-cues-missing-from-source": 0,
       "expected-cues-outside-source": 1,
       "no-declared-source-ids": 0,
       "not-audited": 6,
@@ -605,6 +657,16 @@ describe("phase-63 live answer-gap analyzer", () => {
         ?.sourceCoverageStatus,
     ).toBe("expected-cues-outside-source");
     expect(report.summary.attributedShare).toBe(1);
+    const summarizationRepair = report.topRepairFamilies.find(
+      (repair) => repair.bucket === "summarization",
+    );
+    expect(summarizationRepair).toMatchObject({
+      dominantSourceCoverageStatus: "expected-cues-outside-source",
+      sourceCoverageWarningCases: 1,
+    });
+    expect(summarizationRepair?.suggestedLane).toContain(
+      "evidence-source selection",
+    );
     expect(report.topRepairFamilies[0].count).toBe(2);
     expect(written["/tmp/gap.json"]).toContain("topRepairFamilies");
   });
