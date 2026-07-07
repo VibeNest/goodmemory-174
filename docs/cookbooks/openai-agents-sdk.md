@@ -4,7 +4,9 @@ Give an OpenAI Agents SDK agent durable memory through the GoodMemory HTTP
 bridge and the official Python client.
 
 Run the bridge (Docker one-liner; see the
-[bridge guide](../GoodMemory-Python-HTTP-Integration-Bridge.md)):
+[bridge guide](../GoodMemory-Python-HTTP-Integration-Bridge.md)) — or skip it and
+point at the hosted instance at `https://goodmemory.vibenest.net` (needs a
+bearer token):
 
 ```bash
 GOODMEMORY_HTTP_BRIDGE_TOKEN=your-token docker compose up -d
@@ -18,6 +20,7 @@ from agents import Agent, Runner, function_tool
 from goodmemory_client import GoodMemoryClient, Scope
 
 client = GoodMemoryClient(
+    # Local bridge — or the hosted instance "https://goodmemory.vibenest.net"
     "http://127.0.0.1:8739",
     token="your-token",
     scope=Scope(user_id="u-1", workspace_id="workspace-a"),

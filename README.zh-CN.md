@@ -179,7 +179,9 @@ GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory
 
 你的服务仍然负责 auth、产品策略、UI 和模型编排。GoodMemory 负责 memory
 storage、recall、context assembly、write governance，以及 audit/export/delete。
-先看 [Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge)，再看
+先看 [Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge)——官方 Python
+客户端（`pip install goodmemory-client`）和一个托管 bridge 实例
+`goodmemory.vibenest.net` 都在那里——再看
 [Runtime 与存储](#runtime-与存储) 选择 SQLite/Postgres。
 
 在一轮模型调用中，GoodMemory 做四件事：
@@ -775,6 +777,12 @@ headers，调用 `POST /memory/recall-context`、`/memory/remember`、
 `memoryId` 的 `/memory/revise`。TypeScript bridge API 从 `goodmemory/http`
 导入。
 
+要通过 bridge 提供推荐检索 preset（语义候选 union + BM25），启动时设置
+`GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET=recommended`（或 `--retrieval-preset
+recommended`）；它需要一个 embedding 端点（`GOODMEMORY_EMBEDDING_*`）。此后
+recall 请求需带 `strategy: "hybrid"` 才会用到它——其他策略一律走确定性的
+rules-only 地板。
+
 也可以用 Docker 一条命令部署（自带 SQLite volume；加 compose 的 `postgres`
 profile 可切 pgvector）：
 
@@ -784,10 +792,18 @@ curl -fsS http://127.0.0.1:8739/healthz
 ```
 
 `GET /healthz` 是免认证的存活探针，供容器、负载均衡与客户端 ready-wait 使用。
-Python 后端建议使用官方客户端——`pip install goodmemory-client`——它从一个
+Python 后端建议使用官方客户端——`pip install goodmemory-client`（[PyPI](https://pypi.org/project/goodmemory-client/)）——它从一个
 `Scope` 对象派生 caller headers、逐端点镜像冪等键规则，并在 recall 结果上暴露
 `routing`（静默的策略降级由此可见）。详见
 [docs/GoodMemory-Python-HTTP-Integration-Bridge.md](./docs/GoodMemory-Python-HTTP-Integration-Bridge.md)。
+
+**托管实例。** 一个在线的 GoodMemory bridge 运行在
+`https://goodmemory.vibenest.net`（存活探针：
+[`/healthz`](https://goodmemory.vibenest.net/healthz)）。用
+`GOODMEMORY_BRIDGE_HOST` / `--goodmemory-host`（或 `GoodMemoryClient` 的 host
+参数）把客户端指向它即可，替代本地 URL；它强制 bearer-token 鉴权，需自带
+service token。这是一个单进程、可写的 API——对外公开前请加上限流与可丢弃的
+scope 数据，且切勿公开共享的写 token。
 
 ## Host Adapter API
 
@@ -1071,5 +1087,6 @@ Operator guidance：
 - Release checklist：[docs/GoodMemory-v1-Release-Checklist.md](./docs/GoodMemory-v1-Release-Checklist.md)
 - 历史 quality-gate archive：[docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)
 - 历史 v1 snapshot：[docs/GoodMemory-v1-Quality-Gate.md](./docs/GoodMemory-v1-Quality-Gate.md)
+- 框架 cookbook——在 agent 框架里接入持久记忆：[LangGraph](./docs/cookbooks/langgraph.md) · [CrewAI](./docs/cookbooks/crewai.md) · [OpenAI Agents SDK](./docs/cookbooks/openai-agents-sdk.md)
 
 执行顺序、后续开放工作和 phase-specific acceptance boundaries 见 [task-board/00-README.txt](./task-board/00-README.txt)。历史设计输入不再视为 current truth，统一通过 `docs/README.md` 路由。

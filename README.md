@@ -229,7 +229,9 @@ then calls:
 Your service still owns auth, product policy, UI, and model orchestration.
 GoodMemory owns memory storage, recall, context assembly, write governance, and
 audit/export/delete behavior. Start with
-[Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge), then check
+[Python/FastAPI HTTP Bridge](#pythonfastapi-http-bridge) — the official Python
+client (`pip install goodmemory-client`) and a hosted bridge instance at
+`goodmemory.vibenest.net` are documented there — then check
 [Runtime And Storage](#runtime-and-storage) for SQLite/Postgres choices.
 
 During a model turn, GoodMemory does four jobs:
@@ -938,6 +940,12 @@ scope headers to `POST /memory/recall-context`, `/memory/remember`,
 `/memory/feedback`, `/memory/export`, `/memory/forget`, and targeted
 `/memory/revise`. The TypeScript bridge API is available from `goodmemory/http`.
 
+To serve the recommended retrieval preset (semantic candidate union + BM25)
+over the bridge, start it with `GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET=recommended`
+(or `--retrieval-preset recommended`); it requires an embedding endpoint
+(`GOODMEMORY_EMBEDDING_*`). Recall requests then ask for `strategy: "hybrid"`
+to use it — any other strategy stays on the deterministic rules-only floor.
+
 Or deploy it with Docker in one command (SQLite volume included; add the
 compose `postgres` profile for pgvector):
 
@@ -948,10 +956,20 @@ curl -fsS http://127.0.0.1:8739/healthz
 
 `GET /healthz` is the auth-free liveness endpoint for containers, load
 balancers, and client ready-waits. Python backends should use the official
-client — `pip install goodmemory-client` — which derives the caller headers
-from one `Scope` object, mirrors the per-endpoint idempotency rules, and
-surfaces recall `routing` (so silent strategy downgrades are visible). Details:
+client — `pip install goodmemory-client` ([PyPI](https://pypi.org/project/goodmemory-client/)) —
+which derives the caller headers from one `Scope` object, mirrors the
+per-endpoint idempotency rules, and surfaces recall `routing` (so silent
+strategy downgrades are visible). Details:
 [docs/GoodMemory-Python-HTTP-Integration-Bridge.md](./docs/GoodMemory-Python-HTTP-Integration-Bridge.md).
+
+**Hosted instance.** A live GoodMemory bridge runs at
+`https://goodmemory.vibenest.net` (liveness:
+[`/healthz`](https://goodmemory.vibenest.net/healthz)). Point any client at it
+via `GOODMEMORY_BRIDGE_HOST` / `--goodmemory-host` (or the `GoodMemoryClient`
+host argument) instead of a local URL; it enforces bearer-token auth, so bring
+your own service token. It is a single-process, write-capable API — before
+exposing one publicly, add rate limiting and disposable-scope data, and never
+publish a shared write token.
 
 ## Host Adapter API
 
@@ -1276,6 +1294,10 @@ For the detailed current-state and evidence map, use
   [docs/archive/quality-gates/README.md](./docs/archive/quality-gates/README.md)
 - Historical v1 snapshot:
   [docs/GoodMemory-v1-Quality-Gate.md](./docs/GoodMemory-v1-Quality-Gate.md)
+- Framework cookbooks — durable memory in an agent framework:
+  [LangGraph](./docs/cookbooks/langgraph.md) ·
+  [CrewAI](./docs/cookbooks/crewai.md) ·
+  [OpenAI Agents SDK](./docs/cookbooks/openai-agents-sdk.md)
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order,
 open follow-up work, and phase-specific acceptance boundaries. Archived design
