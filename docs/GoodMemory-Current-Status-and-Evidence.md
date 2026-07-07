@@ -4,8 +4,8 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 
 ## Stable OSS Surface
 
-- Current stable package line: v0.3.x.
-- Public API remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`.
+- Current stable package line: 0.5.x (published 0.5.1 on npm).
+- Core public workflow remains centered on `createGoodMemory`, `remember`, `recall`, `buildContext`, `feedback`, `forget`, `exportMemory`, and `deleteAllMemory`; advanced host/operator facades such as runtime, jobs, reviseMemory, and runMaintenance stay explicit.
 - Package subpaths `goodmemory`, `goodmemory/ai-sdk`, `goodmemory/host`, `goodmemory/http`, and `goodmemory/runtime-kit` resolve through compiled `dist/` artifacts and emitted type declarations.
 - Storage resolution is automatic: explicit config wins, configured Postgres can be used when bootstrap succeeds, Bun gets local SQLite, and unsupported Node zero-config local SQLite falls back to in-memory with observable runtime inspection.
 - The official CLI uses the package bin. The global CLI invocation path is `goodmemory ...` after `npm install -g goodmemory`; project-local installs use `npx goodmemory`, `npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory ...`. Non-version command execution remains Bun-backed today.

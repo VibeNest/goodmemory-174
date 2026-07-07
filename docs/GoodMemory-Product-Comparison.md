@@ -114,6 +114,11 @@ GoodMemory already has credible benchmark rows and local integration surfaces.
 The next product work should make those strengths obvious to an outside
 engineer.
 
+> Update: items 2 (coding-agent / host-memory demo) and 3 (reproducible evidence
+> pack — `REPRODUCING.md` + `benchmark-claims/`) have since shipped, and item 1 is
+> largely available via the `goodmemory inspect` / `trace` / `export` CLI. Item 4
+> (temporal/entity graph primitives) remains the main open item.
+
 1. Build a short memory inspector loop.
    The path should be: install, remember, recall, inspect why it recalled,
    undo/forget, export. This is the clearest differentiator from memory black

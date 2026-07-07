@@ -24,13 +24,13 @@ docs/
 ├── README.md                                                 # documentation router and archive policy
 ├── GoodMemory-Current-Status-and-Evidence.md                 # current public surface and canonical evidence
 ├── GoodMemory-First-Principles-and-Reference-Architecture.md  # canonical design, core beliefs, operating principles
-├── GoodMemory-Implicit-Behavioral-Adaptation-Eval.md          # Phase 24 internal eval design and scoring reference
-├── GoodMemory-OSS-Architecture-v1.md                          # top-level map of domains, packages, and boundaries
+├── GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md    # ImplicitMemBench Full-300 research summary (0.691 claim)
+├── GoodMemory-OSS-Architecture-v1.md                          # historical v1 map of domains, packages, and boundaries
 ├── GoodMemory-PRD.md                                          # product scope and behavior contract
 ├── GoodMemory-TDD-and-Evaluation-Strategy.md                  # test pyramid, eval design, fixture strategy
 ├── GoodMemory-v1-Quality-Gate.md                              # historical v1 verification snapshot
-├── GoodMemory-v1-Release-Checklist.md                         # release readiness checklist
-├── GoodMemory-Unified-Self-Evolving-Roadmap.md                # canonical roadmap after the v1 core
+├── GoodMemory-v1-Release-Checklist.md                         # historical release readiness baseline
+├── GoodMemory-Unified-Self-Evolving-Roadmap.md                # historical roadmap after the v1 core
 ├── archive/quality-gates/README.md                            # archived phase closure summaries and gate index
 ├── archive/design-inputs/                                     # superseded drafts, not current truth
 ├── archive/reference-corpus/                                  # copied research/source material, targeted lookup only
@@ -48,7 +48,8 @@ adr/
 ├── ADR-003-runtime-context-controls.txt
 ├── ADR-004-maintenance-engine.txt
 ├── ADR-005-scenario-fitted-recall-boundary.txt        # dual-metric recall + scenario-rule admission
-└── ADR-006-module-layering-and-shared-contracts.txt   # domain/ contract home, provider ↛ eval
+├── ADR-006-module-layering-and-shared-contracts.txt   # domain/ contract home, provider ↛ eval
+└── ADR-007-python-client-and-docker-distribution.txt   # Python client + Docker distribution
 
 src/
 ├── index.ts                                                   # package root exports
@@ -57,6 +58,7 @@ src/
 ├── domain/                                                    # taxonomy, scope, provenance, core records
 ├── remember/                                                  # write path: extraction, classification, candidate handling
 ├── recall/                                                    # retrieval planning, scoring, selection, context assembly
+├── answer/                                                     # answer evidence-pack composition and operation guides
 ├── runtime/                                                   # session-scoped context services and spillover controls
 ├── maintenance/                                               # decay, dream, consolidation, and maintenance runners
 ├── verify/                                                    # verification policy for stale or inferred memory
@@ -94,8 +96,8 @@ scripts/ and examples/ hold developer utilities, CLI/eval runners, and reference
 Use `docs/README.md` first when choosing which document to open. Use
 `docs/GoodMemory-Current-Status-and-Evidence.md` for the current stable repo
 view, `docs/GoodMemory-First-Principles-and-Reference-Architecture.md` for
-product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for module
-boundaries, `task-board/00-README.txt` for execution order, and
+product principles, `docs/GoodMemory-OSS-Architecture-v1.md` for the historical
+v1 module-boundary map, `task-board/00-README.txt` for execution order, and
 `docs/archive/quality-gates/README.md` plus `reports/quality-gates/` and
 `reports/eval/` for verification evidence. Scored quality and gap tracking live
 in the phase board and generated eval artifacts, not in `AGENTS.md`. Superseded

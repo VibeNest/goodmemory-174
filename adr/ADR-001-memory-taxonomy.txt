@@ -3,7 +3,7 @@ ADR-001: Memory Taxonomy
 
 Status
 ------
-Draft
+Accepted (backfilled 2026-07-07 to document the shipped decision)
 
 Context
 -------
@@ -11,8 +11,41 @@ GoodMemory requires a stable taxonomy that separates runtime, semantic, episodic
 
 Decision
 --------
-To be filled during implementation.
+1. Memory is organized into five PLANES (src/domain/taxonomy.ts, MemoryPlane):
+   runtime, semantic, episodic, procedural, derived. The plane is the coarse
+   retention/lifecycle tier; the KIND is the fine-grained record type.
+
+2. Thirteen memory KINDS map onto those planes (MEMORY_KIND_TO_PLANE):
+   - runtime:    session_buffer, working_memory, session_journal, artifact_spill
+   - semantic:   profile, preference, fact, reference
+   - episodic:   episode, decision, open_loop
+   - procedural: feedback
+   - derived:    insight
+   Kind->plane is a total, closed mapping. isMemoryKind / getMemoryPlane are the
+   only sanctioned ways to validate a kind and resolve its plane, and
+   getMemoryPlane throws on an unknown kind, so an unmapped kind is a hard error
+   rather than silent misclassification.
+
+3. The taxonomy lives in the domain/ leaf (a zero-import module, see ADR-006) so
+   every layer can depend on it without creating a cycle. A new kind is added by
+   extending the union AND the plane map together; the closed Record type turns a
+   missing mapping into a compile error.
 
 Consequences
 ------------
-To be filled during implementation.
++ A single, closed source of truth for what a memory IS and which retention tier
+  it belongs to; storage, recall, remember, and maintenance all key off it.
++ Runtime-plane kinds (session_* / working_memory / artifact_spill) are cleanly
+  separable from durable semantic/episodic memory, which is what lets the runtime
+  context controls (ADR-003) and maintenance decay (ADR-004) treat them
+  differently.
+- The union is intentionally finite: a genuinely new memory type is a taxonomy
+  change (union + plane map + review), not an ad-hoc string. This friction is
+  intended.
+
+Related
+-------
+- src/domain/taxonomy.ts (MemoryPlane, MemoryKind, MEMORY_KIND_TO_PLANE)
+- src/domain/records.ts (per-kind record shapes)
+- ADR-003 (runtime context controls), ADR-004 (maintenance engine),
+  ADR-006 (domain/ as the shared-contract leaf)

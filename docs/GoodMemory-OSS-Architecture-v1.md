@@ -7,6 +7,12 @@
 **Status:** Proposed  
 **Audience:** OSS maintainers, SDK integrators, AI product teams
 
+> **Historical v1 architecture map.** The high-level domain/module boundaries
+> below still hold, but the "Proposed / v1-draft" status and the v0.1/v0.2/v0.3
+> scope language predate the shipped 0.5.1 surface (`src/answer/` evidence packs,
+> the evolution layer, host-memory experience, standalone MCP). For the current
+> shipped surface see `docs/GoodMemory-Current-Status-and-Evidence.md`.
+
 ---
 
 ## 1. 项目定位

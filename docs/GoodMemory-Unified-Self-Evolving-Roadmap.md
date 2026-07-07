@@ -7,6 +7,11 @@ Supersedes:
 - `docs/archive/design-inputs/GoodMemory-MemPalace-对标分析与自进化增强计划.md`
 - `docs/archive/design-inputs/GoodMemory-Self-Evolving-Memory-Enhancement-Plan.md`
 
+> **Largely delivered / historical.** Waves 1–6 of this roadmap shipped across
+> phases 14–23 (see `docs/archive/quality-gates/`). This file is retained as the
+> historical canonical roadmap; for the current shipped surface and evidence see
+> `docs/GoodMemory-Current-Status-and-Evidence.md`.
+
 ## 1. 这份文档解决什么问题
 
 这份文档的目的，不是引入第三条平行路线，而是把现有两份自进化计划合并成一份可执行、可对齐 task-board、不会留下结构性技术债务的统一 roadmap。

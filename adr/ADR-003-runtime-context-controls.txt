@@ -3,7 +3,7 @@ ADR-003: Runtime Context Controls
 
 Status
 ------
-Draft
+Accepted (backfilled 2026-07-07 to document the shipped decision)
 
 Context
 -------
@@ -11,8 +11,38 @@ GoodMemory needs an explicit stance on optional runtime context controls such as
 
 Decision
 --------
-To be filled during implementation.
+1. Runtime context controls are OPT-IN and live behind the runtime/ layer and the
+   "goodmemory/runtime-kit" subpath, separate from the durable memory API. They
+   operate on the runtime-plane kinds from ADR-001 (session_buffer,
+   working_memory, session_journal, artifact_spill) and never silently mutate
+   durable semantic/episodic memory.
+
+2. Two controls are provided:
+   - Artifact spillover (src/runtime/spillover.ts): large session artifacts are
+     spilled to an artifact_spill collection with a source reference, keeping the
+     working context small while staying retrievable.
+   - Session context service (src/runtime/contextService.ts): maintains the
+     SessionBuffer / SessionJournal / working-memory snapshot and salvages salient
+     content on pre-compaction and session-end (PreCompactSalvageInput,
+     SessionEndSalvageInput), so a host compaction or turn boundary does not drop
+     durable-worthy content.
+
+3. These are host/runtime concerns wired by the host and the runtime-kit; the core
+   createGoodMemory memory path does not require them.
 
 Consequences
 ------------
-To be filled during implementation.
++ A host can bound context growth (spillover) and survive compaction/session
+  boundaries (salvage) without the core memory API taking on session-lifecycle
+  responsibilities.
++ Runtime-plane churn stays isolated from durable memory, matching the taxonomy
+  planes and keeping maintenance/decay policy (ADR-004) simple.
+- Two more moving parts a host integrator can choose to adopt; they earn their
+  keep only when the host has a session/compaction lifecycle, and are off by
+  default for the plain library path.
+
+Related
+-------
+- src/runtime/spillover.ts, src/runtime/contextService.ts, src/runtime/public.ts
+- package.json "goodmemory/runtime-kit"
+- ADR-001 (runtime-plane kinds), ADR-004 (maintenance engine)

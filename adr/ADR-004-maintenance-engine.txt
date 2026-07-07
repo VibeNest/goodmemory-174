@@ -3,7 +3,7 @@ ADR-004: Maintenance Engine
 
 Status
 ------
-Draft
+Accepted (backfilled 2026-07-07 to document the shipped decision)
 
 Context
 -------
@@ -11,8 +11,41 @@ GoodMemory requires background maintenance capabilities such as decay, consolida
 
 Decision
 --------
-To be filled during implementation.
+1. Maintenance is a set of named, individually-reportable jobs behind a single
+   runner (src/maintenance/runner.ts: MaintenanceJobName, MaintenanceRunnerConfig,
+   MaintenanceJobReport). Running maintenance is opt-in. Callers can pass an
+   explicit job list, and when they do not, the runner uses the shipped default
+   deterministic upkeep suite. Every job reports what it did, so maintenance is
+   observable rather than an opaque background mutation.
+
+2. The shipped jobs:
+   - Decay (src/maintenance/decay.ts): computeDecayedPriority lowers a memory's
+     effective priority over time from base priority, importance, age, and source
+     method — a deterministic function, not an LLM call.
+   - Quality repair signals (src/maintenance/qualityRepairSignals.ts): typed
+     failure labels (stale_recall, wrong_recall, ...) and review outcomes that
+     feed contradiction/quality repair instead of deleting memory outright.
+   - Dream (src/maintenance/dream.ts): consolidation-style jobs are gated behind
+     an explicit scope gate (DreamMaintenanceScopeGate / DreamMaintenanceRunner),
+     so heavier provider-backed consolidation only runs where allowed.
+
+3. Maintenance changes memory lifecycle/priority through the domain record helpers
+   (isActiveMemoryLifecycle, isFactExpired, ...), keeping decay/expiry semantics
+   in the domain leaf rather than scattered across jobs.
 
 Consequences
 ------------
-To be filled during implementation.
++ Background upkeep (decay, repair, consolidation) exists without a monolithic
+  "GC": jobs are named, reported, and selectable by the caller.
++ Deterministic decay is provider-free and cheap; only dream-style consolidation
+  needs a provider, and it is gated — matching the local-first / embedding-free
+  default posture.
+- A runner plus several jobs to schedule and reason about; a consumer that wants
+  no maintenance simply does not run it, and dream jobs require an explicit scope
+  decision before any provider-backed consolidation.
+
+Related
+-------
+- src/maintenance/runner.ts, decay.ts, dream.ts, qualityRepairSignals.ts
+- src/domain/records.ts (lifecycle/expiry helpers)
+- ADR-001 (planes/kinds decay treats differently), ADR-005 (recall boundary)

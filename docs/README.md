@@ -10,11 +10,17 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-PRD.md` - product scope and behavioral contract.
 - `GoodMemory-First-Principles-and-Reference-Architecture.md` - stable design
   principles and reference architecture.
-- `GoodMemory-OSS-Architecture-v1.md` - current package/module architecture.
 - `GoodMemory-Recall-Selection-Architecture.md` - recall selection
   orchestration, selector module boundaries, and regression guardrails.
 - `GoodMemory-TDD-and-Evaluation-Strategy.md` - test and eval strategy.
-- `GoodMemory-v1-Release-Checklist.md` - release checklist.
+
+## Architecture And Release Baselines
+
+- `GoodMemory-OSS-Architecture-v1.md` - historical v1 package/module map; use
+  `GoodMemory-Current-Status-and-Evidence.md` for the current shipped surface.
+- `GoodMemory-v1-Release-Checklist.md` - historical v0.2->v1 release baseline;
+  use current status, task-board gates, and release scripts for current release
+  execution.
 
 ## Public Integration Docs
 
@@ -44,6 +50,8 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md` - internal
   ImplicitMemBench research summary. Do not treat it as a release gate.
 - `Sequential Benchmark Hardening Plan.md` - external benchmark sequence.
+- `beam-instruction-following-diagnosis.md` - why BEAM instruction_following
+  0.394 is a design tension (abstention vs world-knowledge), not a shaping bug.
 - `archive/quality-gates/README.md` - historical quality-gate index.
 - `reports/eval/` and `reports/quality-gates/` - generated evidence artifacts.
 

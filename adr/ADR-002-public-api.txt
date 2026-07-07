@@ -3,7 +3,7 @@ ADR-002: Public API
 
 Status
 ------
-Draft
+Accepted (backfilled 2026-07-07 to document the shipped decision)
 
 Context
 -------
@@ -11,8 +11,42 @@ GoodMemory must keep a minimal public API while hiding advanced internal capabil
 
 Decision
 --------
-To be filled during implementation.
+1. The public entrypoint is the createGoodMemory() factory (src/index.ts,
+   src/api/). The core workflow surface is deliberately small: remember, recall,
+   buildContext, feedback, forget, exportMemory, deleteAllMemory. The public
+   GoodMemory instance also exposes named advanced facades (runtime, jobs,
+   reviseMemory, runMaintenance) for hosts and operators that need lifecycle,
+   queued-write, revision, or upkeep controls. Deeper internals (recall
+   selection/scoring, evolution implementation details, provider wiring) are not
+   supported through deep imports or ad-hoc public methods; they are reached
+   through explicit configuration, adapters, package subpaths, or the named
+   facades above.
+
+2. Package entrypoints are a small, stable set of subpaths (package.json
+   "exports"): "goodmemory" (root), "goodmemory/ai-sdk", "goodmemory/host",
+   "goodmemory/http", "goodmemory/runtime-kit". Each resolves through compiled
+   dist/ artifacts with emitted type declarations. Deep imports into src/
+   internals are not a supported contract.
+
+3. Capability is opt-in, not surface area. Behavior upgrades (hybrid retrieval,
+   semantic candidate union, preset "recommended", bm25Ranking, LLM-assisted
+   paths) are enabled by config/adapters or per-call options; the method list
+   does not grow to expose them.
 
 Consequences
 ------------
-To be filled during implementation.
++ Consumers learn one factory and a small core workflow; advanced host/operator
+  controls remain explicit named facades instead of leaking deep internals.
++ Internal layers (recall, evolution, provider, eval) can be reorganized freely
+  as long as the factory, subpaths, and method contract hold — reinforced by the
+  release and type-surface regression tests.
+- Advanced capabilities require reading the setup/integration guides and
+  contracts; this is the accepted trade-off for keeping the beginner path small
+  while still making host/runtime operations public where needed.
+
+Related
+-------
+- src/index.ts, src/api/ (createGoodMemory + contracts)
+- package.json "exports" (subpath entrypoints)
+- tests/release/ (packaging + type-surface regressions)
+- ADR-001 (taxonomy the API operates over), ADR-003 (runtime-kit subpath)
