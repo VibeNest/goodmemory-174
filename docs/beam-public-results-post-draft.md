@@ -1,9 +1,10 @@
-# DRAFT — BEAM 100K end-to-end results: GoodMemory 0.802 (official rubric judge)
+# POSTED — BEAM 100K end-to-end results: GoodMemory 0.802 (official rubric judge)
 
-> Draft for a public post (e.g., a GitHub issue on the BEAM repo mirroring the
-> existing third-party result thread, or a discussion post). DO NOT post
-> without explicit sign-off. Numbers current as of 2026-07-05, GoodMemory
-> commit 577b013.
+> POSTED 2026-07-05 as https://github.com/mohammadtavakoli78/BEAM/issues/14
+> (author hjqcan; body matches this draft verbatim; linked files verified live
+> on GoodMemory main; sits alongside the CEM888.AI #12 and Tree-Native #13
+> third-party datapoints). DO NOT re-post — this file is the archived source.
+> Numbers as of 2026-07-05, GoodMemory commit 577b013.
 
 Following the earlier third-party end-to-end evaluation of the BEAM 100K
 split (400 questions, 20 conversations), here is another datapoint, scored

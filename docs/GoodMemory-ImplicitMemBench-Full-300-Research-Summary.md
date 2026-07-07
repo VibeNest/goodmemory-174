@@ -4,9 +4,10 @@ Initial run date: `2026-04-28`
 
 Latest rerun update: `2026-07-06`
 
-Status: internal research evidence only. This document does not reopen or
-change the accepted Phase 49 claim, and it does not make full ImplicitMemBench
-a release gate.
+Status: public-claim candidate through the 2026-07-06 stored-answer
+cross-version rescore, with fresh answer-regeneration reruns still treated as
+research/drift evidence. This document does not reopen the accepted Phase 49
+claim, and it does not make full ImplicitMemBench a release gate.
 
 The post-Phase-59 full-300 miss reopened Phase 59's internal research
 workstream; the later `phase59-reopen9` follow-up met that reopened research
@@ -1444,12 +1445,11 @@ The current-checkout rerun completed under
   - GoodMemory raw `0`
   - GoodMemory distilled `0`
 
-This refresh is slightly below the May 2026 high-water mark
+This source-answer refresh is slightly below the May 2026 high-water mark
 (`213.26 / 300 = 71.09%`) but within the same band and cleaner than the earlier
-same-day full-root run that had one distilled execution failure. The claim
-boundary remains unchanged: this is internal research evidence only, not a
-public README claim, because the Full-300 score still relies on same-model
-LLM-judge scoring for most scorer families.
+same-day full-root run that had one distilled execution failure. Its 0.7082
+score remains a same-model diagnostic number, not the public README claim. The
+claimable number comes from the stored-answer gpt-5.4 rescore below.
 
 ## 2026-07-06 Postchanges Full-Root Rerun
 
@@ -1492,9 +1492,7 @@ This postchanges rerun is useful drift evidence but should not replace the
 0-failure `run-phase61-full300-rerun-20260706-codex-current` canonical internal
 score. The measured score is lower by `3.40` passed-equivalent points
 (`0.6968333333` vs `0.7081666667`), and the two timeout failures mean it is not
-a clean public-claim candidate. The claim boundary remains unchanged:
-ImplicitMemBench is still internal research evidence blocked by same-model
-judge scoring.
+a clean answer-regeneration replacement for the canonical source run.
 
 ## 2026-07-06 Latest Full-Root Rerun
 
@@ -1534,16 +1532,54 @@ This rerun improves on the failed postchanges drift check by `2.01`
 passed-equivalent points (`0.7035333333` vs `0.6968333333`) and lowers the
 distilled execution-failure count from `2` to `1`, but it is still not a clean
 replacement for the 0-failure `run-phase61-full300-rerun-20260706-codex-current`
-canonical internal score. It remains lower by `1.39` passed-equivalent points
-(`0.7035333333` vs `0.7081666667`) and keeps the same public-claim blocker:
-ImplicitMemBench is internal research evidence until same-model judge scoring is
-replaced by an independent judge or deterministic scorer.
+canonical internal source score. It remains lower by `1.39` passed-equivalent
+points (`0.7035333333` vs `0.7081666667`) and is drift evidence only.
+
+The follow-up current-worktree rerun completed under
+`run-phase61-full300-rerun-20260706-after-hardening-current` while the
+stored-answer rescore runner was being hardened:
+
+- benchmark root:
+  - `/tmp/ImplicitMemBench`
+  - upstream commit `927413bf3f5389bb47c94c2a0ba987e435b101b8`
+- command shape:
+  - `GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai GOODMEMORY_EVAL_MAX_CONCURRENCY=1 bun run eval:phase-61-full300 -- --benchmark-root /tmp/ImplicitMemBench --run-id run-phase61-full300-rerun-20260706-after-hardening-current --shards 10 --shard-concurrency 6 --max-concurrency 1 --priming-timeout-ms 180000`
+- official-comparable denominator:
+  - `300 / 300` cases
+- baseline full-300 score:
+  - `130 / 300 = 43.33%`
+- target GoodMemory profile:
+  - `goodmemory-distilled-feedback+controlled-priming`
+- best official-comparable GoodMemory full-300 score:
+  - `206.85 / 300 = 68.95%`
+- GoodMemory raw-experience full-300 score:
+  - `174.85 / 300 = 58.28%`
+- GoodMemory distilled blocking:
+  - `151 / 200 = 75.50%`
+- GoodMemory priming contribution:
+  - `92 / 100` credited cases
+  - average credited influence `55.85`
+  - task violations `0`
+  - source-noun contamination flags `0`
+  - explicit recall leaks `0`
+- execution failures:
+  - baseline `0`
+  - GoodMemory raw `0`
+  - GoodMemory distilled `0`
+
+This is a cleanly completed drift check, but it is lower than the canonical
+0-failure `run-phase61-full300-rerun-20260706-codex-current` by `5.60`
+passed-equivalent points (`0.6895` vs `0.7081666667`) and lower than the prior
+`latest-current` drift check by `4.21` passed-equivalent points. It therefore
+does not replace the canonical source-answer artifact. It does, however, answer
+the post-change drift question: the freshest clean answer-generation run is
+lower than the canonical source run but still in the same 0.69-0.71 band.
 
 ## 2026-07-06 Stored-Answer Rescore Readiness
 
 `audit:phase-61-implicitmembench-rescore-readiness` now checks whether the
 canonical 0-failure Full-300 reports can be rescored without regenerating
-answers. The current readiness artifact is:
+answers. The original same-model readiness artifact is:
 
 - `reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-20260706-current/rescore-readiness.json`
 
@@ -1564,12 +1600,80 @@ It validates:
   - baseline `0.41`
   - GoodMemory `0.7081666667`
 
-The artifact also records the current loaded judge environment as same-model:
+That artifact also records the previously loaded judge environment as same-model:
 answer model `gpt-5.5`, judge model `gpt-5.5`, `sameModelJudge: true`.
 Therefore `storedAnswersReady: true`, but
 `readyForIndependentJudgeRescore: false`. This proves the next public-claim
 step does not need answer regeneration, but it still needs an actually
 independent judge or a broader deterministic scorer.
+
+A follow-up cross-version readiness probe completed under:
+
+- `reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-gpt54-probe-current/rescore-readiness.json`
+
+It records answer model `gpt-5.5`, judge model `gpt-5.4`,
+`sameModelJudge: false`, `storedAnswersReady: true`, and
+`readyForIndependentJudgeRescore: true` on the same 300 baseline rows, 300
+GoodMemory composite rows, 35 deterministic rows, and 265 judge-required scorer
+rows.
+
+## 2026-07-06 Stored-Answer Independent Rescore
+
+`rescore:phase-61-implicitmembench` is now the pinned no-answer-rerun command
+for the independent judge pass. The completed public-claim artifact used:
+
+- command shape:
+  - `GOODMEMORY_JUDGE_MODEL=gpt-5.4 bun run rescore:phase-61-implicitmembench -- --overall-report reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/report.json --run-id implicitmembench-independent-rescore-gpt54-current --max-concurrency 4`
+- source behavior:
+  - reads the canonical overall report
+  - follows `sourceReports.baselineReportPath`
+  - follows `sourceReports.goodmemoryReportPath`
+  - does not regenerate answers
+- scoring behavior:
+  - carries deterministic `structured_first_action` rows unchanged
+  - rejects partial or mismatched source scopes before any judge call
+  - rejudges stored baseline `text_behavior_judge` and `priming_pair_judge` rows
+  - rejudges stored GoodMemory composite rows from
+    `goodmemory-distilled-feedback` and `goodmemory-raw-experience`
+  - rebuilds the existing Phase 60 Full-300 summary from the rescored reports
+- output files:
+  - `run-identity.json`
+  - `progress.jsonl`
+  - `baseline-report.json`
+  - `goodmemory-report.json`
+  - `overall-summary.json`
+  - `rescore-summary.json`
+
+The runner rejects same-model answer/judge configuration before reading source
+reports. The completed `implicitmembench-independent-rescore-gpt54-current`
+run used gpt-5.4 over unchanged gpt-5.5 answers and wrote:
+
+- GoodMemory composite:
+  - `207.35 / 300 = 0.6911666667`
+  - blocking `153 / 200 = 0.765`
+  - priming `54.35 / 100 = 0.5435`
+- baseline:
+  - `120 / 300 = 0.4`
+  - blocking `120 / 200 = 0.6`
+- row accounting:
+  - `530` judge-required row decisions in `progress.jsonl`
+  - `265` baseline rows
+  - `265` GoodMemory composite rows
+  - deterministic `structured_first_action` rows carried forward unchanged
+- execution failures:
+  - `0`
+
+The judge is cross-version but still the same GPT family as the answer model,
+so the public claim must disclose that this is not a cross-family judge. The
+older `0.7081666667` same-model score remains diagnostic only.
+
+`run-identity.json` records the answer model, judge model, source report paths,
+source run id, and source report SHA-256 fingerprints. `progress.jsonl` records
+completed judge-required rows and is reused only when that identity still
+matches; a stale identity, duplicate cached row, row outside the selected scope,
+or progress cache without an identity file is rejected before it can affect the
+rescored summary. This makes the independent judge pass resumable without
+turning partial progress into public evidence.
 
 ## Recommended Next Work
 

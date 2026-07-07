@@ -106,6 +106,7 @@
     "eval:fallback": "bun run scripts/run-eval.ts --mode=fallback",
     "eval:official-rescore": "bun run scripts/rescore-official-protocols.ts",
     "audit:phase-61-implicitmembench-rescore-readiness": "bun run scripts/audit-phase-61-implicitmembench-rescore-readiness.ts",
+    "rescore:phase-61-implicitmembench": "bun run scripts/rescore-phase-61-implicitmembench-stored-answers.ts",
     "eval:phase-16": "bun run scripts/run-phase-16-eval.ts",
     "eval:phase-17": "bun run scripts/run-phase-17-eval.ts",
     "eval:phase-17-live-memory": "bun run scripts/run-phase-17-live-memory.ts",

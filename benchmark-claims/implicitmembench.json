@@ -7,15 +7,34 @@
     "vendored": false
   },
   "run": {
-    "commit": "98e22456ead0f76e561bad526113218269d4ed36",
+    "commit": "4b60ca918479dfdc618aecfc1b5c5adf001b4569",
     "packageVersion": "0.5.0",
-    "command": "GOODMEMORY_ASSISTED_EXTRACTOR_PROVIDER=openai bun run eval:phase-61-full300 -- --benchmark-root /tmp/ImplicitMemBench --run-id run-phase61-full300-rerun-20260706-codex-current --shards 10 --shard-concurrency 6 --max-concurrency 1 --priming-timeout-ms 180000",
+    "command": "GOODMEMORY_JUDGE_MODEL=gpt-5.4 bun run rescore:phase-61-implicitmembench -- --overall-report reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/report.json --run-id implicitmembench-independent-rescore-gpt54-current --max-concurrency 4",
     "executionFailures": 0
   },
   "model": {
     "answerModel": "gpt-5.5",
-    "judgeModel": "gpt-5.5",
-    "sameModelJudge": true
+    "judgeModel": "gpt-5.4 (cross-version, SAME GPT family as the answer model - not a cross-family judge)",
+    "sameModelJudge": false
+  },
+  "publicClaim": {
+    "readmeDisclosureFragments": [
+      "sourceAnswersUnchanged",
+      "same GPT family",
+      "0.708",
+      "0.6895",
+      "530",
+      "CC BY 4.0"
+    ],
+    "readmeRequiredFragments": [
+      "Full-300",
+      "0.691",
+      "207.35/300",
+      "0.400",
+      "120/300",
+      "gpt-5.4",
+      "gpt-5.5"
+    ]
   },
   "evidence": {
     "artifacts": [
@@ -23,63 +42,143 @@
         "assertions": [
           {
             "path": ["runId"],
-            "equals": "run-phase61-full300-rerun-20260706-codex-current"
+            "equals": "implicitmembench-independent-rescore-gpt54-current"
           },
           {
-            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "executionFailures"],
-            "equals": 0
+            "path": ["sameModelJudge"],
+            "equals": false
           },
           {
-            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "full300OverallScore", "rate"],
-            "equals": 0.7081666666666666
-          },
-          {
-            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "blockingScore", "rate"],
-            "equals": 0.77
-          },
-          {
-            "path": ["profiles", "baseline-upstream-chat", "executionFailures"],
-            "equals": 0
-          },
-          {
-            "path": ["profiles", "baseline-upstream-chat", "full300OverallScore", "rate"],
-            "equals": 0.41
-          }
-        ],
-        "description": "Canonical 2026-07-06 Full-300 internal rerun report with zero execution failures",
-        "path": "reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/report.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["comparison", "baselineOverallRate"],
-            "equals": 0.41
-          },
-          {
-            "path": ["comparison", "bestGoodMemoryOverallRate"],
-            "equals": 0.7081666666666666
-          },
-          {
-            "path": ["comparison", "bestGoodMemoryBlockingOnlyRate"],
-            "equals": 0.77
-          },
-          {
-            "path": ["comparison", "goodmemoryImprovesBaselineOverall"],
+            "path": ["sourceAnswersUnchanged"],
             "equals": true
           },
           {
-            "path": ["comparison", "referenceLine"],
+            "path": ["answerModel"],
+            "equals": "gpt-5.5"
+          },
+          {
+            "path": ["judgeModel"],
+            "equals": "gpt-5.4"
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "goodmemory-distilled-feedback+controlled-priming",
+              "executionFailures"
+            ],
+            "equals": 0
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "goodmemory-distilled-feedback+controlled-priming",
+              "full300OverallScore",
+              "passedEquivalent"
+            ],
+            "equals": 207.35
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "goodmemory-distilled-feedback+controlled-priming",
+              "full300OverallScore",
+              "rate"
+            ],
+            "equals": 0.6911666666666666
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "goodmemory-distilled-feedback+controlled-priming",
+              "blockingScore",
+              "rate"
+            ],
+            "equals": 0.765
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "baseline-upstream-chat",
+              "executionFailures"
+            ],
+            "equals": 0
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "baseline-upstream-chat",
+              "full300OverallScore",
+              "passedEquivalent"
+            ],
+            "equals": 120
+          },
+          {
+            "path": [
+              "overallSummary",
+              "profiles",
+              "baseline-upstream-chat",
+              "full300OverallScore",
+              "rate"
+            ],
+            "equals": 0.4
+          },
+          {
+            "path": ["overallSummary", "comparison", "bestGoodMemoryOverallRate"],
+            "equals": 0.6911666666666666
+          },
+          {
+            "path": ["overallSummary", "comparison", "baselineOverallRate"],
+            "equals": 0.4
+          },
+          {
+            "path": ["overallSummary", "comparison", "referenceLine"],
             "equals": 0.66
+          },
+          {
+            "path": ["overallSummary", "comparison", "goodmemoryImprovesBaselineOverall"],
+            "equals": true
           }
         ],
-        "description": "Canonical 2026-07-06 Full-300 internal rerun overall summary",
-        "path": "reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/overall-summary.json"
+        "description": "Cross-version same-family gpt-5.4 stored-answer rescore summary for the canonical zero-failure Full-300 source answers",
+        "path": "reports/eval/research/phase-61/implicitmembench/implicitmembench-independent-rescore-gpt54-current/rescore-summary.json"
       },
       {
         "assertions": [
           {
             "path": ["runId"],
-            "equals": "implicitmembench-rescore-readiness-20260706-current"
+            "equals": "implicitmembench-independent-rescore-gpt54-current"
+          },
+          {
+            "path": ["answerModel"],
+            "equals": "gpt-5.5"
+          },
+          {
+            "path": ["judgeModel"],
+            "equals": "gpt-5.4"
+          },
+          {
+            "path": ["sourceAnswersUnchanged"],
+            "equals": true
+          },
+          {
+            "path": ["sourceReports", "sourceRunId"],
+            "equals": "run-phase61-full300-rerun-20260706-codex-current"
+          }
+        ],
+        "description": "Rescore identity and source-report fingerprints proving the stored answers were unchanged",
+        "path": "reports/eval/research/phase-61/implicitmembench/implicitmembench-independent-rescore-gpt54-current/run-identity.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "implicitmembench-rescore-readiness-gpt54-probe-current"
           },
           {
             "path": ["readiness", "storedAnswersReady"],
@@ -87,11 +186,23 @@
           },
           {
             "path": ["readiness", "readyForIndependentJudgeRescore"],
-            "equals": false
+            "equals": true
           },
           {
             "path": ["environment", "sameModelJudge"],
-            "equals": true
+            "equals": false
+          },
+          {
+            "path": ["environment", "answerModel"],
+            "equals": "gpt-5.5"
+          },
+          {
+            "path": ["environment", "judgeModel"],
+            "equals": "gpt-5.4"
+          },
+          {
+            "path": ["caseScope", "baselineCaseCount"],
+            "equals": 300
           },
           {
             "path": ["caseScope", "goodmemoryCompositeCaseCount"],
@@ -104,28 +215,46 @@
           {
             "path": ["caseScope", "deterministicCaseCount"],
             "equals": 35
-          },
-          {
-            "path": ["sourceScore", "bestGoodMemoryOverallRate"],
-            "equals": 0.7081666666666666
           }
         ],
-        "description": "Stored-answer rescore readiness audit: source answers are complete, but current judge env is same-model and not independent",
-        "path": "reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-20260706-current/rescore-readiness.json"
+        "description": "Readiness probe proving the canonical stored answers could be rescored with gpt-5.4 without answer regeneration",
+        "path": "reports/eval/research/phase-61/implicitmembench/implicitmembench-rescore-readiness-gpt54-probe-current/rescore-readiness.json"
+      },
+      {
+        "assertions": [
+          {
+            "path": ["runId"],
+            "equals": "run-phase61-full300-rerun-20260706-codex-current"
+          },
+          {
+            "path": ["profiles", "goodmemory-distilled-feedback+controlled-priming", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["profiles", "baseline-upstream-chat", "executionFailures"],
+            "equals": 0
+          },
+          {
+            "path": ["benchmark", "totalCases"],
+            "equals": 300
+          }
+        ],
+        "description": "Canonical answer-generation source report; its same-model score is diagnostic only, and the public score comes from the gpt-5.4 stored-answer rescore",
+        "path": "reports/eval/live/phase-61-full300/run-phase61-full300-rerun-20260706-codex-current/report.json"
       }
     ]
   },
   "metrics": {
-    "primary": "overall score (Full-300)",
-    "score": 0.7081666666666666,
-    "baseline": 0.41
+    "primary": "Full-300 stored-answer cross-version judge rescore: gpt-5.4 judge over unchanged gpt-5.5 answers; structured_first_action rows are deterministic, text_behavior_judge and priming_pair_judge rows are rescored without answer regeneration.",
+    "score": 0.6911666666666666,
+    "baseline": 0.4
   },
   "coverage": {
     "complete": true,
-    "note": "Full-300; scorer families priming_pair_judge / text_behavior_judge (judge-scored) + structured_first_action (deterministic)"
+    "note": "Full-300; source answers from the zero-failure run-phase61-full300-rerun-20260706-codex-current artifact are unchanged. The public score is the gpt-5.4 stored-answer rescore: GoodMemory 207.35/300 = 0.6911666667, baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, reference line 0.66. The rescore made 530 judge-required row decisions total: 265 baseline rows plus 265 GoodMemory composite rows; the 35 structured_first_action rows per scored arm are deterministic and carried forward. The older same-model diagnostic score 212.45/300 = 0.7081666667 is not the public score. The freshest clean answer-regeneration drift check, run-phase61-full300-rerun-20260706-after-hardening-current, scored 206.85/300 = 0.6895 with executionFailures 0, showing current checkout drift but not replacing this stored-answer comparability artifact."
   },
   "claimBoundary": {
-    "publicClaimAllowed": false,
-    "reason": "Blocked: most scorer families are LLM-judge-based with a same-model judge (gpt-5.5 answer + gpt-5.5 judge). Dataset source/license and the current rerun command are now pinned, but this still needs an independent judge or a deterministic scorer before a public claim."
+    "publicClaimAllowed": true,
+    "reason": "The previous blocker was same-model LLM judging. The current claim uses a stored-answer rescore with gpt-5.4 judging unchanged gpt-5.5 answers, so the declaration is not same-model under the public-claim gate and preserves reproducibility through run-identity fingerprints plus sourceAnswersUnchanged: true. Required disclosures: judge is cross-version but the same GPT family as the answer model, not a cross-family judge; the older 0.708 same-model score is diagnostic only; the freshest clean answer-regeneration drift check is 0.6895; the dataset is CC BY 4.0 and fetched from upstream rather than vendored."
   }
 }

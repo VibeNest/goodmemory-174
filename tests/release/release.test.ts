@@ -3139,10 +3139,16 @@ describe("release metadata and docs", () => {
     expect(phase66Board).not.toContain("then-internal MAB/LoCoMo evidence");
     expect(phase66Board).not.toContain("then-internal MAB / LoCoMo numbers");
     expect(phase67Board).toContain(
-      "Current verdict after BEAM/LoCoMo promotion (2026-07-05):",
+      "Current verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore",
     );
     expect(phase67Board).toContain(
-      "BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable",
+      "BEAM, LoCoMo, LongMemEval, MemoryAgentBench, and",
+    );
+    expect(phase67Board).toContain(
+      "ImplicitMemBench are public-claim candidates",
+    );
+    expect(phase67Board).toContain(
+      "implicitmembench-independent-rescore-gpt54-current",
     );
     expect(phase67Board).not.toContain(
       "BEAM, and LoCoMo remain internal / blocked evidence rather than public claims.",

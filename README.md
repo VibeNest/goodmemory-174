@@ -48,6 +48,7 @@ reproducible run (commit + command + package version).
 | MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
 | LoCoMo (full 10 conversations) | strict: deterministic token-F1 · comparable: industry LLM-judge protocol (non-adversarial 1540) | strict **0.6117** (942/1540) · judge-protocol **0.837** (1289/1540) | no-memory baseline 0.0045 non-adversarial; published same-protocol references: Memori 82.0, Zep 79.1, LangMem 78.1, Mem0 62.5 | [locomo.json](./benchmark-claims/locomo.json) |
 | BEAM 100K (400 questions, 1051 rubric items) | official BEAM rubric judge (1.0/0.5/0.0 per rubric item) · strict: internal binary judge | official-protocol **0.802** · strict binary **0.7225** (289/400) | no-pack ablation 0.5725; only public same-protocol reference: 0.49 | [beam.json](./benchmark-claims/beam.json) |
+| ImplicitMemBench Full-300 | stored-answer cross-version judge rescore | **0.691** (207.35/300), gpt-5.4 judge over gpt-5.5 answers, sourceAnswersUnchanged | upstream-chat baseline **0.400** (120/300); reference line 0.66 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 <!-- public-claims-table:end -->
 
 Every row reports two tracks. The **strict** track is deterministic or
@@ -120,16 +121,26 @@ event_ordering with a rank-correlation metric; both this run and the public
 reference rubric-judge it. Dataset CC BY-SA 4.0, fetched at eval time, never
 vendored.
 
+The ImplicitMemBench Full-300 claim uses the canonical zero-failure
+`run-phase61-full300-rerun-20260706-codex-current` answers, then re-scores the
+same stored answers with gpt-5.4 (`sourceAnswersUnchanged: true`). The judge is
+cross-version but the same GPT family as the gpt-5.5 answer model, not a
+cross-family judge. The public score is **0.691** (207.35/300) versus an
+upstream-chat baseline of **0.400** (120/300), with 530 judge-required row
+decisions across the baseline and GoodMemory arms; deterministic
+`structured_first_action` rows are carried forward rather than judged. The
+older same-model diagnostic score was 0.708 and is not the public claim. The
+freshest clean answer-regeneration drift check after recent code changes scored
+0.6895 with `executionFailures: 0`; it shows current checkout drift, not a
+replacement for the stored-answer comparability artifact. Dataset CC BY 4.0,
+fetched at eval time, never vendored.
+
 ### Internal diagnostics (not public claims)
 
-These rows are research and hardening evidence, not claims. Each is blocked
-from public claim by its own committed declaration, which records the exact
-blockers. The underlying run reports live under gitignored `reports/` and are
+Blocked benchmark numbers stay out of the public-claims table until their
+declaration says they are claimable and `gate:public-benchmark-claim --strict`
+passes. The underlying run reports live under gitignored `reports/` and are
 reproducible from the run commands recorded in the declarations.
-
-| Benchmark | Internal number | Why it is not claimable | Declaration |
-|---|---|---|---|
-| ImplicitMemBench Full-300 | latest full-root rerun: 212.45 / 300 (0.7082) with `goodmemory-distilled-feedback+controlled-priming` vs 123 / 300 (0.4100) upstream-chat baseline; May high-water was 213.26 / 300 (0.7109) | same-model judge (gpt-5.5 judging gpt-5.5) on most scorer families; internal research only despite pinned upstream dataset source/license | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order
 and

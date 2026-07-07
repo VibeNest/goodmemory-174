@@ -49,15 +49,18 @@ viable JUDGE-FREE public-claim routes were:
 Those were the fastest honest paths; the independent-judge path was infra-blocked
 like LoCoMo's neural-embedding path.
 
-Current verdict after BEAM/LoCoMo promotion (2026-07-05): BEAM, LoCoMo, LongMemEval, and MemoryAgentBench are publicly claimable and README-promoted through `benchmark-claims/*.json` plus `gate:public-benchmark-claim --strict`.
-ImplicitMemBench remains internal / blocked evidence because the same-model
-judge-bias blocker is still present.
+Current verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore
+(2026-07-06): BEAM, LoCoMo, LongMemEval, MemoryAgentBench, and
+ImplicitMemBench are public-claim candidates and README-promoted through
+`benchmark-claims/*.json`, subject to `gate:public-benchmark-claim --strict`
+passing over the updated declarations, artifacts, and README rows.
 Phase 61 Full-300 rerun evidence is now protected by strict scalar parsing:
 `eval:phase-61-full300` rejects duplicate benchmark/output/run/budget selectors,
 requires a single path-segment `--run-id`, requires canonical positive integer
 budgets, and rejects empty or whitespace-padded ImplicitMemBench root/env
-fallbacks before launching live shards. This hardens internal reruns only; it
-does not remove the ImplicitMemBench public-claim blockers.
+fallbacks before launching live shards. This hardens fresh reruns only; the
+public claim boundary is now controlled by the stored-answer gpt-5.4 rescore
+declaration and gate.
 The 2026-07-06 fixture-root ad hoc rerun
 `run-phase61-full300-rerun-20260706-current` covered only 4 cases, not 300, and
 is smoke-scale only. The same-day full-root rerun
@@ -68,9 +71,8 @@ measured best
 official-comparable GoodMemory full-300 score 212.45/300 = 0.7081666667
 (`goodmemory-distilled-feedback+controlled-priming`), raw 179.45/300 =
 0.5981666667, distilled blocking 154/200 = 0.77, and baseline 123/300 = 0.41.
-This refreshes internal research evidence only; it clears the old
-dataset-source/license uncertainty but leaves the same-model judge blocker, so
-ImplicitMemBench is still not README-promotable.
+This refreshes the canonical source-answer artifact; its 0.7081666667 score is
+a same-model diagnostic only, not the public claim.
 The postchanges full-root rerun
 `run-phase61-full300-rerun-20260706-postchanges-current` completed all 300
 cases but had 2 GoodMemory distilled execution failures from
@@ -79,6 +81,23 @@ official-comparable GoodMemory score was 209.05/300 = 0.6968333333, raw
 175.05/300 = 0.5835, distilled blocking 153/200 = 0.765, and baseline
 131/300 = 0.4366666667. Treat it as drift evidence only, not as a replacement
 for the 0-failure canonical internal rerun and not as public-claim evidence.
+The latest-current full-root rerun
+`run-phase61-full300-rerun-20260706-latest-current` completed all 300 cases
+after the benchmark-hardening work, but had 1 GoodMemory distilled execution
+failure. Its best official-comparable GoodMemory score was 211.06/300 =
+0.7035333333, raw 179.06/300 = 0.5968666667, distilled blocking 155/200 =
+0.775, and baseline 130/300 = 0.4333333333. It improves over the failed
+postchanges rerun, but remains drift evidence only because it is still not a
+0-failure replacement for the canonical internal rerun.
+The after-hardening full-root rerun
+`run-phase61-full300-rerun-20260706-after-hardening-current` completed all 300
+cases with 0 execution failures while the stored-answer rescore runner was
+being hardened, but its best official-comparable GoodMemory score fell to
+206.85/300 = 0.6895, raw 174.85/300 = 0.5828333333, distilled blocking
+151/200 = 0.755, and baseline 130/300 = 0.4333333333. Treat this as the
+freshest clean drift check, not as a better claim artifact; it is 5.60
+passed-equivalent points below the canonical `codex-current` internal score and
+does not replace the stored-answer comparability artifact.
 The stored-answer readiness audit
 `implicitmembench-rescore-readiness-20260706-current` proves the canonical
 0-failure Full-300 reports are complete enough for no-answer-rerun rescoring:
@@ -87,6 +106,28 @@ baseline 300 rows, GoodMemory composite 300 rows, 35 deterministic
 current judge env as same-model (`gpt-5.5` answer and judge), so the next
 promotion step is independent judging or a broader deterministic scorer, not
 answer regeneration.
+The cross-version readiness audit
+`implicitmembench-rescore-readiness-gpt54-probe-current` records answer
+`gpt-5.5`, judge `gpt-5.4`, `sameModelJudge: false`, and
+`readyForIndependentJudgeRescore: true` on the same row scope.
+The no-answer-rerun command has completed:
+`rescore:phase-61-implicitmembench` consumed the canonical overall report,
+follows its source baseline/GoodMemory report paths, preserves stored answers,
+carries deterministic `structured_first_action` rows unchanged, rejudges the
+stored baseline and GoodMemory composite `text_behavior_judge` /
+`priming_pair_judge` rows with the configured independent judge, and rebuilds
+the Phase 60 Full-300 summary. It rejects same-model answer/judge configuration
+before reading source reports, rejects partial or mismatched source scopes before
+any judge call, writes `run-identity.json` with source report SHA-256
+fingerprints, resumes matching completed judge rows from `progress.jsonl`,
+rejects stale, duplicate, or out-of-scope progress rows, and writes
+`rescore-summary.json` with explicit unchanged-answer evidence. The completed
+`implicitmembench-independent-rescore-gpt54-current` run made 530
+judge-required row decisions (265 baseline + 265 GoodMemory composite), had 0
+execution failures, and scored GoodMemory 207.35/300 = 0.6911666667 versus
+upstream-chat baseline 120/300 = 0.4. This clears the prior same-model blocker,
+with required disclosure that gpt-5.4 is cross-version but the same GPT family
+as the gpt-5.5 answerer, not a cross-family judge.
 
 
 Tasks
@@ -262,6 +303,25 @@ Tasks
   --shard-concurrency 4 --run-id run-p67e-longmemeval-hybrid-current
   --resume-existing-shards -> eval:phase-62-deterministic-subset --
   --report-path <runDir>/report.json --claim-profile goodmemory-hybrid.
+
+[DONE 2026-07-06] P67-F ImplicitMemBench stored-answer independent-rescore
+  runner and artifact. `rescore:phase-61-implicitmembench` is the no-answer-rerun
+  path that cleared the remaining same-model judge blocker with the configured
+  gpt-5.4 judge. The runner starts from the canonical Phase 61 overall report,
+  loads the source baseline and GoodMemory reports, preserves answers, carries
+  deterministic `structured_first_action` rows forward, rejudges the stored
+  baseline and GoodMemory composite judge-required rows, and writes
+  `run-identity.json`, `progress.jsonl`, `baseline-report.json`,
+  `goodmemory-report.json`, `overall-summary.json`, and `rescore-summary.json`
+  with `sourceAnswersUnchanged: true`. It rejects same-model answer/judge env
+  before reading source reports, rejects partial or mismatched source scopes
+  before any judge call, and resumes only progress caches whose source report
+  SHA-256 fingerprints and judge identity still match. The completed
+  `implicitmembench-independent-rescore-gpt54-current` run scored GoodMemory
+  207.35/300 = 0.6911666667 versus upstream-chat baseline 120/300 = 0.4, made
+  530 judge-required row decisions, and had 0 execution failures. Public use
+  must disclose that gpt-5.4 is cross-version but same GPT family as the
+  gpt-5.5 answerer, not a cross-family judge.
 
 
 Acceptance Criteria
