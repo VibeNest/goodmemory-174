@@ -1309,6 +1309,8 @@ For the detailed current-state and evidence map, use
   [docs/README.md](./docs/README.md)
 - Current status and evidence:
   [docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
+- Product comparison:
+  [docs/GoodMemory-Product-Comparison.md](./docs/GoodMemory-Product-Comparison.md)
 - Canonical design:
   [docs/GoodMemory-First-Principles-and-Reference-Architecture.md](./docs/GoodMemory-First-Principles-and-Reference-Architecture.md)
 - v1 implementation architecture:

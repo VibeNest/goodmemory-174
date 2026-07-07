@@ -20,6 +20,8 @@ bulk-load. Start here, then open only the file that matches the question.
 
 - `GoodMemory-15-Minute-App-Integration.md` - shortest app integration path.
 - `GoodMemory-Reference-Integration-Guide.md` - reference consumer pattern.
+- `GoodMemory-Product-Comparison.md` - product positioning versus Mem0, Zep,
+  LangGraph memory, vector databases, and RAG stacks.
 - `GoodMemory-Codex-Handoff-Setup-Guide.md` - Codex installed-host setup.
 - `GoodMemory-Claude-Code-Setup-Guide.md` - Claude Code installed-host setup.
 - `GoodMemory-Standalone-MCP-Setup-Guide.md` - standalone MCP server for any

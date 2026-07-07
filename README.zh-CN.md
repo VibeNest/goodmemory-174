@@ -1107,6 +1107,7 @@ Operator guidance：
 
 - 文档地图与归档规则：[docs/README.md](./docs/README.md)
 - 当前状态与 evidence：[docs/GoodMemory-Current-Status-and-Evidence.md](./docs/GoodMemory-Current-Status-and-Evidence.md)
+- 产品级对比页：[docs/GoodMemory-Product-Comparison.md](./docs/GoodMemory-Product-Comparison.md)
 - canonical design：[docs/GoodMemory-First-Principles-and-Reference-Architecture.md](./docs/GoodMemory-First-Principles-and-Reference-Architecture.md)
 - v1 implementation architecture：[docs/GoodMemory-OSS-Architecture-v1.md](./docs/GoodMemory-OSS-Architecture-v1.md)
 - PRD：[docs/GoodMemory-PRD.md](./docs/GoodMemory-PRD.md)
