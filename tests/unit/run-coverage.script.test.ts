@@ -1,0 +1,39 @@
+import { describe, expect, it } from "bun:test";
+
+import {
+  buildCoverageCommand,
+  selectIntegrationCoverageFiles,
+} from "../../scripts/run-coverage";
+
+describe("run-coverage script", () => {
+  it("discovers integration coverage files while excluding the Python bridge", () => {
+    expect(
+      selectIntegrationCoverageFiles([
+        "python-http-bridge.test.ts",
+        "storage.postgres.test.ts",
+        "api.auto-storage.test.ts",
+        "api.postgres.test.ts",
+        "helper.ts",
+      ]),
+    ).toEqual([
+      "tests/integration/api.auto-storage.test.ts",
+      "tests/integration/api.postgres.test.ts",
+      "tests/integration/storage.postgres.test.ts",
+    ]);
+  });
+
+  it("builds one canonical coverage command with the child-process-sensitive CLI tests filtered by name", () => {
+    const command = buildCoverageCommand([
+      "tests/integration/api.auto-storage.test.ts",
+      "tests/integration/storage.postgres.test.ts",
+    ]);
+
+    expect(command).toContain("--coverage-dir=coverage");
+    expect(command).toContain("tests/unit");
+    expect(command).toContain("tests/cli");
+    expect(command).toContain("tests/integration/api.auto-storage.test.ts");
+    expect(command).toContain("tests/integration/storage.postgres.test.ts");
+    expect(command).toContain("--test-name-pattern");
+    expect(command.at(-1)).toContain("generated Codex action gate");
+  });
+});

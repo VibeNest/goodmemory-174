@@ -817,7 +817,12 @@ describe("release metadata and docs", () => {
     expect(pkg.scripts?.test).toBe("bun test");
     expect(pkg.scripts?.["test:all"]).toBe("bun --config=bunfig.all.toml test tests third-party");
     expect(pkg.scripts?.["test:coverage"]).toBe(
-      "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-coverage.ts",
+      "bun run scripts/run-coverage.ts && bun run scripts/check-coverage.ts",
+    );
+    expect(pkg.scripts?.["test:coverage:integration:rest"]).toBeUndefined();
+    expect(pkg.scripts?.["test:coverage:integration:postgres"]).toBeUndefined();
+    expect(pkg.scripts?.["test:ci"]).toBe(
+      "bun run typecheck && bun run test:coverage && bun test tests/integration/python-http-bridge.test.ts tests/cli tests/release",
     );
     expect(pkg.scripts?.["eval:smoke"]).toBe("bun run scripts/run-eval.ts --mode=smoke");
     expect(pkg.scripts?.["eval:fallback"]).toBe("bun run scripts/run-eval.ts --mode=fallback");

@@ -5,6 +5,7 @@ export interface CoverageRecord {
   path: string;
   covered: number;
   found: number;
+  lineHits?: Record<number, number>;
 }
 
 export interface ThresholdGroup {
@@ -125,16 +126,28 @@ export function parseLcov(content: string): CoverageRecord[] {
   let currentPath: string | null = null;
   let currentCovered = 0;
   let currentFound = 0;
+  let currentLineHits = new Map<number, number>();
 
   const flush = () => {
     if (!currentPath) {
       return;
     }
 
+    const lineHits =
+      currentLineHits.size > 0
+        ? Object.fromEntries(currentLineHits.entries())
+        : undefined;
+    const found = lineHits === undefined ? currentFound : currentLineHits.size;
+    const covered =
+      lineHits === undefined
+        ? currentCovered
+        : Array.from(currentLineHits.values()).filter((hits) => hits > 0).length;
+
     records.push({
       path: normalizeCoveragePath(currentPath),
-      covered: currentCovered,
-      found: currentFound,
+      covered,
+      found,
+      lineHits,
     });
   };
 
@@ -144,6 +157,17 @@ export function parseLcov(content: string): CoverageRecord[] {
       currentPath = line.slice(3).trim();
       currentCovered = 0;
       currentFound = 0;
+      currentLineHits = new Map<number, number>();
+      continue;
+    }
+
+    if (line.startsWith("DA:")) {
+      const [lineNumberValue, hitCountValue] = line.slice(3).split(",", 2);
+      const lineNumber = Number(lineNumberValue);
+      const hitCount = Number(hitCountValue);
+      if (Number.isInteger(lineNumber) && Number.isFinite(hitCount)) {
+        currentLineHits.set(lineNumber, hitCount);
+      }
       continue;
     }
 
@@ -160,6 +184,69 @@ export function parseLcov(content: string): CoverageRecord[] {
 
   flush();
   return records;
+}
+
+export function mergeCoverageRecords(records: CoverageRecord[]): CoverageRecord[] {
+  const byPath = new Map<string, CoverageRecord>();
+
+  for (const record of records) {
+    const existing = byPath.get(record.path);
+    if (existing === undefined) {
+      byPath.set(record.path, record);
+      continue;
+    }
+
+    byPath.set(record.path, mergeCoverageRecordPair(existing, record));
+  }
+
+  return Array.from(byPath.values());
+}
+
+function mergeCoverageRecordPair(
+  existing: CoverageRecord,
+  next: CoverageRecord,
+): CoverageRecord {
+  if (existing.lineHits !== undefined && next.lineHits !== undefined) {
+    const lineHits = new Map<number, number>();
+
+    for (const record of [existing, next]) {
+      for (const [lineNumberValue, hitCount] of Object.entries(
+        record.lineHits ?? {},
+      )) {
+        const lineNumber = Number(lineNumberValue);
+        if (!Number.isInteger(lineNumber)) {
+          continue;
+        }
+
+        lineHits.set(
+          lineNumber,
+          Math.max(lineHits.get(lineNumber) ?? 0, hitCount),
+        );
+      }
+    }
+
+    return {
+      path: existing.path,
+      covered: Array.from(lineHits.values()).filter(
+        (hitCount) => hitCount > 0,
+      ).length,
+      found: lineHits.size,
+      lineHits: Object.fromEntries(
+        Array.from(lineHits.entries()).sort(([left], [right]) => left - right),
+      ),
+    };
+  }
+
+  const existingPercent = existing.found === 0 ? 0 : existing.covered / existing.found;
+  const nextPercent = next.found === 0 ? 0 : next.covered / next.found;
+  if (
+    nextPercent > existingPercent ||
+    (nextPercent === existingPercent && next.found > existing.found)
+  ) {
+    return next;
+  }
+
+  return existing;
 }
 
 export function formatPercent(covered: number, found: number): string {
@@ -181,8 +268,9 @@ export function resolveOverallRecords(records: CoverageRecord[]): CoverageRecord
 
 export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {
   const failures: string[] = [];
+  const mergedRecords = mergeCoverageRecords(records);
 
-  const overallRecords = resolveOverallRecords(records);
+  const overallRecords = resolveOverallRecords(mergedRecords);
   const overallCovered = overallRecords.reduce((sum, record) => sum + record.covered, 0);
   const overallFound = overallRecords.reduce((sum, record) => sum + record.found, 0);
   const overallPercent = Number(formatPercent(overallCovered, overallFound));
@@ -194,7 +282,7 @@ export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {
   }
 
   const groups = GROUPS.map((group) => {
-    const matched = records.filter((record) => group.matches(record.path));
+    const matched = mergedRecords.filter((record) => group.matches(record.path));
     const covered = matched.reduce((sum, record) => sum + record.covered, 0);
     const found = matched.reduce((sum, record) => sum + record.found, 0);
     const percent = Number(formatPercent(covered, found));
@@ -228,9 +316,15 @@ export function evaluateCoverage(records: CoverageRecord[]): CoverageResult {
   };
 }
 
-export async function readCoverageRecords(filePath = "coverage/lcov.info"): Promise<CoverageRecord[]> {
-  const raw = await readFile(filePath, "utf8");
-  return parseLcov(raw);
+export async function readCoverageRecords(
+  filePaths: string | string[] = "coverage/lcov.info",
+): Promise<CoverageRecord[]> {
+  const paths = Array.isArray(filePaths) ? filePaths : [filePaths];
+  const records = await Promise.all(
+    paths.map(async (filePath) => parseLcov(await readFile(filePath, "utf8"))),
+  );
+
+  return records.flat();
 }
 
 function logCoverageReport(result: CoverageResult): void {
@@ -244,7 +338,9 @@ function logCoverageReport(result: CoverageResult): void {
 }
 
 async function main(): Promise<void> {
-  const records = await readCoverageRecords();
+  const coveragePaths =
+    process.argv.length > 2 ? process.argv.slice(2) : ["coverage/lcov.info"];
+  const records = await readCoverageRecords(coveragePaths);
   const result = evaluateCoverage(records);
 
   logCoverageReport(result);

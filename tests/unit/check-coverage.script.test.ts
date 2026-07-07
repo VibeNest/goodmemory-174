@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   GROUPS,
   evaluateCoverage,
+  mergeCoverageRecords,
   parseLcov,
   resolveOverallRecords,
 } from "../../scripts/check-coverage";
@@ -78,6 +79,35 @@ describe("check-coverage script", () => {
       "overall deterministic line coverage 7.98% < 90.00%",
       "src/install line coverage 0.99% < 80.00%",
       "src/cli.ts line coverage 0.00% < 85.00%",
+    ]);
+  });
+
+  it("merges repeated lcov records using line-level coverage union", () => {
+    const root = process.cwd();
+    const records = parseLcov(
+      [
+        `SF:${root}/src/storage/example.ts`,
+        "DA:1,1",
+        "DA:2,0",
+        "LF:2",
+        "LH:1",
+        "end_of_record",
+        `SF:${root}/src/storage/example.ts`,
+        "DA:1,0",
+        "DA:2,3",
+        "DA:3,0",
+        "LF:3",
+        "LH:1",
+        "end_of_record",
+      ].join("\n"),
+    );
+
+    expect(mergeCoverageRecords(records)).toMatchObject([
+      {
+        covered: 2,
+        found: 3,
+        path: "src/storage/example.ts",
+      },
     ]);
   });
 

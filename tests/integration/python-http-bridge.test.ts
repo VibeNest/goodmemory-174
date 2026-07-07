@@ -50,18 +50,56 @@ async function runGoodMemoryHttpBridgeRequest(input: {
   return bridge.handle(request);
 }
 
-function allocateBridgePort(): number {
-  const server = Bun.serve({
-    fetch: () => new Response("ok"),
-    port: 0,
-  });
-  const port = server.port;
-  server.stop(true);
-  if (port === undefined) {
-    throw new Error("Bun did not allocate a bridge test port.");
+async function allocateBridgePort(): Promise<number> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    let server: Bun.Server<undefined> | undefined;
+    try {
+      server = Bun.serve({
+        fetch: () => new Response("ok"),
+        hostname: "127.0.0.1",
+        port: 0,
+      });
+      if (server.port === undefined) {
+        throw new Error("Bun did not report an allocated bridge test port.");
+      }
+
+      return server.port;
+    } catch (error) {
+      lastError = error;
+      await Bun.sleep(20);
+    } finally {
+      server?.stop(true);
+    }
   }
 
-  return port;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Failed to allocate a bridge test server port.");
+}
+
+async function startBridgeTestServer(
+  fetch: (request: Request) => Response | Promise<Response>,
+): Promise<Bun.Server<undefined>> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return Bun.serve({
+        fetch,
+        hostname: "127.0.0.1",
+        port: 0,
+      });
+    } catch (error) {
+      lastError = error;
+      await Bun.sleep(20);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Failed to allocate a bridge test server port.");
 }
 
 async function waitForBridgeReady(input: {
@@ -95,6 +133,90 @@ async function waitForBridgeReady(input: {
   throw lastError instanceof Error
     ? lastError
     : new Error("GoodMemory HTTP bridge did not become ready.");
+}
+
+async function waitForBridgeReadyOrExit(input: {
+  process: {
+    exited: Promise<number>;
+  };
+  token: string;
+  url: string;
+}): Promise<void> {
+  await Promise.race([
+    waitForBridgeReady({ token: input.token, url: input.url }),
+    input.process.exited.then((exitCode) => {
+      throw new Error(
+        `GoodMemory HTTP bridge exited before it became ready with code ${exitCode}.`,
+      );
+    }),
+  ]);
+}
+
+async function startPackagedBridgeProcess(input: {
+  args?: string[];
+  env?: Record<string, string | undefined>;
+  token: string;
+}): Promise<{
+  serverProcess: ReturnType<typeof Bun.spawn>;
+  stderrPromise: Promise<string>;
+  stdoutPromise: Promise<string>;
+  url: string;
+}> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const port = await allocateBridgePort();
+    const url = `http://127.0.0.1:${port}`;
+    const serverProcess = Bun.spawn({
+      cmd: [
+        "bun",
+        "--no-env-file",
+        "run",
+        "scripts/goodmemory-http-bridge.ts",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        String(port),
+        ...(input.args ?? []),
+      ],
+      env: {
+        ...process.env,
+        ...input.env,
+      },
+      stderr: "pipe",
+      stdout: "pipe",
+    });
+    const stdoutPromise = new Response(serverProcess.stdout).text();
+    const stderrPromise = new Response(serverProcess.stderr).text();
+
+    try {
+      await waitForBridgeReadyOrExit({
+        process: serverProcess,
+        token: input.token,
+        url,
+      });
+      return {
+        serverProcess,
+        stderrPromise,
+        stdoutPromise,
+        url,
+      };
+    } catch (error) {
+      lastError = error;
+      try {
+        serverProcess.kill("SIGTERM");
+      } catch {
+        // The process may already have exited before the retry cleanup runs.
+      }
+      await serverProcess.exited;
+      await Promise.allSettled([stdoutPromise, stderrPromise]);
+      await Bun.sleep(50);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("GoodMemory HTTP bridge did not start.");
 }
 
 // GET /healthz is the auth-free liveness endpoint: it answers before body
@@ -890,10 +1012,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
       storage: { provider: "memory" },
     });
     const bridge = createGoodMemoryHttpMemoryBridge({ memory });
-    const server = Bun.serve({
-      fetch: bridge.fetch,
-      port: 0,
-    });
+    const server = await startBridgeTestServer(bridge.fetch);
 
     try {
       const child = Bun.spawn({
@@ -968,10 +1087,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
       healthMetadata: { profile: "life-coach" },
       memory,
     });
-    const server = Bun.serve({
-      fetch: bridge.fetch,
-      port: 0,
-    });
+    const server = await startBridgeTestServer(bridge.fetch);
 
     try {
       const child = Bun.spawn({
@@ -1023,37 +1139,17 @@ describe("Phase 39 Python HTTP memory bridge", () => {
   it(
     "starts the packaged HTTP bridge entrypoint with bearer auth for a Python backend",
     async () => {
-      const port = allocateBridgePort();
       const token = "phase-39-http-bridge-test-token";
-      const url = `http://127.0.0.1:${port}`;
-      const serverProcess = Bun.spawn({
-        cmd: [
-          "bun",
-          "--no-env-file",
-          "run",
-          "scripts/goodmemory-http-bridge.ts",
-          "--host",
-          "127.0.0.1",
-          "--port",
-          String(port),
-          "--profile",
-          "life-coach",
-          "--token",
+      const { serverProcess, stderrPromise, stdoutPromise, url } =
+        await startPackagedBridgeProcess({
+          args: ["--profile", "life-coach", "--token", token],
+          env: {
+            GOODMEMORY_STORAGE_PROVIDER: "memory",
+          },
           token,
-        ],
-        env: {
-          ...process.env,
-          GOODMEMORY_STORAGE_PROVIDER: "memory",
-        },
-        stderr: "pipe",
-        stdout: "pipe",
-      });
-      const stdoutPromise = new Response(serverProcess.stdout).text();
-      const stderrPromise = new Response(serverProcess.stderr).text();
+        });
 
       try {
-        await waitForBridgeReady({ token, url });
-
         // The packaged bin serves healthz auth-free and reports its profile.
         const healthz = await fetch(`${url}/healthz`, { method: "GET" });
         expect(healthz.status).toBe(200);
@@ -1136,34 +1232,18 @@ describe("Phase 39 Python HTTP memory bridge", () => {
   it(
     "accepts the VibeNest-compatible bridge auth env alias",
     async () => {
-      const port = allocateBridgePort();
       const token = "phase-39-http-bridge-auth-alias-token";
-      const url = `http://127.0.0.1:${port}`;
-      const serverProcess = Bun.spawn({
-        cmd: [
-          "bun",
-          "--no-env-file",
-          "run",
-          "scripts/goodmemory-http-bridge.ts",
-          "--host",
-          "127.0.0.1",
-          "--port",
-          String(port),
-        ],
-        env: {
-          ...process.env,
-          GOODMEMORY_HTTP_BRIDGE_AUTH: token,
-          GOODMEMORY_HTTP_BRIDGE_TOKEN: "stale-reserved-token-value",
-          GOODMEMORY_STORAGE_PROVIDER: "memory",
-        },
-        stderr: "pipe",
-        stdout: "pipe",
-      });
-      const stdoutPromise = new Response(serverProcess.stdout).text();
-      const stderrPromise = new Response(serverProcess.stderr).text();
+      const { serverProcess, stderrPromise, stdoutPromise, url } =
+        await startPackagedBridgeProcess({
+          env: {
+            GOODMEMORY_HTTP_BRIDGE_AUTH: token,
+            GOODMEMORY_HTTP_BRIDGE_TOKEN: "stale-reserved-token-value",
+            GOODMEMORY_STORAGE_PROVIDER: "memory",
+          },
+          token,
+        });
 
       try {
-        await waitForBridgeReady({ token, url });
         const health = await fetch(`${url}/healthz`, { method: "GET" });
         expect(health.status).toBe(200);
         expect(await health.json()).toMatchObject({
