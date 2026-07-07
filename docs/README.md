@@ -24,6 +24,8 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-Claude-Code-Setup-Guide.md` - Claude Code installed-host setup.
 - `GoodMemory-Standalone-MCP-Setup-Guide.md` - standalone MCP server for any
   MCP client (no installed host); canonical flag/env matrix and scope notes.
+- `GoodMemory-MCP-Registry-Publishing.md` - maintainer steps for publishing the
+  standalone MCP server manifest to the MCP registry.
 - `GoodMemory-Cursor-Setup-Guide.md` - Cursor recipe on the standalone server.
 - `GoodMemory-Gemini-CLI-Setup-Guide.md` - Gemini CLI recipe on the standalone
   server.

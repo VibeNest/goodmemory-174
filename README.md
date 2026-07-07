@@ -154,6 +154,31 @@ lower-level surfaces such as `goodmemory/host`, custom stores, eval tooling, and
 runtime helpers support these paths. They are the README-level ways to decide
 how to start.
 
+### Autonomous agent? Start here
+
+If you are an agent that wants to give *yourself* durable memory, match one path
+and run it. Machine-readable versions of this tree live in
+[llms.txt](./llms.txt) and
+[.well-known/goodmemory.json](./.well-known/goodmemory.json) (a deployed bridge
+also serves the descriptor at `/.well-known/goodmemory.json`).
+
+- **You are, or run inside, Claude Code or Codex** →
+  `npm install -g goodmemory@0.5.1 && goodmemory setup`. Unsure what is already
+  wired? Run `goodmemory adopt` (add `--json` for a machine-readable plan): it
+  inspects `.claude/`, `.codex/`, and existing MCP config, then prints the exact
+  next command for your environment.
+- **You speak MCP** (Cursor, Windsurf, Cline, Claude Desktop, Gemini CLI,
+  OpenCode, or a custom client) → add the
+  [standalone MCP server](#standalone-mcp-for-any-client); the two tools you need
+  are `goodmemory_get_context` (recall) and `goodmemory_remember` (opt-in write).
+- **You are a framework agent or a backend** → call the
+  [HTTP bridge](#pythonfastapi-http-bridge): hosted at `goodmemory.vibenest.net`
+  or self-hosted with `goodmemory-http-bridge --recommended` (or
+  `GOODMEMORY_PROFILE=agent-recommended goodmemory-http-bridge`); Python callers
+  use `pip install goodmemory-client`.
+
+The prose paths below expand each option.
+
 ### 1. Build Memory Into An Agent, Chatbox, Or Copilot
 
 Use this when you own the product server and the model call. Install
@@ -246,13 +271,13 @@ policy. GoodMemory owns the memory loop and storage boundary.
 
 ## Install
 
-GoodMemory `0.5.0` has two normal install paths.
+GoodMemory `0.5.1` has two normal install paths.
 
 Use the global CLI when you want memory enhancement inside installed coding
 agents:
 
 ```bash
-npm install -g goodmemory@0.5.0
+npm install -g goodmemory@0.5.1
 goodmemory setup
 goodmemory status
 ```
@@ -260,11 +285,11 @@ goodmemory status
 Use the package dependency when you are building an application:
 
 ```bash
-npm install goodmemory@0.5.0
+npm install goodmemory@0.5.1
 ```
 
 If you want to type `goodmemory` directly, install the global CLI.
-A project-local `npm install goodmemory@0.5.0` does not put `goodmemory` on your shell `PATH`.
+A project-local `npm install goodmemory@0.5.1` does not put `goodmemory` on your shell `PATH`.
 Use `npx goodmemory`, `npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`
 from that project instead.
 
@@ -275,13 +300,13 @@ npx goodmemory -V
 Bun consumers can install it directly:
 
 ```bash
-bun add goodmemory@0.5.0
+bun add goodmemory@0.5.1
 ```
 
 Tarball verification for release rehearsal:
 
 ```bash
-npm install ./goodmemory-0.5.0.tgz
+npm install ./goodmemory-0.5.1.tgz
 ```
 
 The installed CLI is Bun-backed for non-version commands. The package bin is
@@ -293,7 +318,7 @@ delegate to Bun.
 For most users, the first useful path is installed-host memory.
 
 ```bash
-npm install -g goodmemory@0.5.0
+npm install -g goodmemory@0.5.1
 goodmemory setup
 goodmemory status
 ```
@@ -941,10 +966,16 @@ scope headers to `POST /memory/recall-context`, `/memory/remember`,
 `/memory/revise`. The TypeScript bridge API is available from `goodmemory/http`.
 
 To serve the recommended retrieval preset (semantic candidate union + BM25)
-over the bridge, start it with `GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET=recommended`
-(or `--retrieval-preset recommended`); it requires an embedding endpoint
-(`GOODMEMORY_EMBEDDING_*`). Recall requests then ask for `strategy: "hybrid"`
-to use it — any other strategy stays on the deterministic rules-only floor.
+over the bridge, start it with the one switch `--recommended` (or
+`GOODMEMORY_PROFILE=agent-recommended` or
+`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`); it requires an embedding endpoint
+(`GOODMEMORY_EMBEDDING_*`) or the bridge refuses to start (fail-loud, not a
+silent downgrade). `GET /healthz` then reports `retrievalTier` and
+`embeddingEnabled` so the active tier is visible at a glance; recall requests
+default to `strategy: "auto"`, which the preset routes to `hybrid` — degraded
+recalls carry a `routing.warnings` code (`semantic_recall_inactive`) plus
+`routing.warningMessages` with `semantic recall inactive — set strategy:hybrid +
+RETRIEVAL_PRESET`, instead of silently returning the lexical floor.
 
 Or deploy it with Docker in one command (SQLite volume included; add the
 compose `postgres` profile for pgvector):
@@ -1021,7 +1052,7 @@ Current Claude/Codex examples stay in `file-assisted` mode by default.
 ## CLI Reference
 
 The `goodmemory` command on your shell `PATH` is the global CLI installed with
-`npm install -g goodmemory@0.5.0`. In a local dependency install, invoke the
+`npm install -g goodmemory@0.5.1`. In a local dependency install, invoke the
 package bin as `npx goodmemory`, `npm exec -- goodmemory`, or
 `./node_modules/.bin/goodmemory`. The repo-local `bun run goodmemory` script is
 for development only.

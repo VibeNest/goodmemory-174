@@ -8,6 +8,7 @@ import {
   inspectGoodMemoryRuntime,
 } from "../../src";
 import type { EmbeddingAdapter } from "../../src/embedding/contracts";
+import { createGoodMemoryHttpMemoryBridge } from "../../src/http";
 
 // End-to-end proof for retrieval.preset "recommended" through the public API:
 // with an embedding adapter injected and NO per-call strategy, the preset's
@@ -90,6 +91,49 @@ describe("GoodMemory retrieval.preset recommended", () => {
     expect(routing.strategy).toBe("hybrid");
   });
 
+  it("the HTTP bridge passes auto through to hybrid only when the preset is active", async () => {
+    for (const [withPreset, expected] of [
+      [true, "hybrid"],
+      [false, "rules-only"],
+    ] as const) {
+      const memory = buildMemory(withPreset);
+      await seed(memory);
+      const bridge = createGoodMemoryHttpMemoryBridge({ memory });
+      const response = await bridge.handle(
+        new Request("http://localhost/memory/recall-context", {
+          body: JSON.stringify({ query: QUERY, scope }),
+          headers: {
+            "content-type": "application/json",
+            "x-goodmemory-operations": "recall-context",
+            "x-goodmemory-user-id": scope.userId,
+            "x-goodmemory-workspace-id": scope.workspaceId,
+          },
+          method: "POST",
+        }),
+      );
+      expect(response.statusCode).toBe(200);
+      // No per-call strategy: preset-active bridge lets "auto" reach the router
+      // (bias → hybrid); a preset-less bridge stays on the conservative floor.
+      const routing = (response.body as {
+        routing?: {
+          resolvedStrategy?: string;
+          warningMessages?: string[];
+          warnings?: string[];
+        };
+      }).routing;
+      expect(routing?.resolvedStrategy).toBe(expected);
+      if (withPreset) {
+        expect(routing?.warnings ?? []).not.toContain("semantic_recall_inactive");
+        expect(routing?.warningMessages ?? []).toEqual([]);
+      } else {
+        expect(routing?.warnings ?? []).toContain("semantic_recall_inactive");
+        expect(routing?.warningMessages ?? []).toContain(
+          "semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET",
+        );
+      }
+    }
+  });
+
   it("keeps auto→rules-only without the preset (bias is preset-scoped)", async () => {
     const memory = buildMemory(false);
     await seed(memory);
@@ -102,6 +146,43 @@ describe("GoodMemory retrieval.preset recommended", () => {
     expect(JSON.stringify(result.metadata.candidateTraces)).not.toContain(
       "semantic_union",
     );
+  });
+
+  it("warns when semantic union is configured but auto resolves below hybrid", async () => {
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        embeddingAdapter: createFixedEmbeddingAdapter(),
+        sessionStore: createInMemorySessionStore(),
+        vectorStore: createInMemoryVectorStore(),
+      },
+      retrieval: { semanticCandidates: { topK: 4 } },
+      storage: { provider: "memory" },
+    });
+    await seed(memory);
+
+    const result = await memory.recall({ scope, query: QUERY });
+    expect(result.metadata.routingDecision.strategy).toBe("rules-only");
+    expect(
+      result.metadata.routingDecision.strategyExplanation.warnings ?? [],
+    ).toContain("semantic_recall_inactive");
+    expect(
+      result.metadata.routingDecision.strategyExplanation.warningMessages ?? [],
+    ).toContain(
+      "semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET",
+    );
+
+    const explicitFloor = await memory.recall({
+      scope,
+      query: QUERY,
+      strategy: "rules-only",
+    });
+    expect(
+      explicitFloor.metadata.routingDecision.strategyExplanation.warnings ?? [],
+    ).not.toContain("semantic_recall_inactive");
+    expect(
+      explicitFloor.metadata.routingDecision.strategyExplanation.warningMessages ?? [],
+    ).toEqual([]);
   });
 
   it("throws at construction without a resolvable embedding", () => {

@@ -1,6 +1,7 @@
 {
   "name": "goodmemory",
-  "version": "0.5.0",
+  "version": "0.5.1",
+  "mcpName": "io.github.hjqcan/goodmemory",
   "description": "Memory layer for chat, copilot, and agent applications.",
   "license": "MIT",
   "homepage": "https://github.com/hjqcan/GoodMemory#readme",
@@ -30,11 +31,13 @@
     "access": "public"
   },
   "files": [
+    ".well-known/goodmemory.json",
     "LICENSE",
     "README.md",
     "README.zh-CN.md",
     "dist",
     "docs",
+    "llms.txt",
     "package.json",
     "scripts/goodmemory-cli.js",
     "scripts/goodmemory-cli.ts",
@@ -42,6 +45,7 @@
     "scripts/goodmemory-http-bridge.ts",
     "scripts/goodmemory-mcp.js",
     "scripts/goodmemory-mcp.ts",
+    "server.json",
     "src"
   ],
   "bin": {

@@ -228,6 +228,10 @@ export interface BuildContextInput {
   recall: RecallResult;
   output?: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
   maxTokens?: number;
+  // Opt-in: drop evidence lines that duplicate a fact verbatim (used by host
+  // injection to avoid redundant Evidence/Facts noise in the injected fragment).
+  // Off by default so benchmark rendering is unchanged.
+  suppressDuplicateEvidence?: boolean;
 }
 
 export interface BuildContextResult {
@@ -250,6 +254,10 @@ export interface RememberResult {
   accepted: number;
   rejected: number;
   events: RememberPipelineResult["events"];
+  // Non-fatal degradation codes (present only when non-empty): e.g.
+  // "no_durable_facts_extracted" or "assisted_extraction_failed". See the
+  // remember engine's RememberResult for the full list.
+  warnings?: string[];
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";

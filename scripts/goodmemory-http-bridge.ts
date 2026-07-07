@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
-import type { GoodMemoryConfig, GoodMemoryRetrievalPresetId } from "../src";
+import type {
+  GoodMemoryConfig,
+  GoodMemoryRetrievalPresetId,
+  GoodMemoryRuntimeInfo,
+} from "../src";
 import type {
   GoodMemoryHttpBridgeCaller,
   GoodMemoryHttpBridgeOperation,
 } from "../src/http";
-import { createGoodMemory } from "../src";
+import { createGoodMemory, inspectGoodMemoryRuntime } from "../src";
 import {
   GOODMEMORY_HTTP_MEMORY_BRIDGE_CONTRACT_VERSION,
   createGoodMemoryHttpMemoryBridge,
@@ -21,6 +25,8 @@ const HTTP_BRIDGE_AUTH_HEADER = "x-goodmemory-bridge-auth";
 const HTTP_BRIDGE_PROFILE_ENV = "GOODMEMORY_HTTP_BRIDGE_PROFILE";
 const HTTP_BRIDGE_RETRIEVAL_PRESET_ENV =
   "GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET";
+const HTTP_BRIDGE_RECOMMENDED_ENV = "GOODMEMORY_HTTP_BRIDGE_RECOMMENDED";
+const GOODMEMORY_PROFILE_ENV = "GOODMEMORY_PROFILE";
 const HTTP_BRIDGE_ALLOW_INSECURE_ENV =
   "GOODMEMORY_HTTP_BRIDGE_ALLOW_INSECURE";
 
@@ -34,8 +40,10 @@ interface GoodMemoryHttpBridgeServeOptions {
   // Opt-in retrieval preset (currently only "recommended"), which enables the
   // full recall profile — semantic candidate union + BM25 + conversational
   // extraction — needed to reproduce GoodMemory's public benchmark numbers.
-  // Requires an embedding endpoint (GOODMEMORY_EMBEDDING_*); createGoodMemory
-  // throws on recall otherwise, matching the SDK's preset boundary.
+  // Set it with the `--recommended` one-switch or `--retrieval-preset
+  // recommended`. Requires an embedding endpoint (GOODMEMORY_EMBEDDING_*);
+  // createGoodMemory throws at startup otherwise (fail-loud, not a silent
+  // downgrade), matching the SDK's preset boundary.
   retrievalPreset?: GoodMemoryRetrievalPresetId;
   token?: string;
 }
@@ -48,7 +56,14 @@ function printHelp(): void {
   console.log(`GoodMemory HTTP memory bridge
 
 Usage:
-  goodmemory-http-bridge [--host <host>] [--port <port>] [--profile <default|life-coach>] [--retrieval-preset recommended] [--token <token>]
+  goodmemory-http-bridge [--host <host>] [--port <port>] [--profile <default|life-coach>] [--recommended] [--token <token>]
+
+  --recommended        One switch for benchmark-grade recall: enables the
+                       recommended retrieval preset (semantic candidate union +
+                       BM25 + conversational extraction). Requires an embedding
+                       endpoint (GOODMEMORY_EMBEDDING_*) or the bridge refuses to
+                       start. Distinct from \`goodmemory setup --recommended\`,
+                       which is the installed-host capture consent flow.
 
 Environment:
   ${HTTP_BRIDGE_TOKEN_ENV}              Bearer token required by default
@@ -56,7 +71,10 @@ Environment:
   ${HTTP_BRIDGE_HOST_ENV}               Hostname, defaults to ${DEFAULT_HOST}
   ${HTTP_BRIDGE_PORT_ENV}               Port, defaults to ${DEFAULT_PORT}
   ${HTTP_BRIDGE_PROFILE_ENV}            default or life-coach
-  ${HTTP_BRIDGE_RETRIEVAL_PRESET_ENV}   recommended (enables semantic union + BM25; requires GOODMEMORY_EMBEDDING_*)
+  ${GOODMEMORY_PROFILE_ENV}=agent-recommended
+                                  Same as --recommended for agent self-hosts
+  ${HTTP_BRIDGE_RECOMMENDED_ENV}=1      Same as --recommended
+  ${HTTP_BRIDGE_RETRIEVAL_PRESET_ENV}   recommended (explicit alias for --recommended)
   ${HTTP_BRIDGE_ALLOW_INSECURE_ENV}=1   Allow header-only auth for local development
 
 Requests authenticate with Authorization: Bearer <token> (or ${HTTP_BRIDGE_AUTH_HEADER}: Bearer <token> behind proxies)
@@ -111,6 +129,10 @@ function isEnabled(value: string | undefined): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
 
+function isAgentRecommendedProfile(value: string | undefined): boolean {
+  return value?.trim() === "agent-recommended";
+}
+
 export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
   const options: ParsedArgs = {
     allowInsecure: isEnabled(env[HTTP_BRIDGE_ALLOW_INSECURE_ENV]),
@@ -118,9 +140,10 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
     host: env[HTTP_BRIDGE_HOST_ENV] ?? DEFAULT_HOST,
     port: parsePort(env[HTTP_BRIDGE_PORT_ENV]),
     profile: parseProfile(env[HTTP_BRIDGE_PROFILE_ENV]),
-    retrievalPreset: parseRetrievalPreset(
-      env[HTTP_BRIDGE_RETRIEVAL_PRESET_ENV],
-    ),
+    retrievalPreset: isAgentRecommendedProfile(env[GOODMEMORY_PROFILE_ENV]) ||
+      isEnabled(env[HTTP_BRIDGE_RECOMMENDED_ENV])
+      ? "recommended"
+      : parseRetrievalPreset(env[HTTP_BRIDGE_RETRIEVAL_PRESET_ENV]),
     token:
       env[HTTP_BRIDGE_AUTH_ENV]?.trim() ||
       env[HTTP_BRIDGE_TOKEN_ENV]?.trim() ||
@@ -150,6 +173,10 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): ParsedArgs {
     if (token === "--profile") {
       options.profile = parseProfile(readFlagValue(argv, index, token));
       index += 1;
+      continue;
+    }
+    if (token === "--recommended") {
+      options.retrievalPreset = "recommended";
       continue;
     }
     if (token === "--retrieval-preset") {
@@ -313,6 +340,24 @@ export function createMemoryConfig(
   return { ...retrieval };
 }
 
+// Health-surfaced retrieval state, derived from the constructed memory's
+// runtime info so it is env-aware (embedding via GOODMEMORY_EMBEDDING_* counts).
+// `retrievalTier` reports the active recall config; `embeddingEnabled` is the
+// complementary signal — an embedding-wired bridge with retrievalTier
+// "rules-only" tells the operator they configured embedding but not the
+// recommended preset, so recall silently runs the lexical floor.
+export function deriveRetrievalHealthFields(
+  info: Pick<GoodMemoryRuntimeInfo, "embeddingEnabled" | "retrievalPreset"> | undefined,
+): { embeddingEnabled: string; retrievalTier: string } {
+  if (!info) {
+    return { embeddingEnabled: "false", retrievalTier: "unknown" };
+  }
+  return {
+    embeddingEnabled: String(info.embeddingEnabled),
+    retrievalTier: info.retrievalPreset ? "preset-recommended" : "rules-only",
+  };
+}
+
 function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
   if (!options.token && !options.allowInsecure) {
     throw new Error(
@@ -330,6 +375,7 @@ function serveHttpBridge(options: GoodMemoryHttpBridgeServeOptions): void {
           : "disabled",
       bridgeFeatures: "auth-env-alias,body-auth,body-caller",
       profile: options.profile,
+      ...deriveRetrievalHealthFields(inspectGoodMemoryRuntime(memory)),
     },
     memory,
     resolveCaller: createTokenAwareCallerResolver(options),

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,9 +38,20 @@ interface McpToolResult {
 }
 
 const WORKSPACE_ROOT = "/tmp/goodmemory-mcp-direct-workspace";
+const PACKAGE_JSON_URL = new URL("../../package.json", import.meta.url);
 
 function inspectServer(server: object): InspectableMcpServer {
   return server as unknown as InspectableMcpServer;
+}
+
+function readPackageVersion(): string {
+  const parsed = JSON.parse(readFileSync(PACKAGE_JSON_URL, "utf8")) as {
+    version?: unknown;
+  };
+  if (typeof parsed.version !== "string" || parsed.version.length === 0) {
+    throw new Error("package.json must define a non-empty version.");
+  }
+  return parsed.version;
 }
 
 function missingFile(path: string): Error & { code: "ENOENT" } {
@@ -188,7 +200,7 @@ describe("goodmemory mcp server direct handlers", () => {
     );
 
     expect(server.server._serverInfo.name).toBe("goodmemory-mcp");
-    expect(server.server._serverInfo.version).toBe("0.5.0");
+    expect(server.server._serverInfo.version).toBe(readPackageVersion());
     expect(Object.keys(server._registeredTools).sort()).toEqual([
       "goodmemory_get_context",
       "goodmemory_get_records",
@@ -202,6 +214,36 @@ describe("goodmemory mcp server direct handlers", () => {
     expect(server._registeredTools.goodmemory_get_records?.description).toContain(
       "progressive GoodMemory recall",
     );
+  });
+
+  it("layers the tool surface so get_context and remember read as the primary two", () => {
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createDependencies(),
+        host: "codex",
+      }),
+    );
+    const description = (name: string): string =>
+      server._registeredTools[name]?.description ?? "";
+
+    // The two primary tools carry no advanced/diagnostic lead.
+    expect(description("goodmemory_get_context")).not.toMatch(/^(Advanced|Diagnostic)/);
+    expect(description("goodmemory_remember")).not.toMatch(/^(Advanced|Diagnostic)/);
+
+    // Every other tool is marked as advanced/diagnostic so an agent sees the
+    // main two first and reaches past them only when needed.
+    for (const name of [
+      "goodmemory_get_records",
+      "goodmemory_inspect_memory",
+      "goodmemory_read_artifacts",
+      "goodmemory_search_index",
+      "goodmemory_stats",
+      "goodmemory_timeline",
+      "goodmemory_trace_recall",
+    ]) {
+      expect(description(name)).toMatch(/^(Advanced|Diagnostic)/);
+    }
   });
 
   it("serves non-mutating context, trace, artifact, and stats results from installed host memory", async () => {
@@ -257,6 +299,55 @@ describe("goodmemory mcp server direct handlers", () => {
       journal: 0,
       spills: 0,
       workingMemory: 0,
+    });
+  });
+
+  it("surfaces recall routing degradation warnings to the agent via get_context", async () => {
+    const memory = createFakeMemory();
+    (memory as { recall: unknown }).recall = async () =>
+      ({
+        memories: [],
+        metadata: {
+          candidateTraces: [],
+          hits: [],
+          policyApplied: ["allow"],
+          routingDecision: {
+            intent: "general_assistance",
+            profile: "coding_agent",
+            strategy: "rules-only",
+            strategyExplanation: {
+              fallbackReason: "semantic_search_unavailable",
+              hardFloor: "lexical_runtime_procedural_priors",
+              llmRefinement: false,
+              requestedStrategy: "hybrid",
+              resolvedStrategy: "rules-only",
+              semanticTieBreaking: false,
+              summary: "hybrid requested but semantic search is unavailable",
+              warnings: ["semantic_recall_inactive"],
+            },
+          },
+          verificationHints: [],
+        },
+      }) as unknown as RecallResult;
+
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        dependencies: createDependencies(memory),
+        host: "codex",
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_get_context!.handler({
+      cwd: WORKSPACE_ROOT,
+      query: "where does the user work?",
+    });
+
+    expect(result.structuredContent?.routing).toMatchObject({
+      resolvedStrategy: "rules-only",
+      warningMessages: [
+        "semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET",
+      ],
+      warnings: ["semantic_recall_inactive"],
     });
   });
 
@@ -332,5 +423,40 @@ describe("goodmemory mcp server direct handlers", () => {
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
     }
+  });
+
+  it("echoes resolvedExtractionStrategy and degradation warnings from remember", async () => {
+    const memory = createFakeMemory();
+    (memory as { remember?: unknown }).remember = async () => ({
+      accepted: 0,
+      events: [],
+      metadata: {
+        adapterId: "en",
+        analysisMode: "rules-only",
+        locale: "en-US",
+        localeSource: "detected",
+        requestedExtractionStrategy: "auto",
+        resolvedExtractionStrategy: "rules-only",
+      },
+      rejected: 0,
+      warnings: ["no_durable_facts_extracted"],
+    });
+    const server = inspectServer(
+      createGoodMemoryMcpServer({
+        allowWrite: true,
+        dependencies: createDependencies(memory),
+        host: "codex",
+      }),
+    );
+
+    const result = await server._registeredTools.goodmemory_remember!.handler({
+      content: "just some passing chatter",
+      cwd: WORKSPACE_ROOT,
+    });
+
+    expect(result.structuredContent?.warnings).toEqual([
+      "no_durable_facts_extracted",
+    ]);
+    expect(result.structuredContent?.resolvedExtractionStrategy).toBe("rules-only");
   });
 });

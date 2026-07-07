@@ -736,6 +736,66 @@ describe("remember engine", () => {
     expect(result.events[0]?.extractionSources).toEqual(["rules-only"]);
     expect(facts).toHaveLength(1);
     expect(facts[0]?.subject).toBe("runtime launch");
+    // The assisted extractor threw and was silently swallowed to rules-only;
+    // surface it so the caller is not left thinking assisted extraction ran.
+    expect(result.warnings ?? []).toContain("assisted_extraction_failed");
+  });
+
+  it("warns no_durable_facts_extracted when a batch produces zero durable memories", async () => {
+    const scope = { userId: "u-zero-facts", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine } = createEngine({
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        { role: "user", content: "just some passing chatter about the weather" },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(result.warnings ?? []).toContain("no_durable_facts_extracted");
+  });
+
+  it("does not warn no_durable_facts_extracted when policy rejects extracted candidates", async () => {
+    const scope = { userId: "u-policy-reject", sessionId: "s-1", workspaceId: "workspace-a" };
+    const { engine } = createEngine({
+      extractor: {
+        async extract() {
+          return {
+            candidates: [
+              {
+                id: "low-value-1",
+                kindHint: "fact",
+                explicitness: "inferred",
+                content: "The deploy might be fine.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                metadata: { category: "project" },
+              },
+            ],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      scope,
+      messages: [
+        { role: "user", content: "The deploy might be fine." },
+      ],
+    });
+
+    expect(result.accepted).toBe(0);
+    expect(result.rejected).toBe(1);
+    expect(result.events[0]?.outcome).toBe("rejected");
+    expect(result.warnings ?? []).not.toContain("no_durable_facts_extracted");
   });
 
   it("defaults extraction strategy to auto and keeps simple explicit inputs on rules-only", async () => {

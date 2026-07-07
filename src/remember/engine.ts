@@ -571,6 +571,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
     } catch {
       return {
         extraction: baselineExtraction,
+        extractionWarning: "assisted_extraction_failed" as const,
         profile,
         requestedExtractionStrategy,
         resolvedExtractionStrategy: "rules-only" as const,
@@ -606,6 +607,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
       });
       const {
         extraction,
+        extractionWarning,
         profile,
         requestedExtractionStrategy,
         resolvedExtractionStrategy,
@@ -789,10 +791,24 @@ export function createRememberEngine(config: RememberEngineConfig) {
           vectorIndex,
         });
 
+        const warnings: string[] = [];
+        if (extractionWarning) {
+          warnings.push(extractionWarning);
+        }
+        if (
+          state.accepted === 0 &&
+          input.messages.length > 0 &&
+          extraction.candidates.length === 0 &&
+          extraction.ignoredMessageCount === 0
+        ) {
+          warnings.push("no_durable_facts_extracted");
+        }
+
         return {
           accepted: state.accepted,
           rejected: state.rejected,
           events: state.events,
+          ...(warnings.length > 0 ? { warnings } : {}),
           metadata: {
             locale: resolvedLanguage.locale,
             localeSource: resolvedLanguage.localeSource,

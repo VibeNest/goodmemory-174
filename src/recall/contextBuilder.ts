@@ -647,13 +647,50 @@ function buildRenderableSections(
   );
 }
 
+// Opt-in (off by default so benchmark rendering is byte-identical): drop
+// evidence bullet lines whose text is already shown verbatim under Facts. This
+// only fires for verbatim (rules-only) writes where a fact and its provenance
+// evidence carry identical content; distilled evidence (different text) is
+// preserved. Operates on the structured section bodies before flattening.
+function suppressEvidenceDuplicatingFacts<
+  T extends { key: string; body: string },
+>(sections: T[]): T[] {
+  const facts = sections.find((section) => section.key === "factSummary");
+  if (!facts?.body) {
+    return sections;
+  }
+  const factLines = new Set(
+    facts.body
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
+  return sections.flatMap((section) => {
+    if (section.key !== "evidenceSummary" || !section.body) {
+      return [section];
+    }
+    const kept = section.body
+      .split("\n")
+      .filter((line) => !factLines.has(line.trim()));
+    if (kept.length === 0) {
+      return [];
+    }
+    return [{ ...section, body: kept.join("\n") }];
+  });
+}
+
 export function renderMemoryPacket(
   packet: MemoryPacket,
   output: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment",
   maxTokens?: number,
   renderingProfileOverride?: RetrievalProfile,
+  options?: { suppressDuplicateEvidence?: boolean },
 ): { content: string; estimatedTokens: number; omittedSections: string[] } {
-  const sections = buildRenderableSections(packet, renderingProfileOverride);
+  const sections = options?.suppressDuplicateEvidence
+    ? suppressEvidenceDuplicatingFacts(
+        buildRenderableSections(packet, renderingProfileOverride),
+      )
+    : buildRenderableSections(packet, renderingProfileOverride);
   const { sections: kept, omittedSections } = trimSections(
     sections.map(({ title, body }) => ({ title, body })),
     maxTokens,

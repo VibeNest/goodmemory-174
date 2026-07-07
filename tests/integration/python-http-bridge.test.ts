@@ -645,7 +645,7 @@ describe("Phase 39 Python HTTP memory bridge", () => {
     expect(recall.body.contextText).toContain("rules-only recovery");
   });
 
-  it("keeps auto and omitted bridge strategies on rules-only even when a provider is configured", async () => {
+  it("keeps auto and omitted bridge strategies on rules-only when no retrieval preset is active", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
     const vectorStore = createInMemoryVectorStore();
@@ -691,6 +691,11 @@ describe("Phase 39 Python HTTP memory bridge", () => {
       });
 
       expect(recall.statusCode).toBe(200);
+      // With no retrieval preset active, the bridge stays conservative: auto /
+      // omitted strategies run the deterministic rules-only floor and never
+      // engage the (failing) provider — so no provider fallback is reported.
+      // (A preset-active bridge instead lets auto reach the router; covered in
+      // the recommended-preset test.)
       expect(recall.body).toMatchObject({
         hasContext: true,
         ok: true,

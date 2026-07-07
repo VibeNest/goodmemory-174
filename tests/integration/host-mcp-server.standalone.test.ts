@@ -217,6 +217,16 @@ describe("goodmemory mcp server standalone mode", () => {
         "counts.references",
         1,
       );
+      // Retrieval runtime status lets an agent see the active config (here a
+      // bare in-memory store: no embedding, no preset) alongside the counts.
+      expect(statsResult.structuredContent).toHaveProperty(
+        "retrieval.embeddingEnabled",
+        false,
+      );
+      expect(statsResult.structuredContent).toHaveProperty(
+        "retrieval.retrievalPreset",
+        null,
+      );
 
       // Progressive flow works and provisions the generic-host secret. The
       // agent-less scope surfaces the agent-less fact only.

@@ -560,6 +560,7 @@ async function buildFragmentHookContext(input: {
     recall,
     output: "developer_prompt_fragment",
     maxTokens: input.maxTokens,
+    suppressDuplicateEvidence: true,
   });
   const fragment = normalizeText(builtContext.content);
   if (!fragment) {

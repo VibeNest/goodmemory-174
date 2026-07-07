@@ -390,3 +390,61 @@ describe("recall router auto-strategy bias", () => {
     expect(plan.strategy).toBe("hybrid");
   });
 });
+
+// Silent degradation: when semantic recall was configured/requested but did not
+// run (recall fell to the lexical floor), the router flags it so consumers can
+// see they are on the floor rather than getting a silent bad result.
+describe("recall router degradation warnings", () => {
+  const signalsOff = {
+    actionDriving: false,
+    continuation: false,
+    referenceSeeking: false,
+    requestedSlots: [],
+    retrievalProfile: "general_chat" as const,
+    supportSlots: [],
+  };
+
+  it("warns semantic_recall_inactive when the preset bias wants hybrid but semantic search is unavailable", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: false },
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+    expect(strategy.warnings ?? []).toContain("semantic_recall_inactive");
+  });
+
+  it("warns semantic_recall_inactive when explicit hybrid falls back to rules-only", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      availability: { semanticSearch: false },
+      strategy: "hybrid",
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+    expect(strategy.fallbackReason).toBe("semantic_search_unavailable");
+    expect(strategy.warnings ?? []).toContain("semantic_recall_inactive");
+  });
+
+  it("does NOT warn on a correctly-configured rules-only floor (no bias, no request)", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      availability: { semanticSearch: false },
+    });
+
+    expect(strategy.resolvedStrategy).toBe("rules-only");
+    expect(strategy.warnings ?? []).toEqual([]);
+  });
+
+  it("does NOT warn when the preset bias resolves to hybrid", () => {
+    const strategy = resolveRouterStrategy({
+      autoSignals: signalsOff,
+      autoStrategyBias: "hybrid",
+      availability: { semanticSearch: true },
+    });
+
+    expect(strategy.resolvedStrategy).toBe("hybrid");
+    expect(strategy.warnings ?? []).toEqual([]);
+  });
+});

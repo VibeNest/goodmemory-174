@@ -59,9 +59,11 @@ import {
 import {
   planRecall,
   type RecallRouterStrategy,
+  resolveRecallRoutingWarningMessages,
   resolveRetrievalProfile,
   type RecallSlot,
   type RetrievalProfile,
+  SEMANTIC_RECALL_INACTIVE_WARNING,
   type RoutingDecision,
 } from "./router";
 import { ProviderBackedRecallError } from "./errors";
@@ -423,6 +425,46 @@ function shouldSuppressGuidanceLanesForFactQuery(input: {
   return input.language.isDirectFactualLookupQuery(input.query, input.locale);
 }
 
+function withRoutingWarning(
+  routingDecision: RoutingDecision,
+  warning: string,
+): RoutingDecision {
+  const warnings = routingDecision.strategyExplanation.warnings ?? [];
+  if (warnings.includes(warning)) {
+    return routingDecision;
+  }
+
+  const nextWarnings = [...warnings, warning];
+  const warningMessages = resolveRecallRoutingWarningMessages({
+    existingMessages: routingDecision.strategyExplanation.warningMessages,
+    warnings: nextWarnings,
+  });
+
+  return {
+    ...routingDecision,
+    strategyExplanation: {
+      ...routingDecision.strategyExplanation,
+      ...(warningMessages.length > 0 ? { warningMessages } : {}),
+      warnings: nextWarnings,
+    },
+  };
+}
+
+function shouldWarnSemanticUnionInactive(input: {
+  embedding: EmbeddingAdapter | undefined;
+  routingDecision: RoutingDecision;
+  semanticCandidates: RecallSemanticCandidatesConfig | undefined;
+  vectorIndex: RecallVectorSearchPort | null;
+}): boolean {
+  return Boolean(
+    input.semanticCandidates &&
+      input.embedding &&
+      input.vectorIndex &&
+      input.routingDecision.strategy !== "hybrid" &&
+      input.routingDecision.strategyExplanation.requestedStrategy !== "rules-only",
+  );
+}
+
 export function createRecallEngine(config: RecallEngineConfig) {
   const language = config.language ?? createLanguageService();
   const now = config.now ?? Date.now;
@@ -586,6 +628,19 @@ export function createRecallEngine(config: RecallEngineConfig) {
             stage: "plan",
           });
         }
+      }
+      if (
+        shouldWarnSemanticUnionInactive({
+          embedding: config.embedding,
+          routingDecision,
+          semanticCandidates: config.semanticCandidates,
+          vectorIndex,
+        })
+      ) {
+        routingDecision = withRoutingWarning(
+          routingDecision,
+          SEMANTIC_RECALL_INACTIVE_WARNING,
+        );
       }
       const currentReferenceTime = referenceTime();
       const visibleEvidencePool = await applyRecallPolicyToRecords(

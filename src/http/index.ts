@@ -18,6 +18,12 @@ import type {
 import type { MemoryScope } from "../domain/scope";
 import { rememberRules, type RememberConfig } from "../remember/profiles";
 import { isProviderBackedRecallError } from "../recall/errors";
+import { inspectGoodMemoryRuntime } from "../api/runtimeInfo";
+import { buildGoodMemoryCapabilityDescriptor } from "../api/capabilityDescriptor";
+import {
+  resolveRecallRoutingWarningMessages,
+  SEMANTIC_RECALL_INACTIVE_WARNING,
+} from "../recall/router";
 
 export const GOODMEMORY_HTTP_MEMORY_BRIDGE_CONTRACT_VERSION =
   "phase-39.http-memory.v1";
@@ -119,6 +125,12 @@ export interface GoodMemoryHttpRecallRoutingDiagnostics {
   requestedStrategy: NonNullable<RecallInput["strategy"]>;
   resolvedStrategy: NonNullable<RecallInput["strategy"]>;
   semanticTieBreaking: boolean;
+  // Non-fatal degradation codes (present only when non-empty): recall ran below
+  // the configured/requested intent, e.g. "semantic_recall_inactive" when a
+  // recommended preset or hybrid request silently fell to the lexical floor.
+  warnings?: string[];
+  // Human-readable companion to warnings for HTTP clients and agent hosts.
+  warningMessages?: string[];
 }
 
 export interface GoodMemoryHttpRecallContextResponse {
@@ -1006,8 +1018,24 @@ function recallHasContext(recall: RecallResult): boolean {
 
 function buildRecallRoutingDiagnostics(
   recall: RecallResult,
+  extraWarnings: readonly string[] = [],
 ): GoodMemoryHttpRecallRoutingDiagnostics {
   const explanation = recall.metadata.routingDecision.strategyExplanation;
+  // Merge the router's degradation warnings with the engine's policy signal:
+  // "semantic_candidates_unavailable" fires when the strategy resolved to
+  // hybrid but the semantic union still could not run (e.g. no vector index),
+  // which the router alone cannot see. Deduped; omitted when empty.
+  const warnings = new Set<string>([
+    ...(explanation.warnings ?? []),
+    ...extraWarnings,
+  ]);
+  if (recall.metadata.policyApplied?.includes("semantic_candidates_unavailable")) {
+    warnings.add(SEMANTIC_RECALL_INACTIVE_WARNING);
+  }
+  const warningMessages = resolveRecallRoutingWarningMessages({
+    existingMessages: explanation.warningMessages,
+    warnings: [...warnings],
+  });
 
   return {
     ...(explanation.fallbackReason
@@ -1017,12 +1045,35 @@ function buildRecallRoutingDiagnostics(
     requestedStrategy: explanation.requestedStrategy,
     resolvedStrategy: explanation.resolvedStrategy,
     semanticTieBreaking: explanation.semanticTieBreaking,
+    ...(warningMessages.length > 0 ? { warningMessages } : {}),
+    ...(warnings.size > 0 ? { warnings: [...warnings] } : {}),
   };
+}
+
+function buildBridgeRecallWarnings(input: {
+  recall: RecallResult;
+  requestedStrategy: NonNullable<RecallInput["strategy"]>;
+  runtimeInfo: ReturnType<typeof inspectGoodMemoryRuntime>;
+}): string[] {
+  if (
+    input.requestedStrategy !== "auto" ||
+    input.runtimeInfo?.embeddingEnabled !== true ||
+    input.runtimeInfo.retrievalPreset
+  ) {
+    return [];
+  }
+
+  const resolvedStrategy =
+    input.recall.metadata.routingDecision.strategyExplanation.resolvedStrategy ??
+    input.recall.metadata.routingDecision.strategy;
+  return resolvedStrategy === "rules-only"
+    ? [SEMANTIC_RECALL_INACTIVE_WARNING]
+    : [];
 }
 
 function buildProviderFallbackRoutingDiagnostics(input: {
   recall: RecallResult;
-  requestedStrategy: "auto" | "hybrid";
+  requestedStrategy: Exclude<NonNullable<RecallInput["strategy"]>, "rules-only">;
 }): GoodMemoryHttpRecallRoutingDiagnostics {
   const fallback = buildRecallRoutingDiagnostics(input.recall);
 
@@ -1184,8 +1235,21 @@ async function handleRecallContext(
       ? Math.max(1, Math.floor(body.maxTokens))
       : undefined;
   const requestedStrategy = strategy.value ?? "auto";
+  // Pass the validated strategy through to the engine's router ONLY when a
+  // retrieval preset is active — the preset's autoStrategyBias:"hybrid" is what
+  // makes "auto" resolve to hybrid, so without it that bias is dead code and
+  // recall silently runs the lexical floor (the bug this fixes). Gating on the
+  // preset also preserves the deliberate conservative default (Phase 47 rollout
+  // invariant): with no preset, any non-hybrid strategy stays rules-only so a
+  // default recall never engages a provider on query signal alone.
+  const runtimeInfo = inspectGoodMemoryRuntime(memory);
+  const presetActive = runtimeInfo?.retrievalPreset !== undefined;
   const effectiveRecallStrategy: NonNullable<RecallInput["strategy"]> =
-    requestedStrategy === "hybrid" ? "hybrid" : "rules-only";
+    presetActive
+      ? requestedStrategy
+      : requestedStrategy === "hybrid"
+        ? "hybrid"
+        : "rules-only";
   const recallInput: RecallInput = {
     scope,
     query: body.query,
@@ -1198,7 +1262,11 @@ async function handleRecallContext(
   try {
     recall = await memory.recall(recallInput);
   } catch (error) {
-    if (requestedStrategy !== "hybrid" || !isProviderBackedRecallError(error)) {
+    // Retry on the rules-only floor for any strategy that could have engaged a
+    // provider-backed semantic path — "auto" (now that it reaches the router
+    // and may resolve to hybrid) as well as explicit "hybrid". Explicit
+    // "rules-only" never engages a provider, so its errors are real.
+    if (requestedStrategy === "rules-only" || !isProviderBackedRecallError(error)) {
       throw error;
     }
     recall = await memory.recall({
@@ -1233,7 +1301,14 @@ async function handleRecallContext(
     ok: true,
     operation: "recall-context",
     routing: routing ?? {
-      ...buildRecallRoutingDiagnostics(recall),
+      ...buildRecallRoutingDiagnostics(
+        recall,
+        buildBridgeRecallWarnings({
+          recall,
+          requestedStrategy,
+          runtimeInfo,
+        }),
+      ),
       requestedStrategy,
     },
     ...(traceId ? { traceId } : {}),
@@ -1548,6 +1623,22 @@ export function createGoodMemoryHttpMemoryBridge(
         ok: true,
         status: "ok",
       });
+    }
+
+    // Machine-readable capability discovery: an agent that reaches a deployed
+    // bridge can parse install commands, the MCP endpoint, and HTTP endpoints
+    // without reading prose. Auth-free and data-free like /healthz — the
+    // descriptor is static package metadata, not user memory.
+    if (
+      request.method === "GET" &&
+      new URL(request.url).pathname === "/.well-known/goodmemory.json"
+    ) {
+      // The descriptor is a strict interface (no index signature); it is a
+      // plain JSON record at the serialization boundary.
+      return result(
+        200,
+        buildGoodMemoryCapabilityDescriptor() as unknown as GoodMemoryHttpBridgeBody,
+      );
     }
 
     if (request.method !== "POST") {

@@ -1,5 +1,16 @@
 # Repository Guidelines
 
+> **Are you an agent here to _adopt_ GoodMemory (give yourself or your host
+> durable memory), not to _contribute_ to it?** Stop reading this file — it is
+> the contributor guide. Go to [llms.txt](./llms.txt) for a machine-readable
+> onboarding decision tree, or the
+> [README Quickstart](./README.md#quickstart-codex-or-claude-code-memory). The
+> capability descriptor at [.well-known/goodmemory.json](./.well-known/goodmemory.json)
+> has install commands, the MCP endpoint, and HTTP endpoints as JSON.
+>
+> The rest of this document is for agents and humans **working on** the
+> GoodMemory codebase.
+
 ## Project Structure & Module Organization
 
 Treat this file as a routing layer, not the final authority. Start with

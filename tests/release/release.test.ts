@@ -704,7 +704,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.5.0");
+    expect(pkg.version).toBe("0.5.1");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -731,11 +731,13 @@ describe("release metadata and docs", () => {
     expect(pkg.engines?.node).toBe(">=20.0.0");
     expect(pkg.publishConfig?.access).toBe("public");
     expect(pkg.files).toEqual([
+      ".well-known/goodmemory.json",
       "LICENSE",
       "README.md",
       "README.zh-CN.md",
       "dist",
       "docs",
+      "llms.txt",
       "package.json",
       "scripts/goodmemory-cli.js",
       "scripts/goodmemory-cli.ts",
@@ -743,6 +745,7 @@ describe("release metadata and docs", () => {
       "scripts/goodmemory-http-bridge.ts",
       "scripts/goodmemory-mcp.js",
       "scripts/goodmemory-mcp.ts",
+      "server.json",
       "src",
     ]);
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.js");
@@ -1153,9 +1156,12 @@ describe("release metadata and docs", () => {
       const entries = await listTarballEntries(tarballPath);
 
       expect(entries).toContain("package/package.json");
+      expect(entries).toContain("package/.well-known/goodmemory.json");
+      expect(entries).toContain("package/llms.txt");
       expect(entries).toContain("package/README.md");
       expect(entries).toContain("package/README.zh-CN.md");
       expect(entries).toContain("package/LICENSE");
+      expect(entries).toContain("package/server.json");
       expect(entries).toContain("package/dist/index.js");
       expect(entries).toContain("package/dist/index.d.ts");
       expect(entries).toContain("package/dist/ai-sdk/index.js");
@@ -1412,8 +1418,8 @@ describe("release metadata and docs", () => {
   });
 
   it("v0.5 package metadata and public release docs agree on the current stable release", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.5.0");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.5.0.tgz");
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.5.1");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.5.1.tgz");
 
     const releaseDocPaths = [
       "README.md",

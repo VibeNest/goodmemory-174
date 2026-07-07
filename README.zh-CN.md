@@ -116,6 +116,29 @@ GoodMemory 有三类主要产品入口。它不是只有这些 API：`goodmemory
 自定义存储、eval tooling、runtime helper 等底层能力都存在，但它们是服务于
 这些主路径的支撑能力，不是新用户首先要选的入口。
 
+### 自主 agent？从这里开始
+
+如果你是一个想给*自己*接上持久记忆的 agent，匹配下面一条路径直接执行即可。
+这棵决策树的机器可读版本在 [llms.txt](./llms.txt) 和
+[.well-known/goodmemory.json](./.well-known/goodmemory.json)（部署后的 bridge
+也会在 `/.well-known/goodmemory.json` 提供该 descriptor）。
+
+- **你是、或运行在 Claude Code / Codex 里** →
+  `npm install -g goodmemory@0.5.1 && goodmemory setup`。不确定环境里已经装了
+  什么？运行 `goodmemory adopt`（加 `--json` 得到机器可读方案）：它会检测
+  `.claude/`、`.codex/` 和已有的 MCP 配置，并打印出针对你环境的确切下一条命令。
+- **你支持 MCP**（Cursor、Windsurf、Cline、Claude Desktop、Gemini CLI、
+  OpenCode 或自定义客户端）→ 加上
+  [standalone MCP server](#standalone-mcp-for-any-client)；你需要的两个工具是
+  `goodmemory_get_context`（召回）和 `goodmemory_remember`（可选写入）。
+- **你是框架 agent 或后端** → 调用
+  [HTTP bridge](#pythonfastapi-http-bridge)：托管实例 `goodmemory.vibenest.net`，
+  或用 `goodmemory-http-bridge --recommended`（也可用
+  `GOODMEMORY_PROFILE=agent-recommended goodmemory-http-bridge`）自托管；Python
+  调用方用 `pip install goodmemory-client`。
+
+下面的散文路径会展开每个选项。
+
 ### 1. 给其他 agent、chatbox、copilot 接入记忆
 
 适用于你拥有产品 server 和模型调用链的场景。在 Node/Bun 服务里安装
@@ -196,12 +219,12 @@ GoodMemory 负责 memory loop 和存储边界。
 
 ## 安装
 
-GoodMemory `0.5.0` 有两条常用安装路径。
+GoodMemory `0.5.1` 有两条常用安装路径。
 
 如果你想给已安装的 coding agent 增加记忆能力，使用全局 CLI：
 
 ```bash
-npm install -g goodmemory@0.5.0
+npm install -g goodmemory@0.5.1
 goodmemory setup
 goodmemory status
 ```
@@ -209,11 +232,11 @@ goodmemory status
 如果你是在应用里集成 GoodMemory，作为项目依赖安装：
 
 ```bash
-npm install goodmemory@0.5.0
+npm install goodmemory@0.5.1
 ```
 
 如果你想直接输入 `goodmemory`，必须安装全局 CLI。
-项目内 `npm install goodmemory@0.5.0` 不会把 `goodmemory` 放进 shell 的 `PATH`。
+项目内 `npm install goodmemory@0.5.1` 不会把 `goodmemory` 放进 shell 的 `PATH`。
 这种本地依赖安装只能从该项目里用 `npx goodmemory`、
 `npm exec -- goodmemory` 或 `./node_modules/.bin/goodmemory` 调用。
 
@@ -224,13 +247,13 @@ npx goodmemory -V
 Bun 项目可以直接安装：
 
 ```bash
-bun add goodmemory@0.5.0
+bun add goodmemory@0.5.1
 ```
 
 发布前 tarball 验证：
 
 ```bash
-npm install ./goodmemory-0.5.0.tgz
+npm install ./goodmemory-0.5.1.tgz
 ```
 
 已安装 CLI 的非版本命令由 Bun 支撑。package bin 对 `goodmemory -V` 和 `goodmemory --version` 是 Node-safe 的；其他命令会委托给 Bun。
@@ -240,7 +263,7 @@ npm install ./goodmemory-0.5.0.tgz
 大多数用户最先需要的是 installed-host memory。
 
 ```bash
-npm install -g goodmemory@0.5.0
+npm install -g goodmemory@0.5.1
 goodmemory setup
 goodmemory status
 ```
@@ -777,11 +800,16 @@ headers，调用 `POST /memory/recall-context`、`/memory/remember`、
 `memoryId` 的 `/memory/revise`。TypeScript bridge API 从 `goodmemory/http`
 导入。
 
-要通过 bridge 提供推荐检索 preset（语义候选 union + BM25），启动时设置
-`GOODMEMORY_HTTP_BRIDGE_RETRIEVAL_PRESET=recommended`（或 `--retrieval-preset
-recommended`）；它需要一个 embedding 端点（`GOODMEMORY_EMBEDDING_*`）。此后
-recall 请求需带 `strategy: "hybrid"` 才会用到它——其他策略一律走确定性的
-rules-only 地板。
+要通过 bridge 提供推荐检索 preset（语义候选 union + BM25），启动时加一个开关
+`--recommended`（或 `GOODMEMORY_PROFILE=agent-recommended` /
+`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`）；它需要一个 embedding 端点
+（`GOODMEMORY_EMBEDDING_*`），否则 bridge 拒绝启动（响亮失败，而非静默降级）。
+此后 `GET /healthz` 会报告 `retrievalTier` 与 `embeddingEnabled`，当前档位一眼
+可见；recall 请求默认 `strategy: "auto"`，preset 会把它路由到 `hybrid`——降级的
+recall 会在 `routing.warnings` 带一个 `semantic_recall_inactive` 码，并在
+`routing.warningMessages` 带
+`semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET`，而不是静默返回
+词法地板。
 
 也可以用 Docker 一条命令部署（自带 SQLite volume；加 compose 的 `postgres`
 profile 可切 pgvector）：
@@ -849,7 +877,7 @@ const result = await adapter.readArtifacts({
 ## CLI Reference
 
 shell `PATH` 上的裸 `goodmemory` 命令来自
-`npm install -g goodmemory@0.5.0` 安装的全局 CLI。本地 dependency install
+`npm install -g goodmemory@0.5.1` 安装的全局 CLI。本地 dependency install
 里，用 `npx goodmemory`、`npm exec -- goodmemory` 或
 `./node_modules/.bin/goodmemory` 调用 package bin。repo-local
 `bun run goodmemory` 只用于开发。

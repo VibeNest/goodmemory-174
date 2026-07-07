@@ -1,0 +1,86 @@
+# GoodMemory
+
+> Durable user/project memory layer for chat apps, copilots, and coding agents.
+> Write selected facts, recall the right context, inject it into the next turn,
+> audit what happened, and delete it when it is wrong.
+
+GoodMemory is the product memory layer between an app or installed agent host
+and the model runtime. It is **not** an LLM, an agent framework, a vector
+database, or a generic RAG system. Local-first: Bun gets durable SQLite by
+default and recall runs embedding-free out of the box; embedding providers,
+Postgres, and LLM extraction are opt-in.
+
+If you are an autonomous agent reading this to decide whether to give *yourself*
+memory: yes, that is a supported first-class path. Start with the decision tree
+below. If you are here to *contribute to* GoodMemory instead, read AGENTS.md.
+
+## Start here: onboarding decision tree
+
+Pick the one path that matches how you run. Each is self-contained.
+
+1. **You are, or run inside, Claude Code or Codex** → install the global CLI and
+   let it wire the host:
+   ```bash
+   npm install -g goodmemory@0.5.1
+   goodmemory setup        # detects Codex + Claude Code, installs managed wiring
+   goodmemory status
+   ```
+   Not sure what is already installed? Run `goodmemory adopt` — it inspects the
+   environment (`.claude/`, `.codex/`, existing MCP config) and prints the exact
+   next command for your setup, or `goodmemory adopt --json` for a machine-
+   readable plan.
+
+2. **You speak the Model Context Protocol** (Cursor, Windsurf, Cline, Claude
+   Desktop, Gemini CLI, OpenCode, or a custom MCP client) → add the standalone
+   server; no `goodmemory setup`, no host config files:
+   ```json
+   {
+     "mcpServers": {
+       "goodmemory": {
+         "command": "goodmemory-mcp",
+         "args": ["--standalone", "--user-id", "YOUR_USER_ID"]
+       }
+     }
+   }
+   ```
+   The two tools you need are `goodmemory_get_context` (recall) and
+   `goodmemory_remember` (opt-in write via `--allow-write`); the other tools are
+   diagnostic/advanced.
+
+3. **You are a framework agent or a backend** (LangGraph, a custom loop, or a
+   Python/other-language service) → call the HTTP bridge. Use the hosted
+   instance `https://goodmemory.vibenest.net` (bring your own bearer token), or
+   self-host in one switch:
+   ```bash
+   goodmemory-http-bridge --recommended   # semantic-union + BM25; fail-loud without an embedding endpoint
+   GOODMEMORY_PROFILE=agent-recommended goodmemory-http-bridge
+   ```
+   Python callers: `pip install goodmemory-client`. Recall never silently
+   downgrades — a degraded strategy carries a `routing.warnings` code
+   (`semantic_recall_inactive`) and a `routing.warningMessages` string
+   (`semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET`) instead
+   of quietly returning the lexical floor. `GET /healthz` reports the active
+   `retrievalTier`.
+
+## Memory API
+
+- remember, recall, buildContext, feedback, forget, exportMemory, deleteAllMemory
+
+## Documentation
+
+- [README](https://github.com/hjqcan/GoodMemory#readme): full prose, install paths, and the public benchmark table
+- [Quickstart: Codex or Claude Code memory](https://github.com/hjqcan/GoodMemory#quickstart-codex-or-claude-code-memory)
+- [Standalone MCP for any client](https://github.com/hjqcan/GoodMemory#standalone-mcp-for-any-client)
+- [Python/FastAPI HTTP bridge](https://github.com/hjqcan/GoodMemory#pythonfastapi-http-bridge)
+
+## Benchmarks (gate-verified public claims)
+
+- [LongMemEval full 500](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/longmemeval.json): strict 0.720, official-protocol 0.888 (ref Zep 90.2)
+- [MemoryAgentBench CR/TTL](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/memoryagentbench.json): CR 0.959, TTL 0.767
+- [LoCoMo full 10](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/locomo.json): strict 0.6117, judge-protocol 0.837 (refs Memori 82.0, Zep 79.1, LangMem 78.1, Mem0 62.5)
+- [BEAM 100K](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/beam.json): official 0.802, strict binary 0.7225 (only public reference 0.49)
+- [ImplicitMemBench Full-300](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/implicitmembench.json): 0.691 (baseline 0.400)
+
+## Machine-readable
+
+- [.well-known/goodmemory.json](https://github.com/hjqcan/GoodMemory/blob/main/.well-known/goodmemory.json): capability descriptor (install commands, MCP endpoint, HTTP endpoints, benchmarks) as JSON. A deployed bridge also serves it at `/.well-known/goodmemory.json`.

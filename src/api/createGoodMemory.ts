@@ -1018,6 +1018,7 @@ class GoodMemoryImpl implements GoodMemory {
         output,
         input.maxTokens,
         input.recall.metadata.routingDecision.retrievalProfile,
+        { suppressDuplicateEvidence: input.suppressDuplicateEvidence === true },
       );
       await trace.succeeded({
         attributes: {

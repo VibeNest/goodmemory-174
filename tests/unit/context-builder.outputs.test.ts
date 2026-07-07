@@ -176,6 +176,41 @@ describe("context builder output modes", () => {
     );
   });
 
+  it("suppresses evidence entries that duplicate facts only when the opt-in flag is set", () => {
+    const packet = {
+      evidenceSummary:
+        "- Nissan Leaf is the user's car\n- diving trip source quote",
+      factSummary:
+        "- Nissan Leaf is the user's car\n- User is allergic to shellfish",
+    };
+
+    // Default (benchmark path): the duplicate line renders under both sections.
+    const withoutFlag = renderMemoryPacket(
+      packet,
+      "developer_prompt_fragment",
+      undefined,
+      "coding_agent",
+    );
+    expect(
+      withoutFlag.content.match(/Nissan Leaf is the user's car/g)?.length,
+    ).toBe(2);
+
+    // Opt-in (host injection): the evidence duplicate is dropped; unique
+    // evidence and all facts remain.
+    const withFlag = renderMemoryPacket(
+      packet,
+      "developer_prompt_fragment",
+      undefined,
+      "coding_agent",
+      { suppressDuplicateEvidence: true },
+    );
+    expect(
+      withFlag.content.match(/Nissan Leaf is the user's car/g)?.length,
+    ).toBe(1);
+    expect(withFlag.content).toContain("diving trip source quote");
+    expect(withFlag.content).toContain("User is allergic to shellfish");
+  });
+
   it("keeps working memory ahead of evidence under tight markdown token budgets", () => {
     const markdown = renderMemoryPacket(
       {

@@ -8,6 +8,8 @@ import type {
   GoodMemoryConfig,
   RecallResult,
 } from "../api/contracts";
+import type { GoodMemoryRuntimeInfo } from "../api/runtimeInfo";
+import { inspectGoodMemoryRuntime } from "../api/runtimeInfo";
 import type { HostKind } from "../domain/hostTypes";
 import { scopeToKey, type MemoryScope } from "../domain/scope";
 import { createHostAdapter } from "../host";
@@ -15,6 +17,7 @@ import {
   parseGoodMemoryRecordRef,
   type ProgressiveRecallService,
 } from "../progressive/recall";
+import { resolveRecallRoutingWarningMessages } from "../recall/router";
 import {
   createInstalledHostMemory,
   resolveInstalledHostContext,
@@ -167,6 +170,7 @@ export function createGoodMemoryMcpServer(
         output: args.output ?? DEFAULT_CONTEXT_OUTPUT,
         recall,
       });
+      const routing = projectRecallRouting(recall);
       return buildMcpStructuredResult({
         content: built.content,
         estimatedTokens: built.estimatedTokens,
@@ -175,6 +179,7 @@ export function createGoodMemoryMcpServer(
         output: built.output,
         query: args.query,
         retrievalProfile: context.retrievalProfile,
+        ...(routing ? { routing } : {}),
         scope: context.scope,
       });
     },
@@ -184,7 +189,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_inspect_memory",
     {
       description:
-        "Use this when you need a read-only snapshot of durable and runtime GoodMemory state for the current workspace.",
+        "Diagnostic (beyond the primary goodmemory_get_context / goodmemory_remember tools). Use this when you need a read-only snapshot of durable and runtime GoodMemory state for the current workspace.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -216,7 +221,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_trace_recall",
     {
       description:
-        "Explain a recall: routing, hits, per-candidate scores, and suppression reasons. Call it when a memory that should exist did not surface, or when a surfaced memory looks wrong.",
+        "Diagnostic. Explain a recall: routing, hits, per-candidate scores, and suppression reasons. Call it when a memory that should exist did not surface, or when a surfaced memory looks wrong.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         query: z.string().min(1),
@@ -254,7 +259,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_search_index",
     {
       description:
-        "Progressive GoodMemory recall step 1: fetch a compact recordRef index for a query, then call goodmemory_get_records for detail. Prefer this over goodmemory_get_context when you need specific records rather than a rendered summary.",
+        "Advanced recall (past goodmemory_get_context). Progressive GoodMemory recall step 1: fetch a compact recordRef index for a query, then call goodmemory_get_records for detail. Prefer this over goodmemory_get_context when you need specific records rather than a rendered summary.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -293,7 +298,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_timeline",
     {
       description:
-        "Use this for progressive GoodMemory recall when you need compact chronological context before drilling into recordRefs.",
+        "Advanced recall. Use this for progressive GoodMemory recall when you need compact chronological context before drilling into recordRefs.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -334,7 +339,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_get_records",
     {
       description:
-        "Use this for progressive GoodMemory recall after search_index or timeline returns recordRefs that need detail.",
+        "Advanced recall. Use this for progressive GoodMemory recall after search_index or timeline returns recordRefs that need detail.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         recordRefs: z.array(z.string().min(1)).min(1).max(20),
@@ -390,7 +395,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_read_artifacts",
     {
       description:
-        "Use this when you need the accepted host-adapter artifact projection for the current workspace.",
+        "Diagnostic. Use this when you need the accepted host-adapter artifact projection for the current workspace.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -427,7 +432,7 @@ export function createGoodMemoryMcpServer(
     "goodmemory_stats",
     {
       description:
-        "Record counts and runtime metadata for the current GoodMemory scope. Call it to check whether memory exists here before assuming an empty store.",
+        "Diagnostic. Record counts and runtime metadata (embedding/retrieval status via the `retrieval` field) for the current GoodMemory scope. Call it to check whether memory exists here before assuming an empty store.",
       inputSchema: {
         ...TOOL_SCOPE_SCHEMA,
         includeRuntime: z.boolean().optional(),
@@ -446,6 +451,9 @@ export function createGoodMemoryMcpServer(
         includeRuntime: args.includeRuntime === true,
         scope: context.scope,
       });
+      const retrieval = projectRuntimeRetrieval(
+        inspectGoodMemoryRuntime(context.memory),
+      );
       return buildMcpStructuredResult({
         counts: {
           archives: exported.durable.archives.length,
@@ -460,6 +468,7 @@ export function createGoodMemoryMcpServer(
           proposals: exported.durable.proposals.length,
           references: exported.durable.references.length,
         },
+        ...(retrieval ? { retrieval } : {}),
         runtime: exported.runtime
           ? {
               journal: exported.runtime.journal ? 1 : 0,
@@ -576,10 +585,19 @@ export function createGoodMemoryMcpServer(
             .filter((memoryId): memoryId is string => memoryId !== undefined),
           outcomes,
           rejected: result.rejected,
+          // Surface the resolved extraction strategy and any non-fatal
+          // degradation warnings so the calling agent can see when its write
+          // silently ran the rules-only floor or produced no durable memory.
+          ...(result.metadata?.resolvedExtractionStrategy
+            ? { resolvedExtractionStrategy: result.metadata.resolvedExtractionStrategy }
+            : {}),
           scope: context.scope,
           storage: {
             provider: context.storage?.provider,
           },
+          ...(result.warnings && result.warnings.length > 0
+            ? { warnings: result.warnings }
+            : {}),
         });
       },
     );
@@ -671,6 +689,75 @@ async function loadInstalledHostExecutionContext(
   return {
     ...resolved.context,
     memory: createInstalledHostMemory(resolved.context, dependencies),
+  };
+}
+
+// A slim, agent-facing recall routing projection for goodmemory_get_context:
+// which strategy actually ran, its one-line summary, and any degradation
+// warnings — so a consuming agent can see it is on the rules-only floor rather
+// than getting a silently poor result. (trace_recall carries the full decision.)
+function projectRecallRouting(
+  recall: RecallResult,
+):
+  | {
+      resolvedStrategy?: string;
+      summary?: string;
+      warningMessages?: string[];
+      warnings?: string[];
+    }
+  | undefined {
+  const decision = recall.metadata?.routingDecision;
+  if (!decision) {
+    return undefined;
+  }
+  const explanation = decision.strategyExplanation;
+  const resolvedStrategy = explanation?.resolvedStrategy ?? decision.strategy;
+  const routing: {
+    resolvedStrategy?: string;
+    summary?: string;
+    warningMessages?: string[];
+    warnings?: string[];
+  } = {};
+  if (resolvedStrategy) {
+    routing.resolvedStrategy = resolvedStrategy;
+  }
+  if (explanation?.summary) {
+    routing.summary = explanation.summary;
+  }
+  if (explanation?.warnings && explanation.warnings.length > 0) {
+    routing.warnings = explanation.warnings;
+  }
+  const warningMessages = resolveRecallRoutingWarningMessages({
+    existingMessages: explanation?.warningMessages,
+    warnings: explanation?.warnings,
+  });
+  if (warningMessages.length > 0) {
+    routing.warningMessages = warningMessages;
+  }
+  return Object.keys(routing).length > 0 ? routing : undefined;
+}
+
+// Agent-facing retrieval runtime status for goodmemory_stats: whether an
+// embedding endpoint and assisted extraction are wired, which preset (if any)
+// is active, and storage durability — so an agent can see, alongside empty
+// counts, whether it is on a degraded config (e.g. embedding on but no preset).
+// Returns null when runtime info is unavailable (e.g. an injected fake memory).
+function projectRuntimeRetrieval(
+  info: GoodMemoryRuntimeInfo | undefined,
+): {
+  assistedExtractionEnabled: boolean;
+  embeddingEnabled: boolean;
+  retrievalPreset: string | null;
+  storageDurability: string;
+} | null {
+  if (!info) {
+    return null;
+  }
+  return {
+    assistedExtractionEnabled: info.assistedExtractionEnabled,
+    embeddingEnabled: info.embeddingEnabled,
+    retrievalPreset: info.retrievalPreset?.requested ?? null,
+    storageDurability: info.storage.durability,
   };
 }
 

@@ -1,7 +1,12 @@
 import { access, chmod, copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { createGoodMemory } from "./api/createGoodMemory";
+import {
+  buildGoodMemoryCapabilityDescriptor,
+  type GoodMemoryCapabilityOnboardingPath,
+} from "./api/capabilityDescriptor";
 import type {
   ExportMemoryResult,
   GoodMemory,
@@ -138,6 +143,9 @@ export interface CLIInstallPrompt {
 export interface CLIRunDependencies {
   interactive?: boolean;
   prompt?: CLIInstallPrompt;
+  // Injected for `goodmemory adopt` so environment auto-detection stays
+  // deterministic in tests; defaults to the real `which`-backed probe.
+  commandAvailable?: (command: string) => Promise<boolean>;
 }
 
 type InstallActivationSelection = "current-workspace" | "global" | "manual";
@@ -247,6 +255,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory <command> [options]",
   "",
   "Commands",
+  "  adopt           Detect this environment and print the right onboarding path",
   "  setup           Configure GoodMemory memory enhancement for installed hosts",
   "  remember        Write durable memory through the public API",
   "  feedback        Write explicit feedback or correction through the public API",
@@ -300,6 +309,21 @@ const SETUP_HELP_TEXT = [
   "  --interactive",
   "  --no-interactive",
   "  --json",
+].join("\n");
+
+const ADOPT_HELP_TEXT = [
+  "GoodMemory Adopt CLI",
+  "",
+  "Detect this environment (Codex/Claude CLI, .codex/ and .claude/ config,",
+  "existing MCP wiring) and print the recommended onboarding path plus the",
+  "exact next command. Read-only: it changes nothing, it only advises.",
+  "",
+  "Usage",
+  "  goodmemory adopt [options]",
+  "",
+  "Options",
+  "  --host <codex|claude>  Force a host instead of auto-detecting",
+  "  --json                 Emit a machine-readable onboarding plan",
 ].join("\n");
 const DOCTOR_HELP_TEXT = [
   "GoodMemory Doctor CLI",
@@ -1695,6 +1719,8 @@ function formatCandidateTrace(trace: RecallCandidateTrace): string {
 function renderTracePayload(payload: Record<string, unknown>): string {
   const routingDecision =
     payload.routingDecision as RecallResult["metadata"]["routingDecision"];
+  const warningMessages =
+    routingDecision.strategyExplanation.warningMessages ?? [];
   const hits = payload.hits as RecallResult["metadata"]["hits"];
   const candidateTraces =
     payload.candidateTraces as unknown as RecallCandidateTrace[];
@@ -1718,6 +1744,9 @@ function renderTracePayload(payload: Record<string, unknown>): string {
     `- retrieval profile: ${routingDecision.retrievalProfile}`,
     `- intent: ${routingDecision.intent}`,
     `- explanation: ${routingDecision.strategyExplanation.summary}`,
+    ...(warningMessages.length > 0
+      ? warningMessages.map((message) => `- warning: ${message}`)
+      : []),
     "",
     "Hits",
     ...(hits.length > 0
@@ -3863,6 +3892,186 @@ const RECOMMENDED_SETUP_COMMITMENTS = [
   "  - review captures: goodmemory <host> writeback inspect · undo: goodmemory <host> writeback forget --event-id <id> · turn off: goodmemory enable <host> --writeback off",
 ].join("\n");
 
+interface AdoptHostState {
+  host: InstalledHostKind;
+  hookRegistered: boolean;
+  mcpRegistered: boolean;
+  wired: boolean;
+}
+
+interface AdoptPlan {
+  version: string;
+  environment: {
+    codexCliAvailable: boolean;
+    claudeCliAvailable: boolean;
+    forcedHost: InstalledHostKind | null;
+    homeRoot: string;
+    installedHosts: AdoptHostState[];
+  };
+  recommended: {
+    path: "installed-host" | "standalone-mcp";
+    reason: string;
+    alreadyWired: boolean;
+    command: string;
+    next: string[];
+  };
+  paths: readonly GoodMemoryCapabilityOnboardingPath[];
+  resources: {
+    llmsTxt: string;
+    capabilityDescriptor: string;
+    readme: string;
+  };
+}
+
+async function inspectAdoptHost(
+  host: InstalledHostKind,
+): Promise<AdoptHostState> {
+  const [hookRegistered, mcpRegistered] = await Promise.all([
+    isInstalledHostHookRegistered({ host }),
+    isInstalledHostMcpRegistered({ host }),
+  ]);
+  return {
+    host,
+    hookRegistered,
+    mcpRegistered,
+    wired: hookRegistered || mcpRegistered,
+  };
+}
+
+function renderAdoptText(plan: AdoptPlan): string {
+  const yesNo = (value: boolean): string => (value ? "yes" : "no");
+  const wired = plan.environment.installedHosts
+    .filter((state) => state.wired)
+    .map((state) => state.host);
+  const lines: string[] = [
+    "GoodMemory adopt — environment scan",
+    "",
+    "Detected",
+    `  Codex CLI:  ${yesNo(plan.environment.codexCliAvailable)}`,
+    `  Claude CLI: ${yesNo(plan.environment.claudeCliAvailable)}`,
+    `  Wired hosts: ${wired.length > 0 ? wired.join(", ") : "none"}`,
+    "",
+    `Recommended path: ${plan.recommended.path}`,
+    `  ${plan.recommended.reason}`,
+    `  Run: ${plan.recommended.command}`,
+    "",
+    "All onboarding paths",
+  ];
+  plan.paths.forEach((path, index) => {
+    lines.push(`  ${index + 1}. ${path.audience} (${path.method}) — ${path.when}`);
+  });
+  lines.push(
+    "",
+    "Machine-readable",
+    `  llms.txt:   ${plan.resources.llmsTxt}`,
+    `  descriptor: ${plan.resources.capabilityDescriptor}`,
+  );
+  return `${lines.join("\n")}\n`;
+}
+
+// Read-only onboarding advisor: detect what this environment is and print the
+// single path an adopting agent should take, or a machine-readable plan with
+// `--json`. It never mutates host config — the recommended command (e.g.
+// `goodmemory setup`) is left for the operator/agent to run deliberately.
+async function handleAdopt(
+  flags: ParsedFlags,
+  dependencies: CLIRunDependencies = {},
+): Promise<CLICommandOutput> {
+  const probe = dependencies.commandAvailable ?? commandAvailable;
+  const forcedHost =
+    flags.host === undefined ? undefined : requireInstalledHostKind(flags.host);
+
+  const [codexCliAvailable, claudeCliAvailable] = await Promise.all([
+    probe("codex"),
+    probe("claude"),
+  ]);
+
+  const installedHosts = await Promise.all(
+    (["codex", "claude"] as InstalledHostKind[]).map(inspectAdoptHost),
+  );
+  const wiredHosts = installedHosts.filter((state) => state.wired);
+  const relevantWiredHosts = forcedHost
+    ? wiredHosts.filter((state) => state.host === forcedHost)
+    : wiredHosts;
+
+  const availableHosts: InstalledHostKind[] = forcedHost
+    ? [forcedHost]
+    : [
+        ...(codexCliAvailable ? (["codex"] as InstalledHostKind[]) : []),
+        ...(claudeCliAvailable ? (["claude"] as InstalledHostKind[]) : []),
+      ];
+
+  const descriptor = buildGoodMemoryCapabilityDescriptor();
+
+  let recommended: AdoptPlan["recommended"];
+  if (relevantWiredHosts.length > 0) {
+    const primaryWired =
+      (forcedHost
+        ? relevantWiredHosts.find((state) => state.host === forcedHost)
+        : undefined) ?? relevantWiredHosts[0]!;
+    recommended = {
+      path: "installed-host",
+      alreadyWired: true,
+      reason: `GoodMemory is already wired into ${relevantWiredHosts
+        .map((state) => state.host)
+        .join(" + ")}. Verify it instead of reinstalling.`,
+      command: `goodmemory status ${primaryWired.host}`,
+      next: [
+        `goodmemory status ${primaryWired.host}`,
+        `goodmemory doctor --host ${primaryWired.host}`,
+      ],
+    };
+  } else if (availableHosts.length > 0) {
+    const hostArg =
+      availableHosts.length === 1 ? ` --host ${availableHosts[0]}` : "";
+    const command = `goodmemory setup${hostArg}`;
+    recommended = {
+      path: "installed-host",
+      alreadyWired: false,
+      reason: `Detected ${availableHosts.join(
+        " + ",
+      )}. Install managed host memory; recall injection and opt-in writeback wire automatically.`,
+      command,
+      next: [command, "goodmemory status"],
+    };
+  } else {
+    const command = `${descriptor.mcp.command} ${descriptor.mcp.standaloneArgs.join(
+      " ",
+    )}`;
+    recommended = {
+      path: "standalone-mcp",
+      alreadyWired: false,
+      reason:
+        "No Codex or Claude CLI detected. Use the standalone MCP server (any MCP client) or the HTTP bridge (framework agents and backends).",
+      command,
+      next: [
+        command,
+        "or self-host the HTTP bridge: goodmemory-http-bridge --recommended",
+      ],
+    };
+  }
+
+  const plan: AdoptPlan = {
+    version: descriptor.version,
+    environment: {
+      codexCliAvailable,
+      claudeCliAvailable,
+      forcedHost: forcedHost ?? null,
+      homeRoot: process.env.GOODMEMORY_HOME ?? homedir(),
+      installedHosts,
+    },
+    recommended,
+    paths: descriptor.onboarding,
+    resources: {
+      llmsTxt: descriptor.documentation.llmsTxt,
+      capabilityDescriptor: `${descriptor.repository}/blob/main/.well-known/goodmemory.json`,
+      readme: descriptor.documentation.readme,
+    },
+  };
+
+  return { json: plan, text: renderAdoptText(plan) };
+}
+
 async function handleSetup(
   flags: ParsedFlags,
   dependencies: CLIRunDependencies = {},
@@ -5676,6 +5885,9 @@ export async function runCLI(
     const primary = commands[0]!;
 
     if (helpRequested(flags)) {
+      if (primary === "adopt") {
+        return helpResult(ADOPT_HELP_TEXT);
+      }
       if (primary === "setup") {
         return helpResult(SETUP_HELP_TEXT);
       }
@@ -5850,6 +6062,9 @@ export async function runCLI(
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
     }
 
+    if (primary === "adopt") {
+      return renderOutput(await handleAdopt(flags, dependencies), flags);
+    }
     if (primary === "setup") {
       return renderOutput(await handleSetup(flags, dependencies), flags);
     }

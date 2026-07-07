@@ -62,6 +62,12 @@ export interface RememberResult {
   accepted: number;
   rejected: number;
   events: RememberEvent[];
+  // Non-fatal degradation codes (present only when non-empty), mirroring the
+  // ReviseMemoryResult.warnings convention. Codes: "no_durable_facts_extracted"
+  // (a batch produced zero durable memories — extraction may be misconfigured)
+  // and "assisted_extraction_failed" (the LLM extractor threw and the run
+  // silently fell back to rules-only).
+  warnings?: string[];
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";

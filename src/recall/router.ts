@@ -46,6 +46,16 @@ export interface RouterStrategyExplanation {
   fallbackReason?:
     | "semantic_search_unavailable"
     | "llm_routing_unavailable";
+  // Non-fatal degradation signals for consumers: present (and non-empty) only
+  // when recall silently ran below the configured/requested intent — e.g. a
+  // recommended preset (or an explicit hybrid request) resolved to the
+  // rules-only lexical floor because semantic search was unavailable at
+  // runtime (no embedding endpoint or no vector index). Machine codes, mirroring
+  // the ReviseMemoryResult.warnings convention.
+  warnings?: string[];
+  // Human-readable warning text for agent-facing surfaces that should not force
+  // integrators to reverse-map the machine warning code.
+  warningMessages?: string[];
   summary: string;
   hardFloor: "lexical_runtime_procedural_priors";
   semanticTieBreaking: boolean;
@@ -89,6 +99,26 @@ interface AutoRouterSignals {
 }
 
 const DEFAULT_LANGUAGE = createLanguageService();
+export const SEMANTIC_RECALL_INACTIVE_WARNING = "semantic_recall_inactive";
+export const SEMANTIC_RECALL_INACTIVE_WARNING_MESSAGE =
+  "semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET";
+
+export function resolveRecallRoutingWarningMessages(input: {
+  existingMessages?: readonly string[];
+  warnings?: readonly string[];
+}): string[] {
+  const messages = [...(input.existingMessages ?? [])];
+  for (const warning of input.warnings ?? []) {
+    if (
+      warning === SEMANTIC_RECALL_INACTIVE_WARNING &&
+      !messages.includes(SEMANTIC_RECALL_INACTIVE_WARNING_MESSAGE)
+    ) {
+      messages.push(SEMANTIC_RECALL_INACTIVE_WARNING_MESSAGE);
+    }
+  }
+
+  return messages;
+}
 
 export function resolveRetrievalProfile(
   profile?: RetrievalProfile,
@@ -142,6 +172,16 @@ export function resolveRouterStrategy(input: {
     return {
       requestedStrategy,
       resolvedStrategy: "rules-only",
+      // The preset asked for hybrid (autoStrategyBias) but semantic search is
+      // unavailable at runtime, so recall silently ran the lexical floor —
+      // flag it. A plain auto→rules-only with no bias is the correct floor,
+      // not a degradation, so it carries no warning.
+      ...(input.autoStrategyBias === "hybrid"
+        ? {
+            warningMessages: [SEMANTIC_RECALL_INACTIVE_WARNING_MESSAGE],
+            warnings: [SEMANTIC_RECALL_INACTIVE_WARNING],
+          }
+        : {}),
       summary: semanticSearchAvailable
         ? "auto routing kept deterministic rules-only recall because the query is profile/procedural/general assistance and does not need semantic tie-breaking."
         : "auto routing kept deterministic rules-only recall because semantic search is unavailable.",
@@ -180,6 +220,8 @@ export function resolveRouterStrategy(input: {
       requestedStrategy,
       resolvedStrategy: "rules-only",
       fallbackReason: "semantic_search_unavailable",
+      warningMessages: [SEMANTIC_RECALL_INACTIVE_WARNING_MESSAGE],
+      warnings: [SEMANTIC_RECALL_INACTIVE_WARNING],
       summary:
         "hybrid routing was requested but semantic search is unavailable, so routing falls back to deterministic rules-only behavior.",
       hardFloor: "lexical_runtime_procedural_priors",
