@@ -276,9 +276,9 @@ goodmemory status
 - 可选 Postgres 存储
 - 可选 embedding provider
 - 可选 LLM extraction provider
-- writeback 模式：`off`、`observe`、`selective`
+- writeback 模式：`off`、`observe`、`review` 或 `selective`
 
-交互式 setup 默认走全局 activation，并使用 workspace 派生隔离。对新的 host config，交互式流程会推荐 `observe`，让用户先查看 writeback 候选，再决定是否启用 durable 写入；已有 host config 在接受 prompt 默认值时会保持当前 writeback 模式。自动化安装可以使用 `--json` 或 `--no-interactive` 保持脚本安全。跳过 provider 配置也可以：GoodMemory 仍然会使用本地 SQLite 和 rules-only extraction 工作。
+交互式 setup 默认走全局 activation，并使用 workspace 派生隔离。对新的 host config，交互式流程会推荐 `selective`，让高信号写入立即生效，同时保留 audit 和 undo；如果你想先人工审批，再选择 `review`。已有 host config 在接受 prompt 默认值时会保持当前 writeback 模式。自动化安装可以使用 `--json` 或 `--no-interactive` 保持脚本安全。跳过 provider 配置也可以：GoodMemory 仍然会使用本地 SQLite 和 rules-only extraction 工作。
 
 常用命令：
 
@@ -286,6 +286,8 @@ goodmemory status
 goodmemory setup --host codex
 goodmemory status codex --workspace-root .
 goodmemory enable codex --workspace-root . --writeback observe
+goodmemory enable codex --workspace-root . --writeback review
+goodmemory inspector serve
 goodmemory enable codex --workspace-root . --writeback selective
 goodmemory disable codex --workspace-root .
 goodmemory uninstall codex
@@ -331,13 +333,16 @@ flag/env 矩阵、scope 说明与各 host 配方见
 
 ## Installed Host Writeback：已安装主机写回
 
-Installed Host Writeback 是 opt-in 的。runtime 默认配置和新的脚本化安装在没有显式选择时仍保持 `off`；已有配置在没有显式 override 时保持当前 writeback 模式，可能是 `off`、`observe` 或 `selective`。新的交互式安装会推荐 `observe`，让候选先可见，而不是直接写入长期记忆。
+Installed Host Writeback 是 opt-in 的。runtime 默认配置和新的脚本化安装在没有显式选择时仍保持 `off`；已有配置在没有显式 override 时保持当前 writeback 模式，可能是 `off`、`observe`、`review` 或 `selective`。新的交互式安装会推荐 `selective`，让高信号写入立即生效，同时保留 audit 和 undo；如果你想先人工审批，再选择 `review`。
 
-先用 `observe`，再考虑 `selective`：
+需要先看候选时用 `observe`；需要人工审批时用 `review`；准备自动写入时用 `selective`：
 
 ```bash
 goodmemory enable codex --writeback observe
 goodmemory codex writeback --json
+
+goodmemory enable codex --writeback review
+goodmemory inspector serve
 
 goodmemory enable codex --writeback selective
 goodmemory codex writeback --json
@@ -347,6 +352,7 @@ writeback 规则：
 
 - `off`：不做 after-response 记忆抽取。
 - `observe`：把有界/redacted candidate preview 写入本地 audit ledger 供 review；不保存 raw transcript，也不写 durable memory。
+- `review`：把有界/redacted 候选放入 Inspector 审批队列；operator 批准前不写 durable memory。
 - `selective`：把选中的候选通过公开 `remember` surface 写入。
 - 原始 transcript 不会被当作 memory 持久化。
 - assistant 产出的内容默认不能直接成为 durable memory；除非 host 明确确认或验证，并且当前 profile 允许。

@@ -23,6 +23,7 @@ import {
   writeInstalledHostWritebackLedger,
   type InstalledHostWritebackLinkedRecordId,
 } from "./hostWritebackAuditLedger";
+import { persistReviewCandidates } from "./hostReviewQueue";
 import { createProviderMemoryExtractor } from "../provider/layer";
 import {
   isRecord,
@@ -92,6 +93,7 @@ export interface InstalledHostWritebackResult {
     | "missing_repo_opt_in"
     | "no_candidates"
     | "observed"
+    | "review_queued"
     | "write_failed"
     | "written";
   trace: Record<string, unknown>;
@@ -262,6 +264,42 @@ async function executeResolvedWriteback(args: {
         command: input.command,
         messageCount: messages.length,
         rawTranscriptPersisted: false,
+      },
+      wrote: false,
+    };
+  }
+
+  if (config.mode === "review") {
+    // Inspector "review" mode: capture durable candidates into the review
+    // queue for human approval/rejection instead of committing (selective) or
+    // storing a preview-only ledger note (observe). No durable write happens
+    // here; the raw transcript is never persisted.
+    const durableForReview = candidates.filter((candidate) => candidate.durable);
+    const queued = await persistReviewCandidates({
+      homeRoot: input.homeRoot,
+      now: () => new Date(),
+      candidates: durableForReview.map((candidate) => ({
+        host: input.host,
+        scope: durableScope,
+        candidateKey: candidate.key,
+        kind: candidate.kind,
+        content: candidate.content,
+        reason: candidate.reason,
+        source: candidate.source,
+        confidence: candidate.confidence,
+      })),
+    });
+    return {
+      applied: true,
+      candidates: candidates.map(stripCandidateKey),
+      mode: "review",
+      reason: "review_queued",
+      trace: {
+        command: input.command,
+        durableCandidateCount: durableForReview.length,
+        messageCount: messages.length,
+        rawTranscriptPersisted: false,
+        reviewQueuedCount: queued.persisted,
       },
       wrote: false,
     };
@@ -438,7 +476,7 @@ function buildSkippedWritebackResult(input: {
 // writes leave the cursor so the next turn retries the same window (the
 // ledger's scoped content-key dedupe keeps retries idempotent).
 const CURSOR_ADVANCE_REASONS: ReadonlySet<InstalledHostWritebackResult["reason"]> =
-  new Set(["empty_transcript", "no_candidates", "observed", "written"]);
+  new Set(["empty_transcript", "no_candidates", "observed", "review_queued", "written"]);
 
 interface TranscriptHydration {
   attempted: boolean;

@@ -530,7 +530,7 @@ function summarizeWorkerStatus(
   };
 }
 
-function sanitizeViewerValue(
+export function sanitizeViewerValue(
   value: unknown,
   scope: ExportMemoryResult["scope"],
   parentKey?: string,
@@ -577,7 +577,7 @@ function isRawScopeKey(key: string): boolean {
   ].includes(key);
 }
 
-function redactScopeText(value: string, scope: ExportMemoryResult["scope"]): string {
+export function redactScopeText(value: string, scope: ExportMemoryResult["scope"]): string {
   const replacements: Array<[string | undefined, string]> = [
     [scope.userId, "[user]"],
     [scope.tenantId, "[tenant]"],
@@ -594,7 +594,7 @@ function redactScopeText(value: string, scope: ExportMemoryResult["scope"]): str
   return result;
 }
 
-function redactViewerText(value: string): string {
+export function redactViewerText(value: string): string {
   const redacted = value
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/giu, "[redacted-email]")
     .replace(/\bsk-[A-Za-z0-9_-]{6,}\b/gu, "[redacted-secret]")

@@ -159,6 +159,50 @@ describe("installed host writeback config", () => {
     expect(parsed.config.writeback.mode).toBe("selective");
     expect(parsed.config.writeback.persistRawTranscript).toBe(false);
   });
+
+  it("parses review writeback mode and reports the full mode set on invalid input", () => {
+    const parsed = parseInstalledHostRuntimeConfig(
+      {
+        host: "codex",
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+        writeback: {
+          mode: "review",
+        },
+      },
+      "codex",
+    );
+    expect(parsed.status).toBe("ok");
+    if (parsed.status !== "ok") {
+      return;
+    }
+    expect(parsed.config.writeback.mode).toBe("review");
+
+    const invalid = parseInstalledHostRuntimeConfig(
+      {
+        host: "codex",
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+        writeback: {
+          mode: "unknown",
+        },
+      },
+      "codex",
+    );
+    expect(invalid).toEqual({
+      detail: "writeback.mode must be off, observe, review, or selective",
+      status: "invalid",
+    });
+  });
+
   it("parses writeback.extractionStrategy and rejects unknown values", () => {
     const parsed = parseInstalledHostRuntimeConfig(
       {

@@ -46,7 +46,7 @@ export interface InstalledHostWritebackAuditEvent {
   kind: "episode" | "fact" | "feedback" | "preference" | "reference";
   linkedRecordIds: InstalledHostWritebackLinkedRecordId[];
   memoryIds: string[];
-  mode: "observe" | "off" | "selective";
+  mode: "observe" | "off" | "review" | "selective";
   occurredAt: string;
   reason: string;
   recallHitCount: number;

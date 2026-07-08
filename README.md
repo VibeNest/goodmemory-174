@@ -332,12 +332,13 @@ and asks for:
 - optional Postgres storage
 - optional embedding provider
 - optional LLM extraction provider
-- writeback mode: `off`, `observe`, or `selective`
+- writeback mode: `off`, `observe`, `review`, or `selective`
 
 Interactive setup defaults to global activation with workspace-derived
-isolation and recommends `observe` for new host configs so users can review
-writeback candidates before enabling durable writes. Existing host configs keep
-their current writeback mode when the interactive prompt default is accepted.
+isolation and recommends `selective` for new host configs so high-signal writes
+start working immediately with audit and undo. Choose `review` when you want
+Inspector approval before durable writes. Existing host configs keep their
+current writeback mode when the interactive prompt default is accepted.
 Scripted installs stay safe with `--json` or `--no-interactive`.
 Skipping provider setup is valid: GoodMemory still works with local SQLite and
 rules-only extraction.
@@ -404,14 +405,18 @@ per-host recipes:
 Installed Host Writeback is opt-in. Runtime config defaults and new scripted
 installs remain `off` unless the user explicitly chooses a writeback mode.
 Existing configs keep their current writeback mode when no explicit override is
-provided. New interactive installs recommend `observe` so candidates are visible
-before durable writes are enabled.
+provided. New interactive installs recommend `selective` so high-signal writes
+start working immediately with audit and undo; choose `review` when you want
+Inspector approval before durable writes.
 
 Use `observe` before `selective`:
 
 ```bash
 goodmemory enable codex --writeback observe
 goodmemory codex writeback --json
+
+goodmemory enable codex --writeback review
+goodmemory inspector serve
 
 goodmemory enable codex --writeback selective
 goodmemory codex writeback --json
@@ -422,6 +427,8 @@ Writeback rules:
 - `off`: no after-response memory extraction.
 - `observe`: store local bounded/redacted candidate previews for review without
   raw transcripts or durable memory writes.
+- `review`: queue bounded/redacted candidates for Inspector approval; no durable
+  memory is written until an operator approves a candidate.
 - `selective`: write selected candidates through the public `remember` surface.
 - Raw transcripts are not persisted as memory.
 - Assistant-originated durable memory is blocked unless the host confirms or

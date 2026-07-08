@@ -76,7 +76,7 @@ export interface InstalledHostAutoLearnConfig {
   sources: InstalledHostAutoLearnSource[];
 }
 
-export type InstalledHostWritebackMode = "off" | "observe" | "selective";
+export type InstalledHostWritebackMode = "off" | "observe" | "selective" | "review";
 export type InstalledHostWritebackAssistantPolicy =
   | "never"
   | "confirmed"
@@ -456,7 +456,7 @@ function readWritebackConfig(input: {
       : readWritebackMode(input.value.mode);
   if (mode === undefined) {
     return {
-      detail: "writeback.mode must be off, observe, or selective",
+      detail: "writeback.mode must be off, observe, review, or selective",
       status: "invalid",
     };
   }
@@ -566,7 +566,10 @@ function readLegacyAutoLearnWritebackConfig(
 export function readWritebackMode(
   value: unknown,
 ): InstalledHostWritebackMode | undefined {
-  return value === "off" || value === "observe" || value === "selective"
+  return value === "off" ||
+    value === "observe" ||
+    value === "selective" ||
+    value === "review"
     ? value
     : undefined;
 }

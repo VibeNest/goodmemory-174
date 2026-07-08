@@ -901,11 +901,15 @@ describe("goodmemory cli help and routing", () => {
       expect(result.stdout).toContain(
         "mcp             Run the installed GoodMemory MCP server",
       );
+      expect(result.stdout).toContain(
+        "inspector       Run the local GoodMemory Inspector admin surface",
+      );
       expect(result.stdout).toContain("codex           Codex bootstrap and installed hook commands");
       expect(result.stdout).toContain("claude          Claude Code bootstrap and installed hook commands");
       expect(result.stdout).toContain("goodmemory eval --help");
       expect(result.stdout).toContain("goodmemory install --help");
       expect(result.stdout).toContain("goodmemory mcp --help");
+      expect(result.stdout).toContain("goodmemory inspector --help");
       expect(result.stderr).toBe("");
     }
   });
@@ -999,7 +1003,7 @@ describe("goodmemory cli help and routing", () => {
     expect(installCodex.stdout).toContain("--memory-path <path>");
     expect(installCodex.stdout).toContain("--storage-provider <sqlite|postgres>");
     expect(installCodex.stdout).toContain("--activation-mode <global|workspace_opt_in>");
-    expect(installCodex.stdout).toContain("--writeback <off|observe|selective>");
+    expect(installCodex.stdout).toContain("--writeback <off|observe|review|selective>");
     expect(installCodex.stdout).toContain("--dry-run");
     expect(installCodex.stdout).toContain("--embedding-provider <openai>");
     expect(installCodex.stdout).toContain("--llm-provider <openai|anthropic>");
@@ -3381,7 +3385,7 @@ describe("goodmemory cli installed host config", () => {
     }
   });
 
-  it("repairs missing managed hook and MCP files while preserving writeback mode", async () => {
+  it("repairs missing managed hook and MCP files while preserving review writeback mode", async () => {
     const home = await createTempWorkspace("goodmemory-repair-home");
     const workspace = await createTempWorkspace("goodmemory-repair-workspace");
 
@@ -3397,7 +3401,7 @@ describe("goodmemory cli installed host config", () => {
             "--activation-mode",
             "global",
             "--writeback",
-            "off",
+            "review",
             "--user-id",
             "codex-user",
             "--json",
@@ -3437,7 +3441,7 @@ describe("goodmemory cli installed host config", () => {
               writeback: { mode: string };
             }>;
           };
-          expect(payload.hosts[0]?.writeback.mode).toBe("off");
+          expect(payload.hosts[0]?.writeback.mode).toBe("review");
           expect(payload.hosts[0]?.changes.some((change) =>
             change.path.endsWith(".codex/hooks.json"),
           )).toBe(true);
@@ -3465,7 +3469,7 @@ describe("goodmemory cli installed host config", () => {
           expect(statusPayload.hosts[0]?.hookRegistered).toBe(true);
           expect(statusPayload.hosts[0]?.mcpRegistered).toBe(true);
           expect(statusPayload.hosts[0]?.preActionRegistered).toBe(true);
-          expect(statusPayload.hosts[0]?.writeback.mode).toBe("off");
+          expect(statusPayload.hosts[0]?.writeback.mode).toBe("review");
         },
       );
     } finally {
@@ -4553,6 +4557,7 @@ describe("goodmemory cli installed host config", () => {
           expect(rerun.exitCode).toBe(0);
           expect(prompts.join("\n")).toContain("current=off");
           expect(prompts.join("\n")).toContain("keep-current");
+          expect(prompts.join("\n")).toContain("review");
           const payload = JSON.parse(rerun.stdout) as {
             writeback: { mode: string };
           };
@@ -5404,6 +5409,45 @@ describe("goodmemory cli installed host config", () => {
             writeback: { mode: string };
           };
           expect(config.writeback.mode).toBe("observe");
+        },
+      );
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("surfaces review writeback mode as an inspector approval queue", async () => {
+    const home = await createTempWorkspace("goodmemory-codex-enable-review-home");
+    const workspace = await createTempWorkspace("goodmemory-codex-enable-review");
+
+    try {
+      await withEnv(
+        {
+          GOODMEMORY_HOME: home.root,
+        },
+        async () => {
+          const install = await runCLI([
+            "install",
+            "codex",
+            "--user-id",
+            "codex-user",
+            "--json",
+          ]);
+          expect(install.exitCode).toBe(0);
+
+          const enabled = await runCLI([
+            "enable",
+            "codex",
+            "--workspace-root",
+            workspace.root,
+            "--writeback",
+            "review",
+          ]);
+          expect(enabled.exitCode).toBe(0);
+          expect(enabled.stdout).toContain("writeback: review");
+          expect(enabled.stdout).toContain("Inspector approval queue");
+          expect(enabled.stdout).not.toContain("durable remember writeback");
         },
       );
     } finally {

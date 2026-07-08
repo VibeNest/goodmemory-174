@@ -119,7 +119,16 @@ import {
   createSQLiteSessionStore,
   createSQLiteVectorStore,
 } from "./storage/sqlite";
-import { createInMemoryVectorStore } from "./storage/memory";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+  createInMemoryVectorStore,
+} from "./storage/memory";
+import {
+  buildDescriptor,
+  createInspectorToken,
+  serveInspector,
+} from "./inspector/public";
 
 interface CLIResult {
   stdout: string;
@@ -273,6 +282,7 @@ const ROOT_HELP_TEXT = [
   "  repair          Repair missing managed installed-host wiring",
   "  mcp             Run the installed GoodMemory MCP server",
   "  runtime         Run optional local runtime tools such as worker inspection",
+  "  inspector       Run the local GoodMemory Inspector admin surface",
   "  codex           Codex bootstrap and installed hook commands",
   "  claude          Claude Code bootstrap and installed hook commands",
   "  eval            Inspect eval run artifacts",
@@ -289,6 +299,7 @@ const ROOT_HELP_TEXT = [
   "  goodmemory repair --help",
   "  goodmemory mcp --help",
   "  goodmemory runtime --help",
+  "  goodmemory inspector --help",
   "  goodmemory codex --help",
   "  goodmemory claude --help",
   "  goodmemory -V, --version",
@@ -304,7 +315,7 @@ const SETUP_HELP_TEXT = [
   "  --user-id <id>              Optional, defaults to the current OS username",
   "  --activation-mode <global|workspace_opt_in>",
   "  --context-mode <fragment|progressive>",
-  "  --writeback <off|observe|selective>",
+  "  --writeback <off|observe|review|selective>",
   "  --dry-run",
   "  --interactive",
   "  --no-interactive",
@@ -466,7 +477,7 @@ const INSTALL_HELP_TEXT = [
   "  --llm-api-key <key>",
   "  --llm-base-url <url>",
   "  --activation-mode <global|workspace_opt_in>",
-  "  --writeback <off|observe|selective>",
+  "  --writeback <off|observe|review|selective>",
   "  --dry-run",
   "  --interactive",
   "  --no-interactive",
@@ -502,7 +513,7 @@ const ENABLE_HELP_TEXT = [
   "  --workspace-id <id>       Optional, defaults to the workspace folder name",
   "  --workspace-root <path>   Optional, defaults to the current working directory",
   "  --context-mode <fragment|progressive>",
-  "  --writeback <off|observe|selective>",
+  "  --writeback <off|observe|review|selective>",
   "  --dry-run",
   "  --json",
 ].join("\n");
@@ -691,6 +702,23 @@ const RUNTIME_VIEWER_HELP_TEXT = [
   "  read-only API; no mutation routes and no CORS",
   "  static local shell; no raw transcript display",
 ].join("\n");
+const INSPECTOR_HELP_TEXT = [
+  "GoodMemory Inspector",
+  "",
+  "Usage",
+  "  goodmemory inspector serve [--port <n>] [--token <secret>] [--storage-url <path>]",
+  "  goodmemory inspector serve --dry-run [--json]",
+  "",
+  "The Inspector is a local admin surface: browse memory across scopes, review",
+  "writeback candidates, debug recall, and forget/revise/delete a scope's memory.",
+  "",
+  "Security",
+  "  binds 127.0.0.1 only",
+  "  requires a local token; every mutation needs Authorization: Bearer",
+  "  read-only reads, gated writes; every mutation is audit-logged; no CORS",
+  "  no raw transcript display",
+  "  --user-id is optional; scope discovery is the point",
+].join("\n");
 const EVAL_INSPECT_HELP_TEXT = [
   "GoodMemory Eval Inspect",
   "",
@@ -781,7 +809,7 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "GoodMemory Codex Writeback",
   "",
   "Usage",
-  "  goodmemory codex writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "  goodmemory codex writeback [--mode off|observe|review|selective] [--dry-run] [--json]",
   "  goodmemory codex writeback --from-rollout [--rollout-path <path>] [--sessions-root <path>] [--workspace-root <path>] [--json]",
   "  goodmemory codex writeback inspect [--limit <n>] [--json]",
   "  goodmemory codex writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
@@ -795,6 +823,7 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "Modes",
   "  off        recall-only; no after-response candidate extraction",
   "  observe    stores local bounded/redacted candidate previews for review; no raw transcripts or durable memory writes",
+  "  review     queues bounded/redacted candidates for Inspector approval; no durable write until approved",
   "  selective  writes selected candidates through public remember()",
   "",
   "Reads Codex after-response/session-end JSON from stdin, or a Codex rollout JSONL when --from-rollout is set.",
@@ -815,13 +844,14 @@ const CLAUDE_WRITEBACK_HELP_TEXT = [
   "GoodMemory Claude Writeback",
   "",
   "Usage",
-  "  goodmemory claude writeback [--mode off|observe|selective] [--dry-run] [--json]",
+  "  goodmemory claude writeback [--mode off|observe|review|selective] [--dry-run] [--json]",
   "  goodmemory claude writeback inspect [--limit <n>] [--json]",
   "  goodmemory claude writeback forget --event-id <id> [--review-outcome <valid_write|false_write|uncertain>] [--review-reason <text>] [--json]",
   "",
   "Modes",
   "  off        recall-only; no after-response candidate extraction",
   "  observe    stores local bounded/redacted candidate previews for review; no raw transcripts or durable memory writes",
+  "  review     queues bounded/redacted candidates for Inspector approval; no durable write until approved",
   "  selective  writes selected candidates through public remember()",
   "",
   "Reads Claude after-response/session-end JSON from stdin and runs installed-host writeback.",
@@ -2516,6 +2546,13 @@ function formatInstalledHostWritebackGuidance(
       `${prefix}enable durable writes: goodmemory enable ${host} --writeback selective`,
     ];
   }
+  if (mode === "review") {
+    return [
+      `${prefix}writeback mode: Inspector approval queue; stores local bounded redacted candidates, not raw transcripts or durable memory until approved`,
+      `${prefix}review candidates: goodmemory inspector serve`,
+      `${prefix}enable automatic durable writes: goodmemory enable ${host} --writeback selective`,
+    ];
+  }
 
   return [
     `${prefix}writeback mode: durable remember writeback through public remember()`,
@@ -2761,7 +2798,7 @@ function readWritebackModeFlag(
   const mode = readWritebackMode(value);
   if (!mode) {
     throw new Error(
-      `Unsupported installed-host writeback mode: ${value ?? "(missing)"}. Expected off|observe|selective.`,
+      `Unsupported installed-host writeback mode: ${value ?? "(missing)"}. Expected off|observe|review|selective.`,
     );
   }
 
@@ -3051,10 +3088,10 @@ async function promptWritebackInstallConfig(input: {
   const existing = await readInstalledHostRuntimeConfig(input.host, undefined, {});
   if (existing.status === "ok") {
     const mode = await askChoice({
-      choices: ["keep-current", "off", "observe", "selective"],
+      choices: ["keep-current", "off", "observe", "review", "selective"],
       defaultValue: "keep-current",
       message:
-        `Installed-host writeback mode for ${input.host}? current=${existing.config.writeback.mode} [keep-current/off/observe/selective]`,
+        `Installed-host writeback mode for ${input.host}? current=${existing.config.writeback.mode} [keep-current/off/observe/review/selective]`,
       prompt: input.prompt,
     });
     if (mode === "keep-current") {
@@ -3068,14 +3105,15 @@ async function promptWritebackInstallConfig(input: {
   // accumulates durable memory, and every write stays auditable via
   // `writeback inspect` and reversible via `writeback forget`.
   const mode = await askChoice({
-    choices: ["selective", "observe", "off"],
+    choices: ["selective", "review", "observe", "off"],
     defaultValue: "selective",
     message: [
       `Auto-save durable memory from ${input.host} sessions?`,
       "  selective - save high-signal statements (auditable, reversible) [recommended]",
+      "  review    - queue candidates for Inspector approval before saving",
       "  observe   - only log redacted candidates for review, write nothing",
       "  off       - recall only",
-      "[selective/observe/off]",
+      "[selective/review/observe/off]",
     ].join("\n"),
     prompt: input.prompt,
   });
@@ -5027,7 +5065,7 @@ function isInstalledWritebackConfig(
     typeof value === "object" &&
     value !== null &&
     "mode" in value &&
-    (value.mode === "off" || value.mode === "observe" || value.mode === "selective")
+    readWritebackMode(value.mode) !== undefined
   );
 }
 
@@ -5649,6 +5687,80 @@ async function handleRuntimeViewer(flags: ParsedFlags): Promise<CLICommandOutput
   };
 }
 
+function buildInspectorStores(storage: CLIStorageConfig) {
+  if (storage.provider === "sqlite" && storage.url && storage.url !== ":memory:") {
+    return {
+      documentStore: createSQLiteDocumentStore(storage.url),
+      sessionStore: createSQLiteSessionStore(storage.url),
+      vectorStore: createSQLiteVectorStore(storage.url),
+    };
+  }
+  if (storage.provider === "postgres" && storage.url) {
+    return {
+      documentStore: createPostgresDocumentStore({ url: storage.url }),
+      sessionStore: createPostgresSessionStore({ url: storage.url }),
+      vectorStore: createPostgresVectorStore({ url: storage.url }),
+    };
+  }
+  return {
+    documentStore: createInMemoryDocumentStore(),
+    sessionStore: createInMemorySessionStore(),
+    vectorStore: createInMemoryVectorStore(),
+  };
+}
+
+async function handleInspectorServe(flags: ParsedFlags): Promise<CLICommandOutput> {
+  const bindHost = normalizeRuntimeViewerBindHost(flags.bind);
+  const port = flags.port !== undefined
+    ? readNonNegativeIntegerFlag(flags.port, "port")
+    : 0;
+  const token = normalizeOptionalFlag(flags.token) ?? createInspectorToken();
+  const payload = {
+    ...buildDescriptor(bindHost),
+    port,
+    token,
+    url: `http://${bindHost}:${port}/?token=${encodeURIComponent(token)}`,
+  };
+
+  if (flagEnabled(flags, "dry-run")) {
+    return {
+      json: payload,
+      text: `${JSON.stringify(payload, null, 2)}\n`,
+    };
+  }
+
+  const storage = await resolveStorageConfig(flags);
+  const stores = buildInspectorStores(storage);
+  const memory = createGoodMemory({ adapters: stores });
+  const homeRoot = normalizeOptionalFlag(flags["home-root"]);
+  const cwd = normalizeOptionalFlag(flags["workspace-root"]);
+  const server = serveInspector({
+    documentStore: stores.documentStore,
+    memory,
+    ...(homeRoot ? { homeRoot } : {}),
+    bindHost,
+    port,
+    token,
+    loadObservedAudit: ({ host }) =>
+      inspectInstalledHostWritebackAudit({
+        host,
+        ...(homeRoot ? { homeRoot } : {}),
+        ...(cwd ? { cwd } : {}),
+      }),
+  });
+  activeRuntimeViewerServers.push(server);
+
+  return {
+    json: { ...payload, port: server.port, url: server.url },
+    text: [
+      `GoodMemory Inspector listening on ${server.url}`,
+      "Bind: 127.0.0.1",
+      "Mode: read-only reads, gated writes (audited)",
+      "",
+    ].join("\n"),
+  };
+}
+
 async function handleCodexAction(
   flags: ParsedFlags,
   positionals: string[],
@@ -6058,6 +6170,9 @@ export async function runCLI(
           `Unknown runtime command: ${secondary}. Run 'goodmemory runtime --help'.`,
         );
       }
+      if (primary === "inspector") {
+        return helpResult(INSPECTOR_HELP_TEXT);
+      }
 
       return errorResult(`Unknown command: ${primary}. Run 'goodmemory --help'.`);
     }
@@ -6213,6 +6328,16 @@ export async function runCLI(
       }
 
       throw new Error(`Unknown runtime command: ${secondary}. Run 'goodmemory runtime --help'.`);
+    }
+
+    if (primary === "inspector") {
+      const secondary = commands[1];
+      if (!secondary || secondary === "serve") {
+        return renderOutput(await handleInspectorServe(flags), flags);
+      }
+      throw new Error(
+        `Unknown inspector command: ${secondary}. Run 'goodmemory inspector --help'.`,
+      );
     }
 
     if (primary === "remember") {

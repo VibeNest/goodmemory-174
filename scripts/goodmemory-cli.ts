@@ -28,6 +28,16 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (
+    args[0] === "inspector" &&
+    (args[1] === "serve" || args[1] === undefined) &&
+    !args.includes("--dry-run") &&
+    result.exitCode === 0
+  ) {
+    process.exitCode = result.exitCode;
+    return;
+  }
+
   process.exit(result.exitCode);
 }
 

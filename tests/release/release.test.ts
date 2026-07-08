@@ -1320,7 +1320,8 @@ describe("release metadata and docs", () => {
       "goodmemory codex action -- ./tools/DeepAnalyzer --detailed",
     );
     expect(readme).toContain("Installed Host Writeback");
-    expect(readme).toContain("New interactive installs recommend `observe`");
+    expect(readme).toContain("New interactive installs recommend `selective`");
+    expect(readme).toContain("goodmemory inspector serve");
     expect(readme).toContain("observe-only events it marks the candidate dismissed");
     expect(readme).toContain("goodmemory codex writeback inspect");
     expect(readme).toContain("goodmemory codex writeback forget --event-id");
@@ -1581,7 +1582,10 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(
       "goodmemory codex action -- ./tools/DeepAnalyzer --detailed",
     );
-    expect(zhReadme).toContain("新的交互式安装会推荐 `observe`");
+    expect(zhReadme).toContain("新的交互式安装会推荐 `selective`");
+    expect(zhReadme).toContain("`off`、`observe`、`review` 或 `selective`");
+    expect(zhReadme).toContain("goodmemory inspector serve");
+    expect(zhReadme).toContain("`review`：把有界/redacted 候选放入 Inspector 审批队列");
     expect(zhReadme).toContain("observe-only event，它只会标记为 dismissed");
     expect(zhReadme).toContain("goodmemory codex writeback inspect");
     expect(zhReadme).toContain("goodmemory codex writeback forget --event-id");
