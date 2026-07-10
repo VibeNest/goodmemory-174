@@ -1,0 +1,30 @@
+Phase 69: Generalized Retrieval
+===============================
+
+Status
+------
+
+[PENDING PHASE 68]
+
+Goal
+----
+
+Replace fitted selection with a versioned multi-granular retrieval projection:
+raw memory/episode, summary, fact, keyword, and entity-description candidates.
+
+Execution Order
+---------------
+
+1. Add `recall_documents_v2`, `entities_v1`, and `scope_catalog_v1` projections
+   with idempotent repair after partial index writes.
+2. Add deterministic entity aliasing and direct entity-to-memory activation.
+3. Fuse lexical BM25, dense semantic, and entity channels with RRF and adaptive
+   candidate/noise budgets.
+4. Run held-out LoCoMo open-domain/multi-hop and LongMemEval weak-category
+   ablations before any full benchmark rerun.
+
+Gate
+----
+
+- Target slices improve at least 3 points with no protection-set regression
+  above 1 point; no new benchmark literal rule is introduced.

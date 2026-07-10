@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
+
+// Historical BEAM fitted-profile contract; run only through test:legacy-fitted.
 import { join } from "node:path";
 import {
   parsePhase63BeamRecallDiagnosticCliOptions,
   runPhase63BeamRecallDiagnostic,
-} from "../../scripts/run-phase-63-beam-recall-diagnostic";
+} from "../../../run-phase-63-beam-recall-diagnostic";
 
 function buildBeamRows(): unknown[] {
   return [
@@ -15412,6 +15414,16 @@ describe("phase-63 BEAM recall diagnostic runner", () => {
       runId: "run-beam-recall",
       scale: undefined,
     });
+  });
+
+  it("parses the repo-only narrow-gate hit audit flag", () => {
+    expect(
+      parsePhase63BeamRecallDiagnosticCliOptions([
+        "--benchmark-root",
+        "/tmp/BEAM",
+        "--collect-narrow-gate-hits",
+      ]).collectNarrowGateHits,
+    ).toBe(true);
   });
 
   it("rejects duplicate scalar cli selectors before running diagnostics", () => {

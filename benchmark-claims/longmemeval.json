@@ -1,5 +1,15 @@
 {
   "benchmark": "LongMemEval",
+  "comparison": {
+    "asOf": "2026-07-09",
+    "availability": "public-opt-in",
+    "notes": [
+      "The 0.720 value is the deterministic strict lower bound; the official-protocol stored-answer score is reported separately.",
+      "Current external references use different answer models and retrieval budgets, so they are not controlled head-to-head measurements."
+    ],
+    "runtimeProfile": "goodmemory-rules-only@0.3.5",
+    "source": "https://github.com/mem0ai/memory-benchmarks"
+  },
   "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/xiaowu0162/LongMemEval (data: https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned, split longmemeval_s_cleaned)",

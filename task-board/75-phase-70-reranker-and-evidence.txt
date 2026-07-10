@@ -1,0 +1,19 @@
+Phase 70: Reranker and Evidence
+===============================
+
+Status
+------
+
+[PENDING PHASE 69]
+
+Goal
+----
+
+Add an optional first-party OpenAI-compatible pointwise reranker and expose
+auditable channel/fusion/reranker evidence without weakening abstention.
+
+Gate
+----
+
+- Provider failure degrades to deterministic ranking and is visible in trace
+  metadata; focused score or noise improves without cross-benchmark regression.

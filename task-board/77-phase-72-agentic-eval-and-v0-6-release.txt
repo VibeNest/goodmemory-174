@@ -1,0 +1,22 @@
+Phase 72: Agentic Eval and v0.6 Release
+======================================
+
+Status
+------
+
+[PENDING PHASE 71]
+
+Goal
+----
+
+Validate generalized memory on HaluMem and a MemGym coding slice, retain
+LongMINT as smoke-only, refresh external reproducibility evidence, and prepare
+the `v0.6.0` release.
+
+Gate
+----
+
+- Current benchmark thresholds and zero-failure requirements pass; HaluMem
+  beats the simple-vector baseline and MemGym coding beats no-memory by 5
+  points; typecheck, tests, coverage, Node package smoke, Playwright, and pack
+  gates pass with unpacked size at or below 4 MB.

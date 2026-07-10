@@ -1,0 +1,60 @@
+{
+  "checks": [
+    {
+      "detail": "The merged audit must classify all 148 registered fitted gates.",
+      "key": "complete-gate-census",
+      "passed": true
+    },
+    {
+      "detail": "The gate census must cover BEAM 100K, 500K, and 1M.",
+      "key": "cross-split-audit",
+      "passed": true
+    },
+    {
+      "detail": "The production package must exclude source and TypeScript bin entrypoints.",
+      "key": "compiled-only-package",
+      "passed": true
+    },
+    {
+      "detail": "The production selection module must not import the legacy fitted graph.",
+      "key": "production-import-isolation",
+      "passed": true
+    },
+    {
+      "detail": "The fitted selector graph must live outside src/recall.",
+      "key": "fitted-source-isolation",
+      "passed": true
+    },
+    {
+      "detail": "The generalized BEAM 100K baseline must cover all 400 questions with zero failures.",
+      "key": "generalized-baseline-complete",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "audit": {
+    "path": "scripts/eval-profiles/legacy-fitted/gate-audit.json",
+    "summary": {
+      "caseFitted": 129,
+      "multiCase": 6,
+      "totalGates": 148,
+      "unobserved": 13
+    }
+  },
+  "baseline": {
+    "path": "reports/eval/research/phase-63/beam/phase68-generalized-baseline-100k/recall-diagnostic.json",
+    "summary": {
+      "accuracy": 0,
+      "abstentionCorrectCases": 0,
+      "correctCases": 0,
+      "evidenceCaseCount": 355,
+      "evidenceChatRecall": 0.16982313070341237,
+      "missedRecallCases": 332,
+      "totalCases": 400,
+      "wrongAnswerCases": 400,
+      "wrongRecallCases": 390
+    }
+  },
+  "generatedAt": "2026-07-10T04:02:37.441Z",
+  "phase": "phase-68"
+}

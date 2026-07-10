@@ -17,7 +17,15 @@ import {
   type BeamRow,
 } from "../src/eval/beam";
 import {
+  beginNarrowGateHitAuditForInternalEval,
+  endNarrowGateHitAuditForInternalEval,
+  readNarrowGateHitAuditForInternalEval,
+  setNarrowGateAuditCaseForInternalEval,
+} from "./eval-profiles/legacy-fitted/recall/narrowGates";
+import { createDeterministicMemoryExtractor } from "../src/remember/deterministicExtractor";
+import {
   assertCliPathSegmentValue,
+  hasCliFlagStrict,
   resolveCliFlagValueStrict,
   resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
@@ -28,6 +36,7 @@ import {
   resolvePhase63OutputDir,
   resolvePhase63RepoRoot,
 } from "./run-phase-63-shared";
+import { activateLegacyFittedEvalProfile } from "./eval-profiles/legacy-fitted/activate";
 
 export const PHASE63_RECALL_DIAGNOSTIC_RUN_ID =
   "run-phase63-beam-100k-recall-diagnostic-current";
@@ -36,6 +45,7 @@ const GENERATED_BY = "scripts/run-phase-63-beam-recall-diagnostic.ts";
 
 export interface Phase63BeamRecallDiagnosticCliOptions {
   benchmarkRoot?: string;
+  collectNarrowGateHits?: boolean;
   limit?: number;
   outputDir?: string;
   profiles?: readonly string[];
@@ -106,6 +116,9 @@ export function parsePhase63BeamRecallDiagnosticCliOptions(
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       resolvePhase63BeamRootEnv(),
+    ...(hasCliFlagStrict(argv, "--collect-narrow-gate-hits")
+      ? { collectNarrowGateHits: true }
+      : {}),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
@@ -378,6 +391,7 @@ export function createPhase63BeamDiagnosticMemory(): GoodMemory {
   let clockTick = 0;
   return createGoodMemory({
     adapters: {
+      assistedExtractor: createDeterministicMemoryExtractor(),
       embeddingAdapter: createDiagnosticEmbeddingAdapter(),
     },
     storage: {
@@ -451,43 +465,58 @@ export async function runPhase63BeamRecallDiagnostic(
     casesByConversation.set(testCase.conversationId, group);
   }
   const profileReports: Partial<Record<BeamProfile, BeamProfileReport>> = {};
+  let narrowGateHits: ReturnType<typeof readNarrowGateHitAuditForInternalEval> = [];
 
-  for (const profile of profiles) {
-    const caseResults: BeamCaseResult[] = [];
-    for (const conversationCases of casesByConversation.values()) {
-      const row = conversationCases[0]?.row;
-      if (!row) {
-        continue;
-      }
-      const memory = (dependencies.createMemory ?? createPhase63BeamDiagnosticMemory)();
-      await seedPhase63BeamConversation({
-        memory,
-        row,
-        runId,
-      });
-      const scope = buildPhase63BeamScope({
-        conversationId: row.conversationId,
-        runId,
-      });
-      for (const testCase of conversationCases) {
-        const recall = await memory.recall({
-          query: testCase.question,
-          scope,
-          strategy: profile === "goodmemory-rules-only" ? "rules-only" : "hybrid",
+  if (options.collectNarrowGateHits) {
+    beginNarrowGateHitAuditForInternalEval();
+  }
+
+  try {
+    for (const profile of profiles) {
+      const caseResults: BeamCaseResult[] = [];
+      for (const conversationCases of casesByConversation.values()) {
+        const row = conversationCases[0]?.row;
+        if (!row) {
+          continue;
+        }
+        const memory = (dependencies.createMemory ?? createPhase63BeamDiagnosticMemory)();
+        await seedPhase63BeamConversation({
+          memory,
+          row,
+          runId,
         });
-        caseResults.push(
-          scoreRecallCase({
-            profile,
-            retrievedChatIds: collectPhase63BeamRetrievedChatIds(recall),
-            testCase,
-          }),
-        );
+        const scope = buildPhase63BeamScope({
+          conversationId: row.conversationId,
+          runId,
+        });
+        for (const testCase of conversationCases) {
+          if (options.collectNarrowGateHits) {
+            setNarrowGateAuditCaseForInternalEval(testCase.questionId);
+          }
+          const recall = await memory.recall({
+            query: testCase.question,
+            scope,
+            strategy: profile === "goodmemory-rules-only" ? "rules-only" : "hybrid",
+          });
+          caseResults.push(
+            scoreRecallCase({
+              profile,
+              retrievedChatIds: collectPhase63BeamRetrievedChatIds(recall),
+              testCase,
+            }),
+          );
+        }
       }
+      profileReports[profile] = {
+        cases: caseResults,
+        summary: summarizeCases(caseResults),
+      };
     }
-    profileReports[profile] = {
-      cases: caseResults,
-      summary: summarizeCases(caseResults),
-    };
+  } finally {
+    if (options.collectNarrowGateHits) {
+      narrowGateHits = readNarrowGateHitAuditForInternalEval();
+      endNarrowGateHitAuditForInternalEval();
+    }
   }
 
   const report: BeamReport = {
@@ -519,6 +548,31 @@ export async function runPhase63BeamRecallDiagnostic(
     join(runDirectory, "recall-diagnostic.json"),
     `${JSON.stringify(report, null, 2)}\n`,
   );
+  if (options.collectNarrowGateHits) {
+    await writeFileImpl(
+      join(runDirectory, "narrow-gate-hit-audit.json"),
+      `${JSON.stringify(
+        {
+          generatedBy: GENERATED_BY,
+          profile: "legacy-fitted",
+          runId,
+          totalCases: cases.length,
+          verdicts: narrowGateHits.map((entry) => ({
+            ...entry,
+            hitCount: entry.caseIds.length,
+            status:
+              entry.caseIds.length === 0
+                ? "unobserved"
+                : entry.caseIds.length === 1
+                  ? "case_fitted"
+                  : "multi_case",
+          })),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
   return report;
 }
 
@@ -546,6 +600,21 @@ function buildCliSummary(report: BeamReport): {
 }
 
 if (import.meta.main) {
+  const legacyFittedProfileCount = Bun.argv.filter(
+    (value) => value === "--legacy-fitted-profile",
+  ).length;
+  if (legacyFittedProfileCount > 1) {
+    throw new Error("--legacy-fitted-profile may be provided at most once");
+  }
+  const collectNarrowGateHits = Bun.argv.includes("--collect-narrow-gate-hits");
+  if (collectNarrowGateHits && legacyFittedProfileCount !== 1) {
+    throw new Error(
+      "--collect-narrow-gate-hits requires --legacy-fitted-profile",
+    );
+  }
+  if (legacyFittedProfileCount === 1) {
+    activateLegacyFittedEvalProfile();
+  }
   const report = await runPhase63BeamRecallDiagnostic(
     parsePhase63BeamRecallDiagnosticCliOptions(Bun.argv),
   );

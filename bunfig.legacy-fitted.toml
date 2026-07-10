@@ -1,0 +1,3 @@
+[test]
+root = "scripts/eval-profiles/legacy-fitted/tests"
+preload = ["./tests/support/legacy-fitted-test-env.ts"]

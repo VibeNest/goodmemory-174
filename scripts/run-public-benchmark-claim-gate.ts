@@ -25,10 +25,27 @@ export const CLAIM_STATUSES = [
   "not_started",
 ] as const;
 export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
+export const CLAIM_PROFILE_AVAILABILITIES = [
+  "production-default",
+  "public-opt-in",
+  "historical",
+  "repo-eval-only",
+] as const;
+export type ClaimProfileAvailability =
+  (typeof CLAIM_PROFILE_AVAILABILITIES)[number];
+
+export interface BenchmarkClaimComparison {
+  asOf: string;
+  availability: ClaimProfileAvailability;
+  notes: string[];
+  runtimeProfile: string;
+  source: string;
+}
 
 export interface BenchmarkClaimReport {
   benchmark: string;
   claimBoundary: { publicClaimAllowed: boolean; reason: string };
+  comparison: BenchmarkClaimComparison;
   // Optional coverage gate: a benchmark whose competencies/questions are only
   // partially evaluated cannot be a public claim even if the measured slice scores
   // well (e.g. MAB with TTL/LRU unfinished).
@@ -216,6 +233,14 @@ export function evaluateClaimBoundary(report: BenchmarkClaimReport): {
       `benchmark coverage incomplete${report.coverage.note ? `: ${report.coverage.note}` : ""}`,
     );
   }
+  if (
+    report.comparison?.availability === "historical" ||
+    report.comparison?.availability === "repo-eval-only"
+  ) {
+    blockers.push(
+      `runtime profile availability is ${report.comparison.availability}; current public claims require production-default or public-opt-in`,
+    );
+  }
   if (!report.evidence || report.evidence.artifacts.length === 0) {
     blockers.push("no local evidence artifacts listed");
   }
@@ -234,6 +259,48 @@ export function validateClaimReport(value: unknown): { errors: string[]; valid: 
   }
   if (!CLAIM_STATUSES.includes(value.status as ClaimStatus)) {
     errors.push(`status must be one of ${CLAIM_STATUSES.join(", ")}`);
+  }
+  if (!isRecord(value.comparison)) {
+    errors.push("comparison must be an object");
+  } else {
+    if (
+      !isStrictNonEmpty(value.comparison.asOf) ||
+      !/^\d{4}-\d{2}-\d{2}$/u.test(value.comparison.asOf)
+    ) {
+      errors.push("comparison.asOf must be an ISO calendar date (YYYY-MM-DD)");
+    }
+    if (
+      !CLAIM_PROFILE_AVAILABILITIES.includes(
+        value.comparison.availability as ClaimProfileAvailability,
+      )
+    ) {
+      errors.push(
+        `comparison.availability must be one of ${CLAIM_PROFILE_AVAILABILITIES.join(", ")}`,
+      );
+    }
+    if (!isStrictNonEmpty(value.comparison.runtimeProfile)) {
+      errors.push("comparison.runtimeProfile must be a non-empty unpadded string");
+    }
+    if (!isStrictNonEmpty(value.comparison.source)) {
+      errors.push("comparison.source must be a non-empty unpadded string");
+    }
+    if (!Array.isArray(value.comparison.notes) || value.comparison.notes.length === 0) {
+      errors.push("comparison.notes must be a non-empty array");
+    } else {
+      const seenNotes = new Set<string>();
+      value.comparison.notes.forEach((note, index) => {
+        if (!isStrictNonEmpty(note)) {
+          errors.push(
+            `comparison.notes[${index}] must be a non-empty unpadded string`,
+          );
+          return;
+        }
+        if (seenNotes.has(note)) {
+          errors.push(`comparison.notes[${index}] duplicates ${note}`);
+        }
+        seenNotes.add(note);
+      });
+    }
   }
   if (!isRecord(value.coverage)) {
     errors.push("coverage must be an object");

@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { runCLI } from "../src/cli";
 
 async function main(): Promise<void> {
@@ -41,6 +43,9 @@ async function main(): Promise<void> {
   process.exit(result.exitCode);
 }
 
-if (import.meta.main) {
+if (
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
   await main();
 }

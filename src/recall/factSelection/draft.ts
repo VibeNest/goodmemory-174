@@ -4,12 +4,18 @@ import type { RankedFactCandidate } from "../scoring";
 import { markSelectedTrace } from "../selectors/selectionContext";
 import type { FactSelectionSummary, SelectionDraft } from "./contracts";
 
-export function createSelectionDraft(input: {
+export function createSelectionDraft<
+  RouteId extends string = string,
+  AugmenterId extends string = string,
+  EarlyExit extends string = string,
+>(input: {
   traces: RecallCandidateTrace[];
-}): SelectionDraft {
+}): SelectionDraft<RouteId, AugmenterId, EarlyExit> {
   const selected: RankedFactCandidate[] = [];
   const selectedIds = new Set<string>();
-  const summary: FactSelectionSummary = { augmenterStages: [] };
+  const summary: FactSelectionSummary<RouteId, AugmenterId, EarlyExit> = {
+    augmenterStages: [],
+  };
   const select = (
     entry: RankedFactCandidate,
     slot: RecallSlot | "generic" = "generic",

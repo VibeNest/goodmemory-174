@@ -17,6 +17,13 @@ function cleanReport(overrides: Partial<BenchmarkClaimReport> = {}): BenchmarkCl
   return {
     benchmark: "Example",
     claimBoundary: { publicClaimAllowed: true, reason: "all rules satisfied" },
+    comparison: {
+      asOf: "2026-07-09",
+      availability: "production-default",
+      notes: ["Same benchmark protocol and disclosed model stack."],
+      runtimeProfile: "generalized-default",
+      source: "https://example.com/reference",
+    },
     coverage: { complete: true },
     dataset: { license: "MIT", source: "https://example.com/bench", vendored: false },
     evidence: {
@@ -55,6 +62,20 @@ describe("claim boundary rule engine", () => {
     expect(verdict.blockers.join(" ")).toContain("same-model judge");
   });
 
+  it("blocks profiles that users cannot run from the public package", () => {
+    const verdict = evaluateClaimBoundary(
+      cleanReport({
+        comparison: {
+          ...cleanReport().comparison,
+          availability: "repo-eval-only",
+        },
+      }),
+    );
+
+    expect(verdict.publicClaimAllowed).toBe(false);
+    expect(verdict.blockers.join(" ")).toContain("repo-eval-only");
+  });
+
   it("blocks on execution failures, missing baseline, broken provenance, and incomplete coverage", () => {
     expect(
       evaluateClaimBoundary(cleanReport({ run: { ...cleanReport().run, executionFailures: 1 } }))
@@ -84,6 +105,29 @@ describe("claim report schema validation", () => {
     const bad = validateClaimReport({ benchmark: "X" });
     expect(bad.valid).toBe(false);
     expect(bad.errors.length).toBeGreaterThan(0);
+  });
+
+  it("requires current comparison provenance and profile availability", () => {
+    const missing = validateClaimReport({
+      ...cleanReport(),
+      comparison: undefined,
+    });
+    expect(missing.valid).toBe(false);
+    expect(missing.errors.join(" ")).toContain("comparison");
+
+    const malformed = validateClaimReport({
+      ...cleanReport(),
+      comparison: {
+        asOf: "July 9",
+        availability: "private",
+        notes: [],
+        runtimeProfile: " fitted ",
+        source: "",
+      },
+    });
+    expect(malformed.valid).toBe(false);
+    expect(malformed.errors.join(" ")).toContain("comparison.asOf");
+    expect(malformed.errors.join(" ")).toContain("comparison.availability");
   });
 
   it("rejects malformed typed declaration fields before rule evaluation", () => {

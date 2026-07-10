@@ -7,10 +7,6 @@ import {
   createSelectionDraft,
   selectZeroRetrievalLexicalFallback,
 } from "../../src/recall/factSelection/draft";
-import {
-  FACT_SELECTION_ROUTE_TABLE,
-  PRIMARY_FACT_SELECTION_ORDER,
-} from "../../src/recall/factSelection/routeTable";
 
 const TIMESTAMP = "2026-01-10T00:00:00.000Z";
 
@@ -159,13 +155,5 @@ describe("zero-retrieval lexical fallback", () => {
     selectZeroRetrievalLexicalFallback({ compatible: [], draft });
 
     expect(draft.selected).toHaveLength(0);
-  });
-});
-
-describe("fact selection route table", () => {
-  it("keeps the route table aligned with the primary selection order", () => {
-    expect(FACT_SELECTION_ROUTE_TABLE.map((route) => route.id)).toEqual([
-      ...PRIMARY_FACT_SELECTION_ORDER,
-    ]);
   });
 });

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const BUN_BINARY = process.env.GOODMEMORY_BUN_BINARY ?? "bun";
-const CLI_ENTRYPOINT = resolve(SCRIPT_DIR, "./goodmemory-cli.ts");
+const CLI_ENTRYPOINT = resolve(SCRIPT_DIR, "../dist/bin/goodmemory-cli.js");
 const PACKAGE_JSON = resolve(SCRIPT_DIR, "../package.json");
 
 function versionRequested(args) {

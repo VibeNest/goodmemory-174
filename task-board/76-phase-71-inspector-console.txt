@@ -1,0 +1,20 @@
+Phase 71: Inspector Console
+===========================
+
+Status
+------
+
+[PENDING PHASE 70]
+
+Goal
+----
+
+Ship `/admin/v1` plus a private React/Vite Inspector app served by the existing
+one-command local Inspector entrypoint.
+
+Gate
+----
+
+- Scope/memory/candidate/revision/delete/trace/audit flows pass API integration
+  and Playwright desktop/mobile tests; Bearer-only auth, pagination, ETag, and
+  idempotency behavior are verified.

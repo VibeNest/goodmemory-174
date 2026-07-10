@@ -1,0 +1,43 @@
+Phase 68: Generalization Boundary
+=================================
+
+Status
+------
+
+[COMPLETE]
+
+Goal
+----
+
+Make the production package independent of scenario-fitted selectors and
+establish honest generalized baselines before score optimization resumes.
+
+Execution Order
+---------------
+
+1. Default every registered narrow gate to disabled; preserve an internal-only
+   legacy fitted profile for historical eval reproduction.
+2. Cut the production import graph away from fitted selector modules and block
+   benchmark literals in packed JavaScript.
+3. Audit gate hits across BEAM 100K, 500K, and 1M; merge a tracked 148-gate
+   manifest and delete rules that are unobserved across every split and tests.
+4. Record fresh generalized baselines and update ADR/current-status wording.
+5. Require comparison date, source, runtime profile, and availability in every
+   benchmark claim; remove repo-only profiles from the current claim table.
+
+Gate
+----
+
+- `bun run typecheck`, focused unit/architecture/release tests, and the strict
+  public-claim gate pass.
+- Packed output contains no `src`, TypeScript bin entrypoint, or known fitted
+  benchmark literal.
+- Production default uses the generalized selector; legacy activation is not
+  exported from the package.
+- Cross-split audit and generalized BEAM baseline are persisted as evidence.
+
+Breakdown
+---------
+
+See `task-board/phase-68-generalization-boundary/00-README.txt` for the
+executable closure checklist and accepted evidence paths.

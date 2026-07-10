@@ -44,10 +44,9 @@ reproducible run (commit + command + package version).
 <!-- public-claims-table:start -->
 | Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
 |---|---|---:|---:|---|
-| LongMemEval full 500 | strict: judge-free deterministic subset · comparable: official LongMemEval judge protocol | strict **0.720** (360/500) · official-protocol **0.888** (444/500), `goodmemory-rules-only` | no-memory baseline 0.068; published same-protocol reference: Zep 90.2 | [longmemeval.json](./benchmark-claims/longmemeval.json) |
+| LongMemEval full 500 | strict: judge-free deterministic subset · comparable: official LongMemEval judge protocol | strict **0.720** (360/500) · official-protocol **0.888** (444/500), `goodmemory-rules-only` | no-memory 0.068; current Mem0 harness: 94.4 Top200 / 94.8 Top50 (different stack and budget) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
 | MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
-| LoCoMo (full 10 conversations) | strict: deterministic token-F1 · comparable: industry LLM-judge protocol (non-adversarial 1540) | strict **0.6117** (942/1540) · judge-protocol **0.837** (1289/1540) | no-memory baseline 0.0045 non-adversarial; published same-protocol references: Memori 82.0, Zep 79.1, LangMem 78.1, Mem0 62.5 | [locomo.json](./benchmark-claims/locomo.json) |
-| BEAM 100K (400 questions, 1051 rubric items) | official BEAM rubric judge (1.0/0.5/0.0 per rubric item) · strict: internal binary judge | official-protocol **0.802** · strict binary **0.7225** (289/400) | no-pack ablation 0.5725; only public same-protocol reference: 0.49 | [beam.json](./benchmark-claims/beam.json) |
+| LoCoMo (full 10 conversations) | strict: deterministic token-F1 · comparable: industry LLM-judge protocol (non-adversarial 1540) | strict **0.6117** (942/1540) · judge-protocol **0.837** (1289/1540) | no-memory 0.0045 non-adversarial; current Mem0 harness: 92.5 Top200 / 91.8 Top50 (different stack and budget) | [locomo.json](./benchmark-claims/locomo.json) |
 | ImplicitMemBench Full-300 | stored-answer cross-version judge rescore | **0.691** (207.35/300), gpt-5.4 judge over gpt-5.5 answers, sourceAnswersUnchanged | upstream-chat baseline **0.400** (120/300); reference line 0.66 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 <!-- public-claims-table:end -->
 
@@ -104,7 +103,9 @@ CC BY-NC 4.0 (non-commercial scope) and is fetched at eval time, never
 vendored. Full provenance is in the
 [claim declaration](./benchmark-claims/locomo.json).
 
-The BEAM claim is scored under the benchmark's official unified rubric judge:
+The historical BEAM 100K result is retained as versioned evidence but is not a
+current public-claim row because its recall path used the repo-only
+`legacy-fitted` profile. It was scored under the benchmark's official unified rubric judge:
 each of the 1,051 rubric items is scored 1.0/0.5/0.0 and a question's score is
 the mean over its items (all 400 questions, `judgeFailures: 0`). The only
 public end-to-end BEAM 100K number scored the same way is 0.49; GoodMemory

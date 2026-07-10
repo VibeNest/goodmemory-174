@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   GoodMemoryConfig,
   GoodMemoryRetrievalPresetId,
@@ -414,6 +416,9 @@ function main(): void {
   serveHttpBridge(options);
 }
 
-if (import.meta.main) {
+if (
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
   main();
 }

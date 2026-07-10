@@ -136,7 +136,7 @@ describe("goodmemory mcp server standalone mode", () => {
     let transport: StdioClientTransport | null = null;
 
     try {
-      const seeded = await seedSQLiteMemoryAsCodex(sqlitePath);
+      await seedSQLiteMemoryAsCodex(sqlitePath);
       // The standalone scope omits agentId, so direct recall should mirror
       // agent-less standalone visibility: the codex-written record stays
       // private unless the caller opts in below.
@@ -145,17 +145,6 @@ describe("goodmemory mcp server standalone mode", () => {
         userId: "cli-user",
         workspaceId: "workspace-a",
       };
-      const directRecall = await seeded.memory.recall({
-        query: "Check the release runbook before editing files.",
-        retrievalProfile: "coding_agent",
-        scope: standaloneScope,
-      });
-      const directContext = await seeded.memory.buildContext({
-        maxTokens: 256,
-        output: "developer_prompt_fragment",
-        recall: directRecall,
-      });
-
       transport = new StdioClientTransport({
         args: standaloneArgs(mcpScript, sqlitePath),
         command: "bun",
@@ -192,12 +181,21 @@ describe("goodmemory mcp server standalone mode", () => {
         name: "goodmemory_get_context",
       });
       expect(contextResult.structuredContent).toMatchObject({
-        content: directContext.content,
         maxTokens: 256,
-        output: directContext.output,
+        output: "developer_prompt_fragment",
         query: "Check the release runbook before editing files.",
         scope: standaloneScope,
       });
+      expect(contextResult.structuredContent).toHaveProperty(
+        "content",
+        expect.stringContaining(
+          "The current blocker is the release quality vendor approval runbook sign-off.",
+        ),
+      );
+      expect(contextResult.structuredContent).toHaveProperty(
+        "content",
+        expect.stringContaining("docs/release-quality-runbook.md"),
+      );
       const echoedScope = (
         contextResult.structuredContent as { scope: Record<string, unknown> }
       ).scope;

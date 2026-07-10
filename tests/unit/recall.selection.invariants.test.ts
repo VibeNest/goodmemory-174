@@ -5,7 +5,6 @@ import { createLanguageService } from "../../src/language";
 import type { RoutingDecision } from "../../src/recall/router";
 import { buildFactCandidates, rankFactCandidates } from "../../src/recall/scoring";
 import { selectFacts } from "../../src/recall/selection";
-import { selectContradictionEvidencePair } from "../../src/recall/selectors/contradiction";
 
 const TIMESTAMP = "2026-01-10T00:00:00.000Z";
 const SOURCE = {
@@ -341,41 +340,4 @@ describe("recall selection invariants", () => {
     }
   });
 
-  it("keeps the contradiction selector inert when no denial evidence exists", () => {
-    const denialFreeBank = ENGLISH_CONTENT_BANK.filter(
-      (content) => !/never|n't/u.test(content),
-    );
-    for (let seed = 1; seed <= 40; seed += 1) {
-      const random = createSeededRandom(seed * 104729);
-      const facts: FactMemory[] = [];
-      for (let index = 0; index < 8; index += 1) {
-        facts.push(
-          createFactMemory({
-            id: `fact-inert-${seed}-${index}`,
-            userId: "user-1",
-            category: "external_benchmark",
-            content: pick(random, denialFreeBank),
-            source: SOURCE,
-            tags: ["source_message", "source_order", "user_answer"],
-            attributes: { sourceOrder: 2 + index * 2 },
-            updatedAt: TIMESTAMP,
-          }),
-        );
-      }
-      const query = "Have I ever met Kelly at any book club or library event?";
-      const ranked = rankFactCandidates(
-        buildFactCandidates(facts, query, language, "en", TIMESTAMP),
-        "rules-only",
-      );
-
-      const pair = selectContradictionEvidencePair({
-        entries: ranked,
-        language,
-        query,
-        queryLocale: "en",
-      });
-
-      expect(pair, `seed=${seed}`).toEqual([]);
-    }
-  });
 });

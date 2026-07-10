@@ -33,3 +33,25 @@ if (!result.success) {
 
   process.exit(1);
 }
+
+const binResult = await Bun.build({
+  entrypoints: [
+    join(REPO_ROOT, "scripts/goodmemory-cli.ts"),
+    join(REPO_ROOT, "scripts/goodmemory-http-bridge.ts"),
+    join(REPO_ROOT, "scripts/goodmemory-mcp.ts"),
+  ],
+  external: ["bun", "bun:sqlite"],
+  format: "esm",
+  naming: "[name].js",
+  outdir: join(DIST_DIR, "bin"),
+  splitting: true,
+  target: "node",
+});
+
+if (!binResult.success) {
+  for (const log of binResult.logs) {
+    console.error(log);
+  }
+
+  process.exit(1);
+}

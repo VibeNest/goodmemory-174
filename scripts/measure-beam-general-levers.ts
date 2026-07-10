@@ -21,7 +21,7 @@ import { createDeterministicMemoryExtractor } from "../src/remember/deterministi
 import {
   __resetNarrowGateDisablesForTest,
   listRegisteredNarrowGateIds,
-} from "../src/recall/narrowGates";
+} from "./eval-profiles/legacy-fitted/recall/narrowGates";
 import {
   assertCliPathSegmentValue,
   hasCliFlagStrict,

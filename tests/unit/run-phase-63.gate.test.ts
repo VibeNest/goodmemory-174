@@ -109,7 +109,7 @@ describe("run-phase-63 gate", () => {
       "tests/unit/run-phase-63.beam-live-slice.test.ts",
       "tests/unit/measure-beam-general-levers.test.ts",
       "tests/unit/prepare-phase-63-beam-data.test.ts",
-      "tests/unit/run-phase-63.beam-recall-diagnostic.test.ts",
+      "scripts/eval-profiles/legacy-fitted/tests/beam-recall-diagnostic.test.ts",
       "tests/unit/run-phase-63.script.test.ts",
       "tests/unit/run-phase-63.gate.test.ts",
     ]);

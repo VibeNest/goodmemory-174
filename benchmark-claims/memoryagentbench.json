@@ -1,5 +1,15 @@
 {
   "benchmark": "MemoryAgentBench",
+  "comparison": {
+    "asOf": "2026-07-09",
+    "availability": "public-opt-in",
+    "notes": [
+      "The public claim remains scoped to CR and TTL because AR and LRU do not beat their no-memory baselines.",
+      "The comparison uses deterministic upstream match-mode scoring rather than an LLM judge."
+    ],
+    "runtimeProfile": "task-specific-cr-ttl@0.3.5",
+    "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench"
+  },
   "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench",

@@ -7,7 +7,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const BUN_BINARY = process.env.GOODMEMORY_BUN_BINARY ?? "bun";
 const HTTP_BRIDGE_ENTRYPOINT = resolve(
   SCRIPT_DIR,
-  "./goodmemory-http-bridge.ts",
+  "../dist/bin/goodmemory-http-bridge.js",
 );
 
 const child = spawn(

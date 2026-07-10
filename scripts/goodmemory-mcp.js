@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const BUN_BINARY = process.env.GOODMEMORY_BUN_BINARY ?? "bun";
-const MCP_ENTRYPOINT = resolve(SCRIPT_DIR, "./goodmemory-mcp.ts");
+const MCP_ENTRYPOINT = resolve(SCRIPT_DIR, "../dist/bin/goodmemory-mcp.js");
 
 const result = spawnSync(BUN_BINARY, ["run", MCP_ENTRYPOINT, ...process.argv.slice(2)], {
   stdio: "inherit",

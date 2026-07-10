@@ -1,12 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { runPhase63RecallDiagnosticAnalysis } from "./analyze-phase-63-recall-diagnostic";
+import { activateLegacyFittedEvalProfile } from "./eval-profiles/legacy-fitted/activate";
 import { resolvePhase63RepoRoot } from "./run-phase-63-shared";
 import { SELECTION_REFACTOR_BASELINE_RUN_ID } from "./verify-selection-refactor";
 // Side-effect import: loads the full selection module graph so every wrapped
 // narrow gate registers before the census is taken.
-import "../src/recall/selection";
-import { listRegisteredNarrowGateIds } from "../src/recall/narrowGates";
+import "./eval-profiles/legacy-fitted/recall/selectionLegacy";
+import { listRegisteredNarrowGateIds } from "./eval-profiles/legacy-fitted/recall/narrowGates";
 
 export interface NarrowGateAuditOptions {
   baselineRunId?: string;
@@ -107,6 +108,7 @@ async function runDisabledDiagnostic(input: {
       "100K",
       "--profile",
       "goodmemory-rules-only",
+      "--legacy-fitted-profile",
       "--run-id",
       input.runId,
     ],
@@ -147,6 +149,7 @@ async function runDisabledDiagnostic(input: {
 export async function runNarrowGateAudit(
   options: NarrowGateAuditOptions = {},
 ): Promise<{ reportPath: string; verdicts: NarrowGateVerdict[] }> {
+  activateLegacyFittedEvalProfile();
   const baselineRunId =
     options.baselineRunId ?? SELECTION_REFACTOR_BASELINE_RUN_ID;
   const benchmarkRoot = options.benchmarkRoot ?? "/private/tmp/BEAM";

@@ -373,7 +373,7 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     // Current retrieval-breadth (noise) baseline for the tiny synthetic cases.
     expect(competency(report, "AR").noiseChunkTotal).toBe(2);
     expect(competency(report, "TTL").noiseChunkTotal).toBe(1);
-    expect(competency(report, "LRU").noiseChunkTotal).toBe(3);
+    expect(competency(report, "LRU").noiseChunkTotal).toBe(2);
     expect(competency(report, "CR").noiseChunkTotal).toBe(1);
 
     // The report is written under the run directory.

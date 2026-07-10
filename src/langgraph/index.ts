@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import { computeBm25Scores } from "../recall/bm25";
 
 // Structural mirror of LangGraph JS BaseStore (@langchain/langgraph-checkpoint
 // store/base.ts): batch/get/put/delete/search/listNamespaces/start/stop with
@@ -97,6 +98,7 @@ export interface GoodMemoryLangGraphStore {
 const NAMESPACE_SEPARATOR = "";
 const DEFAULT_SEARCH_LIMIT = 10;
 const DEFAULT_NAMESPACE_LIMIT = 100;
+const QUERY_FALLBACK_SCORE_FLOOR = 0.2;
 
 interface StoredLangGraphFact {
   content: string;
@@ -360,17 +362,40 @@ export function createGoodMemoryLangGraphStore(input: {
 
     let ordered = inPrefix;
     if (options.query) {
-      // Recall orders by relevance; keep only recalled facts, in recall order,
-      // then append nothing (query search returns matches only).
+      // Global GoodMemory recall cannot express a LangGraph namespace prefix.
+      // Keep its in-prefix ordering, then recover prefix-local lexical matches
+      // that global competition may have suppressed.
       const recall = await memory.recall({ query: options.query, scope });
       const byId = new Map(
         inPrefix
           .filter((entry) => entry.indexed)
           .map((entry) => [entry.id, entry]),
       );
-      ordered = recall.facts
+      const recalled = recall.facts
         .map((fact) => byId.get(fact.id))
         .filter((entry): entry is StoredLangGraphFact => entry !== undefined);
+      const recalledIds = new Set(recalled.map((entry) => entry.id));
+      const fallbackScores = computeBm25Scores(
+        options.query,
+        [...byId.values()].map((entry) => ({
+          id: entry.id,
+          text: entry.content,
+        })),
+      );
+      const fallback = [...byId.values()]
+        .filter(
+          (entry) =>
+            !recalledIds.has(entry.id) &&
+            (fallbackScores.get(entry.id) ?? 0) >= QUERY_FALLBACK_SCORE_FLOOR,
+        )
+        .sort((left, right) => {
+          const scoreDelta =
+            (fallbackScores.get(right.id) ?? 0) -
+            (fallbackScores.get(left.id) ?? 0);
+          return scoreDelta || right.updatedAt.localeCompare(left.updatedAt) ||
+            left.id.localeCompare(right.id);
+        });
+      ordered = [...recalled, ...fallback];
     }
 
     const offset = options.offset ?? 0;

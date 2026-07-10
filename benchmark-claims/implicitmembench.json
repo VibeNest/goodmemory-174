@@ -1,5 +1,15 @@
 {
   "benchmark": "ImplicitMemBench",
+  "comparison": {
+    "asOf": "2026-07-09",
+    "availability": "public-opt-in",
+    "notes": [
+      "The score is a stored-answer cross-version rescore; the answer model and judge remain in the same GPT family.",
+      "The comparison baseline and scorer contract are pinned in the claim evidence rather than inferred from unrelated memory benchmarks."
+    ],
+    "runtimeProfile": "full-300-stored-answer@0.5.0",
+    "source": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
+  },
   "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/qinchonghanzuibang/ImplicitMemBench/tree/927413bf3f5389bb47c94c2a0ba987e435b101b8/dataset",

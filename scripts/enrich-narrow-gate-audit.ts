@@ -3,34 +3,34 @@ import { join } from "node:path";
 import { resolvePhase63RepoRoot } from "./run-phase-63-shared";
 import { readPhase63BeamRows } from "./run-phase-63-beam-recall-diagnostic";
 // Side-effect import so every wrapped narrow gate registers.
-import "../src/recall/selection";
-import * as preferenceRules from "../src/recall/selectors/sourceOrderRules/preferenceRules";
-import * as aggregateNarrowGates from "../src/recall/selectors/aggregateNarrowGates";
-import * as updateSeriesQueries from "../src/recall/selectors/updateSeriesQueries";
-import * as reasoningRules from "../src/recall/selectors/sourceOrderRules/reasoningRules";
-import { isResumeAtsSequencingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/resumeAtsSequencingReasoning";
-import { isPeerFeedbackBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
-import { isReadingPlanBalanceReasoningQuery } from "../src/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
-import { isEntertainmentSpendingReasoningQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
-import { isSneakerBudgetComparisonReasoningQuery } from "../src/recall/selectors/sourceOrderRules/sneakerBudgetComparisonReasoning";
-import { isWorkBoundaryOrderReasoningQuery } from "../src/recall/selectors/sourceOrderRules/workBoundaryOrderReasoning";
-import { isWritingGroupDeadlineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/writingGroupDeadline";
-import { isFinalDecisionMeetingUpdateQuery } from "../src/recall/selectors/updateSeriesRules/finalDecisionMeeting";
-import { isExecutiveProducerInterviewsUpdateQuery } from "../src/recall/selectors/updateSeriesRules/executiveProducerInterviews";
-import { isAiEthicsWebinarUpdateQuery } from "../src/recall/selectors/updateSeriesRules/aiEthicsWebinar";
-import { isWinterReadingChallengeUpdateQuery } from "../src/recall/selectors/updateSeriesRules/winterReadingChallenge";
-import { isEventCupcakeOrderUpdateQuery } from "../src/recall/selectors/updateSeriesRules/eventCupcakeOrder";
-import { isRemoteWorkScheduleUpdateQuery } from "../src/recall/selectors/updateSeriesRules/remoteWorkSchedule";
-import { isImmigrationConsultantSessionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/immigrationConsultantSession";
-import { isOnboardingModulesCompletionUpdateQuery } from "../src/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
-import { isHolidayGiftBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/holidayGiftBudget";
-import { isZoteroSourcesUpdateQuery } from "../src/recall/selectors/updateSeriesRules/zoteroSources";
-import { isProbabilityStudyHoursUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probabilityStudyHours";
-import { isSnackBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/snackBudget";
-import { isPrototypeBudgetUpdateQuery } from "../src/recall/selectors/updateSeriesRules/prototypeBudget";
-import { isAreaCalculationAccuracyUpdateQuery } from "../src/recall/selectors/updateSeriesRules/areaCalculationAccuracy";
-import { isEstateTaxRateUpdateQuery } from "../src/recall/selectors/updateSeriesRules/estateTaxRate";
-import { isProbateTimelineUpdateQuery } from "../src/recall/selectors/updateSeriesRules/probateTimeline";
+import "./eval-profiles/legacy-fitted/recall/selectionLegacy";
+import * as preferenceRules from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/preferenceRules";
+import * as aggregateNarrowGates from "./eval-profiles/legacy-fitted/recall/selectors/aggregateNarrowGates";
+import * as updateSeriesQueries from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesQueries";
+import * as reasoningRules from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/reasoningRules";
+import { isResumeAtsSequencingReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/resumeAtsSequencingReasoning";
+import { isPeerFeedbackBalanceReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/peerFeedbackBalanceReasoning";
+import { isReadingPlanBalanceReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/readingPlanBalanceReasoning";
+import { isEntertainmentSpendingReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/entertainmentSpendingReasoning";
+import { isSneakerBudgetComparisonReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/sneakerBudgetComparisonReasoning";
+import { isWorkBoundaryOrderReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/workBoundaryOrderReasoning";
+import { isWritingGroupDeadlineUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/writingGroupDeadline";
+import { isFinalDecisionMeetingUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/finalDecisionMeeting";
+import { isExecutiveProducerInterviewsUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/executiveProducerInterviews";
+import { isAiEthicsWebinarUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/aiEthicsWebinar";
+import { isWinterReadingChallengeUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/winterReadingChallenge";
+import { isEventCupcakeOrderUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/eventCupcakeOrder";
+import { isRemoteWorkScheduleUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/remoteWorkSchedule";
+import { isImmigrationConsultantSessionUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/immigrationConsultantSession";
+import { isOnboardingModulesCompletionUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/onboardingModulesCompletion";
+import { isHolidayGiftBudgetUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/holidayGiftBudget";
+import { isZoteroSourcesUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/zoteroSources";
+import { isProbabilityStudyHoursUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/probabilityStudyHours";
+import { isSnackBudgetUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/snackBudget";
+import { isPrototypeBudgetUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/prototypeBudget";
+import { isAreaCalculationAccuracyUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/areaCalculationAccuracy";
+import { isEstateTaxRateUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/estateTaxRate";
+import { isProbateTimelineUpdateQuery } from "./eval-profiles/legacy-fitted/recall/selectors/updateSeriesRules/probateTimeline";
 import {
   isAiHiringWebinarDaysIntervalQuery,
   isCastingPilotEpisodeDaysIntervalQuery,
@@ -55,33 +55,33 @@ import {
   isTriangleProblemCountIntervalQuery,
   isTrilogyReadingDaysIntervalQuery,
   isWorkEmailSelfCareDaysIntervalQuery,
-} from "../src/recall/selectors/sourceOrderTemporalInterval";
-import { isProbabilityConceptsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
-import { isCareerRelocationEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/careerRelocationEventOrder";
-import { isAiHiringEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/aiHiringEventOrder";
-import { isPatentFundingEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/patentFundingEventOrder";
-import { isCombinatoricsProbabilityEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
-import { isSneakerSafetyEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/sneakerSafetyEventOrder";
-import { isPatentProcessStagesEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/patentProcessStagesEventOrder";
-import { isAcademicMentorshipEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/academicMentorshipEventOrder";
-import { isMentorInteractionsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/mentorInteractionsEventOrder";
-import { isHiringAutomationTopicsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/hiringAutomationTopicsEventOrder";
-import { isCityAutocompleteEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/cityAutocompleteEventOrder";
-import { isProjectDevelopmentEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/projectDevelopmentEventOrder";
-import { isCreativeCollaborationsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/creativeCollaborationsEventOrder";
-import { isPersonalProfessionalProgressEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
-import { isEntertainmentInterestsEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/entertainmentInterestsEventOrder";
-import { isCarlaCollaborationEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/carlaCollaborationEventOrder";
-import { isWorkLifeChallengesEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/workLifeChallengesEventOrder";
-import { isAppDevelopmentEventOrderQuery } from "../src/recall/selectors/sourceOrderRules/appDevelopmentEventOrder";
-import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "../src/recall/selectors/sourceOrderInstructionPruning";
+} from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderTemporalInterval";
+import { isProbabilityConceptsEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/probabilityConceptsEventOrder";
+import { isCareerRelocationEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/careerRelocationEventOrder";
+import { isAiHiringEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/aiHiringEventOrder";
+import { isPatentFundingEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/patentFundingEventOrder";
+import { isCombinatoricsProbabilityEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/combinatoricsProbabilityEventOrder";
+import { isSneakerSafetyEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/sneakerSafetyEventOrder";
+import { isPatentProcessStagesEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/patentProcessStagesEventOrder";
+import { isAcademicMentorshipEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/academicMentorshipEventOrder";
+import { isMentorInteractionsEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/mentorInteractionsEventOrder";
+import { isHiringAutomationTopicsEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/hiringAutomationTopicsEventOrder";
+import { isCityAutocompleteEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/cityAutocompleteEventOrder";
+import { isProjectDevelopmentEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/projectDevelopmentEventOrder";
+import { isCreativeCollaborationsEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/creativeCollaborationsEventOrder";
+import { isPersonalProfessionalProgressEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/personalProfessionalProgressEventOrder";
+import { isEntertainmentInterestsEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/entertainmentInterestsEventOrder";
+import { isCarlaCollaborationEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/carlaCollaborationEventOrder";
+import { isWorkLifeChallengesEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/workLifeChallengesEventOrder";
+import { isAppDevelopmentEventOrderQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/appDevelopmentEventOrder";
+import { isTrelloSprintPrioritizationCriteriaAbstentionQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderInstructionPruning";
 import {
   isResumeDesignInstructionQuery,
   isTimelineDateFormatInstructionQuery,
-} from "../src/recall/selectors/sourceOrderInstruction";
-import { isLegalTermsExplanationInstructionQuery } from "../src/recall/selectors/instructionRules/legalTermsExplanation";
-import { isPatentTimelinesInstructionQuery } from "../src/recall/selectors/instructionRules/patentTimelines";
-import { isNonProvisionalFilingInstructionQuery } from "../src/recall/selectors/instructionRules/nonProvisionalFilingDate";
+} from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderInstruction";
+import { isLegalTermsExplanationInstructionQuery } from "./eval-profiles/legacy-fitted/recall/selectors/instructionRules/legalTermsExplanation";
+import { isPatentTimelinesInstructionQuery } from "./eval-profiles/legacy-fitted/recall/selectors/instructionRules/patentTimelines";
+import { isNonProvisionalFilingInstructionQuery } from "./eval-profiles/legacy-fitted/recall/selectors/instructionRules/nonProvisionalFilingDate";
 import {
   isAccuracyImprovementComparisonQuery,
   isAiScreeningAccuracyUpdateGroupQuery,
@@ -109,9 +109,9 @@ import {
   isWorkshopAttendanceContradictionQuery,
   isWritingSessionsContradictionQuery,
   isZoomCallScheduleUpdateGroupQuery,
-} from "../src/recall/selectors/contradiction";
-import { isCouponRedemptionLocationQuery } from "../src/recall/selectors/conversationEvidence";
-import { isSourceOrderedHouseholdBudgetReasoningQuery } from "../src/recall/selectors/sourceOrderFinancialPlanning";
+} from "./eval-profiles/legacy-fitted/recall/selectors/contradiction";
+import { isCouponRedemptionLocationQuery } from "./eval-profiles/legacy-fitted/recall/selectors/conversationEvidence";
+import { isSourceOrderedHouseholdBudgetReasoningQuery } from "./eval-profiles/legacy-fitted/recall/selectors/sourceOrderFinancialPlanning";
 
 /**
  * Post-analysis for the narrow-gate audit: the diagnostic runs every

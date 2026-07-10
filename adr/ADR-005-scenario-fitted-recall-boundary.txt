@@ -3,15 +3,14 @@ ADR-005: Scenario-Fitted Recall Boundary and Dual-Metric Reporting
 
 Status
 ------
-Accepted (2026-06-17)
+Accepted (2026-06-17); production-boundary amendment accepted in Phase 68
 
 Context
 -------
-The rules-only recall path under src/recall/selectors/ contains a large set of
-"narrow gates" and source-order coverage rules (see src/recall/narrowGates.ts,
-which describes them as "narrow, scenario-fitted query classifiers"). A subset
-of these — most visibly the eventOrder.* family in
-src/recall/selectors/sourceOrderRules/ — are fitted to specific benchmark
+Before Phase 68, the rules-only recall path under src/recall/selectors/ contained
+a large set of "narrow gates" and source-order coverage rules. Those files now
+live under scripts/eval-profiles/legacy-fitted/recall/. A subset — most visibly
+the historical eventOrder.* family under selectors/sourceOrderRules/ — is fitted to specific benchmark
 conversations: their query patterns and facet regexes match literal proper
 nouns and phrasings drawn from individual benchmark cases (e.g. a rule whose
 QUERY_PATTERN requires the exact phrase "personal and work-related challenges"
@@ -38,8 +37,8 @@ tests/unit/architecture.boundaries.test.ts:
 These blocklists are incomplete (they enumerate names cleaned up in the past
 rather than the general pattern), so new case-fitted rules can still land.
 
-The authoritative way to quantify the gap already exists:
-src/recall/narrowGates.ts exposes a kill switch
+The authoritative way to quantify the gap is repo-local:
+scripts/eval-profiles/legacy-fitted/recall/narrowGates.ts exposes a kill switch
 (GOODMEMORY_DISABLED_NARROW_GATES) and listRegisteredNarrowGateIds();
 scripts/audit-narrow-gates.ts uses them to classify each gate as dead /
 case_fitted / load_bearing against the BEAM benchmark.
@@ -76,18 +75,34 @@ Decision
 
 4. No silent growth. The scenario-rule set should not grow without going through
    (2). A follow-up guard (a file-count freeze on
-   src/recall/selectors/sourceOrderRules/) is recommended once the set has been
-   pruned to its load-bearing core; it is intentionally NOT added now because an
-   in-flight benchmark-closure effort is still editing that directory and a hard
-   freeze would break its build.
+   scripts/eval-profiles/legacy-fitted/recall/selectors/sourceOrderRules/) is
+   replaced by Phase 68's stronger source-boundary gate: production src/recall
+   cannot contain the fitted selector graph at all.
 
 Measurement
 -----------
+
+Phase 68 amendment (2026-07-09): dual reporting was necessary but insufficient.
+The production selector no longer imports the fitted selector graph at all.
+That graph is physically retained only under the repo-local `legacy-fitted`
+eval profile, is excluded from packed JavaScript, and cannot be enabled by
+public config or environment variables. The old disable-list environment
+variable has an effect only after the internal legacy profile has been
+activated.
+
+The twice-reproduced package-isolated production baseline on BEAM 100K is
+0.1698231307 evidence-chat recall over 355 evidence-bearing cases (332 missed).
+This is below
+the historical 0.6822 "all narrow gates disabled" floor because that earlier
+measurement still loaded benchmark-specific source-order modules that were not
+registered as narrow gates. Therefore 0.6822 remains historical ablation
+evidence, not the generalized production floor.
 Generalization recall (all scenario fitting disabled), once the BEAM dataset is
 available at the diagnostic's benchmark root:
 
   GOODMEMORY_DISABLED_NARROW_GATES="$(bun run scripts/list-scenario-gates.ts)" \
-    bun run scripts/run-phase-63-beam-recall-diagnostic.ts --run-id generalization
+    bun run scripts/run-phase-63-beam-recall-diagnostic.ts \
+      --legacy-fitted-profile --run-id generalization
 
 Per-gate dead/case_fitted/load_bearing classification:
 
@@ -139,16 +154,15 @@ Consequences
   the generalizing recall, and the delta is explicit.
 + New overfitting is gated by explicit admission criteria rather than landing
   silently.
-- Until the BEAM dataset is restored locally, the generalization number cannot
-  be recomputed here; the dual-metric policy is in force but the live figure is
-  filled by whoever holds the dataset (CI or the maintainer).
-- The full prune of the eventOrder.* family is deferred to a dataset-backed
-  session; this ADR records the boundary so the set stops growing in the
-  meantime.
+- Historical reproduction remains available, but its code and tests are
+  intentionally outside the production source and package graphs.
+- New score work must improve the generalized production path; changes confined
+  to legacy-fitted do not qualify as product gains.
 
 Related
 -------
-- src/recall/narrowGates.ts (kill switch, listRegisteredNarrowGateIds)
+- scripts/eval-profiles/legacy-fitted/recall/narrowGates.ts
+- scripts/eval-profiles/legacy-fitted/recall/selectionLegacy.ts
 - scripts/audit-narrow-gates.ts, scripts/list-scenario-gates.ts
 - tests/unit/architecture.boundaries.test.ts (selector overfitting guards)
 - ADR-006 (module layering and shared contracts)

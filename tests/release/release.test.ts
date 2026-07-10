@@ -285,6 +285,18 @@ async function listTarballEntries(tarballPath: string): Promise<string[]> {
     .filter((line) => line.length > 0);
 }
 
+async function readTarballEntry(
+  tarballPath: string,
+  entry: string,
+): Promise<string> {
+  const result = await runCommand({
+    cmd: ["tar", "-xOzf", tarballPath, entry],
+    cwd: ROOT_PACKAGE_PATH,
+  });
+  expect(result.exitCode).toBe(0);
+  return result.stdout;
+}
+
 function toPackagedEntry(target: string): string {
   return `package/${target.replace(/^\.\//, "")}`;
 }
@@ -740,13 +752,9 @@ describe("release metadata and docs", () => {
       "llms.txt",
       "package.json",
       "scripts/goodmemory-cli.js",
-      "scripts/goodmemory-cli.ts",
       "scripts/goodmemory-http-bridge.js",
-      "scripts/goodmemory-http-bridge.ts",
       "scripts/goodmemory-mcp.js",
-      "scripts/goodmemory-mcp.ts",
       "server.json",
-      "src",
     ]);
     expect(pkg.bin?.goodmemory).toBe("./scripts/goodmemory-cli.js");
     expect(pkg.bin?.["goodmemory-http-bridge"]).toBe(
@@ -1173,13 +1181,18 @@ describe("release metadata and docs", () => {
       expect(entries).toContain("package/dist/host/index.js");
       expect(entries).toContain("package/dist/http/index.js");
       expect(entries).toContain("package/dist/runtime-kit/index.js");
-      expect(entries).toContain("package/src/storage/sqliteRuntime.ts");
+      expect(entries).toContain("package/dist/bin/goodmemory-cli.js");
+      expect(entries).toContain("package/dist/bin/goodmemory-http-bridge.js");
+      expect(entries).toContain("package/dist/bin/goodmemory-mcp.js");
       expect(entries).toContain("package/scripts/goodmemory-cli.js");
-      expect(entries).toContain("package/scripts/goodmemory-cli.ts");
       expect(entries).toContain("package/scripts/goodmemory-http-bridge.js");
-      expect(entries).toContain("package/scripts/goodmemory-http-bridge.ts");
       expect(entries).toContain("package/scripts/goodmemory-mcp.js");
-      expect(entries).toContain("package/scripts/goodmemory-mcp.ts");
+      expect(entries.some((entry) => entry.startsWith("package/src/"))).toBe(false);
+      expect(
+        entries.some(
+          (entry) => entry.endsWith(".ts") && !entry.endsWith(".d.ts"),
+        ),
+      ).toBe(false);
       expect(entries).toContain("package/docs/GoodMemory-15-Minute-App-Integration.md");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
@@ -1195,6 +1208,21 @@ describe("release metadata and docs", () => {
       expect(
         entries.some((entry) => entry.startsWith("package/third-party/claude-mem-main/")),
       ).toBe(false);
+
+      const compiledJavaScript = entries.filter(
+        (entry) => entry.startsWith("package/dist/") && entry.endsWith(".js"),
+      );
+      const forbiddenFittedLiterals = [
+        "Blue Bay Resort",
+        "Lies of Locke Lamora",
+        "personal and work-related challenges",
+      ];
+      for (const entry of compiledJavaScript) {
+        const source = await readTarballEntry(tarballPath, entry);
+        for (const literal of forbiddenFittedLiterals) {
+          expect(source).not.toContain(literal);
+        }
+      }
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
@@ -2711,19 +2739,22 @@ describe("release metadata and docs", () => {
       "README-promoted public rows are LongMemEval",
     );
     expect(currentStatus).toContain(
-      "BEAM (official-protocol 0.802 vs public reference 0.49",
+      "historical BEAM 100K 0.802 / strict 0.7225 result remains versioned evidence but is no longer a current claim row",
     );
     expect(currentStatus).toContain(
-      "LoCoMo (P4 full-10 opt-in union/extraction profile 0.6198 vs no-memory 0.2276",
+      "LoCoMo (strict non-adversarial 0.6117; judge-protocol 0.837)",
     );
     expect(currentStatus).not.toContain(
       "Full ImplicitMemBench and BEAM reports are internal research evidence until explicitly promoted.",
     );
     expect(currentStatus).toContain(
-      "LoCoMo (Phase 65) has a README-promoted P4 full-10 opt-in profile",
+      "LoCoMo's current public declaration reports strict non-adversarial token-F1 0.6117",
     );
     expect(currentStatus).toContain(
-      "The broader active hardening lane is still not default-profile promotion or category-quality closure.",
+      "Phase 65 case-level hardening is paused; Phase 69 owns generalized candidate admission and noise control.",
+    );
+    expect(currentStatus).not.toContain(
+      "Phase 63 BEAM has a README-promoted P67 official-protocol public claim",
     );
     expect(currentStatus).not.toContain("it is not yet promoted to README");
     expect(currentStatus).toContain(
@@ -3105,14 +3136,11 @@ describe("release metadata and docs", () => {
     expect(phase63Breakdown).toContain("--keep-gates");
     expect(taskBoard).toContain("docs/README.md");
     expect(taskBoard).toContain("docs/GoodMemory-PRD.md");
-    expect(taskBoard).toContain("65-phase-60-implicitmembench-overall-priming-protocol.txt");
-    expect(taskBoard).toContain("66-phase-61-priming-abstraction-and-contamination-safe-output.txt");
-    expect(taskBoard).toContain("67-phase-62-longmemeval-sequential-hardening.txt");
-    expect(taskBoard).toContain("68-phase-63-beam-scale-and-noise-hardening.txt");
-    expect(taskBoard).toContain("69-phase-64-memoryagentbench-agent-memory-hardening.txt");
-    expect(taskBoard).toContain("70-phase-65-locomo-conversational-memory-hardening.txt");
-    expect(taskBoard).toContain("71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt");
-    expect(taskBoard).toContain("72-phase-67-public-benchmark-performance-and-claim-promotion.txt");
+    expect(taskBoard).toContain("73-phase-68-generalization-boundary.txt");
+    expect(taskBoard).toContain("74-phase-69-generalized-retrieval.txt");
+    expect(taskBoard).toContain("75-phase-70-reranker-and-evidence.txt");
+    expect(taskBoard).toContain("76-phase-71-inspector-console.txt");
+    expect(taskBoard).toContain("77-phase-72-agentic-eval-and-v0-6-release.txt");
     expect(taskBoard).toContain(PHASE60_CANONICAL_OVERALL_SUMMARY);
     expect(taskBoard).toContain("run-phase61-full300-20260505T170001Z/overall-summary.json");
     expect(taskBoard).toContain("213.26 / 300 = 71.09%");
@@ -3121,21 +3149,22 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
     expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
     expect(taskBoard).toContain("promoted public claim scoped only to CR 0.959 and TTL 0.767");
-    expect(taskBoard).toContain("Phase 65 LoCoMo has a README-promoted P4 full-10 opt-in union/extraction profile");
-    expect(taskBoard).toContain("but the active hardening lane is still open for default-profile promotion");
+    expect(taskBoard).toContain("The current public declaration reports strict non-adversarial token-F1 0.6117");
+    expect(taskBoard).toContain("Phase 69 owns generalized candidate admission and noise control");
     expect(taskBoard).toContain(
-      "Phase 63 / P67-D BEAM has a README-promoted official-protocol public claim",
+      "Historical Phase 63 / P67-D BEAM evidence includes an official-protocol 0.802 score",
     );
     expect(taskBoard).toContain(
-      "answer-gap hardening remains open for the internal binary track",
+      "the answer-rule workstream is paused",
     );
     expect(taskBoard).not.toContain(
       "but not BEAM performance closure or a public claim",
     );
     expect(taskBoard).toContain("Closed release/public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
     expect(taskBoard).not.toContain("Release / public-surface lane: `task-board/71-phase-66-v0-3-release-readiness-and-public-surface-hardening.txt`");
-    expect(taskBoard).toContain("Current Sequential benchmark-hardening entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
-    expect(taskBoard).toContain("Public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");
+    expect(taskBoard).toContain("Historical Phase 65 entrypoint: `task-board/70-phase-65-locomo-conversational-memory-hardening.txt`");
+    expect(taskBoard).toContain("Historical public benchmark-claim routing board: `task-board/72-phase-67-public-benchmark-performance-and-claim-promotion.txt`");
+    expect(taskBoard).not.toContain("Current Sequential benchmark-hardening entrypoint:");
     expect(phase66Board).toContain(
       "[CLOSED - RELEASE READINESS; P67 SUPERSEDES PUBLIC-CLAIM ROUTING]",
     );
@@ -3206,7 +3235,7 @@ describe("release metadata and docs", () => {
       );
     }
     expect(taskBoard).toContain(
-      "69-phase-64-memoryagentbench-agent-memory-hardening.txt",
+      "Phase 68 is complete",
     );
     expect(taskBoard).toContain("454/500");
     expect(taskBoard).toContain("run-phase63-beam-smoke-current");

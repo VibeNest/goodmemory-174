@@ -1,25 +1,27 @@
 import { describe, expect, it } from "bun:test";
+
+// Historical fitted-selector contract; excluded from the production-default suite.
 import {
   createFeedbackMemory,
   createFactMemory,
   createReferenceMemory,
-} from "../../src/domain/records";
-import { createLanguageService } from "../../src/language";
-import type { RoutingDecision } from "../../src/recall/router";
-import { buildFactCandidates, rankFactCandidates } from "../../src/recall/scoring";
+} from "../../../../src/domain/records";
+import { createLanguageService } from "../../../../src/language";
+import type { RoutingDecision } from "../../../../src/recall/router";
+import { buildFactCandidates, rankFactCandidates } from "../../../../src/recall/scoring";
 import {
   selectFeedbackForQuery,
   selectFeedbackForProfile,
   selectFacts,
   selectReferences,
-} from "../../src/recall/selection";
-import { selectContradictionEvidencePair } from "../../src/recall/selectors/contradiction";
+} from "../../../../src/recall/selection";
+import { selectContradictionEvidencePair } from "../recall/selectors/contradiction";
 import {
   isSleekNeutralSneakerPreferenceQuery,
   sourceInstructionTopicTokens,
-} from "../../src/recall/selectors/sourceOrderInstruction";
-import { selectSourceOrderedSummaryCoverage } from "../../src/recall/selectors/sourceOrderSummary";
-import { selectSourceOrderedEventOrderEvidence } from "../../src/recall/selectors/sourceOrderTemporal";
+} from "../recall/selectors/sourceOrderInstruction";
+import { selectSourceOrderedSummaryCoverage } from "../recall/selectors/sourceOrderSummary";
+import { selectSourceOrderedEventOrderEvidence } from "../recall/selectors/sourceOrderTemporal";
 
 const TIMESTAMP = "2026-01-10T00:00:00.000Z";
 const SOURCE = {

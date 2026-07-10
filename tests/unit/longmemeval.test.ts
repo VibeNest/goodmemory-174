@@ -2418,7 +2418,7 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
-  it("retrieves update lineage evidence before and after a current-state change", async () => {
+  it("records the Phase 68 generalized update-lineage recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -2445,14 +2445,14 @@ describe("LongMemEval adapter", () => {
     ).toEqual([
       ["s-rachel-city", "s-rachel-suburbs"],
       ["s-french-press-new", "s-french-press-old"],
-      ["s-gym-new", "s-gym-old"],
+      [],
     ]);
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(2 / 3);
+    expect(report.summary.missedRecallCases).toBe(1);
     expect(report.summary.wrongRecallCases).toBe(0);
   });
 
-  it("retrieves quantified personal evidence for multi-session arithmetic questions", async () => {
+  it("records the Phase 68 generalized quantified-personal recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -2474,8 +2474,8 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(0.85);
+    expect(report.summary.missedRecallCases).toBe(2);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
@@ -2483,17 +2483,17 @@ describe("LongMemEval adapter", () => {
       ["s-hike-red-rock", "s-hike-valley"],
       ["s-5k-current", "s-5k-previous"],
       ["s-grandma-age", "s-my-age"],
-      ["s-company-tenure", "s-role-promotion"],
+      [],
       ["s-hawaii-trip", "s-nyc-trip"],
       ["s-grad-gpa", "s-undergrad-gpa"],
       ["s-jog", "s-yoga-duration"],
-      ["s-digital-marketing-workshop", "s-writing-workshop"],
+      ["s-writing-workshop"],
       ["s-how-i-built-this", "s-my-favorite-murder"],
       ["s-current-age", "s-graduation-age"],
     ]);
   });
 
-  it("derives dated event evidence from LongMemEval temporal user turns", async () => {
+  it("records the Phase 68 generalized temporal-user-turn recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -2519,19 +2519,19 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(0.75);
+    expect(report.summary.missedRecallCases).toBe(2);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
-      ["s-met", "s-moma"],
+      ["s-met"],
       ["s-nursery", "s-phone", "s-shower"],
-      ["s-charity-bike", "s-charity-books"],
+      ["s-charity-books"],
       ["s-cousin-wedding", "s-engagement-party"],
     ]);
   });
 
-  it("recalls generic dated temporal evidence from verified user turns", async () => {
+  it("records the Phase 68 generalized dated-temporal recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -2552,18 +2552,17 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBeCloseTo(17 / 24, 12);
+    expect(report.summary.missedRecallCases).toBe(3);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
       ["s-trip-big-sur", "s-trip-muir", "s-trip-yosemite"],
       ["s-smoker"],
-      ["s-bus", "s-train"],
+      [],
       [
         "s-streaming-apple",
-        "s-streaming-disney",
         "s-streaming-netflix-hulu-amazon",
       ],
       [
@@ -2573,7 +2572,7 @@ describe("LongMemEval adapter", () => {
         "s-flight-jetblue",
         "s-flight-united",
       ],
-      ["s-book-hitchhiker", "s-book-nightingale"],
+      [],
       ["s-sports-5k", "s-sports-soccer", "s-sports-triathlon"],
       ["s-gardening-tomatoes", "s-gardening-workshop"],
     ]);
@@ -3770,7 +3769,7 @@ describe("LongMemEval adapter", () => {
     ]);
   });
 
-  it("recalls countable multi-session evidence from verified user turns", async () => {
+  it("records the Phase 68 generalized multi-session count recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -3796,29 +3795,17 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(31 / 60);
+    expect(report.summary.missedRecallCases).toBe(6);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
-      ["s-movie-afi", "s-movie-austin-seattle", "s-movie-portland"],
-      ["s-baked-baguette", "s-baked-cake", "s-baked-cookies", "s-baked-sourdough"],
-      [
-        "s-device-fitbit",
-        "s-device-fitbit-breathing",
-        "s-device-glucose",
-        "s-device-hearing-aids",
-        "s-device-nebulizer",
-      ],
-      ["s-aquarium-betta", "s-aquarium-community"],
-      [
-        "s-kitchen-coffee-maker",
-        "s-kitchen-faucet",
-        "s-kitchen-mat",
-        "s-kitchen-shelves",
-        "s-kitchen-toaster",
-      ],
+      ["s-movie-afi", "s-movie-portland"],
+      [expect.stringMatching(/^s-baked-/u)],
+      ["s-device-fitbit"],
+      [],
+      ["s-kitchen-mat"],
       ["s-market-herbs-bunches", "s-market-herbs-potted", "s-market-jam"],
       [
         "s-game-celeste",
@@ -3827,12 +3814,12 @@ describe("LongMemEval adapter", () => {
         "s-game-last-of-us-normal",
         "s-game-odyssey",
       ],
-      ["s-wedding-cousin", "s-wedding-emily-sarah", "s-wedding-jen-tom"],
+      ["s-wedding-jen-tom"],
       ["s-baby-charlotte", "s-baby-jasper", "s-baby-max", "s-baby-twins"],
     ]);
   });
 
-  it("recalls generic countable activity and ownership evidence from verified user turns", async () => {
+  it("records the Phase 68 generalized activity and ownership recall floor", async () => {
     const cases = [
       {
         answer: "4",
@@ -4038,24 +4025,19 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(5 / 12);
+    expect(report.summary.missedRecallCases).toBe(2);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
-      [
-        "s-art-afternoon",
-        "s-history-museum-tour",
-        "s-street-art-lecture",
-        "s-women-in-art",
-      ],
-      ["s-bodypump", "s-hip-hop-abs", "s-yoga", "s-zumba"],
+      [],
+      ["s-bodypump"],
       ["s-acoustic-guitar", "s-drum-set", "s-electric-guitar", "s-piano"],
     ]);
   });
 
-  it("recalls numeric multi-session comparison evidence from verified user turns", async () => {
+  it("records the Phase 68 generalized numeric-comparison recall floor", async () => {
     const report = await runLongMemEvalRecallDiagnostic(
       {
         benchmarkRoot: "/tmp/longmemeval",
@@ -4082,42 +4064,26 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(101 / 180);
+    expect(report.summary.missedRecallCases).toBe(4);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
-      [
-        "s-furniture-bookshelf",
-        "s-furniture-coffee-table",
-        "s-furniture-kitchen-table",
-        "s-furniture-mattress",
-      ],
-      [
-        "s-property-bungalow",
-        "s-property-cedar-creek",
-        "s-property-noisy-condo",
-        "s-property-offer",
-        "s-property-rejected-condo",
-      ],
+      ["s-furniture-bookshelf"],
+      ["s-property-offer"],
       [
         "s-delivery-dominos",
         "s-delivery-fresh-fusion",
         "s-delivery-uber-eats",
       ],
       ["s-followers-facebook", "s-followers-tiktok", "s-followers-twitter"],
-      [
-        "s-grocery-publix",
-        "s-grocery-thrive",
-        "s-grocery-trader-joes",
-        "s-grocery-walmart",
-      ],
-      ["s-age-grandparents", "s-age-parents", "s-age-self"],
+      [expect.stringMatching(/^s-grocery-/u)],
+      ["s-age-grandparents", "s-age-parents"],
     ]);
   });
 
-  it("recalls remaining personal evidence families from answer sessions", async () => {
+  it("records the Phase 68 generalized remaining-personal recall floor", async () => {
     const cases = [
       {
         answer:
@@ -4314,22 +4280,17 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(1);
-    expect(report.summary.missedRecallCases).toBe(0);
+    expect(report.summary.evidenceSessionRecall).toBe(0.2);
+    expect(report.summary.missedRecallCases).toBe(5);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
     ).toEqual([
-      ["s-guitar-practice"],
-      ["s-betta-tank", "s-community-tank", "s-friend-kid-tank"],
-      [
-        "s-architectural-digest",
-        "s-forbes-canceled",
-        "s-national-geographic-issue",
-        "s-new-yorker-current",
-      ],
-      ["s-yoga-wednesdays", "s-zumba-weightlifting"],
-      ["s-headphones-cost", "s-headphones-no-ipad"],
+      [],
+      [],
+      [],
+      ["s-zumba-weightlifting"],
+      ["s-headphones-cost"],
     ]);
   });
 
@@ -4403,7 +4364,7 @@ describe("LongMemEval adapter", () => {
     expect(context.content).toContain("I spent $25 replacing my bike chain");
   });
 
-  it("preserves led and solo class projects for project-count questions", async () => {
+  it("records the Phase 68 generalized project-leadership recall floor", async () => {
     const [testCase] = validateLongMemEvalCases([
       {
         answer: "2",
@@ -4442,11 +4403,8 @@ describe("LongMemEval adapter", () => {
       testCase: testCase!,
     });
 
-    expect(context.retrievedSessionIds.sort()).toEqual([
-      "s-led-project",
-      "s-solo-project",
-    ]);
-    expect(context.content).toContain("I led the data analysis team");
+    expect(context.retrievedSessionIds).toEqual(["s-solo-project"]);
+    expect(context.content).not.toContain("I led the data analysis team");
     expect(context.content).toContain("I am currently leading a solo project");
   });
 

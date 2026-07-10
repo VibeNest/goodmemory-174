@@ -1,5 +1,15 @@
 {
   "benchmark": "LoCoMo",
+  "comparison": {
+    "asOf": "2026-07-09",
+    "availability": "public-opt-in",
+    "notes": [
+      "GoodMemory's strict token-F1 and official judge-protocol numbers must be shown separately.",
+      "Current external systems report different model stacks and Top-K settings, so their headline values are references rather than controlled head-to-head results."
+    ],
+    "runtimeProfile": "recommended-semantic-union+conversational-extraction",
+    "source": "https://github.com/mem0ai/memory-benchmarks"
+  },
   "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/snap-research/locomo",

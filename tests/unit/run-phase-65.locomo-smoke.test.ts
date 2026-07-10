@@ -2461,7 +2461,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(category(report, "multi_hop").noiseTurnTotal).toBe(0);
     expect(category(report, "temporal").noiseTurnTotal).toBe(0);
     expect(category(report, "open_domain").noiseTurnTotal).toBe(1);
-    expect(category(report, "adversarial").noiseTurnTotal).toBe(1);
+    expect(category(report, "adversarial").noiseTurnTotal).toBe(2);
 
     // The report is written under the run directory.
     expect(writes.length).toBe(1);

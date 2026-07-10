@@ -205,16 +205,6 @@ describe("goodmemory mcp server", () => {
 
       const seeded = await seedSQLiteMemory(sqlitePath);
       const installedScope = seeded.scope;
-      const directRecall = await seeded.memory.recall({
-        query: "Check the release runbook before editing files.",
-        retrievalProfile: "coding_agent",
-        scope: installedScope,
-      });
-      const directContext = await seeded.memory.buildContext({
-        maxTokens: 96,
-        output: "developer_prompt_fragment",
-        recall: directRecall,
-      });
 
       transport = new StdioClientTransport({
         args: [mcpScript, "--host", "codex"],
@@ -272,14 +262,22 @@ describe("goodmemory mcp server", () => {
         name: "goodmemory_get_context",
       });
       expect(contextResult.structuredContent).toMatchObject({
-        content: directContext.content,
         maxTokens: 96,
-        omittedSections: directContext.omittedSections,
-        output: directContext.output,
+        omittedSections: [],
+        output: "developer_prompt_fragment",
         query: "Check the release runbook before editing files.",
         retrievalProfile: "coding_agent",
         scope: installedScope,
       });
+      const structuredContext = contextResult.structuredContent as {
+        content?: unknown;
+      };
+      expect(String(structuredContext.content)).toContain(
+        "vendor approval for release quality program",
+      );
+      expect(String(structuredContext.content)).toContain(
+        "docs/release-quality-runbook.md",
+      );
       expect(contextResult.structuredContent).toHaveProperty("estimatedTokens");
 
       const inspectResult = await client.callTool({

@@ -1,0 +1,1325 @@
+{
+  "generatedAt": "2026-07-10T01:45:57.339Z",
+  "sourceReports": [
+    {
+      "runId": "phase68-query-probe-100k",
+      "scale": "100K"
+    },
+    {
+      "runId": "phase68-query-probe-500k",
+      "scale": "500K"
+    },
+    {
+      "runId": "phase68-query-probe-1m",
+      "scale": "1M"
+    }
+  ],
+  "summary": {
+    "caseFitted": 129,
+    "multiCase": 6,
+    "totalGates": 148,
+    "unobserved": 13
+  },
+  "verdicts": [
+    {
+      "caseIds": [
+        "1M:30:multi_session_reasoning:1",
+        "1M:32:knowledge_update:1",
+        "500K:14:knowledge_update:2"
+      ],
+      "gateId": "aggregate.accommodationCost",
+      "hitCount": 3,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.aquariumTank",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:13:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.bookSeriesGenres",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:knowledge_update:2",
+        "100K:17:multi_session_reasoning:2",
+        "1M:11:multi_session_reasoning:1",
+        "1M:11:temporal_reasoning:2",
+        "1M:15:temporal_reasoning:1",
+        "1M:16:temporal_reasoning:1",
+        "1M:18:temporal_reasoning:1",
+        "1M:18:temporal_reasoning:2",
+        "1M:22:temporal_reasoning:2",
+        "1M:23:temporal_reasoning:2",
+        "1M:31:temporal_reasoning:2",
+        "1M:34:temporal_reasoning:2",
+        "1M:35:multi_session_reasoning:2",
+        "500K:12:temporal_reasoning:2",
+        "500K:16:knowledge_update:2",
+        "500K:16:temporal_reasoning:2",
+        "500K:18:multi_session_reasoning:1",
+        "500K:23:temporal_reasoning:1",
+        "500K:25:multi_session_reasoning:2",
+        "500K:25:temporal_reasoning:1",
+        "500K:28:multi_session_reasoning:2",
+        "500K:33:multi_session_reasoning:2",
+        "500K:6:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.countableEventActivity",
+      "hitCount": 23,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [
+        "100K:12:multi_session_reasoning:1",
+        "100K:12:temporal_reasoning:1"
+      ],
+      "gateId": "aggregate.declinedFinancialOpportunity",
+      "hitCount": 2,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [
+        "100K:14:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.familyMovieMarathonTitles",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.foodDeliveryService",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.formalEducationDuration",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:19:multi_session_reasoning:2",
+        "1M:26:temporal_reasoning:1",
+        "1M:27:multi_session_reasoning:1",
+        "1M:34:knowledge_update:1",
+        "1M:9:multi_session_reasoning:1",
+        "500K:28:temporal_reasoning:1",
+        "500K:31:temporal_reasoning:1",
+        "500K:5:knowledge_update:2"
+      ],
+      "gateId": "aggregate.furnitureActivity",
+      "hitCount": 8,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.magazineSubscription",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "1M:15:temporal_reasoning:2"
+      ],
+      "gateId": "aggregate.medicalProvider",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.modelKitCount",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.museumVisitOrder",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:11:multi_session_reasoning:1",
+        "100K:13:multi_session_reasoning:1",
+        "100K:13:temporal_reasoning:2",
+        "100K:14:multi_session_reasoning:1",
+        "100K:15:multi_session_reasoning:1",
+        "100K:17:multi_session_reasoning:2",
+        "100K:18:knowledge_update:1",
+        "100K:19:multi_session_reasoning:2",
+        "100K:1:knowledge_update:2",
+        "100K:1:temporal_reasoning:1",
+        "100K:20:temporal_reasoning:2",
+        "100K:2:temporal_reasoning:2",
+        "100K:3:multi_session_reasoning:1",
+        "100K:4:knowledge_update:2",
+        "100K:4:multi_session_reasoning:1",
+        "100K:5:knowledge_update:1",
+        "100K:5:knowledge_update:2",
+        "100K:6:knowledge_update:1",
+        "100K:6:knowledge_update:2",
+        "100K:6:multi_session_reasoning:1",
+        "100K:6:temporal_reasoning:1",
+        "100K:7:temporal_reasoning:1",
+        "100K:8:temporal_reasoning:2",
+        "100K:9:temporal_reasoning:1",
+        "1M:10:knowledge_update:1",
+        "1M:10:multi_session_reasoning:1",
+        "1M:11:knowledge_update:1",
+        "1M:11:knowledge_update:2",
+        "1M:11:temporal_reasoning:2",
+        "1M:12:knowledge_update:1",
+        "1M:12:temporal_reasoning:1",
+        "1M:12:temporal_reasoning:2",
+        "1M:15:multi_session_reasoning:1",
+        "1M:15:temporal_reasoning:1",
+        "1M:17:temporal_reasoning:1",
+        "1M:19:knowledge_update:1",
+        "1M:19:multi_session_reasoning:1",
+        "1M:19:multi_session_reasoning:2",
+        "1M:1:multi_session_reasoning:2",
+        "1M:1:temporal_reasoning:2",
+        "1M:24:multi_session_reasoning:2",
+        "1M:25:knowledge_update:1",
+        "1M:26:knowledge_update:2",
+        "1M:27:multi_session_reasoning:1",
+        "1M:29:temporal_reasoning:2",
+        "1M:33:knowledge_update:2",
+        "1M:33:multi_session_reasoning:1",
+        "1M:34:knowledge_update:1",
+        "1M:35:multi_session_reasoning:2",
+        "1M:3:multi_session_reasoning:1",
+        "1M:3:temporal_reasoning:1",
+        "1M:3:temporal_reasoning:2",
+        "1M:4:multi_session_reasoning:1",
+        "1M:4:temporal_reasoning:1",
+        "1M:5:multi_session_reasoning:1",
+        "1M:6:knowledge_update:1",
+        "1M:7:knowledge_update:2",
+        "1M:8:knowledge_update:1",
+        "1M:8:knowledge_update:2",
+        "1M:9:knowledge_update:1",
+        "1M:9:knowledge_update:2",
+        "500K:10:knowledge_update:2",
+        "500K:11:temporal_reasoning:1",
+        "500K:13:temporal_reasoning:1",
+        "500K:14:multi_session_reasoning:1",
+        "500K:16:knowledge_update:1",
+        "500K:17:multi_session_reasoning:2",
+        "500K:18:knowledge_update:1",
+        "500K:18:knowledge_update:2",
+        "500K:18:multi_session_reasoning:1",
+        "500K:18:multi_session_reasoning:2",
+        "500K:18:temporal_reasoning:2",
+        "500K:19:multi_session_reasoning:2",
+        "500K:1:temporal_reasoning:1",
+        "500K:1:temporal_reasoning:2",
+        "500K:20:temporal_reasoning:2",
+        "500K:23:multi_session_reasoning:2",
+        "500K:25:multi_session_reasoning:2",
+        "500K:26:temporal_reasoning:2",
+        "500K:27:multi_session_reasoning:2",
+        "500K:28:multi_session_reasoning:2",
+        "500K:29:temporal_reasoning:1",
+        "500K:2:temporal_reasoning:2",
+        "500K:31:multi_session_reasoning:1",
+        "500K:32:multi_session_reasoning:2",
+        "500K:32:temporal_reasoning:1",
+        "500K:32:temporal_reasoning:2",
+        "500K:35:knowledge_update:1",
+        "500K:35:knowledge_update:2",
+        "500K:3:temporal_reasoning:1",
+        "500K:4:temporal_reasoning:1",
+        "500K:5:multi_session_reasoning:1",
+        "500K:6:temporal_reasoning:1",
+        "500K:7:multi_session_reasoning:2",
+        "500K:8:multi_session_reasoning:1",
+        "500K:9:knowledge_update:1",
+        "500K:9:knowledge_update:2",
+        "500K:9:temporal_reasoning:2"
+      ],
+      "gateId": "aggregate.ownershipCount",
+      "hitCount": 98,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.personalElectronicsCost",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:9:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.personalStatementApplicationTypes",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.plantAcquisition",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:19:temporal_reasoning:1",
+        "1M:13:temporal_reasoning:1",
+        "1M:13:temporal_reasoning:2",
+        "1M:14:temporal_reasoning:2",
+        "1M:20:temporal_reasoning:1",
+        "1M:20:temporal_reasoning:2",
+        "1M:21:temporal_reasoning:1",
+        "1M:21:temporal_reasoning:2",
+        "1M:24:temporal_reasoning:1",
+        "1M:24:temporal_reasoning:2",
+        "1M:9:knowledge_update:1",
+        "500K:28:multi_session_reasoning:2",
+        "500K:30:temporal_reasoning:1",
+        "500K:30:temporal_reasoning:2"
+      ],
+      "gateId": "aggregate.propertyViewing",
+      "hitCount": 14,
+      "status": "multi_case"
+    },
+    {
+      "caseIds": [
+        "100K:6:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.resumeImprovementAreas",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "aggregate.siblingCount",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:2:multi_session_reasoning:1"
+      ],
+      "gateId": "aggregate.weatherFeatureConcernCount",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:12:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.anniversaryCelebration",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:2:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.apiKeyObtained",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.atsCourseEnrollment",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.bootstrapComponents",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.coinTossProblems",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.conditionalProbabilityPractice",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.contactFormApiIntegration",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.delegatingTasks",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.editingTimelineCollaboration",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.familyMovieInvite",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.grammarAnxiety",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.movieWatchlist",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.patentWebinar",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.remoteCollaboration",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:1:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.sessionManagement",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.twoFactorAuthImplementation",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.willAttorneyMeeting",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:contradiction_resolution:1"
+      ],
+      "gateId": "contradiction.workshopAttendance",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:7:contradiction_resolution:2"
+      ],
+      "gateId": "contradiction.writingSessions",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "conversation.couponRedemptionLocation",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:7:event_ordering:1"
+      ],
+      "gateId": "eventOrder.academicMentorship",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:event_ordering:1"
+      ],
+      "gateId": "eventOrder.aiHiring",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:1:event_ordering:2"
+      ],
+      "gateId": "eventOrder.appDevelopment",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:event_ordering:2"
+      ],
+      "gateId": "eventOrder.careerRelocation",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:event_ordering:2"
+      ],
+      "gateId": "eventOrder.carlaCollaboration",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:2:event_ordering:1"
+      ],
+      "gateId": "eventOrder.cityAutocomplete",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:event_ordering:2"
+      ],
+      "gateId": "eventOrder.combinatoricsProbability",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:17:event_ordering:2"
+      ],
+      "gateId": "eventOrder.creativeCollaborations",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:event_ordering:2"
+      ],
+      "gateId": "eventOrder.entertainmentInterests",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:event_ordering:2"
+      ],
+      "gateId": "eventOrder.hiringAutomationTopics",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:event_ordering:1"
+      ],
+      "gateId": "eventOrder.mentorInteractions",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:event_ordering:1"
+      ],
+      "gateId": "eventOrder.patentFunding",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:event_ordering:2"
+      ],
+      "gateId": "eventOrder.patentProcessStages",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:event_ordering:1"
+      ],
+      "gateId": "eventOrder.personalProfessionalProgress",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:event_ordering:1"
+      ],
+      "gateId": "eventOrder.probabilityConcepts",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:event_ordering:2"
+      ],
+      "gateId": "eventOrder.projectDevelopment",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:15:event_ordering:2"
+      ],
+      "gateId": "eventOrder.sneakerSafety",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:event_ordering:2"
+      ],
+      "gateId": "eventOrder.workLifeChallenges",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:instruction_following:1"
+      ],
+      "gateId": "instruction.legalTermsExplanation",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:instruction_following:2"
+      ],
+      "gateId": "instruction.nonProvisionalFilingDate",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:instruction_following:1"
+      ],
+      "gateId": "instruction.patentTimelines",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:instruction_following:2"
+      ],
+      "gateId": "instruction.resumeDesign",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:instruction_following:1"
+      ],
+      "gateId": "instruction.timelineDateFormat",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:abstention:1"
+      ],
+      "gateId": "instruction.trelloSprintCriteriaAbstention",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:knowledge_update:2"
+      ],
+      "gateId": "knowledgeUpdate.aiScreeningAccuracyGroup",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:16:knowledge_update:1"
+      ],
+      "gateId": "knowledgeUpdate.groceryBudgetGroup",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:knowledge_update:1"
+      ],
+      "gateId": "knowledgeUpdate.zoomCallScheduleGroup",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:4:multi_session_reasoning:2"
+      ],
+      "gateId": "multiSessionReasoning.accuracyImprovementComparison",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:multi_session_reasoning:1"
+      ],
+      "gateId": "multiSessionReasoning.coverLetterSubmissionCount",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:multi_session_reasoning:1"
+      ],
+      "gateId": "multiSessionReasoning.projectCardTotalCount",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:1:multi_session_reasoning:2"
+      ],
+      "gateId": "multiSessionReasoning.userRolesSecurityFeaturesCount",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:preference_following:2"
+      ],
+      "gateId": "preference.aiAssistedEditingWorkflow",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:4:preference_following:2"
+      ],
+      "gateId": "preference.asaCongruenceProof",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:2:preference_following:2"
+      ],
+      "gateId": "preference.automatedDeploymentMonitoring",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:preference_following:2"
+      ],
+      "gateId": "preference.balancedStandaloneSeries",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:preference_following:2"
+      ],
+      "gateId": "preference.bilingualMovieLanguage",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:preference_following:1"
+      ],
+      "gateId": "preference.bookFormatPortability",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:preference_following:1"
+      ],
+      "gateId": "preference.coverLetterMeasurableImpact",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:preference_following:2"
+      ],
+      "gateId": "preference.coverLetterPortfolioLink",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:preference_following:1"
+      ],
+      "gateId": "preference.digitalWillUpdate",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:16:preference_following:1"
+      ],
+      "gateId": "preference.excelDiningBudget",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:preference_following:2"
+      ],
+      "gateId": "preference.executorCandidate",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:preference_following:2"
+      ],
+      "gateId": "preference.lightweightLazyLoading",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:preference_following:2"
+      ],
+      "gateId": "preference.morningSelfCare",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:preference_following:1"
+      ],
+      "gateId": "preference.positiveFamilyMovieReview",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:1:preference_following:2"
+      ],
+      "gateId": "preference.pragmaticSecurity",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:preference_following:1"
+      ],
+      "gateId": "preference.probabilityRatioWalkthrough",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:15:preference_following:1"
+      ],
+      "gateId": "preference.sleekNeutralSneaker",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:12:preference_following:2"
+      ],
+      "gateId": "preference.structuredDailyRoutine",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:preference_following:1"
+      ],
+      "gateId": "preference.taskAppointmentDigitalTools",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:4:preference_following:1"
+      ],
+      "gateId": "preference.triangleAreaMedianComparison",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:preference_following:2"
+      ],
+      "gateId": "preference.ukAtsResume",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.entertainmentSpendingOptimization",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:16:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.householdBudget",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:multi_session_reasoning:1"
+      ],
+      "gateId": "reasoning.patentFilingDeadline",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.patentPriorArtFiling",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.peerFeedbackBalance",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.probabilityCalculationConfirmation",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.readingPlanBalance",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.resumeAtsSequencing",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.seniorProducerPreparationPriority",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:15:multi_session_reasoning:2"
+      ],
+      "gateId": "reasoning.sneakerBudgetComparison",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:multi_session_reasoning:1"
+      ],
+      "gateId": "reasoning.workBoundaryOrder",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.aiHiringWebinarDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:17:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.castingPilotEpisodeDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:8:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.coverLetterZoomCallDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:15:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.dailyWalkingGoalFestivalMonths",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.editingChallengeDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:16:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.emergencyFundDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.filmOfficeMoviesDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:7:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.firstDraftEssayGradeDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:2:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.meetingTestingPeriodDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.movieListGameNightDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.outlanderReadingDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.permutationsQuizScoreDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:9:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.personalStatementScholarshipDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.priorArtProvisionalPatentDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.resumeTailoringApplyDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.reunionPromotionDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.screenplayDraftDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:3:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.sprintDeadlineDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:1:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.transactionDeploymentWeeks",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:4:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.triangleProblemCount",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.trilogyReadingDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:18:temporal_reasoning:1"
+      ],
+      "gateId": "temporalInterval.workEmailSelfCareDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:7:temporal_reasoning:2"
+      ],
+      "gateId": "temporalInterval.writingSessionAbstractDays",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:11:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.aiEthicsWebinar",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:4:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.areaCalculationAccuracy",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.estateTaxRate",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:14:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.eventCupcakeOrder",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:6:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.executiveProducerInterviews",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:12:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.finalDecisionMeeting",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:16:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.holidayGiftBudget",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:9:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.immigrationConsultantSession",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "1M:13:multi_session_reasoning:2"
+      ],
+      "gateId": "updateSeries.mortgagePreapproval",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:12:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.onboardingModulesCompletion",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:5:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.probabilityStudyHours",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:19:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.probateTimeline",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:20:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.prototypeBudget",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "updateSeries.recentFamilyTrip",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [],
+      "gateId": "updateSeries.relationshipLatestLocation",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:8:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.remoteWorkSchedule",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [],
+      "gateId": "updateSeries.sharedGroceryListMethod",
+      "hitCount": 0,
+      "status": "unobserved"
+    },
+    {
+      "caseIds": [
+        "100K:14:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.snackBudget",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:13:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.winterReadingChallenge",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:10:knowledge_update:2"
+      ],
+      "gateId": "updateSeries.writingGroupDeadline",
+      "hitCount": 1,
+      "status": "case_fitted"
+    },
+    {
+      "caseIds": [
+        "100K:7:knowledge_update:1"
+      ],
+      "gateId": "updateSeries.zoteroSources",
+      "hitCount": 1,
+      "status": "case_fitted"
+    }
+  ]
+}
