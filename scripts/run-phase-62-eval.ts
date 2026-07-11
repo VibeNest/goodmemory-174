@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   createLongMemEvalGoodMemoryContextBuilder,
   runLongMemEvalSuite,
@@ -7,7 +9,10 @@ import {
   type LongMemEvalReport,
   type RunLongMemEvalOptions,
 } from "../src/eval/longmemeval";
-import { createGoodMemory } from "../src/api/createGoodMemory";
+import {
+  createGoodMemory,
+  createInternalGoodMemory,
+} from "../src/api/createGoodMemory";
 import type { GoodMemory, GoodMemoryConfig } from "../src/api/contracts";
 import type { PersonaSpec, ScenarioFixture } from "../src/eval/dataset";
 import {
@@ -120,6 +125,16 @@ const LONGMEMEVAL_REMEMBER_CONFIG = {
     },
   ],
 } satisfies GoodMemoryConfig["remember"];
+
+export function createHermeticLongMemEvalMemory(
+  config: GoodMemoryConfig,
+): GoodMemory {
+  return createInternalGoodMemory(config, {
+    environment: {},
+    projectionBulkBackfill: true,
+    projectionWriteThrough: false,
+  });
+}
 
 const longMemEvalAnswerJudgeSchema = z.object({
   correct: z.boolean(),
@@ -283,9 +298,33 @@ export function createLongMemEvalAnswerJudge(
 
 export function createLongMemEvalMemoryFactory(
   createMemory: typeof createGoodMemory,
-  options: { requestTimeoutMs?: number } = {},
-): (profile: "goodmemory-hybrid" | "goodmemory-rules-only") => GoodMemory {
+  options: { requestTimeoutMs?: number; runNamespace?: string } = {},
+): (
+  profile:
+    | "goodmemory-hybrid"
+    | "goodmemory-recommended"
+    | "goodmemory-rules-only",
+) => GoodMemory {
+  const namespace = createHash("sha256")
+    .update(options.runNamespace ?? "longmemeval")
+    .digest("hex")
+    .slice(0, 12);
+  let memoryCounter = 0;
+
   return (profile) => {
+    memoryCounter += 1;
+    let idCounter = 0;
+    let clockTick = 0;
+    const testing = {
+      createId: () => {
+        idCounter += 1;
+        return `longmemeval-${namespace}-${memoryCounter}-${idCounter}`;
+      },
+      now: () => {
+        clockTick += 1;
+        return new Date(Date.UTC(2026, 0, 1, 0, 0, 0, clockTick));
+      },
+    };
     if (profile === "goodmemory-rules-only") {
       return createMemory({
         adapters: {
@@ -296,6 +335,23 @@ export function createLongMemEvalMemoryFactory(
         storage: {
           provider: "memory",
         },
+        testing,
+      });
+    }
+
+    if (profile === "goodmemory-recommended") {
+      return createMemory({
+        adapters: {
+          assistedExtractor: NO_PROVIDER_ASSISTED_EXTRACTOR,
+        },
+        remember: LONGMEMEVAL_REMEMBER_CONFIG,
+        retrieval: {
+          preset: "recommended",
+        },
+        storage: {
+          provider: "memory",
+        },
+        testing,
       });
     }
 
@@ -326,6 +382,7 @@ export function createLongMemEvalMemoryFactory(
         provider: "postgres",
         url: process.env.GOODMEMORY_TEST_POSTGRES_URL,
       },
+      testing,
     });
   };
 }
@@ -380,8 +437,8 @@ export async function runPhase62LongMemEval(
       answerJudge: createLongMemEvalAnswerJudge(requestTimeoutMs),
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
         createMemory: createLongMemEvalMemoryFactory(
-          dependencies.createMemory ?? createGoodMemory,
-          { requestTimeoutMs },
+          dependencies.createMemory ?? createHermeticLongMemEvalMemory,
+          { requestTimeoutMs, runNamespace: runOptions.runId },
         ),
         runId: runOptions.runId,
       }),

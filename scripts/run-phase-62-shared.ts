@@ -19,6 +19,7 @@ export interface Phase62CliOptions {
   allCases?: boolean;
   benchmarkRoot?: string;
   caseIds?: readonly string[];
+  labelFreeIngest?: boolean;
   limit?: number;
   maxConcurrency?: number;
   mode: LongMemEvalMode;
@@ -26,6 +27,7 @@ export interface Phase62CliOptions {
   outputDir?: string;
   profiles?: readonly string[];
   questionTypes?: readonly string[];
+  resume?: boolean;
   runId?: string;
 }
 
@@ -273,6 +275,7 @@ export function parsePhase62CliOptions(
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       resolvePhase62LongMemEvalRootEnv(),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
+    labelFreeIngest: parseFlagPresence(argv, "--label-free-ingest"),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     maxConcurrency: parseLimit(resolveCliFlagValueStrict(argv, "--max-concurrency")),
     mode: parseMode(resolveCliFlagValueStrict(argv, "--mode")),
@@ -280,6 +283,7 @@ export function parsePhase62CliOptions(
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     profiles: parseRepeatedFlag(argv, "--profile"),
     questionTypes: parseRepeatedFlag(argv, "--question-type"),
+    resume: parseFlagPresence(argv, "--resume"),
     runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
 }

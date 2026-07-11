@@ -37,6 +37,7 @@ import type { RecallRouterAssistant } from "../recall/assistant";
 import { buildMemoryPacket, renderMemoryPacket } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
 import { iterativeRecall } from "../recall/iterativeRecall";
+import { createRecallProjectionRuntime } from "../recall/projections/runtime";
 import { decomposedRecall } from "../recall/queryDecomposition";
 import { applyReranking, type Reranker } from "../recall/reranker";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
@@ -145,6 +146,9 @@ export interface InternalGoodMemoryOptions {
   assistedRecallRouter?: RecallRouterAssistant;
   assistedReviewer?: boolean;
   behavioralOutcomeRecorder?: boolean;
+  environment?: Record<string, string | undefined>;
+  projectionBulkBackfill?: boolean;
+  projectionWriteThrough?: boolean;
   retrievalStrategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
@@ -741,6 +745,7 @@ class GoodMemoryImpl implements GoodMemory {
   ) {
     const runtimeResolution = resolveGoodMemoryRuntimeResolution({
       config,
+      env: internal?.environment,
     });
     this.runtimeResolution = runtimeResolution;
     const storagePlan = runtimeResolution.storagePlan;
@@ -782,7 +787,7 @@ class GoodMemoryImpl implements GoodMemory {
               model: runtimeResolution.assistedExtractorModelConfig,
             })
         : undefined);
-    const documentStore =
+    const rawDocumentStore =
       config.adapters?.documentStore ??
       (autoStorageAdapters
         ? autoStorageAdapters.documentStore
@@ -793,6 +798,17 @@ class GoodMemoryImpl implements GoodMemory {
               url: explicitStorage.url,
             })
           : createInMemoryDocumentStore());
+    const projectionRuntime = createRecallProjectionRuntime({
+      bulkBackfill: internal?.projectionBulkBackfill,
+      documentStore: rawDocumentStore,
+      now: config.testing?.now
+        ? () => config.testing!.now!().toISOString()
+        : undefined,
+      writeThrough:
+        runtimeResolution.retrieval.generalizedFusion !== undefined &&
+        internal?.projectionWriteThrough !== false,
+    });
+    const documentStore = projectionRuntime.documentStore;
     const sessionStore =
       config.adapters?.sessionStore ??
       (autoStorageAdapters
@@ -845,6 +861,8 @@ class GoodMemoryImpl implements GoodMemory {
       embedding: embeddingAdapter,
       autoStrategyBias: runtimeResolution.retrieval.autoStrategyBias,
       bm25Ranking: runtimeResolution.retrieval.bm25Ranking,
+      generalizedFusion: runtimeResolution.retrieval.generalizedFusion,
+      projectionIndex: projectionRuntime,
       semanticCandidates: runtimeResolution.retrieval.semanticCandidates,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,
       referenceTime: config.testing?.now
@@ -905,6 +923,7 @@ class GoodMemoryImpl implements GoodMemory {
       vectorIndex: repositories.vectorIndex,
       embedding: embeddingAdapter,
       language,
+      projectionRepair: projectionRuntime,
       now: () => this.now().toISOString(),
     });
     const dreamMaintenanceGate = createDreamMaintenanceGate();

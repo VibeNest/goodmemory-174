@@ -97,8 +97,8 @@ const SEMANTIC_TIE_BREAK_EPSILON = 0.2;
 // "rules-only" stays a pure lexical floor. The weight is intentionally
 // sub-lexical (a perfect semantic match contributes less than a strong
 // multi-term lexical match) and is the single tunable constant to validate on
-// held-out BEAM generalization recall + LongMemEval once a real neural
-// embedding endpoint populates non-zero semantic scores. Until such an endpoint
+// held-out retrieval suites once a real neural embedding endpoint populates
+// non-zero semantic scores. Until such an endpoint
 // exists every semanticScore is 0 (semantic search is gated on
 // `strategy === "hybrid" && config.embedding && vectorIndex` in recall/engine),
 // so this term is a guaranteed no-op and cannot regress the accepted

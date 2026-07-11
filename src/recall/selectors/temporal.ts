@@ -11,7 +11,6 @@ import {
   stripEvidencePrefix,
   valueBearingFactContent,
 } from "./selectionContext";
-import { isSourceEnvelopeCandidate } from "./sourceEnvelope";
 import { selectorTopicOverlapCount, selectorTopicTokens } from "./topic";
 
 export const TEMPORAL_INTERVAL_ANCHOR_STOPWORDS = new Set([
@@ -252,9 +251,7 @@ export function hasTemporalEventOrderSignal(
     return false;
   }
 
-  const importedSourceOrder =
-    isSourceOrderedFact(entry) &&
-    isSourceEnvelopeCandidate(entry);
+  const importedSourceOrder = isSourceOrderedFact(entry);
 
   if (
     importedSourceOrder &&

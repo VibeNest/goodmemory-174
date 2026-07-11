@@ -586,10 +586,7 @@ describe("architecture boundaries", () => {
       if (/export\s+\*\s+from/u.test(source)) {
         wildcardBarrels.push(relativePath);
       }
-      if (
-        relativePath !== "recall/selectors/sourceEnvelope.ts" &&
-        /\b(?:external_benchmark|BEAM)\b/u.test(source)
-      ) {
+      if (/\b(?:external_benchmark|BEAM)\b/u.test(source)) {
         benchmarkLiteralFiles.push({
           file: relativePath,
           literal: source.includes("external_benchmark")
@@ -600,10 +597,7 @@ describe("architecture boundaries", () => {
       if (DISALLOWED_SELECTOR_FILENAME_PATTERN.test(relativePath)) {
         caseNamedSelectorFiles.push(relativePath);
       }
-      if (
-        relativePath !== "recall/selectors/sourceEnvelope.ts" &&
-        DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN.test(source)
-      ) {
+      if (DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN.test(source)) {
         caseLiteralSelectorFiles.push(relativePath);
       }
     }

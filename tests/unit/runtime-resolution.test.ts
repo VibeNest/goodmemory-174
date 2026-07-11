@@ -322,6 +322,7 @@ describe("runtime resolution", () => {
     });
 
     expect(resolution.retrieval.autoStrategyBias).toBe("hybrid");
+    expect(resolution.retrieval.generalizedFusion).toEqual({ maxCandidates: 8 });
     expect(resolution.retrieval.semanticCandidates).toEqual({ topK: 16 });
     expect(resolution.retrieval.preset).toEqual({
       active: true,
@@ -367,13 +368,14 @@ describe("runtime resolution", () => {
     expect(plainMessage).not.toContain("Ollama");
   });
 
-  it("throws for the recommended preset when no embedding resolves", () => {
-    expect(() =>
-      resolveGoodMemoryRuntimeResolution({
-        config: { retrieval: { preset: "recommended" } },
-        env: {},
-      }),
-    ).toThrow(/GOODMEMORY_EMBEDDING_/);
+  it("keeps the recommended preset local when no embedding resolves", () => {
+    const resolution = resolveGoodMemoryRuntimeResolution({
+      config: { retrieval: { preset: "recommended" } },
+      env: {},
+    });
+    expect(resolution.embeddingEnabled).toBe(false);
+    expect(resolution.retrieval.generalizedFusion).toEqual({ maxCandidates: 8 });
+    expect(resolution.retrieval.semanticCandidates).toBeUndefined();
   });
 
   it("reports the retrieval preset through runtime info exactly when requested", () => {

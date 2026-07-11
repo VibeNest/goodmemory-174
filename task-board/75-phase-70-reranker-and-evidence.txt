@@ -15,5 +15,7 @@ auditable channel/fusion/reranker evidence without weakening abstention.
 Gate
 ----
 
+- Provider-backed reranker calls use `gpt-5.6-terra` through
+  `ai.gurkiai.com`, with model role and gateway persisted in retrieval trace.
 - Provider failure degrades to deterministic ranking and is visible in trace
   metadata; focused score or noise improves without cross-benchmark regression.

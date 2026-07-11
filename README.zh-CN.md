@@ -524,11 +524,11 @@ Python/FastAPI 后端使用下文的 packaged `goodmemory-http-bridge` 路径。
 
 ## 可选 Recall 调优：推荐 preset、多跳、本地 Embedding 与对话事实抽取
 
-下面这些选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，默认抽取也保持不变，不开启就不会改变行为。推荐 preset 是唯一带硬性要求的开关：没有神经 embedding 端点时它在构造期直接抛错，而不是静默降级。
+下面这些选项都是 opt-in 且默认保守。默认 recall 是单遍、rules-only，默认抽取也保持不变，不开启就不会改变行为。推荐 preset 有完整的 provider-free 本地路径；embedding 与抽取 provider 只增加可选通道，并非启动条件。
 
 ### 一键推荐检索 preset
 
-`retrieval.preset: "recommended"` 用一个 flag 启用公开 LoCoMo claim 所用配置档的检索+抽取侧：
+`retrieval.preset: "recommended"` 用一个 flag 启用通用检索和条件式对话抽取：
 
 ```ts
 const memory = createGoodMemory({
@@ -536,19 +536,19 @@ const memory = createGoodMemory({
 });
 ```
 
-激活后它会：(a) 启用语义候选并集（`topK: 16`，噪声预算由引擎从 topK 派生）；(b) 把 `auto` 路由偏置到 hybrid，使并集无需逐次传 `strategy: "hybrid"` 就能触发（显式 per-call strategy 仍然优先）；(c) 当抽取模型已可解析（provider 配置或 `GOODMEMORY_ASSISTED_EXTRACTOR_*` env）且 `mode` 未显式设置时，把抽取翻转为 `mode: "conversational"`——它从不注入 provider。显式配置字段永远胜过 preset；不设 `preset` 时零依赖默认逐字节不变。
+激活后它会：(a) 建立 memory、field、sentence 三种粒度的检索投影；(b) 用 RRF 融合 BM25、直接实体邻接，以及可用时的神经 dense 候选；(c) 使用有上限的动态候选预算；(d) 把 `auto` 路由偏置到 hybrid。显式 per-call strategy 仍然优先，`strategy: "rules-only"` 会绕过通用融合。没有神经 embedding 时，检索保持本地、确定性、零网络；有 embedding 时增加 `topK: 16` 的 dense 通道。当抽取模型已可解析且 `mode` 未显式设置时，preset 才把抽取翻转为 `mode: "conversational"`，从不自行注入 provider。不设 `preset` 时默认行为保持不变。
 
 要求与边界：
 
-- 必须有可解析的神经 embedding 端点（`GOODMEMORY_EMBEDDING_*`、`providers.embedding` 或 `adapters.embeddingAdapter`），否则 `createGoodMemory` 抛错并给出配置指引；零出境的本地路径见下方 Ollama 配方。`createLocalEmbeddingAdapter()` 会被拒绝：哈希词法向量不是语义向量。
+- 不要求 provider。`GOODMEMORY_EMBEDDING_*`、`providers.embedding` 或神经 `adapters.embeddingAdapter` 会增加可选 dense 通道；下方 Ollama 配方提供零出境神经路径。`createLocalEmbeddingAdapter()` 与 preset 配对时会被拒绝，因为哈希词法向量会重复 BM25 信号并冒充 dense 语义证据。
 - 用 `inspectGoodMemoryRuntime(memory).retrievalPreset` 检查解析结果——其 `extraction` 字段报告写时那一半是否生效（`"conversational"`）或抽取器不可用/保持原样。
-- preset 只覆盖库配置。LoCoMo claim 还用了 answer 侧的 abstention 格式 prompt（属于应用的回答步骤），而 LongMemEval 公开 claim 用的是 rules-only 配置档——两者都不受此 preset 影响。
-- 与 `bm25Ranking: true` 同开会把加法排序槽从神经分数换成 BM25、偏离 claims 配置档；preset 从不设置它。
+- preset 只覆盖记忆检索与条件式抽取；answer prompt 与 abstention policy 仍由应用负责。
+- 除非明确需要旧的加法 BM25 排序槽，否则不要再设 `bm25Ranking: true`；通用融合已有独立 BM25 候选通道。
 - 若你用 env 解析抽取并采用 preset，写时输出会变为会话式原子事实；退路是显式 `providers.extraction` 对象加 `mode: "default"`。
 
 ### 本地 embedding 端点（Ollama）
 
-推荐 preset 需要神经 embedding 端点，但这不要求数据出境：`GOODMEMORY_EMBEDDING_BASE_URL` 接受任何 OpenAI-compatible 的 `/v1/embeddings` 端点，包括本地 Ollama。
+推荐 preset 不依赖 embedding。若要增加零出境神经 dense 通道，`GOODMEMORY_EMBEDDING_BASE_URL` 接受任何 OpenAI-compatible 的 `/v1/embeddings` 端点，包括本地 Ollama。
 
 ```bash
 ollama pull nomic-embed-text        # 或 bge-m3（更强的多语言召回）
@@ -612,7 +612,7 @@ const memory = createGoodMemory({
   providers: {
     extraction: {
       provider: "openai",
-      model: "gpt-5.5",
+      model: "gpt-5.6-terra",
       apiKey: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY!,
       baseURL: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL,
       mode: "conversational",
@@ -806,16 +806,13 @@ headers，调用 `POST /memory/recall-context`、`/memory/remember`、
 `memoryId` 的 `/memory/revise`。TypeScript bridge API 从 `goodmemory/http`
 导入。
 
-要通过 bridge 提供推荐检索 preset（语义候选 union + BM25），启动时加一个开关
+要通过 bridge 提供推荐检索 preset（多粒度 BM25 + 实体 + RRF，可选 dense），启动时加一个开关
 `--recommended`（或 `GOODMEMORY_PROFILE=agent-recommended` /
-`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`）；它需要一个 embedding 端点
-（`GOODMEMORY_EMBEDDING_*`），否则 bridge 拒绝启动（响亮失败，而非静默降级）。
+`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`）。不配置 embedding 也可运行；
+`GOODMEMORY_EMBEDDING_*` 只增加 dense 通道。
 此后 `GET /healthz` 会报告 `retrievalTier` 与 `embeddingEnabled`，当前档位一眼
-可见；recall 请求默认 `strategy: "auto"`，preset 会把它路由到 `hybrid`——降级的
-recall 会在 `routing.warnings` 带一个 `semantic_recall_inactive` 码，并在
-`routing.warningMessages` 带
-`semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET`，而不是静默返回
-词法地板。
+可见；recall 请求默认 `strategy: "auto"`，preset 会把它路由到 `hybrid`。
+显式 `strategy: "rules-only"` 仍选择严格词法地板。
 
 也可以用 Docker 一条命令部署（自带 SQLite volume；加 compose 的 `postgres`
 profile 可切 pgvector）：

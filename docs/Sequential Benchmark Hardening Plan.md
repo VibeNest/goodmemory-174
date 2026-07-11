@@ -18,6 +18,13 @@ benchmark-literal selector may enter production code.
 
 Do not publish a benchmark claim until the relevant phase has live answer generation, live or accepted judging where required, current evidence links, and an accepted gate. Internal recall diagnostics are engineering evidence, not public leaderboard claims.
 
+For new Phase 70-72 LLM runs, pin non-judge calls, including answer generation
+and provider-backed reranking, to `gpt-5.6-terra` through the `ai.gurkiai.com`
+OpenAI-compatible gateway and persist each exact model role in run identity.
+Historical `gpt-5.5` artifacts keep their original provenance.
+Official-protocol scoring must use a different judge model;
+`gpt-5.6-terra` must not judge its own answers.
+
 ## Current State
 
 - Phase 68 production boundary is complete: the historical fitted
@@ -31,6 +38,9 @@ Do not publish a benchmark claim until the relevant phase has live answer genera
   over 355 evidence-bearing cases. This is an honest floor, not a public answer
   score. Canonical, coverage, package, release, and tracked-artifact gates pass;
   the accepted quality gate is tracked with the phase commit.
+- Phase 69 is active on the pushed Phase 68 boundary. The implementation lane
+  is versioned recall/entity/scope projections, idempotent repair, and
+  BM25+dense+entity fusion validated on held-out slices.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper now reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This keeps run ids, source paths, output paths, roots, and budget selectors canonical across the hardened LongMemEval, BEAM, MemoryAgentBench, LoCoMo, release-readiness, and public-claim evidence paths without changing any benchmark score or public-claim boundary.
 - Adjacent Phase 61 ImplicitMemBench refresh and promotion: the 2026-07-06 full-root source-answer run `run-phase61-full300-rerun-20260706-codex-current` used `/tmp/ImplicitMemBench` at upstream `927413bf3f5389bb47c94c2a0ba987e435b101b8` (dataset CC BY 4.0, code MIT), completed all 300 benchmark cases with `executionFailures: 0`, and measured same-model diagnostic GoodMemory Full-300 score 212.45/300 = 0.7081666667 (`goodmemory-distilled-feedback+controlled-priming`) versus baseline 123/300 = 0.41. The public candidate score is the completed stored-answer gpt-5.4/gpt-5.5 cross-version rescore `implicitmembench-independent-rescore-gpt54-current`: GoodMemory 207.35/300 = 0.6911666667, upstream-chat baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, `sourceAnswersUnchanged: true`, and 0 execution failures. The claim must disclose that gpt-5.4 is the same GPT family as the gpt-5.5 answerer, not a cross-family judge; the older 0.708 same-model score is diagnostic only.
 - Adjacent Phase 61 postchanges check: `run-phase61-full300-rerun-20260706-postchanges-current` completed the same full-root 300-case rerun after recent local changes, but had 2 GoodMemory distilled execution failures from `text_answer_generation timed out after 180000ms`. Its best same-model diagnostic score was 209.05/300 = 0.6968333333, raw was 175.05/300 = 0.5835, distilled blocking was 153/200 = 0.765, and baseline was 131/300 = 0.4366666667. Treat this as drift evidence only; it does not replace the 0-failure `codex-current` source run or the stored-answer gpt-5.4 comparability artifact.

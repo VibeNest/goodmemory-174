@@ -1213,6 +1213,8 @@ describe("release metadata and docs", () => {
         (entry) => entry.startsWith("package/dist/") && entry.endsWith(".js"),
       );
       const forbiddenFittedLiterals = [
+        "[BEAM chat_id=",
+        "external_benchmark",
         "Blue Bay Resort",
         "Lies of Locke Lamora",
         "personal and work-related challenges",

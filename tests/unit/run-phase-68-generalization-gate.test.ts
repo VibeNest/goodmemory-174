@@ -60,15 +60,30 @@ function passingInput(): Parameters<typeof evaluatePhase68GeneralizationGate>[0]
       "factSelection/contracts.ts",
       "factSelection/draft.ts",
       "factSelection/entityUnion.ts",
+      "factSelection/generalizedFusionUnion.ts",
       "factSelection/semanticUnion.ts",
       "generalizedSelection.ts",
       "selection.ts",
       "selectors/recordSelection.ts",
       "selectors/selectionContext.ts",
-      "selectors/sourceEnvelope.ts",
       "selectors/temporal.ts",
       "selectors/topic.ts",
     ],
+    productionRecallSources: Object.fromEntries(
+      [
+        "factSelection/contracts.ts",
+        "factSelection/draft.ts",
+        "factSelection/entityUnion.ts",
+        "factSelection/generalizedFusionUnion.ts",
+        "factSelection/semanticUnion.ts",
+        "generalizedSelection.ts",
+        "selection.ts",
+        "selectors/recordSelection.ts",
+        "selectors/selectionContext.ts",
+        "selectors/temporal.ts",
+        "selectors/topic.ts",
+      ].map((path) => [path, "export {};"],
+    ),
     productionSelectionSource: "export const selectFacts = generalized;",
   };
 }
@@ -99,6 +114,9 @@ describe("phase-68 generalization gate", () => {
       },
       packageFiles: ["src"],
       productionRecallFiles: ["selectionLegacy.ts"],
+      productionRecallSources: {
+        "selectionLegacy.ts": "import './selectionLegacy';",
+      },
       productionSelectionSource: "import './selectionLegacy';",
     });
 
@@ -125,6 +143,9 @@ describe("phase-68 generalization gate", () => {
     fittedSource.productionRecallFiles.push(
       "selectors/sourceOrderRules/case-specific.ts",
     );
+    fittedSource.productionRecallSources[
+      "selectors/sourceOrderRules/case-specific.ts"
+    ] = "export {};";
 
     for (const input of [
       duplicateGateIds,
@@ -135,5 +156,18 @@ describe("phase-68 generalization gate", () => {
     ]) {
       expect(evaluatePhase68GeneralizationGate(input).passed).toBe(false);
     }
+  });
+
+  it("rejects benchmark identities embedded in production recall source", () => {
+    const value = {
+      ...passingInput(),
+      productionRecallSources: {
+        ...passingInput().productionRecallSources,
+        "selectors/temporal.ts":
+          'const category = "external_benchmark"; const benchmark = "BEAM";',
+      },
+    };
+
+    expect(evaluatePhase68GeneralizationGate(value).passed).toBe(false);
   });
 });

@@ -117,17 +117,14 @@ export type GoodMemorySemanticCandidatesConfig = RecallSemanticCandidatesConfig;
 export type GoodMemoryRetrievalPresetId = "recommended";
 
 export interface GoodMemoryRetrievalConfig {
-  // One-flag champion profile: expands to the retrieval+extraction side of the
-  // public-claims LoCoMo configuration — semantic candidate union topK 16 plus
+  // One-flag generalized profile: expands to the retrieval+extraction side of
+  // generalized RRF retrieval plus optional semantic candidates and
   // conversational write-time extraction (flipped only when an extraction
   // model resolves and mode is unset; never injects a provider) — and biases
-  // "auto" recall routing to hybrid. HARD-REQUIRES a neural embedding endpoint:
-  // construction throws otherwise (set GOODMEMORY_EMBEDDING_* /
-  // providers.embedding / adapters.embeddingAdapter; a local Ollama endpoint
-  // works — see the README recipe). Explicit fields below always win over the
-  // preset; unset keeps the zero-dependency default byte-identical. The preset
-  // does not cover answer-side prompts, and the rules-only LongMemEval public
-  // claim is unaffected by it.
+  // "auto" recall routing to hybrid. Without a neural embedding endpoint it
+  // stays local and deterministic on BM25 + direct entity adjacency; available
+  // embeddings add a dense RRF channel. Explicit fields below always win over
+  // the preset; unset keeps the zero-dependency default behavior unchanged.
   preset?: GoodMemoryRetrievalPresetId;
   // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
   // lexical ranking signal for hybrid/llm-assisted strategies, populating the
@@ -136,13 +133,12 @@ export interface GoodMemoryRetrievalConfig {
   // never receives the additive term; this only adds signal under non-rules-only
   // strategies. Defaults to off, so accepted rules-only/hybrid behavior is
   // unchanged unless explicitly enabled. The recommended preset never sets it:
-  // under hybrid it would replace the neural additive slot with BM25 and
-  // deviate from the claims profile.
+  // generalized fusion already owns a separate BM25 candidate channel.
   bm25Ranking?: boolean;
   // Opt-in semantic candidate-generation union (see the type above). This is
-  // the only retrieval lever that can surface a fact sharing no tokens with
-  // the query; the additive semantic score alone only re-ranks candidates that
-  // already pass the lexical admission gates.
+  // the explicit legacy union can surface a fact sharing no tokens with the
+  // query; the additive semantic score alone only re-ranks candidates that pass
+  // the legacy lexical admission gates.
   semanticCandidates?: GoodMemorySemanticCandidatesConfig;
 }
 

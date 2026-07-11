@@ -4,7 +4,7 @@
 // additive ~38% conv-1 recall ceiling (union8 63.4% / union16 72.2% / union32
 // 79.2%) at a linear noise cost. This script measures what that buys END TO END:
 // real neural embeddings (GOODMEMORY_EMBEDDING_*, OpenRouter) + union admission
-// + the shared answer evidence pack + the real gpt-5.5 answer generator, scored
+// + the shared answer evidence pack + the configured answer generator, scored
 // DETERMINISTICALLY by the upstream LoCoMo match mode (token-F1 / adversarial
 // abstention) — no LLM judge.
 //

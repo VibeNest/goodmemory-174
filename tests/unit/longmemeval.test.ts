@@ -3,6 +3,7 @@ import { createGoodMemory } from "../../src/api/createGoodMemory";
 import type { GoodMemory } from "../../src/api/contracts";
 import { createLongMemEvalMemoryFactory } from "../../scripts/run-phase-62-eval";
 import {
+  buildLabelFreeLongMemEvalRememberPayload,
   createLongMemEvalGoodMemoryContextBuilder,
   deriveLongMemEvalAssistantEvidenceFacts,
   deriveLongMemEvalDatedUserEvidenceFacts,
@@ -12,6 +13,10 @@ import {
   runLongMemEvalSuite,
   scoreLongMemEvalAnswer,
   validateLongMemEvalCases,
+} from "../../src/eval/longmemeval";
+import type {
+  LongMemEvalCase,
+  LongMemEvalIO,
 } from "../../src/eval/longmemeval";
 
 const SMOKE_CASES = [
@@ -1848,6 +1853,34 @@ const LONGMEMEVAL_GENERIC_TEMPORAL_CASES = [
 ];
 
 describe("LongMemEval adapter", () => {
+  it("builds label-free raw payloads without answer labels or fitted facts", () => {
+    const session = [
+      { content: "Alice visited Paris.", hasAnswer: true, role: "user" },
+      { content: "The trip sounded useful.", role: "assistant" },
+    ];
+    const labeled = buildLabelFreeLongMemEvalRememberPayload({
+      date: "2026-01-02",
+      session,
+      sessionId: "session-2",
+    });
+    const labelsRemoved = buildLabelFreeLongMemEvalRememberPayload({
+      date: "2026-01-02",
+      session: session.map(({ hasAnswer: _hasAnswer, ...turn }) => turn),
+      sessionId: "session-2",
+    });
+
+    expect(labeled).toEqual(labelsRemoved);
+    expect(labeled.messages).toHaveLength(session.length);
+    expect(labeled.annotations).toHaveLength(session.length);
+    expect(
+      labeled.annotations?.every(
+        (annotation) =>
+          annotation.metadataPatch?.category !== "external_benchmark" &&
+          !annotation.metadataPatch?.tags?.includes("longmemeval"),
+      ),
+    ).toBe(true);
+  });
+
   it("validates LongMemEval case shape", () => {
     const cases = validateLongMemEvalCases(SMOKE_CASES);
 
@@ -2187,6 +2220,101 @@ describe("LongMemEval adapter", () => {
     expect(
       writes.has("/tmp/out/run-recall-diagnostic/recall-diagnostic.json"),
     ).toBe(true);
+  });
+
+  it("resumes recall diagnostics from identity-bound progress", async () => {
+    const files = new Map<string, string>();
+    const source = JSON.stringify(SMOKE_CASES);
+    const readFile = async (path: string): Promise<string> => {
+      if (path.endsWith("longmemeval_s_cleaned.json")) {
+        return source;
+      }
+      const value = files.get(path);
+      if (value !== undefined) {
+        return value;
+      }
+      throw Object.assign(new Error(`missing ${path}`), { code: "ENOENT" });
+    };
+    const io: LongMemEvalIO = {
+      appendFile: async (path: string, value: string) => {
+        files.set(path, `${files.get(path) ?? ""}${value}`);
+      },
+      memoryContextBuilder: async ({ testCase }: { testCase: LongMemEvalCase }) => ({
+        content: `context for ${testCase.questionId}`,
+        retrievedSessionIds: [...testCase.answerSessionIds],
+      }),
+      mkdir: async () => undefined,
+      readFile,
+      writeFile: async (path: string, value: string) => {
+        files.set(path, value);
+      },
+    };
+    const options = {
+      benchmarkRoot: "/tmp/longmemeval",
+      generatedBy: "tests",
+      mode: "full" as const,
+      outputDir: "/tmp/out",
+      profile: "goodmemory-rules-only" as const,
+      runConfiguration: {
+        contextMaxTokens: 4000,
+        extractionStrategy: "rules-only" as const,
+        generalizedFusion: null,
+        projection: {
+          bulkBackfill: true,
+          writeThrough: false,
+        },
+        providerEmbedding: false,
+        recallStrategy: "rules-only" as const,
+      },
+      runId: "run-resumable-recall",
+    };
+
+    const first = await runLongMemEvalRecallDiagnostic(options, io);
+    const progressPath =
+      "/tmp/out/run-resumable-recall/progress.jsonl";
+    files.set(
+      progressPath,
+      `${files.get(progressPath) ?? ""}{"questionId":"torn`,
+    );
+    let resumedCalls = 0;
+    const resumed = await runLongMemEvalRecallDiagnostic(
+      { ...options, resume: true },
+      {
+        ...io,
+        memoryContextBuilder: async () => {
+          resumedCalls += 1;
+          throw new Error("completed rows must not rerun");
+        },
+      },
+    );
+
+    expect(first.cases).toEqual(resumed.cases);
+    expect(resumedCalls).toBe(0);
+    expect(files.get(progressPath)?.endsWith("\n")).toBe(true);
+    expect(files.get(progressPath)).not.toContain('"questionId":"torn');
+    await expect(
+      runLongMemEvalRecallDiagnostic(
+        {
+          ...options,
+          profile: "goodmemory-recommended",
+          resume: true,
+        },
+        io,
+      ),
+    ).rejects.toThrow("progress identity does not match");
+    await expect(
+      runLongMemEvalRecallDiagnostic(
+        {
+          ...options,
+          resume: true,
+          runConfiguration: {
+            ...options.runConfiguration,
+            contextMaxTokens: 5000,
+          },
+        },
+        io,
+      ),
+    ).rejects.toThrow("progress identity does not match");
   });
 
   it("records full-mode answer generation failures without dropping the report", async () => {

@@ -2,16 +2,16 @@ import { describe, expect, it } from "bun:test";
 import type { GoodMemorySemanticCandidatesConfig } from "../../src/api/contracts";
 import {
   HASHED_LEXICAL_EMBEDDING_BRAND,
+  RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
   RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
   resolveGoodMemoryRetrievalRuntime,
 } from "../../src/api/retrievalPreset";
 
 // retrieval.preset "recommended" expands to the retrieval+extraction side of
-// the public-claims LoCoMo profile (semantic union topK 16 + conversational
-// write-time extraction) and biases auto routing to hybrid. Preset unset must
-// be a byte-identical passthrough; explicit user fields always win; without a
-// neural embedding the preset throws at construction instead of silently
-// degrading to the lexical floor.
+// generalized RRF retrieval plus optional semantic candidates and
+// conversational write-time extraction. Preset unset must be a byte-identical
+// passthrough; explicit user fields always win; provider-free mode remains
+// deterministic.
 
 const fakeEmbeddingAdapter = { embed: async () => [[0, 1]] };
 
@@ -72,7 +72,7 @@ describe("resolveGoodMemoryRetrievalRuntime without a preset", () => {
 });
 
 describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
-  it("expands to the claims profile when the user set nothing", () => {
+  it("expands to generalized fusion when the user set nothing", () => {
     const resolved = resolve({
       embeddingEnabled: true,
       retrieval: { preset: "recommended" },
@@ -81,8 +81,11 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     expect(resolved.retrieval.semanticCandidates).toEqual({
       topK: RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
     });
-    // maxAdditions is deliberately left unset: the engine derives it from the
-    // resolved topK (=16), matching the claims run's exact command line.
+    expect(resolved.retrieval.generalizedFusion).toEqual({
+      maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+    });
+    // maxAdditions belongs to the legacy semantic-union path. Generalized fusion
+    // owns its own bounded candidate budget.
     expect(resolved.retrieval.semanticCandidates?.maxAdditions).toBeUndefined();
     expect(resolved.retrieval.autoStrategyBias).toBe("hybrid");
     expect(resolved.retrieval.bm25Ranking).toBeUndefined();
@@ -117,7 +120,7 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     expect(userTopK.retrieval.semanticCandidates?.topK).toBe(24);
   });
 
-  it("never sets bm25Ranking (it would swap the additive slot away from the claims profile)", () => {
+  it("does not enable the separate additive bm25Ranking slot by default", () => {
     const resolved = resolve({
       embeddingEnabled: true,
       retrieval: { bm25Ranking: true, preset: "recommended" },
@@ -195,16 +198,13 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     expect(unavailable.retrieval.preset?.extraction).toBe("unavailable");
   });
 
-  it("throws without a resolvable embedding, naming the setup paths", () => {
-    let message = "";
-    try {
-      resolve({ retrieval: { preset: "recommended" } });
-    } catch (error) {
-      message = (error as Error).message;
-    }
-    expect(message).toContain("GOODMEMORY_EMBEDDING_");
-    expect(message).toContain("Ollama");
-    expect(message).toContain("retrieval.preset");
+  it("keeps generalized fusion active without a resolvable embedding", () => {
+    const resolved = resolve({ retrieval: { preset: "recommended" } });
+    expect(resolved.retrieval.generalizedFusion).toEqual({
+      maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+    });
+    expect(resolved.retrieval.semanticCandidates).toBeUndefined();
+    expect(resolved.retrieval.autoStrategyBias).toBe("hybrid");
   });
 
   it("rejects the hashed-lexical local adapter by brand", () => {

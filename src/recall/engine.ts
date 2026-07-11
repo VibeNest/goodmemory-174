@@ -68,6 +68,11 @@ import {
 } from "./router";
 import { ProviderBackedRecallError } from "./errors";
 import { computeBm25Scores } from "./bm25";
+import { fuseGeneralizedRecallCandidates } from "./generalizedFusion";
+import { admitGeneralizedRecords } from "./generalizedAdmissions";
+import type { GeneralizedFusionCandidate } from "./generalizedFusion";
+import type { GeneralizedFusionSelectionInput } from "./factSelection/generalizedFusionUnion";
+import type { RecallProjectionSearchPort } from "./projections/contracts";
 import {
   searchSemanticScores,
   type SemanticSearchScores,
@@ -133,7 +138,8 @@ export interface RecallCandidateTrace {
     | "none"
     | "same_slot_unique_candidate"
     | "zero_retrieval_lexical"
-    | "semantic_union";
+    | "semantic_union"
+    | "generalized_fusion";
   evidenceIds?: string[];
 }
 
@@ -189,6 +195,17 @@ export interface RecallSemanticCandidatesConfig {
   maxAdditions?: number;
 }
 
+export interface RecallGeneralizedFusionConfig {
+  // Global cap for the fused content-candidate set. This is an additive recall
+  // budget, not a cap on records already selected by the baseline selectors.
+  maxCandidates?: number;
+  // Caps baseline plus generalized facts. Other content lanes keep their own
+  // small record limits.
+  maxTotalFacts?: number;
+  minRelativeStrength?: number;
+  rrfK?: number;
+}
+
 export interface RecallEngineConfig {
   assistedRouter?: RecallRouterAssistant;
   embedding?: EmbeddingAdapter;
@@ -197,6 +214,7 @@ export interface RecallEngineConfig {
   // non-rules-only strategies. Off by default, so rules-only/hybrid ranking is
   // unchanged unless explicitly enabled.
   bm25Ranking?: boolean;
+  generalizedFusion?: RecallGeneralizedFusionConfig;
   // Set by retrieval.preset resolution (never a public per-call knob): biases
   // "auto" routing to hybrid whenever semantic search is available, so the
   // semantic union fires without an explicit per-call strategy.
@@ -209,6 +227,7 @@ export interface RecallEngineConfig {
   vectorIndex?: RecallVectorSearchPort | null;
   now?: () => number;
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
+  projectionIndex?: RecallProjectionSearchPort;
   referenceTime?: () => string;
 }
 
@@ -490,7 +509,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
         // rules-only whenever no embedding endpoint exists, disabling BM25
         // exactly when it is the intended lexical-semantic signal.
         semanticSearch: Boolean(
-          (config.embedding && vectorIndex) || config.bm25Ranking,
+          (config.embedding && vectorIndex) ||
+            config.bm25Ranking ||
+            (config.generalizedFusion && config.projectionIndex),
         ),
         llmRouting: Boolean(config.assistedRouter),
       };
@@ -658,6 +679,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       );
       const evidenceCountsByMemoryId = buildEvidenceCountByMemoryId(visibleEvidencePool);
       let semanticScores: SemanticSearchScores | undefined;
+      let semanticFactCandidates: SemanticSearchScores["semanticFactCandidates"];
       const semanticUnionTopK = Math.max(
         1,
         Math.floor(config.semanticCandidates?.topK ?? 8),
@@ -714,10 +736,18 @@ export function createRecallEngine(config: RecallEngineConfig) {
             query: input.query,
             scope: input.scope,
             vectorIndex,
-            ...(config.semanticCandidates
-              ? { factCandidates: { topK: semanticUnionTopK } }
+            ...(config.semanticCandidates || config.generalizedFusion
+              ? {
+                  factCandidates: {
+                    topK:
+                      config.semanticCandidates?.topK ??
+                      config.generalizedFusion?.maxCandidates ??
+                      semanticUnionTopK,
+                  },
+                }
               : {}),
           });
+          semanticFactCandidates = providerSemanticScores.semanticFactCandidates;
           semanticScores = config.bm25Ranking
             ? {
                 ...computeBm25AdditiveScores(),
@@ -740,6 +770,109 @@ export function createRecallEngine(config: RecallEngineConfig) {
         routingDecision.strategy !== "rules-only"
       ) {
         semanticScores = computeBm25AdditiveScores();
+      }
+
+      let generalizedFusion: GeneralizedFusionSelectionInput | undefined;
+      let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
+      if (
+        config.generalizedFusion &&
+        routingDecision.strategy !== "rules-only"
+      ) {
+        if (!config.projectionIndex) {
+          policyApplied.add("generalized_fusion_unavailable");
+        } else {
+          try {
+            const coverage = await config.projectionIndex.ensureScopeIndexed(
+              input.scope,
+            );
+            const [documents, entities] = await Promise.all([
+              config.projectionIndex.queryDocuments(input.scope),
+              config.projectionIndex.queryEntities(input.scope),
+            ]);
+            const contentDocuments = documents.filter(
+              (document) =>
+                document.sourceCollection === "facts" ||
+                document.sourceCollection === "references" ||
+                document.sourceCollection === "episodes" ||
+                document.sourceCollection === "session_archives",
+            );
+            const contentEntities = entities
+              .map((entity) => ({
+                ...entity,
+                memoryIds: entity.memoryIds.filter(
+                  (id) =>
+                    id.startsWith("facts:") ||
+                    id.startsWith("references:") ||
+                    id.startsWith("episodes:") ||
+                    id.startsWith("session_archives:"),
+                ),
+              }))
+              .filter((entity) => entity.memoryIds.length > 0);
+            const fused = fuseGeneralizedRecallCandidates({
+              query: input.query,
+              documents: contentDocuments,
+              entities: contentEntities,
+              denseCandidates: (semanticFactCandidates ?? [])
+                .filter((candidate, _index, candidates) => {
+                  const bestScore = candidates[0]?.score ?? 0;
+                  return (
+                    candidate.score > 0 &&
+                    (config.semanticCandidates?.minSimilarity === undefined ||
+                      candidate.score >=
+                        config.semanticCandidates.minSimilarity) &&
+                    (config.semanticCandidates?.minRelativeScore === undefined ||
+                      candidate.score + Number.EPSILON >=
+                        bestScore * config.semanticCandidates.minRelativeScore)
+                  );
+                })
+                .slice(
+                  0,
+                  Math.max(
+                    0,
+                    Math.floor(
+                      config.semanticCandidates?.maxAdditions ??
+                        semanticUnionTopK,
+                    ),
+                  ),
+                )
+                .map(({ id: sourceMemoryId, score }) => ({
+                  sourceCollection: "facts" as const,
+                  sourceMemoryId,
+                  score,
+                })),
+              maxCandidates: config.generalizedFusion.maxCandidates,
+              minRelativeStrength:
+                config.generalizedFusion.minRelativeStrength,
+              referenceTime: currentReferenceTime,
+              rrfK: config.generalizedFusion.rrfK,
+              tokenize: (text) =>
+                language.tokenize(text, resolvedLanguage.locale, {
+                  excludeStopwords: true,
+                }),
+            });
+            generalizedFusionCandidates = fused.candidates;
+            generalizedFusion = {
+              candidates: fused.candidates
+                .filter((candidate) => candidate.sourceCollection === "facts")
+                .map((candidate) => ({
+                  id: candidate.sourceMemoryId,
+                  score: candidate.score,
+                })),
+              maxAdditions: fused.budget,
+              maxTotalFacts: config.generalizedFusion.maxTotalFacts,
+            };
+            policyApplied.add("generalized_fusion");
+            if (!coverage.complete) {
+              policyApplied.add("generalized_fusion_partial_projection");
+            }
+          } catch (error) {
+            console.error(
+              "[goodmemory:generalized-fusion] projection retrieval failed; preserving baseline recall",
+              error,
+            );
+            policyApplied.add("generalized_fusion_unavailable");
+          }
+        }
       }
 
       const filteredProfile = await applyRecallPolicyToProfile(profile, {
@@ -789,11 +922,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
         policyApplied.add("semantic_candidates_unavailable");
       }
       const semanticUnion =
+        !generalizedFusion &&
         config.semanticCandidates &&
-        semanticScores?.semanticFactCandidates !== undefined &&
-        semanticScores.semanticFactCandidates.length > 0
+        semanticFactCandidates !== undefined &&
+        semanticFactCandidates.length > 0
           ? {
-              candidates: semanticScores.semanticFactCandidates,
+              candidates: semanticFactCandidates,
               maxAdditions: Math.max(
                 0,
                 Math.floor(
@@ -823,6 +957,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         semanticScores?.facts,
         evidenceCountsByMemoryId,
         semanticUnion,
+        generalizedFusion,
       );
       let facts = await applyRecallPolicyToRecords(
         selectedFacts.facts,
@@ -867,8 +1002,17 @@ export function createRecallEngine(config: RecallEngineConfig) {
         routingDecision,
         currentReferenceTime,
       );
+      const generalizedArchives = admitGeneralizedRecords({
+        candidates: generalizedFusionCandidates,
+        collection: "session_archives",
+        getId: (archive) => archive.id,
+        maxRecords: 1,
+        records: archivesRaw,
+        selected: selectedArchives.archives,
+        traces: selectedArchives.traces,
+      });
       let archives = await applyRecallPolicyToRecords(
-        selectedArchives.archives,
+        generalizedArchives,
         "archive",
         {
           scope: input.scope,
@@ -889,8 +1033,17 @@ export function createRecallEngine(config: RecallEngineConfig) {
         currentReferenceTime,
         semanticScores?.episodes,
       );
+      const generalizedEpisodes = admitGeneralizedRecords({
+        candidates: generalizedFusionCandidates,
+        collection: "episodes",
+        getId: (episode) => episode.id,
+        maxRecords: 2,
+        records: episodesRaw,
+        selected: selectedEpisodes.episodes,
+        traces: selectedEpisodes.traces,
+      });
       let episodes = await applyRecallPolicyToRecords(
-        selectedEpisodes.episodes,
+        generalizedEpisodes,
         "episode",
         {
           scope: input.scope,
@@ -912,8 +1065,17 @@ export function createRecallEngine(config: RecallEngineConfig) {
         semanticScores?.references,
         evidenceCountsByMemoryId,
       );
+      const generalizedReferences = admitGeneralizedRecords({
+        candidates: generalizedFusionCandidates,
+        collection: "references",
+        getId: (reference) => reference.id,
+        maxRecords: 1,
+        records: referencesRaw,
+        selected: selectedReferences.references,
+        traces: selectedReferences.traces,
+      });
       let references = await applyRecallPolicyToRecords(
-        selectedReferences.references,
+        generalizedReferences,
         "reference",
         {
           scope: input.scope,
@@ -1123,6 +1285,38 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 .filter(
                   (trace) =>
                     trace.returned && trace.fallback === "semantic_union",
+                )
+                .map((trace) => trace.memoryId),
+            ),
+            generalizedFusionFactIds: new Set(
+              selectedFacts.traces
+                .filter(
+                  (trace) =>
+                    trace.returned && trace.fallback === "generalized_fusion",
+                )
+                .map((trace) => trace.memoryId),
+            ),
+            generalizedFusionReferenceIds: new Set(
+              selectedReferences.traces
+                .filter(
+                  (trace) =>
+                    trace.returned && trace.fallback === "generalized_fusion",
+                )
+                .map((trace) => trace.memoryId),
+            ),
+            generalizedFusionArchiveIds: new Set(
+              selectedArchives.traces
+                .filter(
+                  (trace) =>
+                    trace.returned && trace.fallback === "generalized_fusion",
+                )
+                .map((trace) => trace.memoryId),
+            ),
+            generalizedFusionEpisodeIds: new Set(
+              selectedEpisodes.traces
+                .filter(
+                  (trace) =>
+                    trace.returned && trace.fallback === "generalized_fusion",
                 )
                 .map((trace) => trace.memoryId),
             ),

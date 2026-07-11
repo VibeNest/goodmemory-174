@@ -39,6 +39,7 @@ import type {
 } from "../storage/ports";
 
 export type MaintenanceJobName =
+  | "projectionRepair"
   | "dedupe"
   | "contradiction"
   | "qualityRepair"
@@ -49,6 +50,9 @@ export type MaintenanceJobName =
 export interface MaintenanceRunnerConfig {
   embedding?: EmbeddingAdapter;
   language?: LanguageService;
+  projectionRepair?: {
+    repairPending(scope: MemoryScope): Promise<number>;
+  };
   repositories: MaintenanceRepositoryPort & { vectorIndex?: MaintenanceVectorPort | null };
   vectorIndex?: MaintenanceVectorPort | null;
   now?: () => string;
@@ -751,6 +755,7 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
         // validUntil/expiresAt. qualityRepair stays opt-in: it demotes on
         // heuristics, while ttlExpiry only honors an explicit per-fact TTL.
         "ttlExpiry",
+        "projectionRepair",
         "dedupe",
         "contradiction",
         "consolidation",
@@ -761,6 +766,16 @@ export function createMaintenanceRunner(config: MaintenanceRunnerConfig) {
       const reports: MaintenanceJobReport[] = [];
 
       for (const job of jobs) {
+        if (job === "projectionRepair") {
+          reports.push({
+            name: job,
+            applied: config.projectionRepair
+              ? await config.projectionRepair.repairPending(scope)
+              : 0,
+          });
+          continue;
+        }
+
         if (job === "dedupe") {
           reports.push(
             await runDedupeCleanup(

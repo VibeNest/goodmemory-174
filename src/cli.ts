@@ -4934,15 +4934,6 @@ async function buildInstallerHostPlan(input: {
     warnings.push(`Installed ${input.host} config is invalid and must be fixed manually.`);
   }
   if (
-    existingConfig?.retrieval?.preset === "recommended" &&
-    !existingConfig.providers?.embedding &&
-    !process.env.GOODMEMORY_EMBEDDING_MODEL
-  ) {
-    warnings.push(
-      `retrieval.preset "recommended" requires an embedding endpoint (providers.embedding or GOODMEMORY_EMBEDDING_*); ${input.host} hooks are currently failing open with no context.`,
-    );
-  }
-  if (
     (existingConfig?.sharedAgents?.length ?? 0) > 0 &&
     existingConfig?.providers?.embedding
   ) {
@@ -5320,8 +5311,7 @@ async function buildHostInjectionActivity(
 
 // The effective retrieval quality tier for an installed host, derived from
 // its managed config. Env-only embedding (GOODMEMORY_EMBEDDING_*) also
-// upgrades recall at runtime but is not visible here; doctor covers the one
-// dangerous combination (preset without any embedding source).
+// upgrades recall at runtime but is not visible here.
 function resolveHostRetrievalTier(config: InstalledHostRuntimeConfig): string {
   const retrieval = config.retrieval;
   if (retrieval?.preset === "recommended") {

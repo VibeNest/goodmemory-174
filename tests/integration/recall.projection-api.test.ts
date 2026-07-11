@@ -1,0 +1,295 @@
+import { describe, expect, it } from "bun:test";
+
+import { createGoodMemory } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
+import {
+  PROJECTION_REPAIRS_COLLECTION,
+  RECALL_DOCUMENTS_COLLECTION,
+  type RecallIndexDocument,
+} from "../../src/recall/projections/contracts";
+import type {
+  DocumentStore,
+  StorageDocument,
+} from "../../src/storage/contracts";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+} from "../../src/storage/memory";
+
+function createOneShotProjectionFailureStore(inner: DocumentStore): DocumentStore {
+  let shouldFail = true;
+  return {
+    async set<TDocument extends StorageDocument>(
+      collection: string,
+      id: string,
+      document: TDocument,
+    ) {
+      if (collection === RECALL_DOCUMENTS_COLLECTION && shouldFail) {
+        shouldFail = false;
+        throw new Error("injected projection failure");
+      }
+      await inner.set(collection, id, document);
+    },
+    get: (collection, id) => inner.get(collection, id),
+    update: (collection, id, patch) => inner.update(collection, id, patch),
+    query: (collection, filter) => inner.query(collection, filter),
+    delete: (collection, id) => inner.delete(collection, id),
+    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
+      ? (input) => inner.writeBatchIfUnchanged!(input)
+      : undefined,
+  };
+}
+
+function createOneShotProjectionDeleteFailureStore(
+  inner: DocumentStore,
+): DocumentStore {
+  let shouldFail = true;
+  return {
+    set: (collection, id, document) => inner.set(collection, id, document),
+    get: (collection, id) => inner.get(collection, id),
+    update: (collection, id, patch) => inner.update(collection, id, patch),
+    query: (collection, filter) => inner.query(collection, filter),
+    async delete(collection, id) {
+      if (collection === RECALL_DOCUMENTS_COLLECTION && shouldFail) {
+        shouldFail = false;
+        throw new Error("injected projection delete failure");
+      }
+      await inner.delete(collection, id);
+    },
+    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
+      ? (input) => inner.writeBatchIfUnchanged!(input)
+      : undefined,
+  };
+}
+
+describe("recall projections through the public API", () => {
+  it("lets internal bulk ingestion defer projections until first recall", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createInternalGoodMemory(
+      {
+        adapters: {
+          documentStore,
+          sessionStore: createInMemorySessionStore(),
+        },
+        retrieval: { preset: "recommended" },
+        storage: { provider: "memory" },
+      },
+      { environment: {}, projectionWriteThrough: false },
+    );
+    const scope = { userId: "bulk-user", sessionId: "bulk-session" };
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that Atlas rollout is blocked on Paris approval.",
+        },
+      ],
+    });
+
+    expect(await documentStore.query(RECALL_DOCUMENTS_COLLECTION)).toEqual([]);
+
+    const recalled = await memory.recall({
+      scope: { userId: scope.userId },
+      query: "What is blocking the Atlas rollout?",
+    });
+
+    expect(recalled.facts.length).toBeGreaterThan(0);
+    expect(await documentStore.query(RECALL_DOCUMENTS_COLLECTION)).not.toEqual(
+      [],
+    );
+  });
+
+  it("does not amplify default writes when generalized retrieval is disabled", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      storage: { provider: "memory" },
+    });
+
+    const remembered = await memory.remember({
+      scope: { userId: "default-user", sessionId: "default-session" },
+      messages: [
+        {
+          role: "user",
+          content: "Remember that Atlas rollout is blocked on Paris approval.",
+        },
+      ],
+    });
+
+    expect(remembered.events.some((event) => event.memoryType === "fact")).toBe(
+      true,
+    );
+    expect(await documentStore.query(RECALL_DOCUMENTS_COLLECTION)).toEqual([]);
+  });
+
+  it("keeps projections aligned across remember, revise, and forget", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      retrieval: { preset: "recommended" },
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      testing: {
+        now: () => new Date("2026-07-10T12:00:00.000Z"),
+      },
+    });
+    const scope = {
+      userId: "projection-user",
+      workspaceId: "projection-workspace",
+      sessionId: "projection-session",
+    };
+
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "I prefer VS Code as my editor.",
+        },
+      ],
+    });
+    const previousMemoryId = remembered.events.find(
+      (event) => event.memoryType === "preference",
+    )?.memoryId;
+    expect(previousMemoryId).toBeString();
+    expect(
+      await documentStore.query<RecallIndexDocument>(
+        RECALL_DOCUMENTS_COLLECTION,
+        { sourceMemoryId: previousMemoryId },
+      ),
+    ).not.toEqual([]);
+
+    const revised = await memory.reviseMemory({
+      scope,
+      target: { memoryId: previousMemoryId! },
+      revision: { content: "My preferred editor is Cursor, not VS Code." },
+      reason: "user_correction",
+      idempotencyKey: "projection-editor-revision",
+    });
+    expect(revised.accepted).toBe(true);
+    expect(revised.newMemoryId).toBeString();
+    expect(
+      await documentStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: previousMemoryId,
+      }),
+    ).toEqual([]);
+    expect(
+      await documentStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: revised.newMemoryId,
+      }),
+    ).not.toEqual([]);
+
+    const forgotten = await memory.forget({
+      scope,
+      memoryId: revised.newMemoryId,
+    });
+    expect(forgotten.forgotten).toBe(true);
+    expect(
+      await documentStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: revised.newMemoryId,
+      }),
+    ).toEqual([]);
+  });
+
+  it("repairs queued projection failures through public maintenance", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      retrieval: { preset: "recommended" },
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore: createOneShotProjectionFailureStore(rawStore),
+        sessionStore: createInMemorySessionStore(),
+      },
+      testing: {
+        now: () => new Date("2026-07-10T12:00:00.000Z"),
+      },
+    });
+    const scope = {
+      userId: "repair-user",
+      workspaceId: "repair-workspace",
+      sessionId: "repair-session",
+    };
+
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that Atlas rollout is blocked on Paris approval.",
+        },
+      ],
+    });
+    const memoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+    expect(memoryId).toBeString();
+    expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION)).toHaveLength(1);
+
+    const maintenance = await memory.runMaintenance({
+      scope,
+      jobs: ["projectionRepair"],
+    });
+
+    expect(maintenance.ran).toBe(true);
+    expect(
+      await rawStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: memoryId,
+      }),
+    ).not.toEqual([]);
+    expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION)).toEqual([]);
+  });
+
+  it("does not report forget success while projection cleanup is pending", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: createOneShotProjectionDeleteFailureStore(rawStore),
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "forget-repair-user",
+      sessionId: "forget-repair-session",
+    };
+    const remembered = await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Remember that Atlas rollout is blocked on Paris approval.",
+        },
+      ],
+    });
+    const memoryId = remembered.events.find(
+      (event) => event.memoryType === "fact",
+    )?.memoryId;
+    expect(memoryId).toBeString();
+
+    await expect(memory.forget({ scope, memoryId })).rejects.toThrow(
+      "projection cleanup is pending",
+    );
+    expect(await rawStore.get("facts", memoryId!)).toBeNull();
+    expect(
+      await rawStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: memoryId,
+      }),
+    ).not.toEqual([]);
+
+    await memory.runMaintenance({ scope, jobs: ["projectionRepair"] });
+
+    expect(
+      await rawStore.query(RECALL_DOCUMENTS_COLLECTION, {
+        sourceMemoryId: memoryId,
+      }),
+    ).toEqual([]);
+  });
+});

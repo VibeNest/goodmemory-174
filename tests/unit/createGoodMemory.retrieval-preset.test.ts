@@ -12,10 +12,10 @@ import { createGoodMemoryHttpMemoryBridge } from "../../src/http";
 
 // End-to-end proof for retrieval.preset "recommended" through the public API:
 // with an embedding adapter injected and NO per-call strategy, the preset's
-// auto→hybrid bias makes the semantic union recover a zero-token-overlap fact.
+// auto→hybrid bias makes generalized fusion recover a zero-token-overlap fact.
 // The same setup without the preset keeps today's auto→rules-only behavior,
-// proving the bias is preset-scoped. Without any embedding the preset throws
-// at construction instead of silently degrading to the lexical floor.
+// proving the bias is preset-scoped. Without an embedding, the preset keeps a
+// provider-free BM25+entity fusion path instead of requiring network access.
 const QUERY = "What helps you relax in the evenings?";
 const GOLD = "Marco goes fishing at the lake to destress.";
 const NOISE = "Quarterly budget numbers were approved.";
@@ -71,7 +71,7 @@ async function seed(memory: ReturnType<typeof createGoodMemory>) {
 }
 
 describe("GoodMemory retrieval.preset recommended", () => {
-  it("fires the semantic union under auto strategy (no per-call strategy)", async () => {
+  it("fires generalized fusion under auto strategy (no per-call strategy)", async () => {
     const memory = buildMemory(true);
     await seed(memory);
 
@@ -82,7 +82,7 @@ describe("GoodMemory retrieval.preset recommended", () => {
     );
     expect(
       result.metadata.candidateTraces.some(
-        (trace) => trace.fallback === "semantic_union" && trace.returned,
+        (trace) => trace.fallback === "generalized_fusion" && trace.returned,
       ),
     ).toBe(true);
     const routing = result.metadata.routingDecision as {
@@ -185,18 +185,50 @@ describe("GoodMemory retrieval.preset recommended", () => {
     ).toEqual([]);
   });
 
-  it("throws at construction without a resolvable embedding", () => {
-    let message = "";
-    try {
-      createGoodMemory({
-        retrieval: { preset: "recommended" },
-        storage: { provider: "memory" },
-      });
-    } catch (error) {
-      message = (error as Error).message;
-    }
-    expect(message).toContain("GOODMEMORY_EMBEDDING_");
-    expect(message).toContain("Ollama");
+  it("runs provider-free with deterministic generalized fusion", async () => {
+    const memory = createGoodMemory({
+      retrieval: { preset: "recommended" },
+      storage: { provider: "memory" },
+    });
+    await memory.remember({
+      annotations: [
+        {
+          confirmed: true,
+          kindHint: "fact",
+          messageIndex: 0,
+          reason: "seed",
+          remember: "always",
+          verified: true,
+        },
+      ],
+      messages: [
+        {
+          content: "Atlas migration moved from Paris to Lisbon.",
+          role: "user",
+        },
+      ],
+      scope,
+    });
+
+    const result = await memory.recall({
+      scope,
+      query: "What changed for Atlas migration?",
+    });
+    expect(result.metadata.routingDecision.strategy).toBe("hybrid");
+    expect(result.metadata.policyApplied).toContain("generalized_fusion");
+    expect(result.facts.some((fact) => fact.content.includes("Lisbon"))).toBe(
+      true,
+    );
+
+    const explicitFloor = await memory.recall({
+      scope,
+      query: "What changed for Atlas migration?",
+      strategy: "rules-only",
+    });
+    expect(explicitFloor.metadata.routingDecision.strategy).toBe("rules-only");
+    expect(explicitFloor.metadata.policyApplied).not.toContain(
+      "generalized_fusion",
+    );
   });
 
   it("rejects the hashed-lexical local adapter", () => {

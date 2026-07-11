@@ -358,7 +358,7 @@ async function loadCaptionCache(input: {
   return cache;
 }
 
-// Real gpt-5.5 captioner. Wrapped by the IO layer in a cache so a TLS outage
+// Provider-backed captioner. Wrapped by the IO layer in a cache so a TLS outage
 // mid-run (the BEAM live-slice hazard) never forces a full re-caption.
 export function createLiveCaptioner(): Captioner {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");

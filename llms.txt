@@ -52,15 +52,12 @@ Pick the one path that matches how you run. Each is self-contained.
    instance `https://goodmemory.vibenest.net` (bring your own bearer token), or
    self-host in one switch:
    ```bash
-   goodmemory-http-bridge --recommended   # semantic-union + BM25; fail-loud without an embedding endpoint
+   goodmemory-http-bridge --recommended   # local BM25 + entity + RRF; embeddings add an optional dense channel
    GOODMEMORY_PROFILE=agent-recommended goodmemory-http-bridge
    ```
-   Python callers: `pip install goodmemory-client`. Recall never silently
-   downgrades — a degraded strategy carries a `routing.warnings` code
-   (`semantic_recall_inactive`) and a `routing.warningMessages` string
-   (`semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET`) instead
-   of quietly returning the lexical floor. `GET /healthz` reports the active
-   `retrievalTier`.
+   Python callers: `pip install goodmemory-client`. The recommended preset works
+   without a provider; `GOODMEMORY_EMBEDDING_*` adds the dense channel.
+   `GET /healthz` reports the active `retrievalTier` and `embeddingEnabled`.
 
 ## Memory API
 

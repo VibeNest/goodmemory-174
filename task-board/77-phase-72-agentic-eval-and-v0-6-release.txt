@@ -16,6 +16,9 @@ the `v0.6.0` release.
 Gate
 ----
 
+- New non-judge LLM calls use `gpt-5.6-terra` through `ai.gurkiai.com`, persist
+  the exact model role and gateway identity, and use a different model for any
+  LLM-judge protocol.
 - Current benchmark thresholds and zero-failure requirements pass; HaluMem
   beats the simple-vector baseline and MemGym coding beats no-memory by 5
   points; typecheck, tests, coverage, Node package smoke, Playwright, and pack

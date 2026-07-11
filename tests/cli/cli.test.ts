@@ -3740,8 +3740,8 @@ describe("goodmemory cli installed host config", () => {
           };
           expect(floorPayload.hosts[0]?.retrievalTier).toBe("rules-only");
 
-          // preset "recommended" without an embedding provider throws inside
-          // the fail-open hooks (silent no-context); doctor must say so.
+          // Provider-free recommended retrieval is a valid deterministic tier;
+          // doctor must not report it as a fail-open configuration.
           await writeConfig({ retrieval: { preset: "recommended" } });
           const doctor = await withCwd(workspace.root, async () =>
             runCLI([
@@ -3756,13 +3756,10 @@ describe("goodmemory cli installed host config", () => {
             hosts: Array<{ warnings: string[] }>;
           };
           expect(
-            doctorPayload.hosts[0]?.warnings.some(
-              (warning) =>
-                warning.includes("retrieval.preset") &&
-                warning.includes("embedding") &&
-                warning.includes("failing open"),
+            doctorPayload.hosts[0]?.warnings.some((warning) =>
+              warning.includes("retrieval.preset"),
             ),
-          ).toBe(true);
+          ).toBe(false);
         },
       );
     } finally {

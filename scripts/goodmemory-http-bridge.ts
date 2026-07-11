@@ -39,13 +39,10 @@ interface GoodMemoryHttpBridgeServeOptions {
   host: string;
   port: number;
   profile: GoodMemoryHttpBridgeProfile;
-  // Opt-in retrieval preset (currently only "recommended"), which enables the
-  // full recall profile — semantic candidate union + BM25 + conversational
-  // extraction — needed to reproduce GoodMemory's public benchmark numbers.
-  // Set it with the `--recommended` one-switch or `--retrieval-preset
-  // recommended`. Requires an embedding endpoint (GOODMEMORY_EMBEDDING_*);
-  // createGoodMemory throws at startup otherwise (fail-loud, not a silent
-  // downgrade), matching the SDK's preset boundary.
+  // Opt-in retrieval preset (currently only "recommended"). It enables local
+  // multi-granular BM25/entity fusion, adds a dense channel when a neural
+  // embedding resolves, and selects conversational extraction when that model
+  // resolves. Set it with `--recommended` or `--retrieval-preset recommended`.
   retrievalPreset?: GoodMemoryRetrievalPresetId;
   token?: string;
 }
@@ -60,11 +57,11 @@ function printHelp(): void {
 Usage:
   goodmemory-http-bridge [--host <host>] [--port <port>] [--profile <default|life-coach>] [--recommended] [--token <token>]
 
-  --recommended        One switch for benchmark-grade recall: enables the
-                       recommended retrieval preset (semantic candidate union +
-                       BM25 + conversational extraction). Requires an embedding
-                       endpoint (GOODMEMORY_EMBEDDING_*) or the bridge refuses to
-                       start. Distinct from \`goodmemory setup --recommended\`,
+  --recommended        Enables multi-granular BM25 + entity + RRF retrieval,
+                       optional dense candidates, and conditional conversational
+                       extraction. Works without an embedding endpoint;
+                       GOODMEMORY_EMBEDDING_* adds the dense channel. Distinct
+                       from \`goodmemory setup --recommended\`,
                        which is the installed-host capture consent flow.
 
 Environment:

@@ -4,7 +4,7 @@ Phase 69: Generalized Retrieval
 Status
 ------
 
-[PENDING PHASE 68]
+[ACTIVE]
 
 Goal
 ----

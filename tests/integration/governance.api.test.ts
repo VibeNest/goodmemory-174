@@ -617,6 +617,11 @@ describe("public governance API", () => {
       scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
       messages: [{ role: "user", content: "Remember that workspace A rollout is blocked." }],
     });
+    const privateMemory = await memory.exportMemory({
+      scope: { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+    });
+    const privateFactId = privateMemory.durable.facts[0]?.id;
+    expect(privateFactId).toBeDefined();
 
     const result = await memory.recall({
       scope: { userId: "u-1", sessionId: "s-1" },
@@ -625,6 +630,11 @@ describe("public governance API", () => {
 
     expect(result.facts).toHaveLength(0);
     expect(result.metadata.policyApplied).toContain("default_scope_guard");
+    expect(
+      result.metadata.candidateTraces.some(
+        ({ memoryId }) => memoryId === privateFactId,
+      ),
+    ).toBe(false);
   });
 
   it("blocks cross-tenant recall by default when tenant is omitted", async () => {

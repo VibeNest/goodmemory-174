@@ -5,18 +5,19 @@ import type {
   GoodMemoryRetrievalPresetId,
   GoodMemorySemanticCandidatesConfig,
 } from "./contracts";
+import type { RecallGeneralizedFusionConfig } from "../recall/engine";
 
 // Pure expansion of retrieval.preset "recommended" (mirrors the
 // remember.preset style: a named string that selects config, resolved in one
-// unit-testable module). The preset reproduces the retrieval+extraction side
-// of the public-claims LoCoMo profile: semantic candidate union topK 16
-// (maxAdditions left unset so the engine derives it from the resolved topK,
-// matching the claims command line exactly), conversational write-time
-// extraction when a model resolves, and an auto→hybrid routing bias. The
-// answer-side abstention prompt in that profile is an application concern and
-// is NOT covered here.
+// unit-testable module). The preset enables provider-free multi-granular
+// lexical/entity fusion, adds a neural dense channel at topK 16 when one
+// resolves, selects conversational write-time extraction when a model resolves,
+// and biases auto routing to hybrid. Answer-side prompting remains an
+// application concern and is not covered here.
 
 export const RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K = 16;
+export const RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES = 8;
+export const RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 10;
 
 // Brand carried by createLocalEmbeddingAdapter(): hashed-lexical vectors are
 // not semantic, so the preset must reject them — structural typing makes a
@@ -27,8 +28,8 @@ export const HASHED_LEXICAL_EMBEDDING_BRAND: unique symbol = Symbol.for(
 
 export interface GoodMemoryRetrievalPresetStatus {
   requested: GoodMemoryRetrievalPresetId;
-  // Literal today: an inactive preset is unconstructible (no-embedding
-  // configs throw). Kept as a field for a possible future degrade policy.
+  // The generalized local channel is always constructible; providers only add
+  // optional channels.
   active: true;
   // Whether the write-time half of the profile engaged: "conversational"
   // (flipped or explicitly set), "kept_existing" (explicit default mode or an
@@ -39,6 +40,7 @@ export interface GoodMemoryRetrievalPresetStatus {
 export interface ResolvedGoodMemoryRetrieval {
   autoStrategyBias?: "hybrid";
   bm25Ranking?: boolean;
+  generalizedFusion?: RecallGeneralizedFusionConfig;
   preset?: GoodMemoryRetrievalPresetStatus;
   semanticCandidates?: GoodMemorySemanticCandidatesConfig;
 }
@@ -74,32 +76,26 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
     };
   }
 
-  if (!input.embeddingEnabled) {
-    throw new Error(
-      [
-        'retrieval.preset "recommended" requires a neural embedding endpoint, but none resolved. Configure one of:',
-        "(1) env: GOODMEMORY_EMBEDDING_PROVIDER=openai, GOODMEMORY_EMBEDDING_MODEL=text-embedding-3-small, GOODMEMORY_EMBEDDING_API_KEY=<key>, plus GOODMEMORY_EMBEDDING_BASE_URL for any OpenAI-compatible endpoint;",
-        "(2) providers.embedding in the createGoodMemory config;",
-        "(3) adapters.embeddingAdapter.",
-        "Zero-egress local option (Ollama): GOODMEMORY_EMBEDDING_BASE_URL=http://localhost:11434/v1, GOODMEMORY_EMBEDDING_MODEL=nomic-embed-text, GOODMEMORY_EMBEDDING_API_KEY=ollama (any placeholder value; see the README section \"Local embedding endpoint (Ollama)\").",
-        "Remove retrieval.preset to keep the zero-dependency rules-only default.",
-      ].join("\n"),
-    );
-  }
-
   const embeddingAdapter = input.adapters?.embeddingAdapter as
     | (Record<PropertyKey, unknown> & { embed: unknown })
     | undefined;
   if (embeddingAdapter?.[HASHED_LEXICAL_EMBEDDING_BRAND] === true) {
     throw new Error(
-      'retrieval.preset "recommended" requires neural semantic embeddings; createLocalEmbeddingAdapter() produces hashed-lexical vectors, not semantic ones, and cannot reproduce the recommended profile. Configure a neural embedding endpoint (GOODMEMORY_EMBEDDING_* or providers.embedding — see the README Ollama recipe for a local zero-egress option), or remove retrieval.preset.',
+      'retrieval.preset "recommended" accepts either no embedding adapter or a neural semantic adapter; createLocalEmbeddingAdapter() produces hashed-lexical vectors and would duplicate the preset\'s lexical channel as fake dense evidence. Remove that adapter, configure a neural endpoint (GOODMEMORY_EMBEDDING_* or providers.embedding), or remove retrieval.preset.',
     );
   }
 
   const userCandidates = input.retrieval.semanticCandidates;
-  const semanticCandidates: GoodMemorySemanticCandidatesConfig = {
-    ...userCandidates,
-    topK: userCandidates?.topK ?? RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
+  const semanticCandidates: GoodMemorySemanticCandidatesConfig | undefined =
+    input.embeddingEnabled
+      ? {
+          ...userCandidates,
+          topK: userCandidates?.topK ?? RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
+        }
+      : userCandidates;
+  const generalizedFusion: RecallGeneralizedFusionConfig = {
+    maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+    maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
   };
 
   let extractionMode = baselineExtractionMode;
@@ -122,6 +118,7 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
     retrieval: {
       autoStrategyBias: "hybrid",
       bm25Ranking: input.retrieval.bm25Ranking,
+      generalizedFusion,
       preset: {
         active: true,
         extraction: extractionStatus,

@@ -48,6 +48,7 @@ export function evaluatePhase68GeneralizationGate(input: {
   baseline: Phase68BaselineInput;
   packageFiles: string[];
   productionRecallFiles: string[];
+  productionRecallSources: Record<string, string>;
   productionSelectionSource: string;
 }): { checks: Phase68GateCheck[]; passed: boolean } {
   const gateIds = input.audit.verdicts.map(({ gateId }) => gateId);
@@ -82,12 +83,12 @@ export function evaluatePhase68GeneralizationGate(input: {
     "factSelection/contracts.ts",
     "factSelection/draft.ts",
     "factSelection/entityUnion.ts",
+    "factSelection/generalizedFusionUnion.ts",
     "factSelection/semanticUnion.ts",
   ]);
   const allowedSelectorFiles = new Set([
     "selectors/recordSelection.ts",
     "selectors/selectionContext.ts",
-    "selectors/sourceEnvelope.ts",
     "selectors/temporal.ts",
     "selectors/topic.ts",
   ]);
@@ -103,8 +104,18 @@ export function evaluatePhase68GeneralizationGate(input: {
       "narrowGates.ts",
       "selectionLegacy.ts",
       "selectionRunContext.ts",
-    ].includes(normalized);
+      ].includes(normalized);
   });
+  const productionSourcePaths = Object.keys(input.productionRecallSources).sort();
+  const productionRecallPaths = [...input.productionRecallFiles].sort();
+  const productionSourcesAreGeneric =
+    productionSourcePaths.length === productionRecallPaths.length &&
+    productionSourcePaths.every(
+      (path, index) => path === productionRecallPaths[index],
+    ) &&
+    Object.values(input.productionRecallSources).every(
+      (source) => !/\bBEAM\b|\bexternal_benchmark\b/u.test(source),
+    );
   const checks: Phase68GateCheck[] = [
     {
       detail: "The merged audit must classify all 148 registered fitted gates.",
@@ -151,6 +162,11 @@ export function evaluatePhase68GeneralizationGate(input: {
       passed: fittedSourceIsolated,
     },
     {
+      detail: "Every production recall source must be scanned and contain no fitted benchmark identity.",
+      key: "production-source-literal-isolation",
+      passed: productionSourcesAreGeneric,
+    },
+    {
       detail: "The generalized BEAM 100K baseline must cover all 400 questions with zero failures.",
       key: "generalized-baseline-complete",
       passed:
@@ -188,6 +204,20 @@ async function listTypeScriptFiles(
   return files;
 }
 
+async function readTypeScriptSources(
+  directory: string,
+  paths: readonly string[],
+): Promise<Record<string, string>> {
+  return Object.fromEntries(
+    await Promise.all(
+      paths.map(async (path) => [
+        path,
+        await readFile(join(directory, path), "utf8"),
+      ] as const),
+    ),
+  );
+}
+
 async function main(argv: readonly string[]): Promise<void> {
   const root = resolveRepoRootFromScriptUrl(import.meta.url);
   const auditPath = resolveCliFlagValueStrict(argv, "--audit") ??
@@ -213,11 +243,19 @@ async function main(argv: readonly string[]): Promise<void> {
     join(root, "src/recall/selection.ts"),
     "utf8",
   );
+  const productionRecallDirectory = join(root, "src/recall");
+  const productionRecallFiles = await listTypeScriptFiles(
+    productionRecallDirectory,
+  );
   const result = evaluatePhase68GeneralizationGate({
     audit,
     baseline,
     packageFiles: packageJson.files ?? [],
-    productionRecallFiles: await listTypeScriptFiles(join(root, "src/recall")),
+    productionRecallFiles,
+    productionRecallSources: await readTypeScriptSources(
+      productionRecallDirectory,
+      productionRecallFiles,
+    ),
     productionSelectionSource,
   });
   const artifact = {

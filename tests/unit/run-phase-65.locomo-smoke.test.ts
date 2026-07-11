@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import type { GoodMemory } from "../../src/api/contracts";
 import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { LocomoCase } from "../../src/eval/locomo";
 import { assertLocomoReportQuestionCountMatchesCases } from "../../scripts/locomo-report-compatibility";
@@ -78,12 +79,15 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "/tmp/out",
         "--limit",
         "2",
+        "--label-free-ingest",
       ]),
     ).toEqual({
       allowCommonsenseResolution: false,
       answerFromRecalled: false,
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
+      generalizedFusion: false,
+      labelFreeIngest: true,
       caseIds: undefined,
       conversationalExtraction: false,
       corefNormalize: false,
@@ -1759,6 +1763,38 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     });
   });
 
+  it("uses provider-free recommended retrieval for generalized fusion", () => {
+    const snapshot = {
+      GOODMEMORY_EMBEDDING_API_KEY: process.env.GOODMEMORY_EMBEDDING_API_KEY,
+      GOODMEMORY_EMBEDDING_BASE_URL: process.env.GOODMEMORY_EMBEDDING_BASE_URL,
+      GOODMEMORY_EMBEDDING_MODEL: process.env.GOODMEMORY_EMBEDDING_MODEL,
+      GOODMEMORY_EMBEDDING_PROVIDER: process.env.GOODMEMORY_EMBEDDING_PROVIDER,
+    };
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "should-not-be-read";
+    process.env.GOODMEMORY_EMBEDDING_BASE_URL = "https://example.invalid/v1";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "should-not-be-read";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+
+    try {
+      const memory = createLocomoSmokeMemory({ generalizedFusion: true });
+      expect(inspectGoodMemoryRuntime(memory)).toMatchObject({
+        embeddingEnabled: false,
+        retrievalPreset: {
+          active: true,
+          requested: "recommended",
+        },
+      });
+    } finally {
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  });
+
   it("uses the bounded provider embedding adapter when a timeout is configured", () => {
     const memory = createLocomoSmokeMemory({
       providerEmbedding: true,
@@ -2785,6 +2821,24 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(report.questionCount).toBeGreaterThan(0);
   });
 
+  it("runs the synthetic smoke with provider-free generalized fusion", async () => {
+    const report = await runLocomoSmoke(
+      {
+        generalizedFusion: true,
+        outputDir: "/tmp/locomo-out",
+        runId: "run-locomo-generalized-fusion",
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.generalizedFusion).toBe(true);
+    expect(report.profilesCompared).toEqual(["goodmemory-recommended"]);
+    expect(report.executionFailures).toBe(0);
+  });
+
   it("defaults bm25Ranking to false (rules-only floor)", async () => {
     const report = await runLocomoSmoke(
       { runId: "run-locomo-default-bm25", outputDir: "/tmp/locomo-out" },
@@ -2794,6 +2848,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       },
     );
     expect(report.bm25Ranking).toBe(false);
+    expect(report.generalizedFusion).toBe(false);
     expect(report.semanticCandidates.enabled).toBe(false);
   });
 
@@ -2935,6 +2990,33 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       }),
     );
     expect(retrieved).toContain("D1:2");
+  });
+
+  it("seeds label-free turns without the external-benchmark category", async () => {
+    let rememberInput: Parameters<GoodMemory["remember"]>[0] | undefined;
+    const memory = {
+      async remember(input: Parameters<GoodMemory["remember"]>[0]) {
+        rememberInput = input;
+      },
+    } as unknown as GoodMemory;
+    const testCase = (
+      await loadLocomoCases({ readFile: async () => "" })
+    ).cases[0]!;
+    await seedLocomoCase({
+      labelFreeIngest: true,
+      memory,
+      runId: "label-free",
+      testCase,
+    });
+
+    expect(rememberInput?.annotations).not.toBeUndefined();
+    expect(
+      rememberInput?.annotations?.every(
+        (annotation) =>
+          annotation.metadataPatch?.category !== "external_benchmark" &&
+          !annotation.metadataPatch?.tags?.includes("locomo"),
+      ),
+    ).toBe(true);
   });
 
   it("smart fusion drops conversational facts that merely echo their raw turn", async () => {

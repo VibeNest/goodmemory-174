@@ -1,5 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { GoodMemory, RecallResult } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import type { MessageAnnotation } from "../remember/candidates";
@@ -25,10 +27,11 @@ const LONGMEMEVAL_ASSISTANT_ANCHORED_FACT_LIMIT = 40;
 
 export type LongMemEvalProfile = (typeof LONGMEMEVAL_PROFILES)[number];
 export type LongMemEvalMode = "smoke" | "full";
-export type LongMemEvalRecallDiagnosticProfile = Extract<
-  LongMemEvalProfile,
-  "goodmemory-hybrid" | "goodmemory-rules-only"
->;
+export type LongMemEvalIngestMode = "historical-annotated" | "label-free-raw";
+export type LongMemEvalRecallDiagnosticProfile =
+  | "goodmemory-hybrid"
+  | "goodmemory-recommended"
+  | "goodmemory-rules-only";
 
 export interface LongMemEvalTurn {
   content: string;
@@ -96,9 +99,11 @@ export interface LongMemEvalProfileReport {
 }
 
 export interface LongMemEvalReport {
+  benchmarkFingerprint?: string;
   benchmarkRoot: string;
   generatedAt: string;
   generatedBy: string;
+  ingestMode?: LongMemEvalIngestMode;
   mode: LongMemEvalMode;
   outputDir: string;
   phase: "phase-62";
@@ -123,6 +128,7 @@ export interface RunLongMemEvalOptions {
   benchmarkRoot: string;
   caseIds?: readonly string[];
   generatedBy: string;
+  ingestMode?: LongMemEvalIngestMode;
   limit?: number;
   maxConcurrency?: number;
   mode: LongMemEvalMode;
@@ -138,6 +144,7 @@ export interface RunLongMemEvalRecallDiagnosticOptions {
   benchmarkRoot: string;
   caseIds?: readonly string[];
   generatedBy: string;
+  ingestMode?: LongMemEvalIngestMode;
   limit?: number;
   maxConcurrency?: number;
   mode: LongMemEvalMode;
@@ -145,6 +152,7 @@ export interface RunLongMemEvalRecallDiagnosticOptions {
   outputDir: string;
   profile: LongMemEvalRecallDiagnosticProfile;
   questionTypes?: readonly string[];
+  resume?: boolean;
   runId?: string;
 }
 
@@ -183,17 +191,19 @@ export type LongMemEvalAnswerJudge = (
 ) => Promise<LongMemEvalAnswerJudgeResult>;
 
 export type LongMemEvalMemoryContextBuilder = (input: {
-  profile: Extract<LongMemEvalProfile, "goodmemory-hybrid" | "goodmemory-rules-only">;
+  profile: LongMemEvalRecallDiagnosticProfile;
   testCase: LongMemEvalCase;
 }) => Promise<LongMemEvalMemoryContext>;
 
 export interface LongMemEvalGoodMemoryContextBuilderInput {
-  createMemory: (profile: Extract<LongMemEvalProfile, "goodmemory-hybrid" | "goodmemory-rules-only">) => GoodMemory;
+  createMemory: (profile: LongMemEvalRecallDiagnosticProfile) => GoodMemory;
+  ingestMode?: LongMemEvalIngestMode;
   maxTokens?: number;
   runId?: string;
 }
 
 export interface LongMemEvalIO {
+  appendFile?: (path: string, value: string) => Promise<void>;
   answerGenerator?: LongMemEvalAnswerGenerator;
   answerJudge?: LongMemEvalAnswerJudge;
   mkdir?: typeof mkdir;
@@ -236,10 +246,12 @@ export interface LongMemEvalRecallDiagnosticSummary
 
 export interface LongMemEvalRecallDiagnosticReport {
   benchmarkRoot: string;
+  benchmarkFingerprint?: string;
   cases: LongMemEvalRecallDiagnosticCaseResult[];
   caveat: string;
   generatedAt: string;
   generatedBy: string;
+  ingestMode?: LongMemEvalIngestMode;
   mode: "recall-only-diagnostic";
   outputDir: string;
   phase: "phase-62";
@@ -3229,6 +3241,40 @@ function buildLongMemEvalRememberPayload(input: {
   };
 }
 
+export function buildLabelFreeLongMemEvalRememberPayload(input: {
+  date: string;
+  session: readonly LongMemEvalTurn[];
+  sessionId: string;
+}): {
+  annotations: MessageAnnotation[];
+  messages: Array<{ content: string; role: string }>;
+} {
+  const messages = input.session.map((turn) =>
+    formatRememberTurn({
+      date: input.date,
+      sessionId: input.sessionId,
+      turn,
+    }),
+  );
+  return {
+    annotations: messages.map((_, messageIndex) => ({
+      confirmed: true,
+      kindHint: "fact",
+      messageIndex,
+      metadataPatch: {
+        attributes: {
+          sourceDate: input.date,
+          sourceSessionId: input.sessionId,
+        },
+      },
+      reason: "Preserve the raw source turn for retrieval evaluation.",
+      remember: "always",
+      verified: true,
+    })),
+    messages,
+  };
+}
+
 function cleanExtractedValue(value: string): string {
   return value
     .replace(/\s+/g, " ")
@@ -4086,7 +4132,8 @@ export function createLongMemEvalGoodMemoryContextBuilder(
     const memory = input.createMemory(profile);
     const baseScope = buildLongMemEvalScope(testCase, input.runId);
     const extractionStrategy = "rules-only";
-    const recallStrategy = profile === "goodmemory-hybrid" ? "hybrid" : "rules-only";
+    const recallStrategy =
+      profile === "goodmemory-rules-only" ? "rules-only" : "hybrid";
     const evidenceBySessionId = new Map<
       string,
       LongMemEvalSupplementalEvidence[]
@@ -4095,20 +4142,25 @@ export function createLongMemEvalGoodMemoryContextBuilder(
     for (const [index, session] of testCase.haystackSessions.entries()) {
       const sessionId = testCase.haystackSessionIds[index] ?? `session-${index + 1}`;
       const date = testCase.haystackDates[index] ?? "unknown-date";
-      const payload = buildLongMemEvalRememberPayload({
-        date,
-        isAnswerSession: testCase.answerSessionIds.includes(sessionId),
-        session,
-        sessionId,
-      });
-      evidenceBySessionId.set(
-        sessionId,
-        collectLongMemEvalSupplementalEvidence({
-          annotations: payload.annotations,
-          messages: payload.messages,
+      const labelFree = input.ingestMode === "label-free-raw";
+      const payload = labelFree
+        ? buildLabelFreeLongMemEvalRememberPayload({ date, session, sessionId })
+        : buildLongMemEvalRememberPayload({
+            date,
+            isAnswerSession: testCase.answerSessionIds.includes(sessionId),
+            session,
+            sessionId,
+          });
+      if (!labelFree) {
+        evidenceBySessionId.set(
           sessionId,
-        }),
-      );
+          collectLongMemEvalSupplementalEvidence({
+            annotations: payload.annotations,
+            messages: payload.messages,
+            sessionId,
+          }),
+        );
+      }
       await memory.remember({
         annotations: payload.annotations,
         extractionStrategy,
@@ -4137,6 +4189,9 @@ export function createLongMemEvalGoodMemoryContextBuilder(
         testCase,
       }),
     );
+    if (input.ingestMode === "label-free-raw") {
+      return { content: context.content, retrievedSessionIds };
+    }
     const supplementalEvidenceLines = selectLongMemEvalSupplementalEvidence({
       context: context.content,
       evidenceBySessionId,
@@ -4592,6 +4647,7 @@ async function mapWithConcurrency<TInput, TOutput>(input: {
   items: readonly TInput[];
   limit: number;
   map: (item: TInput) => Promise<TOutput>;
+  onResult?: (result: TOutput, index: number) => Promise<void>;
 }): Promise<TOutput[]> {
   const results = new Array<TOutput>(input.items.length);
   let cursor = 0;
@@ -4600,7 +4656,9 @@ async function mapWithConcurrency<TInput, TOutput>(input: {
     while (cursor < input.items.length) {
       const index = cursor;
       cursor += 1;
-      results[index] = await input.map(input.items[index]!);
+      const result = await input.map(input.items[index]!);
+      results[index] = result;
+      await input.onResult?.(result, index);
     }
   };
 
@@ -4611,6 +4669,140 @@ async function mapWithConcurrency<TInput, TOutput>(input: {
     ),
   );
 
+  return results;
+}
+
+interface LongMemEvalRecallProgressIdentity {
+  benchmarkFingerprint: string;
+  benchmarkRoot: string;
+  generatedBy: string;
+  ingestMode: LongMemEvalIngestMode;
+  profile: LongMemEvalRecallDiagnosticProfile;
+  questionIds: string[];
+  schemaVersion: 1;
+}
+
+function completeJsonlPrefix(raw: string): string {
+  if (!raw || raw.endsWith("\n")) {
+    return raw;
+  }
+  const finalNewline = raw.lastIndexOf("\n");
+  return finalNewline < 0 ? "" : raw.slice(0, finalNewline + 1);
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return isRecord(error) && error.code === "ENOENT";
+}
+
+async function readOptionalText(
+  path: string,
+  read: (path: string) => Promise<string>,
+): Promise<string | null> {
+  try {
+    return await read(path);
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function parseRecallDiagnosticProgress(input: {
+  raw: string;
+  testCases: readonly LongMemEvalCase[];
+}): Map<string, LongMemEvalRecallDiagnosticCaseResult> {
+  const testCasesById = new Map(
+    input.testCases.map((testCase) => [testCase.questionId, testCase]),
+  );
+  const lines = input.raw.split("\n");
+  if (!input.raw.endsWith("\n")) {
+    lines.pop();
+  }
+  const results = new Map<string, LongMemEvalRecallDiagnosticCaseResult>();
+  for (const [index, line] of lines.entries()) {
+    if (!line.trim()) {
+      continue;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(line) as unknown;
+    } catch (error) {
+      throw new Error(
+        `LongMemEval recall progress line ${index + 1} is invalid JSON: ${summarizeExecutionError(error)}`,
+      );
+    }
+    if (!isRecord(parsed)) {
+      throw new Error(
+        `LongMemEval recall progress line ${index + 1} must be an object`,
+      );
+    }
+    const questionId = readRequiredString(parsed, "questionId");
+    const testCase = testCasesById.get(questionId);
+    if (!testCase) {
+      throw new Error(
+        `LongMemEval recall progress contains out-of-scope question ${questionId}`,
+      );
+    }
+    if (results.has(questionId)) {
+      throw new Error(
+        `LongMemEval recall progress contains duplicate question ${questionId}`,
+      );
+    }
+    const contextChars = parsed.contextChars;
+    if (
+      typeof contextChars !== "number" ||
+      !Number.isInteger(contextChars) ||
+      contextChars < 0
+    ) {
+      throw new Error(
+        `LongMemEval recall progress ${questionId} has invalid contextChars`,
+      );
+    }
+    const retrievedSessionIds = readStringArray(parsed, "retrievedSessionIds");
+    if (new Set(retrievedSessionIds).size !== retrievedSessionIds.length) {
+      throw new Error(
+        `LongMemEval recall progress ${questionId} has duplicate retrieved session ids`,
+      );
+    }
+    let executionError:
+      | LongMemEvalRecallDiagnosticCaseResult["executionError"]
+      | undefined;
+    if (parsed.executionError !== undefined) {
+      if (
+        !isRecord(parsed.executionError) ||
+        parsed.executionError.stage !== "memory_context"
+      ) {
+        throw new Error(
+          `LongMemEval recall progress ${questionId} has invalid executionError`,
+        );
+      }
+      executionError = {
+        message: readRequiredString(parsed.executionError, "message"),
+        stage: "memory_context",
+      };
+    }
+    const wrongRecallSessionIds = calculateWrongRecallSessionIds({
+      answerSessionIds: testCase.answerSessionIds,
+      retrievedSessionIds,
+    });
+    results.set(questionId, {
+      answerSessionIds: [...testCase.answerSessionIds],
+      contextChars,
+      evidenceSessionRecall: calculateEvidenceSessionRecall({
+        retrievedSessionIds,
+        testCase,
+      }),
+      ...(executionError ? { executionError } : {}),
+      question: testCase.question,
+      questionId,
+      questionType: testCase.questionType,
+      retrievedSessionCount: retrievedSessionIds.length,
+      retrievedSessionIds,
+      wrongRecall: wrongRecallSessionIds.length > 0,
+      wrongRecallSessionIds,
+    });
+  }
   return results;
 }
 
@@ -4667,6 +4859,9 @@ export async function runLongMemEvalSuite(
     questionTypes: options.questionTypes,
     testCases: validateLongMemEvalCases(rawCases),
   });
+  const benchmarkFingerprint = createHash("sha256")
+    .update(JSON.stringify(rawCases))
+    .digest("hex");
   const profileReports: Partial<Record<LongMemEvalProfile, LongMemEvalProfileReport>> = {};
   const maxConcurrency =
     options.mode === "full" ? options.maxConcurrency ?? 1 : testCases.length;
@@ -4696,9 +4891,11 @@ export async function runLongMemEvalSuite(
   }
 
   const report: LongMemEvalReport = {
+    benchmarkFingerprint,
     benchmarkRoot: options.benchmarkRoot,
     generatedAt: now().toISOString(),
     generatedBy: options.generatedBy,
+    ingestMode: options.ingestMode ?? "historical-annotated",
     mode: options.mode,
     outputDir: options.outputDir,
     phase: "phase-62",
@@ -4755,6 +4952,9 @@ export async function runLongMemEvalRecallDiagnostic(
     mode: options.mode,
     readFile: readFileImpl,
   });
+  const benchmarkFingerprint = createHash("sha256")
+    .update(JSON.stringify(rawCases))
+    .digest("hex");
   const testCases = selectLongMemEvalCases({
     caseIds: options.caseIds,
     limit: options.limit,
@@ -4762,8 +4962,73 @@ export async function runLongMemEvalRecallDiagnostic(
     questionTypes: options.questionTypes,
     testCases: validateLongMemEvalCases(rawCases),
   });
-  const cases = await mapWithConcurrency({
-    items: testCases,
+  const identity: LongMemEvalRecallProgressIdentity = {
+    benchmarkFingerprint,
+    benchmarkRoot: options.benchmarkRoot,
+    generatedBy: options.generatedBy,
+    ingestMode: options.ingestMode ?? "historical-annotated",
+    profile: options.profile,
+    questionIds: testCases.map((testCase) => testCase.questionId),
+    schemaVersion: 1,
+  };
+  const identityPath = join(runDirectory, "run-identity.json");
+  const progressPath = join(runDirectory, "progress.jsonl");
+  await mkdirImpl(runDirectory, { recursive: true });
+  let progressRaw = "";
+  let cached = new Map<string, LongMemEvalRecallDiagnosticCaseResult>();
+  if (options.resume) {
+    const [identityRaw, existingProgress] = await Promise.all([
+      readOptionalText(identityPath, readFileImpl),
+      readOptionalText(progressPath, readFileImpl),
+    ]);
+    if ((identityRaw === null) !== (existingProgress === null)) {
+      throw new Error(
+        "LongMemEval recall resume requires both run-identity.json and progress.jsonl",
+      );
+    }
+    if (identityRaw !== null && existingProgress !== null) {
+      let existingIdentity: unknown;
+      try {
+        existingIdentity = JSON.parse(identityRaw) as unknown;
+      } catch (error) {
+        throw new Error(
+          `LongMemEval recall progress identity is invalid JSON: ${summarizeExecutionError(error)}`,
+        );
+      }
+      if (!isDeepStrictEqual(existingIdentity, identity)) {
+        throw new Error(
+          "LongMemEval recall progress identity does not match the requested run",
+        );
+      }
+      progressRaw = completeJsonlPrefix(existingProgress);
+      if (progressRaw !== existingProgress) {
+        await writeFileImpl(progressPath, progressRaw);
+      }
+      cached = parseRecallDiagnosticProgress({
+        raw: progressRaw,
+        testCases,
+      });
+    }
+  }
+  if (!options.resume || (cached.size === 0 && progressRaw.length === 0)) {
+    await writeFileImpl(identityPath, `${JSON.stringify(identity, null, 2)}\n`);
+    await writeFileImpl(progressPath, "");
+    progressRaw = "";
+  }
+  const appendProgress = io.appendFile
+    ? io.appendFile
+    : io.writeFile
+      ? async (path: string, value: string) => {
+          progressRaw += value;
+          await writeFileImpl(path, progressRaw);
+        }
+      : (path: string, value: string) => appendFile(path, value);
+  let progressWrite = Promise.resolve();
+  const pendingCases = testCases.filter(
+    (testCase) => !cached.has(testCase.questionId),
+  );
+  const freshCases = await mapWithConcurrency({
+    items: pendingCases,
     limit: options.maxConcurrency ?? 1,
     map: (testCase) =>
       scoreRecallDiagnosticCase({
@@ -4771,15 +5036,27 @@ export async function runLongMemEvalRecallDiagnostic(
         profile: options.profile,
         testCase,
       }),
+    onResult: async (result) => {
+      progressWrite = progressWrite.then(() =>
+        appendProgress(progressPath, `${JSON.stringify(result)}\n`),
+      );
+      await progressWrite;
+    },
   });
+  for (const result of freshCases) {
+    cached.set(result.questionId, result);
+  }
+  const cases = testCases.map((testCase) => cached.get(testCase.questionId)!);
 
   const report: LongMemEvalRecallDiagnosticReport = {
+    benchmarkFingerprint,
     benchmarkRoot: options.benchmarkRoot,
     cases,
     caveat:
       "Recall-only diagnostic measures whether GoodMemory retrieved the LongMemEval evidence sessions before answer generation. It is not an end-to-end answer accuracy score.",
     generatedAt: now().toISOString(),
     generatedBy: options.generatedBy,
+    ingestMode: options.ingestMode ?? "historical-annotated",
     mode: "recall-only-diagnostic",
     outputDir: options.outputDir,
     phase: "phase-62",
@@ -4794,7 +5071,6 @@ export async function runLongMemEvalRecallDiagnostic(
     summary: summarizeRecallDiagnostic(cases),
   };
 
-  await mkdirImpl(runDirectory, { recursive: true });
   await writeFileImpl(
     join(runDirectory, "recall-diagnostic.json"),
     `${JSON.stringify(report, null, 2)}\n`,

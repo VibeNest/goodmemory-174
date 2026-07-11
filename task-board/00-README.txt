@@ -58,7 +58,9 @@ Current Transition
   fitted selector graph; that graph is available only through the repo-local
   legacy eval profile. The accepted gate records the full gate audit, honest
   generalized baseline, package isolation, and current comparison provenance.
-  Phase 69 remains pending until the Phase 68 commit is pushed.
+- Phase 69 is active on the pushed Phase 68 boundary. It owns versioned recall,
+  entity, and scope projections plus generalized multi-channel fusion and
+  adaptive noise budgets.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and a promoted public claim scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates.

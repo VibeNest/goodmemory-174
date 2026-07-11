@@ -11,7 +11,10 @@ import {
 import { createGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemory } from "../src/api/contracts";
 import { assertCliPathSegmentValue } from "./cli-options";
-import { createLongMemEvalMemoryFactory } from "./run-phase-62-eval";
+import {
+  createHermeticLongMemEvalMemory,
+  createLongMemEvalMemoryFactory,
+} from "./run-phase-62-eval";
 import type { Phase62CliOptions } from "./run-phase-62-shared";
 import {
   parsePhase62CliOptions,
@@ -72,12 +75,16 @@ function resolveRecallDiagnosticProfile(
   }
 
   const profile = profiles[0];
-  if (profile === "goodmemory-rules-only" || profile === "goodmemory-hybrid") {
+  if (
+    profile === "goodmemory-rules-only" ||
+    profile === "goodmemory-hybrid" ||
+    profile === "goodmemory-recommended"
+  ) {
     return profile;
   }
 
   throw new Error(
-    "Phase 62 recall-only diagnostic profile must be goodmemory-rules-only or goodmemory-hybrid.",
+    "Phase 62 recall-only diagnostic profile must be goodmemory-rules-only, goodmemory-recommended, or goodmemory-hybrid.",
   );
 }
 
@@ -135,6 +142,9 @@ export function buildPhase62RecallDiagnosticOptions(
       ? undefined
       : (options.caseIds ?? PHASE62_TYPE_BALANCED_CASE_IDS),
     generatedBy: GENERATED_BY,
+    ingestMode: options.labelFreeIngest
+      ? "label-free-raw"
+      : "historical-annotated",
     limit: options.limit,
     maxConcurrency: options.maxConcurrency ?? 1,
     mode: "full",
@@ -142,6 +152,7 @@ export function buildPhase62RecallDiagnosticOptions(
     outputDir: options.outputDir ?? resolvePhase62OutputDir(root),
     profile,
     questionTypes: options.questionTypes,
+    resume: options.resume,
     runId,
   };
 }
@@ -166,13 +177,16 @@ export async function runPhase62LongMemEvalRecallDiagnostic(
       profile: runOptions.profile,
     });
 
-    const createMemory = dependencies.createMemory ?? createGoodMemory;
+    const createMemory =
+      dependencies.createMemory ?? createHermeticLongMemEvalMemory;
     const createProfileMemory = createLongMemEvalMemoryFactory(
       createMemory,
+      { runNamespace: runOptions.runId },
     ) as (profile: LongMemEvalRecallDiagnosticProfile) => GoodMemory;
     return runDiagnostic(runOptions, {
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
         createMemory: createProfileMemory,
+        ingestMode: runOptions.ingestMode,
         runId: runOptions.runId,
       }),
     });

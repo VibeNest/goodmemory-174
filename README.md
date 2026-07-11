@@ -614,18 +614,17 @@ For server integrations, start with the thin examples:
 For Python/FastAPI backends, use the packaged `goodmemory-http-bridge` path
 described below.
 
-## Opt-In Recall Tuning: Recommended Preset, Multi-Hop, Local Embeddings, And Conversational Extraction
+## Opt-In Recall Tuning: Generalized Fusion, Multi-Hop, Optional Embeddings, And Conversational Extraction
 
 The knobs below are optional and conservative by design. Default recall is
 single-pass and rules-only, and default extraction is unchanged; nothing happens
-unless you opt in. The recommended preset is the one knob with a hard
-requirement: it refuses to construct without a neural embedding endpoint
-instead of silently degrading.
+unless you opt in. The recommended preset has a provider-free local path;
+embedding and extraction providers add optional channels but are not required.
 
 ### One-flag recommended retrieval preset
 
-`retrieval.preset: "recommended"` enables the retrieval+extraction side of the
-profile behind the public LoCoMo claim with one flag:
+`retrieval.preset: "recommended"` enables generalized retrieval and conditional
+conversational extraction with one flag:
 
 ```ts
 const memory = createGoodMemory({
@@ -633,42 +632,44 @@ const memory = createGoodMemory({
 });
 ```
 
-When active it (a) enables the semantic candidate-generation union at
-`topK: 16` (the engine derives the noise budget from it), (b) biases `auto`
-recall routing to hybrid so the union fires without a per-call
-`strategy: "hybrid"` (an explicit per-call strategy still wins), and (c) flips
-assisted extraction to `mode: "conversational"` — only when an extraction
-model already resolves (provider config or `GOODMEMORY_ASSISTED_EXTRACTOR_*`
-env) and `mode` was not set explicitly; it never injects a provider. Explicit
-config fields always win over the preset, and leaving `preset` unset keeps the
-zero-dependency default byte-identical.
+When active it (a) indexes memory-, field-, and sentence-granularity recall
+documents, (b) fuses BM25, direct entity adjacency, and any available neural
+dense candidates with RRF, (c) applies a bounded dynamic candidate budget, and
+(d) biases `auto` recall routing to hybrid. An explicit per-call strategy still
+wins, including `strategy: "rules-only"`, which bypasses generalized fusion.
+When a neural embedding resolves, it contributes a dense `topK: 16` channel;
+without one, retrieval stays local, deterministic, and zero-network. The preset
+also flips assisted extraction to `mode: "conversational"` only when an
+extraction model already resolves and no explicit mode was set. It never
+injects a provider. Leaving `preset` unset preserves the existing rules-only
+default.
 
 Requirements and boundaries:
 
-- A neural embedding endpoint must resolve (`GOODMEMORY_EMBEDDING_*`,
-  `providers.embedding`, or `adapters.embeddingAdapter`) — otherwise
-  `createGoodMemory` throws with setup instructions. The zero-egress local
-  path is the Ollama recipe below. `createLocalEmbeddingAdapter()` is
-  rejected: hashed-lexical vectors are not semantic.
+- No provider is required. A neural embedding endpoint
+  (`GOODMEMORY_EMBEDDING_*`, `providers.embedding`, or
+  `adapters.embeddingAdapter`) adds the optional dense channel. The zero-egress
+  neural path is the Ollama recipe below.
+- `createLocalEmbeddingAdapter()` is rejected when paired with the preset:
+  hashed-lexical vectors would duplicate lexical evidence while pretending to
+  be a dense semantic channel.
 - Check `inspectGoodMemoryRuntime(memory).retrievalPreset` — its `extraction`
   field reports whether the write-time half engaged (`"conversational"`) or an
   extractor was unavailable/kept as-is.
-- The preset covers library configuration only. The LoCoMo claim additionally
-  used an answer-side abstention-format prompt, which belongs to the
-  application's answer step, and the LongMemEval public claim uses the
-  rules-only profile — unchanged by this preset.
-- Pairing it with `bm25Ranking: true` swaps the additive ranking slot from the
-  neural score to BM25 and deviates from the claims profile; the preset never
-  sets it.
+- The preset covers memory retrieval and conditional extraction only.
+  Answer-side prompting and abstention policy remain application concerns.
+- Do not pair it with `bm25Ranking: true` unless you intentionally want the
+  separate legacy additive BM25 slot; generalized fusion already has a BM25
+  channel.
 - If you use env-resolved extraction and adopt the preset, write-time output
   becomes conversational atomic claims; the escape hatch is an explicit
   `providers.extraction` object with `mode: "default"`.
 
-### Local embedding endpoint (Ollama)
+### Optional local embedding endpoint (Ollama)
 
-The recommended preset needs a neural embedding endpoint, but that does not
-require data egress: `GOODMEMORY_EMBEDDING_BASE_URL` accepts any
-OpenAI-compatible `/v1/embeddings` endpoint, including a local Ollama server.
+The recommended preset works without embeddings. To add a zero-egress neural
+dense channel, `GOODMEMORY_EMBEDDING_BASE_URL` accepts any OpenAI-compatible
+`/v1/embeddings` endpoint, including a local Ollama server.
 
 ```bash
 ollama pull nomic-embed-text        # or bge-m3 for stronger multilingual recall
@@ -758,7 +759,7 @@ const memory = createGoodMemory({
   providers: {
     extraction: {
       provider: "openai",
-      model: "gpt-5.5",
+      model: "gpt-5.6-terra",
       apiKey: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY!,
       baseURL: process.env.GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL,
       mode: "conversational",
@@ -798,7 +799,9 @@ user's manager?" vs. "yeah my boss Dana signed off").
   as unavailable rather than mislabeled durable.
 - Injected `documentStore`, `sessionStore`, or `vectorStore` adapters are
   reported as adapter-defined storage.
-- Without `GOODMEMORY_EMBEDDING_*`, runtime behavior remains `rules-only`.
+- Without a retrieval preset, runtime behavior remains `rules-only` regardless
+  of embedding configuration. The `recommended` preset routes `auto` to its
+  provider-free hybrid fusion path and adds dense evidence when configured.
 - Supported local runtimes can use `sqlite-vss` for SQLite semantic indexing;
   unsupported runtimes keep durable non-accelerated fallback behavior.
 
@@ -973,17 +976,15 @@ scope headers to `POST /memory/recall-context`, `/memory/remember`,
 `/memory/feedback`, `/memory/export`, `/memory/forget`, and targeted
 `/memory/revise`. The TypeScript bridge API is available from `goodmemory/http`.
 
-To serve the recommended retrieval preset (semantic candidate union + BM25)
+To serve the recommended retrieval preset (multi-granular BM25 + entity + RRF,
+with an optional dense channel)
 over the bridge, start it with the one switch `--recommended` (or
 `GOODMEMORY_PROFILE=agent-recommended` or
-`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`); it requires an embedding endpoint
-(`GOODMEMORY_EMBEDDING_*`) or the bridge refuses to start (fail-loud, not a
-silent downgrade). `GET /healthz` then reports `retrievalTier` and
-`embeddingEnabled` so the active tier is visible at a glance; recall requests
-default to `strategy: "auto"`, which the preset routes to `hybrid` — degraded
-recalls carry a `routing.warnings` code (`semantic_recall_inactive`) plus
-`routing.warningMessages` with `semantic recall inactive — set strategy:hybrid +
-RETRIEVAL_PRESET`, instead of silently returning the lexical floor.
+`GOODMEMORY_HTTP_BRIDGE_RECOMMENDED=1`). No embedding endpoint is required;
+`GOODMEMORY_EMBEDDING_*` adds the dense channel when configured. `GET /healthz`
+reports `retrievalTier` and `embeddingEnabled`, and recall requests default to
+`strategy: "auto"`, which the preset routes to `hybrid`. An explicit
+`strategy: "rules-only"` request still selects the strict floor.
 
 Or deploy it with Docker in one command (SQLite volume included; add the
 compose `postgres` profile for pgvector):

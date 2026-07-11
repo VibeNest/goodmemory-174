@@ -2,12 +2,15 @@ import { describe, expect, it } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { GoodMemory, GoodMemoryConfig } from "../../src/api/contracts";
+import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type {
+  LongMemEvalRecallDiagnosticProfile,
   LongMemEvalRecallDiagnosticReport,
   LongMemEvalReport,
 } from "../../src/eval/longmemeval";
 import {
   buildLongMemEvalPrompt,
+  createHermeticLongMemEvalMemory,
   createLongMemEvalMemoryFactory,
   PHASE62_CANONICAL_RUN_ID,
   resolvePhase62LiveRequestTimeoutMs,
@@ -90,7 +93,7 @@ function buildRecallDiagnosticReport(input: {
   generatedBy: string;
   mode: "smoke" | "full";
   outputDir: string;
-  profile: "goodmemory-hybrid" | "goodmemory-rules-only";
+  profile: LongMemEvalRecallDiagnosticProfile;
   runId?: string;
 }): LongMemEvalRecallDiagnosticReport {
   const runId = input.runId ?? PHASE62_RECALL_DIAGNOSTIC_RUN_ID;
@@ -162,6 +165,8 @@ describe("run-phase-62 LongMemEval script", () => {
         "--question-type",
         "temporal-reasoning",
         "--all-cases",
+        "--label-free-ingest",
+        "--resume",
         "--run-id",
         "run-longmemeval",
       ]),
@@ -169,6 +174,7 @@ describe("run-phase-62 LongMemEval script", () => {
       allCases: true,
       benchmarkRoot: "/tmp/longmemeval",
       caseIds: ["q-multi-1", "q-temporal-1"],
+      labelFreeIngest: true,
       limit: 10,
       maxConcurrency: 2,
       mode: "full",
@@ -176,6 +182,7 @@ describe("run-phase-62 LongMemEval script", () => {
       outputDir: "/tmp/out",
       profiles: ["goodmemory-hybrid"],
       questionTypes: ["multi-session", "temporal-reasoning"],
+      resume: true,
       runId: "run-longmemeval",
     });
   });
@@ -358,6 +365,7 @@ describe("run-phase-62 LongMemEval script", () => {
       benchmarkRoot: "/tmp/LongMemEval",
       caseIds: PHASE62_TYPE_BALANCED_CASE_IDS,
       generatedBy: "scripts/run-phase-62-recall-diagnostic.ts",
+      ingestMode: "historical-annotated",
       limit: undefined,
       maxConcurrency: 1,
       mode: "full",
@@ -382,6 +390,26 @@ describe("run-phase-62 LongMemEval script", () => {
 
     expect(options.caseIds).toBeUndefined();
     expect(options.limit).toBe(500);
+  });
+
+  it("accepts the provider-free recommended recall diagnostic profile", () => {
+    const options = buildPhase62RecallDiagnosticOptions(
+      "/tmp/goodmemory",
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        mode: "full",
+        labelFreeIngest: true,
+        profiles: ["goodmemory-recommended"],
+        questionTypes: ["temporal-reasoning", "knowledge-update"],
+      },
+    );
+
+    expect(options.profile).toBe("goodmemory-recommended");
+    expect(options.ingestMode).toBe("label-free-raw");
+    expect(options.questionTypes).toEqual([
+      "temporal-reasoning",
+      "knowledge-update",
+    ]);
   });
 
   it("rejects recall diagnostics that combine all-cases with explicit case ids", () => {
@@ -665,7 +693,7 @@ describe("run-phase-62 LongMemEval script", () => {
       | {
           generatedBy: string;
           mode: "smoke" | "full";
-          profile: "goodmemory-hybrid" | "goodmemory-rules-only";
+          profile: LongMemEvalRecallDiagnosticProfile;
           runId?: string;
         }
       | undefined;
@@ -700,7 +728,7 @@ describe("run-phase-62 LongMemEval script", () => {
           runDiagnostic: async (input) => buildRecallDiagnosticReport(input),
         },
       ),
-    ).rejects.toThrow("goodmemory-rules-only or goodmemory-hybrid");
+    ).rejects.toThrow("goodmemory-rules-only, goodmemory-recommended, or goodmemory-hybrid");
   });
 
   it("reports missing full-mode data and provider requirements before live execution", () => {
@@ -777,5 +805,74 @@ describe("run-phase-62 LongMemEval script", () => {
       candidates: [],
       ignoredMessageCount: 1,
     });
+  });
+
+  it("builds recommended diagnostics without provider adapters", () => {
+    let receivedConfig: GoodMemoryConfig | undefined;
+    const factory = createLongMemEvalMemoryFactory((config) => {
+      receivedConfig = config;
+      return {} as GoodMemory;
+    });
+
+    factory("goodmemory-recommended");
+
+    expect(receivedConfig?.retrieval).toEqual({ preset: "recommended" });
+    expect(receivedConfig?.storage?.provider).toBe("memory");
+    expect(receivedConfig?.adapters?.embeddingAdapter).toBeUndefined();
+    expect(receivedConfig?.adapters?.assistedExtractor).toBeDefined();
+  });
+
+  it("uses a stable per-memory id and clock sequence for benchmark tie-breaking", () => {
+    const configs: GoodMemoryConfig[] = [];
+    const createMemory = (config: GoodMemoryConfig) => {
+      configs.push(config);
+      return {} as GoodMemory;
+    };
+    createLongMemEvalMemoryFactory(createMemory, {
+      runNamespace: "stable-run",
+    })("goodmemory-recommended");
+    createLongMemEvalMemoryFactory(createMemory, {
+      runNamespace: "stable-run",
+    })("goodmemory-recommended");
+
+    const first = configs[0]!.testing!;
+    const second = configs[1]!.testing!;
+    expect([first.createId!(), first.createId!()]).toEqual([
+      second.createId!(),
+      second.createId!(),
+    ]);
+    expect([first.now!(), first.now!()]).toEqual([
+      second.now!(),
+      second.now!(),
+    ]);
+  });
+
+  it("keeps recommended diagnostics isolated from ambient provider env", () => {
+    const snapshot = {
+      GOODMEMORY_EMBEDDING_API_KEY: process.env.GOODMEMORY_EMBEDDING_API_KEY,
+      GOODMEMORY_EMBEDDING_BASE_URL: process.env.GOODMEMORY_EMBEDDING_BASE_URL,
+      GOODMEMORY_EMBEDDING_MODEL: process.env.GOODMEMORY_EMBEDDING_MODEL,
+      GOODMEMORY_EMBEDDING_PROVIDER: process.env.GOODMEMORY_EMBEDDING_PROVIDER,
+    };
+    process.env.GOODMEMORY_EMBEDDING_API_KEY = "should-not-be-read";
+    process.env.GOODMEMORY_EMBEDDING_BASE_URL = "https://example.invalid/v1";
+    process.env.GOODMEMORY_EMBEDDING_MODEL = "should-not-be-read";
+    process.env.GOODMEMORY_EMBEDDING_PROVIDER = "openai";
+
+    try {
+      const factory = createLongMemEvalMemoryFactory(
+        createHermeticLongMemEvalMemory,
+      );
+      const memory = factory("goodmemory-recommended");
+      expect(inspectGoodMemoryRuntime(memory)?.embeddingEnabled).toBe(false);
+    } finally {
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
   });
 });

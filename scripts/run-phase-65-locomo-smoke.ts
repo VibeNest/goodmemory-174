@@ -23,7 +23,7 @@
 import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createGoodMemory } from "../src/api/createGoodMemory";
+import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import type {
   GoodMemory,
   GoodMemoryConfig,
@@ -159,6 +159,12 @@ export interface LocomoSmokeCliOptions {
   // "hybrid" strategy) instead of the default naive Jaccard rules-only floor.
   // Deterministic and embedding-free, so it needs no model gateway.
   bm25?: boolean;
+  // Opt-in Phase 69 generalized projection retrieval (multi-granular BM25 +
+  // direct entity adjacency, plus dense only when a real provider is present).
+  generalizedFusion?: boolean;
+  // Phase 69 protocol: preserve raw turns uniformly without benchmark-only
+  // category or answer-label metadata.
+  labelFreeIngest?: boolean;
   // Opt-in deterministic speaker-coreference normalization at seed time
   // (first/second-person pronouns -> participant names). Gateway-free; bridges
   // the coreference half of the phrasing gap without an LLM.
@@ -365,9 +371,8 @@ export type LocomoAnswerGenerator = (
 export interface LocomoSmokeDependencies {
   answerGenerator?: LocomoAnswerGenerator;
   appendFile?: (path: string, data: string) => Promise<void>;
-  // Injected conversational extractor (tests pass a deterministic mock; the live
-  // run builds a gpt-5.5-backed one from GOODMEMORY_EVAL_* when --conversational-
-  // extraction is set).
+  // Injected conversational extractor (tests pass a deterministic mock; live
+  // runs resolve the configured GOODMEMORY_EVAL_* model).
   conversationalExtractor?: MemoryExtractor;
   createMemory?: () => GoodMemory;
   mkdir?: typeof mkdir;
@@ -451,9 +456,12 @@ export interface LocomoSmokeReport {
   benchmark: "locomo";
   // Resolved case source: "synthetic-smoke" or the external cases.json path.
   benchmarkSource: string;
+  benchmarkFingerprint?: string;
   // Whether the Okapi BM25 lexical leg (hybrid strategy) ranked retrieval, vs
   // the default naive-Jaccard rules-only floor.
   bm25Ranking: boolean;
+  generalizedFusion?: boolean;
+  labelFreeIngest?: boolean;
   // Selected case ids after --case-id filtering, in source order.
   caseIds: string[];
   caseCount: number;
@@ -499,6 +507,17 @@ export interface LocomoSmokeReport {
   // Whether this report was assembled with --resume (some results replayed from
   // the per-question checkpoint rather than recomputed).
   resume: boolean;
+  retrievalConfig?: {
+    bm25Ranking: boolean;
+    corefNormalize: boolean;
+    decompose: boolean;
+    generalizedFusion: boolean;
+    labelFreeIngest: boolean;
+    multiHop: boolean;
+    providerEmbedding: boolean;
+    rerank: boolean;
+    smartFusion: boolean;
+  };
   runDirectory: string;
   runId: string;
   semanticCandidateEmbeddingSource: "none" | "provider" | "smoke-hash";
@@ -581,6 +600,8 @@ export function parseLocomoSmokeCliOptions(
     ),
     answerFromRecalled: hasCliFlagStrict(argv, "--answer-from-recalled"),
     bm25: hasCliFlagStrict(argv, "--bm25"),
+    generalizedFusion: hasCliFlagStrict(argv, "--generalized-fusion"),
+    labelFreeIngest: hasCliFlagStrict(argv, "--label-free-ingest"),
     caseIds: parseUniqueStringListFlag(argv, "--case-id"),
     questionIdFile: resolveCliFlagValueStrict(argv, "--question-id-file"),
     questionIds: parseStringListFlag(argv, "--question-id"),
@@ -1775,6 +1796,7 @@ export function resolveSpeakerCoref(
 
 export async function seedLocomoCase(input: {
   corefNormalize?: boolean;
+  labelFreeIngest?: boolean;
   memory: GoodMemory;
   runId: string;
   testCase: LocomoCase;
@@ -1801,11 +1823,16 @@ export async function seedLocomoCase(input: {
           diaId: turn.diaId,
           speaker: turn.speaker,
         },
-        category: "external_benchmark",
-        tags: ["locomo", `dia_id:${turn.diaId}`],
+        ...(input.labelFreeIngest
+          ? {}
+          : {
+              category: "external_benchmark" as const,
+              tags: ["locomo", `dia_id:${turn.diaId}`],
+            }),
       },
-      reason:
-        "LoCoMo smoke preserves every dialog turn as retrievable evidence.",
+      reason: input.labelFreeIngest
+        ? "Preserve the raw source turn for retrieval evaluation."
+        : "LoCoMo smoke preserves every dialog turn as retrievable evidence.",
       remember: "always" as const,
       verified: true,
     })),
@@ -2422,6 +2449,7 @@ function createNoopAssistedExtractor(): MemoryExtractor {
 export function createLocomoSmokeMemory(
   options: {
     bm25?: boolean;
+    generalizedFusion?: boolean;
     providerEmbedding?: boolean;
     providerEmbeddingConfig?: GoodMemoryEmbeddingProviderConfig;
     providerEmbeddingTimeoutMs?: number;
@@ -2457,6 +2485,11 @@ export function createLocomoSmokeMemory(
       "--semantic-candidates cannot be combined with --bm25; semantic candidate admission requires an embedding-backed recall branch.",
     );
   }
+  if (options.generalizedFusion && options.bm25) {
+    throw new Error(
+      "--generalized-fusion cannot be combined with --bm25; generalized fusion already owns the BM25 channel.",
+    );
+  }
   if (options.providerEmbedding && options.providerEmbeddingTimeoutMs !== undefined) {
     const model = options.providerEmbeddingConfig
       ? {
@@ -2470,13 +2503,18 @@ export function createLocomoSmokeMemory(
       model,
       requestTimeoutMs: options.providerEmbeddingTimeoutMs,
     });
-  } else if (!options.bm25 && !options.providerEmbedding) {
+  } else if (
+    !options.bm25 &&
+    !options.providerEmbedding &&
+    !options.generalizedFusion
+  ) {
     adapters.embeddingAdapter = createSmokeEmbeddingAdapter();
   }
   if (options.rerank) {
     adapters.reranker = createLexicalCoverageReranker();
   }
   const retrieval: NonNullable<GoodMemoryConfig["retrieval"]> = {
+    ...(options.generalizedFusion ? { preset: "recommended" as const } : {}),
     ...(options.bm25 ? { bm25Ranking: true } : {}),
     ...(options.semanticCandidates
       ? {
@@ -2497,31 +2535,36 @@ export function createLocomoSmokeMemory(
         }
       : {}),
   };
-  const memory = createGoodMemory({
-    ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
-    ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
-    ...(options.providerEmbeddingConfig &&
-    options.providerEmbeddingTimeoutMs === undefined
-      ? {
-          providers: {
-            embedding: options.providerEmbeddingConfig,
-          },
-        }
-      : {}),
-    storage: {
-      provider: "memory",
-    },
-    testing: {
-      createId: () => {
-        idCounter += 1;
-        return `locomo-smoke-${String(idCounter).padStart(6, "0")}`;
+  const memory = createInternalGoodMemory(
+    {
+      ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
+      ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
+      ...(options.providerEmbeddingConfig &&
+      options.providerEmbeddingTimeoutMs === undefined
+        ? {
+            providers: {
+              embedding: options.providerEmbeddingConfig,
+            },
+          }
+        : {}),
+      storage: {
+        provider: "memory",
       },
-      now: () => {
-        clockTick += 1;
-        return new Date(Date.UTC(2026, 0, 1, 0, 0, 0, clockTick));
+      testing: {
+        createId: () => {
+          idCounter += 1;
+          return `locomo-smoke-${String(idCounter).padStart(6, "0")}`;
+        },
+        now: () => {
+          clockTick += 1;
+          return new Date(Date.UTC(2026, 0, 1, 0, 0, 0, clockTick));
+        },
       },
     },
-  });
+    {
+      environment: options.providerEmbedding ? process.env : {},
+    },
+  );
   if (
     options.providerEmbedding &&
     inspectGoodMemoryRuntime(memory)?.embeddingEnabled !== true
@@ -2566,8 +2609,13 @@ export async function loadLocomoCases(input: {
   questionIds?: readonly string[];
   questionCategories?: readonly LocomoQaCategory[];
   readFile: (path: string) => Promise<string>;
-}): Promise<{ benchmarkSource: string; cases: LocomoCase[] }> {
+}): Promise<{
+  benchmarkFingerprint: string;
+  benchmarkSource: string;
+  cases: LocomoCase[];
+}> {
   let cases: LocomoCase[];
+  let benchmarkFingerprint: string;
   let benchmarkSource: string;
   if (input.benchmarkRoot) {
     const path = join(input.benchmarkRoot, EXTERNAL_CASES_FILE_NAME);
@@ -2579,9 +2627,11 @@ export async function loadLocomoCases(input: {
       );
     }
     cases = rawCases.map((value, index) => assertNormalizedCase(value, index));
+    benchmarkFingerprint = sha256(parsed);
     benchmarkSource = path;
   } else {
     cases = buildLocomoSmokeCases();
+    benchmarkFingerprint = sha256(cases);
     benchmarkSource = "synthetic-smoke";
   }
   if (input.caseIds && input.caseIds.length > 0) {
@@ -2667,7 +2717,7 @@ export async function loadLocomoCases(input: {
   if (input.limit !== undefined) {
     cases = cases.slice(0, input.limit);
   }
-  return { benchmarkSource, cases };
+  return { benchmarkFingerprint, benchmarkSource, cases };
 }
 
 export function locomoQuestionKey(caseId: string, questionId: string): string {
@@ -2679,12 +2729,14 @@ interface LocomoProgressConfig {
   strictNoEvidenceAbstention: boolean;
   answerContextMode: LocomoAnswerContextMode;
   benchmarkSource: string;
+  benchmarkFingerprint: string;
   bm25Ranking: boolean;
   caseIds: string[];
   corefNormalize: boolean;
   decompose: boolean;
   externalRoot: string | null;
   ingestMode: LocomoSmokeReport["ingestMode"];
+  labelFreeIngest: boolean;
   limit: number | null;
   liveAnswer: boolean;
   modelConfig: {
@@ -2784,6 +2836,7 @@ function publicModelConfig(prefix: string): Record<string, string | null> {
 function buildLocomoProgressConfig(input: {
   answerContextMode: LocomoAnswerContextMode;
   benchmarkSource: string;
+  benchmarkFingerprint: string;
   cases: readonly LocomoCase[];
   liveAnswer: boolean;
   options: LocomoSmokeCliOptions;
@@ -2797,6 +2850,7 @@ function buildLocomoProgressConfig(input: {
     strictNoEvidenceAbstention:
       input.options.strictNoEvidenceAbstention ?? false,
     answerContextMode: input.answerContextMode,
+    benchmarkFingerprint: input.benchmarkFingerprint,
     benchmarkSource: input.benchmarkSource,
     bm25Ranking: input.options.bm25 ?? false,
     caseIds: input.cases.map((testCase) => testCase.caseId),
@@ -2806,6 +2860,7 @@ function buildLocomoProgressConfig(input: {
     ingestMode: input.options.conversationalExtraction
       ? "conversational-extraction"
       : "raw-turns",
+    labelFreeIngest: input.options.labelFreeIngest ?? false,
     limit: input.options.limit ?? null,
     liveAnswer: input.liveAnswer,
     modelConfig: {
@@ -3090,6 +3145,11 @@ export async function runLocomoSmoke(
       "--semantic-candidates cannot be combined with --bm25; semantic candidate admission requires an embedding-backed recall branch.",
     );
   }
+  if (options.generalizedFusion && options.bm25) {
+    throw new Error(
+      "--generalized-fusion cannot be combined with --bm25; generalized fusion already owns the BM25 channel.",
+    );
+  }
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const readFileImpl =
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
@@ -3102,6 +3162,7 @@ export async function runLocomoSmoke(
     (() =>
       createLocomoSmokeMemory({
         bm25: options.bm25,
+        generalizedFusion: options.generalizedFusion,
         providerEmbedding: options.providerEmbedding,
         providerEmbeddingTimeoutMs: options.providerEmbeddingTimeoutMs,
         rerank: options.rerank,
@@ -3115,12 +3176,12 @@ export async function runLocomoSmoke(
   // BM25 ranking and semantic candidate generation both apply under the "hybrid"
   // strategy; the default stays on the pure-lexical rules-only floor.
   const recallStrategy: "hybrid" | "rules-only" =
-    options.bm25 || options.semanticCandidates
+    options.bm25 || options.semanticCandidates || options.generalizedFusion
     ? "hybrid"
     : "rules-only";
   const semanticCandidateEmbeddingSource = options.providerEmbedding
     ? "provider"
-    : options.bm25
+    : options.bm25 || options.generalizedFusion
       ? "none"
       : "smoke-hash";
   const runId = options.runId ?? LOCOMO_SMOKE_RUN_ID;
@@ -3157,7 +3218,7 @@ export async function runLocomoSmoke(
       stage,
     });
 
-  const { benchmarkSource, cases } = await loadLocomoCases({
+  const { benchmarkFingerprint, benchmarkSource, cases } = await loadLocomoCases({
     benchmarkRoot: resolvedOptions.benchmarkRoot,
     caseIds: resolvedOptions.caseIds,
     limit: resolvedOptions.limit,
@@ -3180,6 +3241,7 @@ export async function runLocomoSmoke(
   const progressHeader = buildLocomoProgressHeader(
     buildLocomoProgressConfig({
       answerContextMode,
+      benchmarkFingerprint,
       benchmarkSource,
       cases,
       liveAnswer,
@@ -3371,6 +3433,7 @@ export async function runLocomoSmoke(
       // extraction rather than replacing it.
       await seedLocomoCase({
         corefNormalize: options.corefNormalize,
+        labelFreeIngest: options.labelFreeIngest,
         memory,
         runId,
         testCase,
@@ -3510,8 +3573,10 @@ export async function runLocomoSmoke(
     answerContextMode,
     answerEvaluation: liveAnswer ? "scored" : "deferred-to-live-mode",
     benchmark: "locomo",
+    benchmarkFingerprint,
     benchmarkSource,
     bm25Ranking: options.bm25 ?? false,
+    generalizedFusion: options.generalizedFusion ?? false,
     caseIds: cases.map((testCase) => testCase.caseId),
     caseCount: cases.length,
     cases: results,
@@ -3523,10 +3588,13 @@ export async function runLocomoSmoke(
     ingestMode: conversationalExtractor
       ? "conversational-extraction"
       : "raw-turns",
+    labelFreeIngest: options.labelFreeIngest ?? false,
     license: UPSTREAM_LICENSE,
     mode: liveAnswer ? "live-answer" : "retrieval-only",
     phase: "phase-65",
-    profilesCompared: [...PROFILES_COMPARED],
+    profilesCompared: options.generalizedFusion
+      ? ["goodmemory-recommended"]
+      : [...PROFILES_COMPARED],
     providerEmbeddingRunTimeoutMs:
       resolvedOptions.providerEmbeddingRunTimeoutMs ?? null,
     providerEmbeddingTimeoutMs: resolvedOptions.providerEmbeddingTimeoutMs ?? null,
@@ -3535,6 +3603,17 @@ export async function runLocomoSmoke(
     questionIds: resolvedOptions.questionIds ?? null,
     questionSelection: buildLocomoQuestionSelection(options),
     resume: options.resume ?? false,
+    retrievalConfig: {
+      bm25Ranking: options.bm25 ?? false,
+      corefNormalize: options.corefNormalize ?? false,
+      decompose: options.decompose ?? false,
+      generalizedFusion: options.generalizedFusion ?? false,
+      labelFreeIngest: options.labelFreeIngest ?? false,
+      multiHop: options.multiHop ?? false,
+      providerEmbedding: options.providerEmbedding ?? false,
+      rerank: options.rerank ?? false,
+      smartFusion: options.smartFusion ?? false,
+    },
     runDirectory,
     runId,
     semanticCandidateEmbeddingSource,

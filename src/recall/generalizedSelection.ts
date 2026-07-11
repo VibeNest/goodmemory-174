@@ -11,9 +11,12 @@ import { createSelectionDraft, finalizeSuppressionReasons } from "./factSelectio
 import { selectZeroRetrievalLexicalFallback } from "./factSelection/draft";
 import { selectSemanticUnionCandidates } from "./factSelection/semanticUnion";
 import type { SemanticUnionSelectionInput } from "./factSelection/semanticUnion";
+import { selectGeneralizedFusionCandidates } from "./factSelection/generalizedFusionUnion";
+import type { GeneralizedFusionSelectionInput } from "./factSelection/generalizedFusionUnion";
 import { selectSlotFacts } from "./selectionSlot";
 import {
   diversifyRankedFactCandidatesBySession,
+  hasConversationEvidenceTag,
   hasAssistantAnswerTag,
   hasFactSelectionSignal,
   hasGenericFactSelectionSignal,
@@ -36,6 +39,7 @@ export type FactSelector = (
   semanticScores?: Map<string, number>,
   evidenceCountsByMemoryId?: Map<string, number>,
   semanticUnion?: SemanticUnionSelectionInput,
+  generalizedFusion?: GeneralizedFusionSelectionInput,
 ) => { facts: FactMemory[]; traces: RecallCandidateTrace[] };
 
 export function selectGeneralizedFactsForInternalUse(
@@ -50,6 +54,7 @@ export function selectGeneralizedFactsForInternalUse(
   semanticScores?: Map<string, number>,
   evidenceCountsByMemoryId?: Map<string, number>,
   semanticUnion?: SemanticUnionSelectionInput,
+  generalizedFusion?: GeneralizedFusionSelectionInput,
 ): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
   const ranked = rankFactCandidates(
     buildFactCandidates(
@@ -94,6 +99,13 @@ export function selectGeneralizedFactsForInternalUse(
   let selectionPool = compatible;
   const draft = createSelectionDraft({ traces });
   const finish = (): { facts: FactMemory[]; traces: RecallCandidateTrace[] } => {
+    if (generalizedFusion) {
+      selectGeneralizedFusionCandidates({
+        compatible: selectionPool,
+        draft,
+        union: generalizedFusion,
+      });
+    }
     if (semanticUnion) {
       selectSemanticUnionCandidates({
         compatible: selectionPool,
@@ -297,7 +309,7 @@ function collapseCurrentValueCandidates(input: {
 
   const latestBySubject = new Map<string, (typeof input.candidates)[number]>();
   for (const candidate of input.candidates) {
-    if (candidate.fact.category === "external_benchmark") {
+    if (hasConversationEvidenceTag(candidate)) {
       continue;
     }
     const subject = normalizedKnownSubject(candidate.subject);
@@ -311,7 +323,7 @@ function collapseCurrentValueCandidates(input: {
   }
 
   return input.candidates.filter((candidate) => {
-    if (candidate.fact.category === "external_benchmark") {
+    if (hasConversationEvidenceTag(candidate)) {
       return true;
     }
     const subject = normalizedKnownSubject(candidate.subject);

@@ -201,6 +201,10 @@ export function buildHits(input: {
   // Facts admitted by the semantic candidate-generation union, so their hits
   // carry an attributable reason instead of the generic scope_match.
   semanticUnionFactIds?: ReadonlySet<string>;
+  generalizedFusionFactIds?: ReadonlySet<string>;
+  generalizedFusionReferenceIds?: ReadonlySet<string>;
+  generalizedFusionArchiveIds?: ReadonlySet<string>;
+  generalizedFusionEpisodeIds?: ReadonlySet<string>;
 }): RecallHit[] {
   const hits: RecallHit[] = [];
 
@@ -227,7 +231,9 @@ export function buildHits(input: {
         hits.push({
           id: reference.id,
           type: "reference",
-          reason: "semantic_reference",
+          reason: input.generalizedFusionReferenceIds?.has(reference.id)
+            ? "generalized_fusion"
+            : "semantic_reference",
           sourceMethod: reference.source.method,
           evidenceIds: evidenceIdsForMemory(input.evidenceIndex, reference.id),
         });
@@ -239,9 +245,11 @@ export function buildHits(input: {
         hits.push({
           id: fact.id,
           type: "fact",
-          reason: input.semanticUnionFactIds?.has(fact.id)
-            ? "semantic_union"
-            : "scope_match",
+          reason: input.generalizedFusionFactIds?.has(fact.id)
+            ? "generalized_fusion"
+            : input.semanticUnionFactIds?.has(fact.id)
+              ? "semantic_union"
+              : "scope_match",
           sourceMethod: fact.source.method,
           evidenceIds: evidenceIdsForMemory(input.evidenceIndex, fact.id),
         });
@@ -268,7 +276,9 @@ export function buildHits(input: {
         hits.push({
           id: archive.id,
           type: "session_archive",
-          reason: "continuation_context",
+          reason: input.generalizedFusionArchiveIds?.has(archive.id)
+            ? "generalized_fusion"
+            : "continuation_context",
           evidenceIds: evidenceIdsForArchive(input.evidenceIndex, archive.id),
         });
       }
@@ -279,7 +289,9 @@ export function buildHits(input: {
         hits.push({
           id: episode.id,
           type: "episode",
-          reason: "continuation_context",
+          reason: input.generalizedFusionEpisodeIds?.has(episode.id)
+            ? "generalized_fusion"
+            : "continuation_context",
           evidenceIds: evidenceIdsForMemory(input.evidenceIndex, episode.id),
         });
       }
