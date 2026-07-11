@@ -219,6 +219,8 @@ describe("runtime resolution", () => {
       assistedExtractorModelConfig: null,
       embeddingEnabled: false,
       embeddingModelConfig: null,
+      rerankerModelConfig: null,
+      rerankingEnabled: false,
       explicitAdaptersConfigured: false,
       explicitStorageConfigured: false,
       extractionMode: "default",
@@ -290,6 +292,8 @@ describe("runtime resolution", () => {
       assistedExtractorModelConfig: null,
       embeddingEnabled: false,
       embeddingModelConfig: null,
+      rerankerModelConfig: null,
+      rerankingEnabled: false,
       explicitAdaptersConfigured: false,
       explicitStorageConfigured: false,
       extractionMode: "default",
@@ -686,6 +690,38 @@ describe("runtime resolution", () => {
       embeddingModelConfig: null,
       explicitAdaptersConfigured: true,
     });
+  });
+
+  it("resolves provider reranking unless an explicit reranker adapter wins", () => {
+    const provider = {
+      provider: "openai" as const,
+      model: "gpt-5.6-terra",
+      apiKey: "reranker-key",
+      baseURL: "https://ai.gurkiai.com/v1",
+    };
+    const resolved = resolveGoodMemoryRuntimeResolution({
+      config: { providers: { reranking: provider } },
+      env: {},
+    });
+    const overridden = resolveGoodMemoryRuntimeResolution({
+      config: {
+        providers: { reranking: provider },
+        adapters: {
+          reranker: {
+            async rerank() {
+              return [];
+            },
+          },
+        },
+      },
+      env: {},
+    });
+
+    expect(resolved.rerankingEnabled).toBe(true);
+    expect(resolved.rerankerModelConfig).toEqual(provider);
+    expect(overridden.rerankingEnabled).toBe(true);
+    expect(overridden.rerankerModelConfig).toBeNull();
+    expect(overridden.explicitAdaptersConfigured).toBe(true);
   });
 
   it("rejects partial embedding env configuration", () => {

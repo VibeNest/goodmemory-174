@@ -1,0 +1,1479 @@
+{
+  "benchmark": "locomo",
+  "benchmarkFingerprint": "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66",
+  "benchmarkSource": "cases.json",
+  "executionFailures": 0,
+  "generatedAt": "2026-07-11T22:01:07.985Z",
+  "metric": "memory-packet-top-6",
+  "model": {
+    "gateway": "https://ai.gurkiai.com/v1",
+    "model": "gpt-5.6-terra",
+    "provider": "openai",
+    "requestTimeoutMs": 60000,
+    "role": "reranker"
+  },
+  "rows": [
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:3",
+          "D1:7",
+          "D8:31",
+          "D9:10",
+          "D1:5"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:3",
+          "D1:5",
+          "D10:3",
+          "D10:5",
+          "D1:7",
+          "D9:10"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "temporal",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:3"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q0",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 6286,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:1",
+          "D7:15",
+          "D8:31",
+          "D1:3",
+          "D1:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D6:9",
+          "D7:9",
+          "D7:10",
+          "D6:8",
+          "D1:5",
+          "D1:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D6:9"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q22",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4954,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:1",
+          "D7:15",
+          "D8:31",
+          "D1:3",
+          "D1:5",
+          "D15:13"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D12:1",
+          "D1:1",
+          "D7:15",
+          "D8:31",
+          "D1:3",
+          "D1:5"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D14:19",
+        "D12:1"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q59",
+      "reranker": {
+        "candidateCount": 8,
+        "latencyMs": 3728,
+        "scoreCount": 8,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D15:18",
+          "D15:25",
+          "D17:22",
+          "D6:8",
+          "D1:8",
+          "D7:15"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D15:26",
+          "D15:25",
+          "D15:18",
+          "D17:22",
+          "D6:8",
+          "D1:8"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D15:26",
+        "D2:5"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q60",
+      "reranker": {
+        "candidateCount": 9,
+        "latencyMs": 3899,
+        "scoreCount": 9,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:8",
+          "D8:20",
+          "D15:18",
+          "D17:22",
+          "D6:8",
+          "D7:15"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:8",
+          "D8:20",
+          "D15:18",
+          "D17:22",
+          "D6:8",
+          "D7:15"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "caseId": "locomo-conv-26",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D15:16",
+        "D11:3"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q61",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4317,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D7:15",
+          "D1:2",
+          "D17:22",
+          "D7:21",
+          "D15:15",
+          "D17:2"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D16:15",
+          "D16:9",
+          "D16:14",
+          "D1:2",
+          "D17:2",
+          "D7:15"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D16:15",
+        "D11:14"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q65",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5616,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:2",
+          "D17:22",
+          "D1:8",
+          "D7:15",
+          "D7:21",
+          "D15:15"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D17:10",
+          "D7:8",
+          "D6:9",
+          "D1:2",
+          "D17:22",
+          "D1:8"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D7:11",
+        "D17:10"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q71",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4492,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:8",
+          "D7:15",
+          "D7:21",
+          "D15:15",
+          "D8:20",
+          "D9:9"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D2:1",
+          "D2:2",
+          "D3:2",
+          "D1:8",
+          "D7:15",
+          "D7:21"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-26",
+      "category": "single_hop",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D2:2"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q82",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5173,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D7:15",
+          "D7:21",
+          "D15:15",
+          "D1:2",
+          "D17:22",
+          "D15:13"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D4:18",
+          "D7:21",
+          "D15:15",
+          "D15:13",
+          "D17:2",
+          "D2:2"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "caseId": "locomo-conv-26",
+      "category": "adversarial",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D2:3"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-26:q152",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5268,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:2",
+          "D15:4",
+          "D7:16",
+          "D11:19",
+          "D17:14"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:2",
+          "D1:3",
+          "D5:10",
+          "D14:8",
+          "D16:13",
+          "D17:14"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-30",
+      "category": "temporal",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:2"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-30:q0",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5363,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D15:4",
+          "D11:8",
+          "D11:16",
+          "D12:17",
+          "D17:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D2:11",
+          "D5:20",
+          "D11:8",
+          "D6:15",
+          "D15:4"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-30",
+      "category": "single_hop",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:7",
+        "D1:6"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-30:q2",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5174,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:15",
+          "D16:4",
+          "D1:1",
+          "D1:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D18:2",
+          "D1:2",
+          "D1:5",
+          "D1:15"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 3
+      },
+      "caseId": "locomo-conv-30",
+      "category": "adversarial",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D18:2"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-30:q79",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 6069,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D8:19",
+          "D13:16",
+          "D25:16",
+          "D2:26",
+          "D21:15"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D13:16",
+          "D8:19",
+          "D25:16",
+          "D2:26",
+          "D21:15"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-41",
+      "category": "temporal",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D13:16"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-41:q0",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5353,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D25:16",
+          "D13:2",
+          "D14:10",
+          "D1:1",
+          "D9:5",
+          "D21:23"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D14:10",
+          "D11:10",
+          "D25:16",
+          "D13:2",
+          "D1:1",
+          "D9:5"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-41",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D14:10",
+        "D11:10"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-41:q26",
+      "reranker": {
+        "candidateCount": 8,
+        "latencyMs": 3995,
+        "scoreCount": 8,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D13:2",
+          "D1:1",
+          "D9:5",
+          "D21:23",
+          "D5:12",
+          "D25:16"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D23:1",
+          "D23:2",
+          "D14:21",
+          "D13:2",
+          "D1:1",
+          "D9:5"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-41",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D14:21",
+        "D23:1"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-41:q42",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 10656,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:13",
+          "D6:3",
+          "D4:13",
+          "D1:8",
+          "D1:6",
+          "D4:12"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:8",
+          "D1:6",
+          "D4:12",
+          "D1:13",
+          "D30:16",
+          "D4:13"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-41",
+      "category": "single_hop",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:8"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-41:q65",
+      "reranker": {
+        "candidateCount": 8,
+        "latencyMs": 10730,
+        "scoreCount": 8,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:13",
+          "D6:3",
+          "D1:8",
+          "D30:16",
+          "D18:15",
+          "D1:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:13",
+          "D30:16",
+          "D6:3",
+          "D1:8",
+          "D18:15",
+          "D1:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-41",
+      "category": "adversarial",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:8"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-41:q152",
+      "reranker": {
+        "candidateCount": 8,
+        "latencyMs": 3226,
+        "scoreCount": 8,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D28:18",
+          "D19:16",
+          "D25:12",
+          "D3:21",
+          "D16:13",
+          "D18:9"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:18",
+          "D25:12",
+          "D19:16",
+          "D28:18",
+          "D3:21",
+          "D16:13"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-42",
+      "category": "temporal",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:18"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-42:q2",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4237,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D19:16",
+          "D3:21",
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D19:16",
+          "D3:21",
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "caseId": "locomo-conv-42",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D28:22"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-42:q73",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4067,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5",
+          "D19:16"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5",
+          "D19:16"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-42",
+      "category": "single_hop",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D1:18",
+        "D1:20"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-42:q88",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4103,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5",
+          "D7:4"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D7:4",
+          "D1:6",
+          "D25:18",
+          "D28:24",
+          "D10:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-42",
+      "category": "adversarial",
+      "cohort": "protection",
+      "evidenceTurnIds": [
+        "D7:1",
+        "D7:3"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-42:q199",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 7096,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:1",
+          "D15:13",
+          "D17:15",
+          "D26:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D12:18",
+          "D1:1",
+          "D15:13",
+          "D17:15",
+          "D26:5"
+        ],
+        "evidenceRecall": 0.3333333333333333,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-43",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D1:15",
+        "D12:18",
+        "D27:20"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-43:q2",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5594,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D11:9",
+          "D11:6",
+          "D10:9",
+          "D1:4",
+          "D10:10",
+          "D11:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D10:9",
+          "D10:10",
+          "D11:9",
+          "D11:6",
+          "D1:4",
+          "D11:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-43",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D10:9"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-43:q32",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4141,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D1:1",
+          "D15:13",
+          "D17:15",
+          "D26:5",
+          "D12:16"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D12:20",
+          "D16:12",
+          "D12:23",
+          "D1:1",
+          "D15:13",
+          "D17:15"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-43",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D12:20",
+        "D16:12"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-43:q43",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4491,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D11:1",
+          "D11:9",
+          "D1:1",
+          "D15:13",
+          "D17:15",
+          "D26:5"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D19:6",
+          "D18:2",
+          "D18:4",
+          "D11:9",
+          "D11:1",
+          "D1:1"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-43",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D18:2"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-43:q48",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 5671,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D18:14",
+          "D18:15",
+          "D10:15",
+          "D15:17",
+          "D21:19"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D5:1",
+          "D18:14",
+          "D18:15",
+          "D10:15",
+          "D15:17"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-47",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D5:1"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-47:q7",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4147,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D18:15",
+          "D8:1",
+          "D10:3",
+          "D19:11",
+          "D28:29",
+          "D21:19"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D8:34",
+          "D10:3",
+          "D28:29",
+          "D8:1",
+          "D19:11",
+          "D3:20"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-47",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D8:34"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-47:q16",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 12769,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D21:19",
+          "D21:13",
+          "D19:11",
+          "D8:1",
+          "D9:17",
+          "D10:3"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D21:14",
+          "D21:13",
+          "D21:19",
+          "D19:11",
+          "D8:1",
+          "D9:17"
+        ],
+        "evidenceRecall": 0.5,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-47",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D21:12",
+        "D21:14"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-47:q44",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 8041,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D23:5",
+          "D2:18",
+          "D4:13",
+          "D10:10",
+          "D14:16",
+          "D28:12"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D1:8",
+          "D1:9",
+          "D23:5",
+          "D2:18",
+          "D4:13",
+          "D10:10"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-48",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D1:8"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-48:q5",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 8873,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D23:5",
+          "D4:13",
+          "D10:10",
+          "D14:16",
+          "D28:12",
+          "D2:18"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D4:33",
+          "D23:3",
+          "D23:5",
+          "D4:13",
+          "D10:10",
+          "D14:16"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-48",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D4:33"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-48:q28",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 3925,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D23:22",
+          "D18:6",
+          "D1:17",
+          "D2:11",
+          "D2:23",
+          "D3:14"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D23:22",
+          "D12:5",
+          "D18:6",
+          "D1:17",
+          "D2:11",
+          "D2:23"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-48",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D23:22"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-48:q70",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 18608,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D10:10",
+          "D21:5",
+          "D1:9",
+          "D15:7",
+          "D1:17",
+          "D3:14"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D27:12",
+          "D10:10",
+          "D21:5",
+          "D1:9",
+          "D15:7",
+          "D1:17"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-48",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D27:12"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-48:q75",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 6013,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D23:32",
+          "D4:40",
+          "D29:19"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 3
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D4:12",
+          "D4:16",
+          "D3:4",
+          "D23:32"
+        ],
+        "evidenceRecall": 0.6666666666666666,
+        "noiseTurnCount": 2
+      },
+      "caseId": "locomo-conv-48",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D4:12",
+        "D4:16",
+        "D15:1"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-48:q85",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 9554,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D24:4",
+          "D1:3",
+          "D5:16",
+          "D24:2"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D3:16",
+          "D22:19",
+          "D24:4",
+          "D1:3"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 2
+      },
+      "caseId": "locomo-conv-49",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D3:16",
+        "D22:19"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-49:q16",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4654,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D20:10",
+          "D2:20",
+          "D7:10",
+          "D4:16"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 4
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D16:4",
+          "D7:11",
+          "D25:2",
+          "D20:10",
+          "D7:10",
+          "D2:20"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 5
+      },
+      "caseId": "locomo-conv-50",
+      "category": "open_domain",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D7:11"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-50:q13",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 6859,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    },
+    {
+      "baseline": {
+        "contextTurnIds": [
+          "D4:16",
+          "D20:10",
+          "D2:20",
+          "D1:5",
+          "D4:8",
+          "D20:14"
+        ],
+        "evidenceRecall": 0,
+        "noiseTurnCount": 6
+      },
+      "candidate": {
+        "contextTurnIds": [
+          "D12:11",
+          "D18:7",
+          "D20:10",
+          "D1:5",
+          "D2:20",
+          "D4:16"
+        ],
+        "evidenceRecall": 1,
+        "noiseTurnCount": 4
+      },
+      "caseId": "locomo-conv-50",
+      "category": "multi_hop",
+      "cohort": "target",
+      "evidenceTurnIds": [
+        "D12:11",
+        "D18:7"
+      ],
+      "membershipUnchanged": true,
+      "questionId": "conv-50:q22",
+      "reranker": {
+        "candidateCount": 10,
+        "latencyMs": 4600,
+        "scoreCount": 10,
+        "status": "applied"
+      }
+    }
+  ],
+  "runId": "run-phase70-reranker-focused-gpt56-terra-current",
+  "selection": {
+    "manifestPath": "scripts/eval-profiles/phase-70/locomo-reranker-selection.json",
+    "manifestSha256": "44f0052700e6ad7df6e80d722f5205b14169da90ca0598944a7d95c80ba9f9f2",
+    "protectionCount": 12,
+    "targetCount": 24
+  },
+  "summary": {
+    "overall": {
+      "baselineEvidenceRecall": 0.20833333333333334,
+      "baselineNoisePerQuestion": 5.222222222222222,
+      "candidateEvidenceRecall": 0.7361111111111112,
+      "candidateNoisePerQuestion": 4.666666666666667,
+      "evidenceRecallDelta": 0.5277777777777778,
+      "noiseReductionRatio": 0.10638297872340421,
+      "questionCount": 36
+    },
+    "protection": {
+      "baselineEvidenceRecall": 0.4166666666666667,
+      "baselineNoisePerQuestion": 4.916666666666667,
+      "candidateEvidenceRecall": 0.6666666666666666,
+      "candidateNoisePerQuestion": 4.833333333333333,
+      "evidenceRecallDelta": 0.24999999999999994,
+      "noiseReductionRatio": 0.016949152542373,
+      "questionCount": 12
+    },
+    "target": {
+      "baselineEvidenceRecall": 0.10416666666666667,
+      "baselineNoisePerQuestion": 5.375,
+      "candidateEvidenceRecall": 0.7708333333333334,
+      "candidateNoisePerQuestion": 4.583333333333333,
+      "evidenceRecallDelta": 0.6666666666666667,
+      "noiseReductionRatio": 0.14728682170542642,
+      "questionCount": 24
+    }
+  }
+}

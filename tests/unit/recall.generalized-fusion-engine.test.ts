@@ -305,5 +305,20 @@ describe("generalized fusion through the recall engine", () => {
           ?.fallback,
       ).toBe("generalized_fusion");
     }
+    expect(result.metadata.retrievalTrace?.fusionRuns).toEqual([
+      expect.objectContaining({
+        status: "applied",
+        candidates: expect.arrayContaining([
+          expect.objectContaining({
+            sourceCollection: "references",
+            sourceMemoryId: reference.id,
+            selected: true,
+            channels: expect.objectContaining({
+              dense: expect.objectContaining({ rank: expect.any(Number) }),
+            }),
+          }),
+        ]),
+      }),
+    ]);
   });
 });

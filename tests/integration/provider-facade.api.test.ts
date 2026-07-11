@@ -5,6 +5,7 @@ import {
   createInMemorySessionStore,
   createInMemoryVectorStore,
 } from "../../src";
+import { createFactMemory } from "../../src/domain/records";
 
 const providerEnvKeys = [
   "GOODMEMORY_EMBEDDING_PROVIDER",
@@ -185,6 +186,102 @@ describe("public provider facade", () => {
       expect.objectContaining({
         embedding: [1, 0, 0],
       }),
+    );
+  });
+
+  it("maps providers.reranking to independent pointwise calls and auditable trace", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const prompts: string[] = [];
+    globalThis.fetch = (async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as {
+        messages: Array<{ content: string; role: string }>;
+      };
+      const prompt = request.messages.at(-1)?.content ?? "";
+      prompts.push(prompt);
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-reranker",
+          object: "chat.completion",
+          model: "gpt-5.6-terra",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: JSON.stringify({
+                  score: prompt.includes("legal approval") ? 0.95 : 0.1,
+                }),
+              },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }) as typeof fetch;
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      providers: {
+        reranking: {
+          provider: "openai",
+          model: "gpt-5.6-terra",
+          apiKey: "must-not-appear-in-trace",
+          baseURL: "https://ai.gurkiai.com/v1",
+        },
+      },
+      adapters: { documentStore },
+    });
+    const scope = {
+      userId: "reranker-user",
+      workspaceId: "reranker-workspace",
+    };
+    for (const fact of [
+      createFactMemory({
+        id: "fact-routine",
+        ...scope,
+        category: "project",
+        content: "The migration review follows the normal weekly routine.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+      createFactMemory({
+        id: "fact-blocker",
+        ...scope,
+        category: "project",
+        content: "The migration is blocked on legal approval.",
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ]) {
+      await documentStore.set("facts", fact.id, fact);
+    }
+
+    const result = await memory.recall({
+      scope,
+      query: "What blocks the migration review?",
+      strategy: "rules-only",
+    });
+
+    expect(result.facts[0]?.id).toBe("fact-blocker");
+    expect(prompts).toHaveLength(2);
+    expect(prompts.every((prompt) =>
+      !(prompt.includes("weekly routine") && prompt.includes("legal approval")),
+    )).toBe(true);
+    expect(result.metadata.retrievalTrace?.reranker).toMatchObject({
+      adapter: "provider",
+      gateway: "https://ai.gurkiai.com/v1",
+      model: "gpt-5.6-terra",
+      provider: "openai",
+      role: "reranker",
+      status: "applied",
+    });
+    expect(JSON.stringify(result.metadata.retrievalTrace)).not.toContain(
+      "must-not-appear-in-trace",
     );
   });
 });

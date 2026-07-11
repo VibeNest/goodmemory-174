@@ -1,0 +1,88 @@
+{
+  "evidence": {
+    "benchmark": "locomo",
+    "benchmarkFingerprint": "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66",
+    "executionFailures": 0,
+    "metric": "memory-packet-top-6",
+    "model": {
+      "gateway": "https://ai.gurkiai.com/v1",
+      "model": "gpt-5.6-terra",
+      "provider": "openai",
+      "requestTimeoutMs": 60000,
+      "role": "reranker"
+    },
+    "rowCount": 36,
+    "runId": "run-phase70-reranker-focused-gpt56-terra-current",
+    "summary": {
+      "overall": {
+        "baselineEvidenceRecall": 0.20833333333333334,
+        "baselineNoisePerQuestion": 5.222222222222222,
+        "candidateEvidenceRecall": 0.7361111111111112,
+        "candidateNoisePerQuestion": 4.666666666666667,
+        "evidenceRecallDelta": 0.5277777777777778,
+        "noiseReductionRatio": 0.10638297872340421,
+        "questionCount": 36
+      },
+      "protection": {
+        "baselineEvidenceRecall": 0.4166666666666667,
+        "baselineNoisePerQuestion": 4.916666666666667,
+        "candidateEvidenceRecall": 0.6666666666666666,
+        "candidateNoisePerQuestion": 4.833333333333333,
+        "evidenceRecallDelta": 0.24999999999999994,
+        "noiseReductionRatio": 0.016949152542373,
+        "questionCount": 12
+      },
+      "target": {
+        "baselineEvidenceRecall": 0.10416666666666667,
+        "baselineNoisePerQuestion": 5.375,
+        "candidateEvidenceRecall": 0.7708333333333334,
+        "candidateNoisePerQuestion": 4.583333333333333,
+        "evidenceRecallDelta": 0.6666666666666667,
+        "noiseReductionRatio": 0.14728682170542642,
+        "questionCount": 24
+      }
+    }
+  },
+  "fallbackProof": {
+    "fallbackReason": "provider_error",
+    "fallbackResultDigest": "1d35643a58da7788ca6eebf11d8c8c550dcd6695bd18c8e31bb0814d3f87b2aa",
+    "originalResultDigest": "1d35643a58da7788ca6eebf11d8c8c550dcd6695bd18c8e31bb0814d3f87b2aa",
+    "status": "fallback"
+  },
+  "generatedAt": "2026-07-11T22:21:56.270Z",
+  "inputs": {
+    "reportPath": "reports/eval/research/phase-70/locomo/run-phase70-reranker-focused-gpt56-terra-current/reranker-eval.json",
+    "reportSha256": "233d816d308aaec0b08ba73a4210348119b42497a16d3928d259c99118af8476",
+    "selectionManifestPath": "scripts/eval-profiles/phase-70/locomo-reranker-selection.json",
+    "selectionManifestSha256": "44f0052700e6ad7df6e80d722f5205b14169da90ca0598944a7d95c80ba9f9f2"
+  },
+  "result": {
+    "failures": [],
+    "protection": {
+      "baselineEvidenceRecall": 0.4166666666666667,
+      "baselineNoisePerQuestion": 4.916666666666667,
+      "candidateEvidenceRecall": 0.6666666666666666,
+      "candidateNoisePerQuestion": 4.833333333333333,
+      "evidenceRecallDelta": 0.24999999999999994,
+      "noiseReductionRatio": 0.016949152542373,
+      "questionCount": 12
+    },
+    "status": "passed",
+    "target": {
+      "baselineEvidenceRecall": 0.10416666666666667,
+      "baselineNoisePerQuestion": 5.375,
+      "candidateEvidenceRecall": 0.7708333333333334,
+      "candidateNoisePerQuestion": 4.583333333333333,
+      "evidenceRecallDelta": 0.6666666666666667,
+      "noiseReductionRatio": 0.14728682170542642,
+      "questionCount": 24
+    },
+    "thresholds": {
+      "minProtectionQuestions": 10,
+      "minTargetQuestions": 20,
+      "protectionMaxEvidenceRecallRegression": 0.01,
+      "targetMinEvidenceRecallDelta": 0.03,
+      "targetMinNoiseReductionRatio": 0.2
+    }
+  }
+}

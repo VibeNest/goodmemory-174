@@ -5,8 +5,8 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 ## Stable OSS Surface
 
 - Current stable package line: 0.5.x (published 0.5.1 on npm).
-- Main has completed Phases 68 and 69 on the generalization-first line toward
-  v0.6.0; Phase 70 is active. The production selector graph contains only
+- Main has completed Phases 68 through 70 on the generalization-first line toward
+  v0.6.0; Phase 71 is active. The production selector graph contains only
   generalized selection primitives, and the `recommended` preset now has a
   provider-free multi-granular BM25/entity/RRF path with an optional dense
   channel.
@@ -66,11 +66,17 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   Every protection slice improved and noise stayed within the fixed gate.
   These are retrieval-only diagnostics, not answer accuracy and not public
   benchmark claims.
-- Phase 70 is active. It owns a first-party OpenAI-compatible pointwise
-  reranker, deterministic fallback, channel/fusion/reranker trace evidence,
-  and a measured score/noise follow-up. Any new non-judge model call is pinned
-  to `gpt-5.6-terra` through
-  `ai.gurkiai.com`; official scoring must use an independent judge.
+- Phase 70 is complete. Its baseline-only LoCoMo selector froze a 24-question
+  target cohort across 8 conversations plus a 12-question protection cohort
+  across 4 conversations; target evidence was present in Phase 69 membership
+  but absent from the real MemoryPacket top-6. The pinned `gpt-5.6-terra` Gurki
+  run completed 36/36 applied reranks with `executionFailures: 0`, no fallback,
+  and unchanged membership. Target top-6 evidence recall moved 0.1041666667 ->
+  0.7708333333; protection moved 0.4166666667 -> 0.6666666667. See
+  `reports/eval/research/phase-70/locomo/run-phase70-reranker-focused-gpt56-terra-current/reranker-eval.json`
+  and `reports/quality-gates/phase-70/run-20260711-reranker-and-evidence/phase-70-quality-gate.json`.
+  This is a targeted retrieval-order diagnostic, not a full LoCoMo answer score
+  or public benchmark claim. Phase 71 is now active.
 - Phase 62 LongMemEval is accepted as the first Sequential Benchmark Hardening slice.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This is evidence-input canonicalization only; it does not change benchmark scores or public-claim boundaries.
 - Historical Phase 63 / P67 BEAM evidence includes an official-protocol 0.802 score, but it is no longer a current public claim because the recall profile is repo-eval-only; the answer-rule lane is paused. The earlier accepted rules-only measured checkpoint remains the internal binary-track baseline: answer-pack hardening (`--evidence-pack`, `src/answer/evidencePack.ts`) raised answer accuracy from the no-pack 0.56 baseline (224/400) and the prior evidence-pack 0.6525 checkpoint (261/400) to 0.695 (278/400) at identical recall (0.9621), `executionFailures: 0`, gate accepted. The historical P67 declaration reported official-protocol 0.802 versus the 0.49 public reference; its 122/400 binary-track wrong answers and category weak spots remain archived gap evidence.

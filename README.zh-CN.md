@@ -546,6 +546,41 @@ const memory = createGoodMemory({
 - 除非明确需要旧的加法 BM25 排序槽，否则不要再设 `bm25Ranking: true`；通用融合已有独立 BM25 候选通道。
 - 若你用 env 解析抽取并采用 preset，写时输出会变为会话式原子事实；退路是显式 `providers.extraction` 对象加 `mode: "default"`。
 
+### 可选 pointwise reranker
+
+当融合后的候选集合已经有用、但最终顺序仍有噪声时，可配置第一方
+OpenAI-compatible pointwise reranker：
+
+```ts
+const memory = createGoodMemory({
+  retrieval: { preset: "recommended" },
+  providers: {
+    reranking: {
+      provider: "openai",
+      model: process.env.RERANKING_MODEL!,
+      apiKey: process.env.RERANKING_API_KEY!,
+      baseURL: process.env.RERANKING_BASE_URL,
+    },
+  },
+});
+
+const result = await memory.recall({ scope, query });
+console.log(result.metadata.retrievalTrace?.reranker);
+```
+
+每条已选 fact 都通过独立的 query-document 调用评分，同一 prompt 不会放入兄弟候选。
+reranker 只重排确定性 recall 已接纳的 facts，不扩大成员集合，也不放宽 grounded
+abstention。provider 超时、schema 或 gateway 失败时，会原样返回确定性顺序，并在
+`retrievalTrace` 记录 `status: "fallback"` 与稳定原因。单次 recall 可用
+`rerank: false` 跳过；显式 `adapters.reranker` 始终优先于
+`providers.reranking`。provider reranker 默认请求超时为 15 秒；若网关需要不同
+延迟预算，可在 `providers.reranking` 中设置可选的正整数
+`requestTimeoutMs`。
+
+trace 只包含有上限的 channel/RRF 归因、模型角色、已清洗 gateway、延迟、分数和
+前后排名，不包含 API key、query 文本或记忆正文。该能力是 opt-in，并会对 bounded
+rerank window 中的每条 fact 增加一次模型调用；provider-free recommended 路径不变。
+
 ### 本地 embedding 端点（Ollama）
 
 推荐 preset 不依赖 embedding。若要增加零出境神经 dense 通道，`GOODMEMORY_EMBEDDING_BASE_URL` 接受任何 OpenAI-compatible 的 `/v1/embeddings` 端点，包括本地 Ollama。

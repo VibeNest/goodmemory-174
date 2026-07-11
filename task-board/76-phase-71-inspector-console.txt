@@ -4,7 +4,7 @@ Phase 71: Inspector Console
 Status
 ------
 
-[PENDING PHASE 70]
+[ACTIVE]
 
 Goal
 ----

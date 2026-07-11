@@ -32,6 +32,7 @@ import type {
   GoodMemory,
   GoodMemoryConfig,
   GoodMemoryEmbeddingProviderConfig,
+  GoodMemoryRerankingProviderConfig,
   RecallResult,
 } from "../src/api/contracts";
 import { inspectGoodMemoryRuntime } from "../src/api/runtimeInfo";
@@ -2467,6 +2468,7 @@ export function createLocomoSmokeMemory(
     providerEmbedding?: boolean;
     providerEmbeddingConfig?: GoodMemoryEmbeddingProviderConfig;
     providerEmbeddingTimeoutMs?: number;
+    providerRerankingConfig?: GoodMemoryRerankingProviderConfig;
     rerank?: boolean;
     semanticCandidates?: boolean;
     semanticCandidateMaxAdditions?: number;
@@ -2549,18 +2551,20 @@ export function createLocomoSmokeMemory(
         }
       : {}),
   };
+  const providers: NonNullable<GoodMemoryConfig["providers"]> = {
+    ...(options.providerEmbeddingConfig &&
+    options.providerEmbeddingTimeoutMs === undefined
+      ? { embedding: options.providerEmbeddingConfig }
+      : {}),
+    ...(options.providerRerankingConfig
+      ? { reranking: options.providerRerankingConfig }
+      : {}),
+  };
   const memory = createInternalGoodMemory(
     {
       ...(Object.keys(retrieval).length > 0 ? { retrieval } : {}),
       ...(Object.keys(adapters).length > 0 ? { adapters } : {}),
-      ...(options.providerEmbeddingConfig &&
-      options.providerEmbeddingTimeoutMs === undefined
-        ? {
-            providers: {
-              embedding: options.providerEmbeddingConfig,
-            },
-          }
-        : {}),
+      ...(Object.keys(providers).length > 0 ? { providers } : {}),
       storage: {
         provider: "memory",
       },

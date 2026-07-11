@@ -665,6 +665,45 @@ Requirements and boundaries:
   becomes conversational atomic claims; the escape hatch is an explicit
   `providers.extraction` object with `mode: "default"`.
 
+### Optional pointwise reranker
+
+Add a first-party OpenAI-compatible pointwise reranker when the fused candidate
+set is useful but its final order is noisy:
+
+```ts
+const memory = createGoodMemory({
+  retrieval: { preset: "recommended" },
+  providers: {
+    reranking: {
+      provider: "openai",
+      model: process.env.RERANKING_MODEL!,
+      apiKey: process.env.RERANKING_API_KEY!,
+      baseURL: process.env.RERANKING_BASE_URL,
+    },
+  },
+});
+
+const result = await memory.recall({ scope, query });
+console.log(result.metadata.retrievalTrace?.reranker);
+```
+
+Each selected fact is scored in an independent query-document call; sibling
+candidates are never placed in the same reranker prompt. The reranker only
+reorders facts already admitted by deterministic recall, so it cannot widen
+membership or relax grounded abstention. Provider timeout, schema, or gateway
+failure returns the original deterministic order and records
+`status: "fallback"` plus a stable reason in `retrievalTrace`. Set
+`rerank: false` on one recall to skip it. An explicit `adapters.reranker` remains
+authoritative over `providers.reranking`. Provider-backed reranking defaults to
+a 15-second request timeout; set the optional positive-integer
+`requestTimeoutMs` in `providers.reranking` when the chosen gateway needs a
+different latency budget.
+
+The trace includes bounded channel/RRF attribution, model role, sanitized
+gateway, latency, scores, and before/after ranks. It does not include API keys,
+query text, or memory content. This is opt-in and adds one model call per fact in
+the bounded rerank window; the provider-free recommended path remains unchanged.
+
 ### Optional local embedding endpoint (Ollama)
 
 The recommended preset works without embeddings. To add a zero-egress neural

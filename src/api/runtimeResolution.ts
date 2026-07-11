@@ -9,6 +9,7 @@ import type {
   GoodMemoryConfig,
   GoodMemoryEmbeddingProviderConfig,
   GoodMemoryExtractionProviderConfig,
+  GoodMemoryRerankingProviderConfig,
   StorageConfig,
 } from "./contracts";
 
@@ -77,6 +78,8 @@ export interface GoodMemoryRuntimeResolution {
   assistedExtractorModelConfig: AISDKModelConfig | null;
   embeddingEnabled: boolean;
   embeddingModelConfig: AISDKModelConfig | null;
+  rerankerModelConfig: AISDKModelConfig | null;
+  rerankingEnabled: boolean;
   explicitAdaptersConfigured: boolean;
   explicitStorageConfigured: boolean;
   // Effective write-time extraction mode: the raw config predicate, plus the
@@ -112,6 +115,7 @@ function hasExplicitAdaptersConfigured(
     adapters?.assistedExtractor ||
       adapters?.documentStore ||
       adapters?.embeddingAdapter ||
+      adapters?.reranker ||
       adapters?.sessionStore ||
       adapters?.vectorStore,
   );
@@ -317,6 +321,11 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     : resolveAssistedExtractorModelConfigFromProviderConfig(
         input.config.providers?.extraction,
       ) ?? resolveAssistedExtractorModelConfigFromEnv(env);
+  const rerankerModelConfig = input.config.adapters?.reranker
+    ? null
+    : resolveRerankerModelConfigFromProviderConfig(
+        input.config.providers?.reranking,
+      );
   const embeddingEnabled = Boolean(
     input.config.adapters?.embeddingAdapter || embeddingModelConfig,
   );
@@ -335,6 +344,10 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     assistedExtractorModelConfig,
     embeddingEnabled,
     embeddingModelConfig,
+    rerankerModelConfig,
+    rerankingEnabled: Boolean(
+      input.config.adapters?.reranker || rerankerModelConfig,
+    ),
     extractionMode: retrievalRuntime.extractionMode,
     retrieval: retrievalRuntime.retrieval,
     explicitAdaptersConfigured: hasExplicitAdaptersConfigured(input.config.adapters),
@@ -347,6 +360,43 @@ export function resolveGoodMemoryRuntimeResolution(input: {
       cwd: input.cwd,
       runtimeCapabilities,
     }),
+  };
+}
+
+function resolveRerankerModelConfigFromProviderConfig(
+  config: GoodMemoryRerankingProviderConfig | undefined,
+): AISDKModelConfig | null {
+  if (!config) {
+    return null;
+  }
+
+  const provider = normalizeNonEmpty(config.provider);
+  const model = normalizeNonEmpty(config.model);
+  const apiKey = normalizeNonEmpty(config.apiKey);
+  const baseURL = normalizeNonEmpty(config.baseURL);
+  const missingFields = [
+    !provider ? "provider" : null,
+    !model ? "model" : null,
+    !apiKey ? "apiKey" : null,
+  ].filter(Boolean) as string[];
+
+  if (missingFields.length > 0 || !provider || !model || !apiKey) {
+    throw new Error(
+      `Missing required providers.reranking configuration fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  if (!isModelProviderId(provider)) {
+    throw new Error(
+      `Unsupported reranking provider: ${provider}. Expected one of openai|anthropic.`,
+    );
+  }
+
+  return {
+    apiKey,
+    baseURL,
+    model,
+    provider,
   };
 }
 

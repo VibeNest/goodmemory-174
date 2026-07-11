@@ -610,6 +610,12 @@ Owns:
 - token budgeting
 - output shaping
 
+Provider-backed reranking is an optional order-only stage after deterministic
+admission. It scores one query-document pair per call, cannot add or remove
+memory membership, and cannot override grounded abstention. Failures return the
+pre-rerank result; bounded channel/fusion/reranker attribution is exposed through
+a redaction-safe retrieval trace.
+
 Purpose:
 
 - turn memory into useful model context without overwhelming the prompt

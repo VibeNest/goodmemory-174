@@ -453,6 +453,9 @@ v1 支持，但不是主设计中心。
 - 支持 semantic / episodic / procedural / runtime 的差异化召回
 - 召回结果必须可解释
 - 召回结果必须能进入 `buildContext()`
+- 可选 provider reranker 只能重排已接纳候选，不得改变召回成员或放宽 abstention
+- provider reranker 失败必须确定性降级，并在不含 query/正文/密钥的 retrieval trace 中可见
+- retrieval trace 必须能区分 lexical、dense、entity、RRF fusion 与 reranker 分数/排名
 
 ### 12.3 FR-3 BuildContext
 

@@ -45,6 +45,12 @@ export interface Reranker {
 
 const DEFAULT_RERANK_TOP_K = 20;
 
+export interface RerankingOutcome<T> {
+  items: T[];
+  scores: RerankerScore[];
+  windowIds: string[];
+}
+
 function defaultTokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -66,17 +72,34 @@ export async function applyReranking<T extends { id: string }>(input: {
   getText: (item: T) => string;
   topK?: number;
 }): Promise<T[]> {
+  return (await applyRerankingWithScores(input)).items;
+}
+
+export async function applyRerankingWithScores<T extends { id: string }>(input: {
+  items: readonly T[];
+  query: string;
+  reranker: Reranker;
+  getText: (item: T) => string;
+  topK?: number;
+}): Promise<RerankingOutcome<T>> {
   const topK = input.topK ?? DEFAULT_RERANK_TOP_K;
   if (input.items.length < 2 || topK < 2) {
-    return [...input.items];
+    return { items: [...input.items], scores: [], windowIds: [] };
   }
   const window = input.items.slice(0, topK);
   const tail = input.items.slice(topK);
-  const scores = await input.reranker.rerank({
+  const rawScores = await input.reranker.rerank({
     query: input.query,
     documents: window.map((item) => ({ id: item.id, text: input.getText(item) })),
   });
-  const scoreById = new Map(scores.map((score) => [score.id, score.score]));
+  const windowIds = new Set(window.map((item) => item.id));
+  const scoreById = new Map(
+    rawScores
+      .filter(
+        (score) => windowIds.has(score.id) && Number.isFinite(score.score),
+      )
+      .map((score) => [score.id, score.score] as const),
+  );
   const reordered = window
     .map((item, index) => ({ item, index, score: scoreById.get(item.id) }))
     .sort((left, right) => {
@@ -88,7 +111,14 @@ export async function applyReranking<T extends { id: string }>(input: {
       return left.index - right.index;
     })
     .map((wrapped) => wrapped.item);
-  return [...reordered, ...tail];
+  return {
+    items: [...reordered, ...tail],
+    scores: window.flatMap((item) => {
+      const score = scoreById.get(item.id);
+      return score === undefined ? [] : [{ id: item.id, score }];
+    }),
+    windowIds: window.map((item) => item.id),
+  };
 }
 
 /**

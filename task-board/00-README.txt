@@ -64,9 +64,15 @@ Current Transition
   +0.3417 on LongMemEval knowledge-update/temporal-reasoning; every protection
   slice improved and noise stayed within the declared limits. These are
   retrieval diagnostics, not public answer scores.
-- Phase 70 is active. It owns the first-party OpenAI-compatible pointwise
-  reranker, deterministic failure fallback, channel/fusion/reranker trace
-  evidence, and the measured follow-up slice.
+- Phase 70 is complete. Its pinned `gpt-5.6-terra` Gurki run covered the frozen
+  24-target/12-protection LoCoMo MemoryPacket slice with 36/36 applied reranks,
+  zero execution failures, no fallback, and unchanged candidate membership.
+  Target top-6 evidence recall moved 0.1041666667 -> 0.7708333333; this is a
+  targeted retrieval-order diagnostic, not a public LoCoMo answer score. The
+  canonical report and accepted gate are tracked under `reports/eval/research/phase-70/`
+  and `reports/quality-gates/phase-70/`.
+- Phase 71 is active. It owns the versioned `/admin/v1` API and private React/Vite
+  Inspector served by the existing one-command local Inspector entrypoint.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and a promoted public claim scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates.

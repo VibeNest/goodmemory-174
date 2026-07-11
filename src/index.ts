@@ -144,6 +144,16 @@ export type {
   RerankerInput,
   RerankerScore,
 } from "./recall/reranker";
+export type {
+  RecallFusionCandidateTrace,
+  RecallFusionRunTrace,
+  RecallRerankerScoreTrace,
+  RecallRerankerTrace,
+  RecallRetrievalChannel,
+  RecallRetrievalChannelTrace,
+  RecallRetrievalSourceCollection,
+  RecallRetrievalTrace,
+} from "./recall/retrievalTrace";
 export {
   resolveCurrentValue,
   resolveCurrentValuesByGroup,
@@ -328,6 +338,8 @@ export type {
   GoodMemoryJobsFacade,
   GoodMemoryJobsLookupInput,
   GoodMemoryProviderConfig,
+  GoodMemoryRerankingProviderConfig,
+  GoodMemoryRerankingProviderId,
   GoodMemoryRetrievalConfig,
   GoodMemoryRetrievalPresetId,
   GoodMemorySemanticCandidatesConfig,

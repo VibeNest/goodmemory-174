@@ -67,11 +67,20 @@ import {
   SEMANTIC_RECALL_INACTIVE_WARNING,
   type RoutingDecision,
 } from "./router";
+import type {
+  RecallFusionRunTrace,
+  RecallRetrievalChannelTrace,
+  RecallRetrievalTrace,
+} from "./retrievalTrace";
 import { ProviderBackedRecallError } from "./errors";
 import { computeBm25Scores } from "./bm25";
 import { fuseGeneralizedRecallCandidates } from "./generalizedFusion";
 import { admitGeneralizedRecords } from "./generalizedAdmissions";
-import type { GeneralizedFusionCandidate } from "./generalizedFusion";
+import type {
+  GeneralizedFusionCandidate,
+  GeneralizedFusionChannelEvidence,
+  GeneralizedFusionResult,
+} from "./generalizedFusion";
 import type { GeneralizedFusionSelectionInput } from "./factSelection/generalizedFusionUnion";
 import type { RecallProjectionSearchPort } from "./projections/contracts";
 import {
@@ -169,6 +178,7 @@ export interface RecallResult {
     localeSource?: "explicit" | "detected" | "default";
     adapterId?: string;
     analysisMode?: "rules-only";
+    retrievalTrace?: RecallRetrievalTrace;
   };
 }
 
@@ -230,6 +240,64 @@ export interface RecallEngineConfig {
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
   projectionIndex?: RecallProjectionSearchPort;
   referenceTime?: () => string;
+}
+
+const MAX_FUSION_TRACE_CANDIDATES = 20;
+
+function cloneFusionChannel(
+  channel: GeneralizedFusionChannelEvidence | undefined,
+): RecallRetrievalChannelTrace | undefined {
+  return channel
+    ? {
+        ...channel,
+        evidenceDocumentIds: [...channel.evidenceDocumentIds],
+      }
+    : undefined;
+}
+
+function buildFusionRunTrace(input: {
+  coverageComplete: boolean;
+  maxCandidates: number | undefined;
+  result: GeneralizedFusionResult;
+}): RecallFusionRunTrace {
+  const selectedKeys = new Set(
+    input.result.candidates.map(
+      (candidate) => `${candidate.sourceCollection}:${candidate.sourceMemoryId}`,
+    ),
+  );
+  const traceLimit = Math.min(
+    MAX_FUSION_TRACE_CANDIDATES,
+    Math.max(input.result.budget, input.maxCandidates ?? 8) * 2,
+  );
+  return {
+    budget: input.result.budget,
+    candidateCount: input.result.rankedCandidates.length,
+    candidates: input.result.rankedCandidates.slice(0, traceLimit).map((candidate) => ({
+      channels: {
+        ...(candidate.channels.dense
+          ? { dense: cloneFusionChannel(candidate.channels.dense)! }
+          : {}),
+        ...(candidate.channels.entity
+          ? { entity: cloneFusionChannel(candidate.channels.entity)! }
+          : {}),
+        ...(candidate.channels.lexical
+          ? { lexical: cloneFusionChannel(candidate.channels.lexical)! }
+          : {}),
+      },
+      evidenceTypes: (Object.keys(candidate.channels) as Array<
+        keyof typeof candidate.channels
+      >).sort(),
+      evidenceStrength: candidate.evidenceStrength,
+      fusionScore: candidate.score,
+      selected: selectedKeys.has(
+        `${candidate.sourceCollection}:${candidate.sourceMemoryId}`,
+      ),
+      sourceCollection: candidate.sourceCollection,
+      sourceMemoryId: candidate.sourceMemoryId,
+    })),
+    projectionCoverage: input.coverageComplete ? "complete" : "partial",
+    status: "applied",
+  };
 }
 
 function buildEvidenceCountByMemoryId(
@@ -812,12 +880,25 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       let generalizedFusion: GeneralizedFusionSelectionInput | undefined;
       let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
+      let retrievalTrace: RecallRetrievalTrace | undefined;
       if (
         config.generalizedFusion &&
         routingDecision.strategy !== "rules-only"
       ) {
         if (!config.projectionIndex) {
           policyApplied.add("generalized_fusion_unavailable");
+          retrievalTrace = {
+            fusionRuns: [
+              {
+                budget: 0,
+                candidateCount: 0,
+                candidates: [],
+                fallbackReason: "projection_unavailable",
+                status: "fallback",
+              },
+            ],
+            schemaVersion: 1,
+          };
         } else {
           try {
             const coverage = await config.projectionIndex.ensureScopeIndexed(
@@ -905,6 +986,16 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 }),
             });
             generalizedFusionCandidates = fused.candidates;
+            retrievalTrace = {
+              fusionRuns: [
+                buildFusionRunTrace({
+                  coverageComplete: coverage.complete,
+                  maxCandidates: config.generalizedFusion.maxCandidates,
+                  result: fused,
+                }),
+              ],
+              schemaVersion: 1,
+            };
             generalizedFusion = {
               candidates: fused.candidates
                 .filter((candidate) => candidate.sourceCollection === "facts")
@@ -925,6 +1016,18 @@ export function createRecallEngine(config: RecallEngineConfig) {
               error,
             );
             policyApplied.add("generalized_fusion_unavailable");
+            retrievalTrace = {
+              fusionRuns: [
+                {
+                  budget: 0,
+                  candidateCount: 0,
+                  candidates: [],
+                  fallbackReason: "projection_error",
+                  status: "fallback",
+                },
+              ],
+              schemaVersion: 1,
+            };
           }
         }
       }
@@ -1318,6 +1421,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           localeSource: resolvedLanguage.localeSource,
           adapterId: resolvedLanguage.adapterId,
           analysisMode: resolvedLanguage.analysisMode,
+          ...(retrievalTrace ? { retrievalTrace } : {}),
           hits: buildHits({
             profile: filteredProfile,
             preferences,

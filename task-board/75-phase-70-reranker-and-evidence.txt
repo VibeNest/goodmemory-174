@@ -4,7 +4,7 @@ Phase 70: Reranker and Evidence
 Status
 ------
 
-[ACTIVE]
+[DONE]
 
 Goal
 ----
@@ -19,3 +19,31 @@ Gate
   `ai.gurkiai.com`, with model role and gateway persisted in retrieval trace.
 - Provider failure degrades to deterministic ranking and is visible in trace
   metadata; focused score or noise improves without cross-benchmark regression.
+
+Progress
+--------
+
+[DONE] Add `providers.reranking` with explicit adapter precedence.
+[DONE] Score independent query-document pairs with bounded concurrency/timeouts.
+[DONE] Preserve deterministic membership, packet, and grounded abstention on failure.
+[DONE] Expose bounded lexical/dense/entity/RRF/reranker trace without content or keys.
+[DONE] Freeze a baseline-only 24-target/12-protection LoCoMo MemoryPacket slice.
+[DONE] Run the pinned `gpt-5.6-terra` Gurki focused eval and accept the Phase 70 gate.
+
+Accepted Evidence
+-----------------
+
+- Canonical report:
+  `reports/eval/research/phase-70/locomo/run-phase70-reranker-focused-gpt56-terra-current/reranker-eval.json`
+- Accepted gate:
+  `reports/quality-gates/phase-70/run-20260711-reranker-and-evidence/phase-70-quality-gate.json`
+- The frozen run covered 24 target and 12 protection questions with
+  `executionFailures: 0`, 36/36 applied reranks, unchanged candidate membership,
+  and no provider fallback. Target MemoryPacket top-6 evidence recall moved
+  0.1041666667 -> 0.7708333333 (+0.6666666667); protection moved
+  0.4166666667 -> 0.6666666667. This is a targeted retrieval-order diagnostic,
+  not a full LoCoMo answer score or public benchmark claim.
+- The provider protocol is `gpt-5.6-terra` through
+  `https://ai.gurkiai.com/v1`, role `reranker`, with a pinned 60-second request
+  timeout. The production default remains 15 seconds and deterministically
+  falls back without changing the recall payload.

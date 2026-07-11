@@ -1,4 +1,5 @@
 import type { RecallRouterAssistant } from "../recall/assistant";
+import type { Reranker } from "../recall/reranker";
 import type {
   MemoryExtractionInput,
   MemoryExtractor,
@@ -12,6 +13,10 @@ import {
   createLLMMemoryExtractor,
 } from "./memory-extractor";
 import { createLLMRecallRouter } from "./recall-router";
+import {
+  createLLMPointwiseReranker,
+  type PointwiseRerankerDependencies,
+} from "./reranker";
 import type {
   ModelProviderId,
   ProviderRuntimeMetadata,
@@ -42,6 +47,15 @@ interface ProviderRecallRouterFactory {
     rerankSystem?: string;
   }): RecallRouterAssistant;
 }
+
+interface ProviderRerankerFactory {
+  (input: {
+    dependencies?: PointwiseRerankerDependencies;
+    model: AISDKModelConfig;
+  }): Reranker;
+}
+
+const DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface ProviderRequestDependencies {
   requestTimeoutMs?: number;
@@ -167,6 +181,25 @@ export function createProviderRecallRouter(input: {
     model: input.model,
     planSystem: input.planSystem,
     rerankSystem: input.rerankSystem,
+  });
+}
+
+export function createProviderPointwiseReranker(input: {
+  createReranker?: ProviderRerankerFactory;
+  model: AISDKModelConfig;
+  requestTimeoutMs?: number;
+}): Reranker {
+  const requestTimeoutMs =
+    input.requestTimeoutMs ?? DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS;
+  if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs <= 0) {
+    throw new Error("Provider reranker requestTimeoutMs must be a positive integer.");
+  }
+  return (input.createReranker ?? createLLMPointwiseReranker)({
+    dependencies: {
+      requestTimeoutMs,
+      retryOptions: { retryLimit: 1 },
+    },
+    model: input.model,
   });
 }
 

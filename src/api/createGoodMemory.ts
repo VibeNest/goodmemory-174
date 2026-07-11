@@ -39,7 +39,8 @@ import { createRecallEngine } from "../recall/engine";
 import { iterativeRecall } from "../recall/iterativeRecall";
 import { createRecallProjectionRuntime } from "../recall/projections/runtime";
 import { decomposedRecall } from "../recall/queryDecomposition";
-import { applyReranking, type Reranker } from "../recall/reranker";
+import type { Reranker } from "../recall/reranker";
+import type { RecallRetrievalTrace } from "../recall/retrievalTrace";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
@@ -65,6 +66,7 @@ import {
   createProviderConversationalMemoryExtractor,
   createProviderEmbeddingAdapter,
   createProviderMemoryExtractor,
+  createProviderPointwiseReranker,
 } from "../provider/layer";
 import {
   attachGoodMemoryEvalSupport,
@@ -93,6 +95,13 @@ import {
 } from "./memoryAdminOps";
 import { recordHostActionAssessment } from "./hostActionAssessmentOps";
 import { createGoodMemoryJobsFacade } from "./jobs";
+import {
+  applyFactRerankingToResult,
+  buildSkippedRerankerTrace,
+  sanitizeRerankerGateway,
+  type RerankerExecutionTarget,
+  withRerankerTrace,
+} from "./recallReranking";
 import { wrapInternalRetrievalRolloutMemory } from "./internalRetrievalRollout";
 import { reviseMemory as reviseMemoryThroughService } from "./revision";
 import { createGoodMemoryRuntimeFacade } from "./runtimeFacade";
@@ -221,6 +230,25 @@ function unionMetadataList<T>(
   return merged;
 }
 
+function mergeRetrievalTraces(
+  results: readonly RecallResult[],
+): RecallRetrievalTrace | undefined {
+  const fusionRuns = results.flatMap(
+    (result) => result.metadata.retrievalTrace?.fusionRuns ?? [],
+  );
+  const reranker = results.find(
+    (result) => result.metadata.retrievalTrace?.reranker !== undefined,
+  )?.metadata.retrievalTrace?.reranker;
+  if (fusionRuns.length === 0 && !reranker) {
+    return undefined;
+  }
+  return {
+    ...(fusionRuns.length > 0 ? { fusionRuns } : {}),
+    ...(reranker ? { reranker } : {}),
+    schemaVersion: 1,
+  };
+}
+
 // Union the retrieved records across the primary recall and each sub-query
 // recall (primary first, deduped by id), then re-render the packet over the
 // union so the merged RecallResult stays internally consistent. Session-scoped
@@ -254,6 +282,7 @@ function mergeDecomposedRecallResults(
     locale: primary.metadata.locale,
     routingDecision: primary.metadata.routingDecision,
   });
+  const retrievalTrace = mergeRetrievalTraces(results);
   return {
     profile: primary.profile,
     preferences,
@@ -284,49 +313,7 @@ function mergeDecomposedRecallResults(
           "decomposed_recall",
         ]),
       ],
-    },
-  };
-}
-
-// Rerank the recalled facts over their top-K window with the configured
-// pointwise reranker, then re-render the packet so it reflects the reranked
-// order. Other record arrays and session singletons are unchanged.
-async function applyFactRerankingToResult(
-  result: RecallResult,
-  reranker: Reranker,
-  query: string,
-): Promise<RecallResult> {
-  if (result.facts.length < 2) {
-    return result;
-  }
-  const facts = await applyReranking({
-    items: result.facts,
-    query,
-    reranker,
-    getText: (fact) => `${fact.content} ${fact.subject ?? ""}`,
-  });
-  const packet = buildMemoryPacket({
-    profile: result.profile,
-    preferences: result.preferences,
-    references: result.references,
-    facts,
-    feedback: result.feedback,
-    archives: result.archives,
-    evidence: result.evidence,
-    episodes: result.episodes,
-    workingMemory: result.workingMemory,
-    journal: result.journal,
-    locale: result.metadata.locale,
-    routingDecision: result.metadata.routingDecision,
-  });
-  return {
-    ...result,
-    facts,
-    packet,
-    metadata: {
-      ...result.metadata,
-      tokenCount: packet.debug?.estimatedTokens ?? result.metadata.tokenCount,
-      policyApplied: [...new Set([...result.metadata.policyApplied, "reranked"])],
+      ...(retrievalTrace ? { retrievalTrace } : {}),
     },
   };
 }
@@ -735,6 +722,8 @@ class GoodMemoryImpl implements GoodMemory {
   private readonly rememberEngine;
   private readonly evolutionRuntime: ReturnType<typeof createEvolutionRuntime>;
   private readonly embeddingAdapter?: EmbeddingAdapter;
+  private readonly reranker?: Reranker;
+  private readonly rerankerTarget?: RerankerExecutionTarget;
   private readonly language;
   private readonly now: () => Date;
   private readonly tracer: GoodMemoryTracer;
@@ -787,6 +776,26 @@ class GoodMemoryImpl implements GoodMemory {
               model: runtimeResolution.assistedExtractorModelConfig,
             })
         : undefined);
+    const reranker =
+      config.adapters?.reranker ??
+      (runtimeResolution.rerankerModelConfig
+        ? createProviderPointwiseReranker({
+            model: runtimeResolution.rerankerModelConfig,
+            requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
+          })
+        : undefined);
+    const rerankerTarget: RerankerExecutionTarget | undefined = reranker
+      ? config.adapters?.reranker
+        ? { adapter: "custom" }
+        : {
+            adapter: "provider",
+            gateway: sanitizeRerankerGateway(
+              runtimeResolution.rerankerModelConfig?.baseURL,
+            ),
+            model: runtimeResolution.rerankerModelConfig?.model,
+            provider: runtimeResolution.rerankerModelConfig?.provider,
+          }
+      : undefined;
     const rawDocumentStore =
       config.adapters?.documentStore ??
       (autoStorageAdapters
@@ -844,6 +853,8 @@ class GoodMemoryImpl implements GoodMemory {
     this.governanceVectors = repositories.vectorIndex;
     this.revisionVectorIndex = repositories.vectorIndex;
     this.embeddingAdapter = embeddingAdapter;
+    this.reranker = reranker;
+    this.rerankerTarget = rerankerTarget;
     this.language = language;
     this.now = config.testing?.now ?? (() => new Date());
     this.tracer = createGoodMemoryTracer(config.observability, this.now);
@@ -989,9 +1000,22 @@ class GoodMemoryImpl implements GoodMemory {
               })
             ).result
           : await this.recallEngine.recall(input);
-      const reranker = this.config.adapters?.reranker;
-      if (reranker && input.rerank !== false) {
-        result = await applyFactRerankingToResult(result, reranker, input.query);
+      if (this.reranker && this.rerankerTarget) {
+        result = input.rerank === false
+          ? withRerankerTrace(
+              result,
+              buildSkippedRerankerTrace({
+                candidateCount: result.facts.length,
+                reason: "disabled",
+                target: this.rerankerTarget,
+              }),
+            )
+          : await applyFactRerankingToResult({
+              query: input.query,
+              reranker: this.reranker,
+              result,
+              target: this.rerankerTarget,
+            });
       }
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,

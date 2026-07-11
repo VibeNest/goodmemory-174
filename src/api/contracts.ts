@@ -40,6 +40,7 @@ import type {
 } from "../recall/engine";
 import type { RecallAssistantInfluence } from "../recall/assistant";
 import type { Reranker } from "../recall/reranker";
+import type { RecallRetrievalTrace } from "../recall/retrievalTrace";
 import type {
   RecallRouterStrategy,
   RoutingDecision,
@@ -72,6 +73,7 @@ export interface StorageConfig {
 
 export type GoodMemoryEmbeddingProviderId = "openai";
 export type GoodMemoryExtractionProviderId = "openai" | "anthropic";
+export type GoodMemoryRerankingProviderId = "openai" | "anthropic";
 
 export interface GoodMemoryEmbeddingProviderConfig {
   provider: GoodMemoryEmbeddingProviderId;
@@ -99,9 +101,18 @@ export interface GoodMemoryExtractionProviderConfig {
   contextualDescriptors?: boolean;
 }
 
+export interface GoodMemoryRerankingProviderConfig {
+  provider: GoodMemoryRerankingProviderId;
+  model: string;
+  apiKey: string;
+  baseURL?: string;
+  requestTimeoutMs?: number;
+}
+
 export interface GoodMemoryProviderConfig {
   embedding?: GoodMemoryEmbeddingProviderConfig;
   extraction?: GoodMemoryExtractionProviderConfig;
+  reranking?: GoodMemoryRerankingProviderConfig;
 }
 
 // Opt-in semantic candidate-generation union. Requires an embedding adapter +
@@ -215,6 +226,7 @@ export interface RecallResult {
     localeSource?: "explicit" | "detected" | "default";
     adapterId?: string;
     analysisMode?: "rules-only";
+    retrievalTrace?: RecallRetrievalTrace;
     traceId?: string;
     traceScopeDigest?: GoodMemoryScopeDigest;
   };
