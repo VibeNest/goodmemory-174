@@ -24,6 +24,10 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
+import {
+  RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+} from "../src/api/retrievalPreset";
 import type {
   GoodMemory,
   GoodMemoryConfig,
@@ -33,6 +37,10 @@ import type {
 import { inspectGoodMemoryRuntime } from "../src/api/runtimeInfo";
 import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import { createLexicalCoverageReranker } from "../src/recall/reranker";
+import {
+  DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+  DEFAULT_GENERALIZED_FUSION_RRF_K,
+} from "../src/recall/generalizedFusion";
 import {
   buildLocomoSmokeCases,
   locomoTokenF1,
@@ -461,6 +469,12 @@ export interface LocomoSmokeReport {
   // the default naive-Jaccard rules-only floor.
   bm25Ranking: boolean;
   generalizedFusion?: boolean;
+  generalizedFusionConfig?: {
+    maxCandidates: number;
+    maxTotalFacts: number;
+    minRelativeStrength: number;
+    rrfK: number;
+  } | null;
   labelFreeIngest?: boolean;
   // Selected case ids after --case-id filtering, in source order.
   caseIds: string[];
@@ -2563,6 +2577,8 @@ export function createLocomoSmokeMemory(
     },
     {
       environment: options.providerEmbedding ? process.env : {},
+      projectionBulkBackfill: true,
+      projectionWriteThrough: false,
     },
   );
   if (
@@ -2735,6 +2751,7 @@ interface LocomoProgressConfig {
   corefNormalize: boolean;
   decompose: boolean;
   externalRoot: string | null;
+  generalizedFusionConfig: LocomoSmokeReport["generalizedFusionConfig"];
   ingestMode: LocomoSmokeReport["ingestMode"];
   labelFreeIngest: boolean;
   limit: number | null;
@@ -2766,7 +2783,7 @@ interface LocomoProgressHeader {
   config: LocomoProgressConfig;
   configFingerprint: string;
   kind: typeof LOCOMO_PROGRESS_CONFIG_KIND;
-  version: 1;
+  version: 2;
 }
 
 function resolveLocomoAnswerContextMode(
@@ -2798,6 +2815,20 @@ function locomoSemanticCandidateConfig(
     minSimilarity: options.semanticCandidateMinSimilarity ?? null,
     topK: options.semanticCandidateTopK ?? null,
   };
+}
+
+function locomoGeneralizedFusionConfig(
+  enabled: boolean,
+): NonNullable<LocomoSmokeReport["generalizedFusionConfig"]> | null {
+  return enabled
+    ? {
+        maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+        maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+        minRelativeStrength:
+          DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+        rrfK: DEFAULT_GENERALIZED_FUSION_RRF_K,
+      }
+    : null;
 }
 
 function buildLocomoQuestionSelection(
@@ -2857,6 +2888,9 @@ function buildLocomoProgressConfig(input: {
     corefNormalize: input.options.corefNormalize ?? false,
     decompose: input.options.decompose ?? false,
     externalRoot: input.options.benchmarkRoot ?? null,
+    generalizedFusionConfig: locomoGeneralizedFusionConfig(
+      input.options.generalizedFusion ?? false,
+    ),
     ingestMode: input.options.conversationalExtraction
       ? "conversational-extraction"
       : "raw-turns",
@@ -2897,12 +2931,22 @@ function buildLocomoProgressHeader(
     config,
     configFingerprint: sha256(config),
     kind: LOCOMO_PROGRESS_CONFIG_KIND,
-    version: 1,
+    version: 2,
   };
 }
 
 function buildLocomoProgressConfigLine(header: LocomoProgressHeader): string {
   return `${JSON.stringify(header)}\n`;
+}
+
+function isLocomoProgressHeader(value: unknown): value is LocomoProgressHeader {
+  return (
+    isRecord(value) &&
+    value.kind === LOCOMO_PROGRESS_CONFIG_KIND &&
+    value.version === 2 &&
+    typeof value.configFingerprint === "string" &&
+    isRecord(value.config)
+  );
 }
 
 function readLocomoProgressHeader(raw: string): LocomoProgressHeader | null {
@@ -2913,13 +2957,8 @@ function readLocomoProgressHeader(raw: string): LocomoProgressHeader | null {
     }
     try {
       const value = JSON.parse(trimmed) as unknown;
-      if (
-        isRecord(value) &&
-        value.kind === LOCOMO_PROGRESS_CONFIG_KIND &&
-        typeof value.configFingerprint === "string" &&
-        isRecord(value.config)
-      ) {
-        return value as unknown as LocomoProgressHeader;
+      if (isLocomoProgressHeader(value)) {
+        return value;
       }
       return null;
     } catch {
@@ -2937,7 +2976,13 @@ function assertLocomoProgressConfigMatches(input: {
   const actual = readLocomoProgressHeader(input.raw);
   if (actual === null) {
     throw new Error(
-      `LoCoMo progress file ${input.progressPath} does not include a config fingerprint; rerun without --resume or choose a new --run-id.`,
+      `LoCoMo progress file ${input.progressPath} does not include a valid version 2 config header; rerun without --resume or choose a new --run-id.`,
+    );
+  }
+  if (actual.configFingerprint !== sha256(actual.config)) {
+    throw new Error(
+      `LoCoMo progress config fingerprint is invalid for ${input.progressPath}; ` +
+        "rerun without --resume or choose a new --run-id.",
     );
   }
   if (actual.configFingerprint !== input.expected.configFingerprint) {
@@ -2974,10 +3019,8 @@ export function parseLocomoProgressLines(raw: string): LocomoQuestionRetrieval[]
       continue;
     }
     if (
-      isRecord(value) &&
-      value.kind === LOCOMO_PROGRESS_CONFIG_KIND &&
-      typeof value.configFingerprint === "string" &&
-      isRecord(value.config)
+      isLocomoProgressHeader(value) &&
+      value.configFingerprint === sha256(value.config)
     ) {
       continue;
     }
@@ -3577,6 +3620,9 @@ export async function runLocomoSmoke(
     benchmarkSource,
     bm25Ranking: options.bm25 ?? false,
     generalizedFusion: options.generalizedFusion ?? false,
+    generalizedFusionConfig: locomoGeneralizedFusionConfig(
+      options.generalizedFusion ?? false,
+    ),
     caseIds: cases.map((testCase) => testCase.caseId),
     caseCount: cases.length,
     cases: results,

@@ -23,7 +23,11 @@ import {
 } from "./entityIndex";
 import type { EntityProjectionIndex } from "./entityIndex";
 import { buildRecallIndexDocuments, resolveProjectionScope } from "./projector";
-import { scopeFilter } from "./shared";
+import {
+  matchesScopeFilter,
+  normalizeRecallScope,
+  scopeFilter,
+} from "./shared";
 
 const MAX_SOURCE_STABILIZATION_ATTEMPTS = 4;
 
@@ -82,22 +86,27 @@ export function createRecallProjectionOperations(input: {
     coverage?: ScopeCatalogProjection["coverage"],
   ): Promise<void> {
     const normalized = normalizeScope(scope);
-    const key = scopeToKey(normalized);
-    const id = `scope:${key}`;
-    const existing = await documentStore.get<ScopeCatalogProjection>(
-      SCOPE_CATALOG_COLLECTION,
-      id,
-    );
-    const catalog: ScopeCatalogProjection = {
-      id,
-      schemaVersion: 1,
-      ...normalized,
-      scopeKey: key,
-      coverage: coverage ?? existing?.coverage ?? "partial",
-      firstSeenAt: existing?.firstSeenAt ?? timestamp,
-      lastSeenAt: timestamp,
-    };
-    await documentStore.set(SCOPE_CATALOG_COLLECTION, id, catalog);
+    const scopes = new Map<string, MemoryScope>();
+    for (const candidate of [normalized, normalizeRecallScope(normalized)]) {
+      scopes.set(scopeToKey(candidate), candidate);
+    }
+    for (const [key, candidate] of scopes) {
+      const id = `scope:${key}`;
+      const existing = await documentStore.get<ScopeCatalogProjection>(
+        SCOPE_CATALOG_COLLECTION,
+        id,
+      );
+      const catalog: ScopeCatalogProjection = {
+        id,
+        schemaVersion: 1,
+        ...candidate,
+        scopeKey: key,
+        coverage: coverage ?? existing?.coverage ?? "partial",
+        firstSeenAt: existing?.firstSeenAt ?? timestamp,
+        lastSeenAt: timestamp,
+      };
+      await documentStore.set(SCOPE_CATALOG_COLLECTION, id, catalog);
+    }
   }
 
   async function updateRemovedSource(input: {
@@ -185,10 +194,11 @@ export function createRecallProjectionOperations(input: {
 
   return {
     async queryDocuments(scope) {
-      return documentStore.query<RecallIndexDocument>(
+      const documents = await documentStore.query<RecallIndexDocument>(
         RECALL_DOCUMENTS_COLLECTION,
         scopeFilter(scope),
       );
+      return documents.filter((document) => matchesScopeFilter(document, scope));
     },
     queryEntities(scope) {
       return entityIndex.query(scope);
@@ -208,7 +218,7 @@ export function createRecallProjectionOperations(input: {
         documents: projections,
         timestamp,
       });
-      const [existingDocuments, existingEdges] = await Promise.all([
+      const [queriedDocuments, queriedEdges] = await Promise.all([
         documentStore.query<RecallIndexDocument>(
           RECALL_DOCUMENTS_COLLECTION,
           scopeFilter(scope),
@@ -218,6 +228,12 @@ export function createRecallProjectionOperations(input: {
           scopeFilter(scope),
         ),
       ]);
+      const existingDocuments = queriedDocuments.filter((document) =>
+        matchesScopeFilter(document, scope),
+      );
+      const existingEdges = queriedEdges.filter((edge) =>
+        matchesScopeFilter(edge, scope),
+      );
       for (const document of existingDocuments) {
         await documentStore.delete(RECALL_DOCUMENTS_COLLECTION, document.id);
       }

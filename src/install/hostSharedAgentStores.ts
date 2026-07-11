@@ -3,6 +3,7 @@ import type {
   StorageDocument,
   StorageFilter,
 } from "../storage/contracts";
+import { markRecallAgentScopeAuthorized } from "../policy/hooks";
 
 // Opt-in cross-host read union (config sharedAgents). The storage filter is
 // strict equality, so agentId-less "shared" records would be invisible to
@@ -40,9 +41,20 @@ export function wrapDocumentStoreForSharedAgents(
       }
       const { agentId: _ownAgentId, ...rest } = filter;
       const results = await store.query<TDocument>(collection, rest);
-      return results.filter((record) => {
+      return results.flatMap((record) => {
         const agentId = (record as Record<string, unknown>).agentId;
-        return typeof agentId === "string" && visibleAgents.has(agentId);
+        if (typeof agentId !== "string" || !visibleAgents.has(agentId)) {
+          return [];
+        }
+        if (agentId === options.ownAgentId) {
+          return [record];
+        }
+        return [
+          markRecallAgentScopeAuthorized(
+            { ...record } as TDocument,
+            options.ownAgentId,
+          ),
+        ];
       });
     },
     set: (collection, id, document) => store.set(collection, id, document),

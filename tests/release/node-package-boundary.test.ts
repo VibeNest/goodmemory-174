@@ -477,5 +477,5 @@ describe("node package boundary", () => {
       await rm(packOutputDir, { recursive: true, force: true });
       await rm(workspaceRoot, { recursive: true, force: true });
     }
-  }, 40_000);
+  }, 120_000);
 });

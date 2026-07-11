@@ -26,6 +26,11 @@
       "passed": true
     },
     {
+      "detail": "Every production recall source must be scanned and contain no fitted benchmark identity.",
+      "key": "production-source-literal-isolation",
+      "passed": true
+    },
+    {
       "detail": "The generalized BEAM 100K baseline must cover all 400 questions with zero failures.",
       "key": "generalized-baseline-complete",
       "passed": true
@@ -55,6 +60,6 @@
       "wrongRecallCases": 390
     }
   },
-  "generatedAt": "2026-07-10T04:02:37.441Z",
+  "generatedAt": "2026-07-11T08:46:35.118Z",
   "phase": "phase-68"
 }

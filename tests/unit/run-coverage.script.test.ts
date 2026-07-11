@@ -29,11 +29,15 @@ describe("run-coverage script", () => {
     ]);
 
     expect(command).toContain("--coverage-dir=coverage");
+    expect(command).toContain("--timeout=30000");
     expect(command).toContain("tests/unit");
     expect(command).toContain("tests/cli");
     expect(command).toContain("tests/integration/api.auto-storage.test.ts");
     expect(command).toContain("tests/integration/storage.postgres.test.ts");
     expect(command).toContain("--test-name-pattern");
     expect(command.at(-1)).toContain("generated Codex action gate");
+    expect(command.at(-1)).toContain(
+      "keeps bm25 hybrid recall over 5k sqlite facts within the hook budget",
+    );
   });
 });

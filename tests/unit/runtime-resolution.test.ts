@@ -322,7 +322,10 @@ describe("runtime resolution", () => {
     });
 
     expect(resolution.retrieval.autoStrategyBias).toBe("hybrid");
-    expect(resolution.retrieval.generalizedFusion).toEqual({ maxCandidates: 8 });
+    expect(resolution.retrieval.generalizedFusion).toEqual({
+      maxCandidates: 8,
+      maxTotalFacts: 10,
+    });
     expect(resolution.retrieval.semanticCandidates).toEqual({ topK: 16 });
     expect(resolution.retrieval.preset).toEqual({
       active: true,
@@ -374,7 +377,10 @@ describe("runtime resolution", () => {
       env: {},
     });
     expect(resolution.embeddingEnabled).toBe(false);
-    expect(resolution.retrieval.generalizedFusion).toEqual({ maxCandidates: 8 });
+    expect(resolution.retrieval.generalizedFusion).toEqual({
+      maxCandidates: 8,
+      maxTotalFacts: 10,
+    });
     expect(resolution.retrieval.semanticCandidates).toBeUndefined();
   });
 

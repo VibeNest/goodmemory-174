@@ -22,6 +22,7 @@ import {
 } from "./shared";
 
 export interface ProjectionRepairInput {
+  affectedScopes?: readonly MemoryScope[];
   collection: RecallProjectionSourceCollection;
   error: unknown;
   scope?: MemoryScope;
@@ -93,25 +94,34 @@ export function createRecallProjectionRepairs(input: {
         },
       );
     }
-    try {
-      await operations.registerScope(normalized, timestamp, "partial");
-    } catch (catalogError) {
-      console.error(
-        "[goodmemory:recall-projection] failed to mark projection coverage partial",
-        {
-          error: errorMessage(catalogError),
-          scopeKey: repair.scopeKey,
-        },
-      );
+    const affectedScopes = new Map<string, MemoryScope>();
+    for (const affected of [normalized, ...(repairInput.affectedScopes ?? [])]) {
+      affectedScopes.set(scopeToKey(affected), affected);
+    }
+    for (const affected of affectedScopes.values()) {
+      try {
+        await operations.registerScope(affected, timestamp, "partial");
+      } catch (catalogError) {
+        console.error(
+          "[goodmemory:recall-projection] failed to mark projection coverage partial",
+          {
+            error: errorMessage(catalogError),
+            scopeKey: scopeToKey(affected),
+          },
+        );
+      }
     }
   }
 
   return {
     queue,
     async repairPending(scope) {
-      const persisted = await documentStore.query<ProjectionRepairRecord>(
+      const queried = await documentStore.query<ProjectionRepairRecord>(
         PROJECTION_REPAIRS_COLLECTION,
         scopeFilter(scope),
+      );
+      const persisted = queried.filter((repair) =>
+        matchesScopeFilter(repair, scope),
       );
       const repairs = new Map(
         [

@@ -11,6 +11,23 @@ import type { EvidenceRecord } from "../evidence/contracts";
 import type { SessionArchive } from "../evolution/contracts";
 import type { MemoryCandidate } from "../domain/memoryCandidate";
 
+export const AUTHORIZED_RECALL_AGENT_SCOPE: unique symbol = Symbol.for(
+  "goodmemory.authorizedRecallAgentScope",
+);
+
+export function markRecallAgentScopeAuthorized<TRecord extends object>(
+  record: TRecord,
+  agentId: string,
+): TRecord {
+  Object.defineProperty(record, AUTHORIZED_RECALL_AGENT_SCOPE, {
+    configurable: false,
+    enumerable: false,
+    value: agentId,
+    writable: false,
+  });
+  return record;
+}
+
 export interface PolicyContext {
   scope: MemoryScope;
   query?: string;
@@ -94,4 +111,18 @@ export function passesDefaultScopeGuard(
   }
 
   return true;
+}
+
+export function passesRecallAgentScopeGuard(
+  scope: MemoryScope,
+  record: { agentId?: string },
+): boolean {
+  if (record.agentId === scope.agentId) {
+    return true;
+  }
+  return (
+    scope.agentId !== undefined &&
+    (record as Record<PropertyKey, unknown>)[AUTHORIZED_RECALL_AGENT_SCOPE] ===
+      scope.agentId
+  );
 }

@@ -59,7 +59,6 @@ function passingInput(): Parameters<typeof evaluatePhase68GeneralizationGate>[0]
     productionRecallFiles: [
       "factSelection/contracts.ts",
       "factSelection/draft.ts",
-      "factSelection/entityUnion.ts",
       "factSelection/generalizedFusionUnion.ts",
       "factSelection/semanticUnion.ts",
       "generalizedSelection.ts",
@@ -73,7 +72,6 @@ function passingInput(): Parameters<typeof evaluatePhase68GeneralizationGate>[0]
       [
         "factSelection/contracts.ts",
         "factSelection/draft.ts",
-        "factSelection/entityUnion.ts",
         "factSelection/generalizedFusionUnion.ts",
         "factSelection/semanticUnion.ts",
         "generalizedSelection.ts",
@@ -82,7 +80,7 @@ function passingInput(): Parameters<typeof evaluatePhase68GeneralizationGate>[0]
         "selectors/selectionContext.ts",
         "selectors/temporal.ts",
         "selectors/topic.ts",
-      ].map((path) => [path, "export {};"],
+      ].map((path) => [path, "export {};"] as const),
     ),
     productionSelectionSource: "export const selectFacts = generalized;",
   };
@@ -147,11 +145,20 @@ describe("phase-68 generalization gate", () => {
       "selectors/sourceOrderRules/case-specific.ts"
     ] = "export {};";
 
+    const evalOnlyProbeInProduction = passingInput();
+    evalOnlyProbeInProduction.productionRecallFiles.push(
+      "factSelection/entityUnion.ts",
+    );
+    evalOnlyProbeInProduction.productionRecallSources[
+      "factSelection/entityUnion.ts"
+    ] = "export {};";
+
     for (const input of [
       duplicateGateIds,
       nestedSourcePath,
       legacyRouteImport,
       duplicateScale,
+      evalOnlyProbeInProduction,
       fittedSource,
     ]) {
       expect(evaluatePhase68GeneralizationGate(input).passed).toBe(false);
@@ -159,15 +166,19 @@ describe("phase-68 generalization gate", () => {
   });
 
   it("rejects benchmark identities embedded in production recall source", () => {
-    const value = {
-      ...passingInput(),
-      productionRecallSources: {
-        ...passingInput().productionRecallSources,
-        "selectors/temporal.ts":
-          'const category = "external_benchmark"; const benchmark = "BEAM";',
-      },
-    };
+    for (const identity of [
+      "BEAM",
+      "external_benchmark",
+      "ImplicitMemBench",
+      "LoCoMo",
+      "LongMemEval",
+      "MemoryAgentBench",
+    ]) {
+      const value = passingInput();
+      value.productionRecallSources["selectors/temporal.ts"] =
+        `const benchmark = ${JSON.stringify(identity)};`;
 
-    expect(evaluatePhase68GeneralizationGate(value).passed).toBe(false);
+      expect(evaluatePhase68GeneralizationGate(value).passed).toBe(false);
+    }
   });
 });

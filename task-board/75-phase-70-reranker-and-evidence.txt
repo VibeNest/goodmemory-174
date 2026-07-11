@@ -4,7 +4,7 @@ Phase 70: Reranker and Evidence
 Status
 ------
 
-[PENDING PHASE 69]
+[ACTIVE]
 
 Goal
 ----

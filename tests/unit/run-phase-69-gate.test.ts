@@ -1,11 +1,37 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  assertPhase69OutputPathIsDistinct,
   evaluatePhase69Gate,
   readLongMemEvalPhase69GateReport,
   readLocomoPhase69GateReport,
   type Phase69GateInput,
 } from "../../scripts/run-phase-69-gate";
+
+const generalizedFusionConfig = {
+  maxCandidates: 8,
+  maxTotalFacts: 10,
+  minRelativeStrength: 0.35,
+  rrfK: 60,
+};
+const locomoBenchmarkFingerprint =
+  "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66";
+const longMemEvalBenchmarkFingerprint =
+  "195fa256c468ff68079f5a05de2572deb47fa2c06b5d48e1d3ad4f3e044a5203";
+
+function longMemEvalRunConfiguration(candidate: boolean) {
+  return {
+    contextMaxTokens: 4000,
+    extractionStrategy: "rules-only" as const,
+    generalizedFusion: candidate ? generalizedFusionConfig : null,
+    projection: {
+      bulkBackfill: true,
+      writeThrough: false,
+    },
+    providerEmbedding: false,
+    recallStrategy: candidate ? "hybrid" as const : "rules-only" as const,
+  };
+}
 
 function input(overrides: {
   locomoTargetDelta?: number;
@@ -45,11 +71,12 @@ function input(overrides: {
   return {
     locomoBaseline: {
       benchmark: "locomo",
-      benchmarkFingerprint: "a".repeat(64),
+      benchmarkFingerprint: locomoBenchmarkFingerprint,
       benchmarkSource: "/tmp/locomo/cases.json",
       caseIds: locomoCaseIds,
       executionFailures: 0,
       generalizedFusion: false,
+      generalizedFusionConfig: null,
       labelFreeIngest: true,
       questionIds: locomoQuestionIds,
       retrievalConfig: {
@@ -74,11 +101,12 @@ function input(overrides: {
     },
     locomoCandidate: {
       benchmark: "locomo",
-      benchmarkFingerprint: "a".repeat(64),
+      benchmarkFingerprint: locomoBenchmarkFingerprint,
       benchmarkSource: "/tmp/locomo/cases.json",
       caseIds: locomoCaseIds,
       executionFailures: 0,
       generalizedFusion: true,
+      generalizedFusionConfig,
       labelFreeIngest: true,
       questionIds: locomoQuestionIds,
       retrievalConfig: {
@@ -107,11 +135,12 @@ function input(overrides: {
     },
     longMemEvalBaseline: {
       benchmarkRoot: "/tmp/longmemeval",
-      benchmarkFingerprint: "b".repeat(64),
+      benchmarkFingerprint: longMemEvalBenchmarkFingerprint,
       executionFailures: 0,
       ingestMode: "label-free-raw",
       profile: "goodmemory-rules-only",
       questionIds: longMemQuestionIds,
+      runConfiguration: longMemEvalRunConfiguration(false),
       byQuestionType: Object.fromEntries(
         Object.entries(longMemBaselineTypes).map(([questionType, value]) => [
           questionType,
@@ -125,11 +154,12 @@ function input(overrides: {
     },
     longMemEvalCandidate: {
       benchmarkRoot: "/tmp/longmemeval",
-      benchmarkFingerprint: "b".repeat(64),
+      benchmarkFingerprint: longMemEvalBenchmarkFingerprint,
       executionFailures: 0,
       ingestMode: "label-free-raw",
       profile: "goodmemory-recommended",
       questionIds: longMemQuestionIds,
+      runConfiguration: longMemEvalRunConfiguration(true),
       byQuestionType: Object.fromEntries(
         Object.entries(longMemBaselineTypes).map(([questionType, value]) => [
           questionType,
@@ -150,6 +180,15 @@ function input(overrides: {
 }
 
 describe("Phase 69 generalized retrieval gate", () => {
+  it("rejects an output path that aliases an input report", () => {
+    expect(() =>
+      assertPhase69OutputPathIsDistinct({
+        inputPaths: ["/tmp/phase-69/baseline.json"],
+        outputPath: "/tmp/phase-69/nested/../baseline.json",
+      }),
+    ).toThrow("must differ from every input report path");
+  });
+
   it("passes only when every target and protection slice clears its threshold", () => {
     const result = evaluatePhase69Gate(input());
 
@@ -232,6 +271,7 @@ describe("Phase 69 generalized retrieval gate", () => {
     const value = input();
     value.locomoCandidate.benchmarkFingerprint = "c".repeat(64);
     value.locomoCandidate.retrievalConfig.rerank = true;
+    value.locomoBaseline.retrievalConfig.unexpected = false;
     const noisy = value.locomoCandidate.categories.find(
       (category) => category.category === "open_domain",
     )!;
@@ -249,6 +289,9 @@ describe("Phase 69 generalized retrieval gate", () => {
     expect(result.failures).toContain(
       "LoCoMo candidate retrievalConfig.rerank must be false",
     );
+    expect(result.failures).toContain(
+      "LoCoMo baseline retrievalConfig keys must exactly match the Phase 69 contract",
+    );
     expect(
       result.failures.some((failure) =>
         failure.includes("open_domain:noise-per-question"),
@@ -259,6 +302,24 @@ describe("Phase 69 generalized retrieval gate", () => {
         failure.includes("knowledge-update:wrong-sessions-per-question"),
       ),
     ).toBe(true);
+  });
+
+  it("rejects matching populations whose dataset fingerprints are not pinned", () => {
+    const value = input();
+    value.locomoBaseline.benchmarkFingerprint = "c".repeat(64);
+    value.locomoCandidate.benchmarkFingerprint = "c".repeat(64);
+    value.longMemEvalBaseline.benchmarkFingerprint = "d".repeat(64);
+    value.longMemEvalCandidate.benchmarkFingerprint = "d".repeat(64);
+
+    const result = evaluatePhase69Gate(value);
+
+    expect(result.status).toBe("failed");
+    expect(result.failures).toContain(
+      "LoCoMo benchmark fingerprint is not the pinned Phase 69 dataset",
+    );
+    expect(result.failures).toContain(
+      "LongMemEval benchmark fingerprint is not the pinned Phase 69 dataset",
+    );
   });
 
   it("rejects report summaries that disagree with their question rows", () => {
@@ -320,8 +381,38 @@ describe("Phase 69 generalized retrieval gate", () => {
         cases: longMemCases,
         ingestMode: value.longMemEvalBaseline.ingestMode,
         profile: value.longMemEvalBaseline.profile,
+        runConfiguration: value.longMemEvalBaseline.runConfiguration,
         summary: tamperedLongMemSummary,
       }),
     ).toThrow("question-type summary does not match cases");
+  });
+
+  it("rejects duplicate category summaries and LongMemEval run-config drift", () => {
+    const value = input();
+    const locomoCases = value.locomoBaseline.categories.flatMap((category) =>
+      Array.from({ length: category.questionCount }, (_, index) => ({
+        caseId: `case-${index % 10}`,
+        category: category.category,
+        evidenceRecall: category.averageEvidenceRecall,
+        noiseTurnCount: category.noiseTurnTotal / category.questionCount,
+        questionId: `${category.category}-${index}`,
+      })),
+    );
+    expect(() =>
+      readLocomoPhase69GateReport({
+        ...value.locomoBaseline,
+        cases: locomoCases,
+        categories: [
+          ...value.locomoBaseline.categories,
+          value.locomoBaseline.categories[0]!,
+        ],
+      }),
+    ).toThrow("duplicate categories");
+
+    value.longMemEvalCandidate.runConfiguration.contextMaxTokens = 5000;
+    const result = evaluatePhase69Gate(value);
+    expect(result.failures).toContain(
+      "LongMemEval candidate runConfiguration is inconsistent",
+    );
   });
 });

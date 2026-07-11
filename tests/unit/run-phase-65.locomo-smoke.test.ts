@@ -2835,6 +2835,12 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     );
 
     expect(report.generalizedFusion).toBe(true);
+    expect(report.generalizedFusionConfig).toEqual({
+      maxCandidates: 8,
+      maxTotalFacts: 10,
+      minRelativeStrength: 0.35,
+      rrfK: 60,
+    });
     expect(report.profilesCompared).toEqual(["goodmemory-recommended"]);
     expect(report.executionFailures).toBe(0);
   });
@@ -3463,6 +3469,65 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     ).rejects.toThrow("LoCoMo progress config fingerprint mismatch");
   });
 
+  it("rejects a checkpoint whose config or schema version was tampered with", async () => {
+    const { progress } = await firstRun();
+    const [headerLine, ...rowLines] = progress.trimEnd().split("\n");
+    const header = JSON.parse(headerLine ?? "null") as Record<string, unknown>;
+    const config = header.config as Record<string, unknown>;
+
+    const tamperedConfigProgress = [
+      JSON.stringify({
+        ...header,
+        config: {
+          ...config,
+          rerank: !config.rerank,
+        },
+      }),
+      ...rowLines,
+      "",
+    ].join("\n");
+    await expect(
+      runLocomoSmoke(
+        { outputDir, resume: true, runId },
+        {
+          answerGenerator,
+          appendFile: async () => undefined,
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === progressPath) {
+              return tamperedConfigProgress;
+            }
+            throw new Error(`unexpected read: ${path}`);
+          },
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("LoCoMo progress config fingerprint is invalid");
+
+    const staleVersionProgress = [
+      JSON.stringify({ ...header, version: 1 }),
+      ...rowLines,
+      "",
+    ].join("\n");
+    await expect(
+      runLocomoSmoke(
+        { outputDir, resume: true, runId },
+        {
+          answerGenerator,
+          appendFile: async () => undefined,
+          mkdir: async () => undefined,
+          readFile: async (path) => {
+            if (path === progressPath) {
+              return staleVersionProgress;
+            }
+            throw new Error(`unexpected read: ${path}`);
+          },
+          writeFile: (async () => undefined) as never,
+        },
+      ),
+    ).rejects.toThrow("does not include a valid version 2 config header");
+  });
+
   it("rejects duplicate or out-of-scope progress rows before resume replay", () => {
     const selectedQuestionKeys = new Set([locomoQuestionKey("case-1", "q1")]);
     const firstRow = {
@@ -3726,11 +3791,8 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     const { parseLocomoProgressLines } = await import(
       "../../scripts/run-phase-65-locomo-smoke"
     );
-    const header = {
-      config: {},
-      configFingerprint: "config-sha",
-      kind: "locomo-progress-config",
-    };
+    const { progress } = await firstRun();
+    const header = JSON.parse(progress.split("\n")[0] ?? "null") as unknown;
     const good = locomoProgressRow();
 
     const parsed = parseLocomoProgressLines(

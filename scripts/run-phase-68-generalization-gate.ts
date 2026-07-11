@@ -82,7 +82,6 @@ export function evaluatePhase68GeneralizationGate(input: {
   const allowedFactSelectionFiles = new Set([
     "factSelection/contracts.ts",
     "factSelection/draft.ts",
-    "factSelection/entityUnion.ts",
     "factSelection/generalizedFusionUnion.ts",
     "factSelection/semanticUnion.ts",
   ]);
@@ -104,7 +103,7 @@ export function evaluatePhase68GeneralizationGate(input: {
       "narrowGates.ts",
       "selectionLegacy.ts",
       "selectionRunContext.ts",
-      ].includes(normalized);
+    ].includes(normalized);
   });
   const productionSourcePaths = Object.keys(input.productionRecallSources).sort();
   const productionRecallPaths = [...input.productionRecallFiles].sort();
@@ -114,7 +113,10 @@ export function evaluatePhase68GeneralizationGate(input: {
       (path, index) => path === productionRecallPaths[index],
     ) &&
     Object.values(input.productionRecallSources).every(
-      (source) => !/\bBEAM\b|\bexternal_benchmark\b/u.test(source),
+      (source) =>
+        !/\b(?:beam|external_benchmark|implicitmembench|locomo|longmemeval|memoryagentbench)\b/iu.test(
+          source,
+        ),
     );
   const checks: Phase68GateCheck[] = [
     {

@@ -1,7 +1,4 @@
-import {
-  normalizeScope,
-  scopeToKey,
-} from "../../domain/scope";
+import { normalizeScope } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
 import type {
   DocumentStore,
@@ -25,7 +22,9 @@ import { resolveProjectionScope } from "./projector";
 import type { RecallProjectionRepairs } from "./repairs";
 import {
   errorMessage,
+  matchesScopeFilter,
   memoryProjectionId,
+  recallScopeKey,
   scopeFilter,
   sourceMutationKey,
 } from "./shared";
@@ -45,7 +44,7 @@ export function createEnsureScopeIndexed(input: {
 
   return async function ensureScopeIndexed(scope: MemoryScope) {
     const normalized = normalizeScope(scope);
-    const requestedScopeKey = scopeToKey(normalized);
+    const requestedScopeKey = recallScopeKey(normalized);
     const requestedCatalog = await documentStore.get<ScopeCatalogProjection>(
       SCOPE_CATALOG_COLLECTION,
       `scope:${requestedScopeKey}`,
@@ -59,12 +58,17 @@ export function createEnsureScopeIndexed(input: {
 
     const canonicalSources: RecallProjectionCanonicalSource[] = [];
     for (const collection of RECALL_PROJECTION_SOURCE_COLLECTIONS) {
-      const documents = await documentStore.query<StorageDocument>(
+      const queriedDocuments = await documentStore.query<StorageDocument>(
         collection,
         collection === "profiles"
           ? { userId: normalized.userId }
           : scopeFilter(normalized),
       );
+      const documents = collection === "profiles"
+        ? queriedDocuments
+        : queriedDocuments.filter((document) =>
+            matchesScopeFilter(document as MemoryScope, normalized),
+          );
       for (const document of documents) {
         const record = document as Record<string, unknown>;
         const id =
@@ -82,6 +86,8 @@ export function createEnsureScopeIndexed(input: {
     }
 
     if (input.bulkBackfill) {
+      // Bulk mode is for isolated eval/backfill runs and assumes canonical
+      // sources are not being written concurrently.
       try {
         const indexedSources = await operations.rebuildScopeUnsafe(
           normalized,
@@ -139,9 +145,12 @@ export function createEnsureScopeIndexed(input: {
       }
     }
 
-    const projected = await documentStore.query<RecallIndexDocument>(
+    const queriedProjections = await documentStore.query<RecallIndexDocument>(
       RECALL_DOCUMENTS_COLLECTION,
       scopeFilter(normalized),
+    );
+    const projected = queriedProjections.filter((document) =>
+      matchesScopeFilter(document, normalized),
     );
     const projectedSources = new Map<
       string,

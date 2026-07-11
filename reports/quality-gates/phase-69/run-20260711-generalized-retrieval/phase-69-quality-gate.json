@@ -1,0 +1,235 @@
+{
+  "failures": [],
+  "noiseProtections": [
+    {
+      "baseline": 6.547085201793722,
+      "benchmark": "LoCoMo",
+      "candidate": 9.221973094170403,
+      "delta": 2.674887892376681,
+      "name": "adversarial:noise-per-question",
+      "passed": true,
+      "threshold": 8
+    },
+    {
+      "baseline": 6.400709219858156,
+      "benchmark": "LoCoMo",
+      "candidate": 9.382978723404255,
+      "delta": 2.9822695035460995,
+      "name": "multi_hop:noise-per-question",
+      "passed": true,
+      "threshold": 8
+    },
+    {
+      "baseline": 6.166666666666667,
+      "benchmark": "LoCoMo",
+      "candidate": 9.291666666666666,
+      "delta": 3.124999999999999,
+      "name": "open_domain:noise-per-question",
+      "passed": true,
+      "threshold": 8
+    },
+    {
+      "baseline": 6.577883472057075,
+      "benchmark": "LoCoMo",
+      "candidate": 9.273483947681331,
+      "delta": 2.695600475624256,
+      "name": "single_hop:noise-per-question",
+      "passed": true,
+      "threshold": 8
+    },
+    {
+      "baseline": 6.663551401869159,
+      "benchmark": "LoCoMo",
+      "candidate": 9.22741433021807,
+      "delta": 2.56386292834891,
+      "name": "temporal:noise-per-question",
+      "passed": true,
+      "threshold": 8
+    },
+    {
+      "baseline": 1.8846153846153846,
+      "benchmark": "LongMemEval",
+      "candidate": 3.576923076923077,
+      "delta": 1.6923076923076925,
+      "name": "knowledge-update:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    },
+    {
+      "baseline": 1.443609022556391,
+      "benchmark": "LongMemEval",
+      "candidate": 3.819548872180451,
+      "delta": 2.3759398496240602,
+      "name": "multi-session:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    },
+    {
+      "baseline": 4.017857142857143,
+      "benchmark": "LongMemEval",
+      "candidate": 5.696428571428571,
+      "delta": 1.678571428571428,
+      "name": "single-session-assistant:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    },
+    {
+      "baseline": 4.8,
+      "benchmark": "LongMemEval",
+      "candidate": 7.3,
+      "delta": 2.5,
+      "name": "single-session-preference:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    },
+    {
+      "baseline": 2.942857142857143,
+      "benchmark": "LongMemEval",
+      "candidate": 5.142857142857143,
+      "delta": 2.2,
+      "name": "single-session-user:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    },
+    {
+      "baseline": 2.037593984962406,
+      "benchmark": "LongMemEval",
+      "candidate": 3.9398496240601504,
+      "delta": 1.9022556390977443,
+      "name": "temporal-reasoning:wrong-sessions-per-question",
+      "passed": true,
+      "threshold": 3
+    }
+  ],
+  "protections": [
+    {
+      "baseline": 0.11210762331838565,
+      "benchmark": "LoCoMo",
+      "candidate": 0.43609865470852016,
+      "name": "adversarial",
+      "delta": 0.3239910313901345,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.11414982164090369,
+      "benchmark": "LoCoMo",
+      "candidate": 0.44153785176377325,
+      "name": "single_hop",
+      "delta": 0.32738803012286954,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.08411214953271028,
+      "benchmark": "LoCoMo",
+      "candidate": 0.5028556593977155,
+      "name": "temporal",
+      "delta": 0.4187435098650052,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.2880952380952381,
+      "benchmark": "LongMemEval",
+      "candidate": 0.7135338345864662,
+      "name": "multi-session",
+      "delta": 0.4254385964912281,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.9285714285714286,
+      "benchmark": "LongMemEval",
+      "candidate": 1,
+      "name": "single-session-assistant",
+      "delta": 0.0714285714285714,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.6666666666666666,
+      "benchmark": "LongMemEval",
+      "candidate": 0.8333333333333334,
+      "name": "single-session-preference",
+      "delta": 0.16666666666666674,
+      "passed": true,
+      "threshold": -0.01
+    },
+    {
+      "baseline": 0.6571428571428571,
+      "benchmark": "LongMemEval",
+      "candidate": 0.9571428571428572,
+      "name": "single-session-user",
+      "delta": 0.30000000000000004,
+      "passed": true,
+      "threshold": -0.01
+    }
+  ],
+  "status": "passed",
+  "targets": [
+    {
+      "baseline": 0.022980693459416862,
+      "benchmark": "LoCoMo",
+      "candidate": 0.13348569279420341,
+      "name": "multi_hop",
+      "delta": 0.11050499933478655,
+      "passed": true,
+      "threshold": 0.03
+    },
+    {
+      "baseline": 0.09436274509803921,
+      "benchmark": "LoCoMo",
+      "candidate": 0.27205882352941174,
+      "name": "open_domain",
+      "delta": 0.17769607843137253,
+      "passed": true,
+      "threshold": 0.03
+    },
+    {
+      "baseline": 0.6794871794871795,
+      "benchmark": "LongMemEval",
+      "candidate": 0.9102564102564102,
+      "name": "knowledge-update",
+      "delta": 0.23076923076923073,
+      "passed": true,
+      "threshold": 0.03
+    },
+    {
+      "baseline": 0.425062656641604,
+      "benchmark": "LongMemEval",
+      "candidate": 0.7667919799498746,
+      "name": "temporal-reasoning",
+      "delta": 0.3417293233082706,
+      "passed": true,
+      "threshold": 0.03
+    }
+  ],
+  "thresholds": {
+    "maxAddedNoisePerQuestion": 8,
+    "maxAddedWrongSessionsPerQuestion": 3,
+    "protectionMaxRegression": 0.01,
+    "targetMinDelta": 0.03
+  },
+  "generatedAt": "2026-07-11T19:49:20.555Z",
+  "generatedBy": "scripts/run-phase-69-gate.ts",
+  "inputs": {
+    "locomoBaselinePath": "/tmp/goodmemory-phase69-reports/locomo-final-v3/phase69-label-free-full-baseline-v3/smoke-report.json",
+    "locomoCandidatePath": "/tmp/goodmemory-phase69-reports/locomo-final-v3/phase69-label-free-full-candidate-v3/smoke-report.json",
+    "longMemBaselinePath": "/tmp/goodmemory-phase69-reports/longmemeval-final-v4/phase69-label-free-full-baseline-v4/recall-diagnostic.json",
+    "longMemCandidatePath": "/tmp/goodmemory-phase69-reports/longmemeval-final-v4/phase69-label-free-full-candidate-v4/recall-diagnostic.json"
+  },
+  "phase": "phase-69",
+  "sourcePins": {
+    "locomo": {
+      "normalizedFingerprint": "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66",
+      "sourceCommit": "cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc",
+      "sourceSha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4"
+    },
+    "longMemEval": {
+      "normalizedFingerprint": "195fa256c468ff68079f5a05de2572deb47fa2c06b5d48e1d3ad4f3e044a5203",
+      "sourceCommit": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "sourceSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createUserProfile } from "../../src/domain/records";
+import { markRecallAgentScopeAuthorized } from "../../src/policy/hooks";
 import {
   applyRecallPolicyToProfile,
   applyRecallPolicyToRecords,
@@ -30,6 +31,59 @@ describe("recall policy helpers", () => {
 
     expect(records).toEqual([]);
     expect([...policyApplied]).toContain("default_scope_guard");
+  });
+
+  it("treats every defined recall dimension as an exact privacy boundary", async () => {
+    const policyApplied = new Set<string>();
+
+    const records = await applyRecallPolicyToRecords(
+      [
+        { id: "global" },
+        { id: "exact", workspaceId: "workspace-1" },
+        { id: "other", workspaceId: "workspace-2" },
+      ],
+      "fact",
+      {
+        scope: SCOPED_CONTEXT,
+        query: "What changed?",
+        retrievalProfile: "general_chat",
+        locale: "en",
+        localeSource: "default",
+        policyApplied,
+      },
+    );
+
+    expect(records).toEqual([{ id: "exact", workspaceId: "workspace-1" }]);
+    expect([...policyApplied]).toContain("default_scope_guard");
+  });
+
+  it("admits only explicitly authorized cross-agent records", async () => {
+    const authorized = markRecallAgentScopeAuthorized(
+      { agentId: "codex", id: "shared", workspaceId: "workspace-1" },
+      "claude",
+    );
+    const records = await applyRecallPolicyToRecords(
+      [
+        { agentId: "claude", id: "own", workspaceId: "workspace-1" },
+        { agentId: "codex", id: "unmarked", workspaceId: "workspace-1" },
+        authorized,
+      ],
+      "fact",
+      {
+        scope: { ...SCOPED_CONTEXT, agentId: "claude" },
+        query: "What changed?",
+        retrievalProfile: "general_chat",
+        locale: "en",
+        localeSource: "default",
+        policyApplied: new Set<string>(),
+      },
+    );
+
+    expect(records).toEqual([
+      { agentId: "claude", id: "own", workspaceId: "workspace-1" },
+      authorized,
+    ]);
+    expect(authorized.agentId).toBe("codex");
   });
 
   it("lets custom policy suppress the profile", async () => {

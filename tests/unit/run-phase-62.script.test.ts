@@ -373,6 +373,18 @@ describe("run-phase-62 LongMemEval script", () => {
       outputDir: "/tmp/goodmemory/reports/eval/research/phase-62/longmemeval",
       profile: "goodmemory-rules-only",
       questionTypes: undefined,
+      resume: undefined,
+      runConfiguration: {
+        contextMaxTokens: 4000,
+        extractionStrategy: "rules-only",
+        generalizedFusion: null,
+        projection: {
+          bulkBackfill: true,
+          writeThrough: false,
+        },
+        providerEmbedding: false,
+        recallStrategy: "rules-only",
+      },
       runId: PHASE62_RECALL_DIAGNOSTIC_RUN_ID,
     });
   });

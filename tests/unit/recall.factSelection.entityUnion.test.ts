@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  type EntityUnionDocument,
-  selectEntityUnionCandidates,
-} from "../../src/recall/factSelection/entityUnion";
+import { selectEntityUnionCandidates } from "../../scripts/eval-profiles/generalized-probes/entityUnion";
+import type { EntityUnionDocument } from "../../scripts/eval-profiles/generalized-probes/entityUnion";
 
 // Pool document frequencies (per-document presence):
 //   alice -> d1,d2 (2)   skellig -> d1,d3 (2)   2019 -> d1 (1)   bob -> d3 (1)

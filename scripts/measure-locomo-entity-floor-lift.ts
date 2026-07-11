@@ -1,5 +1,5 @@
 // Gateway-free, embedding-free floor-lift measurement for the entity
-// candidate-admission arm (src/recall/factSelection/entityUnion.ts).
+// candidate-admission arm retained under scripts/eval-profiles.
 //
 // It compares a lexical-floor baseline retriever against the SAME baseline UNION
 // the entity arm, over LoCoMo turns, and reports the entity arm's ADDITIVE
@@ -19,18 +19,13 @@ import { dirname, join } from "node:path";
 
 import {
   buildLocomoSmokeCases,
-  type LocomoCase,
-  type LocomoQaCategory,
   LOCOMO_QA_CATEGORIES,
 } from "../src/eval/locomo";
-import {
-  buildEntityDocumentFrequency,
-  type EntityDocument,
-} from "../src/recall/entityExtraction";
-import {
-  type EntityUnionGates,
-  selectEntityUnionCandidates,
-} from "../src/recall/factSelection/entityUnion";
+import type { LocomoCase, LocomoQaCategory } from "../src/eval/locomo";
+import { buildEntityDocumentFrequency } from "../src/recall/entityExtraction";
+import type { EntityDocument } from "../src/recall/entityExtraction";
+import { selectEntityUnionCandidates } from "./eval-profiles/generalized-probes/entityUnion";
+import type { EntityUnionGates } from "./eval-profiles/generalized-probes/entityUnion";
 
 // SQuAD-ish tokenization for the lexical floor: lower-case, split on
 // non-alphanumerics, drop short tokens and a small function-word set.

@@ -54,6 +54,7 @@ import {
 import {
   applyRecallPolicyToProfile,
   applyRecallPolicyToRecords,
+  filterRecordsByDefaultRecallScope,
   reconcileCandidateTraces,
 } from "./policy";
 import {
@@ -576,13 +577,13 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       const [
         profile,
-        preferencesRaw,
-        referencesRaw,
-        factsRaw,
-        feedbackRaw,
-        archivesRaw,
-        evidenceRaw,
-        episodesRaw,
+        preferencesLoaded,
+        referencesLoaded,
+        factsLoaded,
+        feedbackLoaded,
+        archivesLoaded,
+        evidenceLoaded,
+        episodesLoaded,
         workingMemoryRaw,
         journalRaw,
       ] = await Promise.all([
@@ -601,6 +602,41 @@ export function createRecallEngine(config: RecallEngineConfig) {
           ? config.runtime.getJournal(input.scope)
           : Promise.resolve(null),
       ]);
+      const preferencesRaw = filterRecordsByDefaultRecallScope(
+        preferencesLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const referencesRaw = filterRecordsByDefaultRecallScope(
+        referencesLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const factsRaw = filterRecordsByDefaultRecallScope(
+        factsLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const feedbackRaw = filterRecordsByDefaultRecallScope(
+        feedbackLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const archivesRaw = filterRecordsByDefaultRecallScope(
+        archivesLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const evidenceRaw = filterRecordsByDefaultRecallScope(
+        evidenceLoaded,
+        input.scope,
+        policyApplied,
+      );
+      const episodesRaw = filterRecordsByDefaultRecallScope(
+        episodesLoaded,
+        input.scope,
+        policyApplied,
+      );
 
       let routingDecision = planRecall({
         retrievalProfile,
@@ -679,6 +715,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       );
       const evidenceCountsByMemoryId = buildEvidenceCountByMemoryId(visibleEvidencePool);
       let semanticScores: SemanticSearchScores | undefined;
+      let providerDenseScores: SemanticSearchScores | undefined;
       let semanticFactCandidates: SemanticSearchScores["semanticFactCandidates"];
       const semanticUnionTopK = Math.max(
         1,
@@ -747,6 +784,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 }
               : {}),
           });
+          providerDenseScores = providerSemanticScores;
           semanticFactCandidates = providerSemanticScores.semanticFactCandidates;
           semanticScores = config.bm25Ranking
             ? {
@@ -812,34 +850,50 @@ export function createRecallEngine(config: RecallEngineConfig) {
               query: input.query,
               documents: contentDocuments,
               entities: contentEntities,
-              denseCandidates: (semanticFactCandidates ?? [])
-                .filter((candidate, _index, candidates) => {
-                  const bestScore = candidates[0]?.score ?? 0;
-                  return (
-                    candidate.score > 0 &&
-                    (config.semanticCandidates?.minSimilarity === undefined ||
-                      candidate.score >=
-                        config.semanticCandidates.minSimilarity) &&
-                    (config.semanticCandidates?.minRelativeScore === undefined ||
-                      candidate.score + Number.EPSILON >=
-                        bestScore * config.semanticCandidates.minRelativeScore)
-                  );
-                })
-                .slice(
-                  0,
-                  Math.max(
+              denseCandidates: [
+                ...(semanticFactCandidates ?? [])
+                  .filter((candidate, _index, candidates) => {
+                    const bestScore = candidates[0]?.score ?? 0;
+                    return (
+                      candidate.score > 0 &&
+                      (config.semanticCandidates?.minSimilarity === undefined ||
+                        candidate.score >=
+                          config.semanticCandidates.minSimilarity) &&
+                      (config.semanticCandidates?.minRelativeScore === undefined ||
+                        candidate.score + Number.EPSILON >=
+                          bestScore * config.semanticCandidates.minRelativeScore)
+                    );
+                  })
+                  .slice(
                     0,
-                    Math.floor(
-                      config.semanticCandidates?.maxAdditions ??
-                        semanticUnionTopK,
+                    Math.max(
+                      0,
+                      Math.floor(
+                        config.semanticCandidates?.maxAdditions ??
+                          semanticUnionTopK,
+                      ),
                     ),
-                  ),
-                )
-                .map(({ id: sourceMemoryId, score }) => ({
-                  sourceCollection: "facts" as const,
-                  sourceMemoryId,
-                  score,
-                })),
+                  )
+                  .map(({ id: sourceMemoryId, score }) => ({
+                    sourceCollection: "facts" as const,
+                    sourceMemoryId,
+                    score,
+                  })),
+                ...[...(providerDenseScores?.references ?? new Map())]
+                  .filter(([, score]) => score > 0)
+                  .map(([sourceMemoryId, score]) => ({
+                    sourceCollection: "references" as const,
+                    sourceMemoryId,
+                    score,
+                  })),
+                ...[...(providerDenseScores?.episodes ?? new Map())]
+                  .filter(([, score]) => score > 0)
+                  .map(([sourceMemoryId, score]) => ({
+                    sourceCollection: "episodes" as const,
+                    sourceMemoryId,
+                    score,
+                  })),
+              ],
               maxCandidates: config.generalizedFusion.maxCandidates,
               minRelativeStrength:
                 config.generalizedFusion.minRelativeStrength,

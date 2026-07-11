@@ -1,7 +1,22 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
+import {
+  RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+} from "../src/api/retrievalPreset";
+import type { LongMemEvalRecallRunConfiguration } from "../src/eval/longmemeval";
+import { LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS } from "../src/eval/longmemeval";
+import {
+  DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+  DEFAULT_GENERALIZED_FUSION_RRF_K,
+} from "../src/recall/generalizedFusion";
 import { resolveCliFlagValueStrict } from "./cli-options";
+import {
+  LOCOMO_UPSTREAM_COMMIT,
+  LOCOMO_UPSTREAM_SHA256,
+} from "./prepare-phase-65-locomo-data";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
 export const PHASE69_TARGET_MIN_DELTA = 0.03;
@@ -34,6 +49,47 @@ const LONGMEMEVAL_EXPECTED_TYPE_COUNTS = {
   "temporal-reasoning": 133,
 } as const;
 
+export const PHASE69_LOCOMO_BENCHMARK_FINGERPRINT =
+  "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66";
+export const PHASE69_LONGMEMEVAL_BENCHMARK_FINGERPRINT =
+  "195fa256c468ff68079f5a05de2572deb47fa2c06b5d48e1d3ad4f3e044a5203";
+export const PHASE69_LONGMEMEVAL_UPSTREAM_COMMIT =
+  "98d7416c24c778c2fee6e6f3006e7a073259d48f";
+export const PHASE69_LONGMEMEVAL_SOURCE_SHA256 =
+  "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442";
+
+interface Phase69GeneralizedFusionConfig {
+  maxCandidates: number;
+  maxTotalFacts: number;
+  minRelativeStrength: number;
+  rrfK: number;
+}
+
+const EXPECTED_GENERALIZED_FUSION_CONFIG: Phase69GeneralizedFusionConfig = {
+  maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+  maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+  minRelativeStrength: DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+  rrfK: DEFAULT_GENERALIZED_FUSION_RRF_K,
+};
+
+function expectedLongMemEvalConfiguration(
+  candidate: boolean,
+): LongMemEvalRecallRunConfiguration {
+  return {
+    contextMaxTokens: LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
+    extractionStrategy: "rules-only",
+    generalizedFusion: candidate
+      ? EXPECTED_GENERALIZED_FUSION_CONFIG
+      : null,
+    projection: {
+      bulkBackfill: true,
+      writeThrough: false,
+    },
+    providerEmbedding: false,
+    recallStrategy: candidate ? "hybrid" : "rules-only",
+  };
+}
+
 export interface Phase69LocomoGateReport {
   benchmark: "locomo";
   benchmarkFingerprint: string;
@@ -47,6 +103,7 @@ export interface Phase69LocomoGateReport {
   }>;
   executionFailures: number;
   generalizedFusion?: boolean;
+  generalizedFusionConfig: Phase69GeneralizedFusionConfig | null;
   labelFreeIngest: boolean;
   questionIds: string[];
   retrievalConfig: Record<string, boolean>;
@@ -67,6 +124,7 @@ export interface Phase69LongMemEvalGateReport {
   ingestMode: string;
   profile: string;
   questionIds: string[];
+  runConfiguration: LongMemEvalRecallRunConfiguration;
 }
 
 export interface Phase69GateInput {
@@ -189,6 +247,16 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
   ) {
     failures.push("LoCoMo benchmark fingerprints differ");
   }
+  if (
+    input.locomoBaseline.benchmarkFingerprint !==
+      PHASE69_LOCOMO_BENCHMARK_FINGERPRINT ||
+    input.locomoCandidate.benchmarkFingerprint !==
+      PHASE69_LOCOMO_BENCHMARK_FINGERPRINT
+  ) {
+    failures.push(
+      "LoCoMo benchmark fingerprint is not the pinned Phase 69 dataset",
+    );
+  }
   if (!sameStrings(input.locomoBaseline.caseIds, input.locomoCandidate.caseIds)) {
     failures.push("LoCoMo case populations differ");
   }
@@ -238,6 +306,17 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
   if (input.locomoCandidate.generalizedFusion !== true) {
     failures.push("LoCoMo candidate must enable generalized fusion");
   }
+  if (input.locomoBaseline.generalizedFusionConfig !== null) {
+    failures.push("LoCoMo baseline generalizedFusionConfig must be null");
+  }
+  if (
+    !isDeepStrictEqual(
+      input.locomoCandidate.generalizedFusionConfig,
+      EXPECTED_GENERALIZED_FUSION_CONFIG,
+    )
+  ) {
+    failures.push("LoCoMo candidate generalizedFusionConfig is inconsistent");
+  }
   const expectedLocomoConfig = {
     bm25Ranking: false,
     corefNormalize: false,
@@ -252,6 +331,15 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
     ["baseline", input.locomoBaseline],
     ["candidate", input.locomoCandidate],
   ] as const) {
+    const expectedKeys = [
+      ...Object.keys(expectedLocomoConfig),
+      "generalizedFusion",
+    ];
+    if (!sameStrings(Object.keys(report.retrievalConfig), expectedKeys)) {
+      failures.push(
+        `LoCoMo ${label} retrievalConfig keys must exactly match the Phase 69 contract`,
+      );
+    }
     for (const [key, expected] of Object.entries(expectedLocomoConfig)) {
       if (report.retrievalConfig[key] !== expected) {
         failures.push(`LoCoMo ${label} retrievalConfig.${key} must be ${expected}`);
@@ -338,6 +426,16 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
     failures.push("LongMemEval benchmark fingerprints differ");
   }
   if (
+    input.longMemEvalBaseline.benchmarkFingerprint !==
+      PHASE69_LONGMEMEVAL_BENCHMARK_FINGERPRINT ||
+    input.longMemEvalCandidate.benchmarkFingerprint !==
+      PHASE69_LONGMEMEVAL_BENCHMARK_FINGERPRINT
+  ) {
+    failures.push(
+      "LongMemEval benchmark fingerprint is not the pinned Phase 69 dataset",
+    );
+  }
+  if (
     !sameStrings(
       input.longMemEvalBaseline.questionIds,
       input.longMemEvalCandidate.questionIds,
@@ -374,6 +472,22 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
   }
   if (input.longMemEvalCandidate.profile !== "goodmemory-recommended") {
     failures.push("LongMemEval candidate profile must be goodmemory-recommended");
+  }
+  if (
+    !isDeepStrictEqual(
+      input.longMemEvalBaseline.runConfiguration,
+      expectedLongMemEvalConfiguration(false),
+    )
+  ) {
+    failures.push("LongMemEval baseline runConfiguration is inconsistent");
+  }
+  if (
+    !isDeepStrictEqual(
+      input.longMemEvalCandidate.runConfiguration,
+      expectedLongMemEvalConfiguration(true),
+    )
+  ) {
+    failures.push("LongMemEval candidate runConfiguration is inconsistent");
   }
   for (const [label, report] of [
     ["baseline", input.longMemEvalBaseline],
@@ -469,9 +583,15 @@ export function evaluatePhase69Gate(input: Phase69GateInput): Phase69GateResult 
     );
   }
   for (const protection of noiseProtections.filter((slice) => !slice.passed)) {
-    failures.push(
-      `${protection.benchmark} ${protection.name} added ${format(protection.delta)} noise turns per question, above ${format(PHASE69_MAX_ADDED_NOISE_PER_QUESTION)}`,
-    );
+    if (protection.benchmark === "LongMemEval") {
+      failures.push(
+        `${protection.benchmark} ${protection.name} added ${format(protection.delta)} wrong sessions per question, above ${format(PHASE69_MAX_ADDED_WRONG_SESSIONS_PER_QUESTION)}`,
+      );
+    } else {
+      failures.push(
+        `${protection.benchmark} ${protection.name} added ${format(protection.delta)} noise turns per question, above ${format(PHASE69_MAX_ADDED_NOISE_PER_QUESTION)}`,
+      );
+    }
   }
 
   return {
@@ -508,6 +628,105 @@ function readString(value: unknown, label: string): string {
   return value;
 }
 
+function assertExactKeys(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+  label: string,
+): void {
+  if (!sameStrings(Object.keys(value), keys)) {
+    throw new Error(`${label} must contain exactly: ${keys.join(", ")}`);
+  }
+}
+
+function readGeneralizedFusionConfig(
+  value: unknown,
+  label: string,
+): Phase69GeneralizedFusionConfig | null {
+  if (value === null) {
+    return null;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object or null`);
+  }
+  assertExactKeys(
+    value,
+    ["maxCandidates", "maxTotalFacts", "minRelativeStrength", "rrfK"],
+    label,
+  );
+  return {
+    maxCandidates: readNumber(value.maxCandidates, `${label}.maxCandidates`),
+    maxTotalFacts: readNumber(value.maxTotalFacts, `${label}.maxTotalFacts`),
+    minRelativeStrength: readNumber(
+      value.minRelativeStrength,
+      `${label}.minRelativeStrength`,
+    ),
+    rrfK: readNumber(value.rrfK, `${label}.rrfK`),
+  };
+}
+
+function readLongMemEvalRunConfiguration(
+  value: unknown,
+): LongMemEvalRecallRunConfiguration {
+  if (!isRecord(value)) {
+    throw new Error("LongMemEval runConfiguration must be an object");
+  }
+  assertExactKeys(
+    value,
+    [
+      "contextMaxTokens",
+      "extractionStrategy",
+      "generalizedFusion",
+      "projection",
+      "providerEmbedding",
+      "recallStrategy",
+    ],
+    "LongMemEval runConfiguration",
+  );
+  if (value.extractionStrategy !== "rules-only") {
+    throw new Error("LongMemEval extractionStrategy must be rules-only");
+  }
+  if (
+    value.recallStrategy !== "hybrid" &&
+    value.recallStrategy !== "rules-only"
+  ) {
+    throw new Error("LongMemEval recallStrategy must be hybrid or rules-only");
+  }
+  if (typeof value.providerEmbedding !== "boolean") {
+    throw new Error("LongMemEval providerEmbedding must be boolean");
+  }
+  if (!isRecord(value.projection)) {
+    throw new Error("LongMemEval projection must be an object");
+  }
+  assertExactKeys(
+    value.projection,
+    ["bulkBackfill", "writeThrough"],
+    "LongMemEval projection",
+  );
+  if (
+    typeof value.projection.bulkBackfill !== "boolean" ||
+    typeof value.projection.writeThrough !== "boolean"
+  ) {
+    throw new Error("LongMemEval projection values must be boolean");
+  }
+  return {
+    contextMaxTokens: readNumber(
+      value.contextMaxTokens,
+      "LongMemEval contextMaxTokens",
+    ),
+    extractionStrategy: "rules-only",
+    generalizedFusion: readGeneralizedFusionConfig(
+      value.generalizedFusion,
+      "LongMemEval generalizedFusion",
+    ),
+    projection: {
+      bulkBackfill: value.projection.bulkBackfill,
+      writeThrough: value.projection.writeThrough,
+    },
+    providerEmbedding: value.providerEmbedding,
+    recallStrategy: value.recallStrategy,
+  };
+}
+
 function sameMetric(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-12;
 }
@@ -542,8 +761,7 @@ export function readLocomoPhase69GateReport(
     );
     return `${readString(entry.caseId, `cases[${index}].caseId`)}:${readString(entry.questionId, `cases[${index}].questionId`)}`;
   });
-  const declaredCategories = new Map(
-    value.categories.map((entry, index) => {
+  const declaredCategoryEntries = value.categories.map((entry, index) => {
       if (!isRecord(entry)) {
         throw new Error(`categories[${index}] must be an object`);
       }
@@ -564,8 +782,11 @@ export function readLocomoPhase69GateReport(
           ),
         },
       ] as const;
-    }),
-  );
+    });
+  const declaredCategories = new Map(declaredCategoryEntries);
+  if (declaredCategories.size !== declaredCategoryEntries.length) {
+    throw new Error("LoCoMo category summary contains duplicate categories");
+  }
   const categories = [...categoryRows.entries()].map(([category, recalls]) => {
     const computed = {
       averageEvidenceRecall:
@@ -616,6 +837,10 @@ export function readLocomoPhase69GateReport(
     categories,
     executionFailures,
     generalizedFusion: value.generalizedFusion === true,
+    generalizedFusionConfig: readGeneralizedFusionConfig(
+      value.generalizedFusionConfig,
+      "LoCoMo generalizedFusionConfig",
+    ),
     labelFreeIngest: value.labelFreeIngest === true,
     questionIds,
     retrievalConfig: Object.fromEntries(
@@ -732,11 +957,24 @@ export function readLongMemEvalPhase69GateReport(
     ingestMode: readString(value.ingestMode, "ingestMode"),
     profile: readString(value.profile, "profile"),
     questionIds,
+    runConfiguration: readLongMemEvalRunConfiguration(value.runConfiguration),
   };
 }
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
+}
+
+export function assertPhase69OutputPathIsDistinct(input: {
+  inputPaths: readonly string[];
+  outputPath: string;
+}): void {
+  const resolvedOutputPath = resolve(input.outputPath);
+  if (input.inputPaths.some((path) => resolve(path) === resolvedOutputPath)) {
+    throw new Error(
+      "Phase 69 gate output path must differ from every input report path",
+    );
+  }
 }
 
 async function main(): Promise<void> {
@@ -770,6 +1008,15 @@ async function main(): Promise<void> {
   const outputPath =
     resolveCliFlagValueStrict(Bun.argv, "--output") ??
     join(repoRoot, "reports", "quality-gates", "phase-69", "gate.json");
+  assertPhase69OutputPathIsDistinct({
+    inputPaths: [
+      locomoBaselinePath,
+      locomoCandidatePath,
+      longMemBaselinePath,
+      longMemCandidatePath,
+    ],
+    outputPath,
+  });
   const [locomoBaseline, locomoCandidate, longMemBaseline, longMemCandidate] =
     await Promise.all([
       readJson(locomoBaselinePath),
@@ -794,6 +1041,18 @@ async function main(): Promise<void> {
       longMemCandidatePath,
     },
     phase: "phase-69",
+    sourcePins: {
+      locomo: {
+        normalizedFingerprint: PHASE69_LOCOMO_BENCHMARK_FINGERPRINT,
+        sourceCommit: LOCOMO_UPSTREAM_COMMIT,
+        sourceSha256: LOCOMO_UPSTREAM_SHA256,
+      },
+      longMemEval: {
+        normalizedFingerprint: PHASE69_LONGMEMEVAL_BENCHMARK_FINGERPRINT,
+        sourceCommit: PHASE69_LONGMEMEVAL_UPSTREAM_COMMIT,
+        sourceSha256: PHASE69_LONGMEMEVAL_SOURCE_SHA256,
+      },
+    },
   };
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(artifact, null, 2)}\n`);

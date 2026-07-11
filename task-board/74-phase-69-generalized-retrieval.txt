@@ -4,7 +4,7 @@ Phase 69: Generalized Retrieval
 Status
 ------
 
-[ACTIVE]
+[DONE]
 
 Goal
 ----
@@ -28,3 +28,45 @@ Gate
 
 - Target slices improve at least 3 points with no protection-set regression
   above 1 point; no new benchmark literal rule is introduced.
+
+Accepted Evidence
+-----------------
+
+- Gate: `reports/quality-gates/phase-69/run-20260711-generalized-retrieval/phase-69-quality-gate.json`
+- LoCoMo official full root: 10 conversations / 1986 questions, label-free raw
+  ingest, provider-free, `executionFailures: 0`. Generalized fusion improved
+  multi_hop evidence recall from 0.0229806935 to 0.1334856928 (+0.1105049993)
+  and open_domain from 0.0943627451 to 0.2720588235 (+0.1776960784).
+- LongMemEval official full root: 500/500 questions, label-free raw ingest,
+  provider-free, `executionFailures: 0`. Generalized fusion improved
+  knowledge-update evidence-session recall from 0.6794871795 to 0.9102564103
+  (+0.2307692308) and temporal-reasoning from 0.4250626566 to 0.7667919799
+  (+0.3417293233). Overall recall moved from 0.5317 to 0.8317666667.
+- Every LoCoMo and LongMemEval protection slice improved. Added LoCoMo noise
+  stayed below 3.125 turns/question and added LongMemEval wrong sessions stayed
+  below 2.5/question, within the fixed 8 and 3 limits.
+- The gate pins LoCoMo source commit
+  `cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc` and LongMemEval source commit
+  `98d7416c24c778c2fee6e6f3006e7a073259d48f`, their source SHA-256 values,
+  normalized benchmark fingerprints, exact candidate budgets, and all expected
+  category populations.
+- Lazy projection verification is keyed by sessionless recall scope, so a new
+  session in the same tenant/workspace/agent scope does not rebuild an already
+  verified index.
+- The 5,000-fact SQLite/BM25 hook-latency regression passed three consecutive
+  runs after query-term-only BM25 counting and O(1) candidate-trace lookup
+  removed the full-scan hot path's avoidable allocation and quadratic work.
+- Final verification: canonical `bun test` 3286/3286, coverage 3173/3173 with
+  90.50% overall and 91.49% `src/recall`, Node package boundary and release
+  tests green. The minified tarball contains 213 files, is 970,656 bytes
+  compressed and 3,740,642 bytes unpacked, below the 4 MiB release limit.
+
+Boundary
+--------
+
+These are retrieval diagnostics, not end-to-end answer scores and not public
+benchmark claims. The provider-free full runs establish the generalized
+production floor needed by Phase 70. The full diagnostics create an isolated
+memory per question and therefore measure cold indexing rather than production
+warm-path latency; Phase 70 must measure reranker latency and fallback before
+broader live-answer runs.

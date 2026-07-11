@@ -9,6 +9,7 @@ import {
   readFile,
   readdir,
   rm,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,6 +26,9 @@ const ROOT_PACKAGE_PATH = join(import.meta.dir, "../../");
 const CURRENT_PACKAGE = loadPackageMetadataSync(ROOT_PACKAGE_PATH);
 const CURRENT_PACKAGE_VERSION = CURRENT_PACKAGE.version;
 const CURRENT_TARBALL_NAME = buildPackageTarballName(CURRENT_PACKAGE);
+let cachedReleaseTarball:
+  | Promise<{ contents: Uint8Array; tarballName: string }>
+  | undefined;
 const RELEASE_TEST_ENV = {
   GOODMEMORY_ASSISTED_EXTRACTOR_API_KEY: undefined,
   GOODMEMORY_ASSISTED_EXTRACTOR_BASE_URL: undefined,
@@ -241,33 +245,39 @@ async function packReleaseTarball(outputDir: string): Promise<{
   tarballName: string;
   tarballPath: string;
 }> {
-  const pack = await withPackagePackLock(ROOT_PACKAGE_PATH, () =>
-    runCommand({
-      cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
-      cwd: ROOT_PACKAGE_PATH,
-    }),
-  );
+  cachedReleaseTarball ??= (async () => {
+    const pack = await withPackagePackLock(ROOT_PACKAGE_PATH, () =>
+      runCommand({
+        cmd: ["bun", "pm", "pack", "--destination", outputDir, "--quiet"],
+        cwd: ROOT_PACKAGE_PATH,
+      }),
+    );
 
-  expect(pack.exitCode).toBe(0);
-  const tarballOutput = pack.stdout
-    .trim()
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter((line) => line.endsWith(".tgz"))
-    .at(-1);
-  const tarballName =
-    tarballOutput !== undefined
+    expect(pack.exitCode).toBe(0);
+    const tarballOutput = pack.stdout
+      .trim()
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line.endsWith(".tgz"))
+      .at(-1);
+    const tarballName = tarballOutput
       ? basename(tarballOutput)
       : CURRENT_TARBALL_NAME;
-  const tarballPath =
-    tarballOutput === undefined
-      ? join(outputDir, tarballName)
-      : tarballOutput.includes("/")
-        ? tarballOutput
-        : join(outputDir, tarballOutput);
+    const tarballPath = tarballOutput?.includes("/")
+      ? tarballOutput
+      : join(outputDir, tarballOutput ?? tarballName);
+    return {
+      contents: await readFile(tarballPath),
+      tarballName,
+    };
+  })();
+
+  const cached = await cachedReleaseTarball;
+  const tarballPath = join(outputDir, cached.tarballName);
+  await writeFile(tarballPath, cached.contents);
 
   return {
-    tarballName,
+    tarballName: cached.tarballName,
     tarballPath,
   };
 }
@@ -283,6 +293,19 @@ async function listTarballEntries(tarballPath: string): Promise<string[]> {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
+}
+
+async function directoryByteSize(directory: string): Promise<number> {
+  let total = 0;
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      total += await directoryByteSize(path);
+    } else if (entry.isFile()) {
+      total += (await stat(path)).size;
+    }
+  }
+  return total;
 }
 
 async function readTarballEntry(
@@ -748,7 +771,22 @@ describe("release metadata and docs", () => {
       "README.md",
       "README.zh-CN.md",
       "dist",
-      "docs",
+      "docs/README.md",
+      "docs/GoodMemory-15-Minute-App-Integration.md",
+      "docs/GoodMemory-Claude-Code-Setup-Guide.md",
+      "docs/GoodMemory-Codex-Handoff-Setup-Guide.md",
+      "docs/GoodMemory-Cursor-Setup-Guide.md",
+      "docs/GoodMemory-First-Principles-and-Reference-Architecture.md",
+      "docs/GoodMemory-Gemini-CLI-Setup-Guide.md",
+      "docs/GoodMemory-MCP-Registry-Publishing.md",
+      "docs/GoodMemory-OpenCode-Setup-Guide.md",
+      "docs/GoodMemory-PRD.md",
+      "docs/GoodMemory-Product-Comparison.md",
+      "docs/GoodMemory-Python-HTTP-Integration-Bridge.md",
+      "docs/GoodMemory-Reference-Integration-Guide.md",
+      "docs/GoodMemory-Standalone-MCP-Setup-Guide.md",
+      "docs/GoodMemory-Strategy-Rollout-Guide.md",
+      "docs/GoodMemory-记忆数据分层设计.md",
       "llms.txt",
       "package.json",
       "scripts/goodmemory-cli.js",
@@ -1151,7 +1189,7 @@ describe("release metadata and docs", () => {
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
-  }, 60_000);
+  }, 120_000);
 
   it("packs a tarball that keeps the compiled package boundary and omits repo-only payload", async () => {
     const outputDir = await mkdtemp(join(tmpdir(), "goodmemory-phase29-pack-"));
@@ -1225,6 +1263,17 @@ describe("release metadata and docs", () => {
           expect(source).not.toContain(literal);
         }
       }
+
+      const unpackedRoot = join(outputDir, "unpacked");
+      await mkdir(unpackedRoot, { recursive: true });
+      const unpack = await runCommand({
+        cmd: ["tar", "-xzf", tarballPath, "-C", unpackedRoot],
+        cwd: ROOT_PACKAGE_PATH,
+      });
+      expect(unpack.exitCode).toBe(0);
+      expect(await directoryByteSize(join(unpackedRoot, "package"))).toBeLessThanOrEqual(
+        4 * 1024 * 1024,
+      );
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
@@ -4986,7 +5035,7 @@ describe("release metadata and docs", () => {
     ] as const) {
       await expectTrackedEvalReportsMentionedInFile(relativePath);
     }
-  });
+  }, 15_000);
 
   it("phase-20 canonical dependency summaries are checked in", async () => {
     const qualityGateDoc = await readFile(

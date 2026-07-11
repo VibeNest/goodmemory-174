@@ -1,11 +1,30 @@
 import { describe, expect, it } from "bun:test";
 import {
+  LOCOMO_UPSTREAM_URL,
   loadLocomoPrepSource,
   normalizeLocomoPrepCases,
   parseLocomoPrepCliOptions,
+  validateLocomoPrepSource,
 } from "../../scripts/prepare-phase-65-locomo-data";
 
 describe("phase-65 LoCoMo external-root prep", () => {
+  it("rejects content drift at the pinned upstream URL", () => {
+    expect(() =>
+      validateLocomoPrepSource({
+        raw: "{}",
+        sourceUrl: LOCOMO_UPSTREAM_URL,
+      }),
+    ).toThrow("Pinned LoCoMo source SHA-256 mismatch");
+
+    expect(
+      validateLocomoPrepSource({
+        raw: "{}",
+        sourceFile: "/tmp/locomo10.json",
+        sourceUrl: LOCOMO_UPSTREAM_URL,
+      }),
+    ).toHaveLength(64);
+  });
+
   it("normalizes legacy colon-prefixed dia_ids in turns and QA evidence", () => {
     const cases = normalizeLocomoPrepCases(
       [
@@ -71,7 +90,7 @@ describe("phase-65 LoCoMo external-root prep", () => {
       outputRoot: "/tmp/LOCOMO-full",
       sourceFile: "/tmp/locomo10.json",
       sourceUrl:
-        "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json",
+        "https://raw.githubusercontent.com/snap-research/locomo/cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc/data/locomo10.json",
     });
 
     expect(

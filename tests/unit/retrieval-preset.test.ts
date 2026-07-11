@@ -3,6 +3,7 @@ import type { GoodMemorySemanticCandidatesConfig } from "../../src/api/contracts
 import {
   HASHED_LEXICAL_EMBEDDING_BRAND,
   RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
   RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
   resolveGoodMemoryRetrievalRuntime,
 } from "../../src/api/retrievalPreset";
@@ -83,6 +84,7 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     });
     expect(resolved.retrieval.generalizedFusion).toEqual({
       maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
     });
     // maxAdditions belongs to the legacy semantic-union path. Generalized fusion
     // owns its own bounded candidate budget.
@@ -202,6 +204,7 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     const resolved = resolve({ retrieval: { preset: "recommended" } });
     expect(resolved.retrieval.generalizedFusion).toEqual({
       maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
     });
     expect(resolved.retrieval.semanticCandidates).toBeUndefined();
     expect(resolved.retrieval.autoStrategyBias).toBe("hybrid");

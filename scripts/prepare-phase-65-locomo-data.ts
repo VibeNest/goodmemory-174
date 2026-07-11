@@ -7,6 +7,7 @@
 //
 //   bun run scripts/prepare-phase-65-locomo-data.ts -- --max-conversations 1 --max-questions-per-case 40
 //   GOODMEMORY_LOCOMO_ROOT=/private/tmp/LOCOMO bun run eval:phase-65-smoke -- --benchmark-root /private/tmp/LOCOMO --live --evidence-pack
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -21,8 +22,12 @@ import {
   resolveCliFlagValueStrict,
 } from "./cli-options";
 
-const UPSTREAM_URL =
-  "https://raw.githubusercontent.com/snap-research/locomo/main/data/locomo10.json";
+export const LOCOMO_UPSTREAM_COMMIT =
+  "cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc";
+export const LOCOMO_UPSTREAM_SHA256 =
+  "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4";
+export const LOCOMO_UPSTREAM_URL =
+  `https://raw.githubusercontent.com/snap-research/locomo/${LOCOMO_UPSTREAM_COMMIT}/data/locomo10.json`;
 const ADVERSARIAL_ABSTENTION_GOLD = "No information available";
 const CANONICAL_LOCOMO_DIA_ID_PATTERN = /^D(\d+):(\d+)$/u;
 const LEGACY_LOCOMO_DIA_ID_PATTERN = /^D:(\d+):(\d+)$/u;
@@ -116,7 +121,7 @@ export function parseLocomoPrepCliOptions(
     ),
     outputRoot,
     sourceFile,
-    sourceUrl: sourceUrl ?? UPSTREAM_URL,
+    sourceUrl: sourceUrl ?? LOCOMO_UPSTREAM_URL,
   };
 }
 
@@ -144,6 +149,24 @@ export async function loadLocomoPrepSource(input: {
   }
 
   return response.text();
+}
+
+export function validateLocomoPrepSource(input: {
+  raw: string;
+  sourceFile?: string;
+  sourceUrl: string;
+}): string {
+  const sourceSha256 = createHash("sha256").update(input.raw).digest("hex");
+  if (
+    input.sourceFile === undefined &&
+    input.sourceUrl === LOCOMO_UPSTREAM_URL &&
+    sourceSha256 !== LOCOMO_UPSTREAM_SHA256
+  ) {
+    throw new Error(
+      `Pinned LoCoMo source SHA-256 mismatch: expected ${LOCOMO_UPSTREAM_SHA256}, received ${sourceSha256}.`,
+    );
+  }
+  return sourceSha256;
 }
 
 export function normalizeLocomoDiaId(value: string): string | null {
@@ -316,6 +339,11 @@ async function main(): Promise<void> {
   } = parseLocomoPrepCliOptions(Bun.argv);
 
   const raw = await loadLocomoPrepSource({ sourceFile, sourceUrl });
+  const sourceSha256 = validateLocomoPrepSource({
+    raw,
+    sourceFile,
+    sourceUrl,
+  });
   const parsed = JSON.parse(raw) as unknown;
   const cases = normalizeLocomoPrepCases(parsed, {
     maxConversations,
@@ -336,6 +364,11 @@ async function main(): Promise<void> {
         license: "CC BY-NC 4.0 (not vendored)",
         questionCount: cases.reduce((sum, item) => sum + item.questions.length, 0),
         source: sourceFile ?? sourceUrl,
+        sourceCommit:
+          sourceFile === undefined && sourceUrl === LOCOMO_UPSTREAM_URL
+            ? LOCOMO_UPSTREAM_COMMIT
+            : null,
+        sourceSha256,
         turnCount: cases.reduce((sum, item) => sum + item.turns.length, 0),
       },
       null,

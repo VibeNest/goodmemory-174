@@ -5,8 +5,11 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 ## Stable OSS Surface
 
 - Current stable package line: 0.5.x (published 0.5.1 on npm).
-- Main is now on the Phase 68 generalization-first line toward v0.6.0. The
-  production selector graph contains only generalized selection primitives.
+- Main has completed Phases 68 and 69 on the generalization-first line toward
+  v0.6.0; Phase 70 is active. The production selector graph contains only
+  generalized selection primitives, and the `recommended` preset now has a
+  provider-free multi-granular BM25/entity/RRF path with an optional dense
+  channel.
   The 139-file historical selector closure now lives physically under
   `scripts/eval-profiles/legacy-fitted/`; repo-local historical evals must
   activate that profile explicitly with `bun run test:legacy-fitted`.
@@ -51,14 +54,23 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 
 ## Active Research Slice
 
-- Phase 68 is active. Its fresh production-default BEAM 100K generalized
-  baseline has twice-reproduced evidence-chat recall 0.1698231307 over 355
-  evidence-bearing cases, with 332 missed-recall cases and
-  `executionFailures: 0`. This is below
-  ADR-005's old 0.6822 "all narrow gates disabled" number because that older
-  path still imported unregistered benchmark-specific source-order modules.
-  The lower number is the first package-isolated lexical floor and is the
-  starting point for Phase 69, not a public answer-quality claim.
+- Phase 69 is complete. The accepted provider-free gate is
+  `reports/quality-gates/phase-69/run-20260711-generalized-retrieval/phase-69-quality-gate.json`.
+  It compares frozen baseline/candidate configurations on pinned full roots:
+  LoCoMo 10 conversations / 1986 questions and LongMemEval 500/500, both
+  label-free and with `executionFailures: 0`. LoCoMo evidence recall moved
+  0.0229806935 -> 0.1334856928 on multi_hop and 0.0943627451 ->
+  0.2720588235 on open_domain. LongMemEval evidence-session recall moved
+  0.6794871795 -> 0.9102564103 on knowledge-update and 0.4250626566 ->
+  0.7667919799 on temporal-reasoning; overall moved 0.5317 -> 0.8317666667.
+  Every protection slice improved and noise stayed within the fixed gate.
+  These are retrieval-only diagnostics, not answer accuracy and not public
+  benchmark claims.
+- Phase 70 is active. It owns a first-party OpenAI-compatible pointwise
+  reranker, deterministic fallback, channel/fusion/reranker trace evidence,
+  and a measured score/noise follow-up. Any new non-judge model call is pinned
+  to `gpt-5.6-terra` through
+  `ai.gurkiai.com`; official scoring must use an independent judge.
 - Phase 62 LongMemEval is accepted as the first Sequential Benchmark Hardening slice.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This is evidence-input canonicalization only; it does not change benchmark scores or public-claim boundaries.
 - Historical Phase 63 / P67 BEAM evidence includes an official-protocol 0.802 score, but it is no longer a current public claim because the recall profile is repo-eval-only; the answer-rule lane is paused. The earlier accepted rules-only measured checkpoint remains the internal binary-track baseline: answer-pack hardening (`--evidence-pack`, `src/answer/evidencePack.ts`) raised answer accuracy from the no-pack 0.56 baseline (224/400) and the prior evidence-pack 0.6525 checkpoint (261/400) to 0.695 (278/400) at identical recall (0.9621), `executionFailures: 0`, gate accepted. The historical P67 declaration reported official-protocol 0.802 versus the 0.49 public reference; its 122/400 binary-track wrong answers and category weak spots remain archived gap evidence.

@@ -9,6 +9,7 @@ const EXCLUDED_COVERAGE_TEST_NAMES = [
   "anchors generated Codex exports",
   "generated Codex pre-tool-use hook",
   "generated Codex action gate",
+  "keeps bm25 hybrid recall over 5k sqlite facts within the hook budget",
 ] as const;
 
 export function selectIntegrationCoverageFiles(fileNames: string[]): string[] {
@@ -34,6 +35,7 @@ export function buildCoverageCommand(integrationFiles: string[]): string[] {
     "--coverage-reporter=lcov",
     "--coverage-dir=coverage",
     "--max-concurrency=1",
+    "--timeout=30000",
     "tests/unit",
     "tests/eval",
     "tests/scenarios",

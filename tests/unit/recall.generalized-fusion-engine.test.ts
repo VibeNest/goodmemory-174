@@ -26,7 +26,7 @@ function createFixedEmbeddingAdapter(): EmbeddingAdapter {
         if (text === QUERY) {
           return [1, 0, 0];
         }
-        if (text.includes("fishing")) {
+        if (text.toLowerCase().includes("fishing")) {
           return [0.95, 0.05, 0];
         }
         return [0, 1, 0];
@@ -229,6 +229,77 @@ describe("generalized fusion through the recall engine", () => {
       "episode-nebula",
       "archive-nebula",
     ]) {
+      expect(
+        result.metadata.candidateTraces.find(({ memoryId }) => memoryId === id)
+          ?.fallback,
+      ).toBe("generalized_fusion");
+    }
+  });
+
+  it("feeds provider dense reference and episode channels into generalized fusion", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+      vectorStore: createInMemoryVectorStore(),
+    });
+    const embedding = createFixedEmbeddingAdapter();
+    const reference = createReferenceMemory({
+      id: "reference-dense",
+      ...scope,
+      title: "Fishing permit archive",
+      pointer: "vault/permit.txt",
+      source: { method: "explicit", extractedAt: "2026-07-09T00:00:00.000Z" },
+    });
+    const episode = createEpisodeMemory({
+      id: "episode-dense",
+      ...scope,
+      summary: "Marco went fishing at a quiet lake.",
+      createdAt: "2026-07-09T00:00:00.000Z",
+    });
+    await repositories.references.add(reference);
+    await repositories.episodes.add(episode);
+    const [referenceEmbedding, episodeEmbedding] = await embedding.embed([
+      `${reference.title} ${reference.pointer}`,
+      episode.summary,
+    ]);
+    await repositories.vectorIndex!.upsertReferenceEmbedding([
+      {
+        content: reference.title,
+        embedding: referenceEmbedding!,
+        id: reference.id,
+        metadata: { ...scope, memoryType: "reference" },
+      },
+    ]);
+    await repositories.vectorIndex!.upsertEpisodeEmbedding([
+      {
+        content: episode.summary,
+        embedding: episodeEmbedding!,
+        id: episode.id,
+        metadata: { ...scope, memoryType: "episode" },
+      },
+    ]);
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      embedding,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 10 },
+      projectionIndex,
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: QUERY,
+      retrievalProfile: "general_chat",
+    });
+
+    for (const id of [reference.id, episode.id]) {
       expect(
         result.metadata.candidateTraces.find(({ memoryId }) => memoryId === id)
           ?.fallback,

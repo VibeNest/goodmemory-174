@@ -17,6 +17,7 @@ import { buildEntityAdjacencyProjectionId } from "./projector";
 import {
   memoryProjectionId,
   normalizeRecallScope,
+  matchesScopeFilter,
   recallScopeKey,
   scopeFilter,
 } from "./shared";
@@ -236,11 +237,13 @@ export function createEntityProjectionIndex(
 
   return {
     async query(scope) {
-      const edges = await documentStore.query<EntityAdjacencyProjection>(
+      const queried = await documentStore.query<EntityAdjacencyProjection>(
         ENTITIES_COLLECTION,
         scopeFilter(scope),
       );
-      return aggregateEntityAdjacencies(edges);
+      return aggregateEntityAdjacencies(
+        queried.filter((edge) => matchesScopeFilter(edge, scope)),
+      );
     },
     async updateForSource(input) {
       const memoryId = memoryProjectionId(

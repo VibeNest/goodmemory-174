@@ -40,8 +40,21 @@ const DISALLOWED_SELECTOR_FILENAME_PATTERN =
   /(?:Alexis|Greg|Kimberly|Stephen|FlaskLogin|WeatherAutocomplete|AiHiring|Sneaker)/u;
 const DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN =
   /\b(?:ashlee|bay-street|bay\s+street|laura|mason|michael|michele|patrick|robert|stephanie|thomas)\b/iu;
+const internalImportEdgesCache = new Map<string, Promise<string[]>>();
+const sourceCache = new Map<string, Promise<string>>();
+const typeScriptFilesCache = new Map<string, Promise<string[]>>();
 
 async function collectTypeScriptFiles(directory: string): Promise<string[]> {
+  const cached = typeScriptFilesCache.get(directory);
+  if (cached) {
+    return cached;
+  }
+  const pending = collectTypeScriptFilesUncached(directory);
+  typeScriptFilesCache.set(directory, pending);
+  return pending;
+}
+
+async function collectTypeScriptFilesUncached(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
   const files: string[] = [];
 
@@ -58,6 +71,16 @@ async function collectTypeScriptFiles(directory: string): Promise<string[]> {
   }
 
   return files;
+}
+
+function readSource(file: string): Promise<string> {
+  const cached = sourceCache.get(file);
+  if (cached) {
+    return cached;
+  }
+  const pending = readFile(file, "utf8");
+  sourceCache.set(file, pending);
+  return pending;
 }
 
 async function collectTopLevelTypeScriptFiles(directory: string): Promise<string[]> {
@@ -117,24 +140,32 @@ async function resolveInternalImport(
 }
 
 async function collectInternalImportEdges(file: string): Promise<string[]> {
-  const source = await readFile(file, "utf8");
-  const targets = new Set<string>();
-
-  for (const specifier of collectRelativeModuleSpecifiers(source)) {
-    const target = await resolveInternalImport(file, specifier);
-    if (target) {
-      targets.add(target);
-    }
+  const cached = internalImportEdgesCache.get(file);
+  if (cached) {
+    return cached;
   }
+  const pending = (async () => {
+    const source = await readSource(file);
+    const targets = new Set<string>();
 
-  return [...targets];
+    for (const specifier of collectRelativeModuleSpecifiers(source)) {
+      const target = await resolveInternalImport(file, specifier);
+      if (target) {
+        targets.add(target);
+      }
+    }
+
+    return [...targets];
+  })();
+  internalImportEdgesCache.set(file, pending);
+  return pending;
 }
 
 async function collectImportedBindingsForTarget(
   file: string,
   targetPath: string,
 ): Promise<string[]> {
-  const source = await readFile(file, "utf8");
+  const source = await readSource(file);
   const sourceFile = ts.createSourceFile(
     file,
     source,

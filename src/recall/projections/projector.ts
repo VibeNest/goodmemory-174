@@ -189,7 +189,7 @@ function isProjectionActive(
 
 function splitSentences(text: string): string[] {
   return text
-    .split(/(?<=[.!?。！？])\s+|\n+/u)
+    .split(/(?<=[.!?])\s+|(?<=[。！？])|\n+/u)
     .map((sentence) => sentence.trim())
     .filter((sentence) => sentence.length >= MIN_SENTENCE_LENGTH);
 }

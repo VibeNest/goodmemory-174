@@ -2,14 +2,24 @@ import { existsSync } from "node:fs";
 import type {
   LongMemEvalRecallDiagnosticProfile,
   LongMemEvalRecallDiagnosticReport,
+  LongMemEvalRecallRunConfiguration,
   RunLongMemEvalRecallDiagnosticOptions,
 } from "../src/eval/longmemeval";
 import {
   createLongMemEvalGoodMemoryContextBuilder,
+  LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
   runLongMemEvalRecallDiagnostic,
 } from "../src/eval/longmemeval";
 import { createGoodMemory } from "../src/api/createGoodMemory";
 import type { GoodMemory } from "../src/api/contracts";
+import {
+  RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+} from "../src/api/retrievalPreset";
+import {
+  DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+  DEFAULT_GENERALIZED_FUSION_RRF_K,
+} from "../src/recall/generalizedFusion";
 import { assertCliPathSegmentValue } from "./cli-options";
 import {
   createHermeticLongMemEvalMemory,
@@ -88,6 +98,32 @@ function resolveRecallDiagnosticProfile(
   );
 }
 
+function buildRecallRunConfiguration(
+  profile: LongMemEvalRecallDiagnosticProfile,
+): LongMemEvalRecallRunConfiguration {
+  return {
+    contextMaxTokens: LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
+    extractionStrategy: "rules-only",
+    generalizedFusion: profile === "goodmemory-recommended"
+      ? {
+          maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+          maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+          minRelativeStrength:
+            DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+          rrfK: DEFAULT_GENERALIZED_FUSION_RRF_K,
+        }
+      : null,
+    projection: {
+      bulkBackfill: true,
+      writeThrough: false,
+    },
+    providerEmbedding: profile === "goodmemory-hybrid",
+    recallStrategy: profile === "goodmemory-rules-only"
+      ? "rules-only"
+      : "hybrid",
+  };
+}
+
 function assertRecallDiagnosticReadiness(input: {
   benchmarkRoot: string;
   fileExists: (path: string) => boolean;
@@ -153,6 +189,7 @@ export function buildPhase62RecallDiagnosticOptions(
     profile,
     questionTypes: options.questionTypes,
     resume: options.resume,
+    runConfiguration: buildRecallRunConfiguration(profile),
     runId,
   };
 }
@@ -187,6 +224,7 @@ export async function runPhase62LongMemEvalRecallDiagnostic(
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
         createMemory: createProfileMemory,
         ingestMode: runOptions.ingestMode,
+        maxTokens: runOptions.runConfiguration?.contextMaxTokens,
         runId: runOptions.runId,
       }),
     });

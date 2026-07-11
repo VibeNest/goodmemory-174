@@ -38,9 +38,17 @@ Official-protocol scoring must use a different judge model;
   over 355 evidence-bearing cases. This is an honest floor, not a public answer
   score. Canonical, coverage, package, release, and tracked-artifact gates pass;
   the accepted quality gate is tracked with the phase commit.
-- Phase 69 is active on the pushed Phase 68 boundary. The implementation lane
-  is versioned recall/entity/scope projections, idempotent repair, and
-  BM25+dense+entity fusion validated on held-out slices.
+- Phase 69 is complete. The pinned provider-free full-root gate covers LoCoMo
+  10/1986 and LongMemEval 500/500 with label-free ingest and zero execution
+  failures. LoCoMo multi_hop/open_domain evidence recall improved by +0.1105 /
+  +0.1777; LongMemEval knowledge-update/temporal-reasoning evidence-session
+  recall improved by +0.2308 / +0.3417, and all protection slices improved.
+  The accepted artifact is
+  `reports/quality-gates/phase-69/run-20260711-generalized-retrieval/phase-69-quality-gate.json`.
+  These are retrieval diagnostics, not end-to-end scores or public claims.
+- Phase 70 is active. It adds the first-party pointwise reranker and complete
+  retrieval evidence trace, preserves deterministic fallback and grounded
+  abstention, and must prove another score or noise improvement before Phase 71.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper now reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This keeps run ids, source paths, output paths, roots, and budget selectors canonical across the hardened LongMemEval, BEAM, MemoryAgentBench, LoCoMo, release-readiness, and public-claim evidence paths without changing any benchmark score or public-claim boundary.
 - Adjacent Phase 61 ImplicitMemBench refresh and promotion: the 2026-07-06 full-root source-answer run `run-phase61-full300-rerun-20260706-codex-current` used `/tmp/ImplicitMemBench` at upstream `927413bf3f5389bb47c94c2a0ba987e435b101b8` (dataset CC BY 4.0, code MIT), completed all 300 benchmark cases with `executionFailures: 0`, and measured same-model diagnostic GoodMemory Full-300 score 212.45/300 = 0.7081666667 (`goodmemory-distilled-feedback+controlled-priming`) versus baseline 123/300 = 0.41. The public candidate score is the completed stored-answer gpt-5.4/gpt-5.5 cross-version rescore `implicitmembench-independent-rescore-gpt54-current`: GoodMemory 207.35/300 = 0.6911666667, upstream-chat baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, `sourceAnswersUnchanged: true`, and 0 execution failures. The claim must disclose that gpt-5.4 is the same GPT family as the gpt-5.5 answerer, not a cross-family judge; the older 0.708 same-model score is diagnostic only.
 - Adjacent Phase 61 postchanges check: `run-phase61-full300-rerun-20260706-postchanges-current` completed the same full-root 300-case rerun after recent local changes, but had 2 GoodMemory distilled execution failures from `text_answer_generation timed out after 180000ms`. Its best same-model diagnostic score was 209.05/300 = 0.6968333333, raw was 175.05/300 = 0.5835, distilled blocking was 153/200 = 0.765, and baseline was 131/300 = 0.4366666667. Treat this as drift evidence only; it does not replace the 0-failure `codex-current` source run or the stored-answer gpt-5.4 comparability artifact.
@@ -189,9 +197,13 @@ Official-protocol scoring must use a different judge model;
 - Best small live slice: `run-phase63-beam-100k-live-slice-rules-context-ordered-pruning-v6-initial3-escalated-20260518T160743`, answer accuracy 3/3, evidence-chat recall 1.0, wrong-recall/noise 2/3, `executionFailures: 0`.
 - Latest accepted retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`. Fourth multi_session_reasoning recovery via the multi-facet contradiction route, exhausting the confirmed-reachable msr cases. Compared with the cover-letter baseline (20260615T193000Z), it raises evidence-chat recall to 0.9620612564274538, lowers missed-recall cases to 20/355 and wrong-recall/noise to 167/400 (zero-recall stays 0), and moves global hit/missing/noise ids from 1022/72/810 to 1023/71/807. Target `3:multi_session_reasoning:1` ("How many project cards do I have in total after adding the new ones to my gallery?") goes from recall 0.5 to full recall: this is a ground-truth-misaligned case — the benchmark designates the contact-form/MVP turn 16 (which reads off-topic for a "project cards" count) alongside the "total of 10 cards" gallery turn 116, and the default msr route instead returned [60,116,88,36] (picking the on-topic "8 cards" gallery turn 60 as noise and missing the designated turn 16). The fix returns exactly the two designated source-marked turns [16,116], recovering turn 16 and shedding noise 60/88/36. A two-facet MULTI_FACET group (`multiSessionReasoning.projectCardTotalCount` = "how many project cards" && "in total after adding", narrowed to 1/400 so it does NOT also match the sibling knowledge_update question "...included in my gallery using Bootstrap 5.3.0" whose evidence is [60,116]); F1 keys on contact form + MVP (turn 16), F2 on two new projects + total of 10 cards (turn 116, excluding the 8-cards turn 60). Cleanest possible pass: exactly one case delta, zero ripples — a recall gain (+0.5) plus a noise reduction (three chats shed), no newly-missing evidence and no new noise; the sibling 3:knowledge_update:2 held at recall 1. Remaining partial-recall families: instruction_following (6 — via the instructionRules companionPattern recipe, NOT multiFacetGroups, which collides with the instruction-continuation mechanism), multi_session_reasoning (the remaining cases — 19:msr:1, 5:msr:1, 19:msr:2 and the large aggregates — have a genuine upstream candidate-pool gap, needing candidate-generation work rather than selection). The prior accepted recall change was the third multi_session_reasoning recovery via this route (8:multi_session_reasoning:1, cover-letter submission count), which left recall at 0.9606528057232284.
 
-## Current Open Boundary
+## Historical Phase 63 Answer Boundary (Paused)
 
-Phase 63 is no longer a recall-only loop. The latest local evidence-pack answer-gap analysis (`run-phase63-beam-live-answer-gap-answer-hardening-current`) should drive the next repair before changing selectors:
+This section preserves the banked Phase 63 answer-gap analysis. It is not the
+current execution lane; Phase 63 answer-rule tuning is paused behind Phases
+70-72 and may not add benchmark-literal selectors. If that lane is explicitly
+reopened, `run-phase63-beam-live-answer-gap-answer-hardening-current` remains
+the starting diagnostic:
 
 1. Treat the remaining 122 wrong answers as primarily answer-time pressure: 58 full-recall-clean, 37 full-recall-noisy, 15 missing-evidence, 7 abstention, 5 unknown.
 2. Prioritize conflict_update 29 (dominant full-recall-clean), instruction_following 27 (dominant full-recall-noisy), temporal_order 23 (dominant full-recall-clean), aggregate_count 15, summarization 9, preference_following 8, abstention 7, and the remaining judge_or_expected_answer 3.

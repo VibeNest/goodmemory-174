@@ -8,15 +8,13 @@
 //
 // The mechanism it enables: a query names an entity E; a stored fact that also
 // contains E is surfaced past the lexical floor even when its surrounding token
-// overlap with the query is weak (the LoCoMo "question<->gold-turn token overlap
-// ~0.29" phrasing gap). It is provider-free and deterministic by construction —
-// no embeddings, no LLM, offline — so it lifts the rules-only floor rather than
-// depending on a neural endpoint.
+// overlap with the query is weak. It is provider-free and deterministic by
+// construction, so it lifts the rules-only floor without a neural endpoint.
 //
 // Scope note: this surfaces facts sharing a query entity. It is NOT a multi-hop
 // bridge (where the query does not name the bridge entity) — that is
-// iterativeRecall's two-pass job, a separately measured (and, on LoCoMo, banked-
-// negative) lever. Keeping the two mechanisms distinct is deliberate.
+// iterativeRecall's two-pass job. Keeping the two mechanisms distinct is
+// deliberate.
 
 // Lower-cased tokens that never count as entities: pronouns, question words,
 // auxiliaries, and high-frequency function words. Mirrors iterativeRecall's
@@ -36,8 +34,8 @@ const MIN_ENTITY_TOKEN_LENGTH = 2;
 
 // Candidate tokens: alphanumeric runs allowing internal apostrophes/hyphens,
 // same shape as iterativeRecall — "O'Brien" and "co-op" stay whole, while
-// dotted/coloned strings deliberately split ("D11:26" -> "d11","26";
-// "v18.15.0" -> "v18","15","0"), pinned by the extraction unit test.
+// dotted/coloned strings deliberately split ("v18.15.0" -> "v18","15","0"),
+// pinned by the extraction unit test.
 const ENTITY_TOKEN_PATTERN = /[A-Za-z0-9][A-Za-z0-9'-]*/gu;
 
 export type EntityKind = "proper" | "numeric";

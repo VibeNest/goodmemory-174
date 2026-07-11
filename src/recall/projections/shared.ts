@@ -46,8 +46,10 @@ export function matchesScopeFilter(
   document: MemoryScope,
   scope: MemoryScope,
 ): boolean {
-  const record = document as unknown as Record<string, unknown>;
-  return Object.entries(scopeFilter(scope)).every(
-    ([key, value]) => record[key] === value,
-  );
+  const record = normalizeRecallScope(document);
+  const requested = normalizeRecallScope(scope);
+  return record.userId === requested.userId &&
+    record.tenantId === requested.tenantId &&
+    record.workspaceId === requested.workspaceId &&
+    record.agentId === requested.agentId;
 }

@@ -1,3 +1,4 @@
+import type { MemoryScope } from "../../domain/scope";
 import type {
   ConditionalDocumentWriteBatch,
   DocumentStore,
@@ -27,11 +28,15 @@ export function createProjectionAwareDocumentStore(input: {
     if (!isRecallProjectionSourceCollection(collection)) {
       return;
     }
-    const scope = fallbackDocument
+    const fallbackScope = fallbackDocument
       ? resolveProjectionScope(fallbackDocument) ?? undefined
       : undefined;
     try {
-      await operations.synchronizeUnsafe(collection, sourceMemoryId, scope);
+      await operations.synchronizeUnsafe(
+        collection,
+        sourceMemoryId,
+        fallbackScope,
+      );
     } catch (error) {
       console.error(
         "[goodmemory:recall-projection] canonical write committed but projection sync failed",
@@ -41,10 +46,32 @@ export function createProjectionAwareDocumentStore(input: {
           sourceMemoryId,
         },
       );
+      let currentScope: MemoryScope | undefined;
+      try {
+        const current = await documentStore.get<StorageDocument>(
+          collection,
+          sourceMemoryId,
+        );
+        currentScope = current
+          ? resolveProjectionScope(current) ?? undefined
+          : undefined;
+      } catch (readError) {
+        console.error(
+          "[goodmemory:recall-projection] failed to resolve the current scope for repair",
+          {
+            collection,
+            error: errorMessage(readError),
+            sourceMemoryId,
+          },
+        );
+      }
       await repairs.queue({
+        affectedScopes: [fallbackScope, currentScope].filter(
+          (scope): scope is MemoryScope => scope !== undefined,
+        ),
         collection,
         error,
-        scope,
+        scope: currentScope ?? fallbackScope,
         sourceMemoryId,
       });
     }

@@ -12,11 +12,10 @@
 
 通用事实选择实现在 `src/recall/generalizedSelection.ts`。生产默认不读取环境变量，也不导入 narrow gate、source-order rule table、benchmark query classifier 或 legacy route table。
 
-`src/recall/selectors/` 只保留五个通用模块：
+`src/recall/selectors/` 只保留四个通用模块：
 
 - `recordSelection.ts`：feedback、preference、reference、episode、archive。
 - `selectionContext.ts`：trace、tag、slot 和通用候选信号。
-- `sourceEnvelope.ts`：导入来源包络识别。
 - `temporal.ts`：通用时间和用户事件顺序判断。
 - `topic.ts`：通用 topic token helper。
 
@@ -24,8 +23,13 @@
 
 - `contracts.ts`
 - `draft.ts`
-- `entityUnion.ts`
+- `generalizedFusionUnion.ts`
 - `semanticUnion.ts`
+
+早期的 embedding-free entity floor probe 已移到
+`scripts/eval-profiles/generalized-probes/entityUnion.ts`；它只是测量工具，不是生产
+selector。生产实体通道由 `src/recall/projections/` 与
+`src/recall/generalizedFusion.ts` 实现。
 
 `selectionSlot.ts` 继续拥有 role、focus、blocker、open-loop 和 project-state-support 的 slot 选择。
 
@@ -41,7 +45,9 @@
 6. 对用户事件顺序查询排除 assistant-answer evidence。
 7. 对 research recommendation 和 answer-composition 使用有界通用候选。
 8. 其余查询按 lexical、subject、intent、explicitness 和 provider signal 选择，跨 session 去重，最多返回 6 条。
-9. 必要时执行确定性的 zero-retrieval lexical fallback、同 session companion 和 semantic union。
+9. 在 `recommended` preset 下，从多粒度投影构建 BM25、实体邻接和可选
+   dense 通道，用 RRF 融合并施加动态候选/噪声预算。
+10. 必要时执行确定性的 zero-retrieval lexical fallback、同 session companion 和 semantic union。
 
 这些机制只能依赖查询结构、事实元数据和通用语言信号，不能依赖 benchmark 人名、原句或 case id。
 
@@ -91,7 +97,7 @@ bun run test:legacy-fitted
 `tests/unit/architecture.boundaries.test.ts` 与 Phase 68 gate 强制：
 
 - `selection.ts` 不超过 300 行。
-- 生产 `selectors/` 只能包含五个允许模块。
+- 生产 `selectors/` 只能包含四个允许模块。
 - 生产 `factSelection/` 只能包含四个允许模块。
 - `src/recall` 不得出现 `narrowGates.ts`、`selectionLegacy.ts` 或 `selectionRunContext.ts`。
 - 生产 recall 不读取 `process.env`。

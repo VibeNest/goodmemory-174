@@ -315,6 +315,28 @@ describe("recall projection runtime", () => {
     ).toBe(true);
   });
 
+  it("splits contiguous CJK sentences into separate projection documents", async () => {
+    const runtime = createRecallProjectionRuntime({
+      documentStore: createInMemoryDocumentStore(),
+      now: () => NOW,
+    });
+    const fact = buildFact({
+      content: "第一句话包含足够多的信息。第二句话也包含足够多的信息！",
+    });
+
+    await runtime.documentStore.set("facts", fact.id, fact);
+    const sentences = (await runtime.queryDocuments(scope))
+      .filter(({ granularity, text }) =>
+        granularity === "sentence" && text.includes("句话"),
+      )
+      .map(({ text }) => text);
+
+    expect(sentences).toEqual([
+      "第一句话包含足够多的信息。",
+      "第二句话也包含足够多的信息！",
+    ]);
+  });
+
   it("caps every projected document and source entity set", async () => {
     const runtime = createRecallProjectionRuntime({
       documentStore: createInMemoryDocumentStore(),
@@ -582,6 +604,28 @@ describe("recall projection runtime", () => {
     );
   });
 
+  it("reuses recall-scope verification across sessions", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const historical = buildFact({ id: "fact-shared-recall-scope" });
+    await rawStore.set("facts", historical.id, historical);
+    const runtime = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => NOW,
+    });
+
+    await runtime.ensureScopeIndexed(scope);
+    const secondSession = await runtime.ensureScopeIndexed({
+      ...scope,
+      sessionId: "session-2",
+    });
+
+    expect(secondSession).toMatchObject({
+      complete: true,
+      indexedSources: 0,
+      skipped: true,
+    });
+  });
+
   it("bulk backfill scans projection collections once per scope", async () => {
     const rawStore = createInMemoryDocumentStore();
     for (let index = 0; index < 40; index += 1) {
@@ -655,7 +699,11 @@ describe("recall projection runtime", () => {
         (document) => document.sourceMemoryId === workspaceTwo.id,
       ),
     ).toBe(false);
-    expect(await runtime.queryEntities({ userId: scope.userId })).toEqual([]);
+    expect(
+      (await runtime.queryEntities({ userId: scope.userId }))
+        .flatMap(({ memoryIds }) => memoryIds)
+        .some((memoryId) => memoryId === `facts:${workspaceTwo.id}`),
+    ).toBe(false);
   });
 
   it("invalidates a complete sessionless scope when a session write needs repair", async () => {

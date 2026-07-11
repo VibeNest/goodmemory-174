@@ -90,8 +90,11 @@ export function finalizeSuppressionReasons(input: {
   compatible: RankedFactCandidate[];
   traces: RecallCandidateTrace[];
 }): void {
+  const traceByMemoryId = new Map(
+    input.traces.map((trace) => [trace.memoryId, trace] as const),
+  );
   for (const entry of input.compatible) {
-    const trace = input.traces.find((item) => item.memoryId === entry.fact.id);
+    const trace = traceByMemoryId.get(entry.fact.id);
     if (trace && !trace.returned && trace.whySuppressed === "not selected") {
       trace.whySuppressed = "below generic threshold";
     }

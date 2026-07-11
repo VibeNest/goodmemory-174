@@ -22,6 +22,7 @@ export const LONGMEMEVAL_FULL_DATA_FILES = [
   "data/longmemeval_s_cleaned.json",
   "data/longmemeval_s.json",
 ] as const;
+export const LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS = 4000;
 const LONGMEMEVAL_ASSISTANT_EVIDENCE_FACT_LIMIT = 80;
 const LONGMEMEVAL_ASSISTANT_ANCHORED_FACT_LIMIT = 40;
 
@@ -32,6 +33,23 @@ export type LongMemEvalRecallDiagnosticProfile =
   | "goodmemory-hybrid"
   | "goodmemory-recommended"
   | "goodmemory-rules-only";
+
+export interface LongMemEvalRecallRunConfiguration {
+  contextMaxTokens: number;
+  extractionStrategy: "rules-only";
+  generalizedFusion: {
+    maxCandidates: number;
+    maxTotalFacts: number;
+    minRelativeStrength: number;
+    rrfK: number;
+  } | null;
+  projection: {
+    bulkBackfill: boolean;
+    writeThrough: boolean;
+  };
+  providerEmbedding: boolean;
+  recallStrategy: "hybrid" | "rules-only";
+}
 
 export interface LongMemEvalTurn {
   content: string;
@@ -153,6 +171,7 @@ export interface RunLongMemEvalRecallDiagnosticOptions {
   profile: LongMemEvalRecallDiagnosticProfile;
   questionTypes?: readonly string[];
   resume?: boolean;
+  runConfiguration?: LongMemEvalRecallRunConfiguration;
   runId?: string;
 }
 
@@ -257,6 +276,7 @@ export interface LongMemEvalRecallDiagnosticReport {
   phase: "phase-62";
   profile: LongMemEvalRecallDiagnosticProfile;
   runDirectory: string;
+  runConfiguration?: LongMemEvalRecallRunConfiguration;
   runId: string;
   source: {
     benchmark: "LongMemEval";
@@ -4178,7 +4198,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
       strategy: recallStrategy,
     });
     const context = await memory.buildContext({
-      maxTokens: input.maxTokens ?? 4000,
+      maxTokens: input.maxTokens ?? LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
       output: "markdown",
       recall,
     });
@@ -4679,7 +4699,8 @@ interface LongMemEvalRecallProgressIdentity {
   ingestMode: LongMemEvalIngestMode;
   profile: LongMemEvalRecallDiagnosticProfile;
   questionIds: string[];
-  schemaVersion: 1;
+  runConfiguration: LongMemEvalRecallRunConfiguration | null;
+  schemaVersion: 2;
 }
 
 function completeJsonlPrefix(raw: string): string {
@@ -4969,7 +4990,8 @@ export async function runLongMemEvalRecallDiagnostic(
     ingestMode: options.ingestMode ?? "historical-annotated",
     profile: options.profile,
     questionIds: testCases.map((testCase) => testCase.questionId),
-    schemaVersion: 1,
+    runConfiguration: options.runConfiguration ?? null,
+    schemaVersion: 2,
   };
   const identityPath = join(runDirectory, "run-identity.json");
   const progressPath = join(runDirectory, "progress.jsonl");
@@ -5062,6 +5084,9 @@ export async function runLongMemEvalRecallDiagnostic(
     phase: "phase-62",
     profile: options.profile,
     runDirectory,
+    ...(options.runConfiguration
+      ? { runConfiguration: options.runConfiguration }
+      : {}),
     runId,
     source: {
       benchmark: "LongMemEval",

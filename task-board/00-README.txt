@@ -58,9 +58,15 @@ Current Transition
   fitted selector graph; that graph is available only through the repo-local
   legacy eval profile. The accepted gate records the full gate audit, honest
   generalized baseline, package isolation, and current comparison provenance.
-- Phase 69 is active on the pushed Phase 68 boundary. It owns versioned recall,
-  entity, and scope projections plus generalized multi-channel fusion and
-  adaptive noise budgets.
+- Phase 69 is complete. Its pinned, provider-free full-root gate covers LoCoMo
+  10/1986 and LongMemEval 500/500 with zero execution failures. Target recall
+  gains are +0.1105 / +0.1777 on LoCoMo multi_hop/open_domain and +0.2308 /
+  +0.3417 on LongMemEval knowledge-update/temporal-reasoning; every protection
+  slice improved and noise stayed within the declared limits. These are
+  retrieval diagnostics, not public answer scores.
+- Phase 70 is active. It owns the first-party OpenAI-compatible pointwise
+  reranker, deterministic failure fallback, channel/fusion/reranker trace
+  evidence, and the measured follow-up slice.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and a promoted public claim scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates.

@@ -72,21 +72,29 @@ export function computeBm25Scores(
     return scores;
   }
 
-  const tfPerDoc = documents.map((document) => {
+  const queryTermSet = new Set(queryTerms);
+  const documentFrequencies = new Map<string, number>(
+    queryTerms.map((term) => [term, 0] as const),
+  );
+  const tfPerDoc: Map<string, number>[] = [];
+  const docLengths: number[] = [];
+  let totalLength = 0;
+  for (const document of documents) {
+    const tokens = tokenize(document.text);
     const termFrequencies = new Map<string, number>();
-    for (const token of tokenize(document.text)) {
+    for (const token of tokens) {
+      if (!queryTermSet.has(token)) {
+        continue;
+      }
       termFrequencies.set(token, (termFrequencies.get(token) ?? 0) + 1);
     }
-    return termFrequencies;
-  });
-  const docLengths = tfPerDoc.map((tf) => {
-    let length = 0;
-    for (const count of tf.values()) {
-      length += count;
+    for (const term of termFrequencies.keys()) {
+      documentFrequencies.set(term, (documentFrequencies.get(term) ?? 0) + 1);
     }
-    return length;
-  });
-  const totalLength = docLengths.reduce((sum, length) => sum + length, 0);
+    tfPerDoc.push(termFrequencies);
+    docLengths.push(tokens.length);
+    totalLength += tokens.length;
+  }
   const averageLength = totalLength / documents.length;
   if (averageLength === 0) {
     return scores;
@@ -95,12 +103,7 @@ export function computeBm25Scores(
   const documentCount = documents.length;
   const idf = new Map<string, number>();
   for (const term of queryTerms) {
-    let documentFrequency = 0;
-    for (const tf of tfPerDoc) {
-      if (tf.has(term)) {
-        documentFrequency += 1;
-      }
-    }
+    const documentFrequency = documentFrequencies.get(term) ?? 0;
     // BM25 IDF with the +1 smoothing variant, which is always non-negative.
     idf.set(
       term,

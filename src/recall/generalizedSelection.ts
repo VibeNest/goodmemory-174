@@ -91,6 +91,9 @@ export function selectGeneralizedFactsForInternalUse(
       : {}),
     fallback: "none",
   }));
+  const traceByMemoryId = new Map(
+    traces.map((trace) => [trace.memoryId, trace] as const),
+  );
   const compatible = ranked.filter(
     (entry) =>
       entry.fact.lifecycle === "active" &&
@@ -175,7 +178,7 @@ export function selectGeneralizedFactsForInternalUse(
       for (const entry of compatible.filter(
         (candidate) => candidate.factKind === "role_update",
       )) {
-        const trace = traces.find((item) => item.memoryId === entry.fact.id);
+        const trace = traceByMemoryId.get(entry.fact.id);
         if (trace?.whySuppressed === "not selected") {
           trace.whySuppressed = "profile satisfied role slot";
         }
@@ -199,7 +202,7 @@ export function selectGeneralizedFactsForInternalUse(
     }
 
     for (const entry of compatible) {
-      const trace = traces.find((item) => item.memoryId === entry.fact.id);
+      const trace = traceByMemoryId.get(entry.fact.id);
       if (!trace || trace.returned || trace.whySuppressed !== "not selected") {
         continue;
       }

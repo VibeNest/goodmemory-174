@@ -6,10 +6,34 @@ import type {
 } from "../policy/hooks";
 import {
   passesDefaultScopeGuard,
+  passesRecallAgentScopeGuard,
   toPolicyMemoryRecord,
 } from "../policy/hooks";
 import type { RecallCandidateTrace } from "./engine";
 import type { RetrievalProfile } from "./router";
+
+const RECALL_SCOPE_KEYS = ["tenantId", "workspaceId"] as const;
+
+export function filterRecordsByDefaultRecallScope<TRecord extends {
+  agentId?: string;
+  tenantId?: string;
+  workspaceId?: string;
+}>(
+  records: readonly TRecord[],
+  scope: MemoryScope,
+  policyApplied: Set<string>,
+): TRecord[] {
+  const visible = records.filter(
+    (record) =>
+      passesDefaultScopeGuard(scope, record) &&
+      passesRecallAgentScopeGuard(scope, record) &&
+      RECALL_SCOPE_KEYS.every((key) => record[key] === scope[key]),
+  );
+  if (visible.length !== records.length) {
+    policyApplied.add("default_scope_guard");
+  }
+  return visible;
+}
 
 export async function applyRecallPolicyToRecords<TRecord extends {
   workspaceId?: string;
@@ -46,12 +70,11 @@ export async function applyRecallPolicyToRecords<TRecord extends {
 
   const visible: TRecord[] = [];
 
-  for (const record of records) {
-    if (!passesDefaultScopeGuard(input.scope, record)) {
-      input.policyApplied.add("default_scope_guard");
-      continue;
-    }
-
+  for (const record of filterRecordsByDefaultRecallScope(
+    records,
+    input.scope,
+    input.policyApplied,
+  )) {
     if (
       input.policy?.shouldRecall &&
       !(await input.policy.shouldRecall(

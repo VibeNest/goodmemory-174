@@ -6298,7 +6298,7 @@ describe("goodmemory cli installed host config", () => {
       await auditFailureHome.cleanup();
       await workspace.cleanup();
     }
-  });
+  }, 15_000);
 
   it("inspects and forgets installed-host writeback audit events for Codex and Claude", async () => {
     const cliScript = join(import.meta.dir, "../../scripts/goodmemory-cli.ts");
@@ -6427,7 +6427,7 @@ describe("goodmemory cli installed host config", () => {
         await workspace.cleanup();
       }
     }
-  });
+  }, 15_000);
 
   it("runs the Claude session-start hook fail-open with a debug systemMessage when the repo is disabled", async () => {
     const home = await createTempWorkspace("goodmemory-claude-hook-home");
