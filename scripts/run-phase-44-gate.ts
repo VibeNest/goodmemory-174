@@ -229,9 +229,12 @@ export async function runPhase44QualityGate(
       !(packageJson.files ?? []).includes("third-party/claude-mem-main"),
     readOnlySecurityContracts:
       viewerSource.includes("normalizeRuntimeViewerBindHost") &&
-      viewerSource.includes("GoodMemory runtime viewer is read-only") &&
+      viewerSource.includes("createInspectorApp") &&
+      viewerSource.includes("serveInspector") &&
+      viewerSource.includes("readOnly: true") &&
       viewerSource.includes("access-control-allow-origin") === false &&
-      viewerSource.includes("rawTranscriptPersisted: false"),
+      viewerSource.includes('"/api/') === false &&
+      viewerSource.includes("`/api/") === false,
     viewerCliSurface:
       cliSource.includes("goodmemory runtime viewer --host <codex|claude>") &&
       cliSource.includes("serveRuntimeViewer") &&
@@ -249,7 +252,7 @@ export async function runPhase44QualityGate(
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 44 local viewer is accepted as a read-only local inspection surface with token, 127.0.0.1 binding, no CORS, progressive drill-down, redacted audit/trace/session views, CLI handoff, and package hygiene."
+        ? "Phase 44 compatibility is accepted through the token-gated, loopback-only, scope-bound read-only Inspector adapter with no duplicate viewer HTTP implementation."
         : "Phase 44 gate blocked because deterministic evidence, regressions, or viewer boundary assertions failed.",
     },
     commands,

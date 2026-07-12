@@ -71,8 +71,15 @@ Current Transition
   targeted retrieval-order diagnostic, not a public LoCoMo answer score. The
   canonical report and accepted gate are tracked under `reports/eval/research/phase-70/`
   and `reports/quality-gates/phase-70/`.
-- Phase 71 is active. It owns the versioned `/admin/v1` API and private React/Vite
-  Inspector served by the existing one-command local Inspector entrypoint.
+- Phase 71 is complete. The versioned `/admin/v1` API, scope catalog,
+  cursor-paged built-in stores, private React/Vite Inspector, ETag/idempotency
+  mutation boundary, and deprecated read-only runtime-viewer adapter passed
+  real desktop/mobile Chromium workflows and the full-repository gate. Canonical
+  evidence is under
+  `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
+- Phase 72 is active. It owns HaluMem, MemGym coding, LongMINT smoke, external
+  adapter refresh, complete benchmark reruns, Node LTS/package gates, and the
+  `v0.6.0` release decision.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and a promoted public claim scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates.

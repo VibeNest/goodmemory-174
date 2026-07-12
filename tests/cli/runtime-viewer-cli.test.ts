@@ -38,7 +38,7 @@ describe("runtime viewer CLI", () => {
       rawTranscript: false,
       token: "viewer-cli-token",
       tokenRequired: true,
-      url: "http://127.0.0.1:4919/?token=viewer-cli-token",
+      url: "http://127.0.0.1:4919/#token=viewer-cli-token",
     });
   });
 

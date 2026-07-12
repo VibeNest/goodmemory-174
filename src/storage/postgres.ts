@@ -8,6 +8,7 @@ import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   ConditionalDocumentWriteBatch,
+  DocumentQueryPageInput,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -15,6 +16,7 @@ import type {
   VectorSearchResult,
   VectorStore,
 } from "./contracts";
+import { assertDocumentQueryPageInput } from "./contracts";
 
 export interface PostgresStorageConfig {
   url: string;
@@ -54,6 +56,10 @@ type SessionStateKind = "buffer" | "working_memory" | "journal";
 
 interface DocumentRow {
   document_json: string;
+}
+
+interface DocumentPageRow extends DocumentRow {
+  id: string;
 }
 
 interface SessionRow {
@@ -512,6 +518,47 @@ export function createPostgresDocumentStore(
       );
 
       return rows.map((row) => parseJson<TDocument>(row.document_json));
+    },
+
+    async queryPage<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentQueryPageInput,
+    ) {
+      assertDocumentQueryPageInput(input);
+      if (options?.readOnly && !(await runtime.hasDocumentStore())) {
+        return { items: [] };
+      }
+      if (!options?.readOnly) {
+        await runtime.ensureDocumentStore();
+      }
+      const values: unknown[] = [collection];
+      const filterClause = buildJsonbFilterClause(
+        "document",
+        input.filter,
+        values,
+      );
+      values.push(input.cursor ?? null);
+      const cursorParameter = values.length;
+      values.push(input.limit + 1);
+      const limitParameter = values.length;
+      const rows = await runtime.sql.unsafe<DocumentPageRow[]>(
+        `
+          SELECT id, document::text AS document_json
+          FROM ${runtime.documentTable}
+          WHERE collection = $1${filterClause}
+            AND ($${cursorParameter}::text IS NULL OR id > $${cursorParameter})
+          ORDER BY id ASC
+          LIMIT $${limitParameter}
+        `,
+        values,
+      );
+      const page = rows.slice(0, input.limit);
+      return {
+        items: page.map((row) => parseJson<TDocument>(row.document_json)),
+        ...(rows.length > input.limit
+          ? { nextCursor: page.at(-1)!.id }
+          : {}),
+      };
     },
 
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {

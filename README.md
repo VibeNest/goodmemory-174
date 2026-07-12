@@ -423,6 +423,14 @@ goodmemory enable codex --writeback selective
 goodmemory codex writeback --json
 ```
 
+`goodmemory inspector serve` opens the built-in local React console for users
+and scopes, categorized memory and supersession history, candidate decisions,
+recall evidence traces, and audit events. The startup token is passed in a URL
+fragment, cleared immediately into session storage, and sent only as a Bearer
+header. Revision and destructive actions require confirmation, ETags, and
+idempotency keys. See
+[Inspector And Admin API](./docs/GoodMemory-Inspector-and-Admin-API.md).
+
 Writeback rules:
 
 - `off`: no after-response memory extraction.

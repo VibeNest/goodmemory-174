@@ -1,7 +1,8 @@
-import { mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { isRecord } from "../install/hostConfigValidation";
 import { resolveInstallRoot } from "../install/hostRuntimeConfig";
+import { redactViewerText } from "./redaction";
 
 // Every mutating Inspector action is appended here before the HTTP response is
 // returned, so the local admin surface leaves a durable local audit trail
@@ -11,6 +12,7 @@ import { resolveInstallRoot } from "../install/hostRuntimeConfig";
 export type InspectorAuditAction =
   | "approve"
   | "reject"
+  | "release"
   | "reset-approval"
   | "forget"
   | "revise"
@@ -91,8 +93,9 @@ export async function writeInspectorAuditLedger(
       null,
       2,
     ) + "\n",
-    "utf8",
+    { encoding: "utf8", mode: 0o600 },
   );
+  await chmod(path, 0o600);
 }
 
 export async function withInspectorAuditLock<T>(
@@ -158,7 +161,7 @@ function boundedPreview(text: string): string {
   if (SECRET_PATTERN.test(text)) {
     return "[redacted secret-like content]";
   }
-  const normalized = text.replace(/\s+/gu, " ").trim();
+  const normalized = redactViewerText(text).replace(/\s+/gu, " ").trim();
   if (normalized.length <= MAX_INSPECTOR_PREVIEW_CHARS) {
     return normalized;
   }

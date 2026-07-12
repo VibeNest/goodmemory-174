@@ -158,8 +158,9 @@ describe("run-phase-44 gate script", () => {
           if (path.endsWith("src/runtime-viewer/public.ts")) {
             return [
               "normalizeRuntimeViewerBindHost",
-              "GoodMemory runtime viewer is read-only",
-              "rawTranscriptPersisted: false",
+              "createInspectorApp",
+              "serveInspector",
+              "readOnly: true",
             ].join("\n");
           }
           if (path.endsWith("package.json")) {

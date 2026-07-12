@@ -7,6 +7,7 @@ import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   ConditionalDocumentWriteBatch,
+  DocumentQueryPageInput,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -15,6 +16,7 @@ import type {
   VectorStore,
 } from "./contracts";
 import {
+  assertDocumentQueryPageInput,
   matchesFilter,
   shallowMergeDocument,
 } from "./contracts";
@@ -77,6 +79,27 @@ export function createInMemoryDocumentStore(): DocumentStore {
       return [...getCollection(collection).values()]
         .filter((document) => matchesFilter(document, filter))
         .map((document) => clone(document) as TDocument);
+    },
+
+    async queryPage<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentQueryPageInput,
+    ) {
+      assertDocumentQueryPageInput(input);
+      const matches = [...getCollection(collection).entries()]
+        .filter(
+          ([id, document]) =>
+            (input.cursor === undefined || id > input.cursor) &&
+            matchesFilter(document, input.filter),
+        )
+        .sort(([left], [right]) => left.localeCompare(right));
+      const page = matches.slice(0, input.limit);
+      return {
+        items: page.map(([, document]) => clone(document) as TDocument),
+        ...(matches.length > input.limit
+          ? { nextCursor: page.at(-1)![0] }
+          : {}),
+      };
     },
 
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {

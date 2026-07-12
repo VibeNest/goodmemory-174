@@ -66,9 +66,13 @@ describe("phase-45 reference product contract", () => {
     expect(backend).toContain("/memory/export");
     expect(backend).toContain("/memory/forget");
     expect(backend).toContain("/memory/revise");
-    expect(docs).toContain("viewer remains read-only");
-    expect(docs).toContain("CLI/API handoff");
-    expect(viewerSource).toContain("GoodMemory runtime viewer is read-only");
+    expect(docs).toContain("runtime viewer is deprecated");
+    expect(docs).toContain("read-only Inspector");
+    expect(viewerSource).toContain("createInspectorApp");
+    expect(viewerSource).toContain("serveInspector");
+    expect(viewerSource).toContain("readOnly: true");
+    expect(viewerSource).not.toContain('"/api/');
+    expect(viewerSource).not.toContain("`/api/");
     expect(viewerSource).not.toContain("access-control-allow-origin");
   });
 

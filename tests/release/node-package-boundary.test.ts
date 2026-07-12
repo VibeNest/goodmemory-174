@@ -176,9 +176,15 @@ async function packReleaseTarball(outputDir: string): Promise<string> {
   );
 
   expect(pack.exitCode).toBe(0);
-  return pack.stdout.trim().length > 0
-    ? pack.stdout.trim()
-    : join(outputDir, CURRENT_TARBALL_NAME);
+  const tarballOutput = pack.stdout
+    .trim()
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith(".tgz"))
+    .at(-1);
+  return tarballOutput?.includes("/")
+    ? tarballOutput
+    : join(outputDir, tarballOutput ?? CURRENT_TARBALL_NAME);
 }
 
 describe("node package boundary", () => {
@@ -214,13 +220,6 @@ describe("node package boundary", () => {
         cwd: workspaceRoot,
       });
       expect(install.exitCode).toBe(0);
-
-      await mkdir(join(workspaceRoot, "node_modules/@types"), { recursive: true });
-      await cp(
-        join(ROOT_PACKAGE_PATH, "node_modules/@types/node"),
-        join(workspaceRoot, "node_modules/@types/node"),
-        { recursive: true },
-      );
 
       const smoke = await runCommand({
         cmd: ["npm", "run", "smoke:node"],

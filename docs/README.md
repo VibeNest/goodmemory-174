@@ -26,6 +26,8 @@ bulk-load. Start here, then open only the file that matches the question.
 
 - `GoodMemory-15-Minute-App-Integration.md` - shortest app integration path.
 - `GoodMemory-Reference-Integration-Guide.md` - reference consumer pattern.
+- `GoodMemory-Inspector-and-Admin-API.md` - local React Inspector, `/admin/v1`
+  contract, security boundary, and operator workflows.
 - `GoodMemory-Product-Comparison.md` - product positioning versus Mem0, Zep,
   LangGraph memory, vector databases, and RAG stacks.
 - `GoodMemory-Codex-Handoff-Setup-Guide.md` - Codex installed-host setup.

@@ -2,7 +2,11 @@ import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
-import { embedMany } from "ai";
+import {
+  embedMany,
+  type EmbeddingModel,
+  type LanguageModel,
+} from "ai";
 import { z } from "zod";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import { isModelProviderId } from "./model-provider";
@@ -683,7 +687,7 @@ export function parseAISDKModelConfigFromEnv(
   };
 }
 
-export function resolveAISDKModel(config: AISDKModelConfig) {
+export function resolveAISDKModel(config: AISDKModelConfig): LanguageModel {
   if (config.provider === "openai") {
     if (config.baseURL) {
       const provider = createOpenAICompatible({
@@ -721,7 +725,9 @@ export function resolveAISDKModel(config: AISDKModelConfig) {
   throw new Error(`Unsupported Vercel AI SDK provider: ${config.provider}`);
 }
 
-export function resolveAISDKEmbeddingModel(config: AISDKModelConfig) {
+export function resolveAISDKEmbeddingModel(
+  config: AISDKModelConfig,
+): EmbeddingModel {
   if (config.provider === "openai") {
     if (config.baseURL) {
       const provider = createOpenAICompatible({

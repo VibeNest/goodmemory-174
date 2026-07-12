@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   appendInspectorAuditEvent,
+  inspectorAuditLedgerPath,
   readInspectorAuditLedger,
 } from "../../src/inspector/auditLog";
 
@@ -78,12 +79,26 @@ describe("inspector audit ledger", () => {
         contentPreview: "x".repeat(400),
       },
     });
+    await appendInspectorAuditEvent({
+      homeRoot: home,
+      event: {
+        action: "revise",
+        actionId: "insp_email",
+        contentPreview: "Contact operator@example.com for review.",
+        occurredAt: "2026-07-07T00:02:00.000Z",
+        resultStatus: "ok",
+        scopeDigest: "scope:x",
+      },
+    });
 
     const ledger = await readInspectorAuditLedger(home);
     expect(ledger.events[0]?.contentPreview).toBe("[redacted secret-like content]");
     const clamped = ledger.events[1]?.contentPreview ?? "";
     expect(clamped.length).toBeLessThanOrEqual(160);
     expect(clamped.endsWith("...")).toBe(true);
+    expect(ledger.events[2]?.contentPreview).toBe(
+      "Contact [redacted-email] for review.",
+    );
   });
 
   it("returns an empty ledger when no file exists yet", async () => {
@@ -91,5 +106,26 @@ describe("inspector audit ledger", () => {
     const ledger = await readInspectorAuditLedger(home);
     expect(ledger.events).toEqual([]);
     expect(ledger.version).toBe(1);
+  });
+
+  it("keeps the persisted ledger owner-readable only", async () => {
+    const home = await tempHome();
+    const event = {
+      action: "forget" as const,
+      actionId: "insp_private",
+      occurredAt: "2026-07-07T00:00:00.000Z",
+      resultStatus: "ok" as const,
+      scopeDigest: "scope:private",
+    };
+
+    await appendInspectorAuditEvent({ event, homeRoot: home });
+    const path = inspectorAuditLedgerPath(home);
+    await chmod(path, 0o644);
+    await appendInspectorAuditEvent({
+      event: { ...event, actionId: "insp_private_2" },
+      homeRoot: home,
+    });
+
+    expect((await stat(path)).mode & 0o777).toBe(0o600);
   });
 });

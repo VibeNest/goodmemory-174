@@ -45,6 +45,47 @@ export function runDocumentStoreContract(
           }),
         ).toHaveLength(1);
 
+        await fixture.store.set("facts", "f-2", {
+          id: "f-2",
+          userId: "u-2",
+          content: "filtered out",
+        });
+        await fixture.store.set("facts", "f-3", {
+          id: "f-3",
+          userId: "u-1",
+          content: "second page",
+        });
+        expect(fixture.store.queryPage).toBeFunction();
+        const firstPage = await fixture.store.queryPage!("facts", {
+          filter: { userId: "u-1" },
+          limit: 1,
+        });
+        expect(firstPage).toEqual({
+          items: [
+            {
+              id: "f-1",
+              userId: "u-1",
+              content: "updated",
+            },
+          ],
+          nextCursor: "f-1",
+        });
+        expect(
+          await fixture.store.queryPage!("facts", {
+            cursor: firstPage.nextCursor,
+            filter: { userId: "u-1" },
+            limit: 1,
+          }),
+        ).toEqual({
+          items: [
+            {
+              id: "f-3",
+              userId: "u-1",
+              content: "second page",
+            },
+          ],
+        });
+
         expect(fixture.store.writeBatchIfUnchanged).toBeFunction();
         expect(
           await fixture.store.writeBatchIfUnchanged!({

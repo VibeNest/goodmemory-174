@@ -34,7 +34,7 @@ describe("inspector CLI", () => {
       readOnly: false,
       token: "inspector-cli-token",
       tokenRequired: true,
-      url: "http://127.0.0.1:4920/?token=inspector-cli-token",
+      url: "http://127.0.0.1:4920/#token=inspector-cli-token",
     });
   });
 

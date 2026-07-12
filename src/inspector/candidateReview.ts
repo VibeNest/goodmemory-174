@@ -5,6 +5,7 @@ import { scopeToKey } from "../domain/scope";
 import { isRecord } from "../install/hostConfigValidation";
 import { buildWritebackScopeDigest } from "../install/hostWritebackAuditLedger";
 import { appendInspectorAuditEvent } from "./auditLog";
+import { redactScopeText, redactViewerText } from "./redaction";
 import {
   getReviewCandidate,
   isReviewCandidateApprovalStale,
@@ -66,6 +67,11 @@ export interface RejectCandidateResult {
   candidate?: InspectorReviewCandidate;
 }
 
+export interface ReleaseCandidateResult {
+  status: "released" | "not_approved" | "not_found" | "scope_mismatch";
+  candidate?: InspectorReviewCandidate;
+}
+
 export interface RecoverCandidateApprovalResult {
   status: "released" | "not_found" | "not_stale" | "scope_mismatch";
   candidate?: InspectorReviewCandidate;
@@ -75,7 +81,7 @@ const STALE_APPROVAL_REVIEW_ERROR =
   "Approval was interrupted before GoodMemory could record the result. Verify whether durable memory already contains this candidate before approving again.";
 
 export async function listReviewCandidateViews(input: {
-  scopeKey: string;
+  scopeKey?: string;
   homeRoot?: string;
   status?: InspectorReviewCandidateStatus;
 }): Promise<InspectorCandidateView[]> {
@@ -222,9 +228,13 @@ async function appendApprovalAudit(input: {
       targetId: input.candidate.id,
       resultStatus: input.resultStatus,
       resultMemoryIds: input.memoryIds,
-      contentPreview: input.candidate.content,
-      ...(input.reviewReason ? { reason: input.reviewReason } : {}),
-      ...(input.errorMessage ? { errorMessage: input.errorMessage } : {}),
+      contentPreview: redactAuditText(input.candidate.content, input.scope),
+      ...(input.reviewReason
+        ? { reason: redactAuditText(input.reviewReason, input.scope) }
+        : {}),
+      ...(input.errorMessage
+        ? { errorMessage: redactAuditText(input.errorMessage, input.scope) }
+        : {}),
     },
   });
 }
@@ -267,12 +277,60 @@ export async function rejectCandidate(input: {
       scopeDigest: buildWritebackScopeDigest(input.scope),
       targetId: candidate.id,
       resultStatus: "ok",
-      contentPreview: candidate.content,
-      ...(input.reviewReason ? { reason: input.reviewReason } : {}),
+      contentPreview: redactAuditText(candidate.content, input.scope),
+      ...(input.reviewReason
+        ? { reason: redactAuditText(input.reviewReason, input.scope) }
+        : {}),
     },
   });
 
   return { status: "rejected", candidate: updated ?? candidate };
+}
+
+export async function releaseApprovedCandidate(input: {
+  candidateId: string;
+  scope: MemoryScope;
+  reviewReason?: string;
+  deps: CandidateReviewDeps;
+}): Promise<ReleaseCandidateResult> {
+  const { deps } = input;
+  const now = deps.now ?? (() => new Date());
+  const candidate = await getReviewCandidate({
+    homeRoot: deps.homeRoot,
+    id: input.candidateId,
+  });
+  if (!candidate) {
+    return { status: "not_found" };
+  }
+  if (candidate.scopeKey !== scopeToKey(input.scope)) {
+    return { status: "scope_mismatch", candidate };
+  }
+  if (candidate.status !== "approved") {
+    return { status: "not_approved", candidate };
+  }
+  const updated = await updateReviewCandidateStatus({
+    homeRoot: deps.homeRoot,
+    id: candidate.id,
+    now,
+    reviewReason: input.reviewReason,
+    status: "released",
+  });
+  await appendInspectorAuditEvent({
+    homeRoot: deps.homeRoot,
+    event: {
+      action: "release",
+      actionId: nextActionId(deps),
+      contentPreview: redactAuditText(candidate.content, input.scope),
+      occurredAt: now().toISOString(),
+      resultStatus: "ok",
+      scopeDigest: buildWritebackScopeDigest(input.scope),
+      targetId: candidate.id,
+      ...(input.reviewReason
+        ? { reason: redactAuditText(input.reviewReason, input.scope) }
+        : {}),
+    },
+  });
+  return { status: "released", candidate: updated ?? candidate };
 }
 
 export async function recoverCandidateApproval(input: {
@@ -312,8 +370,11 @@ export async function recoverCandidateApproval(input: {
       scopeDigest: buildWritebackScopeDigest(input.scope),
       targetId: candidate.id,
       resultStatus: updated?.status === "pending" ? "ok" : "error",
-      contentPreview: candidate.content,
-      reason: input.reviewReason ?? STALE_APPROVAL_REVIEW_ERROR,
+      contentPreview: redactAuditText(candidate.content, input.scope),
+      reason: redactAuditText(
+        input.reviewReason ?? STALE_APPROVAL_REVIEW_ERROR,
+        input.scope,
+      ),
     },
   });
 
@@ -325,6 +386,10 @@ export async function recoverCandidateApproval(input: {
 
 function sourceToRole(source: InspectorReviewCandidate["source"]): string {
   return source === "assistant" ? "assistant" : "user";
+}
+
+function redactAuditText(value: string, scope: MemoryScope): string {
+  return redactScopeText(redactViewerText(value), scope);
 }
 
 function collectMemoryIds(events: readonly unknown[]): string[] {

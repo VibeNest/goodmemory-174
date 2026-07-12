@@ -5,8 +5,8 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 ## Stable OSS Surface
 
 - Current stable package line: 0.5.x (published 0.5.1 on npm).
-- Main has completed Phases 68 through 70 on the generalization-first line toward
-  v0.6.0; Phase 71 is active. The production selector graph contains only
+- Main has completed Phases 68 through 71 on the generalization-first line toward
+  v0.6.0; Phase 72 is active. The production selector graph contains only
   generalized selection primitives, and the `recommended` preset now has a
   provider-free multi-granular BM25/entity/RRF path with an optional dense
   channel.
@@ -36,6 +36,15 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Phase 50 is now closed as the Installer CLI Runtime-Shell Hardening slice: `goodmemory doctor [codex|claude|both]` and `goodmemory repair [codex|claude|both]`.
 - Phase 51 is now closed as the Typed Behavioral Memory And Enactment slice; typed behavior is stored on compiled `validated_pattern` feedback.
 - Phase 52 is now closed as the Structured Text-Response Enactment And Guarded Policy slice; guarded_policy remains internal.
+- Phase 71 is now closed as the local memory administration product slice.
+  `goodmemory inspector serve` hosts the packaged private React/Vite console and
+  versioned `/admin/v1` API for scope discovery, categorized memory, candidate
+  review, governed revision/deletion, recall traces, and audit events. Auth is
+  Bearer-only after fragment-token bootstrap; mutations require ETags and
+  idempotency keys. `goodmemory runtime viewer` is deprecated and delegates to
+  the same server in exact-scope read-only mode. See
+  `docs/GoodMemory-Inspector-and-Admin-API.md` and
+  `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
 
 ## Public Boundary Notes
 
@@ -76,7 +85,15 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   `reports/eval/research/phase-70/locomo/run-phase70-reranker-focused-gpt56-terra-current/reranker-eval.json`
   and `reports/quality-gates/phase-70/run-20260711-reranker-and-evidence/phase-70-quality-gate.json`.
   This is a targeted retrieval-order diagnostic, not a full LoCoMo answer score
-  or public benchmark claim. Phase 71 is now active.
+  or public benchmark claim.
+- Phase 71 is complete. Its real-browser evidence covers users/scopes,
+  categorized memory and supersession, candidate approve/reject/release,
+  revision and destructive confirmations, recall trace, audit, read-only mode,
+  token non-leakage, ETag conflict handling, idempotent retry, and desktop/mobile
+  layouts with clean normal-flow consoles. The accepted quality gate records
+  the full repository suite with 0 failures, 0 LLM calls, and a package below 4 MiB at
+  `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-quality-gate.json`.
+  Phase 72 is now active.
 - Phase 62 LongMemEval is accepted as the first Sequential Benchmark Hardening slice.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This is evidence-input canonicalization only; it does not change benchmark scores or public-claim boundaries.
 - Historical Phase 63 / P67 BEAM evidence includes an official-protocol 0.802 score, but it is no longer a current public claim because the recall profile is repo-eval-only; the answer-rule lane is paused. The earlier accepted rules-only measured checkpoint remains the internal binary-track baseline: answer-pack hardening (`--evidence-pack`, `src/answer/evidencePack.ts`) raised answer accuracy from the no-pack 0.56 baseline (224/400) and the prior evidence-pack 0.6525 checkpoint (261/400) to 0.695 (278/400) at identical recall (0.9621), `executionFailures: 0`, gate accepted. The historical P67 declaration reported official-protocol 0.802 versus the 0.49 public reference; its 122/400 binary-track wrong answers and category weak spots remain archived gap evidence.

@@ -380,9 +380,12 @@ export async function runPhase45QualityGate(
     viewerReadOnlyInspectability:
       viewerScenarioHasInspectability(viewerScenario) &&
       viewerSource.includes("normalizeRuntimeViewerBindHost") &&
-      viewerSource.includes("GoodMemory runtime viewer is read-only") &&
+      viewerSource.includes("createInspectorApp") &&
+      viewerSource.includes("serveInspector") &&
+      viewerSource.includes("readOnly: true") &&
       viewerSource.includes("access-control-allow-origin") === false &&
-      viewerSource.includes("rawTranscriptPersisted: false"),
+      viewerSource.includes('"/api/') === false &&
+      viewerSource.includes("`/api/") === false,
   };
   const accepted =
     adoptionReportEvidence.status === "accepted" &&
@@ -405,7 +408,7 @@ export async function runPhase45QualityGate(
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Phase 45 reference product adoption is accepted with a public-surface reference product, observed no-memory baseline, rules-only GoodMemory uplift, redacted local-viewer inspectability, backend-only mutation flows, package/docs alignment, and no root API widening."
+        ? "Phase 45 reference product adoption is accepted with a public-surface reference product, observed no-memory baseline, rules-only GoodMemory uplift, the scope-bound read-only Inspector adapter, backend mutation flows, package/docs alignment, and no root API widening."
         : "Phase 45 gate blocked because adoption evidence, regressions, docs, or boundary assertions failed.",
     },
     commands,
@@ -697,14 +700,14 @@ function viewerScenarioHasInspectability(
     scenario?.passed === true &&
     Array.isArray(checks) &&
     [
-      "viewer-summary",
-      "progressive-record-drilldown",
-      "handoff-generated",
-      "viewer-mutation-rejected",
+      "inspector-scope-catalog",
+      "inspector-memory-list",
+      "inspector-recall-trace",
+      "runtime-viewer-read-only-adapter",
       "backend-mutation-flow",
     ].every((check) => checks.includes(check)) &&
     evidence?.backendMutationCount === 2 &&
-    evidence.handoffCount === 2 &&
+    evidence.handoffCount === 0 &&
     evidence.recordRefCount === 1 &&
     typeof evidence.traceEventCount === "number" &&
     evidence.traceEventCount > 0 &&
@@ -712,7 +715,11 @@ function viewerScenarioHasInspectability(
     evidence.observedCandidateCount > 0 &&
     evidence.viewerMutationRejected === true &&
     Array.isArray(evidence.matchedSignals) &&
-    evidence.matchedSignals.includes("backend-mutations-outside-viewer")
+    evidence.matchedSignals.includes("inspector-scope-catalog") &&
+    evidence.matchedSignals.includes("inspector-memory-drilldown") &&
+    evidence.matchedSignals.includes("inspector-recall-trace") &&
+    evidence.matchedSignals.includes("runtime-viewer-read-only-adapter") &&
+    evidence.matchedSignals.includes("backend-mutations-outside-inspector")
   );
 }
 
@@ -746,8 +753,8 @@ function referenceProductUsesPublicSurface(input: {
     input.readme.includes("bun run example:reference-product") &&
     input.readme.includes("bun run eval:phase-45") &&
     input.readme.includes("bun run gate:phase-45") &&
-    input.readme.includes("viewer remains read-only") &&
-    input.readme.includes("CLI/API handoff")
+    input.readme.includes("runtime viewer is deprecated") &&
+    input.readme.includes("read-only Inspector")
   );
 }
 

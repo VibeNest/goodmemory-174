@@ -44,14 +44,14 @@ bun run gate:phase-45
 
 The product backend may call authenticated bridge mutation endpoints for
 explicit product actions: remember, feedback, export, forget, and revise. The
-local viewer remains read-only, local-only, token-gated inspectability. Forget
-and revise shown in the viewer stay CLI/API handoff commands for operator
-review; the browser does not execute mutations.
+runtime viewer is deprecated and now delegates to the local-only, token-gated,
+scope-bound read-only Inspector. Product mutations remain explicit backend
+operations in this historical reference product.
 
 The accepted Phase 45 path must keep these boundaries:
 
 - no root `goodmemory` API widening
-- no viewer mutation routes
+- no mutation routes through the deprecated runtime viewer
 - no CORS-enabled remote viewer API
 - no raw transcript archive
 - no hosted dashboard, account system, cloud sync, or analytics claim

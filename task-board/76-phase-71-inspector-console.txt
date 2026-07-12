@@ -4,7 +4,7 @@ Phase 71: Inspector Console
 Status
 ------
 
-[ACTIVE]
+[DONE]
 
 Goal
 ----
@@ -18,3 +18,11 @@ Gate
 - Scope/memory/candidate/revision/delete/trace/audit flows pass API integration
   and Playwright desktop/mobile tests; Bearer-only auth, pagination, ETag, and
   idempotency behavior are verified.
+
+Accepted Evidence
+-----------------
+
+- `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-quality-gate.json`
+- `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-browser-evidence.json`
+- Final gate: 3312 tests passed, 0 failed; browser/static/package checks passed;
+  Phase 71 made 0 LLM calls; unpacked package size 3,843,826 bytes.

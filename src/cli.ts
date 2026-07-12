@@ -127,6 +127,7 @@ import {
 import {
   buildDescriptor,
   createInspectorToken,
+  normalizeInspectorBindHost,
   serveInspector,
 } from "./inspector/public";
 
@@ -695,6 +696,8 @@ const RUNTIME_VIEWER_HELP_TEXT = [
   "Usage",
   "  goodmemory runtime viewer --host <codex|claude> --port <n> [--token <secret>]",
   "  goodmemory runtime viewer --host <codex|claude> --dry-run [--json]",
+  "",
+  "Deprecated: delegates to the scope-bound read-only Inspector.",
   "",
   "Viewer security",
   "  binds 127.0.0.1 only",
@@ -5634,6 +5637,7 @@ async function handleRuntimeViewer(flags: ParsedFlags): Promise<CLICommandOutput
   const payload = {
     bindHost,
     cors: false,
+    deprecated: true,
     host,
     mutationRoutes: false,
     port,
@@ -5641,7 +5645,7 @@ async function handleRuntimeViewer(flags: ParsedFlags): Promise<CLICommandOutput
     rawTranscript: false,
     token,
     tokenRequired: true,
-    url: `http://${bindHost}:${port}/?token=${encodeURIComponent(token)}`,
+    url: `http://${bindHost}:${port}/#token=${encodeURIComponent(token)}`,
   };
 
   if (flagEnabled(flags, "dry-run")) {
@@ -5669,9 +5673,9 @@ async function handleRuntimeViewer(flags: ParsedFlags): Promise<CLICommandOutput
       url: server.url,
     },
     text: [
-      `GoodMemory runtime viewer listening on ${server.url}`,
+      `GoodMemory runtime viewer is deprecated; read-only Inspector listening on ${server.url}`,
       "Bind: 127.0.0.1",
-      "Mode: read-only local inspection",
+      "Mode: scope-bound read-only Inspector",
       "",
     ].join("\n"),
   };
@@ -5700,7 +5704,7 @@ function buildInspectorStores(storage: CLIStorageConfig) {
 }
 
 async function handleInspectorServe(flags: ParsedFlags): Promise<CLICommandOutput> {
-  const bindHost = normalizeRuntimeViewerBindHost(flags.bind);
+  const bindHost = normalizeInspectorBindHost(flags.bind);
   const port = flags.port !== undefined
     ? readNonNegativeIntegerFlag(flags.port, "port")
     : 0;
@@ -5709,7 +5713,7 @@ async function handleInspectorServe(flags: ParsedFlags): Promise<CLICommandOutpu
     ...buildDescriptor(bindHost),
     port,
     token,
-    url: `http://${bindHost}:${port}/?token=${encodeURIComponent(token)}`,
+    url: `http://${bindHost}:${port}/#token=${encodeURIComponent(token)}`,
   };
 
   if (flagEnabled(flags, "dry-run")) {
@@ -5721,9 +5725,11 @@ async function handleInspectorServe(flags: ParsedFlags): Promise<CLICommandOutpu
 
   const storage = await resolveStorageConfig(flags);
   const stores = buildInspectorStores(storage);
-  const memory = createGoodMemory({ adapters: stores });
+  const memory = createGoodMemory({
+    adapters: stores,
+    retrieval: { preset: "recommended" },
+  });
   const homeRoot = normalizeOptionalFlag(flags["home-root"]);
-  const cwd = normalizeOptionalFlag(flags["workspace-root"]);
   const server = serveInspector({
     documentStore: stores.documentStore,
     memory,
@@ -5731,12 +5737,6 @@ async function handleInspectorServe(flags: ParsedFlags): Promise<CLICommandOutpu
     bindHost,
     port,
     token,
-    loadObservedAudit: ({ host }) =>
-      inspectInstalledHostWritebackAudit({
-        host,
-        ...(homeRoot ? { homeRoot } : {}),
-        ...(cwd ? { cwd } : {}),
-      }),
   });
   activeRuntimeViewerServers.push(server);
 

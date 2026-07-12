@@ -58,8 +58,21 @@ Official-protocol scoring must use a different judge model;
   `reports/quality-gates/phase-70/run-20260711-reranker-and-evidence/phase-70-quality-gate.json`.
   This is a targeted retrieval-order diagnostic, not a full LoCoMo answer score
   or public benchmark claim.
-- Phase 71 is active: extract `/admin/v1`, complete the private React/Vite
-  Inspector, and close its real-browser management workflows before Phase 72.
+- Phase 71 is complete. `/admin/v1` now provides cursor-paged scope, memory,
+  candidate, revision, deletion, recall-trace, and audit routes with Bearer-only
+  auth, ETags, and idempotency keys. The private React/Vite Inspector is built
+  into the package without React runtime dependencies; the deprecated runtime
+  viewer delegates to its exact-scope read-only mode instead of retaining a
+  second HTTP/UI implementation. Real Chromium flows passed at 1440x900 and
+  360x732, including approve/reject/release, revise, delete, trace, audit,
+  fragment-token clearing, 412 conflict handling, retry idempotency, and clean
+  normal-flow consoles. The accepted gate is
+  `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-quality-gate.json`:
+  the full repository suite passed with 0 failures, Phase 71 made 0 LLM calls, and the unpacked
+  package remained below the 4 MiB release target.
+- Phase 72 is active: add HaluMem and MemGym evidence, keep LongMINT at smoke,
+  refresh external adapters and full benchmark evidence, then close the Node
+  LTS/release gates for `v0.6.0`.
 - Shared strict CLI scalar guard note: migrated Sequential benchmark evidence entrypoints that use the shared strict scalar helper now reject missing values, flag-as-value mistakes, duplicate scalar flags, empty values, and whitespace-padded values before downstream parsing. This keeps run ids, source paths, output paths, roots, and budget selectors canonical across the hardened LongMemEval, BEAM, MemoryAgentBench, LoCoMo, release-readiness, and public-claim evidence paths without changing any benchmark score or public-claim boundary.
 - Adjacent Phase 61 ImplicitMemBench refresh and promotion: the 2026-07-06 full-root source-answer run `run-phase61-full300-rerun-20260706-codex-current` used `/tmp/ImplicitMemBench` at upstream `927413bf3f5389bb47c94c2a0ba987e435b101b8` (dataset CC BY 4.0, code MIT), completed all 300 benchmark cases with `executionFailures: 0`, and measured same-model diagnostic GoodMemory Full-300 score 212.45/300 = 0.7081666667 (`goodmemory-distilled-feedback+controlled-priming`) versus baseline 123/300 = 0.41. The public candidate score is the completed stored-answer gpt-5.4/gpt-5.5 cross-version rescore `implicitmembench-independent-rescore-gpt54-current`: GoodMemory 207.35/300 = 0.6911666667, upstream-chat baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, `sourceAnswersUnchanged: true`, and 0 execution failures. The claim must disclose that gpt-5.4 is the same GPT family as the gpt-5.5 answerer, not a cross-family judge; the older 0.708 same-model score is diagnostic only.
 - Adjacent Phase 61 postchanges check: `run-phase61-full300-rerun-20260706-postchanges-current` completed the same full-root 300-case rerun after recent local changes, but had 2 GoodMemory distilled execution failures from `text_answer_generation timed out after 180000ms`. Its best same-model diagnostic score was 209.05/300 = 0.6968333333, raw was 175.05/300 = 0.5835, distilled blocking was 153/200 = 0.765, and baseline was 131/300 = 0.4366666667. Treat this as drift evidence only; it does not replace the 0-failure `codex-current` source run or the stored-answer gpt-5.4 comparability artifact.

@@ -94,6 +94,11 @@ function createDeferredDocumentStore(
       return store.query(collection, filter);
     },
 
+    async queryPage(collection, input) {
+      const store = await resolveStore();
+      return store.queryPage!(collection, input);
+    },
+
     async writeBatchIfUnchanged(input) {
       const store = await resolveStore();
       if (!store.writeBatchIfUnchanged) {

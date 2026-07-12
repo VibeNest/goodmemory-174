@@ -6,17 +6,10 @@ import type {
   RecallResult,
 } from "../src/api/contracts";
 import type { MemoryScope } from "../src/domain/scope";
-import type { InstalledHostWritebackAuditInspection } from "../src/install/hostWritebackAuditRuntime";
-import {
-  buildProgressiveScopeDigest,
-  createProgressiveRecallService,
-  encodeGoodMemoryRecordRef,
-} from "../src/progressive/recall";
 import {
   createRuntimeViewerApp,
   normalizeRuntimeViewerBindHost,
 } from "../src/runtime-viewer/public";
-import type { RuntimeWorkerStatusResult } from "../src/runtime-worker/contracts";
 import { resolveCliFlagValue } from "./cli-options";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
 
@@ -79,7 +72,10 @@ const PHASE44_SCOPE: MemoryScope = {
   userId: "phase44-user-secret",
   workspaceId: "phase44-workspace-secret",
 };
-const PHASE44_SCOPE_DIGEST_SECRET = "phase44-progressive-scope-secret";
+
+interface AdminEnvelope<T> {
+  data: T;
+}
 
 export function resolvePhase44FallbackOutputDir(root: string): string {
   return join(root, "reports/eval/fallback/phase-44");
@@ -110,61 +106,73 @@ export async function runPhase44FallbackEval(
   await (dependencies.ensureDir ?? mkdir)(runDirectory, { recursive: true });
 
   const memory = createPhase44Memory();
-  const scopeDigest = buildProgressiveScopeDigest({
-    scope: PHASE44_SCOPE,
-    secret: PHASE44_SCOPE_DIGEST_SECRET,
-  });
   const app = createRuntimeViewerApp({
-    host: "codex",
-    loadRuntimeWorkerStatus: async () => createPhase44WorkerStatus(),
-    loadWritebackAudit: async () => createPhase44Audit(),
     memory,
     now: () => new Date(now),
-    progressiveRecall: createProgressiveRecallService({
-      memory,
-      scopeDigestSecret: PHASE44_SCOPE_DIGEST_SECRET,
-    }),
     scope: PHASE44_SCOPE,
-    scopeDigest,
     token: PHASE44_TOKEN,
   });
 
-  const unauthorized = await app.fetch(new Request("http://127.0.0.1/api/summary"));
-  const summaryResponse = await app.fetch(authorized("/api/summary?query=viewer"));
-  const summary = await summaryResponse.json() as Record<string, unknown>;
-  const summaryJson = JSON.stringify(summary);
-  const shellResponse = await app.fetch(authorized("/?token=phase44-local-viewer-token"));
-  const shell = await shellResponse.text();
-  const mutation = await app.fetch(new Request("http://127.0.0.1/api/records", {
-    headers: { authorization: `Bearer ${PHASE44_TOKEN}` },
-    method: "POST",
-  }));
-  const indexResponse = await app.fetch(authorized("/api/recall-index?query=viewer"));
-  const index = await indexResponse.json() as {
-    records?: Array<{ recordKind: string; recordRef: string }>;
-  };
-  const recordRef = index.records?.find((record) => record.recordKind === "fact")
-    ?.recordRef;
-  const detail = recordRef
-    ? await app.fetch(authorized(`/api/records?recordRef=${encodeURIComponent(recordRef)}`))
+  const unauthorized = await app.fetch(
+    new Request("http://127.0.0.1/admin/v1/scopes"),
+  );
+  const scopesResponse = await app.fetch(authorized("/admin/v1/scopes"));
+  const scopes = await scopesResponse.json() as AdminEnvelope<{
+    items: Array<{ scopeKey: string }>;
+  }>;
+  const scopeKey = scopes.data.items[0]?.scopeKey;
+  const descriptorResponse = await app.fetch(
+    authorized("/admin/v1/descriptor"),
+  );
+  const descriptor = await descriptorResponse.json() as AdminEnvelope<{
+    mutationRoutes: boolean;
+    readOnly: boolean;
+    tokenRequired: boolean;
+  }>;
+  const memoriesResponse = scopeKey
+    ? await app.fetch(
+        authorized(
+          `/admin/v1/scopes/${encodeURIComponent(scopeKey)}/memories`,
+        ),
+      )
     : null;
-  const crossScopeRef = encodeGoodMemoryRecordRef({
-    id: "phase44-fact-1",
-    recordKind: "fact",
-    scopeDigest: "scope_other",
-  });
+  const memories = memoriesResponse
+    ? await memoriesResponse.json() as AdminEnvelope<{
+        items: Array<{ id: string; summary: string }>;
+      }>
+    : { data: { items: [] } };
+  const memoryItem = memories.data.items.find(({ id }) => id === "phase44-fact-1");
+  const traceResponse = scopeKey
+    ? await app.fetch(
+        authorized("/admin/v1/recall-traces", {
+          body: JSON.stringify({ query: "viewer", scopeKey }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        }),
+      )
+    : null;
+  const traceJson = traceResponse ? await traceResponse.text() : "";
+  const mutation = scopeKey
+    ? await app.fetch(
+        authorized(
+          `/admin/v1/scopes/${encodeURIComponent(scopeKey)}/memories/phase44-fact-1`,
+          { method: "DELETE" },
+        ),
+      )
+    : null;
+  const revision = scopeKey
+    ? await app.fetch(
+        authorized(
+          `/admin/v1/scopes/${encodeURIComponent(scopeKey)}/memories/phase44-fact-1/revisions`,
+          { method: "POST" },
+        ),
+      )
+    : null;
   const crossScope = await app.fetch(
-    authorized(`/api/records?recordRef=${encodeURIComponent(crossScopeRef)}`),
+    authorized("/admin/v1/scopes/scope_other/memories"),
   );
-  const handoff = recordRef
-    ? await (await app.fetch(
-        authorized(`/api/handoff?action=forget&recordRef=${encodeURIComponent(recordRef)}`),
-      )).json() as Record<string, unknown>
-    : {};
-  const crossScopeHandoff = await app.fetch(
-    authorized(`/api/handoff?action=forget&recordRef=${encodeURIComponent(crossScopeRef)}`),
-  );
-  const detailJson = detail ? JSON.stringify(await detail.json()) : "";
+  const scopesJson = JSON.stringify(scopes);
+  const memoriesJson = JSON.stringify(memories);
   const rootSource = await readText(join(root, "src/index.ts"), dependencies);
   const packageJson = JSON.parse(
     await readText(join(root, "package.json"), dependencies),
@@ -173,38 +181,39 @@ export async function runPhase44FallbackEval(
     files?: string[];
   };
 
-  const tokenSecurityPass = unauthorized.status === 401 && summaryResponse.status === 200;
+  const tokenSecurityPass = unauthorized.status === 401 && scopesResponse.status === 200;
   const noCorsPass =
-    !summaryResponse.headers.has("access-control-allow-origin") &&
-    !shellResponse.headers.has("access-control-allow-origin");
-  const noMutationRoutesPass = mutation.status === 405;
+    !scopesResponse.headers.has("access-control-allow-origin") &&
+    !descriptorResponse.headers.has("access-control-allow-origin");
+  const noMutationRoutesPass = mutation?.status === 405;
+  // Legacy Phase 44 report keys remain stable while the deprecated viewer now
+  // proves its boundary through the scope-bound, read-only Inspector adapter.
   const staticShellPass =
-    shell.includes("GoodMemory Local Viewer") &&
-    shell.includes("/api/summary") &&
-    shell.includes("function html(value)") &&
-    !shell.includes("https://") &&
-    !shell.includes("raw transcript");
+    descriptorResponse.status === 200 &&
+    descriptor.data.readOnly === true &&
+    descriptor.data.mutationRoutes === false &&
+    descriptor.data.tokenRequired === true;
   const progressiveDrilldownPass =
-    Boolean(recordRef?.startsWith("gmrec:v1:")) &&
-    detail?.status === 200 &&
-    crossScope.status === 403;
+    memoriesResponse?.status === 200 &&
+    memoryItem?.summary.includes("read-only") === true &&
+    crossScope.status === 404;
   const auditTraceSessionViewsPass =
-    summaryJson.includes("writebackAudit") &&
-    summaryJson.includes("runtimeSessions") &&
-    summaryJson.includes("traceSummaries") &&
-    summaryJson.includes("phase44-trace-1");
+    traceResponse?.status === 200 &&
+    traceJson.includes("candidateTraces") &&
+    traceJson.includes("phase44-fact-1") &&
+    traceJson.includes("phase44-viewer-read-only");
   const handoffReadOnlyPass =
-    handoff.executed === false &&
-    typeof handoff.command === "string" &&
-    String(handoff.command).includes("goodmemory forget") &&
-    crossScopeHandoff.status >= 400;
+    descriptor.data.readOnly === true &&
+    mutation?.status === 405 &&
+    revision?.status === 405;
   const noRawTranscriptPass =
-    !summaryJson.includes("raw phase44 transcript") &&
-    !summaryJson.includes("phase44@example.com") &&
-    !summaryJson.includes("sk-phase44secret") &&
-    !detailJson.includes("raw phase44 transcript") &&
-    !detailJson.includes(PHASE44_SCOPE.userId) &&
-    !detailJson.includes(PHASE44_SCOPE.sessionId ?? "");
+    !scopesJson.includes("raw phase44 transcript") &&
+    !memoriesJson.includes("raw phase44 transcript") &&
+    !memoriesJson.includes("phase44@example.com") &&
+    !memoriesJson.includes("sk-phase44secret") &&
+    !traceJson.includes("raw phase44 transcript") &&
+    !traceJson.includes("phase44@example.com") &&
+    !traceJson.includes("sk-phase44secret");
   const localBindPass =
     normalizeRuntimeViewerBindHost(undefined) === "127.0.0.1" &&
     throwsLocalBindError("0.0.0.0");
@@ -237,8 +246,8 @@ export async function runPhase44FallbackEval(
     acceptance: {
       decision: accepted ? "accepted" : "blocked",
       reason: accepted
-        ? "Local Viewer passed token, 127.0.0.1, no-CORS, no-mutation, static shell, progressive drill-down, audit/trace/session, handoff, redaction, and package-boundary checks."
-        : "Local Viewer failed one or more deterministic checks.",
+        ? "The deprecated runtime viewer passed its token, loopback, no-CORS, read-only Admin API, scoped memory, recall trace, redaction, and package-boundary compatibility checks."
+        : "The deprecated runtime viewer adapter failed one or more deterministic checks.",
     },
     cases,
     generatedAt: now,
@@ -403,64 +412,12 @@ function createPhase44ExportedMemory(): ExportMemoryResult {
   };
 }
 
-function createPhase44Audit(): InstalledHostWritebackAuditInspection {
-  return {
-    events: [
-      {
-        candidateKey: "phase44-candidate",
-        command: "turn-end",
-        contentPreview: "phase44@example.com token sk-phase44secret",
-        eventId: "wb-phase44-1",
-        forgottenLinkedRecordIds: [],
-        forgottenMemoryIds: [],
-        host: "codex",
-        kind: "fact",
-        linkedRecordExistsCount: 1,
-        linkedRecordIds: [{ id: "phase44-fact-1", type: "memory" }],
-        memoryExistsCount: 1,
-        memoryIds: ["phase44-fact-1"],
-        mode: "observe",
-        occurredAt: "2026-04-26T15:25:00.000Z",
-        reason: "token sk-phase44secret",
-        recallHitCount: 0,
-        recalledBy: [],
-        scopeDigest: "scope:phase44-safe",
-        source: "user",
-        status: "observed",
-        updatedAt: "2026-04-26T15:25:00.000Z",
-      },
-    ],
-    host: "codex",
-    legacyEventCount: 0,
-    legacyUnscopedEventCount: 0,
-    pendingCount: 0,
-    scope: PHASE44_SCOPE,
-  };
-}
-
-function createPhase44WorkerStatus(): RuntimeWorkerStatusResult {
-  return {
-    audits: [],
-    counts: {
-      coalesced: 0,
-      failed: 0,
-      queued: 0,
-      running: 0,
-      stuck: 0,
-      succeeded: 0,
-      total: 0,
-    },
-    daemon: { enabled: false, updatedAt: "2026-04-26T15:30:00.000Z" },
-    jobs: [],
-    jobsJson: "[]",
-    queueFile: "/tmp/goodmemory-runtime-worker.json",
-    stuckJobs: [],
-  };
-}
-
-function authorized(path: string): Request {
+function authorized(path: string, init: RequestInit = {}): Request {
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${PHASE44_TOKEN}`);
   return new Request(`http://127.0.0.1${path}`, {
-    headers: { authorization: `Bearer ${PHASE44_TOKEN}` },
+    ...init,
+    headers,
   });
 }
 

@@ -348,6 +348,12 @@ goodmemory enable codex --writeback selective
 goodmemory codex writeback --json
 ```
 
+`goodmemory inspector serve` 会打开内置的本地 React 管理台，用于查看用户与
+scope、分类记忆与 supersession 历史、处理候选、检查召回证据 trace 和审计事件。
+启动 token 只通过 URL fragment 进入页面，随后立即清除并存入 session storage，
+API 仅使用 Bearer header。修订与破坏性操作还要求二次确认、ETag 和幂等键。详见
+[Inspector 与 Admin API](./docs/GoodMemory-Inspector-and-Admin-API.md)。
+
 writeback 规则：
 
 - `off`：不做 after-response 记忆抽取。

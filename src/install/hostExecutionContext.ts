@@ -284,6 +284,12 @@ function buildSharedAgentDocumentStore(
     return undefined;
   }
 
+  return createInstalledHostDocumentStore(context);
+}
+
+export function createInstalledHostDocumentStore(
+  context: HostMemoryRuntimeContext,
+): DocumentStore {
   const storage = context.storage;
   const base =
     storage?.provider === "sqlite" && storage.url
@@ -291,7 +297,11 @@ function buildSharedAgentDocumentStore(
       : storage?.provider === "postgres" && storage.url
         ? createPostgresDocumentStore({ url: storage.url })
         : createInMemoryDocumentStore();
-  return wrapDocumentStoreForSharedAgents(base, { ownAgentId, sharedAgentIds });
+  const ownAgentId = context.scope.agentId;
+  const sharedAgentIds = context.sharedAgents ?? [];
+  return ownAgentId && sharedAgentIds.length > 0
+    ? wrapDocumentStoreForSharedAgents(base, { ownAgentId, sharedAgentIds })
+    : base;
 }
 
 function buildInstalledHostProviderAdapters(

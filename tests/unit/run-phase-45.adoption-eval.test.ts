@@ -106,17 +106,16 @@ describe("run-phase-45 adoption eval script", () => {
     expect(viewerScenario?.checks).toEqual([
       "session-start",
       "chat",
-      "writeback-audit-summary",
-      "viewer-summary",
-      "progressive-record-drilldown",
-      "handoff-generated",
-      "viewer-mutation-rejected",
+      "inspector-scope-catalog",
+      "inspector-memory-list",
+      "inspector-recall-trace",
+      "runtime-viewer-read-only-adapter",
       "backend-mutation-flow",
       "session-end",
     ]);
     expect(viewerScenario?.redactedEvidence).toMatchObject({
       backendMutationCount: 2,
-      handoffCount: 2,
+      handoffCount: 0,
       recordRefCount: 1,
       viewerMutationRejected: true,
     });

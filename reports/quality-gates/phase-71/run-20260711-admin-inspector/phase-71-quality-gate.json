@@ -1,0 +1,78 @@
+{
+  "acceptance": {
+    "decision": "accepted",
+    "reason": "Phase 71 closed with the versioned Admin API, private React Inspector, read-only runtime-viewer delegation, complete real-browser workflows, and a package below 4 MiB."
+  },
+  "browserEvidence": "reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-browser-evidence.json",
+  "commands": [
+    {
+      "args": [
+        "bun",
+        "run",
+        "--cwd",
+        "apps/inspector-web",
+        "typecheck"
+      ],
+      "label": "inspector-web-typecheck",
+      "durationMs": 1476,
+      "exitCode": 0,
+      "stderrTail": "$ tsc --noEmit\n",
+      "stdoutTail": ""
+    },
+    {
+      "args": [
+        "bun",
+        "run",
+        "typecheck"
+      ],
+      "label": "root-typecheck",
+      "durationMs": 50521,
+      "exitCode": 0,
+      "stderrTail": "$ bunx tsc --noEmit\n",
+      "stdoutTail": ""
+    },
+    {
+      "args": [
+        "bun",
+        "test"
+      ],
+      "label": "full-test-suite",
+      "durationMs": 297088,
+      "exitCode": 0,
+      "stderrTail": "ally before a later case fails [226.33ms]\n(pass) eval suite > retries a case independently until a later attempt succeeds [220.18ms]\n(pass) eval suite > preserves the primary case failure when cleanup also fails [74.94ms]\n(pass) eval suite > reports undefined primary failures instead of swallowing the case [38.27ms]\n(pass) eval suite > keeps primary pre-recall failures unattributed before recall starts [53.30ms]\n(pass) eval suite > runs live cases concurrently instead of serializing all baseline calls [158.89ms]\n(pass) eval suite > applies limit after scenario filtering instead of before it [111.04ms]\n(pass) eval suite > runs the same scenario across requested strategies and persists strategy summaries [155.35ms]\n(pass) eval suite > persists retrieval rollout metadata and keeps observe mode execution on the promoted strategy [117.27ms]\n(pass) eval suite > uses runtime rollout metadata as the execution source of truth when no case-level rollout is provided [95.67ms]\n(pass) eval suite > runs an isolated shadow candidate replay in observe mode and persists separate shadow traces [116.95ms]\n(pass) eval suite > cleans up the primary handle when observe shadow setup fails [23.65ms]\n(pass) eval suite > attributes observe shadow replay execution failures to the candidate strategy [67.04ms]\n(pass) eval suite > keeps observe shadow pre-recall failures unattributed before candidate recall starts [76.18ms]\n(pass) eval suite > passes through non-retrieval runtime rollout metadata without changing executed behavior [99.13ms]\n(pass) eval suite > runs reviewer observe rollouts through an isolated shadow path while keeping rules-only on the executed path [116.34ms]\n(pass) eval suite > passes strategyRollout into custom createMemory so reviewer shadow factories can build assisted memory [112.57ms]\n(pass) eval suite > runs maintenance observe rollouts through an isolated shadow path while keeping default hygiene on the executed path [246.57ms]\n(pass) eval suite > allows reviewer promote mode to keep the family baseline without authorization [42.72ms]\n(pass) eval suite > allows maintenance promote mode to keep the family baseline without authorization [81.90ms]\n(pass) eval suite > lets promote-mode retrieval auto requests use internal runtime promotion for authorized llm-assisted rollout [46.34ms]\n(pass) eval suite > blocks promote-mode retrieval defaults when no accepted promotion gate is supplied [8.17ms]\n(pass) eval suite > keeps non-default promote rollouts blocked because no trusted authorization source exists yet [18.55ms]\n(pass) eval suite > blocks reviewer promote rollouts without family-specific authorization evidence [5.44ms]\n(pass) eval suite > blocks maintenance promote rollouts without family-specific authorization evidence [5.14ms]\n(pass) eval suite > reuses the same baseline answer across strategy variants for one scenario [88.17ms]\n(pass) eval suite > reuses a successful baseline across retries for the same case [91.46ms]\n(pass) eval suite > supports rerunning a single failed strategy case by case id [57.71ms]\n\ntests/unit/language/service.test.ts:\n(pass) language service > prefers explicit locale over detection [0.24ms]\n(pass) language service > detects Chinese automatically when no locale is provided [0.12ms]\n(pass) language service > keeps Chinese locale when the sentence mixes Han text with ASCII paths [0.06ms]\n(pass) language service > keeps Chinese content during normalization and tokenization [1.66ms]\n(pass) language service > supports Chinese query intent and polarity detection [0.28ms]\n(pass) language service > supports Chinese recall selection query families [0.37ms]\n(pass) language service > supports English slot-scoped query and fact intents [0.19ms]\n(pass) language service > classifies Chinese feedback signals [0.08ms]\n(pass) language service > recognizes Chinese assistant acknowledgements and unresolved signals [0.12ms]\n\n 3312 pass\n 0 fail\n 13 snapshots, 17645 expect() calls\nRan 3312 tests across 371 files. [296.99s]\n",
+      "stdoutTail": "bun test v1.3.11 (af24e281)\n"
+    }
+  ],
+  "evaluation": {
+    "checks": {
+      "browser": true,
+      "commands": true,
+      "packageSize": true,
+      "staticArchitecture": true,
+      "zeroLlmCalls": true
+    },
+    "failures": [],
+    "status": "passed"
+  },
+  "generatedAt": "2026-07-12T01:12:05.512Z",
+  "generatedBy": "scripts/run-phase-71-gate.ts",
+  "package": {
+    "maxUnpackedBytes": 4194304,
+    "tarballName": "goodmemory-0.5.1.tgz",
+    "unpackedBytes": 3843826
+  },
+  "phase": "phase-71",
+  "runDirectory": "/Users/hjqcan/workspace/GoodMemory/reports/quality-gates/phase-71/run-20260711-admin-inspector",
+  "runId": "run-20260711-admin-inspector",
+  "staticEvidence": {
+    "adminApiVersioned": true,
+    "compressedWebAssets": true,
+    "duplicateViewerServerRemoved": true,
+    "privateReactWorkspace": true,
+    "queryPageBuiltIns": true,
+    "reactCursorPagination": true,
+    "runtimeViewerDelegated": true,
+    "scopeCatalogCoverage": true,
+    "tokenSecurity": true
+  }
+}

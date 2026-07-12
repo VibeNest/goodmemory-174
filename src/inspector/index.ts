@@ -15,6 +15,8 @@ export {
   type ApproveCandidateResult,
   type InspectorCandidateView,
   listReviewCandidateViews,
+  releaseApprovedCandidate,
+  type ReleaseCandidateResult,
   rejectCandidate,
   type RejectCandidateResult,
 } from "./candidateReview";
@@ -26,6 +28,6 @@ export {
   type InspectorApp,
   type InspectorServerDescriptor,
   type InspectorServerHandle,
-  renderInspectorShell,
+  normalizeInspectorBindHost,
   serveInspector,
 } from "./public";

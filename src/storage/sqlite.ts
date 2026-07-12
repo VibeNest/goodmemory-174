@@ -11,6 +11,7 @@ import type { MemoryScope } from "../domain/scope";
 import { scopeToKey, scopeToPrefix } from "../domain/scope";
 import type {
   ConditionalDocumentWriteBatch,
+  DocumentQueryPageInput,
   DocumentStore,
   SessionStore,
   StorageDocument,
@@ -19,6 +20,7 @@ import type {
   VectorStore,
 } from "./contracts";
 import {
+  assertDocumentQueryPageInput,
   matchesFilter,
   shallowMergeDocument,
 } from "./contracts";
@@ -38,6 +40,10 @@ type SQLiteBindingValue = string | number | boolean | null;
 
 interface DocumentRow {
   json: string;
+}
+
+interface DocumentPageRow extends DocumentRow {
+  id: string;
 }
 
 interface SessionRow {
@@ -398,6 +404,16 @@ export function createSQLiteDocumentStore(
   const listStatement = database.query<DocumentRow, [string]>(
     `SELECT json FROM documents WHERE collection = ?1`,
   );
+  const pageStatement = database.query<
+    DocumentPageRow,
+    [string, string | null, number]
+  >(
+    `SELECT id, json
+     FROM documents
+     WHERE collection = ?1 AND (?2 IS NULL OR id > ?2)
+     ORDER BY id ASC
+     LIMIT ?3`,
+  );
   const deleteStatement = database.query(
     `DELETE FROM documents WHERE collection = ?1 AND id = ?2`,
   );
@@ -494,6 +510,42 @@ export function createSQLiteDocumentStore(
       return rows
         .map((row) => parseJson<TDocument>(row.json))
         .filter((document) => matchesFilter(document, filter));
+    },
+
+    async queryPage<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentQueryPageInput,
+    ) {
+      assertDocumentQueryPageInput(input);
+      const matched: Array<{ document: TDocument; id: string }> = [];
+      const batchSize = Math.max(64, input.limit + 1);
+      let cursor = input.cursor ?? null;
+      while (matched.length <= input.limit) {
+        const rows = pageStatement.all(collection, cursor, batchSize);
+        if (rows.length === 0) {
+          break;
+        }
+        for (const row of rows) {
+          const document = parseJson<TDocument>(row.json);
+          if (matchesFilter(document, input.filter)) {
+            matched.push({ document, id: row.id });
+            if (matched.length > input.limit) {
+              break;
+            }
+          }
+        }
+        cursor = rows.at(-1)!.id;
+        if (rows.length < batchSize) {
+          break;
+        }
+      }
+      const page = matched.slice(0, input.limit);
+      return {
+        items: page.map(({ document }) => document),
+        ...(matched.length > input.limit
+          ? { nextCursor: page.at(-1)!.id }
+          : {}),
+      };
     },
 
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {

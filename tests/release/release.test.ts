@@ -778,6 +778,7 @@ describe("release metadata and docs", () => {
       "docs/GoodMemory-Cursor-Setup-Guide.md",
       "docs/GoodMemory-First-Principles-and-Reference-Architecture.md",
       "docs/GoodMemory-Gemini-CLI-Setup-Guide.md",
+      "docs/GoodMemory-Inspector-and-Admin-API.md",
       "docs/GoodMemory-MCP-Registry-Publishing.md",
       "docs/GoodMemory-OpenCode-Setup-Guide.md",
       "docs/GoodMemory-PRD.md",
@@ -1232,6 +1233,7 @@ describe("release metadata and docs", () => {
         ),
       ).toBe(false);
       expect(entries).toContain("package/docs/GoodMemory-15-Minute-App-Integration.md");
+      expect(entries).toContain("package/docs/GoodMemory-Inspector-and-Admin-API.md");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");
@@ -2099,23 +2101,6 @@ describe("release metadata and docs", () => {
         cwd: workspaceRoot,
       });
       expect(install.exitCode).toBe(0);
-      await mkdir(join(workspaceRoot, "node_modules/@types"), { recursive: true });
-      await cp(
-        join(ROOT_PACKAGE_PATH, "node_modules/@types/bun"),
-        join(workspaceRoot, "node_modules/@types/bun"),
-        { recursive: true },
-      );
-      await cp(
-        join(ROOT_PACKAGE_PATH, "node_modules/@types/node"),
-        join(workspaceRoot, "node_modules/@types/node"),
-        { recursive: true },
-      );
-      await cp(
-        join(ROOT_PACKAGE_PATH, "node_modules/bun-types"),
-        join(workspaceRoot, "node_modules/bun-types"),
-        { recursive: true },
-      );
-
       const smoke = await runCommand({
         cmd: ["bun", "run", "smoke"],
         cwd: workspaceRoot,

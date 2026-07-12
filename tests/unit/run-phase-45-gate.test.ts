@@ -60,19 +60,18 @@ function createAcceptedPhase45AdoptionReport(): string {
     runId: "run-20260427104530-adoption-eval",
     scenarios: requiredScenarioFamilies.map((family) => ({
       caseId: family.replaceAll("_", "-"),
-	      checks:
-	        family === "local_viewer_trace_writeback_session_inspection"
-	          ? [
+      checks:
+        family === "local_viewer_trace_writeback_session_inspection"
+          ? [
               "session-start",
               "chat",
-              "writeback-audit-summary",
-              "viewer-summary",
-              "progressive-record-drilldown",
-              "handoff-generated",
-              "viewer-mutation-rejected",
+              "inspector-scope-catalog",
+              "inspector-memory-list",
+              "inspector-recall-trace",
+              "runtime-viewer-read-only-adapter",
               "backend-mutation-flow",
-	              "session-end",
-	            ]
+              "session-end",
+            ]
 	          : family === "optional_provider_backed_retrieval_uplift"
 	            ? ["provider-backed-eval-explicitly-skipped"]
 	          : ["scenario-check"],
@@ -95,15 +94,16 @@ function createAcceptedPhase45AdoptionReport(): string {
       },
       rawTranscriptPersisted: false,
 	      redactedEvidence:
-	        family === "local_viewer_trace_writeback_session_inspection"
-	          ? {
+        family === "local_viewer_trace_writeback_session_inspection"
+          ? {
               backendMutationCount: 2,
-              handoffCount: 2,
+              handoffCount: 0,
               matchedSignals: [
-                "viewer-inputs-inspectable",
-                "viewer-recordref-drilldown",
-                "viewer-handoff-read-only",
-                "backend-mutations-outside-viewer",
+                "inspector-scope-catalog",
+                "inspector-memory-drilldown",
+                "inspector-recall-trace",
+                "runtime-viewer-read-only-adapter",
+                "backend-mutations-outside-inspector",
               ],
               observedCandidateCount: 1,
               recordRefCount: 1,
@@ -293,8 +293,9 @@ describe("run-phase-45 gate script", () => {
           if (path.endsWith("src/runtime-viewer/public.ts")) {
             return [
               "normalizeRuntimeViewerBindHost",
-              "GoodMemory runtime viewer is read-only",
-              "rawTranscriptPersisted: false",
+              "createInspectorApp",
+              "serveInspector",
+              "readOnly: true",
             ].join("\n");
           }
           if (path.endsWith("examples/reference-chat-product/backend.ts")) {
@@ -327,8 +328,8 @@ describe("run-phase-45 gate script", () => {
               "bun run example:reference-product",
               "bun run eval:phase-45",
               "bun run gate:phase-45",
-              "viewer remains read-only",
-              "CLI/API handoff",
+              "runtime viewer is deprecated",
+              "read-only Inspector",
             ].join("\n");
           }
           if (path.endsWith("docs/GoodMemory-Current-Status-and-Evidence.md")) {

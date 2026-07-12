@@ -604,6 +604,76 @@ describe("recall projection runtime", () => {
     );
   });
 
+  it("registers new durable scopes when projection write-through is disabled", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const runtime = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => NOW,
+      writeThrough: false,
+    });
+    const fact = buildFact({ id: "fact-catalog-only" });
+
+    await runtime.documentStore.set("facts", fact.id, fact);
+
+    expect(
+      await rawStore.query<RecallIndexDocument>(RECALL_DOCUMENTS_COLLECTION),
+    ).toEqual([]);
+    expect(
+      await rawStore.query<ScopeCatalogProjection>(SCOPE_CATALOG_COLLECTION, {
+        scopeKey: scopeToKey(scope),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        coverage: "partial",
+        firstSeenAt: NOW,
+        lastSeenAt: NOW,
+      }),
+    ]);
+  });
+
+  it("registers scopes from successful conditional batches without write-through", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const runtime = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => NOW,
+      writeThrough: false,
+    });
+    const previous = buildFact({ id: "fact-before-batch" });
+    const nextScope = {
+      ...scope,
+      sessionId: "session-batch",
+      userId: "user-batch",
+      workspaceId: "workspace-batch",
+    };
+    const next = {
+      ...buildFact({ id: "fact-after-batch" }),
+      ...nextScope,
+    };
+    await rawStore.set("facts", previous.id, previous);
+
+    const committed = await runtime.documentStore.writeBatchIfUnchanged?.({
+      expected: {
+        collection: "facts",
+        document: previous,
+        id: previous.id,
+      },
+      set: [{ collection: "facts", document: next, id: next.id }],
+    });
+
+    expect(committed).toBe(true);
+    expect(
+      await rawStore.query<ScopeCatalogProjection>(SCOPE_CATALOG_COLLECTION, {
+        scopeKey: scopeToKey(nextScope),
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        coverage: "partial",
+        firstSeenAt: NOW,
+        lastSeenAt: NOW,
+      }),
+    ]);
+  });
+
   it("reuses recall-scope verification across sessions", async () => {
     const rawStore = createInMemoryDocumentStore();
     const historical = buildFact({ id: "fact-shared-recall-scope" });

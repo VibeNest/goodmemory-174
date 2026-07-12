@@ -47,6 +47,7 @@ export function createRecallProjectionRuntime(
     documentStore: createProjectionAwareDocumentStore({
       documentStore: config.documentStore,
       mutationLock,
+      now,
       operations,
       repairs,
       writeThrough: config.writeThrough ?? true,

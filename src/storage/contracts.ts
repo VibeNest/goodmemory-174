@@ -8,6 +8,19 @@ import type { MemoryScope } from "../domain/scope";
 export type StorageDocument = object;
 export type StorageFilter = Record<string, unknown>;
 
+export interface DocumentQueryPageInput {
+  cursor?: string;
+  filter?: StorageFilter;
+  limit: number;
+}
+
+export interface DocumentQueryPage<
+  TDocument extends StorageDocument = StorageDocument,
+> {
+  items: TDocument[];
+  nextCursor?: string;
+}
+
 export interface DocumentWriteOperation<
   TDocument extends StorageDocument = StorageDocument,
 > {
@@ -40,8 +53,20 @@ export interface DocumentStore {
     collection: string,
     filter?: StorageFilter,
   ): Promise<TDocument[]>;
+  queryPage?<TDocument extends StorageDocument>(
+    collection: string,
+    input: DocumentQueryPageInput,
+  ): Promise<DocumentQueryPage<TDocument>>;
   writeBatchIfUnchanged?(input: ConditionalDocumentWriteBatch): Promise<boolean>;
   delete(collection: string, id: string): Promise<void>;
+}
+
+export function assertDocumentQueryPageInput(
+  input: DocumentQueryPageInput,
+): void {
+  if (!Number.isSafeInteger(input.limit) || input.limit <= 0) {
+    throw new Error("Document query page limit must be a positive integer.");
+  }
 }
 
 export interface VectorRecord {

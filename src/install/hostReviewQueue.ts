@@ -25,6 +25,7 @@ export type InspectorReviewCandidateStatus =
   | "approving"
   | "approved"
   | "pending"
+  | "released"
   | "rejected";
 
 export type InspectorReviewCandidateSource = "user" | "assistant" | "host_event";
@@ -371,6 +372,7 @@ function isReviewCandidate(value: unknown): value is InspectorReviewCandidate {
     (value.status === "pending" ||
       value.status === "approving" ||
       value.status === "approved" ||
+      value.status === "released" ||
       value.status === "rejected")
   );
 }

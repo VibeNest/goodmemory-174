@@ -4,7 +4,10 @@ import type {
   DocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
-import { isRecallProjectionSourceCollection } from "./contracts";
+import {
+  isRecallProjectionSourceCollection,
+  type RecallProjectionSourceCollection,
+} from "./contracts";
 import type { KeyedMutationLock } from "./mutationLock";
 import type { RecallProjectionOperations } from "./operations";
 import { resolveProjectionScope } from "./projector";
@@ -14,11 +17,41 @@ import { errorMessage, sourceMutationKey } from "./shared";
 export function createProjectionAwareDocumentStore(input: {
   documentStore: DocumentStore;
   mutationLock: KeyedMutationLock;
+  now: () => string;
   operations: RecallProjectionOperations;
   repairs: RecallProjectionRepairs;
   writeThrough: boolean;
 }): DocumentStore {
-  const { documentStore, mutationLock, operations, repairs, writeThrough } = input;
+  const { documentStore, mutationLock, now, operations, repairs, writeThrough } = input;
+
+  async function registerScopeAfterCanonicalWrite(
+    collection: RecallProjectionSourceCollection,
+    sourceMemoryId: string,
+    document: StorageDocument,
+  ): Promise<void> {
+    const scope = resolveProjectionScope(document) ?? undefined;
+    if (!scope) {
+      return;
+    }
+    try {
+      await operations.registerScope(scope, now());
+    } catch (error) {
+      console.error(
+        "[goodmemory:scope-catalog] canonical write committed but scope registration failed",
+        {
+          collection,
+          error: errorMessage(error),
+          sourceMemoryId,
+        },
+      );
+      await repairs.queue({
+        collection,
+        error,
+        scope,
+        sourceMemoryId,
+      });
+    }
+  }
 
   async function synchronizeAfterCanonicalWrite(
     collection: string,
@@ -79,8 +112,13 @@ export function createProjectionAwareDocumentStore(input: {
 
   const decorated: DocumentStore = {
     async set(collection, id, document) {
-      if (!writeThrough || !isRecallProjectionSourceCollection(collection)) {
+      if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.set(collection, id, document);
+        return;
+      }
+      if (!writeThrough) {
+        await documentStore.set(collection, id, document);
+        await registerScopeAfterCanonicalWrite(collection, id, document);
         return;
       }
       await mutationLock.runExclusive(
@@ -95,8 +133,16 @@ export function createProjectionAwareDocumentStore(input: {
       return documentStore.get(collection, id);
     },
     async update(collection, id, patch) {
-      if (!writeThrough || !isRecallProjectionSourceCollection(collection)) {
+      if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.update(collection, id, patch);
+        return;
+      }
+      if (!writeThrough) {
+        await documentStore.update(collection, id, patch);
+        const updated = await documentStore.get<StorageDocument>(collection, id);
+        if (updated) {
+          await registerScopeAfterCanonicalWrite(collection, id, updated);
+        }
         return;
       }
       await mutationLock.runExclusive(
@@ -151,16 +197,18 @@ export function createProjectionAwareDocumentStore(input: {
     },
   };
 
-  if (documentStore.writeBatchIfUnchanged) {
+  const writeBatchIfUnchanged = documentStore.writeBatchIfUnchanged;
+  if (writeBatchIfUnchanged) {
     decorated.writeBatchIfUnchanged = async (
       batch: ConditionalDocumentWriteBatch,
     ): Promise<boolean> => {
-      if (!writeThrough) {
-        return documentStore.writeBatchIfUnchanged!(batch);
-      }
       const sources = new Map<
         string,
-        { collection: string; document: StorageDocument; id: string }
+        {
+          collection: RecallProjectionSourceCollection;
+          document: StorageDocument;
+          id: string;
+        }
       >();
       for (const operation of batch.set) {
         if (!isRecallProjectionSourceCollection(operation.collection)) {
@@ -172,8 +220,21 @@ export function createProjectionAwareDocumentStore(input: {
           id: operation.id,
         });
       }
+      if (!writeThrough) {
+        const committed = await writeBatchIfUnchanged(batch);
+        if (committed) {
+          for (const source of sources.values()) {
+            await registerScopeAfterCanonicalWrite(
+              source.collection,
+              source.id,
+              source.document,
+            );
+          }
+        }
+        return committed;
+      }
       return mutationLock.runExclusive([...sources.keys()], async () => {
-        const committed = await documentStore.writeBatchIfUnchanged!(batch);
+        const committed = await writeBatchIfUnchanged(batch);
         if (!committed) {
           return false;
         }
@@ -187,6 +248,11 @@ export function createProjectionAwareDocumentStore(input: {
         return true;
       });
     };
+  }
+
+  if (documentStore.queryPage) {
+    decorated.queryPage = (collection, page) =>
+      documentStore.queryPage!(collection, page);
   }
 
   return decorated;

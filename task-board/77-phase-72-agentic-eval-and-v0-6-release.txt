@@ -4,7 +4,7 @@ Phase 72: Agentic Eval and v0.6 Release
 Status
 ------
 
-[PENDING PHASE 71]
+[ACTIVE]
 
 Goal
 ----

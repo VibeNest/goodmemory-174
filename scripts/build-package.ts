@@ -10,6 +10,18 @@ const DIST_DIR = join(REPO_ROOT, "dist");
 await rm(DIST_DIR, { recursive: true, force: true });
 await mkdir(DIST_DIR, { recursive: true });
 
+const inspectorBuild = Bun.spawn(
+  ["bun", "run", "build"],
+  {
+    cwd: join(REPO_ROOT, "apps", "inspector-web"),
+    stderr: "inherit",
+    stdout: "inherit",
+  },
+);
+if ((await inspectorBuild.exited) !== 0) {
+  process.exit(1);
+}
+
 const result = await Bun.build({
   entrypoints: [
     join(REPO_ROOT, "src/index.ts"),

@@ -8,5 +8,8 @@
   },
   "dependencies": {
     "goodmemory": "__GOODMEMORY_PACKAGE_SPEC__"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
   }
 }

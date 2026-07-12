@@ -72,6 +72,7 @@ export interface GoodMemoryCapabilityDescriptor {
   readonly homepage: string;
   readonly repository: string;
   readonly documentation: {
+    readonly inspector: string;
     readonly llmsTxt: string;
     readonly readme: string;
     readonly quickstart: string;
@@ -109,6 +110,7 @@ export interface GoodMemoryCapabilityDescriptor {
     readonly durableStore: string;
     readonly audit: boolean;
     readonly deletion: boolean;
+    readonly localInspector: string;
     readonly correctByDefaultRecall: string;
   };
   readonly canonicalSources: {
@@ -144,6 +146,7 @@ export function buildGoodMemoryCapabilityDescriptor(
     homepage: `${REPO}#readme`,
     repository: REPO,
     documentation: {
+      inspector: `${REPO}/blob/main/docs/GoodMemory-Inspector-and-Admin-API.md`,
       llmsTxt: `${REPO}/blob/main/llms.txt`,
       readme: `${REPO}#readme`,
       quickstart: `${REPO}#quickstart-codex-or-claude-code-memory`,
@@ -272,6 +275,8 @@ export function buildGoodMemoryCapabilityDescriptor(
       durableStore: "sqlite (default), postgres (opt-in)",
       audit: true,
       deletion: true,
+      localInspector:
+        "goodmemory inspector serve (loopback-only React console and /admin/v1 API)",
       correctByDefaultRecall:
         "Recall never silently degrades: a downgraded strategy carries routing.warnings (semantic_recall_inactive) and routing.warningMessages (semantic recall inactive — set strategy:hybrid + RETRIEVAL_PRESET) instead of quietly returning the lexical floor.",
     },

@@ -6,17 +6,6 @@ import type { MemoryScope } from "goodmemory";
 import {
   createInMemoryReferenceProductBackend,
 } from "../examples/reference-chat-product/backend";
-import type {
-  InstalledHostWritebackAuditInspection,
-} from "../src/install/hostWritebackAuditRuntime";
-import {
-  buildProgressiveScopeDigest,
-  createProgressiveRecallService,
-  encodeGoodMemoryRecordRef,
-} from "../src/progressive/recall";
-import type {
-  RuntimeViewerHandoff,
-} from "../src/runtime-viewer/contracts";
 import {
   createRuntimeViewerApp,
 } from "../src/runtime-viewer/public";
@@ -192,11 +181,11 @@ const PHASE45_IN_SCOPE = [
   "no-memory baseline versus rules-only GoodMemory",
   "provider-backed uplift explicitly skipped locally until a real runner exists",
   "product-facing correction, forget, feedback, observe, and selective writeback evidence",
-  "redacted local-viewer inspectability inputs without viewer mutation",
+  "deprecated runtime-viewer compatibility through the scope-bound read-only Inspector",
 ] as const;
 const PHASE45_OUT_OF_SCOPE = [
   "hosted dashboard, account, team workspace, cloud sync, or analytics",
-  "viewer mutation routes or browser-executed forget/revise",
+  "mutations through the deprecated runtime viewer",
   "raw transcript archive as accepted evidence",
   "new root public API",
 ] as const;
@@ -816,61 +805,25 @@ interface Phase45ViewerFlowEvidence {
   viewerMutationRejected: boolean;
 }
 
-interface Phase45ViewerIndexResponse {
-  records?: Array<{
-    recordKind?: string;
-    recordRef?: string;
-  }>;
-}
-
-function createPhase45ViewerAudit(input: {
-  contentPreview: string;
-  scope: MemoryScope;
-  scopeDigest: string;
-}): InstalledHostWritebackAuditInspection {
-  return {
-    events: [
-      {
-        candidateKey: "phase45-viewer-candidate",
-        command: "turn-end",
-        contentPreview: input.contentPreview,
-        eventId: "phase45-viewer-writeback-1",
-        forgottenLinkedRecordIds: [],
-        forgottenMemoryIds: [],
-        host: "codex",
-        kind: "fact",
-        linkedRecordExistsCount: 1,
-        linkedRecordIds: [{ id: "phase45-viewer-memory", type: "memory" }],
-        memoryExistsCount: 1,
-        memoryIds: ["phase45-viewer-memory"],
-        mode: "observe",
-        occurredAt: "2026-04-27T10:45:30.000Z",
-        reason: "candidate contained viewer.phase45@example.com and token sk-phase45-viewer",
-        recallHitCount: 0,
-        recalledBy: [],
-        scopeDigest: input.scopeDigest,
-        source: "user",
-        status: "observed",
-        updatedAt: "2026-04-27T10:45:30.000Z",
-      },
-    ],
-    host: "codex",
-    legacyEventCount: 0,
-    legacyUnscopedEventCount: 0,
-    pendingCount: 0,
-    scope: input.scope,
-  };
+interface Phase45AdminEnvelope<T> {
+  data: T;
 }
 
 function viewerRequest(input: {
+  body?: string;
   method?: string;
   path: string;
   token: string;
 }): Request {
+  const headers = new Headers({
+    authorization: `Bearer ${input.token}`,
+  });
+  if (input.body !== undefined) {
+    headers.set("content-type", "application/json");
+  }
   return new Request(`http://127.0.0.1${input.path}`, {
-    headers: {
-      authorization: `Bearer ${input.token}`,
-    },
+    ...(input.body !== undefined ? { body: input.body } : {}),
+    headers,
     method: input.method,
   });
 }
@@ -886,83 +839,69 @@ async function executeReferenceProductViewerFlow(input: {
   scope: MemoryScope;
   startedEventCount: number;
 }): Promise<Phase45ViewerFlowEvidence> {
-  const scopeDigestSecret = "phase45-reference-product-viewer-secret";
-  const scopeDigest = buildProgressiveScopeDigest({
-    scope: input.scope,
-    secret: scopeDigestSecret,
-  });
-  const progressiveRecall = createProgressiveRecallService({
-    memory: input.memory,
-    scopeDigestSecret,
-  });
   const token = "phase45-viewer-token";
   const app = createRuntimeViewerApp({
-    host: "codex",
-    loadWritebackAudit: async () => createPhase45ViewerAudit({
-      contentPreview:
-        "viewer.phase45@example.com token sk-phase45-viewer candidate ready",
-      scope: input.scope,
-      scopeDigest,
-    }),
     memory: input.memory,
     now: () => new Date("2026-04-27T10:45:30.000Z"),
-    progressiveRecall,
     scope: input.scope,
-    scopeDigest,
     token,
   });
-  const summaryResponse = await app.fetch(
-    viewerRequest({ path: "/api/summary?query=traceable", token }),
+  const descriptorResponse = await app.fetch(
+    viewerRequest({ path: "/admin/v1/descriptor", token }),
   );
-  const summary = await summaryResponse.text();
-  const indexResponse = await app.fetch(
-    viewerRequest({ path: "/api/recall-index?query=traceable", token }),
+  const descriptor = await readViewerJson<Phase45AdminEnvelope<{
+    mutationRoutes: boolean;
+    readOnly: boolean;
+  }>>(descriptorResponse);
+  const scopesResponse = await app.fetch(
+    viewerRequest({ path: "/admin/v1/scopes", token }),
   );
-  const index = await readViewerJson<Phase45ViewerIndexResponse>(indexResponse);
-  const recordRef = index.records?.find((record) =>
-    record.recordKind === "fact" && record.recordRef?.startsWith("gmrec:v1:")
-  )?.recordRef;
-  const recordsResponse = recordRef
+  const scopes = await readViewerJson<Phase45AdminEnvelope<{
+    items: Array<{ scopeKey: string }>;
+  }>>(scopesResponse);
+  const scopeKey = scopes.data.items[0]?.scopeKey;
+  const memoriesResponse = scopeKey
     ? await app.fetch(
         viewerRequest({
-          path: `/api/records?recordRef=${encodeURIComponent(recordRef)}`,
+          path: `/admin/v1/scopes/${encodeURIComponent(scopeKey)}/memories`,
           token,
         }),
       )
     : undefined;
-  const recordsText = recordsResponse ? await recordsResponse.text() : "";
-  const forgetHandoff = recordRef
-    ? await readViewerJson<RuntimeViewerHandoff>(await app.fetch(
+  const memoriesText = memoriesResponse ? await memoriesResponse.text() : "";
+  const memories = memoriesText
+    ? JSON.parse(memoriesText) as Phase45AdminEnvelope<{
+        items: Array<{ id: string; summary: string }>;
+      }>
+    : { data: { items: [] } };
+  const memoryItem = memories.data.items.find(({ summary }) =>
+    summary.includes("traceable session")
+  );
+  const traceResponse = scopeKey
+    ? await app.fetch(
         viewerRequest({
-          path: `/api/handoff?action=forget&recordRef=${encodeURIComponent(recordRef)}`,
+          body: JSON.stringify({
+            query: "What viewer inspection run is traceable?",
+            scopeKey,
+          }),
+          method: "POST",
+          path: "/admin/v1/recall-traces",
           token,
         }),
-      ))
+      )
     : undefined;
-  const reviseHandoff = recordRef
-    ? await readViewerJson<RuntimeViewerHandoff>(await app.fetch(
-        viewerRequest({
-          path: `/api/handoff?action=revise&recordRef=${encodeURIComponent(recordRef)}`,
-          token,
-        }),
-      ))
-    : undefined;
-  const deniedRef = encodeGoodMemoryRecordRef({
-    id: "phase45-viewer-memory",
-    recordKind: "fact",
-    scopeDigest: "scope_other",
-  });
-  const deniedHandoff = await app.fetch(
+  const traceText = traceResponse ? await traceResponse.text() : "";
+  const deniedScope = await app.fetch(
     viewerRequest({
-      path: `/api/handoff?action=forget&recordRef=${encodeURIComponent(deniedRef)}`,
+      path: "/admin/v1/scopes/scope_other/memories",
       token,
     }),
   );
-  const mutationDenied = recordRef
+  const mutationDenied = scopeKey && memoryItem
     ? await app.fetch(
         viewerRequest({
-          method: "POST",
-          path: `/api/handoff?action=forget&recordRef=${encodeURIComponent(recordRef)}`,
+          method: "DELETE",
+          path: `/admin/v1/scopes/${encodeURIComponent(scopeKey)}/memories/${encodeURIComponent(memoryItem.id)}`,
           token,
         }),
       )
@@ -988,33 +927,31 @@ async function executeReferenceProductViewerFlow(input: {
   const afterForget = await input.product.recallContext(
     "What viewer inspection run is traceable?",
   );
-  const handoffCount = [forgetHandoff, reviseHandoff].filter((handoff) =>
-    handoff?.executed === false && typeof handoff.command === "string"
-  ).length;
+  const handoffCount = 0;
   const backendMutationCount =
     (revised.accepted ? 1 : 0) + (forgotten.accepted ? 1 : 0);
   const viewerMutationRejected =
-    mutationDenied?.status === 405 && deniedHandoff.status === 400;
-  const summaryInspectable =
-    summaryResponse.status === 200 &&
-    summary.includes("writebackAudit") &&
-    summary.includes("runtimeSessions") &&
-    summary.includes("traceSummaries") &&
-    summary.includes('"readOnly": true') &&
-    !summary.includes("viewer.phase45@example.com") &&
-    !summary.includes("sk-phase45-viewer");
-  const recordsInspectable =
-    recordsResponse?.status === 200 &&
-    recordsText.includes("traceable session") &&
-    !recordsText.includes("viewer.phase45@example.com") &&
-    !recordsText.includes("sk-phase45-viewer");
+    mutationDenied?.status === 405 && deniedScope.status === 404;
+  const adminInspectable =
+    descriptorResponse.status === 200 &&
+    descriptor.data.readOnly === true &&
+    descriptor.data.mutationRoutes === false &&
+    scopesResponse.status === 200 &&
+    traceResponse?.status === 200 &&
+    traceText.includes("candidateTraces") &&
+    !traceText.includes("viewer.phase45@example.com") &&
+    !traceText.includes("sk-phase45-viewer");
+  const memoriesInspectable =
+    memoriesResponse?.status === 200 &&
+    memoryItem !== undefined &&
+    !memoriesText.includes("viewer.phase45@example.com") &&
+    !memoriesText.includes("sk-phase45-viewer");
   const backendMutated =
     revisedRecall.contextText.includes("backend revise") &&
     !afterForget.memoryIds.includes(targetMemoryId ?? "");
   const inspectable = Boolean(
-    summaryInspectable &&
-      recordsInspectable &&
-      handoffCount === 2 &&
+    adminInspectable &&
+      memoriesInspectable &&
       viewerMutationRejected &&
       backendMutationCount === 2 &&
       backendMutated,
@@ -1026,14 +963,15 @@ async function executeReferenceProductViewerFlow(input: {
     inspectable,
     matchedSignals: inspectable
       ? [
-          "viewer-inputs-inspectable",
-          "viewer-recordref-drilldown",
-          "viewer-handoff-read-only",
-          "backend-mutations-outside-viewer",
+          "inspector-scope-catalog",
+          "inspector-memory-drilldown",
+          "inspector-recall-trace",
+          "runtime-viewer-read-only-adapter",
+          "backend-mutations-outside-inspector",
         ]
       : [],
     observedCandidateCount: input.observe.trace.candidateCount,
-    recordRefCount: recordRef ? 1 : 0,
+    recordRefCount: memoryItem ? 1 : 0,
     traceEventCount: input.startedEventCount + input.observe.events.length,
     viewerMutationRejected,
   };
@@ -1089,11 +1027,10 @@ async function executeViewerInspectabilityScenario(
     checks: [
       "session-start",
       "chat",
-      "writeback-audit-summary",
-      "viewer-summary",
-      "progressive-record-drilldown",
-      "handoff-generated",
-      "viewer-mutation-rejected",
+      "inspector-scope-catalog",
+      "inspector-memory-list",
+      "inspector-recall-trace",
+      "runtime-viewer-read-only-adapter",
       "backend-mutation-flow",
       "session-end",
     ],

@@ -59,6 +59,12 @@ Pick the one path that matches how you run. Each is self-contained.
    without a provider; `GOODMEMORY_EMBEDDING_*` adds the dense channel.
    `GET /healthz` reports the active `retrievalTier` and `embeddingEnabled`.
 
+After any local install, run `goodmemory inspector serve` to browse users and
+scopes, review candidates, revise or delete memory, inspect recall evidence,
+and audit mutations. The React console and `/admin/v1` API are loopback-only
+and Bearer-token gated. See the
+[Inspector and Admin API guide](https://github.com/hjqcan/GoodMemory/blob/main/docs/GoodMemory-Inspector-and-Admin-API.md).
+
 ## Memory API
 
 - remember, recall, buildContext, feedback, forget, exportMemory, deleteAllMemory
@@ -69,6 +75,7 @@ Pick the one path that matches how you run. Each is self-contained.
 - [Quickstart: Codex or Claude Code memory](https://github.com/hjqcan/GoodMemory#quickstart-codex-or-claude-code-memory)
 - [Standalone MCP for any client](https://github.com/hjqcan/GoodMemory#standalone-mcp-for-any-client)
 - [Python/FastAPI HTTP bridge](https://github.com/hjqcan/GoodMemory#pythonfastapi-http-bridge)
+- [Inspector and Admin API](https://github.com/hjqcan/GoodMemory/blob/main/docs/GoodMemory-Inspector-and-Admin-API.md)
 
 ## Benchmarks (gate-verified public claims)
 
