@@ -378,7 +378,9 @@ describe("run-phase-62 full-500 summary", () => {
       },
     );
 
-    expect(report.summary.executionFailures).toBe(3);
+    expect(report.summary.executionFailures).toBe(
+      LONGMEMEVAL_PROFILES.length - 1,
+    );
     expect(report.profiles["goodmemory-rules-only"]?.summary).toMatchObject({
       correctCases: 1,
       totalCases: 1,

@@ -239,6 +239,7 @@ export type {
   MemoryCandidateAnnotationTrace,
   MemoryCandidateExplicitness,
   MemoryCandidateKindHint,
+  MemoryExtractionContext,
   MemoryExtractionInput,
   MemoryExtractionResult,
   MemoryExtractionStrategy,

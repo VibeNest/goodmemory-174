@@ -21,6 +21,13 @@ const INSTRUCTION_VERSIONED_VALUE_PATTERN =
 const INSTRUCTION_VERSIONED_VALUE_DETECT_PATTERN =
   /\b[A-Za-z][A-Za-z0-9.+_-]*(?:-[A-Za-z0-9.+_-]+)*\s+v?\d+(?:\.\d+){1,}\b/u;
 
+const INSTRUCTION_VERSIONED_NAME_STOP_WORDS = new Set([
+  "is",
+  "release",
+  "schema",
+  "version",
+]);
+
 const INSTRUCTION_CONCRETE_VALUE_QUESTION_PATTERN =
   /\b(?:aids?|dependenc(?:y|ies)|librar(?:y|ies)|packages?|software|tools?|versions?)\b/iu;
 
@@ -349,7 +356,10 @@ function extractInstructionVersionedValues(content: string): string[] {
   return uniquePreservingOrder(
     [...content.matchAll(INSTRUCTION_VERSIONED_VALUE_PATTERN)].map(
       (match) => match[0],
-    ),
+    ).filter((value) => {
+      const name = value.split(/\s+/u)[0]?.toLowerCase();
+      return name !== undefined && !INSTRUCTION_VERSIONED_NAME_STOP_WORDS.has(name);
+    }),
   );
 }
 
@@ -386,12 +396,21 @@ function extractInstructionResponseContentRequirements(content: string): string[
 }
 
 export function formatInstructionConcreteAnswerCues(input: {
+  allTurns: readonly EvidenceTurn[];
   constraintTurns: readonly EvidenceTurn[];
+  question: string;
   supportTurns: readonly EvidenceTurn[];
 }): string | undefined {
   const turns = [...input.constraintTurns, ...input.supportTurns];
+  const versionSourceTurns = INSTRUCTION_CONCRETE_VALUE_QUESTION_PATTERN.test(
+    input.question,
+  )
+    ? input.allTurns.filter((turn) => turn.role.toLowerCase() !== "assistant")
+    : turns;
   const versionedValues = uniquePreservingOrder(
-    turns.flatMap((turn) => extractInstructionVersionedValues(turn.content)),
+    versionSourceTurns.flatMap((turn) =>
+      extractInstructionVersionedValues(turn.content),
+    ),
   );
   const namedItems = uniquePreservingOrder(
     turns.flatMap((turn) => extractInstructionNamedItems(turn.content)),

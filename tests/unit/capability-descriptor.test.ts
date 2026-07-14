@@ -17,25 +17,6 @@ function readPackageJson(): { version: string; bin: Record<string, string> } {
   };
 }
 
-function readClaimFragments(relativePath: string): string[] {
-  const url = new URL(`../../${relativePath}`, import.meta.url);
-  const claim = JSON.parse(readFileSync(url, "utf8")) as {
-    publicClaim?: { readmeRequiredFragments?: string[] };
-  };
-  return claim.publicClaim?.readmeRequiredFragments ?? [];
-}
-
-// Each benchmark's headline numbers must stay identical to the gate-verified
-// claim declaration — the descriptor is a discovery artifact, not a place to
-// hand-copy (and let drift) numbers a public claim gate already pins.
-const BENCHMARK_PINS: Record<string, string[]> = {
-  LongMemEval: ["0.720", "0.888"],
-  MemoryAgentBench: ["CR 0.959", "TTL 0.767"],
-  LoCoMo: ["0.6117", "0.837"],
-  BEAM: ["0.802", "0.7225", "0.49"],
-  ImplicitMemBench: ["0.691", "0.400"],
-};
-
 describe("GoodMemory capability descriptor", () => {
   it("keeps the committed .well-known/goodmemory.json in sync with the builder", () => {
     const generated = `${JSON.stringify(
@@ -72,19 +53,18 @@ describe("GoodMemory capability descriptor", () => {
     ]);
   });
 
-  it("pins every benchmark headline to its gate-verified claim declaration", () => {
+  it("does not present historical benchmark evidence as current runtime claims", () => {
     const descriptor = buildGoodMemoryCapabilityDescriptor();
-    for (const benchmark of descriptor.benchmarks) {
-      const fragments = readClaimFragments(benchmark.claimDeclaration);
-      expect(fragments.length).toBeGreaterThan(0);
-      const surfaced = `${benchmark.result} ${benchmark.reference}`;
-      const pins = BENCHMARK_PINS[benchmark.name] ?? [];
-      expect(pins.length).toBeGreaterThan(0);
-      for (const pin of pins) {
-        // Present in the descriptor AND still the gate-verified number.
-        expect(surfaced).toContain(pin);
-        expect(fragments).toContain(pin);
-      }
+    expect(descriptor.benchmarks.currentClaims).toEqual([]);
+    expect(descriptor.benchmarks.historicalEvidence.url).toBe(
+      "https://github.com/hjqcan/GoodMemory/tree/main/benchmark-claims",
+    );
+    expect(descriptor.benchmarks.historicalEvidence.note).toContain(
+      "not current-production claims",
+    );
+    const surfaced = JSON.stringify(descriptor.benchmarks);
+    for (const staleHeadline of ["0.888", "0.837", "0.802", "0.691"]) {
+      expect(surfaced).not.toContain(staleHeadline);
     }
   });
 

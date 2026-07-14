@@ -52,6 +52,9 @@ bulk-load. Start here, then open only the file that matches the question.
 - `GoodMemory-ImplicitMemBench-Full-300-Research-Summary.md` - internal
   ImplicitMemBench research summary. Do not treat it as a release gate.
 - `Sequential Benchmark Hardening Plan.md` - external benchmark sequence.
+- `plans/GoodMemory-Codex-Coding-Effect-Evaluation-and-Development-Plan.md` -
+  Codex-first host-native coding A/B design, hidden-test evidence contract, TDD
+  implementation order, and public-claim gate; Claude Code is deferred.
 - `beam-instruction-following-diagnosis.md` - why BEAM instruction_following
   0.394 is a design tension (abstention vs world-knowledge), not a shaping bug.
 - `archive/quality-gates/README.md` - historical quality-gate index.

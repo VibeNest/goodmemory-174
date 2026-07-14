@@ -77,7 +77,12 @@ and Bearer-token gated. See the
 - [Python/FastAPI HTTP bridge](https://github.com/hjqcan/GoodMemory#pythonfastapi-http-bridge)
 - [Inspector and Admin API](https://github.com/hjqcan/GoodMemory/blob/main/docs/GoodMemory-Inspector-and-Admin-API.md)
 
-## Benchmarks (gate-verified public claims)
+## Benchmarks (versioned historical evidence)
+
+These results belong to their disclosed package versions and runtime profiles.
+They are not current-production claims for the installed package. Machine-readable
+discovery keeps `benchmarks.currentClaims` empty until a current full gate promotes
+a replacement result.
 
 - [LongMemEval full 500](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/longmemeval.json): strict 0.720, official-protocol 0.888 (ref Zep 90.2)
 - [MemoryAgentBench CR/TTL](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/memoryagentbench.json): CR 0.959, TTL 0.767

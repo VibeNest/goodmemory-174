@@ -253,7 +253,7 @@ function mergeRetrievalTraces(
 // recall (primary first, deduped by id), then re-render the packet over the
 // union so the merged RecallResult stays internally consistent. Session-scoped
 // singletons (profile, working memory, journal) come from the primary recall.
-function mergeDecomposedRecallResults(
+function mergeRecallResults(
   primary: RecallResult,
   supplementary: RecallResult[],
 ): RecallResult {
@@ -979,6 +979,7 @@ class GoodMemoryImpl implements GoodMemory {
               await iterativeRecall({
                 query,
                 recall: singlePassRecall,
+                merge: mergeRecallResults,
                 options: { maxHops: multiHopMaxHops },
               })
             ).result
@@ -988,7 +989,7 @@ class GoodMemoryImpl implements GoodMemory {
             await decomposedRecall({
               query: input.query,
               recall: perQueryRecall,
-              merge: mergeDecomposedRecallResults,
+              merge: mergeRecallResults,
             })
           ).result
         : input.multiHop
@@ -996,6 +997,7 @@ class GoodMemoryImpl implements GoodMemory {
               await iterativeRecall({
                 query: input.query,
                 recall: singlePassRecall,
+                merge: mergeRecallResults,
                 options: { maxHops: multiHopMaxHops },
               })
             ).result

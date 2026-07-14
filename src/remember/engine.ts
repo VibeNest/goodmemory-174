@@ -555,6 +555,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
     let assistedExtraction: MemoryExtractionResult;
 
     try {
+      const existingProfile = await config.repositories.profiles.get(
+        input.scope.userId,
+      );
+      const knownUserName = existingProfile?.identity.name?.trim();
       assistedExtraction = annotateExtractionResult(
         applyProfileTrace(
           normalizeExtractionResult(
@@ -562,7 +566,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             await assistedExtractor.extract({
               ...extractorInput,
               extractionStrategy: "llm-assisted",
-            }),
+            }, knownUserName ? { knownUserName } : undefined),
           ),
           profile,
         ),

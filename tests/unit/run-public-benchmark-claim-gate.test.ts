@@ -3,13 +3,17 @@ import {
   type BenchmarkClaimReport,
   buildClaimGateReport,
   checkClaimEvidenceArtifacts,
+  checkReadmeHistoricalEvidenceTables,
   checkReadmeClaimTables,
   collectClaimNotes,
   evaluateClaimBoundary,
   extractPublicClaimsTableRows,
+  extractHistoricalEvidenceTableRows,
   parsePublicBenchmarkClaimGateCliOptions,
   README_CLAIMS_TABLE_END,
   README_CLAIMS_TABLE_START,
+  README_HISTORICAL_EVIDENCE_TABLE_END,
+  README_HISTORICAL_EVIDENCE_TABLE_START,
   validateClaimReport,
 } from "../../scripts/run-public-benchmark-claim-gate";
 
@@ -74,6 +78,22 @@ describe("claim boundary rule engine", () => {
 
     expect(verdict.publicClaimAllowed).toBe(false);
     expect(verdict.blockers.join(" ")).toContain("repo-eval-only");
+  });
+
+  it("blocks non-candidate statuses and results measured on another package version", () => {
+    const historical = evaluateClaimBoundary(
+      cleanReport({ status: "internal_evidence" }),
+    );
+    expect(historical.publicClaimAllowed).toBe(false);
+    expect(historical.blockers.join(" ")).toContain("internal_evidence");
+
+    const staleVersion = evaluateClaimBoundary(cleanReport(), {
+      currentPackageVersion: "0.6.0",
+    });
+    expect(staleVersion.publicClaimAllowed).toBe(false);
+    expect(staleVersion.blockers.join(" ")).toContain(
+      "measured package version 0.3.5 does not match current package version 0.6.0",
+    );
   });
 
   it("blocks on execution failures, missing baseline, broken provenance, and incomplete coverage", () => {
@@ -490,6 +510,21 @@ function readmeWithRows(rows: string[]): string {
   ].join("\n");
 }
 
+function historicalReadmeWithRows(rows: string[]): string {
+  return [
+    "# Title",
+    "",
+    README_HISTORICAL_EVIDENCE_TABLE_START,
+    "| Benchmark | Result | Claim declaration |",
+    "|---|---:|---|",
+    ...rows,
+    README_HISTORICAL_EVIDENCE_TABLE_END,
+    "",
+    "disclosed",
+    "",
+  ].join("\n");
+}
+
 describe("README public-claims table check", () => {
   it("extracts rows between the markers, skipping header and separator", () => {
     const parsed = extractPublicClaimsTableRows(
@@ -715,5 +750,67 @@ describe("README public-claims table check", () => {
       { content: "# no markers", file: "README.md" },
     ]);
     expect(bad.readmeConsistent).toBe(false);
+  });
+});
+
+describe("README historical-evidence table check", () => {
+  const historical = cleanReport({
+    benchmark: "LongMemEval",
+    claimBoundary: {
+      publicClaimAllowed: false,
+      reason: "retained as versioned historical evidence",
+    },
+    comparison: {
+      ...cleanReport().comparison,
+      availability: "historical",
+    },
+    status: "internal_evidence",
+  });
+
+  it("extracts and validates versioned evidence without promoting it", () => {
+    const markdown = historicalReadmeWithRows([
+      "| LongMemEval full 500 | x | [longmemeval.json](./benchmark-claims/longmemeval.json) |",
+    ]);
+    expect(extractHistoricalEvidenceTableRows(markdown).rows).toEqual([
+      "LongMemEval full 500",
+    ]);
+
+    const report = buildClaimGateReport(
+      [{ file: "longmemeval.json", value: historical }],
+      "t",
+      [],
+      new Map(),
+      "0.5.1",
+    );
+    expect(report.publicClaimable).toEqual([]);
+    expect(report.historicalEvidence).toEqual(["LongMemEval"]);
+    const check = checkReadmeHistoricalEvidenceTables(
+      [{ content: markdown, file: "README.md" }],
+      report.entries,
+    )[0];
+    expect(check?.consistent).toBe(true);
+  });
+
+  it("does not accept historical evidence in the current-claims table", () => {
+    const entries = buildClaimGateReport(
+      [{ file: "longmemeval.json", value: historical }],
+      "t",
+      [],
+      new Map(),
+      "0.5.1",
+    ).entries;
+    const check = checkReadmeClaimTables(
+      [
+        {
+          content: readmeWithRows([
+            "| LongMemEval full 500 | x | [longmemeval.json](./benchmark-claims/longmemeval.json) |",
+          ]),
+          file: "README.md",
+        },
+      ],
+      entries,
+    )[0];
+    expect(check?.consistent).toBe(false);
+    expect(check?.forbiddenRows).toEqual(["LongMemEval full 500"]);
   });
 });

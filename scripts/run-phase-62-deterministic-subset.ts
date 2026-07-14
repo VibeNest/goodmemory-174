@@ -4,14 +4,15 @@
  * The LongMemEval answer scorer (src/eval/longmemeval.ts) runs deterministic
  * match methods FIRST (abstention/exact/contains/expected_alternative/
  * numeric_count) and only falls through to an LLM `semantic_judge` when every
- * deterministic method returns `mismatch`. Because GoodMemory's answer model
- * and judge model are the SAME model (gpt-5.5), a public claim cannot lean on
- * `semantic_judge` without same-model judge bias.
+ * deterministic method returns `mismatch`. Historical reports used the same
+ * model for answers and judging; current reports can use an independent judge,
+ * but the deterministic subset remains the model-independent strict track.
  *
  * This analyzer carves out the JUDGE-FREE subset: a case counts as correct only
  * when it was scored correct by a deterministic method. That subset accuracy is
  * a strict LOWER BOUND on overall accuracy and contains no judge contribution at
- * all, so it is publicly claimable under the benchmark claim gate.
+ * all, so it is eligible as strict evidence when the separate benchmark claim
+ * gate also accepts the run's coverage, provenance, and package version.
  *
  * It consumes the merged `report.json` produced by `eval:phase-62-full500-summary`
  * (a full LongMemEvalReport that retains per-case `answerScore.method`).

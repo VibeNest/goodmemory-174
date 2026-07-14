@@ -24,6 +24,23 @@ describe("splitQueryIntoSubQueries", () => {
     ).toEqual(["What is my role", "What is my current focus"]);
   });
 
+  it("splits a multi-constraint question into its main and with-facet queries", () => {
+    expect(
+      splitQueryIntoSubQueries(
+        "Did the team launch Atlas with vendor approval in 2025?",
+      ),
+    ).toEqual([
+      "Did the team launch Atlas",
+      "vendor approval in 2025",
+    ]);
+  });
+
+  it("does not split a with-phrase when it cannot form two useful queries", () => {
+    expect(splitQueryIntoSubQueries("What did I discuss with Alice?")).toEqual(
+      [],
+    );
+  });
+
   it("dedupes and caps to maxSubQueries", () => {
     const result = splitQueryIntoSubQueries(
       "alpha topic and beta topic and alpha topic and gamma topic and delta topic",
@@ -58,6 +75,21 @@ describe("decomposedRecall", () => {
     expect(outcome.subQueries).toEqual([]);
     expect(outcome.queriesRun).toBe(1);
     expect(outcome.result).toBe("r:Where do I live?");
+  });
+
+  it("does not reinterpret commercial partner terms as relationship status", async () => {
+    const calls: string[] = [];
+    const outcome = await decomposedRecall<string>({
+      query: "Which partner API did Acme use?",
+      recall: async (query) => {
+        calls.push(query);
+        return query;
+      },
+      merge: (primary, supplementary) => [primary, ...supplementary].join(" | "),
+    });
+
+    expect(calls).toEqual(["Which partner API did Acme use?"]);
+    expect(outcome.queriesRun).toBe(1);
   });
 
   it("recalls the original plus each sub-query and merges", async () => {

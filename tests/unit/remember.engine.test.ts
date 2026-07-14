@@ -13,6 +13,7 @@ import {
   createFeedbackMemory,
   createFactMemory,
   createReferenceMemory,
+  createUserProfile,
 } from "../../src/domain/records";
 import {
   DeterministicClock,
@@ -44,6 +45,32 @@ function createEngine(overrides: Partial<RememberEngineConfig> = {}) {
 }
 
 describe("remember engine", () => {
+  it("passes an existing canonical name to assisted extraction context", async () => {
+    let knownUserName: string | undefined;
+    const { engine, repositories } = createEngine({
+      assistedExtractor: {
+        async extract(_input, context) {
+          knownUserName = context?.knownUserName;
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+    await repositories.profiles.upsert(
+      createUserProfile({
+        identity: { name: "Nadia Chen" },
+        userId: "u-known-identity",
+      }),
+    );
+
+    await engine.extract({
+      extractionStrategy: "llm-assisted",
+      messages: [{ role: "user", content: "I started a new project." }],
+      scope: { userId: "u-known-identity" },
+    });
+
+    expect(knownUserName).toBe("Nadia Chen");
+  });
+
   it("scores explicit candidates above inferred ones and rejects low-value noise", async () => {
     const { engine } = createEngine();
 

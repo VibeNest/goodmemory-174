@@ -9,6 +9,7 @@ import type { LocomoQaCategory } from "../src/eval/locomo";
 import {
   assertCliPathSegmentValue,
   hasCliFlagStrict,
+  parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
   resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
@@ -18,6 +19,10 @@ import {
 } from "./locomo-reanswer-contracts";
 import type { LocomoReanswerJobBucket } from "./locomo-reanswer-contracts";
 import {
+  createUnionLiveAnswerGenerator,
+  LOCOMO_UNION_LIVE_ANSWER_SYSTEM_ID,
+} from "./measure-locomo-union-live";
+import {
   assertLocomoReportHasCompleteLiveAnswers,
   assertLocomoReportQuestionCountMatchesCases,
 } from "./locomo-report-compatibility";
@@ -25,7 +30,10 @@ import {
   buildLocomoEvidencePackContext,
   createLocomoLiveAnswerGenerator,
   loadLocomoCases,
+  LOCOMO_LIVE_ANSWER_SYSTEM_ID,
+  LOCOMO_LIVE_REQUEST_TIMEOUT_MS,
   LOCOMO_SMOKE_REPORT_FILE_NAME,
+  overallLocomoEvidenceRecall,
   resolveLocomoQuestionIds,
   summarizeLocomoRetrieval,
   type LocomoAnswerGenerator,
@@ -47,23 +55,42 @@ const LOCOMO_REANSWER_JOB_CATEGORY_SET: ReadonlySet<string> = new Set(
   LOCOMO_QA_CATEGORIES,
 );
 
+export type LocomoReanswerAnswerProfile = "temporal-bounded-v3";
+
 export interface LocomoReanswerCliOptions {
   allowCommonsenseResolution: boolean;
+  answerProfile?: LocomoReanswerAnswerProfile;
+  concurrency?: number;
   goldEvidenceOnlyContext?: boolean;
+  maxEvidenceTurns?: number;
   outputDir?: string;
   questionIdFile?: string;
   questionIds?: string[];
   reanswerJobBuckets?: LocomoReanswerJobBucket[];
   reanswerJobCategories?: LocomoQaCategory[];
+  retainUnselected?: boolean;
   runId?: string;
   sourceReportPath: string;
   strictNoEvidenceAbstention: boolean;
+}
+
+function parseLocomoReanswerAnswerProfile(
+  argv: readonly string[],
+): LocomoReanswerAnswerProfile | undefined {
+  const value = resolveCliFlagValueStrict(argv, "--answer-profile");
+  if (value === undefined || value === "temporal-bounded-v3") {
+    return value;
+  }
+  throw new Error(
+    "--answer-profile must be temporal-bounded-v3 when provided.",
+  );
 }
 
 export interface LocomoReanswerDependencies {
   answerGenerator?: LocomoAnswerGenerator;
   mkdir?: typeof mkdir;
   now?: () => Date;
+  onProgress?: (progress: { completed: number; total: number }) => void;
   readFile?: (path: string) => Promise<string>;
   sleep?: (ms: number) => Promise<void>;
   writeFile?: (path: string, data: string) => Promise<void>;
@@ -161,18 +188,25 @@ export function parseLocomoReanswerCliOptions(
   if (sourceReportPath === undefined) {
     throw new Error("--source-report is required.");
   }
+  const answerProfile = parseLocomoReanswerAnswerProfile(argv);
   const options: LocomoReanswerCliOptions = {
     allowCommonsenseResolution: hasCliFlagStrict(
       argv,
       "--allow-commonsense-resolution",
     ),
+    concurrency: parseCliPositiveIntegerFlagStrict(argv, "--concurrency") ?? 1,
     goldEvidenceOnlyContext: hasCliFlagStrict(
       argv,
       "--gold-evidence-only-context",
     ),
+    maxEvidenceTurns: parseCliPositiveIntegerFlagStrict(
+      argv,
+      "--max-evidence-turns",
+    ),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
     questionIdFile: resolveCliFlagValueStrict(argv, "--question-id-file"),
     questionIds: parseStringListFlag(argv, "--question-id"),
+    retainUnselected: hasCliFlagStrict(argv, "--retain-unselected"),
     runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
     sourceReportPath,
     strictNoEvidenceAbstention: hasCliFlagStrict(
@@ -180,6 +214,9 @@ export function parseLocomoReanswerCliOptions(
       "--strict-no-evidence-abstention",
     ),
   };
+  if (answerProfile !== undefined) {
+    options.answerProfile = answerProfile;
+  }
   const reanswerJobBuckets = parseReanswerJobBuckets(argv);
   if (reanswerJobBuckets !== undefined) {
     options.reanswerJobBuckets = reanswerJobBuckets;
@@ -1044,14 +1081,20 @@ function defaultSleep(ms: number): Promise<void> {
 
 function reanswerContextTurnIds(input: {
   goldEvidenceOnlyContext: boolean;
+  maxEvidenceTurns?: number;
   retrievedTurnIds: readonly string[];
   evidenceTurnIds: readonly string[];
 }): string[] {
-  if (!input.goldEvidenceOnlyContext) {
-    return [...input.retrievedTurnIds];
+  let selected: string[];
+  if (input.goldEvidenceOnlyContext) {
+    const retrieved = new Set(input.retrievedTurnIds);
+    selected = input.evidenceTurnIds.filter((turnId) => retrieved.has(turnId));
+  } else {
+    selected = [...input.retrievedTurnIds];
   }
-  const retrieved = new Set(input.retrievedTurnIds);
-  return input.evidenceTurnIds.filter((turnId) => retrieved.has(turnId));
+  return input.maxEvidenceTurns === undefined
+    ? selected
+    : selected.slice(0, input.maxEvidenceTurns);
 }
 
 export async function runLocomoReportReanswer(
@@ -1093,6 +1136,39 @@ export async function runLocomoReportReanswer(
         "the reanswer runner; reanswer-generated reports cannot be used " +
         "as reanswer source reports.",
     );
+  }
+  if (options.retainUnselected === true) {
+    if (options.maxEvidenceTurns !== undefined) {
+      throw new Error(
+        "--retain-unselected cannot be combined with --max-evidence-turns.",
+      );
+    }
+    if (options.goldEvidenceOnlyContext === true) {
+      throw new Error(
+        "--retain-unselected cannot be combined with --gold-evidence-only-context.",
+      );
+    }
+    if (rawReport.answerContextMode !== "evidence-pack") {
+      throw new Error(
+        "--retain-unselected requires a source report with answerContextMode evidence-pack.",
+      );
+    }
+    if (
+      (rawReport.allowCommonsenseResolution ?? false) !==
+      options.allowCommonsenseResolution
+    ) {
+      throw new Error(
+        "--retain-unselected requires the source and reanswer commonsense policies to match.",
+      );
+    }
+    if (
+      (rawReport.strictNoEvidenceAbstention ?? false) !==
+      options.strictNoEvidenceAbstention
+    ) {
+      throw new Error(
+        "--retain-unselected requires the source and reanswer abstention policies to match.",
+      );
+    }
   }
   assertLocomoReportQuestionCountMatchesCases({
     path: options.sourceReportPath,
@@ -1253,16 +1329,26 @@ export async function runLocomoReportReanswer(
           Array.isArray(reportQuestionIds)
         ? [...reportQuestionIds]
         : null;
+  const answerSystem =
+    options.answerProfile === "temporal-bounded-v3"
+      ? LOCOMO_UNION_LIVE_ANSWER_SYSTEM_ID
+      : LOCOMO_LIVE_ANSWER_SYSTEM_ID;
   const answerGenerator =
     deps.answerGenerator ??
-    createLocomoLiveAnswerGenerator({
-      allowCommonsenseResolution: options.allowCommonsenseResolution,
-      strictNoEvidenceAbstention: options.strictNoEvidenceAbstention,
-    });
-  const results: LocomoSmokeReport["cases"] = [];
+    (options.answerProfile === "temporal-bounded-v3"
+      ? createUnionLiveAnswerGenerator(LOCOMO_LIVE_REQUEST_TIMEOUT_MS)
+      : createLocomoLiveAnswerGenerator({
+          allowCommonsenseResolution: options.allowCommonsenseResolution,
+          strictNoEvidenceAbstention: options.strictNoEvidenceAbstention,
+        }));
+  const concurrency = options.concurrency ?? 1;
+  const results: Array<LocomoSmokeReport["cases"][number] | undefined> =
+    new Array(selected.length);
   let executionFailures = 0;
 
-  for (const sourceResult of selected) {
+  const reanswer = async (
+    sourceResult: LocomoSmokeReport["cases"][number],
+  ): Promise<LocomoSmokeReport["cases"][number]> => {
     const testCase = casesById.get(sourceResult.caseId);
     const question = testCase?.questions.find(
       (candidate) => candidate.questionId === sourceResult.questionId,
@@ -1276,6 +1362,7 @@ export async function runLocomoReportReanswer(
     const contextTurnIds = reanswerContextTurnIds({
       evidenceTurnIds: question.evidenceTurnIds,
       goldEvidenceOnlyContext: options.goldEvidenceOnlyContext ?? false,
+      maxEvidenceTurns: options.maxEvidenceTurns,
       retrievedTurnIds: sourceResult.retrievedTurnIds,
     });
     for (let attempt = 0; attempt < REANSWER_MAX_ATTEMPTS; attempt += 1) {
@@ -1304,7 +1391,7 @@ export async function runLocomoReportReanswer(
         await sleep(delay);
       }
     }
-    results.push({
+    return {
       ...sourceResult,
       answerCorrect:
         generatedAnswer === null
@@ -1320,32 +1407,118 @@ export async function runLocomoReportReanswer(
           ? null
           : locomoTokenF1(generatedAnswer, question.goldAnswer),
       generatedAnswer,
-    });
-  }
+    };
+  };
+  let cursor = 0;
+  let completedCount = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      const sourceResult = selected[index];
+      if (sourceResult === undefined) {
+        return;
+      }
+      results[index] = await reanswer(sourceResult);
+      completedCount += 1;
+      deps.onProgress?.({ completed: completedCount, total: selected.length });
+      if (
+        deps.onProgress === undefined &&
+        selected.length >= 50 &&
+        (completedCount % 50 === 0 || completedCount === selected.length)
+      ) {
+        process.stderr.write(
+          `LoCoMo reanswer: ${completedCount}/${selected.length} answers completed.\n`,
+        );
+      }
+    }
+  };
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.max(
+          1,
+          Math.min(concurrency, selected.length),
+        ),
+      },
+      () => worker(),
+    ),
+  );
+  const completedResults = results.map((result, index) => {
+    if (result === undefined) {
+      throw new Error(`LoCoMo reanswer result ${index} is missing.`);
+    }
+    return result;
+  });
+  const replacements = new Map(
+    completedResults.map((result) => [
+      locomoQuestionKey(result.caseId, result.questionId),
+      result,
+    ]),
+  );
+  const reportResults = options.retainUnselected === true
+    ? rawReport.cases.map(
+        (result) =>
+          replacements.get(locomoQuestionKey(result.caseId, result.questionId)) ??
+          result,
+      )
+    : completedResults;
+  const reportCaseIds = options.retainUnselected === true
+    ? [...rawReport.caseIds]
+    : rawReport.caseIds.filter((caseId) => selectedCaseIds.has(caseId));
+  const answeredResults = reportResults.filter(
+    (result) => result.answerCorrect !== null,
+  );
 
   const report: LocomoSmokeReport = {
     ...rawReport,
     allowCommonsenseResolution: options.allowCommonsenseResolution,
     strictNoEvidenceAbstention: options.strictNoEvidenceAbstention,
+    answerAccuracyOverall:
+      answeredResults.length === 0
+        ? null
+        : answeredResults.filter((result) => result.answerCorrect === true)
+            .length / answeredResults.length,
+    answerAttempts: REANSWER_MAX_ATTEMPTS,
     answerContextMode: options.goldEvidenceOnlyContext === true
       ? "gold-evidence-only-pack"
       : "evidence-pack",
+    answerEvidenceTurnLimit: options.maxEvidenceTurns ?? null,
     answerEvaluation: "scored",
-    caseCount: selectedCaseIds.size,
-    caseIds: rawReport.caseIds.filter((caseId) => selectedCaseIds.has(caseId)),
-    cases: results,
-    categories: summarizeLocomoRetrieval(results),
+    answerSystem:
+      deps.answerGenerator === undefined || options.answerProfile !== undefined
+        ? answerSystem
+        : null,
+    answerTimeoutMs:
+      deps.answerGenerator === undefined
+        ? LOCOMO_LIVE_REQUEST_TIMEOUT_MS
+        : null,
+    caseCount:
+      options.retainUnselected === true
+        ? rawReport.caseCount
+        : selectedCaseIds.size,
+    caseIds: reportCaseIds,
+    cases: reportResults,
+    categories: summarizeLocomoRetrieval(reportResults),
+    concurrency,
+    evidenceRecallOverall: overallLocomoEvidenceRecall(reportResults),
     executionFailures,
     generatedAt: generatedAt.toISOString(),
     generatedBy: GENERATED_BY,
     mode: "live-answer",
-    questionCategories: selectedQuestionCategories({
-      reanswerJobCategories: options.reanswerJobCategories,
-      results,
-      sourceQuestionCategories: rawReport.questionCategories,
-    }),
-    questionCount: results.length,
-    questionIds: reportQuestionIds,
+    questionCategories:
+      options.retainUnselected === true
+        ? rawReport.questionCategories
+        : selectedQuestionCategories({
+            reanswerJobCategories: options.reanswerJobCategories,
+            results: completedResults,
+            sourceQuestionCategories: rawReport.questionCategories,
+          }),
+    questionCount: reportResults.length,
+    questionIds:
+      options.retainUnselected === true
+        ? rawReport.questionIds ?? null
+        : reportQuestionIds,
     questionSelection: undefined,
     reanswerSelection: {
       explicitQuestionIds: reanswerSelectionExplicitQuestionIds,
@@ -1412,6 +1585,7 @@ if (import.meta.main) {
               questionCount: report.questionCount,
               questionIds: report.questionIds,
               reanswerSelection: report.reanswerSelection,
+              retainUnselected: parsed.retainUnselected ?? false,
               reportPath: join(report.runDirectory, LOCOMO_SMOKE_REPORT_FILE_NAME),
               runId: report.runId,
               sourceReportPath: parsed.sourceReportPath,

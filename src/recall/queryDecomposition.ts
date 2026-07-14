@@ -19,9 +19,11 @@
 const DEFAULT_MAX_SUB_QUERIES = 4;
 const DEFAULT_MIN_SUB_QUERY_WORDS = 2;
 
-// Split on sentence / clause boundaries, then on coordinating conjunctions.
+// Split on sentence / clause boundaries, then on coordination or an explicit
+// `with` facet that can stand as a useful secondary retrieval query.
 const CLAUSE_BOUNDARY_PATTERN = /[?.;!\n]+/u;
-const COORDINATING_CONJUNCTION_PATTERN = /\s+(?:and|&|as well as|along with)\s+/iu;
+const QUERY_FACET_BOUNDARY_PATTERN =
+  /\s+(?:and|&|as well as|along with|with)\s+/iu;
 
 function countWords(text: string): number {
   return text.split(/\s+/u).filter((token) => token.length > 0).length;
@@ -56,7 +58,7 @@ export function splitQueryIntoSubQueries(
 
   const fragments: string[] = [];
   for (const clause of normalized.split(CLAUSE_BOUNDARY_PATTERN)) {
-    for (const piece of clause.split(COORDINATING_CONJUNCTION_PATTERN)) {
+    for (const piece of clause.split(QUERY_FACET_BOUNDARY_PATTERN)) {
       const trimmed = piece.trim();
       if (trimmed.length > 0) {
         fragments.push(trimmed);

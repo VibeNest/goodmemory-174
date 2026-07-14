@@ -13,6 +13,8 @@ import type {
 import { inspectGoodMemoryRuntime } from "../../src/api/runtimeInfo";
 import type { BeamGeneralLeverRecallDiagnosticRunner } from "../../scripts/measure-beam-general-levers";
 import {
+  capBeamGeneralLeverEmbeddingText,
+  createBeamGeneralLeverMemory,
   parseBeamGeneralLeverCliOptions,
   runBeamGeneralLeverMeasure,
 } from "../../scripts/measure-beam-general-levers";
@@ -91,6 +93,65 @@ function buildReport(input: {
 }
 
 describe("measure BEAM general levers", () => {
+  it("caps oversized benchmark turns before provider embedding", () => {
+    expect(capBeamGeneralLeverEmbeddingText("short text")).toBe("short text");
+    expect(capBeamGeneralLeverEmbeddingText("a".repeat(30_000))).toHaveLength(
+      12_000,
+    );
+  });
+
+  it("can attach the first-party pointwise reranker to a general-lever memory", async () => {
+    const memory = createBeamGeneralLeverMemory({
+      bm25: false,
+      env: {},
+      providerEmbedding: false,
+      rerankingModel: {
+        apiKey: "test-key",
+        baseURL: "https://ai.gurkiai.com/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+    });
+    const scope = { userId: "beam-user", workspaceId: "beam-workspace" };
+    await memory.remember({
+      annotations: [
+        {
+          confirmed: true,
+          kindHint: "fact",
+          messageIndex: 0,
+          reason: "test seed",
+          remember: "always",
+          verified: true,
+        },
+        {
+          confirmed: true,
+          kindHint: "fact",
+          messageIndex: 1,
+          reason: "test seed",
+          remember: "always",
+          verified: true,
+        },
+      ],
+      extractionStrategy: "rules-only",
+      messages: [
+        { content: "The release window is Friday.", role: "user" },
+        { content: "The rollback owner is Mira.", role: "user" },
+      ],
+      scope,
+    });
+    const result = await memory.recall({
+      query: "Who owns rollback?",
+      rerank: false,
+      scope,
+      strategy: "rules-only",
+    });
+
+    expect(result.metadata.retrievalTrace?.reranker).toMatchObject({
+      fallbackReason: "disabled",
+      status: "skipped",
+    });
+  });
+
   it("parses strict CLI options for a single arm", () => {
     expect(
       parseBeamGeneralLeverCliOptions([

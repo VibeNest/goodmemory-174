@@ -276,7 +276,7 @@ function emptyScorerCounts(): Record<ImplicitMemBenchScorerFamily, number> {
   };
 }
 
-function summarizeCases(
+export function summarizePhase61Cases(
   cases: readonly ImplicitMemBenchCaseResult[],
 ): ImplicitMemBenchProfileSummary {
   const caseCountsByDataset = emptyDatasetCounts();
@@ -373,7 +373,7 @@ function summarizeCases(
   };
 }
 
-function summarizeReport(
+export function summarizePhase61Report(
   profiles: Partial<
     Record<ImplicitMemBenchResearchProfile, ImplicitMemBenchProfileSummary>
   >,
@@ -511,7 +511,7 @@ function buildMergedReport(input: {
     runDirectory: input.runDirectory,
     runId: input.runId,
     source: RESEARCH_SOURCE,
-    summary: summarizeReport(input.profiles),
+    summary: summarizePhase61Report(input.profiles),
   };
 }
 
@@ -749,7 +749,7 @@ export async function runPhase61Full300(
     resolved.runId,
   );
   const baselineProfiles = {
-    "baseline-upstream-chat": summarizeCases(
+    "baseline-upstream-chat": summarizePhase61Cases(
       mergeProfileCases(
         baselineShardReports,
         "baseline-upstream-chat",
@@ -758,14 +758,14 @@ export async function runPhase61Full300(
     ),
   } satisfies ImplicitMemBenchResearchReport["profiles"];
   const goodmemoryProfiles = {
-    "goodmemory-raw-experience": summarizeCases(
+    "goodmemory-raw-experience": summarizePhase61Cases(
       mergeProfileCases(
         goodmemoryShardReports,
         "goodmemory-raw-experience",
         allCases,
       ),
     ),
-    "goodmemory-distilled-feedback": summarizeCases(
+    "goodmemory-distilled-feedback": summarizePhase61Cases(
       mergeProfileCases(
         goodmemoryShardReports,
         "goodmemory-distilled-feedback",

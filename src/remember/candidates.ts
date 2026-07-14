@@ -39,11 +39,18 @@ export interface MemoryExtractionInput {
   locale?: string;
 }
 
+export interface MemoryExtractionContext {
+  knownUserName?: string;
+}
+
 export interface MemoryExtractionResult {
   candidates: MemoryCandidate[];
   ignoredMessageCount: number;
 }
 
 export interface MemoryExtractor {
-  extract(input: MemoryExtractionInput): Promise<MemoryExtractionResult>;
+  extract(
+    input: MemoryExtractionInput,
+    context?: MemoryExtractionContext,
+  ): Promise<MemoryExtractionResult>;
 }

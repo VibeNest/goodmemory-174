@@ -214,6 +214,31 @@ describe("run-phase-62 full-500 runner", () => {
     expect(summarizedProfiles).toEqual(["goodmemory-rules-only"]);
   });
 
+  it("accepts the recommended profile for full-500 reruns", async () => {
+    let shardProfiles: readonly string[] | undefined;
+
+    await runPhase62Full500LongMemEval(
+      {
+        benchmarkRoot: "/tmp/LongMemEval",
+        outputDir: "/tmp/phase62-full500-test",
+        profiles: ["goodmemory-recommended"],
+        runId: "run-full500-recommended",
+        shardSize: 50,
+        shards: 1,
+      },
+      {
+        runShard: async (options) => {
+          shardProfiles = options.profiles;
+          return buildReport({ runId: String(options.runId) });
+        },
+        summarize: async (options) =>
+          buildReport({ runId: String(options?.runId) }),
+      },
+    );
+
+    expect(shardProfiles).toEqual(["goodmemory-recommended"]);
+  });
+
   it("reuses existing shard reports when resume-existing-shards is enabled", async () => {
     const shardRunIds: string[] = [];
     const reusedRunIds: string[] = [];

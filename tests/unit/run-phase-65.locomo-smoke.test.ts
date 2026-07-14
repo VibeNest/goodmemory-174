@@ -29,6 +29,7 @@ import {
   seedLocomoCase,
   seedLocomoCaseConversational,
   summarizeLocomoRetrieval,
+  wrapMemoryExtractorWithJsonlCache,
   type LocomoQuestionRetrieval,
 } from "../../scripts/run-phase-65-locomo-smoke";
 import type { MemoryExtractor } from "../../src/remember/candidates";
@@ -2664,6 +2665,63 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     expect(score.goldEvidenceFullyRetrieved).toBe(true);
   });
 
+  it("extracts sessions concurrently but remembers them in source order", async () => {
+    const testCase: LocomoCase = {
+      caseId: "concurrent-ingest",
+      sourceConversation: "concurrent-ingest",
+      speakers: ["A", "B"],
+      turns: [
+        { diaId: "D1:1", speaker: "A", content: "First session." },
+        { diaId: "D2:1", speaker: "B", content: "Second session." },
+      ],
+      questions: [],
+    };
+    let activeExtractions = 0;
+    let maxActiveExtractions = 0;
+    const extractor: MemoryExtractor = {
+      async extract(input) {
+        activeExtractions += 1;
+        maxActiveExtractions = Math.max(maxActiveExtractions, activeExtractions);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        activeExtractions -= 1;
+        return {
+          candidates: [
+            {
+              content: input.messages[0]!.content,
+              explicitness: "explicit",
+              id: input.messages[0]!.content,
+              kindHint: "fact",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 0,
+        };
+      },
+    };
+    const remembered: string[] = [];
+    const memory = {
+      async remember(input: Parameters<GoodMemory["remember"]>[0]) {
+        remembered.push(input.messages[0]!.content);
+        return {};
+      },
+    } as unknown as GoodMemory;
+
+    await seedLocomoCaseConversational({
+      extractor,
+      maxConcurrency: 2,
+      memory,
+      runId: "concurrent",
+      testCase,
+    });
+
+    expect(maxActiveExtractions).toBe(2);
+    expect(remembered).toEqual([
+      "[LOCOMO dia_id=D1:1 speaker=A] A: First session.",
+      "[LOCOMO dia_id=D2:1 speaker=B] B: Second session.",
+    ]);
+  });
+
   it("runLocomoSmoke records the conversational ingest mode and surfaces normalized recall", async () => {
     // A deterministic extractor that emits one self-contained fact per session,
     // anchored to the session's first turn, lets the synthetic smoke run end to
@@ -3758,6 +3816,53 @@ describe("phase-65 LoCoMo resume checkpoint + extraction cache", () => {
     });
     await otherTag.extract(input);
     expect(calls).toBe(2);
+  });
+
+  it("serializes jsonl cache appends across concurrent extractions", async () => {
+    const underlying: MemoryExtractor = {
+      async extract(input) {
+        return {
+          candidates: [
+            {
+              content: input.messages[0]!.content,
+              explicitness: "explicit",
+              id: input.messages[0]!.content,
+              kindHint: "fact",
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            },
+          ],
+          ignoredMessageCount: 0,
+        };
+      },
+    };
+    let activeAppends = 0;
+    let maxActiveAppends = 0;
+    const wrapped = wrapMemoryExtractorWithJsonlCache(underlying, {
+      appendFile: async () => {
+        activeAppends += 1;
+        maxActiveAppends = Math.max(maxActiveAppends, activeAppends);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        activeAppends -= 1;
+      },
+      cachePath: "/tmp/locomo-out/cache.jsonl",
+      configTag: "test-model",
+      initialCache: new Map(),
+    });
+    const scope = buildLocomoScope({ caseId: "c", runId: "r" });
+
+    await Promise.all([
+      wrapped.extract({
+        messages: [{ content: "first", role: "user" }],
+        scope,
+      }),
+      wrapped.extract({
+        messages: [{ content: "second", role: "user" }],
+        scope,
+      }),
+    ]);
+
+    expect(maxActiveAppends).toBe(1);
   });
 
   it("skips broken checkpoint tail lines", async () => {

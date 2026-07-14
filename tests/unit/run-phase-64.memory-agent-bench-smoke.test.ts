@@ -42,7 +42,9 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
       ]),
     ).toEqual({
       benchmarkRoot: "/tmp/MAB",
+      competency: undefined,
       evidencePack: false,
+      generalizedFusion: false,
       limit: 2,
       live: false,
       noMemory: false,
@@ -61,6 +63,32 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     ]);
     expect(withFlags.live).toBe(true);
     expect(withFlags.evidencePack).toBe(true);
+    expect(
+      parseMemoryAgentBenchSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        "--generalized-fusion",
+      ]).generalizedFusion,
+    ).toBe(true);
+    expect(
+      parseMemoryAgentBenchSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        "--competency",
+        "CR",
+      ]).competency,
+    ).toBe("CR");
+    expect(() =>
+      parseMemoryAgentBenchSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-64-memory-agent-bench-smoke.ts",
+        "--competency",
+        "unknown",
+      ]),
+    ).toThrow("--competency must be one of");
 
     expect(() =>
       parseMemoryAgentBenchSmokeCliOptions([
@@ -74,7 +102,13 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
   });
 
   it("rejects duplicate smoke mode flags before report generation", () => {
-    for (const flag of ["--evidence-pack", "--live", "--no-memory", "--resume"]) {
+    for (const flag of [
+      "--evidence-pack",
+      "--generalized-fusion",
+      "--live",
+      "--no-memory",
+      "--resume",
+    ]) {
       expect(() =>
         parseMemoryAgentBenchSmokeCliOptions([
           "bun",
@@ -88,16 +122,22 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
   });
 
   it("rejects duplicate smoke scalar source and output flags before report generation", () => {
-    for (const flag of ["--benchmark-root", "--limit", "--output-dir", "--run-id"]) {
+    for (const flag of [
+      "--benchmark-root",
+      "--competency",
+      "--limit",
+      "--output-dir",
+      "--run-id",
+    ]) {
       expect(() =>
         parseMemoryAgentBenchSmokeCliOptions([
           "bun",
           "run",
           "scripts/run-phase-64-memory-agent-bench-smoke.ts",
           flag,
-          flag === "--limit" ? "2" : "first",
+          flag === "--limit" ? "2" : flag === "--competency" ? "CR" : "first",
           flag,
-          flag === "--limit" ? "3" : "second",
+          flag === "--limit" ? "3" : flag === "--competency" ? "TTL" : "second",
         ]),
       ).toThrow(`${flag} cannot be specified more than once.`);
     }
@@ -388,6 +428,40 @@ describe("phase-64 MemoryAgentBench smoke adapter", () => {
     expect(JSON.parse(writes[0]?.contents ?? "{}").runId).toBe(
       "run-mab-smoke-test",
     );
+  });
+
+  it("records the generalized recommended retrieval profile", async () => {
+    const report = await runMemoryAgentBenchSmoke(
+      {
+        generalizedFusion: true,
+        outputDir: "/tmp/mab-generalized",
+        runId: "run-mab-generalized",
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.profilesCompared).toEqual(["goodmemory-recommended"]);
+    expect(report.executionFailures).toBe(0);
+  });
+
+  it("filters an external run to one competency", async () => {
+    const report = await runMemoryAgentBenchSmoke(
+      {
+        competency: "CR",
+        outputDir: "/tmp/mab-cr",
+        runId: "run-mab-cr",
+      },
+      {
+        mkdir: async () => undefined,
+        writeFile: (async () => undefined) as never,
+      },
+    );
+
+    expect(report.caseCount).toBe(1);
+    expect(report.competencies.find(({ competency }) => competency === "CR")?.questionCount).toBe(1);
   });
 
   it("scores answer accuracy in live-answer mode and proves CR passes on the current value despite stale history", async () => {

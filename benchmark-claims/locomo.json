@@ -2,7 +2,7 @@
   "benchmark": "LoCoMo",
   "comparison": {
     "asOf": "2026-07-09",
-    "availability": "public-opt-in",
+    "availability": "historical",
     "notes": [
       "GoodMemory's strict token-F1 and official judge-protocol numbers must be shown separately.",
       "Current external systems report different model stacks and Top-K settings, so their headline values are references rather than controlled head-to-head results."
@@ -10,7 +10,7 @@
     "runtimeProfile": "recommended-semantic-union+conversational-extraction",
     "source": "https://github.com/mem0ai/memory-benchmarks"
   },
-  "status": "candidate_public_claim",
+  "status": "internal_evidence",
   "dataset": {
     "source": "https://github.com/snap-research/locomo",
     "license": "CC BY-NC 4.0",
@@ -146,7 +146,7 @@
     "note": "full public LoCoMo-10: 10 conversations, 1986 questions (single_hop 841, multi_hop 282, temporal 321, open_domain 96, adversarial 446); per-category token-F1 accuracy 0.683/0.436/0.679/0.281/0.648, evidence recall overall 0.769. COMPARABLE-PROTOCOL TRACK 2026-07-05 (rescore of the SAME stored answers, no regeneration; scripts/rescore-official-protocols.ts, run rescore-locomo-official-judge): under the industry-comparable LLM-judge protocol (mem0ai/memory-benchmarks LoCoMo judge, no-evidence variant, categories 1-4 = the 1540-question non-adversarial convention), judged by gpt-5.4 (cross-version, same family as the gpt-5.5 answerer), J-accuracy 0.837 (1289/1540, judgeFailures 0); per category: temporal 0.882, single_hop 0.863, multi_hop 0.840, open_domain 0.448. Published references on that same judge-protocol scale: Memori 81.95, Zep 79.09, LangMem 78.05, Mem0 62.47. The deterministic token-F1 0.6117 (non-adversarial) remains the strict lower bound; the +22.5pt gap between the tracks is judge leniency (partial credit, paraphrase families, 14-day date tolerance), not answer changes."
   },
   "claimBoundary": {
-    "publicClaimAllowed": true,
-    "reason": "Judge-free deterministic token-F1 scoring, executionFailures 0 over all 1986 questions, resumable per-question checkpointing. Profile disclosed: opt-in retrieval.semanticCandidates union (topK 16, provider embedding text-embedding-3-small) + conversational write-time extraction + abstention-format answer prompt (answerSystem union-live-abstention-format-v1). No-memory ablation on the identical scorer/root: overall 0.2276 and non-adversarial 0.0045 (7/1540) vs with-memory non-adversarial 0.6117 (942/1540) - the non-adversarial set is unanswerable without memory. Disclosure: the adversarial category (446 questions, gold = abstain) is trivially aced by the no-memory arm (0.998 vs with-memory 0.648), so the headline memory lift must cite the non-adversarial split, not the adversarial one. Dataset is CC BY-NC 4.0: any public claim must disclose the non-commercial scope. Embedding-free boundary stands separately: rules-only lexical retrieval scored 0.020 on conv-1 (banked P65-R003); this claim is for the embedding+extraction profile. README promoted 2026-07-04 with user sign-off: public-claims row + disclosure paragraph added to README.md and README.zh-CN.md in the same change; the internal-diagnostics conv-1 boundary row was removed as superseded by this full-run claim (the 0.020 rules-only boundary remains disclosed here and in the public paragraph)."
+    "publicClaimAllowed": false,
+    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. Judge-free deterministic token-F1 scoring, executionFailures 0 over all 1986 questions, resumable per-question checkpointing. Profile disclosed: opt-in retrieval.semanticCandidates union (topK 16, provider embedding text-embedding-3-small) + conversational write-time extraction + abstention-format answer prompt (answerSystem union-live-abstention-format-v1). No-memory ablation on the identical scorer/root: overall 0.2276 and non-adversarial 0.0045 (7/1540) vs with-memory non-adversarial 0.6117 (942/1540) - the non-adversarial set is unanswerable without memory. Disclosure: the adversarial category (446 questions, gold = abstain) is trivially aced by the no-memory arm (0.998 vs with-memory 0.648), so the headline memory lift must cite the non-adversarial split, not the adversarial one. Dataset is CC BY-NC 4.0: any public claim must disclose the non-commercial scope. Embedding-free boundary stands separately: rules-only lexical retrieval scored 0.020 on conv-1 (banked P65-R003); this claim is for the embedding+extraction profile. README promoted 2026-07-04 with user sign-off: public-claims row + disclosure paragraph added to README.md and README.zh-CN.md in the same change; the internal-diagnostics conv-1 boundary row was removed as superseded by this full-run claim (the 0.020 rules-only boundary remains disclosed here and in the public paragraph)."
   }
 }

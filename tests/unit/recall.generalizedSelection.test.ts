@@ -121,4 +121,197 @@ describe("generalized production selection", () => {
     expect(result.facts.map(({ id }) => id)).toEqual(["pre-action-blocker"]);
   });
 
+  it("does not collapse unrelated facts merely because they share a subject", () => {
+    const facts = [
+      createFactMemory({
+        category: "personal",
+        content: "Martin was born on August 2, 1996.",
+        id: "birth-date",
+        source: { extractedAt: "2026-01-01T00:00:00.000Z", method: "explicit" },
+        subject: "Martin",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+      createFactMemory({
+        category: "personal",
+        content: "Martin plans to expand healthcare access.",
+        id: "later-goal",
+        source: { extractedAt: TIMESTAMP, method: "explicit" },
+        subject: "Martin",
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "What is Martin's birth date?",
+      createLanguageService(),
+      "en",
+      "general_chat",
+      routingDecision({ strategy: "hybrid" }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      undefined,
+      {
+        candidates: [{ id: "birth-date", score: 1 }],
+        maxAdditions: 1,
+        maxTotalFacts: 2,
+      },
+    );
+
+    expect(result.facts.map(({ id }) => id)).toContain("birth-date");
+  });
+
+  it("still collapses structured mutable slots to their latest value", () => {
+    const facts = [
+      createFactMemory({
+        category: "personal",
+        content: "Martin works as an analyst.",
+        factKind: "role_update",
+        id: "old-role",
+        source: { extractedAt: "2026-01-01T00:00:00.000Z", method: "explicit" },
+        subject: "Martin",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+      createFactMemory({
+        category: "personal",
+        content: "Martin works as a director.",
+        factKind: "role_update",
+        id: "current-role",
+        source: { extractedAt: TIMESTAMP, method: "explicit" },
+        subject: "Martin",
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "What is Martin's role?",
+      createLanguageService(),
+      "en",
+      "general_chat",
+      routingDecision({ strategy: "hybrid" }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      undefined,
+      {
+        candidates: [
+          { id: "old-role", score: 1 },
+          { id: "current-role", score: 0.9 },
+        ],
+        maxAdditions: 2,
+        maxTotalFacts: 2,
+      },
+    );
+
+    expect(result.facts.map(({ id }) => id)).toContain("current-role");
+    expect(result.facts.map(({ id }) => id)).not.toContain("old-role");
+  });
+
+  it("does not collapse quantified facts that only share a subject", () => {
+    const facts = [
+      createFactMemory({
+        attributes: { claimKey: "active-project-count" },
+        category: "project",
+        content: "Acme currently has 3 projects.",
+        id: "projects",
+        source: { extractedAt: "2026-01-01T00:00:00.000Z", method: "explicit" },
+        subject: "Acme",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+      createFactMemory({
+        attributes: { claimKey: "cat-count" },
+        category: "personal",
+        content: "Acme currently has 2 cats.",
+        id: "cats",
+        source: { extractedAt: TIMESTAMP, method: "explicit" },
+        subject: "Acme",
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "How many current projects does Acme have?",
+      createLanguageService(),
+      "en",
+      "general_chat",
+      routingDecision({ strategy: "hybrid" }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      undefined,
+      {
+        candidates: [
+          { id: "projects", score: 1 },
+          { id: "cats", score: 0.8 },
+        ],
+        maxAdditions: 2,
+        maxTotalFacts: 2,
+      },
+    );
+
+    expect(result.facts.map(({ id }) => id)).toContain("projects");
+  });
+
+  it("collapses quantified updates only when their structured claim key matches", () => {
+    const facts = [
+      createFactMemory({
+        attributes: { claimKey: "restaurants-tried-count" },
+        category: "personal",
+        content: "Martin has tried three Korean restaurants.",
+        id: "old-count",
+        source: { extractedAt: "2026-01-01T00:00:00.000Z", method: "explicit" },
+        subject: "Martin",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+      createFactMemory({
+        attributes: { claimKey: "restaurants-tried-count" },
+        category: "personal",
+        content: "Martin has tried four Korean restaurants.",
+        id: "current-count",
+        source: { extractedAt: TIMESTAMP, method: "explicit" },
+        subject: "Martin",
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "How many Korean restaurants has Martin tried?",
+      createLanguageService(),
+      "en",
+      "general_chat",
+      routingDecision({ strategy: "hybrid" }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      undefined,
+      {
+        candidates: [
+          { id: "old-count", score: 1 },
+          { id: "current-count", score: 0.9 },
+        ],
+        maxAdditions: 2,
+        maxTotalFacts: 2,
+      },
+    );
+
+    expect(result.facts.map(({ id }) => id)).toContain("current-count");
+    expect(result.facts.map(({ id }) => id)).not.toContain("old-count");
+  });
+
 });

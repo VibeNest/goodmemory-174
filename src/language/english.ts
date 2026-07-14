@@ -1235,6 +1235,7 @@ function maybeExtractCandidatesFromClause(
         `${name} moved${back} to ${location}.`,
         "relationship",
         {
+          attributes: { claimKey: "relationship.location" },
           category: "relationship",
           scopeKind: "identity",
           subject: name,

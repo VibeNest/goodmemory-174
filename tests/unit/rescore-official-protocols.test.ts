@@ -11,6 +11,7 @@ import {
   buildOfficialRescoreScopeMetadata,
   buildOfficialRescoreSourceInputFingerprints,
   ensureOfficialRescoreRunIdentity,
+  loadLongmemevalCases,
   parseOfficialRescoreCliOptions,
   parseOfficialRescoreProgressLine,
   parseOfficialRescoreRubricProgressLine,
@@ -20,6 +21,7 @@ import {
   requireOfficialRescoreProgressRowsWithinSelection,
   requireOfficialRescoreRubricProgressRowsWithinSelection,
   resolveOfficialRescoreJudgeEnvironment,
+  resolveOfficialRescoreRequestTimeoutMs,
   serializeOfficialRescoreProgressRow,
   serializeOfficialRescoreRubricProgressRow,
   validateOfficialRescoreSummary,
@@ -131,6 +133,76 @@ describe("official protocol rescore CLI", () => {
         "/tmp/beam/rubrics-by-question-id.json",
       ]),
     ).toThrow("--rubrics is only valid with --benchmark beam.");
+
+    expect(() =>
+      parseOfficialRescoreCliOptions([
+        "bun",
+        "scripts/rescore-official-protocols.ts",
+        "--benchmark",
+        "locomo",
+        "--profile",
+        "goodmemory-recommended",
+      ]),
+    ).toThrow("--profile is only valid with --benchmark longmemeval.");
+  });
+
+  it("selects and records an explicit LongMemEval source profile", async () => {
+    const root = await mkdtemp(join(tmpdir(), "gm-longmemeval-profile-"));
+    try {
+      const referencePath = join(root, "longmemeval_s_cleaned.json");
+      const reportPath = join(root, "report.json");
+      await writeFile(
+        referencePath,
+        JSON.stringify([
+          {
+            answer: "recommended answer",
+            question: "What was remembered?",
+            question_id: "q1",
+            question_type: "single-session-user",
+          },
+        ]),
+      );
+      await writeFile(
+        reportPath,
+        JSON.stringify({
+          profiles: {
+            "goodmemory-recommended": {
+              cases: [{ hypothesis: "recommended answer", questionId: "q1" }],
+            },
+            "goodmemory-rules-only": {
+              cases: [{ hypothesis: "rules answer", questionId: "q1" }],
+            },
+          },
+        }),
+      );
+
+      expect(
+        parseOfficialRescoreCliOptions([
+          "bun",
+          "scripts/rescore-official-protocols.ts",
+          "--benchmark",
+          "longmemeval",
+          "--profile",
+          "goodmemory-recommended",
+          "--run-id",
+          "longmemeval-recommended-current",
+        ]),
+      ).toEqual({
+        benchmark: "longmemeval",
+        concurrency: 4,
+        profile: "goodmemory-recommended",
+        runId: "longmemeval-recommended-current",
+      });
+      const loaded = await loadLongmemevalCases({
+        profile: "goodmemory-recommended",
+        referencePath,
+        reportPath,
+      });
+      expect(loaded.cases).toHaveLength(1);
+      expect(loaded.cases[0]?.hypothesis).toBe("recommended answer");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
   });
 
   it("rejects source inputs inside the official-rescore output run directory", () => {
@@ -190,6 +262,22 @@ describe("official protocol rescore CLI", () => {
       baseURL: "https://judge.example/v1",
       model: "gpt-5.4-mini",
     });
+  });
+
+  it("bounds each official-rescore judge request", () => {
+    expect(resolveOfficialRescoreRequestTimeoutMs({})).toBe(180_000);
+    expect(
+      resolveOfficialRescoreRequestTimeoutMs({
+        GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS: "120000",
+      }),
+    ).toBe(120_000);
+    expect(() =>
+      resolveOfficialRescoreRequestTimeoutMs({
+        GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS: "0",
+      }),
+    ).toThrow(
+      "GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS must be a positive integer",
+    );
   });
 
   it("rejects final official-rescore summaries when judge failures remain", () => {
@@ -295,6 +383,22 @@ describe("official protocol rescore CLI", () => {
         sourceInputFingerprints: {},
       }).limitUnit,
     ).toBe("cases");
+
+    expect(
+      buildOfficialRescoreMetadata({
+        benchmark: "longmemeval",
+        generatedAt: "2026-07-13T22:00:00.000Z",
+        judgeModel: "gpt-5.4",
+        outputPath: "/reports/official/rescore-summary.json",
+        runId: "longmemeval-recommended-current",
+        sourceInputFingerprints: {},
+        sourceInputs: {
+          referencePath: "/data/longmemeval_s_cleaned.json",
+          reportPath: "/reports/longmemeval/report.json",
+        },
+        sourceProfile: "goodmemory-recommended",
+      }).sourceProfile,
+    ).toBe("goodmemory-recommended");
   });
 
   it("validates complete official-rescore case and BEAM summaries before writing", () => {
@@ -689,6 +793,24 @@ describe("official protocol rescore CLI", () => {
         },
       }),
     ).toThrow("official rescore run identity changed: sourceInputs");
+
+    const longMemEvalIdentity = buildOfficialRescoreRunIdentity({
+      benchmark: "longmemeval",
+      judgeModel: "gpt-5.4",
+      runId: "longmemeval-recommended-current",
+      sourceInputFingerprints: {},
+      sourceInputs: {
+        referencePath: "/data/longmemeval_s_cleaned.json",
+        reportPath: "/reports/longmemeval/report.json",
+      },
+      sourceProfile: "goodmemory-recommended",
+    });
+    expect(() =>
+      assertOfficialRescoreRunIdentityCompatible(longMemEvalIdentity, {
+        ...longMemEvalIdentity,
+        sourceProfile: "goodmemory-rules-only",
+      }),
+    ).toThrow("official rescore run identity changed: sourceProfile");
   });
 
   it("rejects malformed rescore progress rows", () => {

@@ -39,6 +39,7 @@ export interface OfficialRescoreCliOptions {
   benchmark: OfficialRescoreBenchmark;
   concurrency: number;
   limit?: number;
+  profile?: string;
   referencePath?: string;
   reportPath?: string;
   rootPath?: string;
@@ -73,6 +74,7 @@ const OFFICIAL_RESCORE_RUN_IDENTITY_KEY_SET: ReadonlySet<string> = new Set([
   "sourceAnswersUnchanged",
   "sourceInputFingerprints",
   "sourceInputs",
+  "sourceProfile",
 ]);
 const OFFICIAL_RESCORE_PROGRESS_ROW_KEY_SET: ReadonlySet<string> = new Set([
   "correct",
@@ -96,6 +98,7 @@ const OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET: ReadonlySet<string> = new Set([
   "sourceAnswersUnchanged",
   "sourceInputFingerprints",
   "sourceInputs",
+  "sourceProfile",
 ]);
 const OFFICIAL_RESCORE_CASE_SUMMARY_KEY_SET: ReadonlySet<string> = new Set([
   ...OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET,
@@ -176,6 +179,7 @@ interface OfficialRescoreMetadataInput {
   runId: string;
   sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
   sourceInputs: OfficialRescoreSourceInputs;
+  sourceProfile?: string;
 }
 
 export interface OfficialRescoreRunIdentity {
@@ -186,6 +190,7 @@ export interface OfficialRescoreRunIdentity {
   runId: string;
   sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
   sourceInputs: OfficialRescoreSourceInputs;
+  sourceProfile?: string;
   sourceAnswersUnchanged: true;
 }
 
@@ -331,7 +336,10 @@ function isOfficialRescoreRunIdentity(
     isNonEmptyUnpaddedString(value.runId) &&
     value.sourceAnswersUnchanged === true &&
     isOfficialRescoreSourceInputFingerprints(value.sourceInputFingerprints) &&
-    isOfficialRescoreSourceInputs(value.sourceInputs)
+    isOfficialRescoreSourceInputs(value.sourceInputs) &&
+    (value.sourceProfile === undefined ||
+      (value.benchmark === "longmemeval" &&
+        isNonEmptyUnpaddedString(value.sourceProfile)))
   );
 }
 
@@ -443,6 +451,7 @@ export function buildOfficialRescoreRunIdentity(input: {
   runId: string;
   sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
   sourceInputs: OfficialRescoreSourceInputs;
+  sourceProfile?: string;
 }): OfficialRescoreRunIdentity {
   return {
     benchmark: input.benchmark,
@@ -453,6 +462,9 @@ export function buildOfficialRescoreRunIdentity(input: {
     sourceAnswersUnchanged: true,
     sourceInputFingerprints: input.sourceInputFingerprints,
     sourceInputs: input.sourceInputs,
+    ...(input.sourceProfile === undefined
+      ? {}
+      : { sourceProfile: input.sourceProfile }),
   };
 }
 
@@ -477,6 +489,9 @@ export function assertOfficialRescoreRunIdentityCompatible(
   }
   if (existing.sourceAnswersUnchanged !== expected.sourceAnswersUnchanged) {
     throw new Error("official rescore run identity changed: sourceAnswersUnchanged");
+  }
+  if (existing.sourceProfile !== expected.sourceProfile) {
+    throw new Error("official rescore run identity changed: sourceProfile");
   }
   if (sourceInputsFingerprint(existing.sourceInputs) !== sourceInputsFingerprint(expected.sourceInputs)) {
     throw new Error("official rescore run identity changed: sourceInputs");
@@ -505,6 +520,9 @@ export function buildOfficialRescoreMetadata(
     sourceAnswersUnchanged: true,
     sourceInputFingerprints: input.sourceInputFingerprints,
     sourceInputs: input.sourceInputs,
+    ...(input.sourceProfile === undefined
+      ? {}
+      : { sourceProfile: input.sourceProfile }),
   };
 }
 
@@ -567,6 +585,15 @@ export function validateOfficialRescoreSummary(value: unknown): string[] {
   }
   if (!isOfficialRescoreSourceInputs(value.sourceInputs)) {
     errors.push("sourceInputs must be canonical source input paths");
+  }
+  if (
+    value.sourceProfile !== undefined &&
+    (benchmark !== "longmemeval" ||
+      !isNonEmptyUnpaddedString(value.sourceProfile))
+  ) {
+    errors.push(
+      "sourceProfile must be a non-empty unpadded string for longmemeval only",
+    );
   }
   if (!isRecord(value.categories) || Object.keys(value.categories).length === 0) {
     errors.push("categories must be a non-empty object");
@@ -1036,6 +1063,7 @@ function parseOfficialRescoreBenchmark(
 
 function validateOfficialRescoreSourceSelectors(input: {
   benchmark: OfficialRescoreBenchmark;
+  profile?: string;
   referencePath?: string;
   rootPath?: string;
   rubricsPath?: string;
@@ -1048,6 +1076,9 @@ function validateOfficialRescoreSourceSelectors(input: {
   }
   if (input.rubricsPath !== undefined && input.benchmark !== "beam") {
     throw new Error("--rubrics is only valid with --benchmark beam.");
+  }
+  if (input.profile !== undefined && input.benchmark !== "longmemeval") {
+    throw new Error("--profile is only valid with --benchmark longmemeval.");
   }
 }
 
@@ -1097,6 +1128,7 @@ export function parseOfficialRescoreCliOptions(
   const concurrency =
     parseCliPositiveIntegerFlagStrict(argv, "--concurrency") ?? 4;
   const limit = parseCliPositiveIntegerFlagStrict(argv, "--limit");
+  const profile = resolveCliFlagValueStrict(argv, "--profile");
   const referencePath = resolveCliFlagValueStrict(argv, "--reference");
   const reportPath = resolveCliFlagValueStrict(argv, "--report");
   const rootPath = resolveCliFlagValueStrict(argv, "--root");
@@ -1106,6 +1138,7 @@ export function parseOfficialRescoreCliOptions(
     `rescore-${benchmark}-official-judge`;
   validateOfficialRescoreSourceSelectors({
     benchmark,
+    ...(profile === undefined ? {} : { profile }),
     ...(referencePath === undefined ? {} : { referencePath }),
     ...(rootPath === undefined ? {} : { rootPath }),
     ...(rubricsPath === undefined ? {} : { rubricsPath }),
@@ -1115,6 +1148,7 @@ export function parseOfficialRescoreCliOptions(
     benchmark,
     concurrency,
     ...(limit === undefined ? {} : { limit }),
+    ...(profile === undefined ? {} : { profile }),
     ...(referencePath === undefined ? {} : { referencePath }),
     ...(reportPath === undefined ? {} : { reportPath }),
     ...(rootPath === undefined ? {} : { rootPath }),
@@ -1314,6 +1348,25 @@ export interface OfficialRescoreJudgeEnvironment {
   model: string;
 }
 
+export const OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS = 180_000;
+export const OFFICIAL_RESCORE_REQUEST_TIMEOUT_ENV =
+  "GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS";
+
+export function resolveOfficialRescoreRequestTimeoutMs(
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const value = env[OFFICIAL_RESCORE_REQUEST_TIMEOUT_ENV];
+  if (value === undefined) {
+    return OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS;
+  }
+  if (!/^[1-9][0-9]*$/u.test(value)) {
+    throw new Error(
+      `${OFFICIAL_RESCORE_REQUEST_TIMEOUT_ENV} must be a positive integer.`,
+    );
+  }
+  return Number(value);
+}
+
 function requireCanonicalJudgeEnvValue(input: {
   env: Record<string, string | undefined>;
   name:
@@ -1359,6 +1412,7 @@ async function callJudge(input: {
   system?: string;
 }): Promise<string> {
   const judgeEnv = resolveOfficialRescoreJudgeEnvironment(process.env);
+  const requestTimeoutMs = resolveOfficialRescoreRequestTimeoutMs();
   let lastError: unknown;
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     try {
@@ -1377,6 +1431,7 @@ async function callJudge(input: {
           "content-type": "application/json",
         },
         method: "POST",
+        signal: AbortSignal.timeout(requestTimeoutMs),
       });
       const payload = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
@@ -1428,16 +1483,18 @@ async function loadJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-async function loadLongmemevalCases(input: {
+export async function loadLongmemevalCases(input: {
+  profile?: string;
   referencePath: string;
   reportPath: string;
 }): Promise<{ abstentionIds: Set<string>; cases: JudgeCase[] }> {
   const report = (await loadJson(input.reportPath)) as {
     profiles: Record<string, { cases: Array<{ hypothesis: string; questionId: string }> }>;
   };
-  const profile = report.profiles["goodmemory-rules-only"];
+  const sourceProfile = input.profile ?? "goodmemory-rules-only";
+  const profile = report.profiles[sourceProfile];
   if (!profile) {
-    throw new Error("report is missing the goodmemory-rules-only profile");
+    throw new Error(`report is missing the ${sourceProfile} profile`);
   }
   const reference = (await loadJson(input.referencePath)) as Array<{
     answer: unknown;
@@ -1801,6 +1858,7 @@ async function main(): Promise<void> {
     });
     sourceInputFingerprints = await readOfficialRescoreSourceInputFingerprints(sourceInputs);
     const { abstentionIds, cases: loaded } = await loadLongmemevalCases({
+      ...(options.profile === undefined ? {} : { profile: options.profile }),
       referencePath,
       reportPath,
     });
@@ -1888,6 +1946,9 @@ async function main(): Promise<void> {
       runId,
       sourceInputFingerprints,
       sourceInputs,
+      ...(options.profile === undefined
+        ? {}
+        : { sourceProfile: options.profile }),
     }),
   );
 
@@ -1982,6 +2043,9 @@ async function main(): Promise<void> {
       runId,
       sourceInputs,
       sourceInputFingerprints,
+      ...(options.profile === undefined
+        ? {}
+        : { sourceProfile: options.profile }),
     }),
     ...buildOfficialRescoreScopeMetadata({
       benchmark,

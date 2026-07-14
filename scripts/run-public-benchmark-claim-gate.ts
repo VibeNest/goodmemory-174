@@ -194,11 +194,32 @@ function validatePublicClaimFragments(input: {
 // encode the user's claim discipline: zero failures, a baseline to compare to, a
 // reproducible run, complete dataset provenance, an independent judge for
 // judge-scored metrics, and complete benchmark coverage.
-export function evaluateClaimBoundary(report: BenchmarkClaimReport): {
+export interface ClaimBoundaryContext {
+  currentPackageVersion?: string;
+}
+
+export function evaluateClaimBoundary(
+  report: BenchmarkClaimReport,
+  context: ClaimBoundaryContext = {},
+): {
   blockers: string[];
   publicClaimAllowed: boolean;
 } {
   const blockers: string[] = [];
+  if (report.status !== "candidate_public_claim") {
+    blockers.push(
+      `claim status is ${report.status}; current public claims require candidate_public_claim`,
+    );
+  }
+  if (
+    context.currentPackageVersion !== undefined &&
+    report.run.packageVersion !== context.currentPackageVersion
+  ) {
+    blockers.push(
+      `measured package version ${report.run.packageVersion ?? "(missing)"} does not match ` +
+        `current package version ${context.currentPackageVersion}`,
+    );
+  }
   if (report.run.executionFailures !== 0) {
     blockers.push(`executionFailures must be 0 (got ${report.run.executionFailures})`);
   }
@@ -543,11 +564,15 @@ export function collectClaimNotes(report: BenchmarkClaimReport): string[] {
   return notes;
 }
 
-// A README "public claims" table row is itself a public claim. The tables are
-// delimited by explicit markers so the check is language-agnostic (README.md and
-// README.zh-CN.md share the same markers).
-export const README_CLAIMS_TABLE_START = "<!-- public-claims-table:start -->";
-export const README_CLAIMS_TABLE_END = "<!-- public-claims-table:end -->";
+// Current claims and historical evidence use separate machine-readable tables.
+// This prevents a versioned result from becoming a current claim merely because
+// both surfaces link to the same declaration.
+export const README_CLAIMS_TABLE_START = "<!-- current-claims-table:start -->";
+export const README_CLAIMS_TABLE_END = "<!-- current-claims-table:end -->";
+export const README_HISTORICAL_EVIDENCE_TABLE_START =
+  "<!-- historical-evidence-table:start -->";
+export const README_HISTORICAL_EVIDENCE_TABLE_END =
+  "<!-- historical-evidence-table:end -->";
 
 export interface ReadmeClaimTableCheck {
   claimContentErrors: string[];
@@ -575,13 +600,17 @@ function parseMarkdownTableCells(line: string): string[] {
     .filter((cell) => cell.length > 0);
 }
 
-export function extractPublicClaimsTableRows(markdown: string): {
+function extractBenchmarkTableRows(
+  markdown: string,
+  startMarker: string,
+  endMarker: string,
+): {
   markersFound: boolean;
   rowDetails: PublicClaimTableRow[];
   rows: string[];
 } {
-  const start = markdown.indexOf(README_CLAIMS_TABLE_START);
-  const end = markdown.indexOf(README_CLAIMS_TABLE_END);
+  const start = markdown.indexOf(startMarker);
+  const end = markdown.indexOf(endMarker);
   if (start === -1 || end === -1 || end < start) {
     return { markersFound: false, rowDetails: [], rows: [] };
   }
@@ -609,25 +638,54 @@ export function extractPublicClaimsTableRows(markdown: string): {
   return { markersFound: true, rowDetails, rows };
 }
 
-export function checkReadmeClaimTables(
+export function extractPublicClaimsTableRows(markdown: string): {
+  markersFound: boolean;
+  rowDetails: PublicClaimTableRow[];
+  rows: string[];
+} {
+  return extractBenchmarkTableRows(
+    markdown,
+    README_CLAIMS_TABLE_START,
+    README_CLAIMS_TABLE_END,
+  );
+}
+
+export function extractHistoricalEvidenceTableRows(markdown: string): {
+  markersFound: boolean;
+  rowDetails: PublicClaimTableRow[];
+  rows: string[];
+} {
+  return extractBenchmarkTableRows(
+    markdown,
+    README_HISTORICAL_EVIDENCE_TABLE_START,
+    README_HISTORICAL_EVIDENCE_TABLE_END,
+  );
+}
+
+function checkReadmeBenchmarkTables(
   readmes: Array<{ content: string; file: string }>,
   entries: ClaimGateEntry[],
+  expectedBenchmarks: string[],
+  extractRows: (markdown: string) => {
+    markersFound: boolean;
+    rowDetails: PublicClaimTableRow[];
+    rows: string[];
+  },
 ): ReadmeClaimTableCheck[] {
-  const claimable = entries
-    .filter((entry) => entry.computedPublicClaimAllowed && entry.consistent)
-    .map((entry) => entry.benchmark);
   const declared = entries.map((entry) => entry.benchmark);
   const matches = (row: string, benchmark: string): boolean =>
     row.toLowerCase().includes(benchmark.toLowerCase());
   return readmes.map(({ content, file }) => {
-    const { markersFound, rowDetails, rows } = extractPublicClaimsTableRows(content);
+    const { markersFound, rowDetails, rows } = extractRows(content);
     const forbiddenRows = rows.filter((row) =>
-      declared.some((benchmark) => !claimable.includes(benchmark) && matches(row, benchmark)),
+      declared.some(
+        (benchmark) => !expectedBenchmarks.includes(benchmark) && matches(row, benchmark),
+      ),
     );
     const unmatchedRows = rows.filter(
       (row) => !declared.some((benchmark) => matches(row, benchmark)),
     );
-    const missingClaimableBenchmarks = claimable.filter(
+    const missingClaimableBenchmarks = expectedBenchmarks.filter(
       (benchmark) => !rows.some((row) => matches(row, benchmark)),
     );
     const declarationLinkErrors = rowDetails.flatMap((row) => {
@@ -692,16 +750,61 @@ export function checkReadmeClaimTables(
   });
 }
 
+export function checkReadmeClaimTables(
+  readmes: Array<{ content: string; file: string }>,
+  entries: ClaimGateEntry[],
+): ReadmeClaimTableCheck[] {
+  const claimable = entries
+    .filter((entry) => entry.computedPublicClaimAllowed && entry.consistent)
+    .map((entry) => entry.benchmark);
+  return checkReadmeBenchmarkTables(
+    readmes,
+    entries,
+    claimable,
+    extractPublicClaimsTableRows,
+  );
+}
+
+export function checkReadmeHistoricalEvidenceTables(
+  readmes: Array<{ content: string; file: string }>,
+  entries: ClaimGateEntry[],
+): ReadmeClaimTableCheck[] {
+  const historical = entries
+    .filter(
+      (entry) =>
+        entry.status === "internal_evidence" &&
+        entry.consistent &&
+        entry.schemaErrors.length === 0,
+    )
+    .map((entry) => entry.benchmark);
+  return checkReadmeBenchmarkTables(
+    readmes,
+    entries,
+    historical,
+    extractHistoricalEvidenceTableRows,
+  );
+}
+
 export interface ClaimGateReport {
   allConsistent: boolean;
+  currentPackageVersion: string | null;
   entries: ClaimGateEntry[];
   generatedAt: string;
   generatedBy: string;
+  historicalEvidence: string[];
+  historicalReadmeChecks: ReadmeClaimTableCheck[];
+  historicalReadmeConsistent: boolean;
   phase: "phase-67";
   publicClaimable: string[];
   readmeChecks: ReadmeClaimTableCheck[];
   readmeConsistent: boolean;
-  summary: { consistent: number; overClaiming: number; publicClaimable: number; total: number };
+  summary: {
+    consistent: number;
+    historicalEvidence: number;
+    overClaiming: number;
+    publicClaimable: number;
+    total: number;
+  };
 }
 
 export interface PublicBenchmarkClaimGateCliOptions {
@@ -723,6 +826,7 @@ export function buildClaimGateReport(
   now: string,
   readmes: Array<{ content: string; file: string }> = [],
   evidenceErrorsByFile: ReadonlyMap<string, string[]> = new Map(),
+  currentPackageVersion?: string,
 ): ClaimGateReport {
   const entries: ClaimGateEntry[] = [];
   for (const { file, value } of declarations) {
@@ -764,7 +868,7 @@ export function buildClaimGateReport(
       });
       continue;
     }
-    const verdict = evaluateClaimBoundary(report);
+    const verdict = evaluateClaimBoundary(report, { currentPackageVersion });
     const evidenceErrors = evidenceErrorsByFile.get(file) ?? [];
     const blockers = [...verdict.blockers, ...evidenceErrors];
     const computedPublicClaimAllowed = verdict.publicClaimAllowed && evidenceErrors.length === 0;
@@ -794,19 +898,33 @@ export function buildClaimGateReport(
   const publicClaimable = entries
     .filter((entry) => entry.computedPublicClaimAllowed && entry.consistent)
     .map((entry) => entry.benchmark);
+  const historicalEvidence = entries
+    .filter(
+      (entry) =>
+        entry.status === "internal_evidence" &&
+        entry.consistent &&
+        entry.schemaErrors.length === 0,
+    )
+    .map((entry) => entry.benchmark);
   const readmeChecks = checkReadmeClaimTables(readmes, entries);
+  const historicalReadmeChecks = checkReadmeHistoricalEvidenceTables(readmes, entries);
 
   return {
     allConsistent: entries.every((entry) => entry.consistent && entry.schemaErrors.length === 0),
+    currentPackageVersion: currentPackageVersion ?? null,
     entries,
     generatedAt: now,
     generatedBy: "scripts/run-public-benchmark-claim-gate.ts",
+    historicalEvidence,
+    historicalReadmeChecks,
+    historicalReadmeConsistent: historicalReadmeChecks.every((check) => check.consistent),
     phase: "phase-67",
     publicClaimable,
     readmeChecks,
     readmeConsistent: readmeChecks.every((check) => check.consistent),
     summary: {
       consistent: entries.filter((entry) => entry.consistent).length,
+      historicalEvidence: historicalEvidence.length,
       overClaiming,
       publicClaimable: publicClaimable.length,
       total: entries.length,
@@ -816,6 +934,7 @@ export function buildClaimGateReport(
 
 export async function runPublicBenchmarkClaimGate(input: {
   claimsDir?: string;
+  currentPackageVersion?: string;
   now?: () => string;
   outputDir?: string;
   readDir?: (path: string) => Promise<string[]>;
@@ -826,6 +945,14 @@ export async function runPublicBenchmarkClaimGate(input: {
   const readDirImpl = input.readDir ?? ((path: string) => readdir(path));
   const readFileImpl = input.readFile ?? ((path: string) => readFile(path, "utf8"));
   const now = (input.now ?? (() => new Date().toISOString()))();
+  const packageMetadata = JSON.parse(
+    await readFile(join(repoRoot, "package.json"), "utf8"),
+  ) as unknown;
+  if (!isRecord(packageMetadata) || !isStrictNonEmpty(packageMetadata.version)) {
+    throw new Error("package.json must define a non-empty unpadded version.");
+  }
+  const currentPackageVersion =
+    input.currentPackageVersion ?? packageMetadata.version;
 
   const files = (await readDirImpl(claimsDir)).filter((file) => file.endsWith(".json")).sort();
   const declarations: Array<{ file: string; value: unknown }> = [];
@@ -868,7 +995,13 @@ export async function runPublicBenchmarkClaimGate(input: {
     }
   }
 
-  const report = buildClaimGateReport(declarations, now, readmes, evidenceErrorsByFile);
+  const report = buildClaimGateReport(
+    declarations,
+    now,
+    readmes,
+    evidenceErrorsByFile,
+    currentPackageVersion,
+  );
   const outputDir = input.outputDir ?? join(repoRoot, "reports", "release", "claims");
   await mkdir(outputDir, { recursive: true });
   await writeFile(join(outputDir, "claim-gate-report.json"), `${JSON.stringify(report, null, 2)}\n`);
@@ -881,16 +1014,21 @@ export function renderClaimGateSummary(report: ClaimGateReport): string {
   lines.push("# Public Benchmark Claim Gate");
   lines.push("");
   lines.push(`- generated: ${report.generatedAt}`);
+  lines.push(`- current package version: ${report.currentPackageVersion ?? "unknown"}`);
   lines.push(
     `- declarations: ${report.summary.total} | consistent: ${report.summary.consistent} | ` +
-      `over-claiming: ${report.summary.overClaiming} | publicly claimable: ${report.summary.publicClaimable}`,
+      `over-claiming: ${report.summary.overClaiming} | current claims: ` +
+      `${report.summary.publicClaimable} | historical evidence: ${report.summary.historicalEvidence}`,
   );
   lines.push(
     `- publicly claimable now: ${report.publicClaimable.length > 0 ? report.publicClaimable.join(", ") : "none"}`,
   );
+  lines.push(
+    `- versioned historical evidence: ${report.historicalEvidence.length > 0 ? report.historicalEvidence.join(", ") : "none"}`,
+  );
   for (const check of report.readmeChecks) {
     const detail = !check.markersFound
-      ? "public-claims-table markers missing"
+      ? "current-claims-table markers missing"
       : check.consistent
         ? `${check.rows.length} row(s), consistent`
         : [
@@ -916,6 +1054,37 @@ export function renderClaimGateSummary(report: ClaimGateReport): string {
             .filter((part) => part.length > 0)
             .join(" | ");
     lines.push(`- README check ${check.file}: ${check.consistent ? "OK" : "FAIL"} — ${detail}`);
+  }
+  for (const check of report.historicalReadmeChecks) {
+    const detail = !check.markersFound
+      ? "historical-evidence-table markers missing"
+      : check.consistent
+        ? `${check.rows.length} row(s), consistent`
+        : [
+            check.forbiddenRows.length > 0
+              ? `FORBIDDEN historical rows: ${check.forbiddenRows.join("; ")}`
+              : "",
+            check.unmatchedRows.length > 0
+              ? `UNMATCHED historical rows: ${check.unmatchedRows.join("; ")}`
+              : "",
+            check.missingClaimableBenchmarks.length > 0
+              ? `MISSING historical rows: ${check.missingClaimableBenchmarks.join("; ")}`
+              : "",
+            check.declarationLinkErrors.length > 0
+              ? `BAD declaration links: ${check.declarationLinkErrors.join("; ")}`
+              : "",
+            check.claimContentErrors.length > 0
+              ? `BAD evidence content: ${check.claimContentErrors.join("; ")}`
+              : "",
+            check.disclosureErrors.length > 0
+              ? `BAD disclosures: ${check.disclosureErrors.join("; ")}`
+              : "",
+          ]
+            .filter((part) => part.length > 0)
+            .join(" | ");
+    lines.push(
+      `- historical README check ${check.file}: ${check.consistent ? "OK" : "FAIL"} — ${detail}`,
+    );
   }
   for (const entry of report.entries) {
     for (const note of entry.notes) {
@@ -955,7 +1124,10 @@ if (import.meta.main) {
   process.stdout.write(renderClaimGateSummary(report));
   if (
     options.strict &&
-    (!report.allConsistent || report.summary.overClaiming > 0 || !report.readmeConsistent)
+    (!report.allConsistent ||
+      report.summary.overClaiming > 0 ||
+      !report.readmeConsistent ||
+      !report.historicalReadmeConsistent)
   ) {
     process.exitCode = 1;
   }

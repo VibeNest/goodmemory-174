@@ -51,6 +51,7 @@ describe("MAB per-competency answer harness", () => {
     expect(ttl).toContain("label number");
     expect(lru).toContain("full correct option");
     expect(cr).toContain("answer questions using only the supplied memory context");
+    expect(cr).toContain("authoritative even when it conflicts with world knowledge");
   });
 
   it("builds format-strict prompts for AR/TTL/LRU and the general prompt for CR", () => {

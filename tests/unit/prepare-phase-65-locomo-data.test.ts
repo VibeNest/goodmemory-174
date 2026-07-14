@@ -32,6 +32,7 @@ describe("phase-65 LoCoMo external-root prep", () => {
           conversation: {
             session_11: [
               {
+                blip_caption: "a photo of a contemporary dance performance",
                 dia_id: "D:11:26",
                 speaker: "speaker_a",
                 text: "I started the dance studio after leaving banking.",
@@ -66,6 +67,9 @@ describe("phase-65 LoCoMo external-root prep", () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0]?.turns.map((turn) => turn.diaId)).toEqual(["D2:3", "D11:26"]);
+    expect(cases[0]?.turns[1]?.content).toBe(
+      "I started the dance studio after leaving banking.\n\nImage caption: a photo of a contemporary dance performance",
+    );
     expect(cases[0]?.questions[0]?.evidenceTurnIds).toEqual(["D11:26", "D2:3"]);
   });
 

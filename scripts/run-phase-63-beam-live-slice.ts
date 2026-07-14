@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { GoodMemory } from "../src/api/contracts";
 import type { MemoryScope } from "../src/domain/scope";
 import type { RecallResult } from "../src/api/contracts";
+import type { MemoryPacket } from "../src/recall/contextBuilder";
 import type {
   BeamAnswerScore,
   BeamCase,
@@ -172,6 +173,7 @@ export interface Phase63BeamLiveSliceCliOptions {
   evidencePack?: boolean;
   limit?: number;
   outputDir?: string;
+  packetEvidence?: boolean;
   profile?: BeamProfile;
   recallReportPath?: string;
   resume?: boolean;
@@ -220,6 +222,7 @@ export interface Phase63BeamLiveSliceDependencies {
 }
 
 export interface Phase63BeamLiveSliceCaseResult extends BeamCaseResult {
+  answerContextChatIds?: number[];
   answerable: boolean;
   conversationId: string;
   expectedAnswer: string;
@@ -245,6 +248,7 @@ export interface Phase63BeamLiveSliceReport {
     caseIds: readonly string[] | null;
     caseSelection: Phase63BeamLiveCaseSelection | null;
     limit: number | null;
+    packetEvidence?: boolean;
     recallReportPath: string | null;
   };
   source: {
@@ -394,6 +398,7 @@ export function parsePhase63BeamLiveSliceCliOptions(
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
+    packetEvidence: hasCliFlagStrict(argv, "--packet-evidence"),
     profile: parseProfile(resolveCliFlagValueStrict(argv, "--profile")),
     recallReportPath: resolveCliFlagValueStrict(argv, "--recall-report"),
     resume: hasCliFlagStrict(argv, "--resume"),
@@ -1203,6 +1208,27 @@ export function buildPhase63BeamEvidencePackContext(input: {
   });
 }
 
+export function collectPhase63BeamPacketChatIds(
+  packet: MemoryPacket,
+): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const value of Object.values(packet)) {
+    if (typeof value !== "string") {
+      continue;
+    }
+    for (const match of value.matchAll(/\bchat_id[:=](\d+)/gu)) {
+      const id = Number(match[1]);
+      if (!Number.isSafeInteger(id) || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
 function shouldIncludePhase63BeamAssistantCompanions(
   testCase: BeamCase,
 ): boolean {
@@ -1348,6 +1374,15 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
     if (summaryAnswer !== undefined) {
       return summaryAnswer;
     }
+  }
+
+  const subjectDateAnswer = buildPhase63BeamSubjectDateAnswerFromGuide({
+    context,
+    hypothesis: input.hypothesis,
+    question,
+  });
+  if (subjectDateAnswer !== undefined) {
+    return subjectDateAnswer;
   }
 
   if (isPhase63BeamCurrentValueQuestionType(questionType)) {
@@ -1589,6 +1624,59 @@ function isPhase63BeamCalendarIntervalQuestion(question: string): boolean {
     /\bhow many\s+days?\b/iu.test(question) &&
     /\b(?:between|passed|elapsed|from|until|to)\b/iu.test(question)
   );
+}
+
+function buildPhase63BeamSubjectDateAnswerFromGuide(input: {
+  context: string;
+  hypothesis: string;
+  question: string;
+}): string | undefined {
+  const target = /\bwhen\s+(?:does|did|will)\s+(?:my|our|the|your)\s+(.+?)\s+(end|start|begin)\s*\?/iu.exec(
+    input.question,
+  );
+  if (!target) {
+    return undefined;
+  }
+  const subject = target[1]?.trim();
+  const verb = target[2]?.toLowerCase();
+  if (!subject || !verb) {
+    return undefined;
+  }
+  const month =
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+  const date = `(?:${month}\\s+\\d{1,2}(?:,\\s*\\d{4})?|\\d{4}-\\d{2}-\\d{2}|\\d{1,2}/\\d{1,2}/\\d{2,4})`;
+  const subjectPattern = subject
+    .split(/\s+/u)
+    .map(escapeRegExp)
+    .join("\\s+");
+  const verbPattern = verb === "begin"
+    ? "beg(?:in|ins|an)"
+    : `${escapeRegExp(verb)}(?:s|ed)?`;
+  const pattern = new RegExp(
+    `\\b${subjectPattern}\\s+(?:(?:will|did)\\s+|is\\s+(?:scheduled\\s+to\\s+)?)?${verbPattern}\\s+(?:on\\s+)?(${date})`,
+    "giu",
+  );
+  const candidates = new Map<string, string>();
+  for (const match of input.context.matchAll(pattern)) {
+    const value = match[1]?.trim();
+    if (value) {
+      candidates.set(value.toLowerCase(), value);
+    }
+  }
+  if (candidates.size !== 1) {
+    return undefined;
+  }
+  const [value] = candidates.values();
+  if (
+    phase63BeamCueValueAppearsInText({
+      text: input.hypothesis,
+      value,
+    })
+  ) {
+    return undefined;
+  }
+  const thirdPersonVerb = verb === "begin" ? "begins" : `${verb}s`;
+  return `The ${subject} ${thirdPersonVerb} on ${value}.`;
 }
 
 function buildPhase63BeamCalendarIntervalAnswerFromGuide(input: {
@@ -2214,8 +2302,6 @@ function escapeRegExp(value: string): string {
 }
 
 function extractVersionedDependencyMentions(context: string): string[] {
-  const mentions: string[] = [];
-  const seen = new Set<string>();
   const candidates: Array<{ index: number; name: string; version: string }> = [];
   const addCandidate = (
     match: RegExpMatchArray,
@@ -2231,33 +2317,41 @@ function extractVersionedDependencyMentions(context: string): string[] {
       version,
     });
   };
-  const addMention = (name: string, version: string) => {
-    const normalized = `${name.trim()} ${version.trim().replace(/^v/iu, "")}`;
-    const key = normalized.toLowerCase();
-    if (seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-    mentions.push(normalized);
-  };
-
   const adjacentPattern =
-    /\b([A-Z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*|SQLite)\s+v?([0-9]+(?:\.[0-9]+)+)\b/gu;
+    /\b([A-Z][A-Za-z0-9.+]*(?:[-_][A-Za-z0-9.+]+)*|SQLite)\s+v?([0-9]+(?:\.[0-9]+)+)\b/gu;
   for (const match of context.matchAll(adjacentPattern)) {
     addCandidate(match, match[1], match[2]);
   }
 
   const whichIsPattern =
-    /\b([A-Z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*|SQLite),?\s+which\s+is\s+v?([0-9]+(?:\.[0-9]+)+)\b/giu;
+    /\b([A-Z][A-Za-z0-9.+]*(?:[-_][A-Za-z0-9.+]+)*|SQLite),?\s+which\s+is\s+v?([0-9]+(?:\.[0-9]+)+)\b/giu;
   for (const match of context.matchAll(whichIsPattern)) {
     addCandidate(match, match[1], match[2]);
   }
 
-  for (const candidate of candidates.sort((left, right) => left.index - right.index)) {
-    addMention(candidate.name, candidate.version);
+  const genericNames = new Set(["is", "release", "schema", "version"]);
+  const latestByName = new Map<
+    string,
+    { index: number; name: string; version: string }
+  >();
+  for (const candidate of candidates.sort(
+    (left, right) => left.index - right.index,
+  )) {
+    const name = candidate.name.trim();
+    const key = name.toLowerCase();
+    if (genericNames.has(key)) {
+      continue;
+    }
+    latestByName.set(key, {
+      ...candidate,
+      name,
+      version: candidate.version.trim().replace(/^v/iu, ""),
+    });
   }
 
-  return mentions;
+  return [...latestByName.values()]
+    .sort((left, right) => left.index - right.index)
+    .map((candidate) => `${candidate.name} ${candidate.version}`);
 }
 
 function formatNaturalList(values: readonly string[]): string {
@@ -2479,6 +2573,7 @@ function buildPhase63BeamLiveSliceSelection(
     | "caseIds"
     | "caseSelection"
     | "limit"
+    | "packetEvidence"
     | "recallReportPath"
   >,
 ): Phase63BeamLiveSliceReport["selection"] {
@@ -2493,11 +2588,13 @@ function buildPhase63BeamLiveSliceSelection(
     caseIds: options.caseIds === undefined ? null : [...options.caseIds],
     caseSelection: options.caseSelection ?? null,
     limit: options.limit ?? null,
+    packetEvidence: options.packetEvidence ?? false,
     recallReportPath: options.recallReportPath ?? null,
   };
 }
 
 function buildExecutionFailure(input: {
+  answerContextChatIds?: readonly number[];
   conversationId: string;
   error: unknown;
   memoryContext?: string;
@@ -2514,6 +2611,9 @@ function buildExecutionFailure(input: {
         ).length / input.testCase.evidenceChatIds.length;
 
   return {
+    ...(input.answerContextChatIds
+      ? { answerContextChatIds: [...input.answerContextChatIds] }
+      : {}),
     answerScore: {
       correct: false,
       method: "mismatch",
@@ -2542,6 +2642,7 @@ async function scoreLiveCase(input: {
   answerJudge: Phase63BeamLiveAnswerJudge;
   evidencePack: boolean;
   memory: GoodMemory;
+  packetEvidence: boolean;
   profile: BeamProfile;
   runId: string;
   testCase: BeamLiveSliceCase;
@@ -2567,10 +2668,17 @@ async function scoreLiveCase(input: {
   }
 
   const retrievedChatIds = collectPhase63BeamRetrievedChatIds(recall);
+  const packetChatIds = input.packetEvidence
+    ? collectPhase63BeamPacketChatIds(recall.packet)
+    : [];
+  const answerContextChatIds =
+    input.packetEvidence && packetChatIds.length > 0
+      ? packetChatIds
+      : retrievedChatIds;
   const memoryContext = buildPhase63BeamAnswerMemoryContext({
     evidencePack: input.evidencePack,
     memoryContext: collectMemoryContext(recall),
-    retrievedChatIds,
+    retrievedChatIds: answerContextChatIds,
     testCase: input.testCase,
   });
   let hypothesis: string;
@@ -2579,7 +2687,7 @@ async function scoreLiveCase(input: {
       memoryContext,
       profile: input.profile,
       prompt: input.testCase.question,
-      retrievedChatIds,
+      retrievedChatIds: answerContextChatIds,
       testCase: input.testCase,
     });
     hypothesis = applyPhase63BeamAnswerOperationGuardrails({
@@ -2591,6 +2699,7 @@ async function scoreLiveCase(input: {
     return buildExecutionFailure({
       conversationId: input.testCase.conversationId,
       error,
+      answerContextChatIds,
       memoryContext,
       retrievedChatIds,
       stage: "answer_generation",
@@ -2628,6 +2737,9 @@ async function scoreLiveCase(input: {
         ).length / input.testCase.evidenceChatIds.length;
 
   return {
+    ...(input.packetEvidence
+      ? { answerContextChatIds: [...answerContextChatIds] }
+      : {}),
     answerScore,
     answerable: input.testCase.answerable,
     conversationId: input.testCase.conversationId,
@@ -2856,6 +2968,7 @@ export async function runPhase63BeamLiveSlice(
         answerJudge,
         evidencePack: options.evidencePack ?? false,
         memory,
+        packetEvidence: options.packetEvidence ?? false,
         profile,
         runId,
         testCase,

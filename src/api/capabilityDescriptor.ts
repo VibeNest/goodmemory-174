@@ -51,13 +51,15 @@ export interface GoodMemoryCapabilityOnboardingPath {
   readonly docs: string;
 }
 
-export interface GoodMemoryCapabilityBenchmark {
+export interface GoodMemoryCapabilityBenchmarkClaim {
   readonly name: string;
   readonly config: string;
   readonly metric: string;
   readonly result: string;
   readonly reference: string;
   readonly claimDeclaration: string;
+  readonly runtimeProfile: string;
+  readonly measuredPackageVersion: string;
 }
 
 export interface GoodMemoryCapabilityDescriptor {
@@ -103,7 +105,13 @@ export interface GoodMemoryCapabilityDescriptor {
     readonly pythonClient: string;
     readonly docs: string;
   };
-  readonly benchmarks: readonly GoodMemoryCapabilityBenchmark[];
+  readonly benchmarks: {
+    readonly currentClaims: readonly GoodMemoryCapabilityBenchmarkClaim[];
+    readonly historicalEvidence: {
+      readonly url: string;
+      readonly note: string;
+    };
+  };
   readonly capabilities: {
     readonly localFirst: boolean;
     readonly embeddingFreeDefault: boolean;
@@ -133,7 +141,7 @@ export function buildGoodMemoryCapabilityDescriptor(
   const version = options.version ?? readPackageVersion();
 
   return {
-    schemaVersion: "goodmemory.capability/v1",
+    schemaVersion: "goodmemory.capability/v2",
     name: "goodmemory",
     version,
     kind: "memory-layer",
@@ -227,48 +235,14 @@ export function buildGoodMemoryCapabilityDescriptor(
       pythonClient: "goodmemory-client (PyPI)",
       docs: `${REPO}#pythonfastapi-http-bridge`,
     },
-    benchmarks: [
-      {
-        name: "LongMemEval",
-        config: "full 500",
-        metric: "strict judge-free / official judge protocol",
-        result: "strict 0.720, official-protocol 0.888",
-        reference: "Zep 90.2 (published same-protocol)",
-        claimDeclaration: "benchmark-claims/longmemeval.json",
+    benchmarks: {
+      currentClaims: [],
+      historicalEvidence: {
+        url: `${REPO}/tree/main/benchmark-claims`,
+        note:
+          "Versioned declarations remain reproducible historical evidence, not current-production claims for this package version.",
       },
-      {
-        name: "MemoryAgentBench",
-        config: "CR + TTL (scoped)",
-        metric: "deterministic answer accuracy, judge-free",
-        result: "CR 0.959, TTL 0.767",
-        reference: "no-memory ablation 0.000",
-        claimDeclaration: "benchmark-claims/memoryagentbench.json",
-      },
-      {
-        name: "LoCoMo",
-        config: "full 10 conversations",
-        metric: "strict token-F1 / industry LLM-judge protocol",
-        result: "strict 0.6117, judge-protocol 0.837",
-        reference: "Memori 82.0, Zep 79.1, LangMem 78.1, Mem0 62.5",
-        claimDeclaration: "benchmark-claims/locomo.json",
-      },
-      {
-        name: "BEAM",
-        config: "100K, 400 questions, 1051 rubric items",
-        metric: "official BEAM rubric judge / strict internal binary",
-        result: "official 0.802, strict binary 0.7225",
-        reference: "only public same-protocol reference 0.49",
-        claimDeclaration: "benchmark-claims/beam.json",
-      },
-      {
-        name: "ImplicitMemBench",
-        config: "Full-300",
-        metric: "stored-answer cross-version judge rescore",
-        result: "0.691",
-        reference: "upstream-chat baseline 0.400; reference line 0.66",
-        claimDeclaration: "benchmark-claims/implicitmembench.json",
-      },
-    ],
+    },
     capabilities: {
       localFirst: true,
       embeddingFreeDefault: true,
@@ -283,7 +257,7 @@ export function buildGoodMemoryCapabilityDescriptor(
     canonicalSources: {
       prose: `${REPO}#readme`,
       benchmarks: `${REPO}/tree/main/benchmark-claims`,
-      note: "This descriptor is generated from the GoodMemory package; benchmark numbers are pinned to the gate-verified benchmark-claims/*.json declarations.",
+      note: "This runtime descriptor exposes only claims accepted for the installed package version. Versioned historical results remain in benchmark-claims/*.json.",
     },
   };
 }

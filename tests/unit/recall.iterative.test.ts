@@ -85,6 +85,35 @@ describe("iterative (two-pass) recall", () => {
     expect(ids).not.toContain("d-distractor");
   });
 
+  it("preserves direct evidence when a later hop returns only bridge evidence", async () => {
+    const direct = fact("direct", "The launch owner is Nadia Park.");
+    const bridged = fact("bridged", "Nadia Park approved the rollout.");
+    let calls = 0;
+
+    const outcome = await iterativeRecall({
+      query: "Who owns the launch?",
+      recall: async () => {
+        calls += 1;
+        return {
+          facts: calls === 1 ? [direct] : [bridged],
+        } as unknown as RecallResult;
+      },
+      merge: (primary, supplementary) => ({
+        ...primary,
+        facts: [
+          ...primary.facts,
+          ...supplementary.flatMap((result) => result.facts),
+        ],
+      }),
+    });
+
+    expect(outcome.hops).toBe(2);
+    expect(outcome.result.facts.map((entry) => entry.id)).toEqual([
+      "direct",
+      "bridged",
+    ]);
+  });
+
   it("stays single-hop when the first pass yields no bridge entity", async () => {
     const onlyStopwords = fact("s", "the it is a to of");
     const outcome = await iterativeRecall({

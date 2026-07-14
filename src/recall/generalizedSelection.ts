@@ -213,7 +213,7 @@ export function selectGeneralizedFactsForInternalUse(
     return finish();
   }
 
-  selectionPool = collapseCurrentValueCandidates({
+  selectionPool = collapseMutableCurrentValueCandidates({
     candidates: compatible,
     language,
     locale: queryLocale,
@@ -297,31 +297,36 @@ function isReferencePreActionQuery(query: string): boolean {
   );
 }
 
-function collapseCurrentValueCandidates(input: {
+function collapseMutableCurrentValueCandidates(input: {
   candidates: ReturnType<typeof buildFactCandidates>;
   language: LanguageService;
   locale: string;
   query: string;
 }): ReturnType<typeof buildFactCandidates> {
-  if (
-    !input.language.isDirectFactualLookupQuery(input.query, input.locale) &&
-    !input.language.isAggregateCountQuery(input.query, input.locale)
-  ) {
+  const directFactualLookup = input.language.isDirectFactualLookupQuery(
+    input.query,
+    input.locale,
+  );
+  const aggregateCountQuery = input.language.isAggregateCountQuery(
+    input.query,
+    input.locale,
+  );
+  if (!directFactualLookup && !aggregateCountQuery) {
     return input.candidates;
   }
 
-  const latestBySubject = new Map<string, (typeof input.candidates)[number]>();
+  const latestBySlot = new Map<string, (typeof input.candidates)[number]>();
   for (const candidate of input.candidates) {
     if (hasConversationEvidenceTag(candidate)) {
       continue;
     }
-    const subject = normalizedKnownSubject(candidate.subject);
-    if (subject === undefined) {
+    const slot = mutableCurrentValueSlot(candidate);
+    if (slot === undefined) {
       continue;
     }
-    const current = latestBySubject.get(subject);
+    const current = latestBySlot.get(slot);
     if (!current || factTimestamp(candidate) > factTimestamp(current)) {
-      latestBySubject.set(subject, candidate);
+      latestBySlot.set(slot, candidate);
     }
   }
 
@@ -329,10 +334,35 @@ function collapseCurrentValueCandidates(input: {
     if (hasConversationEvidenceTag(candidate)) {
       return true;
     }
-    const subject = normalizedKnownSubject(candidate.subject);
-    return subject === undefined ||
-      latestBySubject.get(subject)?.fact.id === candidate.fact.id;
+    const slot = mutableCurrentValueSlot(candidate);
+    return slot === undefined ||
+      latestBySlot.get(slot)?.fact.id === candidate.fact.id;
   });
+}
+
+function mutableCurrentValueSlot(
+  candidate: ReturnType<typeof buildFactCandidates>[number],
+): string | undefined {
+  const subject = normalizedKnownSubject(candidate.subject);
+  if (subject === undefined) {
+    return undefined;
+  }
+  const { factKind } = candidate;
+  if (
+    factKind === "role_update" ||
+    factKind === "focus_update" ||
+    factKind === "project_state"
+  ) {
+    return `${factKind}\u0000${subject}`;
+  }
+  const claimKey = candidate.fact.attributes?.claimKey;
+  if (typeof claimKey !== "string") {
+    return undefined;
+  }
+  const normalizedClaimKey = claimKey.trim().toLocaleLowerCase();
+  return normalizedClaimKey.length > 0
+    ? `claim\u0000${subject}\u0000${normalizedClaimKey}`
+    : undefined;
 }
 
 function normalizedKnownSubject(subject: string): string | undefined {

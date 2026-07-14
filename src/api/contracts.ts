@@ -197,6 +197,9 @@ export interface RecallInput {
   // When a reranker adapter is configured, reranking is applied unless this is
   // set to false; ignored when no reranker is configured.
   rerank?: boolean;
+  // Opt in to source excerpts linked to selected memories. General recall keeps
+  // evidence closed by default so provenance does not consume answer context.
+  includeEvidence?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
 }

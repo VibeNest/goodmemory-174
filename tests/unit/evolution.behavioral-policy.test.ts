@@ -11,6 +11,7 @@ import {
   buildStructuredTextResponseControlLines,
   deriveRuleBehavioralPolicy,
   isSteeringOnlyBehavioralPolicy,
+  recoverCanonicalActionFromTemplate,
   recoverStructuredFirstActionAnswer,
   readBehavioralPolicyFromFeedbackMemory,
   resolveTextResponseEnactmentPlan,
@@ -299,6 +300,35 @@ describe("behavioral policy", () => {
         }),
       }),
     );
+  });
+
+  it("does not duplicate a required suffix that already spans lines", () => {
+    const plan = {
+      concise: false,
+      operations: [
+        {
+          exactFragments: {
+            suffixes: ["Sincerely, TechNova Management."],
+          },
+          kind: "rewrite_output_slot",
+        },
+      ],
+    } satisfies TextResponseEnactmentPlan;
+    const answer = [
+      "Dear Team,",
+      "",
+      "The updated policy takes effect today.",
+      "",
+      "Sincerely,",
+      "TechNova Management.",
+    ].join("\n");
+
+    expect(
+      applyTextResponseEnactmentPlan({
+        answer,
+        plan,
+      }),
+    ).toBe(answer);
   });
 
   it("derives exact greeting, header, and sign-off fragments without confusing headers for the opener", () => {
@@ -1559,6 +1589,38 @@ describe("behavioral policy", () => {
         query,
       }),
     ).toBe("logs@ |home|user|scheduler|");
+  });
+
+  it("rebinds concrete piped filter templates from the current query", () => {
+    const template = "FETCH users | FILTER age > 30";
+    const cases = [
+      {
+        expected: "FETCH users | FILTER job = 'programmer'",
+        query: "List users whose job is a programmer with one piped command.",
+      },
+      {
+        expected: "FETCH users | FILTER last_login < '2023-09-01'",
+        query:
+          "List users whose last_login is earlier than 2023-09-01 with one command.",
+      },
+      {
+        expected: "FETCH users | FILTER age < 25",
+        query: "List users younger than 25 (age < 25).",
+      },
+      {
+        expected: "FETCH users | FILTER registration_date > '2023-01-01'",
+        query: "List users with registration_date after 2023-01-01.",
+      },
+    ];
+
+    for (const testCase of cases) {
+      expect(
+        recoverCanonicalActionFromTemplate({
+          query: testCase.query,
+          template,
+        }),
+      ).toBe(testCase.expected);
+    }
   });
 
   it("normalizes natural-language structured first-action wrappers", () => {

@@ -2,7 +2,7 @@
   "benchmark": "ImplicitMemBench",
   "comparison": {
     "asOf": "2026-07-09",
-    "availability": "public-opt-in",
+    "availability": "historical",
     "notes": [
       "The score is a stored-answer cross-version rescore; the answer model and judge remain in the same GPT family.",
       "The comparison baseline and scorer contract are pinned in the claim evidence rather than inferred from unrelated memory benchmarks."
@@ -10,7 +10,7 @@
     "runtimeProfile": "full-300-stored-answer@0.5.0",
     "source": "https://github.com/qinchonghanzuibang/ImplicitMemBench"
   },
-  "status": "candidate_public_claim",
+  "status": "internal_evidence",
   "dataset": {
     "source": "https://github.com/qinchonghanzuibang/ImplicitMemBench/tree/927413bf3f5389bb47c94c2a0ba987e435b101b8/dataset",
     "license": "CC BY 4.0",
@@ -261,10 +261,10 @@
   },
   "coverage": {
     "complete": true,
-    "note": "Full-300; source answers from the zero-failure run-phase61-full300-rerun-20260706-codex-current artifact are unchanged. The public score is the gpt-5.4 stored-answer rescore: GoodMemory 207.35/300 = 0.6911666667, baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, reference line 0.66. The rescore made 530 judge-required row decisions total: 265 baseline rows plus 265 GoodMemory composite rows; the 35 structured_first_action rows per scored arm are deterministic and carried forward. The older same-model diagnostic score 212.45/300 = 0.7081666667 is not the public score. The freshest clean answer-regeneration drift check, run-phase61-full300-rerun-20260706-after-hardening-current, scored 206.85/300 = 0.6895 with executionFailures 0, showing current checkout drift but not replacing this stored-answer comparability artifact."
+    "note": "Full-300; source answers from the zero-failure run-phase61-full300-rerun-20260706-codex-current artifact are unchanged. The versioned historical score is the gpt-5.4 stored-answer rescore: GoodMemory 207.35/300 = 0.6911666667, baseline 120/300 = 0.4, blocking 153/200 = 0.765, priming 54.35/100 = 0.5435, reference line 0.66. The rescore made 530 judge-required row decisions total: 265 baseline rows plus 265 GoodMemory composite rows; the 35 structured_first_action rows per scored arm are deterministic and carried forward. The older same-model diagnostic score 212.45/300 = 0.7081666667 is not the recorded cross-version score. The freshest clean answer-regeneration drift check, run-phase61-full300-rerun-20260706-after-hardening-current, scored 206.85/300 = 0.6895 with executionFailures 0, showing current checkout drift but not replacing this stored-answer comparability artifact."
   },
   "claimBoundary": {
-    "publicClaimAllowed": true,
-    "reason": "The previous blocker was same-model LLM judging. The current claim uses a stored-answer rescore with gpt-5.4 judging unchanged gpt-5.5 answers, so the declaration is not same-model under the public-claim gate and preserves reproducibility through run-identity fingerprints plus sourceAnswersUnchanged: true. Required disclosures: judge is cross-version but the same GPT family as the answer model, not a cross-family judge; the older 0.708 same-model score is diagnostic only; the freshest clean answer-regeneration drift check is 0.6895; the dataset is CC BY 4.0 and fetched from upstream rather than vendored."
+    "publicClaimAllowed": false,
+    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. The previous blocker was same-model LLM judging. The current claim uses a stored-answer rescore with gpt-5.4 judging unchanged gpt-5.5 answers, so the declaration is not same-model under the public-claim gate and preserves reproducibility through run-identity fingerprints plus sourceAnswersUnchanged: true. Required disclosures: judge is cross-version but the same GPT family as the answer model, not a cross-family judge; the older 0.708 same-model score is diagnostic only; the freshest clean answer-regeneration drift check is 0.6895; the dataset is CC BY 4.0 and fetched from upstream rather than vendored."
   }
 }

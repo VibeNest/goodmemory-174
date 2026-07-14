@@ -23,3 +23,43 @@ Gate
   beats the simple-vector baseline and MemGym coding beats no-memory by 5
   points; typecheck, tests, coverage, Node package smoke, Playwright, and pack
   gates pass with unpacked size at or below 4 MB.
+
+Progress
+--------
+
+[DONE] HaluMem frozen generated slice beats the local vector baseline on
+extraction, update, and QA with zero failures.
+[DONE] MemGym generated coding slice scores 1.0 versus 0.125 no-memory.
+[DONE] MINTEval remains smoke-only and is not a public score.
+[DONE] MemoryAgentBench refresh holds CR at 0.9589041096 and raises TTL to
+0.9333333333 with zero failures.
+[DONE] BEAM generalized full-400 recall reaches 0.8273942646; the independent
+official answer result is only a 20-question slice and is not a full claim.
+[DONE] ImplicitMemBench retry-merged evidence reaches 0.6923666667 with zero
+failures, but is not a monolithic fresh Full-300 run.
+[DONE] LongMemEval current `goodmemory-recommended` full-500 answer generation
+completed with zero execution failures. Independent `gpt-5.4` official-protocol
+rescore is 340/500 = 0.680 and the judge-free deterministic lower bound is
+269/500 = 0.538. Bounded monotonic tail evidence raised assistant accuracy from
+39/56 to 46/56 while every other category held within the 1pt protection gate,
+but both headline tracks remain below the required 0.92 / 0.72 gates.
+[OPEN] LoCoMo production `goodmemory-recommended` full-1540 scores
+0.5896103896 strict / 0.8344155844 official. The repo-eval-only semantic-union
+diagnostic scores 0.6019480519 / 0.8493506494. Neither clears 0.61 / 0.87.
+[DONE] External adapter PR #17 was refreshed at `6e3b204` with generic
+timestamp preservation, tests, runner compile checks, and a real GoodMemory
+bridge smoke. It remains open pending maintainer review.
+[DONE] The non-score release matrix passes: build, typecheck, 3414 tests / 17901
+assertions, coverage, focused release tests, Node 20/22/24 package-boundary
+smoke, strict public-claim gate, and real pack. The tarball excludes `src/` and
+unpacks to 3,849,991 bytes (3.672 MiB).
+[OPEN] LongMemEval now has a current full-500 replacement but fails both score
+gates; LoCoMo still misses its strict/official score gates. These are the
+remaining release blockers.
+
+Release Decision
+----------------
+
+Do not bump the package version, create a tag, or publish `v0.6.0` while the
+current full-answer score gates remain open. Historical declarations stay
+versioned evidence; `benchmarks.currentClaims` remains empty.

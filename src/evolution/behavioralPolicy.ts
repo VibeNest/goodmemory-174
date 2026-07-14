@@ -3195,6 +3195,9 @@ function extractFilterField(query: string | undefined): string | undefined {
     query.match(
       /\b(?:whose|with|where|filter(?:ed)?\s+by|based\s+on)\s+([A-Za-z_][A-Za-z0-9_.-]*)\s+(?:is\s+)?(?:after|before|earlier|older|younger|more|less|above|below|over|under|greater|equal|equals|=|>|<)\b/iu,
     )?.[1] ??
+    query.match(
+      /\b(?:whose|with|where)\s+([A-Za-z_][A-Za-z0-9_.-]*)\s+is\s+(?:an?\s+|the\s+)?[A-Za-z_][A-Za-z0-9_.-]*\b/iu,
+    )?.[1] ??
     (/\b(?:older|younger)\s+than\b/iu.test(query) ? "age" : undefined) ??
     query.match(
       /\b([A-Za-z_][A-Za-z0-9_.-]*)\s+(?:is\s+)?(?:after|before|earlier|older|younger|more|less|above|below|over|under|greater|equal|equals)\b/iu,
@@ -3268,6 +3271,28 @@ function extractComparisonValue(query: string | undefined): string | undefined {
   }
 
   return query.match(/\b-?\d+(?:\.\d+)?\b/u)?.[0];
+}
+
+function recoverPipedFilterAction(
+  raw: string,
+  query: string | undefined,
+): string | undefined {
+  if (!query) {
+    return undefined;
+  }
+  const match = raw.match(
+    /^(.+\|\s*FILTER\s+)[A-Za-z_][A-Za-z0-9_.-]*\s*(?:>=|<=|=|>|<)\s*.+$/iu,
+  );
+  if (!match?.[1]) {
+    return undefined;
+  }
+  const field = extractFilterField(query);
+  const operator = extractComparisonOperator(query);
+  const value = extractComparisonValue(query);
+  if (!field || !operator || !value) {
+    return undefined;
+  }
+  return `${match[1]}${field} ${operator} ${value}`;
 }
 
 function fillStructuredActionTemplate(
@@ -3886,8 +3911,13 @@ export function applyTextResponseEnactmentPlan(input: {
             answer = buildAnalogyFallbackAnswer(answer);
           }
         }
-        if (operation.exactFragments?.suffixes?.[0] && !answer.endsWith(operation.exactFragments.suffixes[0])) {
-          answer = `${answer} ${operation.exactFragments.suffixes[0]}`.trim();
+        if (operation.exactFragments?.suffixes?.[0]) {
+          const suffix = operation.exactFragments.suffixes[0];
+          const normalizedAnswer = normalizeText(answer).replace(/\s+/gu, " ");
+          const normalizedSuffix = normalizeText(suffix).replace(/\s+/gu, " ");
+          if (!normalizedAnswer.endsWith(normalizedSuffix)) {
+            answer = `${answer} ${suffix}`.trim();
+          }
         }
         break;
       case "block_surface":
@@ -4184,7 +4214,9 @@ function inferCanonicalFirstAction(
       query,
     );
     if (filledTemplate) {
-      const recovered = actionFromRawFirstLine(filledTemplate);
+      const recovered = actionFromRawFirstLine(
+        recoverPipedFilterAction(filledTemplate, query) ?? filledTemplate,
+      );
       if (
         query &&
         recovered?.kind === "tool_call" &&

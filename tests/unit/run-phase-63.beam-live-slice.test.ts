@@ -4,6 +4,7 @@ import {
   applyPhase63BeamAnswerOperationGuardrails,
   buildPhase63BeamAnswerMemoryContext,
   buildPhase63BeamPrompt,
+  collectPhase63BeamPacketChatIds,
   compressPhase63BeamMemoryContextText,
   extractPhase63BeamRequestedItemCount,
   loadPhase63BeamLiveSliceProgress,
@@ -156,10 +157,30 @@ describe("phase-63 BEAM live slice runner", () => {
       outputDir: undefined,
       profile: "goodmemory-rules-only",
       recallReportPath: "/tmp/recall.json",
+      packetEvidence: false,
       resume: false,
       runId: "run-beam-live",
       scale: undefined,
     });
+  });
+
+  it("extracts stable source ids from a reranked memory packet", () => {
+    expect(
+      collectPhase63BeamPacketChatIds({
+        factSummary:
+          "- [BEAM chat_id=28 role=user] first\n- [BEAM chat_id=7 role=user] second",
+        episodeSummary: "Conversation covered: chat_id:28 repeated",
+      }),
+    ).toEqual([28, 7]);
+
+    expect(
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--packet-evidence",
+      ]).packetEvidence,
+    ).toBe(true);
   });
 
   it("rejects malformed repeated live-slice selector flags before replay selection", () => {
@@ -249,6 +270,16 @@ describe("phase-63 BEAM live slice runner", () => {
         "--resume",
       ]),
     ).toThrow("--resume cannot be specified more than once.");
+
+    expect(() =>
+      parsePhase63BeamLiveSliceCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-63-beam-live-slice.ts",
+        "--packet-evidence",
+        "--packet-evidence",
+      ]),
+    ).toThrow("--packet-evidence cannot be specified more than once.");
   });
 
   it("rejects duplicate live-slice scalar source and output flags before report generation", () => {
@@ -582,6 +613,7 @@ describe("phase-63 BEAM live slice runner", () => {
       caseIds: null,
       caseSelection: null,
       limit: null,
+      packetEvidence: false,
       recallReportPath: null,
     });
     expect(report.summary.caseCountsByQuestionType).toEqual({
@@ -651,6 +683,7 @@ describe("phase-63 BEAM live slice runner", () => {
       caseIds: null,
       caseSelection: null,
       limit: null,
+      packetEvidence: false,
       recallReportPath: null,
     });
   });
@@ -986,6 +1019,26 @@ describe("phase-63 BEAM live slice runner", () => {
     );
   });
 
+  it("keeps dotted dependency names, removes generic versions, and uses the latest version", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "Use the usual project dependencies.",
+      memoryContext: [
+        "Instruction constraints:",
+        "Always include version numbers when I ask about libraries.",
+        "Concrete answer-content cues:",
+        "versioned names/values: Version 1.0, Python 3.11, Chart.js 4.3.0, Python 3.11.2, SQLAlchemy 2.0.19",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "Which libraries are used in this project?",
+        questionType: "instruction_following",
+      }),
+    });
+
+    expect(answer).toBe(
+      "The project uses Chart.js 4.3.0, Python 3.11.2, and SQLAlchemy 2.0.19.",
+    );
+  });
+
   it("repairs no-answer instruction outputs from response requirement cues", () => {
     const answer = applyPhase63BeamAnswerOperationGuardrails({
       hypothesis: "No answer.",
@@ -1237,6 +1290,39 @@ describe("phase-63 BEAM live slice runner", () => {
     });
 
     expect(answer).toBe("No answer.");
+  });
+
+  it("repairs a conflicting end date from one subject-matched context date", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The release cycle ends on April 14.",
+      memoryContext: [
+        "Source-backed detail cues:",
+        "- [#12 | user] The release cycle ends on April 12 after the final verification window.",
+        "- [#20 | user] The design review happens on April 10.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "When does my release cycle end?",
+        questionType: "context_date/time",
+      }),
+    });
+
+    expect(answer).toBe("The release cycle ends on April 12.");
+  });
+
+  it("keeps a date answer when subject-matched context dates conflict", () => {
+    const answer = applyPhase63BeamAnswerOperationGuardrails({
+      hypothesis: "The release cycle may end on April 14.",
+      memoryContext: [
+        "The release cycle ends on April 12 in the original plan.",
+        "The release cycle ends on April 15 in the revised plan.",
+      ].join("\n"),
+      testCase: buildGuardrailCase({
+        question: "When does my release cycle end?",
+        questionType: "context_date/time",
+      }),
+    });
+
+    expect(answer).toBe("The release cycle may end on April 14.");
   });
 
   it("repairs no-answer summarization outputs from source-backed checklist cues", () => {

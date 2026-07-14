@@ -42,7 +42,7 @@ export type { AnswerOperation, EvidenceTurn } from "./evidenceShared";
 const COUNT_QUESTION_PATTERN =
   /\b(how many|how much|how often|number of|total|in total|combined|altogether|count|sum|times)\b/iu;
 const CONFLICT_UPDATE_QUESTION_PATTERN =
-  /\b(current|currently|latest|new(?:est)?|now|updated?|changed?|switched?|replaced?|most recent|final|still|conflict|contradict|resolve)\b/iu;
+  /\b(current|currently|latest|newest|now|updated?|changed?|switched?|replaced?|most recent|final|still|conflict|contradict|resolve)\b/iu;
 const ORDER_QUESTION_PATTERN =
   /\b(order|sequence|sequential|chronolog|timeline|before|after|first|then|next|earlier|later|prior to|followed by|preced)\b/iu;
 
@@ -440,7 +440,9 @@ export function buildAnswerEvidencePack(input: {
       }),
     );
     const concreteAnswerCues = formatInstructionConcreteAnswerCues({
+      allTurns: ordered,
       constraintTurns: instructionConstraints,
+      question: input.question,
       supportTurns: instructionSupport,
     });
     if (concreteAnswerCues) {

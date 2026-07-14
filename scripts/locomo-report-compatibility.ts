@@ -168,14 +168,22 @@ const LOCOMO_SMOKE_RUNNER_REPORT_WRITER =
   "scripts/run-phase-65-locomo-smoke.ts";
 const LOCOMO_REANSWER_REPORT_WRITER =
   "scripts/reanswer-phase-65-locomo-report.ts";
+const LOCOMO_UNION_LIVE_REPORT_WRITER =
+  "scripts/measure-locomo-union-live.ts";
 
-const LOCOMO_SMOKE_REPORT_WRITERS = [
+const LOCOMO_REPORT_WRITERS = [
   LOCOMO_SMOKE_RUNNER_REPORT_WRITER,
   LOCOMO_REANSWER_REPORT_WRITER,
+  LOCOMO_UNION_LIVE_REPORT_WRITER,
 ] as const;
+const LOCOMO_NO_MEMORY_PROFILES_COMPARED = ["no-memory"] as const;
 
 const LOCOMO_DIA_ID_PATTERN = /^D\d+:\d+$/u;
 const LOCOMO_EXPECTED_PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
+const LOCOMO_RECOMMENDED_PROFILES_COMPARED = ["goodmemory-recommended"] as const;
+const LOCOMO_SEMANTIC_UNION_PROFILES_COMPARED = [
+  "goodmemory-semantic-union",
+] as const;
 const LOCOMO_REPAIR_JOB_DIAGNOSES = [
   "balanced-partial-overlap",
   "numeric-or-frequency-format",
@@ -509,8 +517,8 @@ function assertLocomoReportWriterField(input: {
     return;
   }
   if (
-    !LOCOMO_SMOKE_REPORT_WRITERS.includes(
-      input.value as (typeof LOCOMO_SMOKE_REPORT_WRITERS)[number],
+    !LOCOMO_REPORT_WRITERS.includes(
+      input.value as (typeof LOCOMO_REPORT_WRITERS)[number],
     )
   ) {
     throw new Error(
@@ -1092,16 +1100,23 @@ function assertAnswerContextModeLineageCompatible(input: {
   runId: string;
   sourceReport: unknown;
 }): void {
-  if (input.generatedBy === LOCOMO_SMOKE_RUNNER_REPORT_WRITER) {
+  if (
+    input.generatedBy === LOCOMO_SMOKE_RUNNER_REPORT_WRITER ||
+    input.generatedBy === LOCOMO_UNION_LIVE_REPORT_WRITER
+  ) {
+    const writerLabel =
+      input.generatedBy === LOCOMO_SMOKE_RUNNER_REPORT_WRITER
+        ? "smoke report writer"
+        : "union-live report writer";
     if (input.sourceReport !== undefined) {
       throw new Error(
-        `Report ${input.path} (${input.runId}) smoke report writer ` +
+        `Report ${input.path} (${input.runId}) ${writerLabel} ` +
           "must not carry sourceReport lineage.",
       );
     }
     if (input.reanswerSelection !== undefined) {
       throw new Error(
-        `Report ${input.path} (${input.runId}) smoke report writer ` +
+        `Report ${input.path} (${input.runId}) ${writerLabel} ` +
           "must not carry reanswerSelection lineage.",
       );
     }
@@ -2244,11 +2259,23 @@ export function assertLocomoReportQuestionCountMatchesCases(
     runId,
     value: rawReport.profilesCompared,
   });
-  if (!sameJson(rawReport.profilesCompared, LOCOMO_EXPECTED_PROFILES_COMPARED)) {
+  if (
+    !sameJson(rawReport.profilesCompared, LOCOMO_EXPECTED_PROFILES_COMPARED) &&
+    !sameJson(rawReport.profilesCompared, LOCOMO_RECOMMENDED_PROFILES_COMPARED) &&
+    !sameJson(
+      rawReport.profilesCompared,
+      LOCOMO_SEMANTIC_UNION_PROFILES_COMPARED,
+    ) &&
+    !sameJson(rawReport.profilesCompared, LOCOMO_NO_MEMORY_PROFILES_COMPARED)
+  ) {
     throw new Error(
       `Report ${input.path} (${runId}) profilesCompared ` +
         `${JSON.stringify(rawReport.profilesCompared)} does not match ` +
-        `expected ${JSON.stringify(LOCOMO_EXPECTED_PROFILES_COMPARED)}.`,
+        `expected ${JSON.stringify(LOCOMO_EXPECTED_PROFILES_COMPARED)}. ` +
+        "Allowed alternatives: " +
+        `${JSON.stringify(LOCOMO_RECOMMENDED_PROFILES_COMPARED)} or ` +
+        `${JSON.stringify(LOCOMO_SEMANTIC_UNION_PROFILES_COMPARED)} or ` +
+        `${JSON.stringify(LOCOMO_NO_MEMORY_PROFILES_COMPARED)}.`,
     );
   }
   assertSemanticCandidateEmbeddingSourceField({

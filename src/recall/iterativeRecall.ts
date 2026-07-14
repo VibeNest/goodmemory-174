@@ -6,9 +6,9 @@
 // person's sport. This composes recall with itself: hop 1 retrieves the facts the
 // query matches directly, salient bridge entities (names, values) are extracted
 // from those facts, and the query is expanded with them so a second recall also
-// matches the chained fact. It returns the second pass's result (a complete
-// RecallResult with a valid packet), or the first pass unchanged when no bridge
-// entity is found.
+// matches the chained fact. A caller-provided merger can preserve direct
+// evidence from every hop; without one, the historical latest-hop behavior is
+// retained.
 //
 // It is opt-in and provider-free: the caller supplies a `recall` closure (already
 // bound to scope/strategy), so this never changes default single-pass behavior
@@ -134,6 +134,7 @@ export async function iterativeRecall<
 >(input: {
   query: string;
   recall: (query: string) => Promise<TResult>;
+  merge?: (primary: TResult, supplementary: TResult[]) => TResult;
   options?: IterativeRecallOptions;
 }): Promise<IterativeRecallOutcome<TResult>> {
   const maxHops = Math.min(
@@ -143,6 +144,8 @@ export async function iterativeRecall<
   const expandQuery = input.options?.expandQuery;
 
   let result = await input.recall(input.query);
+  const primaryResult = result;
+  const supplementaryResults: TResult[] = [];
   let activeQuery = input.query;
   let hops = 1;
   const bridgeEntities: string[] = [];
@@ -180,6 +183,7 @@ export async function iterativeRecall<
       break;
     }
     result = await input.recall(nextQuery);
+    supplementaryResults.push(result);
     activeQuery = nextQuery;
     hops += 1;
     // Stop early once a hop surfaces nothing new, so extra hops are not wasted.
@@ -196,6 +200,8 @@ export async function iterativeRecall<
     bridgeEntities,
     expandedQuery: activeQuery,
     hops,
-    result,
+    result: input.merge && supplementaryResults.length > 0
+      ? input.merge(primaryResult, supplementaryResults)
+      : result,
   };
 }

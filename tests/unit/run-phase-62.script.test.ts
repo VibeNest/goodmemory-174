@@ -450,14 +450,14 @@ describe("run-phase-62 LongMemEval script", () => {
   });
 
   it("instructs count answers to count only matching evidence", () => {
-    expect(
-      buildLongMemEvalPrompt({
-        memoryContext:
-          "I led the data analysis team.\nI am working on a research project.",
-        prompt: "How many projects have I led or am currently leading?",
-        transcript: "",
-      }),
-    ).toContain(
+    const prompt = buildLongMemEvalPrompt({
+      memoryContext:
+        "I led the data analysis team.\nI am working on a research project.",
+      prompt: "How many projects have I led or am currently leading?",
+      transcript: "",
+    });
+
+    expect(prompt).toContain(
       "For count questions, count distinct matching evidence items only.",
     );
   });
@@ -476,6 +476,9 @@ describe("run-phase-62 LongMemEval script", () => {
     );
     expect(prompt).toContain(
       "For total, sum, or page-count questions, add the visible matching numeric values",
+    );
+    expect(prompt).toContain(
+      "Deduplicate repeated descriptions of the same transaction or event",
     );
   });
 

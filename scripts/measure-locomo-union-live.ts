@@ -17,16 +17,17 @@
 //     --union-topk 16 --run-id run-p3-conv1-union16-live [--resume]
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createGoodMemory, type GoodMemory } from "../src";
+import type { GoodMemory } from "../src";
+import { createGoodMemory } from "../src";
+import type { LocomoCase, LocomoQaCategory } from "../src/eval/locomo";
+import { scoreLocomoAnswer } from "../src/eval/locomo";
 import {
   createProviderConversationalMemoryExtractor,
   createProviderEmbeddingAdapter,
 } from "../src/provider/layer";
-import { scoreLocomoAnswer } from "../src/eval/locomo";
 import {
   requestOpenAICompatibleText,
   stripThinkingBlocks,
-  withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
 import {
   hasCliFlagStrict,
@@ -36,11 +37,17 @@ import {
 } from "./cli-options";
 import { resolveLiveModelConfig } from "./run-eval";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
+import type {
+  LocomoAnswerGenerator,
+  LocomoQuestionRetrieval,
+  LocomoSmokeReport,
+} from "./run-phase-65-locomo-smoke";
 import {
   buildLocomoEvidencePackContext,
   buildLocomoPrompt,
   buildLocomoScope,
   collectLocomoRetrievedTurnIds,
+  deriveLocomoUpstreamMetricByCategory,
   loadLocomoCases,
   LOCOMO_EXTRACTION_CACHE_FILE_NAME,
   locomoQuestionKey,
@@ -52,8 +59,6 @@ import {
   seedLocomoCaseConversational,
   summarizeLocomoRetrieval,
   wrapMemoryExtractorWithJsonlCache,
-  type LocomoAnswerGenerator,
-  type LocomoQuestionRetrieval,
 } from "./run-phase-65-locomo-smoke";
 
 // Same instruction set as the harness generator, PLUS the exact abstention
@@ -67,10 +72,36 @@ import {
 // contains no per-question information.
 const UNION_LIVE_ANSWER_SYSTEM =
   "You answer questions about a long multi-session conversation using only the supplied dialog context. Combining facts across sessions is expected. Answer with the shortest phrase that is correct. For questions about WHEN something happened, give the absolute date (resolve relative references like \"last week\" or \"yesterday\" using the session dates shown in the context). If the dialog context does not contain the information needed to answer, reply exactly: No information available. Never guess. Output only the final answer with no explanation.";
+const UNION_LIVE_TEMPORAL_ANSWER_INSTRUCTION =
+  "For temporal questions, preserve the relative time relationship for a week- or weekend-level relationship and anchor it to the relevant session date; do not replace it with only a date range. Resolve month- or year-level relative references to the concise absolute month or year.";
+export const LOCOMO_UNION_LIVE_ANSWER_SYSTEM_ID =
+  "union-live-category-aware-temporal-bounded-v3";
+const LOCOMO_UNION_LIVE_REPORT_WRITER =
+  "scripts/measure-locomo-union-live.ts";
+const LOCOMO_UPSTREAM_LICENSE = "CC BY-NC 4.0";
+const LOCOMO_UPSTREAM_SOURCE = "https://github.com/snap-research/locomo";
 
-const LIVE_REQUEST_TIMEOUT_MS = 120000;
+export function buildLocomoUnionLiveAnswerSystem(
+  category: LocomoQaCategory,
+): string {
+  return category === "temporal"
+    ? `${UNION_LIVE_ANSWER_SYSTEM} ${UNION_LIVE_TEMPORAL_ANSWER_INSTRUCTION}`
+    : UNION_LIVE_ANSWER_SYSTEM;
+}
+
+const DEFAULT_UNION_LIVE_ANSWER_ATTEMPTS = 2;
+const DEFAULT_UNION_LIVE_ANSWER_TIMEOUT_MS = 60_000;
+const LIVE_EXTRACTION_REQUEST_TIMEOUT_MS = 120_000;
+
+export interface LocomoUnionConfig {
+  maxAdditions?: number;
+  minSimilarity?: number;
+  topK: number;
+}
 
 export interface LocomoUnionLiveCliOptions {
+  answerAttempts: number;
+  answerTimeoutMs: number;
   benchmarkRoot?: string;
   concurrency: number;
   limit?: number;
@@ -84,20 +115,167 @@ export interface LocomoUnionLiveCliOptions {
   withExtraction: boolean;
 }
 
-function createUnionLiveAnswerGenerator(): LocomoAnswerGenerator {
+export interface LocomoUnionLiveReport extends LocomoSmokeReport {
+  answerAccuracyOverall: number | null;
+  answerAttempts: number;
+  answerSystem: string;
+  answerTimeoutMs: number;
+  concurrency: number;
+  evidenceRecallOverall: number;
+  noMemory: boolean;
+  union: LocomoUnionConfig;
+  withExtraction: boolean;
+}
+
+export function buildLocomoUnionLiveReport(input: {
+  answerAttempts: number;
+  answerTimeoutMs: number;
+  benchmarkFingerprint: string;
+  benchmarkRoot?: string;
+  benchmarkSource: string;
+  cases: readonly LocomoCase[];
+  concurrency: number;
+  executionFailures: number;
+  generatedAt: string;
+  noMemory: boolean;
+  results: readonly LocomoQuestionRetrieval[];
+  resume: boolean;
+  runDirectory: string;
+  runId: string;
+  union: LocomoUnionConfig;
+  withExtraction: boolean;
+}): LocomoUnionLiveReport {
+  const categories = summarizeLocomoRetrieval(input.results);
+  const answered = input.results.filter(
+    (entry) => entry.answerCorrect !== null,
+  );
+  const semanticCandidates: LocomoSmokeReport["semanticCandidates"] =
+    input.noMemory
+      ? {
+          enabled: false,
+          maxAdditions: null,
+          minRelativeScore: null,
+          minSimilarity: null,
+          topK: null,
+        }
+      : {
+          enabled: true,
+          maxAdditions: input.union.maxAdditions ?? null,
+          minRelativeScore: null,
+          minSimilarity: input.union.minSimilarity ?? null,
+          topK: input.union.topK,
+        };
+
+  return {
+    allowCommonsenseResolution: false,
+    answerAccuracyOverall:
+      answered.length === 0
+        ? null
+        : answered.filter((entry) => entry.answerCorrect === true).length /
+          answered.length,
+    answerAttempts: input.answerAttempts,
+    answerContextMode: "evidence-pack",
+    answerEvaluation: "scored",
+    answerSystem: LOCOMO_UNION_LIVE_ANSWER_SYSTEM_ID,
+    answerTimeoutMs: input.answerTimeoutMs,
+    benchmark: "locomo",
+    benchmarkFingerprint: input.benchmarkFingerprint,
+    benchmarkSource: input.benchmarkSource,
+    bm25Ranking: false,
+    caseCount: input.cases.length,
+    caseIds: input.cases.map((testCase) => testCase.caseId),
+    cases: [...input.results],
+    categories,
+    concurrency: input.concurrency,
+    evidenceRecallOverall: overallLocomoEvidenceRecall(input.results),
+    executionFailures: input.executionFailures,
+    externalRoot: input.benchmarkRoot ?? null,
+    generatedAt: input.generatedAt,
+    generatedBy: LOCOMO_UNION_LIVE_REPORT_WRITER,
+    generalizedFusion: false,
+    generalizedFusionConfig: null,
+    ingestMode:
+      input.withExtraction && !input.noMemory
+        ? "conversational-extraction"
+        : "raw-turns",
+    labelFreeIngest: true,
+    license: LOCOMO_UPSTREAM_LICENSE,
+    mode: "live-answer",
+    noMemory: input.noMemory,
+    phase: "phase-65",
+    profilesCompared: [
+      input.noMemory ? "no-memory" : "goodmemory-semantic-union",
+    ],
+    questionCategories: null,
+    questionCount: input.results.length,
+    questionIds: null,
+    resume: input.resume,
+    retrievalConfig: {
+      bm25Ranking: false,
+      corefNormalize: false,
+      decompose: false,
+      generalizedFusion: false,
+      labelFreeIngest: true,
+      multiHop: false,
+      providerEmbedding: !input.noMemory,
+      rerank: false,
+      smartFusion: false,
+    },
+    runDirectory: input.runDirectory,
+    runId: input.runId,
+    semanticCandidateEmbeddingSource: input.noMemory ? "none" : "provider",
+    semanticCandidates,
+    strictNoEvidenceAbstention: true,
+    union: { ...input.union },
+    upstreamAnswerMetricByCategory: deriveLocomoUpstreamMetricByCategory(
+      input.cases,
+    ),
+    upstreamSource: LOCOMO_UPSTREAM_SOURCE,
+    withExtraction: input.withExtraction,
+  };
+}
+
+export function formatLocomoUnionSeedFailure(input: {
+  caseId: string;
+  error: unknown;
+  pendingQuestionCount: number;
+}): string {
+  return `[union-live] case seed failed (${input.caseId}, ${input.pendingQuestionCount} pending questions): ${String(input.error)}\n`;
+}
+
+export function formatLocomoUnionQuestionAttempt(input: {
+  attempt: number;
+  caseId: string;
+  maxAttempts: number;
+  questionId: string;
+}): string {
+  return `[union-live] answering ${input.caseId}/${input.questionId} (attempt ${input.attempt}/${input.maxAttempts})\n`;
+}
+
+export function formatLocomoUnionQuestionRetry(input: {
+  attempt: number;
+  caseId: string;
+  error: unknown;
+  maxAttempts: number;
+  questionId: string;
+}): string {
+  return `[union-live] retrying ${input.caseId}/${input.questionId} after attempt ${input.attempt}/${input.maxAttempts}: ${String(input.error).slice(0, 300)}\n`;
+}
+
+export function createUnionLiveAnswerGenerator(
+  answerTimeoutMs: number,
+): LocomoAnswerGenerator {
   const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
   return async (input) => {
-    const raw = await withAISDKRetries(() =>
-      requestOpenAICompatibleText({
-        model,
-        prompt: buildLocomoPrompt({
-          memoryContext: input.memoryContext,
-          question: input.question.question,
-        }),
-        system: UNION_LIVE_ANSWER_SYSTEM,
-        timeoutMs: LIVE_REQUEST_TIMEOUT_MS,
+    const raw = await requestOpenAICompatibleText({
+      model,
+      prompt: buildLocomoPrompt({
+        memoryContext: input.memoryContext,
+        question: input.question.question,
       }),
-    );
+      system: buildLocomoUnionLiveAnswerSystem(input.question.category),
+      timeoutMs: answerTimeoutMs,
+    });
     return stripThinkingBlocks(raw);
   };
 }
@@ -169,6 +347,12 @@ export function parseLocomoUnionLiveCliOptions(
 ): LocomoUnionLiveCliOptions {
   const topK = parsePositiveIntegerFlag(argv, "--union-topk") ?? 16;
   return {
+    answerAttempts:
+      parsePositiveIntegerFlag(argv, "--answer-attempts") ??
+      DEFAULT_UNION_LIVE_ANSWER_ATTEMPTS,
+    answerTimeoutMs:
+      parsePositiveIntegerFlag(argv, "--answer-timeout-ms") ??
+      DEFAULT_UNION_LIVE_ANSWER_TIMEOUT_MS,
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       resolveEnvValueStrict(process.env, "GOODMEMORY_LOCOMO_ROOT"),
@@ -225,6 +409,8 @@ async function main(): Promise<void> {
   const argv = Bun.argv;
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const {
+    answerAttempts,
+    answerTimeoutMs,
     benchmarkRoot,
     concurrency,
     limit,
@@ -240,7 +426,7 @@ async function main(): Promise<void> {
   const runDirectory = join(outputDir, runId);
   const progressPath = join(runDirectory, "live-progress.jsonl");
 
-  const { cases } = await loadLocomoCases({
+  const { benchmarkFingerprint, benchmarkSource, cases } = await loadLocomoCases({
     benchmarkRoot,
     limit,
     readFile: (path: string) => readFile(path, "utf8"),
@@ -265,7 +451,7 @@ async function main(): Promise<void> {
     ...(maxAdditions !== undefined ? { maxAdditions } : {}),
     ...(minSimilarity !== undefined ? { minSimilarity } : {}),
   };
-  const answerGenerator = createUnionLiveAnswerGenerator();
+  const answerGenerator = createUnionLiveAnswerGenerator(answerTimeoutMs);
   // Optional write-time conversational atomic-fact extraction (additive, never
   // destructive), reusing the harness's seeder + the content-addressed cache so
   // a cache file copied from a prior run skips every extraction LLM call.
@@ -283,7 +469,7 @@ async function main(): Promise<void> {
         return wrapMemoryExtractorWithJsonlCache(
           createProviderConversationalMemoryExtractor({
             model: resolveLiveModelConfig("GOODMEMORY_EVAL"),
-            requestTimeoutMs: LIVE_REQUEST_TIMEOUT_MS,
+            requestTimeoutMs: LIVE_EXTRACTION_REQUEST_TIMEOUT_MS,
           }),
           {
             appendFile: (path, data) => appendFile(path, data),
@@ -297,13 +483,17 @@ async function main(): Promise<void> {
   const results: LocomoQuestionRetrieval[] = [];
   let executionFailures = 0;
   let surfacedErrors = 0;
-  const surfaceError = (question: string, error: unknown): void => {
+  const surfaceError = (
+    caseId: string,
+    questionId: string,
+    error: unknown,
+  ): void => {
     // Failures must be visible: a silent per-question catch turned a systemic
     // failure into an invisible executionFailures cascade once already.
     if (surfacedErrors < 8) {
       surfacedErrors += 1;
       process.stderr.write(
-        `[union-live] question failed (${question.slice(0, 60)}): ${String(error).slice(0, 300)}\n`,
+        `[union-live] question failed (${caseId}/${questionId}): ${String(error).slice(0, 300)}\n`,
       );
     }
   };
@@ -332,12 +522,20 @@ async function main(): Promise<void> {
         if (extractor) {
           await seedLocomoCaseConversational({
             extractor,
+            maxConcurrency: concurrency,
             memory,
             runId,
             testCase,
           });
         }
-      } catch {
+      } catch (error) {
+        process.stderr.write(
+          formatLocomoUnionSeedFailure({
+            caseId: testCase.caseId,
+            error,
+            pendingQuestionCount: pending.length,
+          }),
+        );
         executionFailures += pending.length;
         continue;
       }
@@ -353,8 +551,17 @@ async function main(): Promise<void> {
         const question = pending[index]!;
         // Per-question retry: transient provider/gateway errors must not count
         // a question as failed on the first miss.
-        let attempt = 0;
-        for (;;) {
+        for (let attempt = 1; attempt <= answerAttempts; attempt += 1) {
+          if (process.env.GOODMEMORY_EVAL_TRACE_QUESTIONS === "1") {
+            process.stderr.write(
+              formatLocomoUnionQuestionAttempt({
+                attempt,
+                caseId: testCase.caseId,
+                maxAttempts: answerAttempts,
+                questionId: question.questionId,
+              }),
+            );
+          }
           try {
             const retrievedTurnIds = memory
               ? collectLocomoRetrievedTurnIds(
@@ -396,12 +603,20 @@ async function main(): Promise<void> {
             }
             break;
           } catch (error) {
-            attempt += 1;
-            if (attempt >= 3) {
-              surfaceError(question.question, error);
+            if (attempt >= answerAttempts) {
+              surfaceError(testCase.caseId, question.questionId, error);
               executionFailures += 1;
               break;
             }
+            process.stderr.write(
+              formatLocomoUnionQuestionRetry({
+                attempt,
+                caseId: testCase.caseId,
+                error,
+                maxAttempts: answerAttempts,
+                questionId: question.questionId,
+              }),
+            );
             await sleep(attempt === 1 ? 2000 : 8000);
           }
         }
@@ -412,33 +627,24 @@ async function main(): Promise<void> {
     );
   }
 
-  const categories = summarizeLocomoRetrieval(results);
-  const answered = results.filter((entry) => entry.answerCorrect !== null);
-  const report = {
+  const report = buildLocomoUnionLiveReport({
+    answerAttempts,
+    answerTimeoutMs,
+    benchmarkFingerprint,
+    benchmarkRoot,
+    benchmarkSource,
+    cases,
     concurrency,
-    answerAccuracyOverall:
-      answered.length === 0
-        ? null
-        : answered.filter((entry) => entry.answerCorrect === true).length / answered.length,
-    benchmark: "locomo",
-    categories,
-    cases: results,
     executionFailures,
-    evidenceRecallOverall: overallLocomoEvidenceRecall(results),
     generatedAt: new Date().toISOString(),
-    generatedBy: "scripts/measure-locomo-union-live.ts",
-    mode: "live-answer",
-    phase: "phase-65",
-    questionCount: results.length,
     noMemory,
+    results,
     resume,
     runDirectory,
     runId,
     union,
     withExtraction,
-    // The abstention-format instruction is part of the measured configuration.
-    answerSystem: "union-live-abstention-format-v1",
-  };
+  });
   await writeFile(
     join(runDirectory, "union-live-report.json"),
     `${JSON.stringify(report, null, 2)}\n`,
@@ -447,8 +653,10 @@ async function main(): Promise<void> {
     JSON.stringify(
       {
         answerAccuracyOverall: report.answerAccuracyOverall,
-        answeredCount: answered.length,
-        categories: categories.map((entry) => ({
+        answeredCount: report.cases.filter(
+          (entry) => entry.answerCorrect !== null,
+        ).length,
+        categories: report.categories.map((entry) => ({
           answerAccuracy: entry.answerAccuracy,
           averageEvidenceRecall: entry.averageEvidenceRecall,
           category: entry.category,

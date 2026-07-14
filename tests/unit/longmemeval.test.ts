@@ -9,14 +9,18 @@ import {
   deriveLongMemEvalDatedUserEvidenceFacts,
   deriveLongMemEvalUserEvidenceFacts,
   normalizeLongMemEvalProfileList,
+  resolveLongMemEvalIngestMode,
   runLongMemEvalRecallDiagnostic,
   runLongMemEvalSuite,
   scoreLongMemEvalAnswer,
+  selectLongMemEvalSupplementalEvidence,
+  selectLongMemEvalUserSourceEvidence,
   validateLongMemEvalCases,
 } from "../../src/eval/longmemeval";
 import type {
   LongMemEvalCase,
   LongMemEvalIO,
+  LongMemEvalSupplementalEvidence,
 } from "../../src/eval/longmemeval";
 
 const SMOKE_CASES = [
@@ -1881,6 +1885,308 @@ describe("LongMemEval adapter", () => {
     ).toBe(true);
   });
 
+  it("defaults the recommended context builder to label-free raw ingestion", async () => {
+    expect(resolveLongMemEvalIngestMode("goodmemory-recommended")).toBe(
+      "label-free-raw",
+    );
+    expect(resolveLongMemEvalIngestMode("goodmemory-rules-only")).toBe(
+      "historical-annotated",
+    );
+    expect(
+      resolveLongMemEvalIngestMode(
+        "goodmemory-recommended",
+        "historical-annotated",
+      ),
+    ).toBe("historical-annotated");
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "Paris",
+        answer_session_ids: ["session-1"],
+        haystack_dates: ["2026-01-02"],
+        haystack_session_ids: ["session-1"],
+        haystack_sessions: [[
+          { content: "Alice visited Paris.", has_answer: true, role: "user" },
+          { content: "The trip sounded useful.", role: "assistant" },
+        ]],
+        question: "Where did Alice visit?",
+        question_date: "2026-01-03",
+        question_id: "q-label-free-recommended",
+        question_type: "single-session-user",
+      },
+    ]);
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          retrieval: { preset: "recommended" },
+          storage: { provider: "memory" },
+        }),
+      runId: "run-label-free-recommended",
+    });
+
+    const context = await builder({
+      profile: "goodmemory-recommended",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Alice visited Paris");
+    expect(context.content).not.toContain("verified compact user evidence");
+    expect(context.content).not.toContain("answer_session");
+  });
+
+  it("supplements label-free recommended context with monetary evidence across sessions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "$185",
+        answer_session_ids: ["session-1", "session-2"],
+        haystack_dates: ["2026-01-02", "2026-01-03"],
+        haystack_session_ids: ["session-1", "session-2"],
+        haystack_sessions: [
+          [
+            { content: "Bike expense log for this year.", role: "user" },
+            { content: "I paid $40 for replacement brake pads.", role: "user" },
+          ],
+          [
+            { content: "Another bike expense update for this year.", role: "user" },
+            { content: "The new tires cost $145.", role: "user" },
+          ],
+        ],
+        question:
+          "How much total money have I spent on bike-related expenses this year?",
+        question_date: "2026-01-04",
+        question_id: "q-label-free-money-total",
+        question_type: "multi-session",
+      },
+    ]);
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          retrieval: { preset: "recommended" },
+          storage: { provider: "memory" },
+        }),
+      runId: "run-label-free-money-total",
+    });
+
+    const context = await builder({
+      profile: "goodmemory-recommended",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("$40");
+    expect(context.content).toContain("$145");
+    expect(context.content).not.toContain("Selected Evidence Synthesis");
+  });
+
+  it("adds bounded user-source evidence for label-free count questions", async () => {
+    const [testCase] = validateLongMemEvalCases([
+      {
+        answer: "2",
+        answer_session_ids: ["session-1"],
+        haystack_dates: ["2026-01-02"],
+        haystack_session_ids: ["session-1"],
+        haystack_sessions: [[
+          {
+            content: "I used citrus slices in my Sangria.",
+            role: "user",
+          },
+          {
+            content: "Assistant suggests grapefruit for another cocktail.",
+            role: "assistant",
+          },
+          {
+            content: "I served it with slices of orange and lemon.",
+            role: "user",
+          },
+        ]],
+        question:
+          "How many different types of citrus fruits have I used in cocktail recipes?",
+        question_date: "2026-01-03",
+        question_id: "q-label-free-user-source",
+        question_type: "multi-session",
+      },
+    ]);
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () =>
+        createGoodMemory({
+          retrieval: { preset: "recommended" },
+          storage: { provider: "memory" },
+        }),
+      runId: "run-label-free-user-source",
+    });
+
+    const context = await builder({
+      profile: "goodmemory-recommended",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("## User-authored Source Evidence");
+    expect(context.content).toContain("I used citrus slices in my Sangria.");
+    expect(context.content).toContain(
+      "I served it with slices of orange and lemon.",
+    );
+  });
+
+  it("prioritizes monetary operands over per-session activity distractors", () => {
+    const evidenceBySessionId = new Map<
+      string,
+      LongMemEvalSupplementalEvidence[]
+    >(
+      Array.from({ length: 6 }, (_, index) => {
+        const sessionId = `session-${index + 1}`;
+        return [
+          sessionId,
+          [
+            {
+              content: `Bike total mileage since the start of this year in ${sessionId}.`,
+              sessionId,
+              tags: [],
+            },
+            ...(index === 0
+              ? [{
+                  content: "The replacement chain cost $25 and the lights cost $40.",
+                  sessionId,
+                  tags: [],
+                }]
+              : []),
+          ],
+        ] as [string, LongMemEvalSupplementalEvidence[]];
+      }),
+    );
+
+    const selected = selectLongMemEvalSupplementalEvidence({
+      context: "",
+      diversifyBySession: true,
+      evidenceBySessionId,
+      question: "How much total money did I spend on bike expenses this year?",
+      selectedSessionIds: [...evidenceBySessionId.keys()],
+    });
+
+    expect(selected).toContain(
+      "The replacement chain cost $25 and the lights cost $40.",
+    );
+  });
+
+  it("keeps query-relevant table rows from the tail of long evidence", () => {
+    const sessionId = "rotation-session";
+    const selected = selectLongMemEvalSupplementalEvidence({
+      context: "",
+      diversifyBySession: true,
+      evidenceBySessionId: new Map([
+        [
+          sessionId,
+          [{
+            content: [
+              "Here is the requested weekly schedule.",
+              "General planning notes. ".repeat(40),
+              "| Day | Early | Late |",
+              "| --- | --- | --- |",
+              "| Sunday | Admon | Sara |",
+            ].join("\n"),
+            role: "assistant",
+            sessionId,
+            tags: [],
+          }],
+        ],
+      ]),
+      question: "What shift does Admon work on Sunday?",
+      selectedSessionIds: [sessionId],
+    });
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toContain("Here is the requested weekly schedule.");
+    expect(selected[0]).toContain("| Sunday | Admon | Sara |");
+  });
+
+  it("keeps the requested ordinal item from a long numbered list", () => {
+    const sessionId = "venue-session";
+    const selected = selectLongMemEvalSupplementalEvidence({
+      context: "",
+      diversifyBySession: true,
+      evidenceBySessionId: new Map([
+        [
+          sessionId,
+          [{
+            content: [
+              "Requested list of performance venues.",
+              "Background about the local performance scene. ".repeat(20),
+              "1. North Hall",
+              "2. River Hall",
+              "3. Garden Hall",
+              "4. The Old Church",
+              "5. Revolution Hall",
+            ].join("\n"),
+            role: "assistant",
+            sessionId,
+            tags: [],
+          }],
+        ],
+      ]),
+      question: "What was the last venue in the list?",
+      selectedSessionIds: [sessionId],
+    });
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toContain("5. Revolution Hall");
+    expect(selected[0]).not.toContain("4. The Old Church");
+    expect(selected[0]!.length).toBeLessThanOrEqual(1060);
+  });
+
+  it("selects user-authored aggregate anchors and their adjacent source turn", () => {
+    const relevantSession = "cocktail-session";
+    const evidenceBySessionId = new Map<
+      string,
+      LongMemEvalSupplementalEvidence[]
+    >([
+      [
+        relevantSession,
+        [
+          {
+            content: "Assistant suggests grapefruit in a citrus cocktail recipe.",
+            messageIndex: 5,
+            role: "assistant",
+            sessionId: relevantSession,
+            tags: [],
+          },
+          {
+            content: "I used citrus slices in my Sangria.",
+            messageIndex: 6,
+            role: "user",
+            sessionId: relevantSession,
+            tags: [],
+          },
+          {
+            content: "I served it with slices of orange and lemon.",
+            messageIndex: 8,
+            role: "user",
+            sessionId: relevantSession,
+            tags: [],
+          },
+        ],
+      ],
+      [
+        "fish-session",
+        [{
+          content: "What different types of fish migrate in spring?",
+          messageIndex: 0,
+          role: "user",
+          sessionId: "fish-session",
+          tags: [],
+        }],
+      ],
+    ]);
+
+    const selected = selectLongMemEvalUserSourceEvidence({
+      evidenceBySessionId,
+      question:
+        "How many different types of citrus fruits have I used in cocktail recipes?",
+      selectedSessionIds: [relevantSession, "fish-session"],
+    });
+
+    expect(selected).toEqual([
+      "I used citrus slices in my Sangria.",
+      "I served it with slices of orange and lemon.",
+    ]);
+  });
+
   it("validates LongMemEval case shape", () => {
     const cases = validateLongMemEvalCases(SMOKE_CASES);
 
@@ -1907,6 +2213,7 @@ describe("LongMemEval adapter", () => {
       "baseline-full-context",
       "goodmemory-rules-only",
       "goodmemory-hybrid",
+      "goodmemory-recommended",
     ]);
     expect(
       normalizeLongMemEvalProfileList([
@@ -2179,6 +2486,40 @@ describe("LongMemEval adapter", () => {
     ).toBe(0);
   });
 
+  it("runs the recommended full profile through the memory-context builder", async () => {
+    const profiles: string[] = [];
+    const report = await runLongMemEvalSuite(
+      {
+        benchmarkRoot: "/tmp/longmemeval",
+        generatedBy: "tests",
+        mode: "full",
+        outputDir: "/tmp/out",
+        profiles: ["goodmemory-recommended"],
+        runId: "run-longmemeval-recommended-full",
+      },
+      {
+        answerGenerator: async ({ memoryContext }) =>
+          memoryContext ?? "missing memory context",
+        memoryContextBuilder: async ({ profile }) => {
+          profiles.push(profile);
+          return {
+            content: "Mira prefers concise architecture notes.",
+            retrievedSessionIds: ["s-2"],
+          };
+        },
+        mkdir: async () => {},
+        readFile: async () => JSON.stringify([SMOKE_CASES[0]]),
+        writeFile: async () => {},
+      },
+    );
+
+    expect(profiles).toEqual(["goodmemory-recommended"]);
+    expect(report.ingestMode).toBe("label-free-raw");
+    expect(
+      report.profiles["goodmemory-recommended"]?.summary.correctCases,
+    ).toBe(1);
+  });
+
   it("writes a recall-only diagnostic report without answer generation", async () => {
     const writes = new Map<string, string>();
     const report = await runLongMemEvalRecallDiagnostic(
@@ -2315,6 +2656,76 @@ describe("LongMemEval adapter", () => {
         io,
       ),
     ).rejects.toThrow("progress identity does not match");
+  });
+
+  it("retries only failed recall progress rows when requested", async () => {
+    const files = new Map<string, string>();
+    const source = JSON.stringify(SMOKE_CASES);
+    const readFile = async (path: string): Promise<string> => {
+      if (path.endsWith("longmemeval_s_cleaned.json")) {
+        return source;
+      }
+      const value = files.get(path);
+      if (value !== undefined) {
+        return value;
+      }
+      throw Object.assign(new Error(`missing ${path}`), { code: "ENOENT" });
+    };
+    let firstCalls = 0;
+    const options = {
+      benchmarkRoot: "/tmp/longmemeval",
+      generatedBy: "tests",
+      mode: "full" as const,
+      outputDir: "/tmp/out",
+      profile: "goodmemory-recommended" as const,
+      runId: "run-retry-failed-recall",
+    };
+    const io: LongMemEvalIO = {
+      appendFile: async (path: string, value: string) => {
+        files.set(path, `${files.get(path) ?? ""}${value}`);
+      },
+      memoryContextBuilder: async ({ testCase }: { testCase: LongMemEvalCase }) => {
+        firstCalls += 1;
+        if (testCase.questionId === SMOKE_CASES[0]?.question_id) {
+          throw new Error("transient embedding response");
+        }
+        return {
+          content: `context for ${testCase.questionId}`,
+          retrievedSessionIds: [...testCase.answerSessionIds],
+        };
+      },
+      mkdir: async () => undefined,
+      readFile,
+      writeFile: async (path: string, value: string) => {
+        files.set(path, value);
+      },
+    };
+    const first = await runLongMemEvalRecallDiagnostic(options, io);
+    expect(firstCalls).toBe(SMOKE_CASES.length);
+    expect(first.summary.executionFailures).toBe(1);
+
+    const retriedIds: string[] = [];
+    const retried = await runLongMemEvalRecallDiagnostic(
+      { ...options, resume: true, retryFailures: true },
+      {
+        ...io,
+        memoryContextBuilder: async ({ testCase }) => {
+          retriedIds.push(testCase.questionId);
+          return {
+            content: `retried context for ${testCase.questionId}`,
+            retrievedSessionIds: [...testCase.answerSessionIds],
+          };
+        },
+      },
+    );
+
+    expect(retriedIds).toEqual([SMOKE_CASES[0]?.question_id]);
+    expect(retried.summary.executionFailures).toBe(0);
+    const progress = files.get(
+      "/tmp/out/run-retry-failed-recall/progress.jsonl",
+    ) ?? "";
+    expect(progress.match(/"questionId"/g)).toHaveLength(SMOKE_CASES.length);
+    expect(progress).not.toContain("transient embedding response");
   });
 
   it("records full-mode answer generation failures without dropping the report", async () => {

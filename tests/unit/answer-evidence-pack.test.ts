@@ -13,6 +13,14 @@ describe("answer evidence pack", () => {
     expect(
       inferAnswerOperation("What is my current database after the update?"),
     ).toBe("conflict_update");
+    expect(
+      inferAnswerOperation(
+        "Which new yoga pose did Deborah share a photo of?",
+      ),
+    ).toBe("general");
+    expect(inferAnswerOperation("What is my newest database?")).toBe(
+      "conflict_update",
+    );
     expect(inferAnswerOperation("What is the dog's name?")).toBe("general");
   });
 
@@ -877,6 +885,94 @@ describe("answer evidence pack", () => {
     expect(guide).not.toContain("CRUD error handling");
   });
 
+  it("prefers concise explicit contradiction turns over a noisy mega-turn", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "Have I worked with Flask routes and handled HTTP requests in this project?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 24,
+          orderKey: 24,
+          content: "I implemented a basic homepage route with Flask.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 58,
+          orderKey: 58,
+          content:
+            "I've never written any Flask routes or handled HTTP requests in this project.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 66,
+          orderKey: 66,
+          content: [
+            "I'm trying to integrate Flask-Login for session management.",
+            "Flask routes and HTTP requests are discussed throughout this long implementation note. ".repeat(30),
+            "I've never written any Flask routes or handled HTTP requests before, but I've implemented transaction CRUD with RESTful routes and POST requests.",
+          ].join(" "),
+          role: "user",
+          timeAnchor: "Mar",
+        },
+      ],
+    });
+
+    const guide = pack.slice(
+      pack.indexOf("Contradiction evidence guide:"),
+      pack.indexOf("Use the contradiction evidence guide above"),
+    );
+    expect(guide).toContain("[#24]");
+    expect(guide).toContain("[#58]");
+    expect(guide).not.toContain("[#66]");
+  });
+
+  it("prefers an explicit completed route over adjacent framework setup", () => {
+    const pack = buildAnswerEvidencePack({
+      question:
+        "Have I worked with Flask routes and handled HTTP requests in this project?",
+      questionType: "contradiction_resolution",
+      turns: [
+        {
+          sourceId: 22,
+          orderKey: 22,
+          content: [
+            "I'm trying to review Flask routing, request handling, and session management tutorials, and I'm having trouble understanding user sessions in my Flask app.",
+            "I've set up my project with Flask 2.3.1, and I'm using Jinja2 templating and Bootstrap 5.3 for the UI.",
+          ].join(" "),
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 24,
+          orderKey: 24,
+          content:
+            "I'm trying to implement the basic homepage route with Flask, and I've managed to return static HTML, but I'm not sure how to optimize it for better response times.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 58,
+          orderKey: 58,
+          content:
+            "I've never written any Flask routes or handled HTTP requests in this project.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+      ],
+    });
+
+    const guide = pack.slice(
+      pack.indexOf("Contradiction evidence guide:"),
+      pack.indexOf("Use the contradiction evidence guide above"),
+    );
+    expect(guide).toContain("[#24]");
+    expect(guide).toContain("[#58]");
+    expect(guide).not.toContain("[#22]");
+  });
+
   it("treats did-not clauses as the denial side of a same-turn contradiction", () => {
     const pack = buildAnswerEvidencePack({
       question: "Did I attend the patent webinar?",
@@ -1469,6 +1565,65 @@ describe("answer evidence pack", () => {
     expect(cueSection).toContain("Flask-Login 0.6.2");
     expect(cueSection).toContain("Flask 2.3.1");
     expect(cueSection).toContain("SQLite 3.39");
+  });
+
+  it("aggregates versioned dependencies beyond the rendered support-turn budget", () => {
+    const pack = buildAnswerEvidencePack({
+      question: "Which libraries are used in this project?",
+      questionType: "instruction_following",
+      turns: [
+        {
+          sourceId: 1,
+          orderKey: 1,
+          content: "Always include version numbers when I ask about libraries.",
+          role: "user",
+          timeAnchor: "Jan",
+        },
+        {
+          sourceId: 2,
+          orderKey: 2,
+          content: "Flask 2.3.1 is a project dependency.",
+          role: "user",
+          timeAnchor: "Feb",
+        },
+        {
+          sourceId: 3,
+          orderKey: 3,
+          content: "SQLite 3.39 is another project dependency.",
+          role: "user",
+          timeAnchor: "Mar",
+        },
+        {
+          sourceId: 4,
+          orderKey: 4,
+          content: "Chart.js 4.3.0 renders the project charts.",
+          role: "user",
+          timeAnchor: "Apr",
+        },
+        {
+          sourceId: 5,
+          orderKey: 5,
+          content: "SQLAlchemy 2.0.19 is used for persistence.",
+          role: "user",
+          timeAnchor: "May",
+        },
+        {
+          sourceId: 6,
+          orderKey: 6,
+          content: "The project release v1.0.0 is now tagged.",
+          role: "user",
+          timeAnchor: "Jun",
+        },
+      ],
+    });
+
+    const cueSection = pack.slice(
+      pack.indexOf("Concrete answer-content cues:"),
+      pack.indexOf("When a fact changed across these entries"),
+    );
+    expect(cueSection).toContain("Chart.js 4.3.0");
+    expect(cueSection).toContain("SQLAlchemy 2.0.19");
+    expect(cueSection).not.toContain("release v1.0.0");
   });
 
   it("surfaces named tools as concrete instruction answer content", () => {

@@ -460,8 +460,13 @@ export type LocomoAnswerContextMode =
 export interface LocomoSmokeReport {
   allowCommonsenseResolution?: boolean;
   strictNoEvidenceAbstention?: boolean;
+  answerAccuracyOverall?: number | null;
+  answerAttempts?: number;
   answerContextMode?: LocomoAnswerContextMode;
+  answerEvidenceTurnLimit?: number | null;
   answerEvaluation: "deferred-to-live-mode" | "scored";
+  answerSystem?: string | null;
+  answerTimeoutMs?: number | null;
   benchmark: "locomo";
   // Resolved case source: "synthetic-smoke" or the external cases.json path.
   benchmarkSource: string;
@@ -482,6 +487,8 @@ export interface LocomoSmokeReport {
   caseCount: number;
   cases: LocomoQuestionRetrieval[];
   categories: LocomoCategoryRetrievalSummary[];
+  concurrency?: number;
+  evidenceRecallOverall?: number;
   executionFailures: number;
   // External root supplied by the caller, or null for the synthetic default.
   externalRoot: string | null;
@@ -1909,6 +1916,7 @@ const LOCOMO_SMART_FUSION_OVERLAP_THRESHOLD = 0.8;
 // genuinely-normalized, phrasing-gap-bridging facts augment the raw turns.
 export async function seedLocomoCaseConversational(input: {
   extractor: MemoryExtractor;
+  maxConcurrency?: number;
   memory: GoodMemory;
   runId: string;
   smartFusion?: boolean;
@@ -1925,14 +1933,35 @@ export async function seedLocomoCaseConversational(input: {
     list.push(turn);
     sessions.set(sessionKey, list);
   }
-  for (const sessionTurns of sessions.values()) {
-    const extraction = await input.extractor.extract({
-      scope,
-      messages: sessionTurns.map((turn) => ({
-        content: `${turn.speaker}: ${turn.content}`,
-        role: "user",
-      })),
-    });
+  const sessionGroups = [...sessions.values()];
+  const extractions = new Array<
+    Awaited<ReturnType<MemoryExtractor["extract"]>>
+  >(sessionGroups.length);
+  let nextSessionIndex = 0;
+  const extractNextSession = async (): Promise<void> => {
+    while (nextSessionIndex < sessionGroups.length) {
+      const index = nextSessionIndex;
+      nextSessionIndex += 1;
+      const sessionTurns = sessionGroups[index]!;
+      extractions[index] = await input.extractor.extract({
+        scope,
+        messages: sessionTurns.map((turn) => ({
+          content: `${turn.speaker}: ${turn.content}`,
+          role: "user",
+        })),
+      });
+    }
+  };
+  const workerCount = Math.min(
+    sessionGroups.length,
+    Math.max(1, Math.floor(input.maxConcurrency ?? 1)),
+  );
+  await Promise.all(
+    Array.from({ length: workerCount }, () => extractNextSession()),
+  );
+
+  for (const [index, sessionTurns] of sessionGroups.entries()) {
+    const extraction = extractions[index]!;
     const resolveTurn = (index: number): LocomoTurn =>
       sessionTurns[Math.max(0, Math.min(index, sessionTurns.length - 1))]!;
     let facts = extraction.candidates.filter(
@@ -2343,7 +2372,9 @@ export function buildLocomoPrompt(input: {
   ].join("\n\n");
 }
 
-const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120000;
+export const LOCOMO_LIVE_ANSWER_SYSTEM_ID =
+  "locomo-live-category-aware-v1";
+export const LOCOMO_LIVE_REQUEST_TIMEOUT_MS = 120_000;
 
 // Real LLM generator (deterministic token-F1 / exact / adversarial scoring
 // downstream, so no judge).
@@ -3090,6 +3121,7 @@ export function wrapMemoryExtractorWithJsonlCache(
   },
 ): MemoryExtractor {
   const cache = new Map(io.initialCache);
+  let appendQueue = Promise.resolve();
   return {
     async extract(input) {
       const key = `${io.configTag}:${hashString(JSON.stringify(input.messages))}`;
@@ -3104,14 +3136,15 @@ export function wrapMemoryExtractorWithJsonlCache(
       }
       const extraction = await extractor.extract(input);
       cache.set(key, extraction.candidates);
-      try {
-        await io.appendFile(
-          io.cachePath,
-          `${JSON.stringify({ candidates: extraction.candidates, key })}\n`,
-        );
-      } catch {
-        // Cache persistence is best-effort; extraction already succeeded.
-      }
+      appendQueue = appendQueue
+        .then(() =>
+          io.appendFile(
+            io.cachePath,
+            `${JSON.stringify({ candidates: extraction.candidates, key })}\n`,
+          ),
+        )
+        .catch(() => undefined);
+      await appendQueue;
       return extraction;
     },
   };

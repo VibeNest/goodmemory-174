@@ -740,17 +740,20 @@ describe("deterministic memory extractor", () => {
 
     expect(
       result.candidates.map((candidate) => ({
+        claimKey: candidate.metadata?.attributes?.claimKey,
         category: candidate.metadata?.category,
         content: candidate.content,
         kindHint: candidate.kindHint,
       })),
     ).toEqual([
       {
+        claimKey: "relationship.location",
         category: "relationship",
         content: "Rachel moved to a new apartment in the city.",
         kindHint: "fact",
       },
       {
+        claimKey: "relationship.location",
         category: "relationship",
         content: "Rachel moved back to the suburbs again.",
         kindHint: "fact",

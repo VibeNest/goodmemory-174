@@ -1452,6 +1452,7 @@ describe("public recall API", () => {
     expect(
       result.metadata.verificationHints.find((hint) => hint.memoryId === "fact-1")?.evidenceIds,
     ).toEqual(["evidence-fact-1"]);
+
   });
 
   it("keeps evidenceIds on suppressed candidate traces", async () => {
@@ -1598,6 +1599,23 @@ describe("public recall API", () => {
     expect(
       result.metadata.verificationHints.find((hint) => hint.memoryId === "fact-1")?.evidenceIds,
     ).toEqual(["evidence-fact-1"]);
+
+    const withEvidence = await memory.recall({
+      includeEvidence: true,
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "How should I answer this user?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(withEvidence.evidence.map((record) => record.id)).toEqual([
+      "evidence-fact-1",
+    ]);
+    expect(withEvidence.packet.evidenceSummary).toContain(
+      "vendor approval is still pending",
+    );
+    expect(withEvidence.metadata.hits.some((hit) => hit.type === "evidence")).toBe(
+      true,
+    );
   });
 
   it("does not inject unrelated long-term memory when the query has no relevant signal", async () => {
@@ -1878,6 +1896,7 @@ describe("public recall API", () => {
         sessionId: "s-rachel-city",
         category: "relationship",
         content: "Rachel moved to a new apartment in the city.",
+        attributes: { claimKey: "relationship.location" },
         subject: "Rachel",
         source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
       }),
@@ -1890,6 +1909,7 @@ describe("public recall API", () => {
         sessionId: "s-rachel-suburbs",
         category: "relationship",
         content: "Rachel moved back to the suburbs again.",
+        attributes: { claimKey: "relationship.location" },
         subject: "Rachel",
         source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
       }),
@@ -1962,6 +1982,7 @@ describe("public recall API", () => {
 
     await repositories.facts.add(
       createFactMemory({
+        attributes: { claimKey: "korean-restaurants-tried-count" },
         id: "fact-korean-three",
         userId: "u-1",
         workspaceId: "workspace-a",
@@ -1975,6 +1996,7 @@ describe("public recall API", () => {
     );
     await repositories.facts.add(
       createFactMemory({
+        attributes: { claimKey: "korean-restaurants-tried-count" },
         id: "fact-korean-four",
         userId: "u-1",
         workspaceId: "workspace-a",

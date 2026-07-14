@@ -12,6 +12,7 @@ export const LONGMEMEVAL_PROFILES = [
   "baseline-full-context",
   "goodmemory-rules-only",
   "goodmemory-hybrid",
+  "goodmemory-recommended",
 ] as const;
 
 export const LONGMEMEVAL_SMOKE_DATA_FILES = ["longmemeval_s_smoke.json"] as const;
@@ -34,8 +35,46 @@ export type LongMemEvalRecallDiagnosticProfile =
   | "goodmemory-recommended"
   | "goodmemory-rules-only";
 
+export function resolveLongMemEvalIngestMode(
+  profile: LongMemEvalRecallDiagnosticProfile,
+  requested?: LongMemEvalIngestMode,
+): LongMemEvalIngestMode {
+  return requested ??
+    (profile === "goodmemory-recommended"
+      ? "label-free-raw"
+      : "historical-annotated");
+}
+
+export function resolveLongMemEvalReportIngestMode(
+  profiles: readonly LongMemEvalProfile[],
+  requested?: LongMemEvalIngestMode,
+): LongMemEvalIngestMode | undefined {
+  if (requested !== undefined) {
+    return requested;
+  }
+  const modes = new Set(
+    profiles
+      .filter(
+        (profile): profile is LongMemEvalRecallDiagnosticProfile =>
+          profile === "goodmemory-hybrid" ||
+          profile === "goodmemory-recommended" ||
+          profile === "goodmemory-rules-only",
+      )
+      .map((profile) => resolveLongMemEvalIngestMode(profile)),
+  );
+  return modes.size === 1 ? [...modes][0] : undefined;
+}
+
 export interface LongMemEvalRecallRunConfiguration {
   contextMaxTokens: number;
+  embedding?: {
+    gateway: string | null;
+    maxBatchChars?: number;
+    maxBatchTexts?: number;
+    maxTextChars?: number;
+    model: string;
+    provider: string;
+  } | null;
   extractionStrategy: "rules-only";
   generalizedFusion: {
     maxCandidates: number;
@@ -171,6 +210,7 @@ export interface RunLongMemEvalRecallDiagnosticOptions {
   profile: LongMemEvalRecallDiagnosticProfile;
   questionTypes?: readonly string[];
   resume?: boolean;
+  retryFailures?: boolean;
   runConfiguration?: LongMemEvalRecallRunConfiguration;
   runId?: string;
 }
@@ -3369,32 +3409,69 @@ function collectSessionIdsFromRecall(input: {
   return [...ids];
 }
 
-interface LongMemEvalSupplementalEvidence {
+export interface LongMemEvalSupplementalEvidence {
   content: string;
+  messageIndex?: number;
+  role?: string;
   sessionId: string;
   tags: string[];
 }
 
 const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT = 6;
+const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_EXPANSION_LIMIT = 2;
+const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT = 2;
 const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS = 520;
+const LONGMEMEVAL_USER_SOURCE_SESSION_LIMIT = 4;
+const LONGMEMEVAL_USER_SOURCE_PER_SESSION_LIMIT = 3;
 const LONGMEMEVAL_MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 const LONGMEMEVAL_QUERY_STOPWORDS = new Set([
   "about",
   "after",
   "again",
+  "and",
+  "are",
+  "back",
+  "can",
+  "chat",
   "could",
+  "different",
+  "did",
+  "does",
   "from",
+  "going",
+  "had",
+  "has",
   "have",
+  "how",
+  "into",
   "last",
+  "looking",
+  "many",
+  "me",
+  "my",
+  "name",
+  "of",
+  "on",
+  "our",
+  "previous",
+  "remind",
   "that",
+  "the",
   "this",
+  "through",
   "time",
+  "to",
+  "type",
+  "was",
+  "were",
   "what",
   "when",
   "where",
   "which",
   "with",
   "would",
+  "you",
+  "your",
 ]);
 
 function normalizeLongMemEvalEvidenceToken(value: string): string {
@@ -3446,6 +3523,8 @@ function collectLongMemEvalSupplementalEvidence(input: {
 
     evidence.push({
       content: message.content,
+      messageIndex,
+      role: message.role,
       sessionId: input.sessionId,
       tags: extractLongMemEvalEvidenceTags(annotation),
     });
@@ -3456,6 +3535,7 @@ function collectLongMemEvalSupplementalEvidence(input: {
 
 function scoreLongMemEvalSupplementalEvidence(input: {
   evidence: LongMemEvalSupplementalEvidence;
+  question: string;
   queryTokens: ReadonlySet<string>;
 }): number {
   const evidenceTokens = tokenizeLongMemEvalEvidence(input.evidence.content);
@@ -3465,11 +3545,19 @@ function scoreLongMemEvalSupplementalEvidence(input: {
       overlap += 1;
     }
   }
-  if (overlap === 0) {
+  const monetaryEvidence = /[$€£¥]\s*\d/iu.test(input.evidence.content);
+  const monetaryQuestion =
+    /\b(?:cost|expense|how\s+much|money|spend|spent|total)\b/iu.test(
+      input.question,
+    );
+  if (overlap === 0 && !(monetaryEvidence && monetaryQuestion)) {
     return 0;
   }
 
   let score = overlap * 4;
+  if (monetaryEvidence && monetaryQuestion) {
+    score += 24;
+  }
   if (input.evidence.tags.includes("user_answer")) {
     score += 4;
   }
@@ -3486,17 +3574,273 @@ function scoreLongMemEvalSupplementalEvidence(input: {
   return score;
 }
 
-function compactLongMemEvalSupplementalEvidenceLine(content: string): string {
+interface LongMemEvalEvidenceSegment {
+  content: string;
+  index: number;
+  queryTokens: Set<string>;
+}
+
+const LONGMEMEVAL_ORDINAL_WORDS = {
+  eighth: 8,
+  fifth: 5,
+  first: 1,
+  fourth: 4,
+  ninth: 9,
+  second: 2,
+  seventh: 7,
+  sixth: 6,
+  tenth: 10,
+  third: 3,
+} as const;
+
+function splitLongMemEvalEvidenceSegments(
+  content: string,
+  queryTokens: ReadonlySet<string>,
+): LongMemEvalEvidenceSegment[] {
+  const segments: LongMemEvalEvidenceSegment[] = [];
+  for (const line of content.split(/\r?\n+/u)) {
+    const parts = /^\s*(?:\*\*)?\d{1,2}[.)]\s+/u.test(line)
+      ? [line]
+      : line.split(/(?<=[.!?])\s+/u);
+    for (const part of parts) {
+      const compact = cleanExtractedValue(part);
+      if (compact.length === 0) {
+        continue;
+      }
+      const matchedTokens = new Set<string>();
+      const tokens = tokenizeLongMemEvalEvidence(compact);
+      for (const token of queryTokens) {
+        if (tokens.has(token)) {
+          matchedTokens.add(token);
+        }
+      }
+      segments.push({
+        content: compact,
+        index: segments.length,
+        queryTokens: matchedTokens,
+      });
+    }
+  }
+  return segments;
+}
+
+function isLongMemEvalTableRow(content: string): boolean {
+  return content.startsWith("|") && content.endsWith("|");
+}
+
+function isLongMemEvalTableSeparator(content: string): boolean {
+  return isLongMemEvalTableRow(content) && /^\|[\s:|-]+\|$/u.test(content);
+}
+
+function findLongMemEvalTableHeaderIndex(
+  segments: readonly LongMemEvalEvidenceSegment[],
+  rowIndex: number,
+): number | undefined {
+  if (!isLongMemEvalTableRow(segments[rowIndex]?.content ?? "")) {
+    return undefined;
+  }
+  for (let index = rowIndex - 1; index > 0; index -= 1) {
+    const segment = segments[index];
+    if (!segment || !isLongMemEvalTableRow(segment.content)) {
+      return undefined;
+    }
+    if (isLongMemEvalTableSeparator(segment.content)) {
+      const header = segments[index - 1];
+      return header && isLongMemEvalTableRow(header.content)
+        ? header.index
+        : undefined;
+    }
+  }
+  return undefined;
+}
+
+function renderLongMemEvalEvidenceSegments(
+  segments: readonly LongMemEvalEvidenceSegment[],
+  selectedIndices: ReadonlySet<number>,
+): string {
+  return segments
+    .filter((segment) => selectedIndices.has(segment.index))
+    .map((segment) => segment.content)
+    .join(" ");
+}
+
+function resolveLongMemEvalRequestedOrdinal(
+  question: string,
+): number | "last" | undefined {
+  const numeric = question.match(/\b(\d{1,2})(?:st|nd|rd|th)\b/iu);
+  if (numeric) {
+    return Number(numeric[1]);
+  }
+  const wordPattern = Object.keys(LONGMEMEVAL_ORDINAL_WORDS).join("|");
+  const word = question.match(new RegExp(`\\b(${wordPattern})\\b`, "iu"));
+  if (word) {
+    return LONGMEMEVAL_ORDINAL_WORDS[
+      word[1]!.toLowerCase() as keyof typeof LONGMEMEVAL_ORDINAL_WORDS
+    ];
+  }
+  return /\blast\b/iu.test(question) && /\blist\b/iu.test(question)
+    ? "last"
+    : undefined;
+}
+
+function findLongMemEvalOrdinalSegment(input: {
+  queryTokens: ReadonlySet<string>;
+  question: string;
+  segments: readonly LongMemEvalEvidenceSegment[];
+}): LongMemEvalEvidenceSegment | undefined {
+  const requested = resolveLongMemEvalRequestedOrdinal(input.question);
+  if (requested === undefined) {
+    return undefined;
+  }
+
+  const lists: Array<Array<{ number: number; segment: LongMemEvalEvidenceSegment }>> = [];
+  for (const segment of input.segments) {
+    const match = segment.content.match(/^(\d{1,2})[.)]\s+\S/u);
+    if (!match) {
+      continue;
+    }
+    const number = Number(match[1]);
+    const current = lists[lists.length - 1];
+    if (!current || number <= current[current.length - 1]!.number) {
+      lists.push([{ number, segment }]);
+    } else {
+      current.push({ number, segment });
+    }
+  }
+
+  const rankedLists = lists
+    .filter((list) => list.length >= 2)
+    .map((list) => {
+      const firstIndex = list[0]!.segment.index;
+      const contextualSegments = input.segments.slice(
+        Math.max(0, firstIndex - 2),
+        list[list.length - 1]!.segment.index + 1,
+      );
+      const matchedTokens = new Set<string>();
+      for (const segment of contextualSegments) {
+        const tokens = tokenizeLongMemEvalEvidence(segment.content);
+        for (const token of input.queryTokens) {
+          if (tokens.has(token)) {
+            matchedTokens.add(token);
+          }
+        }
+      }
+      return { list, score: matchedTokens.size };
+    })
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        right.list.length - left.list.length ||
+        left.list[0]!.segment.index - right.list[0]!.segment.index,
+    );
+  const selectedList = rankedLists[0]?.list;
+  if (!selectedList) {
+    return undefined;
+  }
+  return requested === "last"
+    ? selectedList[selectedList.length - 1]?.segment
+    : selectedList.find((item) => item.number === requested)?.segment;
+}
+
+function selectLongMemEvalEvidenceExcerpt(
+  content: string,
+  queryTokens: ReadonlySet<string>,
+  question?: string,
+): string | undefined {
+  const segments = splitLongMemEvalEvidenceSegments(content, queryTokens);
+  const candidates = segments.filter((segment) => segment.queryTokens.size > 0);
+  const uncoveredTokens = new Set(queryTokens);
+  const ordinalSegment = question
+    ? findLongMemEvalOrdinalSegment({ queryTokens, question, segments })
+    : undefined;
+  const selectedIndices = new Set<number>(
+    ordinalSegment ? [ordinalSegment.index] : [],
+  );
+  for (const token of ordinalSegment?.queryTokens ?? []) {
+    uncoveredTokens.delete(token);
+  }
+
+  while (uncoveredTokens.size > 0) {
+    const candidate = candidates
+      .filter((segment) => !selectedIndices.has(segment.index))
+      .map((segment) => {
+        const newTokenCount = [...segment.queryTokens].filter((token) =>
+          uncoveredTokens.has(token),
+        ).length;
+        return {
+          efficiency:
+            newTokenCount / Math.max(40, segment.content.length),
+          newTokenCount,
+          segment,
+        };
+      })
+      .filter((entry) => entry.newTokenCount > 0)
+      .sort(
+        (left, right) =>
+          right.efficiency - left.efficiency ||
+          right.newTokenCount - left.newTokenCount ||
+          right.segment.queryTokens.size - left.segment.queryTokens.size ||
+          left.segment.index - right.segment.index,
+      )[0];
+    if (!candidate) {
+      break;
+    }
+
+    const additions = [candidate.segment.index];
+    const headerIndex = findLongMemEvalTableHeaderIndex(
+      segments,
+      candidate.segment.index,
+    );
+    if (headerIndex !== undefined) {
+      additions.push(headerIndex);
+    }
+    const nextIndices = new Set([...selectedIndices, ...additions]);
+    const nextExcerpt = renderLongMemEvalEvidenceSegments(segments, nextIndices);
+    if (nextExcerpt.length > LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS) {
+      if (selectedIndices.size === 0) {
+        return `${candidate.segment.content
+          .slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS - 3)
+          .trim()}...`;
+      }
+      break;
+    }
+
+    for (const index of additions) {
+      selectedIndices.add(index);
+    }
+    for (const token of candidate.segment.queryTokens) {
+      uncoveredTokens.delete(token);
+    }
+  }
+
+  return selectedIndices.size > 0
+    ? renderLongMemEvalEvidenceSegments(segments, selectedIndices)
+    : undefined;
+}
+
+function compactLongMemEvalSupplementalEvidenceLine(
+  content: string,
+  queryTokens?: ReadonlySet<string>,
+  question?: string,
+): string {
   const compact = cleanExtractedValue(content);
   if (compact.length <= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS) {
     return compact;
   }
 
+  const excerpt = queryTokens
+    ? selectLongMemEvalEvidenceExcerpt(content, queryTokens, question)
+    : undefined;
+  if (excerpt) {
+    return excerpt;
+  }
+
   return `${compact.slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS - 3).trim()}...`;
 }
 
-function selectLongMemEvalSupplementalEvidence(input: {
+export function selectLongMemEvalSupplementalEvidence(input: {
   context: string;
+  diversifyBySession?: boolean;
   evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
   question: string;
   selectedSessionIds: readonly string[];
@@ -3504,7 +3848,12 @@ function selectLongMemEvalSupplementalEvidence(input: {
   const context = input.context.toLowerCase();
   const queryTokens = tokenizeLongMemEvalEvidence(input.question);
   const selectedSessionIds = new Set(input.selectedSessionIds);
-  const scored: Array<{ content: string; score: number }> = [];
+  const scored: Array<{
+    content: string;
+    expansion?: string;
+    score: number;
+    sessionId: string;
+  }> = [];
   const seen = new Set<string>();
 
   for (const [sessionId, evidence] of input.evidenceBySessionId.entries()) {
@@ -3525,6 +3874,7 @@ function selectLongMemEvalSupplementalEvidence(input: {
 
       const score = scoreLongMemEvalSupplementalEvidence({
         evidence: item,
+        question: input.question,
         queryTokens,
       });
       if (score === 0) {
@@ -3532,14 +3882,165 @@ function selectLongMemEvalSupplementalEvidence(input: {
       }
 
       seen.add(normalizedContent);
-      scored.push({ content, score });
+      const candidateExpansion =
+        input.diversifyBySession && item.role === "assistant"
+          ? compactLongMemEvalSupplementalEvidenceLine(
+              item.content,
+              queryTokens,
+              input.question,
+            )
+          : undefined;
+      const normalizedExpansion = candidateExpansion?.toLowerCase();
+      const expansion =
+        candidateExpansion &&
+        normalizedExpansion &&
+        normalizedExpansion !== normalizedContent &&
+        !normalizedContent.includes(normalizedExpansion) &&
+        !context.includes(normalizedExpansion)
+          ? candidateExpansion
+          : undefined;
+      scored.push({
+        content,
+        ...(expansion ? { expansion } : {}),
+        score,
+        sessionId,
+      });
     }
   }
 
-  return scored
-    .sort((left, right) => right.score - left.score)
-    .slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT)
-    .map((item) => item.content);
+  const ordered = scored.sort(
+    (left, right) =>
+      right.score - left.score || left.content.localeCompare(right.content),
+  );
+  let selected: typeof ordered;
+  if (input.diversifyBySession) {
+    selected = [];
+    const selectedBySession = new Map<string, number>();
+    for (const item of ordered) {
+      const sessionCount = selectedBySession.get(item.sessionId) ?? 0;
+      if (sessionCount >= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT) {
+        continue;
+      }
+      selected.push(item);
+      selectedBySession.set(item.sessionId, sessionCount + 1);
+      if (selected.length >= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT) {
+        break;
+      }
+    }
+  } else {
+    selected = ordered.slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT);
+  }
+
+  let expansionCount = 0;
+  const seenExpansions = new Set<string>();
+  return selected.map((entry) => {
+    const normalizedExpansion = entry.expansion?.toLowerCase();
+    if (
+      !entry.expansion ||
+      !normalizedExpansion ||
+      expansionCount >= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_EXPANSION_LIMIT ||
+      seenExpansions.has(normalizedExpansion)
+    ) {
+      return entry.content;
+    }
+    expansionCount += 1;
+    seenExpansions.add(normalizedExpansion);
+    return `${entry.content}\nRelevant excerpt: ${entry.expansion}`;
+  });
+}
+
+export function selectLongMemEvalUserSourceEvidence(input: {
+  evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
+  question: string;
+  selectedSessionIds: readonly string[];
+}): string[] {
+  const queryTokens = tokenizeLongMemEvalEvidence(input.question);
+  const sessionOrder = new Map(
+    input.selectedSessionIds.map((sessionId, index) => [sessionId, index]),
+  );
+  const sessions: Array<{
+    anchorScore: number;
+    evidence: Array<LongMemEvalSupplementalEvidence & { messageIndex: number }>;
+    order: number;
+  }> = [];
+
+  for (const [sessionId, evidence] of input.evidenceBySessionId.entries()) {
+    const order = sessionOrder.get(sessionId);
+    if (order === undefined) {
+      continue;
+    }
+
+    const userEvidence = evidence
+      .filter((item) => item.role === "user")
+      .map((item, index) => ({
+        ...item,
+        messageIndex: item.messageIndex ?? index,
+      }));
+    const scored = userEvidence
+      .map((item) => ({
+        item,
+        score: scoreLongMemEvalSupplementalEvidence({
+          evidence: item,
+          question: input.question,
+          queryTokens,
+        }),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          left.item.messageIndex - right.item.messageIndex,
+      );
+    const anchor = scored[0];
+    if (!anchor) {
+      continue;
+    }
+
+    const selected = [anchor.item];
+    const later = userEvidence
+      .filter((item) => item.messageIndex > anchor.item.messageIndex)
+      .sort((left, right) => left.messageIndex - right.messageIndex)[0];
+    if (later) {
+      selected.push(later);
+    }
+    for (const entry of scored.slice(1)) {
+      if (selected.some((item) => item.messageIndex === entry.item.messageIndex)) {
+        continue;
+      }
+      selected.push(entry.item);
+      if (selected.length >= LONGMEMEVAL_USER_SOURCE_PER_SESSION_LIMIT) {
+        break;
+      }
+    }
+
+    sessions.push({
+      anchorScore: anchor.score,
+      evidence: selected,
+      order,
+    });
+  }
+
+  sessions.sort(
+    (left, right) => right.anchorScore - left.anchorScore || left.order - right.order,
+  );
+  const seen = new Set<string>();
+  const selected: string[] = [];
+  for (const session of sessions.slice(0, LONGMEMEVAL_USER_SOURCE_SESSION_LIMIT)) {
+    for (const evidence of session.evidence) {
+      const content = compactLongMemEvalSupplementalEvidenceLine(
+        evidence.content,
+        queryTokens,
+        input.question,
+      );
+      const normalized = content.toLowerCase();
+      if (seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
+      selected.push(content);
+    }
+  }
+  return selected;
 }
 
 function appendLongMemEvalSupplementalEvidence(input: {
@@ -3553,6 +4054,21 @@ function appendLongMemEvalSupplementalEvidence(input: {
   return [
     input.content,
     "## Selected Session Evidence",
+    ...input.evidenceLines.map((line) => `- ${line}`),
+  ].join("\n\n");
+}
+
+function appendLongMemEvalUserSourceEvidence(input: {
+  content: string;
+  evidenceLines: readonly string[];
+}): string {
+  if (input.evidenceLines.length === 0) {
+    return input.content;
+  }
+
+  return [
+    input.content,
+    "## User-authored Source Evidence",
     ...input.evidenceLines.map((line) => `- ${line}`),
   ].join("\n\n");
 }
@@ -4149,6 +4665,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
   input: LongMemEvalGoodMemoryContextBuilderInput,
 ): LongMemEvalMemoryContextBuilder {
   return async ({ profile, testCase }) => {
+    const ingestMode = resolveLongMemEvalIngestMode(profile, input.ingestMode);
     const memory = input.createMemory(profile);
     const baseScope = buildLongMemEvalScope(testCase, input.runId);
     const extractionStrategy = "rules-only";
@@ -4162,7 +4679,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
     for (const [index, session] of testCase.haystackSessions.entries()) {
       const sessionId = testCase.haystackSessionIds[index] ?? `session-${index + 1}`;
       const date = testCase.haystackDates[index] ?? "unknown-date";
-      const labelFree = input.ingestMode === "label-free-raw";
+      const labelFree = ingestMode === "label-free-raw";
       const payload = labelFree
         ? buildLabelFreeLongMemEvalRememberPayload({ date, session, sessionId })
         : buildLongMemEvalRememberPayload({
@@ -4171,16 +4688,14 @@ export function createLongMemEvalGoodMemoryContextBuilder(
             session,
             sessionId,
           });
-      if (!labelFree) {
-        evidenceBySessionId.set(
+      evidenceBySessionId.set(
+        sessionId,
+        collectLongMemEvalSupplementalEvidence({
+          annotations: payload.annotations,
+          messages: payload.messages,
           sessionId,
-          collectLongMemEvalSupplementalEvidence({
-            annotations: payload.annotations,
-            messages: payload.messages,
-            sessionId,
-          }),
-        );
-      }
+        }),
+      );
       await memory.remember({
         annotations: payload.annotations,
         extractionStrategy,
@@ -4209,27 +4724,39 @@ export function createLongMemEvalGoodMemoryContextBuilder(
         testCase,
       }),
     );
-    if (input.ingestMode === "label-free-raw") {
-      return { content: context.content, retrievedSessionIds };
-    }
     const supplementalEvidenceLines = selectLongMemEvalSupplementalEvidence({
       context: context.content,
+      diversifyBySession: ingestMode === "label-free-raw",
       evidenceBySessionId,
       question: testCase.question,
       selectedSessionIds: retrievedSessionIds,
     });
-    const synthesisHints = deriveLongMemEvalSelectedEvidenceSynthesisHints({
-      evidenceBySessionId,
-      question: testCase.question,
-      questionDate: testCase.questionDate,
-      selectedSessionIds: retrievedSessionIds,
-    });
+    const userSourceEvidenceLines =
+      ingestMode === "label-free-raw" && isCountQuestion(testCase.question)
+        ? selectLongMemEvalUserSourceEvidence({
+            evidenceBySessionId,
+            question: testCase.question,
+            selectedSessionIds: retrievedSessionIds,
+          })
+        : [];
+    const synthesisHints =
+      ingestMode === "historical-annotated"
+        ? deriveLongMemEvalSelectedEvidenceSynthesisHints({
+            evidenceBySessionId,
+            question: testCase.question,
+            questionDate: testCase.questionDate,
+            selectedSessionIds: retrievedSessionIds,
+          })
+        : [];
 
     return {
       content: appendLongMemEvalSynthesisHints({
-        content: appendLongMemEvalSupplementalEvidence({
-          content: context.content,
-          evidenceLines: supplementalEvidenceLines,
+        content: appendLongMemEvalUserSourceEvidence({
+          content: appendLongMemEvalSupplementalEvidence({
+            content: context.content,
+            evidenceLines: supplementalEvidenceLines,
+          }),
+          evidenceLines: userSourceEvidenceLines,
         }),
         synthesisHints,
       }),
@@ -4390,7 +4917,11 @@ async function scoreFullCase(input: {
   testCase: LongMemEvalCase;
 }): Promise<LongMemEvalCaseResult> {
   let memoryContext: LongMemEvalMemoryContext | undefined;
-  if (input.profile === "goodmemory-rules-only" || input.profile === "goodmemory-hybrid") {
+  if (
+    input.profile === "goodmemory-rules-only" ||
+    input.profile === "goodmemory-hybrid" ||
+    input.profile === "goodmemory-recommended"
+  ) {
     const goodMemoryProfile = input.profile;
     try {
       memoryContext = await withLongMemEvalStageTimeout({
@@ -4884,6 +5415,10 @@ export async function runLongMemEvalSuite(
     .update(JSON.stringify(rawCases))
     .digest("hex");
   const profileReports: Partial<Record<LongMemEvalProfile, LongMemEvalProfileReport>> = {};
+  const reportIngestMode = resolveLongMemEvalReportIngestMode(
+    profiles,
+    options.ingestMode,
+  );
   const maxConcurrency =
     options.mode === "full" ? options.maxConcurrency ?? 1 : testCases.length;
 
@@ -4916,7 +5451,7 @@ export async function runLongMemEvalSuite(
     benchmarkRoot: options.benchmarkRoot,
     generatedAt: now().toISOString(),
     generatedBy: options.generatedBy,
-    ingestMode: options.ingestMode ?? "historical-annotated",
+    ...(reportIngestMode ? { ingestMode: reportIngestMode } : {}),
     mode: options.mode,
     outputDir: options.outputDir,
     phase: "phase-62",
@@ -4983,11 +5518,15 @@ export async function runLongMemEvalRecallDiagnostic(
     questionTypes: options.questionTypes,
     testCases: validateLongMemEvalCases(rawCases),
   });
+  const ingestMode = resolveLongMemEvalIngestMode(
+    options.profile,
+    options.ingestMode,
+  );
   const identity: LongMemEvalRecallProgressIdentity = {
     benchmarkFingerprint,
     benchmarkRoot: options.benchmarkRoot,
     generatedBy: options.generatedBy,
-    ingestMode: options.ingestMode ?? "historical-annotated",
+    ingestMode,
     profile: options.profile,
     questionIds: testCases.map((testCase) => testCase.questionId),
     runConfiguration: options.runConfiguration ?? null,
@@ -5030,6 +5569,20 @@ export async function runLongMemEvalRecallDiagnostic(
         raw: progressRaw,
         testCases,
       });
+      if (options.retryFailures) {
+        for (const [questionId, result] of cached) {
+          if (result.executionError) {
+            cached.delete(questionId);
+          }
+        }
+        progressRaw = [...cached.values()]
+          .map((result) => JSON.stringify(result))
+          .join("\n");
+        if (progressRaw) {
+          progressRaw += "\n";
+        }
+        await writeFileImpl(progressPath, progressRaw);
+      }
     }
   }
   if (!options.resume || (cached.size === 0 && progressRaw.length === 0)) {
@@ -5078,7 +5631,7 @@ export async function runLongMemEvalRecallDiagnostic(
       "Recall-only diagnostic measures whether GoodMemory retrieved the LongMemEval evidence sessions before answer generation. It is not an end-to-end answer accuracy score.",
     generatedAt: now().toISOString(),
     generatedBy: options.generatedBy,
-    ingestMode: options.ingestMode ?? "historical-annotated",
+    ingestMode,
     mode: "recall-only-diagnostic",
     outputDir: options.outputDir,
     phase: "phase-62",

@@ -21,7 +21,10 @@
 
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createGoodMemory } from "../src/api/createGoodMemory";
+import {
+  createGoodMemory,
+  createInternalGoodMemory,
+} from "../src/api/createGoodMemory";
 import type { GoodMemory, RecallResult } from "../src/api/contracts";
 import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import {
@@ -62,9 +65,12 @@ const PROFILES_COMPARED = ["goodmemory-rules-only"] as const;
 
 export interface MemoryAgentBenchSmokeCliOptions {
   benchmarkRoot?: string;
+  competency?: MemoryAgentBenchCompetency;
   // When true, shape the answer context as the source-ordered evidence pack
   // (current-value resolver) instead of the plain retrieved-chunk list.
   evidencePack?: boolean;
+  // Opt in to the production recommended BM25/entity/RRF retrieval preset.
+  generalizedFusion?: boolean;
   limit?: number;
   // When true (and no answerGenerator is injected), construct the real LLM
   // generator and run in live-answer mode.
@@ -179,6 +185,20 @@ export interface MemoryAgentBenchSmokeReport {
   upstreamSource: string;
 }
 
+function parseMemoryAgentBenchCompetency(
+  value: string | undefined,
+): MemoryAgentBenchCompetency | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!(MEMORY_AGENT_BENCH_COMPETENCIES as readonly string[]).includes(value)) {
+    throw new Error(
+      `--competency must be one of: ${MEMORY_AGENT_BENCH_COMPETENCIES.join(", ")}.`,
+    );
+  }
+  return value as MemoryAgentBenchCompetency;
+}
+
 export function parseMemoryAgentBenchSmokeCliOptions(
   argv: readonly string[],
 ): MemoryAgentBenchSmokeCliOptions {
@@ -186,7 +206,11 @@ export function parseMemoryAgentBenchSmokeCliOptions(
     benchmarkRoot:
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       resolveEnvValueStrict(process.env, MEMORY_AGENT_BENCH_ROOT_ENV),
+    competency: parseMemoryAgentBenchCompetency(
+      resolveCliFlagValueStrict(argv, "--competency"),
+    ),
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
+    generalizedFusion: hasCliFlagStrict(argv, "--generalized-fusion"),
     limit: parseCliPositiveIntegerFlagStrict(argv, "--limit"),
     live: hasCliFlagStrict(argv, "--live"),
     noMemory: hasCliFlagStrict(argv, "--no-memory"),
@@ -400,7 +424,7 @@ export function buildMemoryAgentBenchEvidencePackContext(input: {
 }
 
 const MEMORY_AGENT_BENCH_ANSWER_SYSTEM =
-  "You answer questions using only the supplied memory context. Combining or summarizing information that is present in the context is expected; do not state facts that are absent from it.";
+  "You answer questions using only the supplied memory context. The memory context is authoritative even when it conflicts with world knowledge. Combining or summarizing information that is present in the context is expected; do not state facts that are absent from it.";
 
 export function buildMemoryAgentBenchPrompt(input: {
   memoryContext: string;
@@ -558,17 +582,23 @@ function createSmokeEmbeddingAdapter(): EmbeddingAdapter {
   };
 }
 
-export function createMemoryAgentBenchSmokeMemory(): GoodMemory {
+export function createMemoryAgentBenchSmokeMemory(
+  options: { generalizedFusion?: boolean } = {},
+): GoodMemory {
   // Deterministic id and clock seams keep repeated smoke runs reproducible:
   // ranking tie-breaks fall back to fact-id and timestamp comparisons.
   let idCounter = 0;
   let clockTick = 0;
-  return createGoodMemory({
-    adapters: {
-      embeddingAdapter: createSmokeEmbeddingAdapter(),
-    },
+  const config = {
+    ...(options.generalizedFusion
+      ? { retrieval: { preset: "recommended" as const } }
+      : {
+          adapters: {
+            embeddingAdapter: createSmokeEmbeddingAdapter(),
+          },
+        }),
     storage: {
-      provider: "memory",
+      provider: "memory" as const,
     },
     testing: {
       createId: () => {
@@ -580,7 +610,14 @@ export function createMemoryAgentBenchSmokeMemory(): GoodMemory {
         return new Date(Date.UTC(2026, 0, 1, 0, 0, 0, clockTick));
       },
     },
-  });
+  };
+  return options.generalizedFusion
+    ? createInternalGoodMemory(config, {
+        environment: {},
+        projectionBulkBackfill: true,
+        projectionWriteThrough: false,
+      })
+    : createGoodMemory(config);
 }
 
 function assertNormalizedCase(value: unknown, index: number): MemoryAgentBenchCase {
@@ -648,18 +685,28 @@ export async function runMemoryAgentBenchSmoke(
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
   const createMemory =
-    dependencies.createMemory ?? createMemoryAgentBenchSmokeMemory;
+    dependencies.createMemory ??
+    (() =>
+      createMemoryAgentBenchSmokeMemory({
+        generalizedFusion: options.generalizedFusion,
+      }));
   const runId = options.runId ?? MEMORY_AGENT_BENCH_SMOKE_RUN_ID;
   const outputDir =
     options.outputDir ??
     join(repoRoot, "reports", "eval", "research", "phase-64", "mab");
   const runDirectory = join(outputDir, runId);
 
-  const { benchmarkSource, cases } = await loadMemoryAgentBenchCases({
+  const loaded = await loadMemoryAgentBenchCases({
     benchmarkRoot: options.benchmarkRoot,
     limit: options.limit,
     readFile: readFileImpl,
   });
+  const benchmarkSource = loaded.benchmarkSource;
+  const cases = options.competency
+    ? loaded.cases.filter(
+        (testCase) => testCase.competency === options.competency,
+      )
+    : loaded.cases;
 
   const answerGenerator =
     dependencies.answerGenerator ??
@@ -728,7 +775,7 @@ export async function runMemoryAgentBenchSmoke(
         const recall = await memory.recall({
           query: question.question,
           scope,
-          strategy: "rules-only",
+          strategy: options.generalizedFusion ? "hybrid" : "rules-only",
         });
         const retrievedChunkIds =
           collectMemoryAgentBenchRetrievedChunkIds(recall);
@@ -803,7 +850,9 @@ export async function runMemoryAgentBenchSmoke(
     mode: liveAnswer ? "live-answer" : "retrieval-only",
     noMemoryBaseline: options.noMemory === true,
     phase: "phase-64",
-    profilesCompared: [...PROFILES_COMPARED],
+    profilesCompared: options.generalizedFusion
+      ? ["goodmemory-recommended"]
+      : [...PROFILES_COMPARED],
     resumed: options.resume === true,
     questionCount: results.length,
     runDirectory,

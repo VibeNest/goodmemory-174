@@ -2,7 +2,7 @@
   "benchmark": "MemoryAgentBench",
   "comparison": {
     "asOf": "2026-07-09",
-    "availability": "public-opt-in",
+    "availability": "historical",
     "notes": [
       "The public claim remains scoped to CR and TTL because AR and LRU do not beat their no-memory baselines.",
       "The comparison uses deterministic upstream match-mode scoring rather than an LLM judge."
@@ -10,7 +10,7 @@
     "runtimeProfile": "task-specific-cr-ttl@0.3.5",
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench"
   },
-  "status": "candidate_public_claim",
+  "status": "internal_evidence",
   "dataset": {
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench",
     "license": "MIT",
@@ -130,7 +130,7 @@
     "note": "Clean run executionFailures 0 (259 questions, resumable retry). With-memory: CR 0.959 (70/73), TTL 0.767 (23/30), AR 0.890 (89/100), LRU 0.518 (29/56). No-memory ablation baseline (empty memory context): CR 0.000 (0/73) and TTL 0.000 (0/30) on FULL coverage — the decisive disclosure that the public CR/TTL claim is a genuine memory win (both unanswerable without GoodMemory). AR 0.926 (87/94) and LRU 0.632 (12/19) are on PARTIAL coverage: the no-memory baseline run had executionFailures 43, all landing in AR/LRU (CR/TTL fully covered); they still directionally confirm memory does NOT help AR/LRU (no-memory >= with-memory), so AR/LRU are excluded from any claim. Verified against persisted artifacts reports/eval/research/phase-64/mab/run-phase67c-mab-harness-resumed-current (execFails 0) + run-phase67c-mab-baseline-current."
   },
   "claimBoundary": {
-    "publicClaimAllowed": true,
-    "reason": "Methodology clears every rule: deterministic upstream match-mode scoring (NO LLM judge, no same-model bias), executionFailures 0 via resumable retry, reproducible (commit/command/package version), MIT-licensed non-vendored data, complete coverage. THE CLAIM IS SCOPED TO Conflict Resolution (CR 0.959) and Test-Time Learning (TTL 0.767) ONLY — these are genuine GoodMemory contributions: the no-memory ablation scores 0.000 on both (the questions are unanswerable without GoodMemory's retrieved consolidated fact / in-context demos), and CR 0.959 exceeds the published single-hop ceiling ~0.60. AR and LRU are DELIBERATELY EXCLUDED from any claim: the no-memory ablation scores AR 0.926 (vs 0.890 with memory) and LRU 0.632 (vs 0.518), i.e. memory does NOT help — they are multiple-choice leaks where the model answers from the candidates in the question. Required disclosure if promoted: CR/TTL measure answer-time current-value resolution + in-context retrieval (GoodMemory's genuine strength), not general retrieval recall (CR retrieval recall 0.57). README promoted 2026-06-25 (CR + TTL row, AR/LRU excluded, no-memory ablation disclosed) with user sign-off."
+    "publicClaimAllowed": false,
+    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. Methodology clears every rule: deterministic upstream match-mode scoring (NO LLM judge, no same-model bias), executionFailures 0 via resumable retry, reproducible (commit/command/package version), MIT-licensed non-vendored data, complete coverage. THE CLAIM IS SCOPED TO Conflict Resolution (CR 0.959) and Test-Time Learning (TTL 0.767) ONLY — these are genuine GoodMemory contributions: the no-memory ablation scores 0.000 on both (the questions are unanswerable without GoodMemory's retrieved consolidated fact / in-context demos), and CR 0.959 exceeds the published single-hop ceiling ~0.60. AR and LRU are DELIBERATELY EXCLUDED from any claim: the no-memory ablation scores AR 0.926 (vs 0.890 with memory) and LRU 0.632 (vs 0.518), i.e. memory does NOT help — they are multiple-choice leaks where the model answers from the candidates in the question. Required disclosure if promoted: CR/TTL measure answer-time current-value resolution + in-context retrieval (GoodMemory's genuine strength), not general retrieval recall (CR retrieval recall 0.57). README promoted 2026-06-25 (CR + TTL row, AR/LRU excluded, no-memory ablation disclosed) with user sign-off."
   }
 }

@@ -119,6 +119,19 @@ function extractCanonicalProfileName(value: string): string | undefined {
   return extractLeadingCanonicalName(trimmed);
 }
 
+function extractExplicitCanonicalProfileName(
+  value: string,
+): string | undefined {
+  const trimmed = trimWrappingPunctuation(value);
+  const explicitNameMatch = trimmed.match(
+    /(?:[Uu]ser['’]s name is|[Mm]y name is|[Nn]ame is)\s+(.+)$/u,
+  );
+
+  return explicitNameMatch?.[1]
+    ? extractLeadingCanonicalName(explicitNameMatch[1])
+    : undefined;
+}
+
 export function extractCanonicalReferencePointer(
   value: string | undefined,
 ): string | undefined {
@@ -216,9 +229,11 @@ function normalizeProfileCandidate(
     return candidate;
   }
 
-  const normalizedName =
-    extractCanonicalProfileName(sourceMessageContent ?? "") ??
-    extractCanonicalProfileName(candidate.content);
+  const normalizedName = profileField === "name"
+    ? extractCanonicalProfileName(sourceMessageContent ?? "") ??
+      extractCanonicalProfileName(candidate.content)
+    : extractExplicitCanonicalProfileName(sourceMessageContent ?? "") ??
+      extractExplicitCanonicalProfileName(candidate.content);
 
   if (!normalizedName) {
     return candidate;

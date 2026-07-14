@@ -8,6 +8,12 @@ import { currentValueTopicTokens } from "../evidenceShared";
 // clause must not classify the whole clause as the denial side.
 const CONTRADICTION_DENIAL_PATTERN =
   /\b(?:can't|cannot|couldn't|could\s+not|deny|denied|didn't|did\s+not|don't|do\s+not|haven't|have\s+not|hasn't|has\s+not|never|not\s+yet|not\s+actually|wasn't|was\s+not|weren't|were\s+not)\b/iu;
+const CONTRADICTION_TOPIC_STOP_WORDS = new Set([
+  "and",
+  "have",
+  "project",
+  "with",
+]);
 
 interface ContradictionClauseCandidate {
   index: number;
@@ -53,7 +59,10 @@ export function buildContradictionEvidenceGuide(
       return 0;
     }
     const tokens = currentValueTopicTokens(text);
-    return [...reference].filter((token) => tokens.has(token)).length;
+    return [...reference].filter(
+      (token) =>
+        !CONTRADICTION_TOPIC_STOP_WORDS.has(token) && tokens.has(token),
+    ).length;
   };
   const pickBest = (
     pool: readonly ContradictionClauseCandidate[],
@@ -71,7 +80,13 @@ export function buildContradictionEvidenceGuide(
 
   const denialPool = clauses.filter((clause) => clause.isDenial);
   const denial =
-    pickBest(denialPool, (clause) => overlap(clause.text, questionTokens)) ??
+    pickBest(denialPool, (clause) => {
+      const denialIndex = clause.text.search(CONTRADICTION_DENIAL_PATTERN);
+      const leadingDenial = denialIndex >= 0 && denialIndex < 80 ? 8 : 0;
+      const lengthPenalty = Math.log2(Math.max(1, clause.text.length / 80));
+      return overlap(clause.text, questionTokens) * 4 +
+        leadingDenial - lengthPenalty;
+    }) ??
     denialPool[0];
   const denialTokens = denial
     ? currentValueTopicTokens(denial.text)
@@ -88,14 +103,20 @@ export function buildContradictionEvidenceGuide(
       !isRequestClause(clause.text) &&
       /[a-z]{3}/iu.test(clause.text),
   );
-  const scoreAffirmative = (clause: ContradictionClauseCandidate): number =>
-    overlap(clause.text, questionTokens) * 2 +
-    overlap(clause.text, denialTokens);
-  const sameTurnPool = denial
-    ? affirmativePool.filter((clause) => clause.sourceId === denial.sourceId)
-    : [];
+  const scoreAffirmative = (clause: ContradictionClauseCandidate): number => {
+    const priorOrSameTurn = denial && clause.orderKey <= denial.orderKey ? 10 : 0;
+    const concreteAction =
+      /\b(?:attempted|built|completed|created|fixed|implemented|integrated|managed|registered|tested|used|wrote)\b/iu.test(
+        clause.text,
+      )
+        ? 2
+        : 0;
+    const lengthPenalty = Math.log2(Math.max(1, clause.text.length / 80));
+    return overlap(clause.text, questionTokens) * 2 +
+      overlap(clause.text, denialTokens) + priorOrSameTurn + concreteAction -
+      lengthPenalty;
+  };
   const affirmative =
-    pickBest(sameTurnPool, scoreAffirmative) ??
     pickBest(affirmativePool, scoreAffirmative) ??
     affirmativePool[0];
 

@@ -1,8 +1,134 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
-import { parseLocomoUnionLiveCliOptions } from "../../scripts/measure-locomo-union-live";
+import { buildLocomoSmokeCases } from "../../src/eval/locomo";
+import { assertLocomoReportQuestionCountMatchesCases } from "../../scripts/locomo-report-compatibility";
+import {
+  buildLocomoUnionLiveReport,
+  buildLocomoUnionLiveAnswerSystem,
+  formatLocomoUnionSeedFailure,
+  formatLocomoUnionQuestionAttempt,
+  formatLocomoUnionQuestionRetry,
+  parseLocomoUnionLiveCliOptions,
+} from "../../scripts/measure-locomo-union-live";
 
 describe("LoCoMo union live measurement", () => {
+  it("writes a canonical report contract with source and retrieval lineage", () => {
+    const testCase = buildLocomoSmokeCases()[0]!;
+    const question = testCase.questions[0]!;
+    const report = buildLocomoUnionLiveReport({
+      answerAttempts: 2,
+      answerTimeoutMs: 45_000,
+      benchmarkFingerprint: "sha256-fixture",
+      benchmarkRoot: "/tmp/LOCOMO",
+      benchmarkSource: "/tmp/LOCOMO/cases.json",
+      cases: [testCase],
+      concurrency: 2,
+      executionFailures: 0,
+      generatedAt: "2026-07-13T12:00:00.000Z",
+      noMemory: false,
+      results: [
+        {
+          answerCorrect: true,
+          answerTokenF1: 1,
+          caseId: testCase.caseId,
+          category: question.category,
+          evidenceRecall: 1,
+          evidenceTurnIds: [...question.evidenceTurnIds],
+          generatedAnswer: question.goldAnswer,
+          goldEvidenceFullyRetrieved: true,
+          missingEvidenceTurnIds: [],
+          noiseTurnCount: 0,
+          noiseTurnIds: [],
+          questionId: question.questionId,
+          retrievedTurnIds: [...question.evidenceTurnIds],
+        },
+      ],
+      resume: true,
+      runDirectory: "/tmp/out/union-live",
+      runId: "union-live",
+      union: {
+        maxAdditions: 8,
+        minSimilarity: 0.3,
+        topK: 16,
+      },
+      withExtraction: true,
+    });
+
+    expect(report).toMatchObject({
+      answerContextMode: "evidence-pack",
+      answerEvaluation: "scored",
+      benchmarkFingerprint: "sha256-fixture",
+      benchmarkSource: "/tmp/LOCOMO/cases.json",
+      externalRoot: "/tmp/LOCOMO",
+      generatedBy: "scripts/measure-locomo-union-live.ts",
+      ingestMode: "conversational-extraction",
+      license: "CC BY-NC 4.0",
+      profilesCompared: ["goodmemory-semantic-union"],
+      semanticCandidateEmbeddingSource: "provider",
+      semanticCandidates: {
+        enabled: true,
+        maxAdditions: 8,
+        minRelativeScore: null,
+        minSimilarity: 0.3,
+        topK: 16,
+      },
+      upstreamSource: "https://github.com/snap-research/locomo",
+    });
+    expect(() =>
+      assertLocomoReportQuestionCountMatchesCases({
+        path: "/tmp/out/union-live/union-live-report.json",
+        report,
+      }),
+    ).not.toThrow();
+  });
+
+  it("adds relative-time guidance only for temporal questions", () => {
+    const temporal = buildLocomoUnionLiveAnswerSystem("temporal");
+    const adversarial = buildLocomoUnionLiveAnswerSystem("adversarial");
+
+    expect(temporal).toContain("preserve the relative time relationship");
+    expect(temporal).toContain("week- or weekend-level relationship");
+    expect(temporal).toContain("month- or year-level relative references");
+    expect(adversarial).not.toContain("preserve the relative time relationship");
+    expect(adversarial).toContain("reply exactly: No information available");
+  });
+
+  it("surfaces the case and provider error when seeding fails", () => {
+    expect(
+      formatLocomoUnionSeedFailure({
+        caseId: "locomo-conv-26",
+        error: new Error("embedding provider rejected the request"),
+        pendingQuestionCount: 199,
+      }),
+    ).toBe(
+      "[union-live] case seed failed (locomo-conv-26, 199 pending questions): Error: embedding provider rejected the request\n",
+    );
+  });
+
+  it("identifies slow question attempts without logging conversation text", () => {
+    expect(
+      formatLocomoUnionQuestionAttempt({
+        attempt: 1,
+        caseId: "locomo-conv-26",
+        maxAttempts: 2,
+        questionId: "conv-26:q42",
+      }),
+    ).toBe(
+      "[union-live] answering locomo-conv-26/conv-26:q42 (attempt 1/2)\n",
+    );
+    expect(
+      formatLocomoUnionQuestionRetry({
+        attempt: 1,
+        caseId: "locomo-conv-26",
+        error: new Error("request timed out"),
+        maxAttempts: 2,
+        questionId: "conv-26:q42",
+      }),
+    ).toBe(
+      "[union-live] retrying locomo-conv-26/conv-26:q42 after attempt 1/2: Error: request timed out\n",
+    );
+  });
+
   it("parses live union scope and budget flags with strict numeric validation", () => {
     expect(
       parseLocomoUnionLiveCliOptions(
@@ -22,6 +148,10 @@ describe("LoCoMo union live measurement", () => {
           "12",
           "--concurrency",
           "2",
+          "--answer-attempts",
+          "2",
+          "--answer-timeout-ms",
+          "45000",
           "--output-dir",
           "/tmp/out",
           "--run-id",
@@ -34,6 +164,8 @@ describe("LoCoMo union live measurement", () => {
       ),
     ).toEqual({
       benchmarkRoot: "/tmp/LOCOMO-full",
+      answerAttempts: 2,
+      answerTimeoutMs: 45000,
       concurrency: 2,
       limit: 12,
       maxAdditions: 0,
@@ -56,6 +188,8 @@ describe("LoCoMo union live measurement", () => {
         "/repo",
       ),
     ).toMatchObject({
+      answerAttempts: 2,
+      answerTimeoutMs: 60000,
       concurrency: 1,
       outputDir: join(
         "/repo",
@@ -146,6 +280,32 @@ describe("LoCoMo union live measurement", () => {
         "/repo",
       ),
     ).toThrow("--concurrency must be a positive integer.");
+
+    expect(() =>
+      parseLocomoUnionLiveCliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/measure-locomo-union-live.ts",
+          "--answer-attempts",
+          "0",
+        ],
+        "/repo",
+      ),
+    ).toThrow("--answer-attempts must be a positive integer.");
+
+    expect(() =>
+      parseLocomoUnionLiveCliOptions(
+        [
+          "bun",
+          "run",
+          "scripts/measure-locomo-union-live.ts",
+          "--answer-timeout-ms",
+          "1e3",
+        ],
+        "/repo",
+      ),
+    ).toThrow("--answer-timeout-ms must be a positive integer.");
 
     expect(() =>
       parseLocomoUnionLiveCliOptions(

@@ -1,0 +1,31 @@
+{
+  "benchmarkFingerprint": "d134ede9c6e3371ca31f6b9769e3ceeeaebaacaebbc1a4d3548220e9887abc66",
+  "questionIds": [
+    "conv-41:q26",
+    "conv-41:q42",
+    "conv-43:q43",
+    "conv-43:q48",
+    "conv-50:q22",
+    "conv-49:q16",
+    "conv-43:q2",
+    "conv-48:q85",
+    "conv-26:q60",
+    "conv-26:q61",
+    "conv-26:q65",
+    "conv-26:q71",
+    "conv-43:q32",
+    "conv-47:q16",
+    "conv-48:q28",
+    "conv-48:q5",
+    "conv-48:q70",
+    "conv-48:q75",
+    "conv-26:q22",
+    "conv-47:q7",
+    "conv-50:q13",
+    "conv-42:q73",
+    "conv-26:q59",
+    "conv-47:q44"
+  ],
+  "schemaVersion": 1,
+  "selectionBasis": "Phase 70 baseline-only target cohort: gold evidence was present in frozen Phase 69 membership but absent from the pre-reranker top-6. No reranker output or answer was inspected during selection."
+}

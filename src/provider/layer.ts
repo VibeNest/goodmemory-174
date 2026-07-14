@@ -1,6 +1,7 @@
 import type { RecallRouterAssistant } from "../recall/assistant";
 import type { Reranker } from "../recall/reranker";
 import type {
+  MemoryExtractionContext,
   MemoryExtractionInput,
   MemoryExtractor,
 } from "../remember/candidates";
@@ -27,7 +28,10 @@ interface ProviderMemoryExtractorFactory {
   (input: {
     dependencies?: ProviderRequestDependencies;
     model: AISDKModelConfig;
-    promptBuilder?: (input: MemoryExtractionInput) => string;
+    promptBuilder?: (
+      input: MemoryExtractionInput,
+      context?: MemoryExtractionContext,
+    ) => string;
     system?: string;
   }): MemoryExtractor;
 }
@@ -118,7 +122,10 @@ export function normalizeProviderRuntimeMetadata(
 
 export function createProviderMemoryExtractor(input: {
   model: AISDKModelConfig;
-  promptBuilder?: (input: MemoryExtractionInput) => string;
+  promptBuilder?: (
+    input: MemoryExtractionInput,
+    context?: MemoryExtractionContext,
+  ) => string;
   system?: string;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
   requestTimeoutMs?: number;
@@ -148,9 +155,10 @@ export function createProviderConversationalMemoryExtractor(input: {
 }): MemoryExtractor {
   return createProviderMemoryExtractor({
     model: input.model,
-    promptBuilder: (payload) =>
+    promptBuilder: (payload, context) =>
       buildConversationalMemoryExtractionPrompt(payload, {
         contextualDescriptor: input.contextualDescriptor,
+        knownUserName: context?.knownUserName,
       }),
     system: CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
     createMemoryExtractor: input.createMemoryExtractor,

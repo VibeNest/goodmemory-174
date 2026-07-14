@@ -220,7 +220,16 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
       if (diaId === null) {
         continue;
       }
-      turns.push(date === undefined ? { content, diaId, speaker } : { content, date, diaId, speaker });
+      const imageCaption =
+        typeof entry.blip_caption === "string" ? entry.blip_caption.trim() : "";
+      const sourceContent = imageCaption.length > 0
+        ? `${content}\n\nImage caption: ${imageCaption}`
+        : content;
+      turns.push(
+        date === undefined
+          ? { content: sourceContent, diaId, speaker }
+          : { content: sourceContent, date, diaId, speaker },
+      );
     }
   }
   return turns;

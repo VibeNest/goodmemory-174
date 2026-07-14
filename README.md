@@ -32,50 +32,84 @@ and the model runtime.
 
 ## Benchmark Results
 
-GoodMemory separates gate-verified public claims from internal research
-evidence. A number may appear in the public-claims table only after
-`gate:public-benchmark-claim --strict` passes for its committed declaration:
-complete coverage, `executionFailures: 0`, a no-memory baseline, deterministic
-scoring or an independent judge, verified dataset source and license, and a
-reproducible run (commit + command + package version).
+GoodMemory separates current-production claims, versioned historical evidence,
+and internal research. A number may enter the current-claims table only after
+`gate:public-benchmark-claim --strict` validates a committed declaration for
+the current package version: complete coverage, `executionFailures: 0`, a
+no-memory baseline, deterministic scoring or an independent judge, verified
+dataset source and license, and a reproducible run (commit + command + package
+version). Historical rows remain under separate markers and cannot satisfy the
+current-version gate.
 
-### Public claims (gate-verified)
+The Phase 72 `v0.6.0` generalized refresh is still open. Current reruns do not
+show a uniform score increase: MemoryAgentBench CR/TTL are
+0.9589041096/0.9333333333. ImplicitMemBench Full-300 scored 0.6683666667 and
+0.6790333333 on two independent `gpt-5.4` judging passes; an explicitly
+disclosed four-case LogiQL retry merge reached 0.6923666667 with zero failures,
+but remains internal evidence rather than a replacement full-run claim. BEAM's
+generalized full-400 evidence recall is 0.8273942646; a stored-retrieval retry
+after a generic subject-date guardrail raised the 20-case official-protocol
+slice from 0.7766666667 to 0.8266666667 (59/59 rubric items, zero judge
+failures). HaluMem's frozen slice now beats its local vector baseline on all
+three official metrics: extraction 0.9309950438 vs 0.8615384615, update 0.75 vs
+0.625, and QA 0.8888888889 vs 0.7777777778. LongMemEval now has a current
+zero-failure full-500 `goodmemory-recommended` run with bounded, monotonic
+query-tail evidence expansion: `gpt-5.6-terra` answers score 340/500 = 0.680
+under an independent `gpt-5.4` official-protocol rescore, while its judge-free
+deterministic lower bound is 269/500 = 0.538. This raised the assistant category
+from 39/56 to 46/56 while every other category held within 1pt, but both
+headline tracks still miss the required 0.92 / 0.72 gates. LoCoMo's current
+full-1540 production run also
+misses its strict and official score gates. These remain internal research
+results, so the table below retains versioned historical evidence with its
+disclosed profiles.
 
-<!-- public-claims-table:start -->
+<!-- current-claims-table:start -->
+<!-- current-claims-table:end -->
+
+### Versioned historical claims (not current-production results)
+
+These rows remain reproducible evidence for the disclosed package version and
+runtime profile. They are not claims about the current production-generalized
+path. The runtime capability descriptor keeps `benchmarks.currentClaims` empty
+until a current-version full gate explicitly promotes a replacement result.
+
+<!-- historical-evidence-table:start -->
 | Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
 |---|---|---:|---:|---|
 | LongMemEval full 500 | strict: judge-free deterministic subset · comparable: official LongMemEval judge protocol | strict **0.720** (360/500) · official-protocol **0.888** (444/500), `goodmemory-rules-only` | no-memory 0.068; current Mem0 harness: 94.4 Top200 / 94.8 Top50 (different stack and budget) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
 | MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
 | LoCoMo (full 10 conversations) | strict: deterministic token-F1 · comparable: industry LLM-judge protocol (non-adversarial 1540) | strict **0.6117** (942/1540) · judge-protocol **0.837** (1289/1540) | no-memory 0.0045 non-adversarial; current Mem0 harness: 92.5 Top200 / 91.8 Top50 (different stack and budget) | [locomo.json](./benchmark-claims/locomo.json) |
+| BEAM 100K (400 questions, 1051 rubric items) | official BEAM rubric judge (1.0/0.5/0.0 per rubric item) · strict: internal binary judge | official-protocol **0.802** · strict binary **0.7225** (289/400) | no-pack ablation 0.5725; only public same-protocol reference: 0.49 | [beam.json](./benchmark-claims/beam.json) |
 | ImplicitMemBench Full-300 | stored-answer cross-version judge rescore | **0.691** (207.35/300), gpt-5.4 judge over gpt-5.5 answers, sourceAnswersUnchanged | upstream-chat baseline **0.400** (120/300); reference line 0.66 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
-<!-- public-claims-table:end -->
+<!-- historical-evidence-table:end -->
 
-Every row reports two tracks. The **strict** track is deterministic or
-judge-free — a hard lower bound no LLM judge can inflate. The **comparable**
-track re-judges the *same stored answers* (not regenerated) under each
-benchmark's official or industry-standard judge protocol, verbatim, so the
-number sits on the same scale as published competitor results. The gap
-between the tracks is quantified judge leniency, disclosed instead of
-hidden. Comparable-track judging uses gpt-5.4 — a different model from the
-gpt-5.5 answerer but the same family; every per-protocol detail is recorded
-in the linked claim declarations.
+Where both are available, each historical row reports two tracks. The
+**strict** track is deterministic or judge-free — a hard lower bound no LLM
+judge can inflate. The **comparable** track re-judges the *same stored answers*
+(not regenerated) under each benchmark's official or industry-standard judge
+protocol, verbatim, so the number sits on the same scale as published
+competitor results. The gap between the tracks is quantified judge leniency,
+disclosed instead of hidden. Comparable-track judging uses gpt-5.4 — a
+different model from the historical gpt-5.5 answerer but the same family;
+every per-protocol detail is recorded in the linked declarations.
 
-The LongMemEval claim is judge-free, replacing an earlier internal with-judge
-number (0.908) that is superseded and not claimable. A case counts as correct
+The historical LongMemEval strict result is judge-free, replacing an earlier
+internal with-judge number (0.908) that is superseded and not claimable. A case counts as correct
 only when a deterministic method scores it (abstention / exact / contains /
 expected_alternative / numeric_count); the eval pipeline's same-model semantic
 judge (gpt-5.5 judging gpt-5.5) is excluded by construction — with it, the
 diagnostic overall accuracy is 0.896, reported for transparency but not
-claimed. The claimed 0.720 (360/500, `executionFailures: 0`, v0.3.5) uses the
+claimed. The recorded 0.720 (360/500, `executionFailures: 0`, v0.3.5) uses the
 embedding-free `goodmemory-rules-only` profile; abstention contributes only 28
 of the 360 correct answers, while the no-memory baseline's 0.068 is mostly bare
 abstention (30 of its 34 correct), so the +65.2-point lift is the memory
 system's contribution. Judge-free refers to scoring — answers are still
 generated by gpt-5.5. Full provenance is in the
 [claim declaration](./benchmark-claims/longmemeval.json).
-The MemoryAgentBench claim is GoodMemory's first public benchmark claim, and it
-is deliberately scoped. Only Conflict Resolution (CR 0.959) and Test-Time
-Learning (TTL 0.767) are claimed: a no-memory ablation scores both `0.000` (the
+The historical MemoryAgentBench declaration is deliberately scoped. It records
+only Conflict Resolution (CR 0.959) and Test-Time Learning (TTL 0.767): a
+no-memory ablation scores both `0.000` (the
 questions are unanswerable without GoodMemory's retrieved consolidated fact /
 in-context demos), so these are genuine memory contributions, scored
 deterministically with no LLM judge (`executionFailures: 0`, 259 questions).
@@ -85,13 +119,13 @@ are multiple-choice leaks where the model answers from the candidates in the
 question, not memory wins. CR/TTL measure answer-time current-value resolution
 and in-context retrieval, not general retrieval recall.
 
-The LoCoMo claim is scored by deterministic token-F1 (judge-free,
+The historical LoCoMo strict result is scored by deterministic token-F1 (judge-free,
 `executionFailures: 0` across all 1986 questions of the full 10-conversation
 set, v0.3.5). The profile is disclosed and opt-in — provider-embedding semantic
 candidate union (`retrieval.semanticCandidates`, topK 16) plus conversational
 write-time extraction plus an abstention-format answer prompt; the
 embedding-free default scores 0.020 on the representative conv-1 slice (the
-banked retrieval boundary), so this claim is specifically about the
+banked retrieval boundary), so this result is specifically about the
 embedding+extraction profile, not the zero-dependency default. Read the memory
 lift on the non-adversarial split (0.6117 vs 0.0045 — 942 vs 7 correct of 1540):
 the adversarial category (446 questions whose gold answer is the literal
@@ -122,15 +156,15 @@ event_ordering with a rank-correlation metric; both this run and the public
 reference rubric-judge it. Dataset CC BY-SA 4.0, fetched at eval time, never
 vendored.
 
-The ImplicitMemBench Full-300 claim uses the canonical zero-failure
+The historical ImplicitMemBench Full-300 declaration uses the canonical zero-failure
 `run-phase61-full300-rerun-20260706-codex-current` answers, then re-scores the
 same stored answers with gpt-5.4 (`sourceAnswersUnchanged: true`). The judge is
 cross-version but the same GPT family as the gpt-5.5 answer model, not a
-cross-family judge. The public score is **0.691** (207.35/300) versus an
+cross-family judge. The recorded score is **0.691** (207.35/300) versus an
 upstream-chat baseline of **0.400** (120/300), with 530 judge-required row
 decisions across the baseline and GoodMemory arms; deterministic
 `structured_first_action` rows are carried forward rather than judged. The
-older same-model diagnostic score was 0.708 and is not the public claim. The
+older same-model diagnostic score was 0.708 and is not the recorded result. The
 freshest clean answer-regeneration drift check after recent code changes scored
 0.6895 with `executionFailures: 0`; it shows current checkout drift, not a
 replacement for the stored-answer comparability artifact. Dataset CC BY 4.0,
@@ -138,10 +172,11 @@ fetched at eval time, never vendored.
 
 ### Internal diagnostics (not public claims)
 
-Blocked benchmark numbers stay out of the public-claims table until their
-declaration says they are claimable and `gate:public-benchmark-claim --strict`
-passes. The underlying run reports live under gitignored `reports/` and are
-reproducible from the run commands recorded in the declarations.
+Blocked benchmark numbers stay out of the current-claims table until their
+declaration has `candidate_public_claim` status for the current package version
+and `gate:public-benchmark-claim --strict` passes. The underlying run reports
+live under gitignored `reports/` and are reproducible from the run commands
+recorded in the declarations.
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order
 and

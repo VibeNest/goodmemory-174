@@ -101,6 +101,7 @@ export interface RecallInput {
   query: string;
   retrievalProfile?: RetrievalProfile;
   strategy?: RecallRouterStrategy;
+  includeEvidence?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
 }
@@ -215,6 +216,40 @@ export interface RecallGeneralizedFusionConfig {
   maxTotalFacts?: number;
   minRelativeStrength?: number;
   rrfK?: number;
+}
+
+const COMPLEX_QUERY_CONTENT_TERM_THRESHOLD = 7;
+const COMPLEX_QUERY_CANDIDATE_BONUS = 4;
+const COMPLEX_QUERY_FACT_BONUS = 2;
+
+export function resolveGeneralizedFusionBudget(input: {
+  aggregateQuery?: boolean;
+  base: RecallGeneralizedFusionConfig;
+  contentTermCount: number;
+}): {
+  expanded: boolean;
+  maxCandidates: number | undefined;
+  maxTotalFacts: number | undefined;
+} {
+  const hasConfiguredLimit =
+    input.base.maxCandidates !== undefined ||
+    input.base.maxTotalFacts !== undefined;
+  const expanded =
+    hasConfiguredLimit &&
+    (input.aggregateQuery === true ||
+      input.contentTermCount >= COMPLEX_QUERY_CONTENT_TERM_THRESHOLD);
+
+  return {
+    expanded,
+    maxCandidates:
+      expanded && input.base.maxCandidates !== undefined
+        ? input.base.maxCandidates + COMPLEX_QUERY_CANDIDATE_BONUS
+        : input.base.maxCandidates,
+    maxTotalFacts:
+      expanded && input.base.maxTotalFacts !== undefined
+        ? input.base.maxTotalFacts + COMPLEX_QUERY_FACT_BONUS
+        : input.base.maxTotalFacts,
+  };
 }
 
 export interface RecallEngineConfig {
@@ -571,6 +606,20 @@ export function createRecallEngine(config: RecallEngineConfig) {
       });
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
+      const generalizedFusionBudget = config.generalizedFusion
+        ? resolveGeneralizedFusionBudget({
+            aggregateQuery: language.isAggregateCountQuery(
+              input.query,
+              resolvedLanguage.locale,
+            ),
+            base: config.generalizedFusion,
+            contentTermCount: new Set(
+              language.tokenize(input.query, resolvedLanguage.locale, {
+                excludeStopwords: true,
+              }),
+            ).size,
+          })
+        : undefined;
       const routerAvailability = {
         // BM25 ranking populates the same additive slot as neural semantic
         // search, so it also counts as "semantic search available" for routing:
@@ -767,6 +816,16 @@ export function createRecallEngine(config: RecallEngineConfig) {
           SEMANTIC_RECALL_INACTIVE_WARNING,
         );
       }
+      if (
+        input.includeEvidence === true &&
+        !routingDecision.sourcePriorities.includes("evidence")
+      ) {
+        routingDecision = {
+          ...routingDecision,
+          sourcePriorities: [...routingDecision.sourcePriorities, "evidence"],
+        };
+        policyApplied.add("explicit_evidence_requested");
+      }
       const currentReferenceTime = referenceTime();
       const visibleEvidencePool = await applyRecallPolicyToRecords(
         evidenceRaw,
@@ -846,7 +905,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
                   factCandidates: {
                     topK:
                       config.semanticCandidates?.topK ??
-                      config.generalizedFusion?.maxCandidates ??
+                      generalizedFusionBudget?.maxCandidates ??
                       semanticUnionTopK,
                   },
                 }
@@ -975,7 +1034,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
                     score,
                   })),
               ],
-              maxCandidates: config.generalizedFusion.maxCandidates,
+              maxCandidates: generalizedFusionBudget?.maxCandidates,
               minRelativeStrength:
                 config.generalizedFusion.minRelativeStrength,
               referenceTime: currentReferenceTime,
@@ -990,7 +1049,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
               fusionRuns: [
                 buildFusionRunTrace({
                   coverageComplete: coverage.complete,
-                  maxCandidates: config.generalizedFusion.maxCandidates,
+                  maxCandidates: generalizedFusionBudget?.maxCandidates,
                   result: fused,
                 }),
               ],
@@ -1004,9 +1063,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
                   score: candidate.score,
                 })),
               maxAdditions: fused.budget,
-              maxTotalFacts: config.generalizedFusion.maxTotalFacts,
+              maxTotalFacts: generalizedFusionBudget?.maxTotalFacts,
             };
             policyApplied.add("generalized_fusion");
+            if (generalizedFusionBudget?.expanded) {
+              policyApplied.add("generalized_fusion_complex_query_budget");
+            }
             if (!coverage.complete) {
               policyApplied.add("generalized_fusion_partial_projection");
             }

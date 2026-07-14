@@ -16,7 +16,11 @@ import type {
   Phase63BeamRecallDiagnosticDependencies,
 } from "./run-phase-63-beam-recall-diagnostic";
 import { createGoodMemory } from "../src/api/createGoodMemory";
-import { createProviderEmbeddingAdapter } from "../src/provider/layer";
+import {
+  createProviderEmbeddingAdapter,
+  createProviderPointwiseReranker,
+} from "../src/provider/layer";
+import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
 import { createDeterministicMemoryExtractor } from "../src/remember/deterministicExtractor";
 import {
   __resetNarrowGateDisablesForTest,
@@ -38,6 +42,13 @@ export const BEAM_GENERAL_LEVER_ARM_NAMES = [
   "union16",
   "bm25-union16",
 ] as const;
+
+export const BEAM_GENERAL_LEVER_EMBEDDING_MAX_CHARS = 12_000;
+const BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS = 120_000;
+
+export function capBeamGeneralLeverEmbeddingText(text: string): string {
+  return text.slice(0, BEAM_GENERAL_LEVER_EMBEDDING_MAX_CHARS);
+}
 
 export type BeamGeneralLeverArmName =
   (typeof BEAM_GENERAL_LEVER_ARM_NAMES)[number];
@@ -152,16 +163,30 @@ function withEmbeddingEnvDisabled<T>(factory: () => T): T {
   }
 }
 
-function createLeverMemory(input: {
+export function createBeamGeneralLeverMemory(input: {
   bm25: boolean;
   env: Record<string, string | undefined>;
   idPrefix?: string;
   providerEmbedding: boolean;
+  rerankingModel?: AISDKModelConfig;
   union?: { topK: number };
 }): GoodMemory {
   let idCounter = 0;
   let clockTick = 0;
   const extractor = createDeterministicMemoryExtractor();
+  const providerEmbeddingAdapter = input.providerEmbedding
+    ? createProviderEmbeddingAdapter({
+        model: {
+          apiKey: input.env.GOODMEMORY_EMBEDDING_API_KEY,
+          baseURL: input.env.GOODMEMORY_EMBEDDING_BASE_URL,
+          model:
+            input.env.GOODMEMORY_EMBEDDING_MODEL ??
+            "text-embedding-3-small",
+          provider: "openai",
+        },
+        requestTimeoutMs: BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS,
+      })
+    : null;
   const createMemory = () =>
     createGoodMemory({
       adapters: {
@@ -169,17 +194,21 @@ function createLeverMemory(input: {
         // invoking shell. The runner seeds all BEAM turns via rules-only
         // annotations, so this does not add LLM extraction.
         assistedExtractor: extractor,
-        ...(input.providerEmbedding
+        ...(providerEmbeddingAdapter
           ? {
-              embeddingAdapter: createProviderEmbeddingAdapter({
-                model: {
-                  apiKey: input.env.GOODMEMORY_EMBEDDING_API_KEY,
-                  baseURL: input.env.GOODMEMORY_EMBEDDING_BASE_URL,
-                  model:
-                    input.env.GOODMEMORY_EMBEDDING_MODEL ??
-                    "text-embedding-3-small",
-                  provider: "openai",
-                },
+              embeddingAdapter: {
+                embed: (texts: string[]) =>
+                  providerEmbeddingAdapter.embed(
+                    texts.map(capBeamGeneralLeverEmbeddingText),
+                  ),
+              },
+            }
+          : {}),
+        ...(input.rerankingModel
+          ? {
+              reranker: createProviderPointwiseReranker({
+                model: input.rerankingModel,
+                requestTimeoutMs: BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS,
               }),
             }
           : {}),
@@ -214,7 +243,7 @@ function resolveArmSpec(input: {
     case "floor":
       return {
         createMemory: () =>
-          createLeverMemory({
+          createBeamGeneralLeverMemory({
             bm25: false,
             env: input.env,
             providerEmbedding: false,
@@ -224,7 +253,7 @@ function resolveArmSpec(input: {
     case "bm25":
       return {
         createMemory: () =>
-          createLeverMemory({
+          createBeamGeneralLeverMemory({
             bm25: true,
             env: input.env,
             providerEmbedding: false,
@@ -234,7 +263,7 @@ function resolveArmSpec(input: {
     case "union16":
       return {
         createMemory: () =>
-          createLeverMemory({
+          createBeamGeneralLeverMemory({
             bm25: false,
             env: input.env,
             providerEmbedding: true,
@@ -245,7 +274,7 @@ function resolveArmSpec(input: {
     case "bm25-union16":
       return {
         createMemory: () =>
-          createLeverMemory({
+          createBeamGeneralLeverMemory({
             bm25: true,
             env: input.env,
             providerEmbedding: true,

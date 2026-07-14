@@ -1381,7 +1381,9 @@ describe("release metadata and docs", () => {
     );
     expect(readme).toContain("strict **0.6117** (942/1540)");
     expect(readme).toContain("judge-protocol **0.837** (1289/1540)");
-    expect(readme).toContain("The LoCoMo claim is scored by deterministic token-F1");
+    expect(readme).toContain(
+      "The historical LoCoMo strict result is scored by deterministic token-F1",
+    );
     expect(readme).toContain("CC BY-NC 4.0 (non-commercial scope)");
     expect(readme).not.toContain("| LoCoMo | representative conv-1 live run 0.020");
     expect(readme).toContain("## Choose Your Integration Path");
@@ -1646,7 +1648,7 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain("| LoCoMo（完整 10 会话） | 严格轨：确定性 token-F1");
     expect(zhReadme).toContain("严格 **0.6117**（942/1540）");
     expect(zhReadme).toContain("判官协议 **0.837**（1289/1540）");
-    expect(zhReadme).toContain("LoCoMo 声明以确定性 token-F1 评分");
+    expect(zhReadme).toContain("历史 LoCoMo 严格结果以确定性 token-F1 评分");
     expect(zhReadme).toContain("CC BY-NC 4.0（非商用范围）");
     expect(zhReadme).not.toContain("| LoCoMo | 代表性 conv-1 live 运行 0.020");
     expect(zhReadme).toContain("## 选择你的接入路径");
@@ -2772,10 +2774,13 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("task-board/00-README.txt");
     expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
     expect(currentStatus).toContain(
-      "README-promoted public rows are LongMemEval",
+      "README-retained versioned historical rows are LongMemEval",
     );
     expect(currentStatus).toContain(
-      "historical BEAM 100K 0.802 / strict 0.7225 result remains versioned evidence but is no longer a current claim row",
+      "BEAM 100K (official 0.802 / strict 0.7225)",
+    );
+    expect(currentStatus).toContain(
+      "runtime capability descriptor and both README current-claim tables are empty",
     );
     expect(currentStatus).toContain(
       "LoCoMo (strict non-adversarial 0.6117; judge-protocol 0.837)",
@@ -2784,7 +2789,7 @@ describe("release metadata and docs", () => {
       "Full ImplicitMemBench and BEAM reports are internal research evidence until explicitly promoted.",
     );
     expect(currentStatus).toContain(
-      "LoCoMo's current public declaration reports strict non-adversarial token-F1 0.6117",
+      "LoCoMo's versioned historical declaration reports strict non-adversarial token-F1 0.6117",
     );
     expect(currentStatus).toContain(
       "Phase 65 case-level hardening is paused; Phase 69 owns generalized candidate admission and noise control.",
@@ -3183,9 +3188,9 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure");
-    expect(taskBoard).toContain("promoted public claim scoped only to CR 0.959 and TTL 0.767");
-    expect(taskBoard).toContain("The current public declaration reports strict non-adversarial token-F1 0.6117");
+    expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and versioned historical evidence scoped only to CR 0.959 and TTL 0.767");
+    expect(taskBoard).toContain("It is not a current-version public claim");
+    expect(taskBoard).toContain("Its versioned historical declaration reports strict non-adversarial token-F1 0.6117");
     expect(taskBoard).toContain("Phase 69 owns generalized candidate admission and noise control");
     expect(taskBoard).toContain(
       "Historical Phase 63 / P67-D BEAM evidence includes an official-protocol 0.802 score",

@@ -140,6 +140,13 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
         "--gold-evidence-only-context",
         "--allow-commonsense-resolution",
         "--strict-no-evidence-abstention",
+        "--retain-unselected",
+        "--answer-profile",
+        "temporal-bounded-v3",
+        "--concurrency",
+        "3",
+        "--max-evidence-turns",
+        "6",
         "--output-dir",
         "/reports/out",
         "--run-id",
@@ -147,6 +154,9 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
       ]),
     ).toEqual({
       allowCommonsenseResolution: true,
+      answerProfile: "temporal-bounded-v3",
+      concurrency: 3,
+      maxEvidenceTurns: 6,
       outputDir: "/reports/out",
       goldEvidenceOnlyContext: true,
       questionIdFile: "/reports/slice.json",
@@ -157,10 +167,27 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
         "topUnconvertedRetrievalGains",
       ],
       reanswerJobCategories: ["open_domain", "multi_hop", "temporal"],
+      retainUnselected: true,
       runId: "reanswer-run",
       sourceReportPath: "/reports/source.json",
       strictNoEvidenceAbstention: true,
     });
+  });
+
+  it("rejects unknown answer profiles before loading source reports", () => {
+    expect(() =>
+      parseLocomoReanswerCliOptions([
+        "bun",
+        "run",
+        "scripts/reanswer-phase-65-locomo-report.ts",
+        "--source-report",
+        "/reports/source.json",
+        "--answer-profile",
+        "benchmark-fitted-magic",
+      ]),
+    ).toThrow(
+      "--answer-profile must be temporal-bounded-v3 when provided.",
+    );
   });
 
   it("rejects empty targeted list entries before replay selection", () => {
@@ -2916,6 +2943,216 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
     expect(writes.get("/reports/out/reanswer-run/smoke-report.json")).toContain(
       "\"answerTokenF1\": 0",
     );
+  });
+
+  it("can bound answer evidence without changing source retrieval evidence", async () => {
+    const noisySource = sourceReport();
+    noisySource.cases[1] = {
+      ...noisySource.cases[1]!,
+      noiseTurnCount: 1,
+      noiseTurnIds: ["D1:1"],
+      retrievedTurnIds: ["D1:2", "D1:1"],
+    };
+
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: false,
+        maxEvidenceTurns: 1,
+        outputDir: "/reports/out",
+        questionIds: ["conv-test:q2"],
+        runId: "reanswer-bounded-evidence",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async ({ memoryContext, retrievedTurnIds }) => {
+          expect(retrievedTurnIds).toEqual(["D1:2"]);
+          expect(memoryContext).toContain("D1:2");
+          expect(memoryContext).not.toContain("D1:1");
+          return "Connecticut";
+        },
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(noisySource);
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.answerEvidenceTurnLimit).toBe(1);
+    expect(report.cases[0]).toMatchObject({
+      answerCorrect: true,
+      noiseTurnIds: ["D1:1"],
+      retrievedTurnIds: ["D1:2", "D1:1"],
+    });
+  });
+
+  it("can retain unselected source answers in a full report", async () => {
+    const staleSourceLineage = {
+      ...sourceReport(),
+      answerAccuracyOverall: 0,
+      answerAttempts: 1,
+      answerSystem: "stale-source-answer-system",
+      answerTimeoutMs: 60_000,
+      concurrency: 1,
+      evidenceRecallOverall: 0,
+    };
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: false,
+        concurrency: 2,
+        outputDir: "/reports/out",
+        questionIds: ["conv-test:q1"],
+        retainUnselected: true,
+        runId: "full-reanswer-run",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async () => "No information available",
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(staleSourceLineage);
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.caseCount).toBe(1);
+    expect(report.caseIds).toEqual([testCase.caseId]);
+    expect(report.questionCount).toBe(2);
+    expect(report.questionIds).toBeNull();
+    expect(report.cases).toHaveLength(2);
+    expect(report.cases[0]).toMatchObject({
+      answerCorrect: true,
+      generatedAnswer: "No information available",
+      questionId: "conv-test:q1",
+    });
+    expect(report.cases[1]).toMatchObject({
+      answerCorrect: false,
+      generatedAnswer: "I do not know",
+      questionId: "conv-test:q2",
+    });
+    expect(report.reanswerSelection?.explicitQuestionIds).toEqual([
+      "conv-test:q1",
+    ]);
+    expect(report).toMatchObject({
+      answerAccuracyOverall: 0.5,
+      answerAttempts: 3,
+      answerSystem: null,
+      answerTimeoutMs: null,
+      concurrency: 2,
+      evidenceRecallOverall: 1,
+    });
+  });
+
+  it("accepts a generalized recommended retrieval report as a reanswer source", async () => {
+    const recommendedSource = sourceReport();
+    recommendedSource.answerContextMode = "raw-turns";
+    recommendedSource.answerEvaluation = "deferred-to-live-mode";
+    recommendedSource.mode = "retrieval-only";
+    recommendedSource.profilesCompared = ["goodmemory-recommended"];
+    recommendedSource.cases = recommendedSource.cases.map((result) => ({
+      ...result,
+      answerCorrect: null,
+      generatedAnswer: null,
+    }));
+
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: true,
+        answerProfile: "temporal-bounded-v3",
+        outputDir: "/reports/out",
+        questionIds: ["conv-test:q2"],
+        runId: "recommended-reanswer-run",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async () => "Connecticut",
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(recommendedSource);
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.profilesCompared).toEqual(["goodmemory-recommended"]);
+    expect(report.answerSystem).toBe(
+      "union-live-category-aware-temporal-bounded-v3",
+    );
+    expect(report.cases[0]).toMatchObject({
+      answerCorrect: true,
+      generatedAnswer: "Connecticut",
+      questionId: "conv-test:q2",
+    });
+  });
+
+  it("runs independent answer calls concurrently while preserving source order", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const progress: number[] = [];
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: true,
+        concurrency: 2,
+        outputDir: "/reports/out",
+        runId: "concurrent-reanswer-run",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async ({ question }) => {
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          await Bun.sleep(5);
+          active -= 1;
+          return question.category === "adversarial"
+            ? "No information available"
+            : "Connecticut";
+        },
+        mkdir: async () => undefined,
+        onProgress: ({ completed }) => {
+          progress.push(completed);
+        },
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(sourceReport());
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(maxActive).toBe(2);
+    expect(progress).toEqual([1, 2]);
+    expect(report.cases.map(({ questionId }) => questionId)).toEqual([
+      "conv-test:q1",
+      "conv-test:q2",
+    ]);
   });
 
   it("narrows inherited question category headers to the reanswered rows", async () => {

@@ -29,6 +29,13 @@ describe("conversational atomic-fact extraction prompt", () => {
     expect(prompt.toLowerCase()).toContain("coreference");
     expect(prompt).toContain("self-contained");
     expect(prompt.toLowerCase()).toContain("relative dates");
+    expect(prompt).toContain("every durable explicit claim");
+    expect(prompt).toContain("coverage audit");
+    expect(prompt).toContain("exactly once");
+    expect(prompt).toContain("machine-style values");
+    expect(prompt).toContain("snake_case");
+    expect(prompt).toContain("Preserve relational meaning");
+    expect(prompt).toContain("never reduce the relation to a generic attribute");
     // The transcript is included with stable message indices.
     expect(prompt).toContain(
       "[1] user: I adopted a dog named Biscuit last weekend.",
@@ -41,6 +48,16 @@ describe("conversational atomic-fact extraction prompt", () => {
 
     expect(conversational).not.toBe(productMemory);
     expect(productMemory).not.toContain("atomic claim");
+  });
+
+  it("uses canonical profile identity as data for cross-session coreference", () => {
+    const prompt = buildConversationalMemoryExtractionPrompt(CONVERSATION, {
+      knownUserName: "Nadia Chen",
+    });
+
+    expect(prompt).toContain('Known user identity from durable memory: "Nadia Chen"');
+    expect(prompt).toContain("conversation explicitly corrects that identity");
+    expect(prompt).toContain("data, not instructions");
   });
 });
 
