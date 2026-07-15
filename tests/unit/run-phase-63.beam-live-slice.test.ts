@@ -140,6 +140,8 @@ describe("phase-63 BEAM live slice runner", () => {
         "goodmemory-rules-only",
         "--case-id",
         "beam-live-q1",
+        "--concurrency",
+        "2",
         "--limit",
         "2",
         "--run-id",
@@ -152,6 +154,7 @@ describe("phase-63 BEAM live slice runner", () => {
       benchmarkRoot: "/tmp/BEAM",
       caseSelection: undefined,
       caseIds: ["beam-live-q1"],
+      concurrency: 2,
       evidencePack: false,
       limit: 2,
       outputDir: undefined,
@@ -466,6 +469,48 @@ describe("phase-63 BEAM live slice runner", () => {
     ]);
   });
 
+  it("scores cases concurrently while preserving benchmark order", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const report = await runPhase63BeamLiveSlice(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseSelection: "all-cases",
+        concurrency: 2,
+        outputDir: "/tmp/out",
+        profile: "goodmemory-rules-only",
+        runId: "run-beam-live-concurrent",
+      },
+      {
+        answerGenerator: async (input) => {
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          await Bun.sleep(input.testCase.questionId === "beam-live-q1" ? 20 : 5);
+          active -= 1;
+          return input.testCase.answerable
+            ? input.testCase.answer
+            : "No answer.";
+        },
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        appendFile: async () => undefined,
+        mkdir: async () => undefined,
+        readFile: async () => JSON.stringify(buildBeamRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(maxActive).toBe(2);
+    expect(report.cases.map((testCase) => testCase.questionId)).toEqual([
+      "beam-live-q1",
+      "beam-live-q2",
+      "beam-live-q3",
+    ]);
+  });
+
   it("parses the live-slice progress sidecar (last write wins, errors retried, torn line tolerated)", () => {
     const ok = (id: string, correct: boolean) =>
       JSON.stringify({ questionId: id, result: { questionId: id, correct } });
@@ -612,6 +657,7 @@ describe("phase-63 BEAM live slice runner", () => {
       answerGapSourceCoverageStatuses: null,
       caseIds: null,
       caseSelection: null,
+      concurrency: 1,
       limit: null,
       packetEvidence: false,
       recallReportPath: null,
@@ -682,6 +728,7 @@ describe("phase-63 BEAM live slice runner", () => {
       answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
       caseIds: null,
       caseSelection: null,
+      concurrency: 1,
       limit: null,
       packetEvidence: false,
       recallReportPath: null,

@@ -27,6 +27,8 @@ import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import {
   RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
   RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+  RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
 } from "../src/api/retrievalPreset";
 import type {
   GoodMemory,
@@ -198,6 +200,11 @@ export interface LocomoSmokeCliOptions {
   // This is separate from the per-request timeout because LoCoMo seeding can
   // involve many bounded embedding calls before the command prints a report.
   providerEmbeddingRunTimeoutMs?: number;
+  // Opt-in first-party provider reranking through GOODMEMORY_EVAL_*.
+  // With generalized fusion this selects the production recommended listwise
+  // lane; it is distinct from the gateway-free --rerank probe above.
+  providerReranking?: boolean;
+  providerRerankingTimeoutMs?: number;
   // Opt-in semantic candidate-generation union: force-admit vector top-K facts
   // into selection under hybrid recall. This is benchmark-probe plumbing only;
   // the result is meaningful only when the embedding source is meaningful.
@@ -211,6 +218,9 @@ export interface LocomoSmokeCliOptions {
   // turns, mirroring the product buildContext path. Targets the answer-assembly
   // bottleneck on conversational corpora.
   answerFromRecalled?: boolean;
+  // Opt-in live-answer mode: score and answer from the facts that fit in the
+  // rendered MemoryPacket, after reranking, rather than every selected fact.
+  answerFromPacket?: boolean;
   // Opt-in: seed memory with LLM conversational atomic-fact extraction instead of
   // raw dialogue turns (improvement-plan #3). Requires GOODMEMORY_EVAL_* model env.
   conversationalExtraction?: boolean;
@@ -219,6 +229,8 @@ export interface LocomoSmokeCliOptions {
   // raw turn so only genuinely-normalized facts augment storage, reducing the
   // candidate-pool dilution measured on non-phrasing-gap categories.
   smartFusion?: boolean;
+  // Parallel question recalls within one seeded conversation. Defaults to 1.
+  concurrency?: number;
   limit?: number;
   live?: boolean;
   // Opt-in: resume a previous run of the same runId from its per-question
@@ -298,6 +310,22 @@ function assertProviderEmbeddingTimeoutsRequireProvider(
   }
 }
 
+function assertProviderRerankingTimeoutRequiresProvider(
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "providerReranking" | "providerRerankingTimeoutMs"
+  >,
+): void {
+  if (
+    options.providerReranking !== true &&
+    options.providerRerankingTimeoutMs !== undefined
+  ) {
+    throw new Error(
+      "--provider-reranking-timeout-ms requires --provider-reranking.",
+    );
+  }
+}
+
 function answerPolicyFlagWithoutLive(
   options: Pick<
     LocomoSmokeCliOptions,
@@ -332,7 +360,7 @@ function assertAnswerPolicyFlagsRequireLive(
 function answerContextFlagWithoutLive(
   options: Pick<
     LocomoSmokeCliOptions,
-    "answerFromRecalled" | "evidencePack" | "live"
+    "answerFromPacket" | "answerFromRecalled" | "evidencePack" | "live"
   >,
 ): string | null {
   if (options.live === true) {
@@ -340,6 +368,9 @@ function answerContextFlagWithoutLive(
   }
   if (options.answerFromRecalled === true) {
     return "--answer-from-recalled";
+  }
+  if (options.answerFromPacket === true) {
+    return "--answer-from-packet";
   }
   if (options.evidencePack === true) {
     return "--evidence-pack";
@@ -350,7 +381,7 @@ function answerContextFlagWithoutLive(
 function assertAnswerContextFlagsRequireLive(
   options: Pick<
     LocomoSmokeCliOptions,
-    "answerFromRecalled" | "evidencePack" | "live"
+    "answerFromPacket" | "answerFromRecalled" | "evidencePack" | "live"
   >,
 ): void {
   const flagName = answerContextFlagWithoutLive(options);
@@ -454,6 +485,7 @@ export interface LocomoCategoryRetrievalSummary {
 export type LocomoAnswerContextMode =
   | "evidence-pack"
   | "gold-evidence-only-pack"
+  | "packet-evidence-pack"
   | "raw-turns"
   | "recalled-records";
 
@@ -505,6 +537,8 @@ export interface LocomoSmokeReport {
   profilesCompared: string[];
   providerEmbeddingRunTimeoutMs?: number | null;
   providerEmbeddingTimeoutMs?: number | null;
+  providerReranking?: boolean;
+  providerRerankingTimeoutMs?: number | null;
   questionCount: number;
   // Selected question categories after --category filtering, or null when all
   // LoCoMo categories are included.
@@ -537,9 +571,14 @@ export interface LocomoSmokeReport {
     labelFreeIngest: boolean;
     multiHop: boolean;
     providerEmbedding: boolean;
+    providerReranking?: boolean;
     rerank: boolean;
     smartFusion: boolean;
   };
+  rerankGeneralizedFusionConfig?: {
+    maxCandidates: number;
+    maxTotalFacts: number;
+  } | null;
   runDirectory: string;
   runId: string;
   semanticCandidateEmbeddingSource: "none" | "provider" | "smoke-hash";
@@ -592,6 +631,11 @@ export function parseLocomoSmokeCliOptions(
           LOCOMO_PROVIDER_EMBEDDING_RUN_TIMEOUT_MS_ENV,
         )
       : undefined);
+  const providerReranking = hasCliFlagStrict(argv, "--provider-reranking");
+  const providerRerankingTimeoutMs = parsePositiveIntegerFlag(
+    argv,
+    "--provider-reranking-timeout-ms",
+  );
   const semanticCandidateTopK = parsePositiveIntegerFlag(
     argv,
     "--semantic-candidate-top-k",
@@ -620,6 +664,7 @@ export function parseLocomoSmokeCliOptions(
       argv,
       "--strict-no-evidence-abstention",
     ),
+    answerFromPacket: hasCliFlagStrict(argv, "--answer-from-packet"),
     answerFromRecalled: hasCliFlagStrict(argv, "--answer-from-recalled"),
     bm25: hasCliFlagStrict(argv, "--bm25"),
     generalizedFusion: hasCliFlagStrict(argv, "--generalized-fusion"),
@@ -640,6 +685,7 @@ export function parseLocomoSmokeCliOptions(
       argv,
       "--conversational-extraction",
     ),
+    concurrency: parsePositiveIntegerFlag(argv, "--concurrency"),
     corefNormalize: hasCliFlagStrict(argv, "--coref-normalize"),
     decompose: hasCliFlagStrict(argv, "--decompose"),
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
@@ -647,6 +693,8 @@ export function parseLocomoSmokeCliOptions(
     providerEmbedding,
     providerEmbeddingRunTimeoutMs,
     providerEmbeddingTimeoutMs,
+    providerReranking,
+    providerRerankingTimeoutMs,
     rerank: hasCliFlagStrict(argv, "--rerank"),
     semanticCandidateMaxAdditions,
     semanticCandidateMinRelativeScore,
@@ -661,6 +709,7 @@ export function parseLocomoSmokeCliOptions(
     runId: resolveCliPathSegmentFlagValueStrict(argv, "--run-id"),
   };
   assertProviderEmbeddingTimeoutsRequireProvider(parsed);
+  assertProviderRerankingTimeoutRequiresProvider(parsed);
   assertSemanticCandidateTuningRequiresAdmission(parsed);
   assertAnswerPolicyFlagsRequireLive(parsed);
   assertAnswerContextFlagsRequireLive(parsed);
@@ -2184,6 +2233,23 @@ export function collectLocomoRetrievedTurnIds(recall: RecallResult): string[] {
   return [...ids];
 }
 
+export function collectLocomoPacketTurnIds(
+  recall: Pick<RecallResult, "packet">,
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const match of (recall.packet.factSummary ?? "").matchAll(
+    /\bdia_id[:=](D\d+:\d+)/gu,
+  )) {
+    const id = match[1];
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
 export function scoreLocomoRetrieval(input: {
   question: LocomoQuestion;
   retrievedTurnIds: string[];
@@ -2783,6 +2849,7 @@ interface LocomoProgressConfig {
   benchmarkFingerprint: string;
   bm25Ranking: boolean;
   caseIds: string[];
+  concurrency: number;
   corefNormalize: boolean;
   decompose: boolean;
   externalRoot: string | null;
@@ -2799,6 +2866,8 @@ interface LocomoProgressConfig {
   providerEmbedding: boolean;
   providerEmbeddingRunTimeoutMs: number | null;
   providerEmbeddingTimeoutMs: number | null;
+  providerReranking: boolean;
+  providerRerankingTimeoutMs: number | null;
   questionCategories: LocomoQaCategory[] | null;
   questionIds: string[] | null;
   questions: Array<{
@@ -2807,6 +2876,7 @@ interface LocomoProgressConfig {
     questionId: string;
   }>;
   recallStrategy: "hybrid" | "rules-only";
+  rerankGeneralizedFusionConfig: LocomoSmokeReport["rerankGeneralizedFusionConfig"];
   rerank: boolean;
   runId: string;
   semanticCandidateEmbeddingSource: LocomoSmokeReport["semanticCandidateEmbeddingSource"];
@@ -2822,10 +2892,16 @@ interface LocomoProgressHeader {
 }
 
 function resolveLocomoAnswerContextMode(
-  options: Pick<LocomoSmokeCliOptions, "answerFromRecalled" | "evidencePack">,
+  options: Pick<
+    LocomoSmokeCliOptions,
+    "answerFromPacket" | "answerFromRecalled" | "evidencePack"
+  >,
 ): LocomoAnswerContextMode {
   if (options.answerFromRecalled) {
     return "recalled-records";
+  }
+  if (options.answerFromPacket) {
+    return "packet-evidence-pack";
   }
   if (options.evidencePack) {
     return "evidence-pack";
@@ -2862,6 +2938,18 @@ function locomoGeneralizedFusionConfig(
         minRelativeStrength:
           DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
         rrfK: DEFAULT_GENERALIZED_FUSION_RRF_K,
+      }
+    : null;
+}
+
+function locomoRerankGeneralizedFusionConfig(
+  enabled: boolean,
+): NonNullable<LocomoSmokeReport["rerankGeneralizedFusionConfig"]> | null {
+  return enabled
+    ? {
+        maxCandidates:
+          RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+        maxTotalFacts: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
       }
     : null;
 }
@@ -2920,6 +3008,7 @@ function buildLocomoProgressConfig(input: {
     benchmarkSource: input.benchmarkSource,
     bm25Ranking: input.options.bm25 ?? false,
     caseIds: input.cases.map((testCase) => testCase.caseId),
+    concurrency: input.options.concurrency ?? 1,
     corefNormalize: input.options.corefNormalize ?? false,
     decompose: input.options.decompose ?? false,
     externalRoot: input.options.benchmarkRoot ?? null,
@@ -2941,6 +3030,9 @@ function buildLocomoProgressConfig(input: {
     providerEmbeddingRunTimeoutMs:
       input.options.providerEmbeddingRunTimeoutMs ?? null,
     providerEmbeddingTimeoutMs: input.options.providerEmbeddingTimeoutMs ?? null,
+    providerReranking: input.options.providerReranking ?? false,
+    providerRerankingTimeoutMs:
+      input.options.providerRerankingTimeoutMs ?? null,
     questionCategories: input.options.questionCategories ?? null,
     questionIds: input.options.questionIds ?? null,
     questions: input.cases.flatMap((testCase) =>
@@ -2951,6 +3043,10 @@ function buildLocomoProgressConfig(input: {
       })),
     ),
     recallStrategy: input.recallStrategy,
+    rerankGeneralizedFusionConfig: locomoRerankGeneralizedFusionConfig(
+      (input.options.generalizedFusion ?? false) &&
+        (input.options.providerReranking ?? false),
+    ),
     rerank: input.options.rerank ?? false,
     runId: input.runId,
     semanticCandidateEmbeddingSource: input.semanticCandidateEmbeddingSource,
@@ -3212,6 +3308,7 @@ export async function runLocomoSmoke(
 ): Promise<LocomoSmokeReport> {
   assertSemanticCandidateTuningRequiresAdmission(options);
   assertProviderEmbeddingTimeoutsRequireProvider(options);
+  assertProviderRerankingTimeoutRequiresProvider(options);
   const liveAnswerRequested =
     options.live === true || dependencies.answerGenerator !== undefined;
   const answerFlagOptions = {
@@ -3230,6 +3327,15 @@ export async function runLocomoSmoke(
       "--generalized-fusion cannot be combined with --bm25; generalized fusion already owns the BM25 channel.",
     );
   }
+  const concurrency = options.concurrency ?? 1;
+  if (!Number.isSafeInteger(concurrency) || concurrency <= 0) {
+    throw new Error("LoCoMo concurrency must be a positive integer.");
+  }
+  if (concurrency > 1 && options.providerEmbeddingRunTimeoutMs !== undefined) {
+    throw new Error(
+      "Concurrent LoCoMo runs cannot use providerEmbeddingRunTimeoutMs; use per-request timeouts and the resumable checkpoint.",
+    );
+  }
   const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
   const readFileImpl =
     dependencies.readFile ?? ((path: string) => readFile(path, "utf8"));
@@ -3237,6 +3343,21 @@ export async function runLocomoSmoke(
   const mkdirImpl = dependencies.mkdir ?? mkdir;
   const now = dependencies.now ?? (() => new Date());
   const nowMs = dependencies.nowMs ?? (() => Date.now());
+  const providerRerankingConfig = (() => {
+    if (!options.providerReranking || dependencies.createMemory) {
+      return undefined;
+    }
+    const model = resolveLiveModelConfig("GOODMEMORY_EVAL");
+    return {
+      apiKey: model.apiKey!,
+      baseURL: model.baseURL,
+      model: model.model,
+      provider: model.provider,
+      ...(options.providerRerankingTimeoutMs === undefined
+        ? {}
+        : { requestTimeoutMs: options.providerRerankingTimeoutMs }),
+    };
+  })();
   const createMemory =
     dependencies.createMemory ??
     (() =>
@@ -3245,6 +3366,7 @@ export async function runLocomoSmoke(
         generalizedFusion: options.generalizedFusion,
         providerEmbedding: options.providerEmbedding,
         providerEmbeddingTimeoutMs: options.providerEmbeddingTimeoutMs,
+        providerRerankingConfig,
         rerank: options.rerank,
         semanticCandidateMaxAdditions: options.semanticCandidateMaxAdditions,
         semanticCandidateMinRelativeScore:
@@ -3343,7 +3465,8 @@ export async function runLocomoSmoke(
   const checkpointing =
     answerGenerator !== undefined ||
     options.conversationalExtraction === true ||
-    options.providerEmbedding === true;
+    options.providerEmbedding === true ||
+    options.providerReranking === true;
   const progressPath = join(runDirectory, LOCOMO_LIVE_PROGRESS_FILE_NAME);
   const completed = new Map<string, LocomoQuestionRetrieval>();
   const selectedQuestionKeys = new Set(
@@ -3419,6 +3542,7 @@ export async function runLocomoSmoke(
   const recordedQuestionKeys = new Set<string>();
   let executionFailures = 0;
   let checkpointWriteFailures = 0;
+  let checkpointWriteTail = Promise.resolve();
   const pushResult = (result: LocomoQuestionRetrieval): void => {
     results.push(result);
     recordedQuestionKeys.add(
@@ -3524,6 +3648,7 @@ export async function runLocomoSmoke(
         );
         await seedLocomoCaseConversational({
           extractor: conversationalExtractor,
+          maxConcurrency: concurrency,
           memory,
           runId,
           smartFusion: options.smartFusion,
@@ -3553,15 +3678,16 @@ export async function runLocomoSmoke(
       if (!checkpointing) {
         return;
       }
-      try {
-        await appendFileImpl(progressPath, `${JSON.stringify(result)}\n`);
-      } catch {
-        // The checkpoint is an optimization: failing to persist it must never
-        // fail the question. Surfaced once after the loop.
-        checkpointWriteFailures += 1;
-      }
+      checkpointWriteTail = checkpointWriteTail
+        .then(() => appendFileImpl(progressPath, `${JSON.stringify(result)}\n`))
+        .catch(() => {
+          // The checkpoint is an optimization: failing to persist it must never
+          // fail the question. Surfaced once after the loop.
+          checkpointWriteFailures += 1;
+        });
+      await checkpointWriteTail;
     };
-    for (const question of pendingQuestions) {
+    const processQuestion = async (question: LocomoQuestion): Promise<void> => {
       let retrieval: LocomoQuestionRetrieval | null = null;
       try {
         assertProviderRunDeadline(
@@ -3577,7 +3703,9 @@ export async function runLocomoSmoke(
         assertProviderRunDeadline(
           `recalling ${testCase.caseId}/${question.questionId}`,
         );
-        const retrievedTurnIds = collectLocomoRetrievedTurnIds(recall);
+        const retrievedTurnIds = options.answerFromPacket
+          ? collectLocomoPacketTurnIds(recall)
+          : collectLocomoRetrievedTurnIds(recall);
         retrieval = scoreLocomoRetrieval({
           question,
           retrievedTurnIds,
@@ -3587,7 +3715,7 @@ export async function runLocomoSmoke(
           const generatedAnswer = await answerGenerator({
             memoryContext: options.answerFromRecalled
               ? buildLocomoRecalledContext({ recall })
-              : options.evidencePack
+              : options.answerFromPacket || options.evidencePack
                 ? buildLocomoEvidencePackContext({
                     question,
                     retrievedTurnIds,
@@ -3619,7 +3747,7 @@ export async function runLocomoSmoke(
         if (error instanceof LocomoProviderEmbeddingRunTimeoutError) {
           recordProviderTimeoutRemainder(caseIndex, error);
           providerTimedOut = true;
-          break;
+          return;
         }
         executionFailures += 1;
         if (retrieval) {
@@ -3636,17 +3764,49 @@ export async function runLocomoSmoke(
           });
         }
       }
-    }
+    };
+    let pendingCursor = 0;
+    const worker = async (): Promise<void> => {
+      while (!providerTimedOut) {
+        const question = pendingQuestions[pendingCursor];
+        pendingCursor += 1;
+        if (!question) {
+          return;
+        }
+        await processQuestion(question);
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(concurrency, pendingQuestions.length) },
+        () => worker(),
+      ),
+    );
     if (providerTimedOut) {
       break;
     }
   }
+  await checkpointWriteTail;
   if (checkpointWriteFailures > 0) {
     process.stderr.write(
       `LoCoMo smoke: ${checkpointWriteFailures} checkpoint write(s) failed; ` +
         `--resume will recompute those questions.\n`,
     );
   }
+  const resultOrder = new Map(
+    cases
+      .flatMap((testCase) =>
+        testCase.questions.map((question) =>
+          locomoQuestionKey(testCase.caseId, question.questionId),
+        ),
+      )
+      .map((key, index) => [key, index] as const),
+  );
+  results.sort(
+    (left, right) =>
+      (resultOrder.get(locomoQuestionKey(left.caseId, left.questionId)) ?? 0) -
+      (resultOrder.get(locomoQuestionKey(right.caseId, right.questionId)) ?? 0),
+  );
   const report: LocomoSmokeReport = {
     allowCommonsenseResolution: options.allowCommonsenseResolution ?? false,
     strictNoEvidenceAbstention: options.strictNoEvidenceAbstention ?? false,
@@ -3664,6 +3824,7 @@ export async function runLocomoSmoke(
     caseCount: cases.length,
     cases: results,
     categories: summarizeLocomoRetrieval(results),
+    concurrency,
     executionFailures,
     externalRoot: options.benchmarkRoot ?? null,
     generatedAt: now().toISOString(),
@@ -3681,6 +3842,9 @@ export async function runLocomoSmoke(
     providerEmbeddingRunTimeoutMs:
       resolvedOptions.providerEmbeddingRunTimeoutMs ?? null,
     providerEmbeddingTimeoutMs: resolvedOptions.providerEmbeddingTimeoutMs ?? null,
+    providerReranking: options.providerReranking ?? false,
+    providerRerankingTimeoutMs:
+      resolvedOptions.providerRerankingTimeoutMs ?? null,
     questionCount: results.length,
     questionCategories: resolvedOptions.questionCategories ?? null,
     questionIds: resolvedOptions.questionIds ?? null,
@@ -3694,9 +3858,14 @@ export async function runLocomoSmoke(
       labelFreeIngest: options.labelFreeIngest ?? false,
       multiHop: options.multiHop ?? false,
       providerEmbedding: options.providerEmbedding ?? false,
+      providerReranking: options.providerReranking ?? false,
       rerank: options.rerank ?? false,
       smartFusion: options.smartFusion ?? false,
     },
+    rerankGeneralizedFusionConfig: locomoRerankGeneralizedFusionConfig(
+      (options.generalizedFusion ?? false) &&
+        (options.providerReranking ?? false),
+    ),
     runDirectory,
     runId,
     semanticCandidateEmbeddingSource,

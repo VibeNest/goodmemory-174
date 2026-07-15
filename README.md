@@ -52,17 +52,18 @@ after a generic subject-date guardrail raised the 20-case official-protocol
 slice from 0.7766666667 to 0.8266666667 (59/59 rubric items, zero judge
 failures). HaluMem's frozen slice now beats its local vector baseline on all
 three official metrics: extraction 0.9309950438 vs 0.8615384615, update 0.75 vs
-0.625, and QA 0.8888888889 vs 0.7777777778. LongMemEval now has a current
-zero-failure full-500 `goodmemory-recommended` run with bounded, monotonic
-query-tail evidence expansion: `gpt-5.6-terra` answers score 340/500 = 0.680
-under an independent `gpt-5.4` official-protocol rescore, while its judge-free
-deterministic lower bound is 269/500 = 0.538. This raised the assistant category
-from 39/56 to 46/56 while every other category held within 1pt, but both
-headline tracks still miss the required 0.92 / 0.72 gates. LoCoMo's current
-full-1540 production run also
-misses its strict and official score gates. These remain internal research
-results, so the table below retains versioned historical evidence with its
-disclosed profiles.
+0.625, and QA 0.8888888889 vs 0.7777777778. LongMemEval's zero-failure
+provider-embedding source scores 381/500 = 0.762 under the independent
+`gpt-5.4` protocol. A label-free eval-only answer/verifier chain over the full
+500 raises the judge-free track to 360/500 = 0.720 and one complete independent
+rescore to 459/500 = 0.918. The strict gate is met, but the 0.920 official gate
+is still missed by one case. A later 0.922 diagnostic mixed stages that failed
+their own admission gates and showed repeat-judge flips on unchanged answers;
+it is not accepted closure. LoCoMo's zero-failure full-1540 production run is
+0.5896103896 strict / 0.8344155844 official, while its repo-eval-only semantic
+union is 0.6019480519 / 0.8493506494. Both remain below 0.61 / 0.87. These are
+internal research results, so the table below retains versioned historical
+evidence with its disclosed profiles.
 
 <!-- current-claims-table:start -->
 <!-- current-claims-table:end -->

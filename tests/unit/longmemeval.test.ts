@@ -1885,6 +1885,34 @@ describe("LongMemEval adapter", () => {
     ).toBe(true);
   });
 
+  it("preserves raw source turns alongside assisted extraction", () => {
+    const payload = buildLabelFreeLongMemEvalRememberPayload({
+      date: "2026-01-02",
+      session: [
+        { content: "Alice visited Paris.", role: "user" },
+        { content: "The trip sounded useful.", role: "assistant" },
+      ],
+      sessionId: "session-2",
+    });
+
+    expect(payload.annotations).toEqual([
+      expect.objectContaining({
+        metadataPatch: {
+          attributes: {
+            sourceDate: "2026-01-02",
+            sourceSessionId: "session-2",
+          },
+        },
+        remember: "always",
+        verified: true,
+      }),
+      expect.objectContaining({
+        remember: "always",
+        verified: true,
+      }),
+    ]);
+  });
+
   it("defaults the recommended context builder to label-free raw ingestion", async () => {
     expect(resolveLongMemEvalIngestMode("goodmemory-recommended")).toBe(
       "label-free-raw",
@@ -2065,6 +2093,70 @@ describe("LongMemEval adapter", () => {
     );
   });
 
+  it("honors an explicit supplemental evidence budget", () => {
+    const evidenceBySessionId = new Map(
+      ["one", "two", "three"].map((sessionId) => [
+        sessionId,
+        ["alpha", "beta"].map((suffix) => ({
+          content: `Budget evidence ${sessionId} ${suffix}.`,
+          sessionId,
+          tags: [],
+        })),
+      ]),
+    );
+
+    const selected = selectLongMemEvalSupplementalEvidence({
+      context: "",
+      diversifyBySession: true,
+      evidenceBySessionId,
+      limit: 3,
+      perSessionLimit: 1,
+      question: "What budget evidence was recorded?",
+      selectedSessionIds: [...evidenceBySessionId.keys()],
+    });
+
+    expect(selected).toHaveLength(3);
+  });
+
+  it("appends asynchronous supplemental evidence without replacing the default selection", async () => {
+    const [testCase] = validateLongMemEvalCases([SMOKE_CASES[0]]);
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => ({
+        buildContext: async () => ({
+          content: "## Facts\n- Existing selected evidence.",
+          estimatedTokens: 8,
+          omittedSections: [],
+          output: "markdown",
+        }),
+        recall: async () => ({
+          facts: [{
+            content: "Mira prefers concise architecture notes.",
+            sessionId: "s-2",
+          }],
+        }),
+        remember: async () => ({ accepted: 0, events: [], rejected: 0 }),
+      }) as unknown as GoodMemory,
+      supplementalEvidenceAugmenter: async (input) => {
+        expect(input.selectedSessionIds).toEqual(["s-2"]);
+        expect(input.defaultEvidenceLines.length).toBeGreaterThan(0);
+        return [
+          "Dense session evidence: concise architecture notes.",
+          "Dense session evidence: concise architecture notes.",
+        ];
+      },
+    });
+
+    const context = await builder({
+      profile: "goodmemory-recommended",
+      testCase: testCase!,
+    });
+
+    expect(context.content).toContain("Existing selected evidence.");
+    expect(
+      context.content.match(/Dense session evidence: concise architecture notes\./gu),
+    ).toHaveLength(1);
+  });
+
   it("keeps query-relevant table rows from the tail of long evidence", () => {
     const sessionId = "rotation-session";
     const selected = selectLongMemEvalSupplementalEvidence({
@@ -2241,6 +2333,25 @@ describe("LongMemEval adapter", () => {
       reasoning: "The count in the hypothesis matches the expected count.",
     });
     expect(scoreLongMemEvalAnswer(testCase!, "1").correct).toBe(false);
+  });
+
+  it("recognizes explicit abstention aliases without matching ordinary insufficiency", () => {
+    const [testCase] = validateLongMemEvalCases([SMOKE_CASES[1]]);
+
+    for (const answer of [
+      "No answer.",
+      "The information provided is not enough.",
+      "There is insufficient information to determine this.",
+      "I cannot determine the answer from the conversation.",
+    ]) {
+      expect(scoreLongMemEvalAnswer(testCase!, answer)).toMatchObject({
+        correct: true,
+        method: "abstention",
+      });
+    }
+    expect(
+      scoreLongMemEvalAnswer(testCase!, "The storage space is not enough."),
+    ).toMatchObject({ correct: false, method: "abstention" });
   });
 
   it("scores explicit expected-answer alternatives", () => {
@@ -5542,6 +5653,45 @@ describe("LongMemEval adapter", () => {
     expect(createdProfiles).toEqual(["goodmemory-hybrid"]);
     expect(new Set(extractionStrategies)).toEqual(new Set(["rules-only"]));
     expect(recallStrategies).toEqual(["hybrid"]);
+  });
+
+  it("passes an explicitly configured assisted extraction strategy to ingestion", async () => {
+    const [testCase] = validateLongMemEvalCases([SMOKE_CASES[0]]);
+    const annotationModes: string[] = [];
+    const extractionStrategies: string[] = [];
+    const builder = createLongMemEvalGoodMemoryContextBuilder({
+      createMemory: () => ({
+        buildContext: async () => ({
+          content: "",
+          estimatedTokens: 0,
+          omittedSections: [],
+          output: "markdown",
+        }),
+        recall: async () => ({ facts: [] }),
+        remember: async (input: Parameters<GoodMemory["remember"]>[0]) => {
+          annotationModes.push(
+            ...(input.annotations ?? []).map(
+              (annotation) => annotation.remember ?? "",
+            ),
+          );
+          extractionStrategies.push(input.extractionStrategy ?? "");
+          return {
+            accepted: 0,
+            events: [],
+            rejected: 0,
+          };
+        },
+      }) as unknown as GoodMemory,
+      extractionStrategy: "llm-assisted",
+    });
+
+    await builder({
+      profile: "goodmemory-recommended",
+      testCase: testCase!,
+    });
+
+    expect(new Set(extractionStrategies)).toEqual(new Set(["llm-assisted"]));
+    expect(new Set(annotationModes)).toEqual(new Set(["always"]));
   });
 
   it("limits full-mode case concurrency", async () => {

@@ -8,11 +8,12 @@
 // further with a reranker on top of BM25 + embeddings. The same study warns that
 // listwise LLM rerankers are a latency/overfitting trap (one ran 53 minutes for a
 // workload a small cross-encoder did in ~12s, with order-sensitivity and a
-// 5-15% drop on novel queries), so the right shape is POINTWISE: score each
-// document independently.
+// 5-15% drop on novel queries). Pointwise remains the public adapter default;
+// the recommended first-party provider lane may rank one bounded set jointly
+// when that behavior has passed frozen development and holdout gates.
 //
 // GoodMemory has no neural endpoint, so this module ships the pluggable seam
-// (a pointwise Reranker interface + a generic, provider-free orchestration) plus
+// (a scored Reranker interface + generic, provider-free orchestration) plus
 // a deterministic embedding-free default. A consumer can inject a cross-encoder
 // or pointwise-LLM reranker without touching the recall engine. The seam is the
 // durable contribution; the default is a sensible, dependency-free baseline.
@@ -33,11 +34,9 @@ export interface RerankerInput {
 }
 
 /**
- * A pointwise reranker: score each document against the query independently.
- * Higher is more relevant. Implementations may be a cross-encoder, a pointwise
- * LLM relevance scorer, or the deterministic default below. Pointwise (not
- * listwise) by contract, to avoid the latency/order-sensitivity of listwise LLM
- * reranking.
+ * Score each document against the query. Higher is more relevant. Most custom
+ * implementations should be pointwise cross-encoders or relevance scorers;
+ * a bounded implementation may derive scores from one joint ordering.
  */
 export interface Reranker {
   rerank(input: RerankerInput): Promise<RerankerScore[]>;
@@ -60,7 +59,7 @@ function defaultTokenize(text: string): string[] {
 
 /**
  * Reorder `items` by reranking the first `topK` of them (the candidate window)
- * with the supplied pointwise reranker; documents below the window keep their
+ * with the supplied reranker; documents below the window keep their
  * position. Stable: within the window, items the reranker does not score keep
  * their original relative order at the end of the window. Pure orchestration —
  * the reranker is injected — so it is unit-testable with a fake reranker.

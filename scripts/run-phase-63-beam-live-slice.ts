@@ -170,6 +170,7 @@ export interface Phase63BeamLiveSliceCliOptions {
   benchmarkRoot?: string;
   caseSelection?: Phase63BeamLiveCaseSelection;
   caseIds?: readonly string[];
+  concurrency?: number;
   evidencePack?: boolean;
   limit?: number;
   outputDir?: string;
@@ -247,6 +248,7 @@ export interface Phase63BeamLiveSliceReport {
     answerGapSourceCoverageStatuses: readonly string[] | null;
     caseIds: readonly string[] | null;
     caseSelection: Phase63BeamLiveCaseSelection | null;
+    concurrency: number;
     limit: number | null;
     packetEvidence?: boolean;
     recallReportPath: string | null;
@@ -282,6 +284,17 @@ function parseLimit(value: string | undefined): number | undefined {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) {
     throw new Error("--limit must be a positive integer");
+  }
+  return parsed;
+}
+
+function parseConcurrency(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error("--concurrency must be a positive integer");
   }
   return parsed;
 }
@@ -395,6 +408,9 @@ export function parsePhase63BeamLiveSliceCliOptions(
       resolveCliFlagValueStrict(argv, "--case-selection"),
     ),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
+    concurrency: parseConcurrency(
+      resolveCliFlagValueStrict(argv, "--concurrency"),
+    ),
     evidencePack: hasCliFlagStrict(argv, "--evidence-pack"),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir"),
@@ -2572,6 +2588,7 @@ function buildPhase63BeamLiveSliceSelection(
     | "answerGapSourceCoverageStatuses"
     | "caseIds"
     | "caseSelection"
+    | "concurrency"
     | "limit"
     | "packetEvidence"
     | "recallReportPath"
@@ -2587,6 +2604,7 @@ function buildPhase63BeamLiveSliceSelection(
         : [...options.answerGapSourceCoverageStatuses],
     caseIds: options.caseIds === undefined ? null : [...options.caseIds],
     caseSelection: options.caseSelection ?? null,
+    concurrency: options.concurrency ?? 1,
     limit: options.limit ?? null,
     packetEvidence: options.packetEvidence ?? false,
     recallReportPath: options.recallReportPath ?? null,
@@ -2906,6 +2924,7 @@ export async function runPhase63BeamLiveSlice(
   const answerGenerator =
     dependencies.answerGenerator ?? createBeamAnswerGenerator();
   const answerJudge = dependencies.answerJudge ?? createBeamAnswerJudge();
+  const concurrency = options.concurrency ?? 1;
   const casesByConversation = new Map<string, BeamLiveSliceCase[]>();
   for (const testCase of testCases) {
     const group = casesByConversation.get(testCase.conversationId) ?? [];
@@ -2930,38 +2949,47 @@ export async function runPhase63BeamLiveSlice(
     await writeFileImpl(progressPath, "");
   }
 
-  const cases: Phase63BeamLiveSliceCaseResult[] = [];
-  for (const conversationCases of casesByConversation.values()) {
-    const row = conversationCases[0]?.row;
-    if (!row) {
-      continue;
-    }
-    const pendingCases = conversationCases.filter(
-      (testCase) => !completedCases.has(testCase.questionId),
-    );
-    if (pendingCases.length === 0) {
-      // Whole conversation already scored on a prior run: reuse the results and
-      // skip the expensive conversation re-seed.
-      for (const testCase of conversationCases) {
-        const prior = completedCases.get(testCase.questionId);
-        if (prior) {
-          cases.push(prior);
-        }
+  const memoriesByConversation = new Map<string, GoodMemory>();
+  await mapWithConcurrency({
+    items: [...casesByConversation.entries()],
+    limit: concurrency,
+    map: async ([conversationId, conversationCases]) => {
+      if (
+        conversationCases.every((testCase) =>
+          completedCases.has(testCase.questionId),
+        )
+      ) {
+        return;
       }
-      continue;
-    }
-    const memory =
-      dependencies.createMemory?.() ?? createPhase63BeamDiagnosticMemory();
-    await seedPhase63BeamConversation({
-      memory,
-      row,
-      runId,
-    });
-    for (const testCase of conversationCases) {
+      const row = conversationCases[0]?.row;
+      if (!row) {
+        return;
+      }
+      const memory =
+        dependencies.createMemory?.() ?? createPhase63BeamDiagnosticMemory();
+      await seedPhase63BeamConversation({
+        memory,
+        row,
+        runId,
+      });
+      memoriesByConversation.set(conversationId, memory);
+    },
+  });
+
+  let progressWrite = Promise.resolve();
+  const cases = await mapWithConcurrency({
+    items: testCases,
+    limit: concurrency,
+    map: async (testCase) => {
       const prior = completedCases.get(testCase.questionId);
       if (prior) {
-        cases.push(prior);
-        continue;
+        return prior;
+      }
+      const memory = memoriesByConversation.get(testCase.conversationId);
+      if (!memory) {
+        throw new Error(
+          `BEAM memory was not seeded for ${testCase.conversationId}.`,
+        );
       }
       const result = await scoreLiveCase({
         answerGenerator,
@@ -2973,13 +3001,17 @@ export async function runPhase63BeamLiveSlice(
         runId,
         testCase,
       });
-      await appendFileImpl(
-        progressPath,
-        `${JSON.stringify({ questionId: testCase.questionId, result })}\n`,
+      const write = progressWrite.then(() =>
+        appendFileImpl(
+          progressPath,
+          `${JSON.stringify({ questionId: testCase.questionId, result })}\n`,
+        ),
       );
-      cases.push(result);
-    }
-  }
+      progressWrite = write;
+      await write;
+      return result;
+    },
+  });
 
   const report: Phase63BeamLiveSliceReport = {
     benchmarkRoot,
@@ -3012,6 +3044,31 @@ export async function runPhase63BeamLiveSlice(
     `${JSON.stringify(report, null, 2)}\n`,
   );
   return report;
+}
+
+async function mapWithConcurrency<TInput, TOutput>(input: {
+  items: readonly TInput[];
+  limit: number;
+  map: (item: TInput) => Promise<TOutput>;
+}): Promise<TOutput[]> {
+  const results = new Array<TOutput>(input.items.length);
+  let cursor = 0;
+
+  const worker = async (): Promise<void> => {
+    while (cursor < input.items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await input.map(input.items[index]!);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(input.limit, input.items.length) },
+      () => worker(),
+    ),
+  );
+  return results;
 }
 
 function buildCliSummary(report: Phase63BeamLiveSliceReport): {

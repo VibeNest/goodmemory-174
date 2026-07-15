@@ -65,6 +65,7 @@ import {
 import {
   createProviderConversationalMemoryExtractor,
   createProviderEmbeddingAdapter,
+  createProviderListwiseReranker,
   createProviderMemoryExtractor,
   createProviderPointwiseReranker,
 } from "../provider/layer";
@@ -779,21 +780,31 @@ class GoodMemoryImpl implements GoodMemory {
     const reranker =
       config.adapters?.reranker ??
       (runtimeResolution.rerankerModelConfig
-        ? createProviderPointwiseReranker({
-            model: runtimeResolution.rerankerModelConfig,
-            requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
-          })
+        ? runtimeResolution.providerRerankingStrategy === "listwise"
+          ? createProviderListwiseReranker({
+              model: runtimeResolution.rerankerModelConfig,
+              requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
+            })
+          : createProviderPointwiseReranker({
+              model: runtimeResolution.rerankerModelConfig,
+              requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
+            })
         : undefined);
     const rerankerTarget: RerankerExecutionTarget | undefined = reranker
       ? config.adapters?.reranker
-        ? { adapter: "custom" }
+        ? { adapter: "custom", strategy: "pointwise" }
         : {
             adapter: "provider",
+            candidateLimit:
+              runtimeResolution.retrieval.rerankGeneralizedFusion
+                ?.maxTotalFacts,
             gateway: sanitizeRerankerGateway(
               runtimeResolution.rerankerModelConfig?.baseURL,
             ),
             model: runtimeResolution.rerankerModelConfig?.model,
             provider: runtimeResolution.rerankerModelConfig?.provider,
+            strategy:
+              runtimeResolution.providerRerankingStrategy ?? "pointwise",
           }
       : undefined;
     const rawDocumentStore =
@@ -873,6 +884,8 @@ class GoodMemoryImpl implements GoodMemory {
       autoStrategyBias: runtimeResolution.retrieval.autoStrategyBias,
       bm25Ranking: runtimeResolution.retrieval.bm25Ranking,
       generalizedFusion: runtimeResolution.retrieval.generalizedFusion,
+      rerankGeneralizedFusion:
+        runtimeResolution.retrieval.rerankGeneralizedFusion,
       projectionIndex: projectionRuntime,
       semanticCandidates: runtimeResolution.retrieval.semanticCandidates,
       now: config.testing?.now ? () => config.testing!.now!().getTime() : undefined,

@@ -84,12 +84,14 @@ describe("phase-65 LoCoMo smoke adapter", () => {
       ]),
     ).toEqual({
       allowCommonsenseResolution: false,
+      answerFromPacket: false,
       answerFromRecalled: false,
       benchmarkRoot: "/tmp/LOCOMO",
       bm25: false,
       generalizedFusion: false,
       labelFreeIngest: true,
       caseIds: undefined,
+      concurrency: undefined,
       conversationalExtraction: false,
       corefNormalize: false,
       decompose: false,
@@ -101,6 +103,8 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         providerEmbedding: false,
         providerEmbeddingRunTimeoutMs: undefined,
         providerEmbeddingTimeoutMs: undefined,
+        providerReranking: false,
+        providerRerankingTimeoutMs: undefined,
         questionIdFile: undefined,
         questionIds: undefined,
         questionCategories: undefined,
@@ -427,6 +431,30 @@ describe("phase-65 LoCoMo smoke adapter", () => {
         "--provider-embedding",
       ]).providerEmbedding,
     ).toBe(true);
+
+    expect(
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-reranking",
+        "--provider-reranking-timeout-ms",
+        "60000",
+      ]),
+    ).toMatchObject({
+      providerReranking: true,
+      providerRerankingTimeoutMs: 60000,
+    });
+
+    expect(() =>
+      parseLocomoSmokeCliOptions([
+        "bun",
+        "run",
+        "scripts/run-phase-65-locomo-smoke.ts",
+        "--provider-reranking-timeout-ms",
+        "60000",
+      ]),
+    ).toThrow("--provider-reranking-timeout-ms requires --provider-reranking");
 
     expect(
       parseLocomoSmokeCliOptions([
@@ -2726,8 +2754,14 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     // A deterministic extractor that emits one self-contained fact per session,
     // anchored to the session's first turn, lets the synthetic smoke run end to
     // end through the conversational path without any live model.
+    let activeExtractions = 0;
+    let maxActiveExtractions = 0;
     const extractor: MemoryExtractor = {
       async extract(input) {
+        activeExtractions += 1;
+        maxActiveExtractions = Math.max(maxActiveExtractions, activeExtractions);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeExtractions -= 1;
         return {
           candidates: input.messages.slice(0, 1).map((message, index) => ({
             id: `fact-${index}`,
@@ -2744,6 +2778,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
 
     const report = await runLocomoSmoke(
       {
+        concurrency: 2,
         conversationalExtraction: true,
         runId: "run-locomo-conv",
         outputDir: "/tmp/locomo-out",
@@ -2757,6 +2792,7 @@ describe("phase-65 LoCoMo smoke adapter", () => {
     );
 
     expect(report.ingestMode).toBe("conversational-extraction");
+    expect(maxActiveExtractions).toBe(2);
     expect(report.mode).toBe("retrieval-only");
     expect(report.executionFailures).toBe(0);
   });

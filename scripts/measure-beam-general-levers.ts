@@ -21,6 +21,7 @@ import {
   createProviderPointwiseReranker,
 } from "../src/provider/layer";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
+import type { Reranker } from "../src/recall/reranker";
 import { createDeterministicMemoryExtractor } from "../src/remember/deterministicExtractor";
 import {
   __resetNarrowGateDisablesForTest,
@@ -168,6 +169,7 @@ export function createBeamGeneralLeverMemory(input: {
   env: Record<string, string | undefined>;
   idPrefix?: string;
   providerEmbedding: boolean;
+  reranker?: Reranker;
   rerankingModel?: AISDKModelConfig;
   union?: { topK: number };
 }): GoodMemory {
@@ -187,6 +189,14 @@ export function createBeamGeneralLeverMemory(input: {
         requestTimeoutMs: BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS,
       })
     : null;
+  const reranker =
+    input.reranker ??
+    (input.rerankingModel
+      ? createProviderPointwiseReranker({
+          model: input.rerankingModel,
+          requestTimeoutMs: BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS,
+        })
+      : undefined);
   const createMemory = () =>
     createGoodMemory({
       adapters: {
@@ -204,14 +214,7 @@ export function createBeamGeneralLeverMemory(input: {
               },
             }
           : {}),
-        ...(input.rerankingModel
-          ? {
-              reranker: createProviderPointwiseReranker({
-                model: input.rerankingModel,
-                requestTimeoutMs: BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS,
-              }),
-            }
-          : {}),
+        ...(reranker ? { reranker } : {}),
       },
       retrieval: {
         ...(input.bm25 ? { bm25Ranking: true } : {}),

@@ -104,6 +104,7 @@ export interface RecallInput {
   includeEvidence?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
+  rerank?: boolean;
 }
 
 export interface RecallHit {
@@ -261,6 +262,7 @@ export interface RecallEngineConfig {
   // unchanged unless explicitly enabled.
   bm25Ranking?: boolean;
   generalizedFusion?: RecallGeneralizedFusionConfig;
+  rerankGeneralizedFusion?: RecallGeneralizedFusionConfig;
   // Set by retrieval.preset resolution (never a public per-call knob): biases
   // "auto" routing to hybrid whenever semantic search is available, so the
   // semantic union fires without an explicit per-call strategy.
@@ -275,6 +277,14 @@ export interface RecallEngineConfig {
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
   projectionIndex?: RecallProjectionSearchPort;
   referenceTime?: () => string;
+}
+
+export function resolveActiveGeneralizedFusionConfig(input: {
+  base?: RecallGeneralizedFusionConfig;
+  rerank: boolean;
+  reranking?: RecallGeneralizedFusionConfig;
+}): RecallGeneralizedFusionConfig | undefined {
+  return input.rerank ? input.reranking ?? input.base : input.base;
 }
 
 const MAX_FUSION_TRACE_CANDIDATES = 20;
@@ -606,13 +616,18 @@ export function createRecallEngine(config: RecallEngineConfig) {
       });
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
-      const generalizedFusionBudget = config.generalizedFusion
+      const generalizedFusionConfig = resolveActiveGeneralizedFusionConfig({
+        base: config.generalizedFusion,
+        rerank: input.rerank !== false,
+        reranking: config.rerankGeneralizedFusion,
+      });
+      const generalizedFusionBudget = generalizedFusionConfig
         ? resolveGeneralizedFusionBudget({
             aggregateQuery: language.isAggregateCountQuery(
               input.query,
               resolvedLanguage.locale,
             ),
-            base: config.generalizedFusion,
+            base: generalizedFusionConfig,
             contentTermCount: new Set(
               language.tokenize(input.query, resolvedLanguage.locale, {
                 excludeStopwords: true,
@@ -629,7 +644,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         semanticSearch: Boolean(
           (config.embedding && vectorIndex) ||
             config.bm25Ranking ||
-            (config.generalizedFusion && config.projectionIndex),
+            (generalizedFusionConfig && config.projectionIndex),
         ),
         llmRouting: Boolean(config.assistedRouter),
       };
@@ -900,7 +915,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             query: input.query,
             scope: input.scope,
             vectorIndex,
-            ...(config.semanticCandidates || config.generalizedFusion
+            ...(config.semanticCandidates || generalizedFusionConfig
               ? {
                   factCandidates: {
                     topK:
@@ -941,7 +956,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
       let retrievalTrace: RecallRetrievalTrace | undefined;
       if (
-        config.generalizedFusion &&
+        generalizedFusionConfig &&
         routingDecision.strategy !== "rules-only"
       ) {
         if (!config.projectionIndex) {
@@ -1036,9 +1051,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
               ],
               maxCandidates: generalizedFusionBudget?.maxCandidates,
               minRelativeStrength:
-                config.generalizedFusion.minRelativeStrength,
+                generalizedFusionConfig.minRelativeStrength,
               referenceTime: currentReferenceTime,
-              rrfK: config.generalizedFusion.rrfK,
+              rrfK: generalizedFusionConfig.rrfK,
               tokenize: (text) =>
                 language.tokenize(text, resolvedLanguage.locale, {
                   excludeStopwords: true,

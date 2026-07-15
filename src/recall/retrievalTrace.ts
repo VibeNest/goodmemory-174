@@ -44,6 +44,7 @@ export interface RecallRerankerScoreTrace {
 
 export interface RecallRerankerTrace {
   adapter: "custom" | "provider";
+  candidateLimit?: number;
   candidateCount: number;
   fallbackReason?:
     | "adapter_error"
@@ -57,6 +58,7 @@ export interface RecallRerankerTrace {
   role: "reranker";
   scores: RecallRerankerScoreTrace[];
   status: "applied" | "fallback" | "skipped";
+  strategy?: "listwise" | "pointwise";
 }
 
 export interface RecallRetrievalTrace {

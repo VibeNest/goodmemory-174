@@ -30,9 +30,10 @@ export const PHASE72_BEAM_GENERALIZATION_MANIFEST_FILE_NAME =
 
 export type Phase72BeamGeneralizationLiveCliOptions = Omit<
   Phase63BeamLiveSliceCliOptions,
-  "evidencePack" | "profile"
+  "evidencePack" | "packetEvidence" | "profile"
 > & {
   evidencePack: true;
+  packetEvidence: false;
   profile: "goodmemory-hybrid";
   semanticTopK: number;
 };
@@ -44,7 +45,7 @@ export interface Phase72BeamGeneralizationManifest {
     provider: string;
   };
   benchmark: "BEAM-100K";
-  evidenceContext: "full-recall-evidence-pack" | "reranked-memory-packet";
+  evidenceContext: "full-recall-evidence-pack";
   generatedAt: string;
   generatedBy: "scripts/run-phase-72-beam-generalization-live.ts";
   judgeModel: {
@@ -56,10 +57,10 @@ export interface Phase72BeamGeneralizationManifest {
   narrowGatesDisabled: true;
   profile: "goodmemory-hybrid";
   recallReportPath: string;
-  rerankerModel: {
-    baseURL: string;
-    model: string;
-    provider: string;
+  reranking: {
+    answerContextConsumesRank: false;
+    enabled: false;
+    reason: "full_recall_context_uses_membership_not_rank";
   };
   runId: string;
   semanticCandidates: {
@@ -147,9 +148,15 @@ export function parsePhase72BeamGeneralizationLiveCliOptions(
       "Phase 72 BEAM generalization live runs require --profile goodmemory-hybrid.",
     );
   }
+  if (base.packetEvidence) {
+    throw new Error(
+      "Phase 72 BEAM generalization runs use full recalled membership; --packet-evidence requires a separate rank-consuming experiment.",
+    );
+  }
   return {
     ...base,
     evidencePack: true,
+    packetEvidence: false,
     profile: "goodmemory-hybrid",
     semanticTopK: parsePositiveInteger(
       resolveCliFlagValueStrict(argv, "--semantic-topk"),
@@ -187,12 +194,6 @@ export async function runPhase72BeamGeneralizationLive(
               bm25: false,
               env,
               providerEmbedding: true,
-              rerankingModel: {
-                apiKey: requiredEnv(env, "GOODMEMORY_EVAL_API_KEY"),
-                baseURL: requiredEnv(env, "GOODMEMORY_EVAL_BASE_URL"),
-                model: requiredEnv(env, "GOODMEMORY_EVAL_MODEL"),
-                provider: "openai",
-              },
               union: { topK: semanticTopK },
             })),
       },
@@ -208,9 +209,7 @@ export async function runPhase72BeamGeneralizationLive(
         provider: requiredEnv(env, "GOODMEMORY_EVAL_PROVIDER"),
       },
       benchmark: "BEAM-100K",
-      evidenceContext: options.packetEvidence
-        ? "reranked-memory-packet"
-        : "full-recall-evidence-pack",
+      evidenceContext: "full-recall-evidence-pack",
       generatedAt: (dependencies.now ?? (() => new Date()))().toISOString(),
       generatedBy: "scripts/run-phase-72-beam-generalization-live.ts",
       judgeModel: {
@@ -225,10 +224,10 @@ export async function runPhase72BeamGeneralizationLive(
         report.runDirectory,
         PHASE63_BEAM_LIVE_SLICE_REPORT_FILE_NAME,
       ),
-      rerankerModel: {
-        baseURL: requiredEnv(env, "GOODMEMORY_EVAL_BASE_URL"),
-        model: requiredEnv(env, "GOODMEMORY_EVAL_MODEL"),
-        provider: requiredEnv(env, "GOODMEMORY_EVAL_PROVIDER"),
+      reranking: {
+        answerContextConsumesRank: false,
+        enabled: false,
+        reason: "full_recall_context_uses_membership_not_rank",
       },
       runId: report.runId,
       semanticCandidates: {

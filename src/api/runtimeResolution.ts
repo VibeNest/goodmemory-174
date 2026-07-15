@@ -80,6 +80,7 @@ export interface GoodMemoryRuntimeResolution {
   embeddingModelConfig: AISDKModelConfig | null;
   rerankerModelConfig: AISDKModelConfig | null;
   rerankingEnabled: boolean;
+  providerRerankingStrategy?: "listwise" | "pointwise";
   explicitAdaptersConfigured: boolean;
   explicitStorageConfigured: boolean;
   // Effective write-time extraction mode: the raw config predicate, plus the
@@ -334,6 +335,7 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     assistedExtractorModelConfigured: Boolean(assistedExtractorModelConfig),
     embeddingEnabled,
     extraction: input.config.providers?.extraction,
+    providerRerankerConfigured: Boolean(rerankerModelConfig),
     retrieval: input.config.retrieval,
   });
 
@@ -348,6 +350,12 @@ export function resolveGoodMemoryRuntimeResolution(input: {
     rerankingEnabled: Boolean(
       input.config.adapters?.reranker || rerankerModelConfig,
     ),
+    ...(retrievalRuntime.providerRerankingStrategy
+      ? {
+          providerRerankingStrategy:
+            retrievalRuntime.providerRerankingStrategy,
+        }
+      : {}),
     extractionMode: retrievalRuntime.extractionMode,
     retrieval: retrievalRuntime.retrieval,
     explicitAdaptersConfigured: hasExplicitAdaptersConfigured(input.config.adapters),

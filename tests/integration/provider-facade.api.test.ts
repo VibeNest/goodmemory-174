@@ -284,4 +284,108 @@ describe("public provider facade", () => {
       "must-not-appear-in-trace",
     );
   });
+
+  it("uses one bounded listwise call for recommended retrieval and keeps packet output narrow", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const prompts: string[] = [];
+    let orderedCandidateIds: string[] = [];
+    globalThis.fetch = (async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as {
+        messages: Array<{ content: string; role: string }>;
+      };
+      const prompt = request.messages.at(-1)?.content ?? "";
+      prompts.push(prompt);
+      orderedCandidateIds = [
+        ...prompt.matchAll(/\{"id":"([^"]+)"/gu),
+      ].map((match) => match[1]!).reverse();
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-listwise-reranker",
+          object: "chat.completion",
+          model: "gpt-5.6-terra",
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: JSON.stringify({ orderedCandidateIds }),
+              },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }) as typeof fetch;
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      retrieval: { preset: "recommended" },
+      providers: {
+        reranking: {
+          provider: "openai",
+          model: "gpt-5.6-terra",
+          apiKey: "must-not-appear-in-trace",
+          baseURL: "https://ai.gurkiai.com/v1",
+        },
+      },
+      adapters: { documentStore },
+    });
+    const scope = {
+      userId: "listwise-reranker-user",
+      workspaceId: "listwise-reranker-workspace",
+    };
+    for (let index = 0; index < 24; index += 1) {
+      const id = `fact-migration-${String(index).padStart(2, "0")}`;
+      await documentStore.set(
+        "facts",
+        id,
+        createFactMemory({
+          id,
+          ...scope,
+          category: "project",
+          content: `Migration evidence item ${index} documents the approval state.`,
+          source: {
+            method: "explicit",
+            extractedAt: "2026-01-01T00:00:00.000Z",
+          },
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        }),
+      );
+    }
+
+    const result = await memory.recall({
+      scope,
+      query: "What migration evidence documents the approval state?",
+    });
+
+    expect(prompts).toHaveLength(1);
+    expect(orderedCandidateIds).toHaveLength(20);
+    expect(result.facts).toHaveLength(20);
+    expect(result.facts[0]?.id).toBe(orderedCandidateIds[0]);
+    expect(result.packet.factSummary?.match(/^- /gmu)).toHaveLength(6);
+    expect(result.metadata.retrievalTrace?.reranker).toMatchObject({
+      adapter: "provider",
+      candidateCount: 20,
+      status: "applied",
+      strategy: "listwise",
+    });
+    expect(result.metadata.retrievalTrace?.fusionRuns?.[0]?.budget).toBe(20);
+
+    const disabled = await memory.recall({
+      scope,
+      query: "What migration evidence documents the approval state?",
+      rerank: false,
+    });
+    expect(prompts).toHaveLength(1);
+    expect(disabled.metadata.retrievalTrace?.fusionRuns?.[0]?.budget).toBe(8);
+    expect(disabled.metadata.retrievalTrace?.reranker).toMatchObject({
+      fallbackReason: "disabled",
+      status: "skipped",
+      strategy: "listwise",
+    });
+  });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+  buildAblationEvidencePlanPrompt,
   buildAblationMemoryContext,
+  buildAblationRerankerQuery,
   parsePhase63AblationCliOptions,
   runPhase63BeamLiveAblation,
   selectAblationChatIds,
@@ -98,8 +100,16 @@ describe("phase-63 BEAM live ablation runner", () => {
         "scripts/run-phase-63-beam-live-ablation.ts",
         "--benchmark-root",
         "/tmp/BEAM",
+        "--case-ids",
+        "conv-1:information_extraction:1,conv-1:abstention:1",
         "--mode",
         "gold-evidence-only",
+        "--retrieved-top-k",
+        "20",
+        "--plan-stored-evidence",
+        "--rerank-stored-evidence",
+        "--reranker-query-mode",
+        "current-value",
         "--run-id",
         "run-abl",
         "--scale",
@@ -109,8 +119,16 @@ describe("phase-63 BEAM live ablation runner", () => {
       ]),
     ).toMatchObject({
       benchmarkRoot: "/tmp/BEAM",
+      caseIds: [
+        "conv-1:information_extraction:1",
+        "conv-1:abstention:1",
+      ],
       mode: "gold-evidence-only",
+      planStoredEvidence: true,
       profile: "goodmemory-hybrid",
+      rerankStoredEvidence: true,
+      rerankerQueryMode: "current-value",
+      retrievedTopK: 20,
       runId: "run-abl",
       scale: "500K",
     });
@@ -146,11 +164,14 @@ describe("phase-63 BEAM live ablation runner", () => {
   it("rejects duplicate scalar CLI selectors before running ablations", () => {
     for (const flagName of [
       "--benchmark-root",
+      "--case-ids",
       "--limit",
       "--live-report",
       "--mode",
       "--output-dir",
       "--profile",
+      "--retrieved-top-k",
+      "--reranker-query-mode",
       "--run-id",
       "--scale",
     ]) {
@@ -285,11 +306,100 @@ describe("phase-63 BEAM live ablation runner", () => {
       1, 2, 3, 4,
     ]);
     expect(
+      selectAblationChatIds({ ...shared, mode: "full-context-evidence-pack" }),
+    ).toEqual([1, 2, 3, 4]);
+    expect(
       selectAblationChatIds({ ...shared, mode: "gold-evidence-pack" }),
     ).toEqual([2, 4]);
     expect(
       selectAblationChatIds({ ...shared, mode: "retrieved-evidence-pack" }),
     ).toEqual([2, 3]);
+    expect(
+      selectAblationChatIds({
+        ...shared,
+        mode: "retrieved-evidence-pack",
+        retrievedTopK: 1,
+      }),
+    ).toEqual([2]);
+    expect(
+      selectAblationChatIds({
+        ...shared,
+        mode: "retrieved-hit-only",
+        retrievedChatIds: [3, 2, 4],
+        retrievedTopK: 2,
+      }),
+    ).toEqual([2]);
+  });
+
+  it("rejects malformed case-id and retrieval-budget selectors", () => {
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--case-ids",
+        "one,,two",
+      ]),
+    ).toThrow("--case-ids must contain unique, non-empty question IDs");
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--case-ids",
+        "one,one",
+      ]),
+    ).toThrow("--case-ids must contain unique, non-empty question IDs");
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--retrieved-top-k",
+        "0",
+      ]),
+    ).toThrow("--retrieved-top-k must be a positive integer");
+    expect(() =>
+      parsePhase63AblationCliOptions([
+        "bun",
+        "run",
+        "x",
+        "--reranker-query-mode",
+        "benchmark-specific",
+      ]),
+    ).toThrow("--reranker-query-mode must be question or current-value");
+  });
+
+  it("builds a benchmark-agnostic current-value selector query", () => {
+    const query = buildAblationRerankerQuery({
+      mode: "current-value",
+      question: "What is my current API quota?",
+    });
+
+    expect(query).toContain("exact requested attribute");
+    expect(query).toContain("latest supported value");
+    expect(query).toContain("What is my current API quota?");
+    expect(query).not.toContain("BEAM");
+  });
+
+  it("builds a benchmark-agnostic minimal sufficient evidence plan", () => {
+    const prompt = buildAblationEvidencePlanPrompt({
+      documents: [
+        { id: "1", text: "The quota used to be 10." },
+        { id: "2", text: "The quota is now 20." },
+      ],
+      maxSelections: 4,
+      query: "What is my current API quota?",
+    });
+
+    expect(prompt).toContain("minimal sufficient evidence set");
+    expect(prompt).toContain("Sufficiency takes priority over sparsity");
+    expect(prompt).toContain('"compact"');
+    expect(prompt).toContain('"preserve-candidates"');
+    expect(prompt).toContain("latest directly supported value");
+    expect(prompt).toContain("at most 4 candidate IDs");
+    expect(prompt).toContain('"id":"2"');
+    expect(prompt).not.toContain("BEAM");
   });
 
   it("builds source-ordered, deduplicated context and skips unknown ids", () => {
@@ -412,5 +522,305 @@ describe("phase-63 BEAM live ablation runner", () => {
     expect(answerableCase?.contextChatCount).toBe(1);
     expect(answerableCase?.correct).toBe(true);
     expect(report.summary.correctCases).toBe(1);
+  });
+
+  it("runs only explicit cases and bounds recorded retrieval before context assembly", async () => {
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        retrievedTopK: 1,
+        runId: "run-abl-budgeted",
+      },
+      {
+        concurrency: 1,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? buildLiveReport()
+            : JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+        mkdir: async () => undefined,
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+      },
+    );
+
+    expect(report.summary.totalCases).toBe(1);
+    expect(report.cases[0]?.questionId).toBe(
+      "conv-1:information_extraction:1",
+    );
+    expect(report.cases[0]?.contextChatCount).toBe(1);
+  });
+
+  it("listwise-reranks the complete stored candidate set before applying top-k", async () => {
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        rerankStoredEvidence: true,
+        retrievedTopK: 1,
+        runId: "run-abl-reranked",
+      },
+      {
+        concurrency: 1,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? buildLiveReport()
+            : JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+        mkdir: async () => undefined,
+        reranker: {
+          async rerank({ documents }) {
+            return documents.map((document) => ({
+              id: document.id,
+              score: document.id === "3" ? 1 : 0,
+            }));
+          },
+        },
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+      },
+    );
+
+    expect(report.cases[0]?.contextChatIds).toEqual([3]);
+    expect(report.cases[0]?.contextChatCount).toBe(1);
+  });
+
+  it("plans a minimal evidence set from the complete stored candidate set", async () => {
+    const seenDocumentIds: string[][] = [];
+    const seenDocumentTexts: string[][] = [];
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        planStoredEvidence: true,
+        retrievedTopK: 1,
+        runId: "run-abl-planned",
+      },
+      {
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        concurrency: 1,
+        evidenceSelector: async (input) => {
+          seenDocumentIds.push(input.documents.map((document) => document.id));
+          seenDocumentTexts.push(input.documents.map((document) => document.text));
+          expect(input.maxSelections).toBe(1);
+          return { mode: "compact", selectedCandidateIds: ["2"] };
+        },
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? buildLiveReport()
+            : JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(seenDocumentIds).toEqual([["2", "3"]]);
+    expect(seenDocumentTexts[0]?.[0]).toContain(
+      "[source_id=2 role=user time=Jan-2]",
+    );
+    expect(report.cases[0]?.contextChatIds).toEqual([2]);
+    expect(report.cases[0]?.evidencePlanMode).toBe("compact");
+    expect(report.selection.planStoredEvidence).toBe(true);
+    expect(report.selection.retrievedTopK).toBe(1);
+  });
+
+  it("preserves the original candidate set when the evidence plan is not safely compactable", async () => {
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        planStoredEvidence: true,
+        retrievedTopK: 1,
+        runId: "run-abl-preserved",
+      },
+      {
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        concurrency: 1,
+        evidenceSelector: async () => ({
+          mode: "preserve-candidates",
+          selectedCandidateIds: [],
+        }),
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? buildLiveReport()
+            : JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.cases[0]?.contextChatIds).toEqual([2, 3]);
+    expect(report.cases[0]?.evidencePlanMode).toBe("preserve-candidates");
+  });
+
+  it("uses the live runner evidence-pack protocol including assistant companions", async () => {
+    const rawRows = buildRawRows();
+    const firstRow = rawRows[0] as {
+      probing_questions: Record<string, unknown>;
+    };
+    firstRow.probing_questions.multi_session_reasoning = [
+      {
+        answer: "Pepper",
+        question: "What did we conclude about the dog across the discussion?",
+        question_id: "conv-1:multi_session_reasoning:1",
+        question_type: "multi_session_reasoning",
+        source_chat_ids: [2],
+      },
+    ];
+    let seenContext = "";
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:multi_session_reasoning:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        planStoredEvidence: true,
+        runId: "run-abl-companion",
+      },
+      {
+        answerGenerator: async (input) => {
+          seenContext = input.memoryContext;
+          return input.memoryContext;
+        },
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        concurrency: 1,
+        evidenceSelector: async () => ({
+          mode: "preserve-candidates",
+          selectedCandidateIds: [],
+        }),
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? JSON.stringify({
+                cases: [
+                  {
+                    questionId: "conv-1:multi_session_reasoning:1",
+                    retrievedChatIds: [2],
+                  },
+                ],
+              })
+            : JSON.stringify(rawRows),
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.summary.executionFailures).toBe(0);
+    expect(seenContext).toContain("#2 | user");
+    expect(seenContext).toContain("#3 | assistant");
+    expect(seenContext).toContain("Unrelated assistant chatter.");
+  });
+
+  it("records a planner failure on the affected case without aborting the run", async () => {
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        liveReportPath: "/tmp/live.json",
+        mode: "retrieved-evidence-pack",
+        outputDir: "/tmp/out",
+        planStoredEvidence: true,
+        runId: "run-abl-plan-failure",
+      },
+      {
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+        concurrency: 1,
+        evidenceSelector: async () => {
+          throw new Error("planner unavailable");
+        },
+        mkdir: async () => undefined,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async (path) =>
+          path === "/tmp/live.json"
+            ? buildLiveReport()
+            : JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.summary.executionFailures).toBe(1);
+    expect(report.cases[0]?.executionError).toContain("planner unavailable");
+  });
+
+  it("supports a full-context listwise upper-bound probe", async () => {
+    const report = await runPhase63BeamLiveAblation(
+      {
+        benchmarkRoot: "/tmp/BEAM",
+        caseIds: ["conv-1:information_extraction:1"],
+        mode: "full-context",
+        outputDir: "/tmp/out",
+        rerankStoredEvidence: true,
+        retrievedTopK: 1,
+        runId: "run-abl-full-reranked",
+      },
+      {
+        concurrency: 1,
+        now: () => new Date("2026-06-22T00:00:00.000Z"),
+        readFile: async () => JSON.stringify(buildRawRows()),
+        writeFile: async () => undefined,
+        mkdir: async () => undefined,
+        reranker: {
+          async rerank({ documents }) {
+            return documents.map((document) => ({
+              id: document.id,
+              score: document.id === "2" ? 1 : 0,
+            }));
+          },
+        },
+        answerGenerator: async (input) => input.memoryContext,
+        answerJudge: async () => ({
+          correct: true,
+          method: "semantic_judge",
+          reasoning: "fixture",
+        }),
+      },
+    );
+
+    expect(report.cases[0]?.contextChatIds).toEqual([2]);
   });
 });

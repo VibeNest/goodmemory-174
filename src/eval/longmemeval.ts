@@ -30,6 +30,7 @@ const LONGMEMEVAL_ASSISTANT_ANCHORED_FACT_LIMIT = 40;
 export type LongMemEvalProfile = (typeof LONGMEMEVAL_PROFILES)[number];
 export type LongMemEvalMode = "smoke" | "full";
 export type LongMemEvalIngestMode = "historical-annotated" | "label-free-raw";
+export type LongMemEvalExtractionStrategy = "llm-assisted" | "rules-only";
 export type LongMemEvalRecallDiagnosticProfile =
   | "goodmemory-hybrid"
   | "goodmemory-recommended"
@@ -67,6 +68,14 @@ export function resolveLongMemEvalReportIngestMode(
 
 export interface LongMemEvalRecallRunConfiguration {
   contextMaxTokens: number;
+  evidenceAugmentation?: {
+    maxAdditions: number;
+    strategy: "retrieved-session-bm25" | "retrieved-session-dense";
+  };
+  evidencePack?: {
+    supplementalEvidenceLimit: number;
+    supplementalEvidencePerSessionLimit: number;
+  };
   embedding?: {
     gateway: string | null;
     maxBatchChars?: number;
@@ -75,7 +84,14 @@ export interface LongMemEvalRecallRunConfiguration {
     model: string;
     provider: string;
   } | null;
-  extractionStrategy: "rules-only";
+  extraction?: {
+    contextualDescriptors: boolean;
+    gateway: string | null;
+    mode: "conversational";
+    model: string;
+    provider: string;
+  } | null;
+  extractionStrategy: LongMemEvalExtractionStrategy;
   generalizedFusion: {
     maxCandidates: number;
     maxTotalFacts: number;
@@ -87,6 +103,14 @@ export interface LongMemEvalRecallRunConfiguration {
     writeThrough: boolean;
   };
   providerEmbedding: boolean;
+  reranking?: {
+    gateway: string | null;
+    maxConcurrency?: number;
+    maxAttempts?: number;
+    model: string;
+    provider: string;
+    requestTimeoutMs?: number;
+  } | null;
   recallStrategy: "hybrid" | "rules-only";
 }
 
@@ -165,6 +189,7 @@ export interface LongMemEvalReport {
   outputDir: string;
   phase: "phase-62";
   profiles: Partial<Record<LongMemEvalProfile, LongMemEvalProfileReport>>;
+  runConfiguration?: LongMemEvalRecallRunConfiguration;
   runDirectory: string;
   runId: string;
   source: {
@@ -193,6 +218,7 @@ export interface RunLongMemEvalOptions {
   outputDir: string;
   profiles?: readonly string[];
   questionTypes?: readonly string[];
+  runConfiguration?: LongMemEvalRecallRunConfiguration;
   runId?: string;
   stageTimeoutMs?: number;
 }
@@ -254,11 +280,26 @@ export type LongMemEvalMemoryContextBuilder = (input: {
   testCase: LongMemEvalCase;
 }) => Promise<LongMemEvalMemoryContext>;
 
+export type LongMemEvalSupplementalEvidenceAugmenter = (input: {
+  context: string;
+  defaultEvidenceLines: readonly string[];
+  evidenceBySessionId: ReadonlyMap<
+    string,
+    readonly LongMemEvalSupplementalEvidence[]
+  >;
+  question: string;
+  selectedSessionIds: readonly string[];
+}) => Promise<readonly string[]> | readonly string[];
+
 export interface LongMemEvalGoodMemoryContextBuilderInput {
   createMemory: (profile: LongMemEvalRecallDiagnosticProfile) => GoodMemory;
+  extractionStrategy?: LongMemEvalExtractionStrategy;
   ingestMode?: LongMemEvalIngestMode;
   maxTokens?: number;
   runId?: string;
+  supplementalEvidenceAugmenter?: LongMemEvalSupplementalEvidenceAugmenter;
+  supplementalEvidenceLimit?: number;
+  supplementalEvidencePerSessionLimit?: number;
 }
 
 export interface LongMemEvalIO {
@@ -503,6 +544,20 @@ function collectExpectedAnswerAlternatives(expectedAnswer: string): string[] {
   return alternatives;
 }
 
+function isExplicitAbstentionAnswer(answer: string): boolean {
+  return (
+    /\bno answer\b/u.test(answer) ||
+    /\b(?:not enough|insufficient) (?:information|context|evidence|details?)\b/u.test(
+      answer,
+    ) ||
+    /\binformation(?: provided)? is not enough\b/u.test(answer) ||
+    /\b(?:cannot|can't|unable to) determine\b/u.test(answer) ||
+    /\b(?:do not|don't) have enough (?:remembered )?(?:information|context|evidence|details?)\b/u.test(
+      answer,
+    )
+  );
+}
+
 export function scoreLongMemEvalAnswer(
   testCase: LongMemEvalCase,
   hypothesis: string,
@@ -511,7 +566,7 @@ export function scoreLongMemEvalAnswer(
   const actual = normalizeAnswer(hypothesis);
 
   if (isAbstentionCase(testCase)) {
-    const correct = actual.includes("no answer") || actual.includes("not have enough");
+    const correct = isExplicitAbstentionAnswer(actual);
     return {
       correct,
       method: "abstention",
@@ -3417,9 +3472,9 @@ export interface LongMemEvalSupplementalEvidence {
   tags: string[];
 }
 
-const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT = 6;
+export const LONGMEMEVAL_DEFAULT_SUPPLEMENTAL_EVIDENCE_LIMIT = 6;
 const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_EXPANSION_LIMIT = 2;
-const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT = 2;
+export const LONGMEMEVAL_DEFAULT_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT = 2;
 const LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_MAX_CHARS = 520;
 const LONGMEMEVAL_USER_SOURCE_SESSION_LIMIT = 4;
 const LONGMEMEVAL_USER_SOURCE_PER_SESSION_LIMIT = 3;
@@ -3842,10 +3897,15 @@ export function selectLongMemEvalSupplementalEvidence(input: {
   context: string;
   diversifyBySession?: boolean;
   evidenceBySessionId: ReadonlyMap<string, readonly LongMemEvalSupplementalEvidence[]>;
+  limit?: number;
+  perSessionLimit?: number;
   question: string;
   selectedSessionIds: readonly string[];
 }): string[] {
   const context = input.context.toLowerCase();
+  const limit = input.limit ?? LONGMEMEVAL_DEFAULT_SUPPLEMENTAL_EVIDENCE_LIMIT;
+  const perSessionLimit = input.perSessionLimit ??
+    LONGMEMEVAL_DEFAULT_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT;
   const queryTokens = tokenizeLongMemEvalEvidence(input.question);
   const selectedSessionIds = new Set(input.selectedSessionIds);
   const scored: Array<{
@@ -3918,17 +3978,17 @@ export function selectLongMemEvalSupplementalEvidence(input: {
     const selectedBySession = new Map<string, number>();
     for (const item of ordered) {
       const sessionCount = selectedBySession.get(item.sessionId) ?? 0;
-      if (sessionCount >= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_PER_SESSION_LIMIT) {
+      if (sessionCount >= perSessionLimit) {
         continue;
       }
       selected.push(item);
       selectedBySession.set(item.sessionId, sessionCount + 1);
-      if (selected.length >= LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT) {
+      if (selected.length >= limit) {
         break;
       }
     }
   } else {
-    selected = ordered.slice(0, LONGMEMEVAL_SUPPLEMENTAL_EVIDENCE_LIMIT);
+    selected = ordered.slice(0, limit);
   }
 
   let expansionCount = 0;
@@ -4668,7 +4728,7 @@ export function createLongMemEvalGoodMemoryContextBuilder(
     const ingestMode = resolveLongMemEvalIngestMode(profile, input.ingestMode);
     const memory = input.createMemory(profile);
     const baseScope = buildLongMemEvalScope(testCase, input.runId);
-    const extractionStrategy = "rules-only";
+    const extractionStrategy = input.extractionStrategy ?? "rules-only";
     const recallStrategy =
       profile === "goodmemory-rules-only" ? "rules-only" : "hybrid";
     const evidenceBySessionId = new Map<
@@ -4681,7 +4741,11 @@ export function createLongMemEvalGoodMemoryContextBuilder(
       const date = testCase.haystackDates[index] ?? "unknown-date";
       const labelFree = ingestMode === "label-free-raw";
       const payload = labelFree
-        ? buildLabelFreeLongMemEvalRememberPayload({ date, session, sessionId })
+        ? buildLabelFreeLongMemEvalRememberPayload({
+            date,
+            session,
+            sessionId,
+          })
         : buildLongMemEvalRememberPayload({
             date,
             isAnswerSession: testCase.answerSessionIds.includes(sessionId),
@@ -4724,12 +4788,35 @@ export function createLongMemEvalGoodMemoryContextBuilder(
         testCase,
       }),
     );
-    const supplementalEvidenceLines = selectLongMemEvalSupplementalEvidence({
+    const defaultSupplementalEvidenceLines = selectLongMemEvalSupplementalEvidence({
       context: context.content,
       diversifyBySession: ingestMode === "label-free-raw",
       evidenceBySessionId,
+      limit: input.supplementalEvidenceLimit,
+      perSessionLimit: input.supplementalEvidencePerSessionLimit,
       question: testCase.question,
       selectedSessionIds: retrievedSessionIds,
+    });
+    const supplementalEvidenceAdditions = input.supplementalEvidenceAugmenter
+      ? await input.supplementalEvidenceAugmenter({
+          context: context.content,
+          defaultEvidenceLines: defaultSupplementalEvidenceLines,
+          evidenceBySessionId,
+          question: testCase.question,
+          selectedSessionIds: retrievedSessionIds,
+        })
+      : [];
+    const seenSupplementalEvidence = new Set<string>();
+    const supplementalEvidenceLines = [
+      ...defaultSupplementalEvidenceLines,
+      ...supplementalEvidenceAdditions,
+    ].filter((line) => {
+      const normalized = normalizeForEvidenceMatch(line);
+      if (normalized.length === 0 || seenSupplementalEvidence.has(normalized)) {
+        return false;
+      }
+      seenSupplementalEvidence.add(normalized);
+      return true;
     });
     const userSourceEvidenceLines =
       ingestMode === "label-free-raw" && isCountQuestion(testCase.question)
@@ -5456,6 +5543,9 @@ export async function runLongMemEvalSuite(
     outputDir: options.outputDir,
     phase: "phase-62",
     profiles: profileReports,
+    ...(options.runConfiguration
+      ? { runConfiguration: options.runConfiguration }
+      : {}),
     runDirectory,
     runId,
     source: {

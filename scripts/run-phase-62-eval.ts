@@ -6,7 +6,9 @@ import {
   type LongMemEvalAnswerJudge,
   type LongMemEvalAnswerJudgeInput,
   type LongMemEvalAnswerGenerator,
+  type LongMemEvalRecallRunConfiguration,
   type LongMemEvalReport,
+  type LongMemEvalSupplementalEvidenceAugmenter,
   type RunLongMemEvalOptions,
 } from "../src/eval/longmemeval";
 import {
@@ -54,7 +56,9 @@ const GENERATED_BY = "scripts/run-phase-62-eval.ts";
 
 export interface Phase62EvalDependencies {
   createMemory?: typeof createGoodMemory;
+  runConfiguration?: LongMemEvalRecallRunConfiguration;
   runSuite?: typeof runLongMemEvalSuite;
+  supplementalEvidenceAugmenter?: LongMemEvalSupplementalEvidenceAugmenter;
 }
 
 const LONGMEMEVAL_PERSONA: PersonaSpec = {
@@ -421,32 +425,45 @@ export async function runPhase62LongMemEval(
     mode: "smoke",
     ...options,
   });
+  const configuredRunOptions = dependencies.runConfiguration
+    ? { ...runOptions, runConfiguration: dependencies.runConfiguration }
+    : runOptions;
 
-  if (runOptions.mode === "full" && !dependencies.runSuite) {
+  if (configuredRunOptions.mode === "full" && !dependencies.runSuite) {
     const requestTimeoutMs = resolvePhase62LiveRequestTimeoutMs();
     const stageTimeoutMs = resolvePhase62StageTimeoutMs(requestTimeoutMs);
     assertPhase62Readiness(
       checkPhase62Readiness({
-        benchmarkRoot: runOptions.benchmarkRoot,
-        mode: runOptions.mode,
-        profiles: runOptions.profiles,
+        benchmarkRoot: configuredRunOptions.benchmarkRoot,
+        mode: configuredRunOptions.mode,
+        profiles: configuredRunOptions.profiles,
       }),
     );
 
-    return runSuite({ ...runOptions, stageTimeoutMs }, {
+    return runSuite({ ...configuredRunOptions, stageTimeoutMs }, {
       answerGenerator: createLongMemEvalAnswerGenerator(requestTimeoutMs),
       answerJudge: createLongMemEvalAnswerJudge(requestTimeoutMs),
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
         createMemory: createLongMemEvalMemoryFactory(
           dependencies.createMemory ?? createHermeticLongMemEvalMemory,
-          { requestTimeoutMs, runNamespace: runOptions.runId },
+          { requestTimeoutMs, runNamespace: configuredRunOptions.runId },
         ),
-        runId: runOptions.runId,
+        extractionStrategy:
+          configuredRunOptions.runConfiguration?.extractionStrategy,
+        runId: configuredRunOptions.runId,
+        supplementalEvidenceAugmenter:
+          dependencies.supplementalEvidenceAugmenter,
+        supplementalEvidenceLimit:
+          configuredRunOptions.runConfiguration?.evidencePack
+            ?.supplementalEvidenceLimit,
+        supplementalEvidencePerSessionLimit:
+          configuredRunOptions.runConfiguration?.evidencePack
+            ?.supplementalEvidencePerSessionLimit,
       }),
     });
   }
 
-  return runSuite(runOptions);
+  return runSuite(configuredRunOptions);
 }
 
 if (import.meta.main) {

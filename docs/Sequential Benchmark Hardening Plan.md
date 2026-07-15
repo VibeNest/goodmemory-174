@@ -127,16 +127,35 @@ Official-protocol scoring must use a different judge model;
     Its frozen 52-case official-protocol validation scored 37/52: target cases
     improved from 0/16 to 7/16, the original protection set stayed 16/16, and
     15/20 post-hoc replacement-run regressions recovered. The subsequent
-    current `goodmemory-recommended` full-500 run completed with zero execution
-    failures. `gpt-5.6-terra` answers scored 340/500 = 0.680 under the
-    independent `gpt-5.4` official-protocol rescore, with 500/500 stored answers
-    judged, no judge failures, and `sourceAnswersUnchanged: true`; its
-    judge-free deterministic lower bound was 269/500 = 0.538. Assistant
-    accuracy improved from 39/56 to 46/56; all other categories held exactly
-    except multi-session, which moved from 61/133 to 60/133 (-0.75pt). Both
-    headline tracks still miss the required 0.92 / 0.72 gates. Sixty-four of
-    376 full-recall cases are still wrong, so answer synthesis remains a
-    measured co-bottleneck rather than a retrieval-only hypothesis.
+    provider-embedding full-500 source was retry-merged to zero failures with
+    0.9234666667 evidence-session recall, 381/500 = 0.762 independent official
+    accuracy, and a 297/500 = 0.594 judge-free floor. Of its 119 wrong answers,
+    64 had full evidence-session recall, confirming that retrieval-only work
+    could not close the target.
+    Frozen negative arms confirm the boundary: provider reranking regressed the
+    64-case answer slice from 47/64 to 45/64, conversational extraction scored
+    46/64, and a 12/4 supplemental-evidence budget stayed flat at 22/32. A
+    sentence-projection dense retrieval arm improved target recall only
+    0.63125 -> 0.646875 (+1.5625pt) while protection regressed
+    0.90625 -> 0.875 (-3.125pt); it failed both admission conditions, was not
+    re-answered, and its production wiring was removed.
+    A narrower eval-only arm instead keeps the default six evidence lines and
+    adds at most two dense-ranked raw turns from sessions already retrieved by
+    the normal recall path. On its frozen 32-target / 32-protection answer
+    cohort it improved independent official-protocol accuracy 32/64 -> 44/64:
+    targets moved 0/32 -> 12/32, protection remained 32/32, and execution
+    failures remained zero. This passes the lever-admission gate without
+    changing the production `recommended` profile. Its first full-500 run
+    stopped after 70 cases; the partial aggregate is invalid and was not
+    promoted. The later label-free answer/verifier chain completed all 500
+    cases with zero failures and reached the strict threshold exactly at
+    360/500 = 0.720. Its best accepted independent `gpt-5.4` full rescore is
+    459/500 = 0.918, one case below 0.920. A 461/500 = 0.922 diagnostic is
+    rejected because it mixed update and timeline stages that failed their own
+    admission gates; repeated judging also flipped unchanged answers. The
+    verifier runner now requires `--source-report`, so a temporary upstream
+    artifact can no longer become an implicit default. No current LongMemEval
+    declaration is promotable.
   - LoCoMo now has a zero-failure full-1540 non-adversarial production-profile
     result. `goodmemory-recommended` with conversational extraction reached
     0.7632503821 evidence recall. Its generic `gpt-5.6-terra` answer profile
@@ -153,7 +172,17 @@ Official-protocol scoring must use a different judge model;
     pointwise reranker, the existing bounded listwise assistant, answer
     verification, and joint evidence selection. The best independent-judge
     conversion was pointwise top-3 at 24/44, short of the roughly 32 recovered
-    answers needed for 0.87. No selector was run full-root or promoted.
+    answers needed for 0.87. That development cohort was also strongly biased:
+    all 17 of its first-pass abstentions had full evidence, versus only 17 full,
+    16 partial, and 59 zero-evidence rows among the other 92 abstentions. A
+    disjoint SHA-256-ranked 32-row holdout therefore tested same-session
+    radius-2 expansion followed by the already-fixed pointwise top-3 selector.
+    It completed with zero failures but reached only 5/32 strict and 7/32 =
+    0.21875 under independent `gpt-5.4`, below the roughly 11/32 official
+    recoveries needed to justify a full run. The arm was stopped; no selector
+    was run full-root or promoted. The failed recovery, pairwise-selection,
+    extractive-reanswer, compression, and answer-support runners were removed
+    rather than retained as dormant product surface.
   - The frozen HaluMem slice now passes its three-part gate with zero execution
     failures on both profiles. GoodMemory versus the local hashed-vector
     baseline is 0.9309950438 versus 0.8615384615 extraction F1, 0.75 versus
@@ -163,12 +192,12 @@ Official-protocol scoring must use a different judge model;
     gateway. MemGym's 16-question generated coding slice scored 1.0 versus
     0.125 no-memory, while MINTEval remains a one-row unscored smoke. None is a
     public benchmark claim.
-  - The latest claim-boundary, structured-claim-key, and aggregate-budget
-    changes pass the full repository suite: 3414 tests across 383 files, zero
-    failures, 17901 assertions. Typecheck, coverage, build, focused release
-    tests, Node 20/22/24 package-boundary smoke, and diff validation are green.
-    The real package archive contains 219 files, excludes `src/`, and unpacks
-    to 3,849,991 bytes (3.672 MiB). The strict claim gate now enforces
+  - The converged Phase 72 diff passes 3483 tests across 387 files with zero
+    failures and 18080 assertions. Coverage passes at 90.71% overall with every
+    group above threshold; typecheck, build, all 88 release tests, and the Node
+    20.20.2 / 22.14.0 / 24.18.0 package-boundary smokes are green. The real
+    package archive contains 219 files, excludes `src/`, and unpacks to
+    3,854,586 bytes (3.676020 MiB). The strict claim gate enforces
     declaration status and current package-version equality; it reports zero
     current claims and five versioned historical rows. Passing these code and
     packaging gates does not close Phase 72 while the LongMemEval and LoCoMo
@@ -213,7 +242,7 @@ Official-protocol scoring must use a different judge model;
 - Phase 67 public-claim gate CLI/evidence guard note: `gate:public-benchmark-claim` rejects duplicate `--strict` and `--claims-dir` flags, validates canonical declaration filenames and field shapes, verifies declared artifacts and asserted fields, and checks README row provenance and disclosure fragments. Phase 72 extends the boundary: only `candidate_public_claim` declarations whose `run.packageVersion` equals the current package version may enter the current-claims table. Versioned historical evidence is checked against separate README markers and cannot make the current table pass. All five declarations are currently `internal_evidence`; strict mode reports zero current claims and five consistent historical rows.
 - Official-protocol rescore CLI guard note: `eval:official-rescore` is the pinned package alias for `scripts/rescore-official-protocols.ts`, and it now rejects duplicate scalar benchmark/source/run/judge selectors before loading existing LongMemEval, LoCoMo, or BEAM answer reports for official-protocol judging. This covers `--benchmark`, `--reference`, `--report`, `--root`, `--rubrics`, `--concurrency`, `--limit`, and `--run-id`; `--run-id` must be a single path segment, while `--concurrency` and `--limit` must be canonical positive integers. It also rejects benchmark-incompatible source selectors, so `--reference` is LongMemEval-only, `--root` is LoCoMo-only, and `--rubrics` is BEAM-only. Each output run directory now persists `run-identity.json`, rejects malformed or unknown-field existing identity files, rejects non-SHA-256 source fingerprints, and refuses to reuse an existing `progress.jsonl` cache when the benchmark, run id, source input paths, source input SHA-256 fingerprints, judge model, slice limit, or stored-answer boundary no longer match. Resumable progress rows now reject malformed or unknown-field cached verdicts/scores, malformed BEAM rubric keys whose `<questionId>#<itemIndex>` prefix disagrees with row `questionId`, duplicate cached question/rubric keys, and cached rows outside the selected case/rubric scope instead of silently counting non-boolean correctness, invalid BEAM rubric scores, last-write-wins duplicates, or stale out-of-scope slice rows, while retaining the killed-run torn-tail tolerance for a final partial JSON line. Generated `rescore-summary.json` files now also persist `generatedAt`, `outputPath`, `sourceInputs`, `sourceInputFingerprints` (bytes + SHA-256), `judgeModel`, `limit` (number for a sliced rescore, `null` for full scope), `limitUnit` (`cases` for LongMemEval/LoCoMo, `rubric-items` for BEAM), `sourceAnswersUnchanged`, source-vs-selected scope counts (`sourceCases`/`selectedCases`, or BEAM `sourceQuestions`/`selectedQuestions` plus `sourceRubricItems`/`selectedRubricItems`), and an explicit `claimBoundary` saying this is stored-answer official-protocol comparability evidence, not answer regeneration or a public benchmark claim unless promoted by the claim gate. Summary validation now also recomputes LongMemEval/LoCoMo category totals, correct counts, per-category accuracy, and overall accuracy, plus BEAM category question totals, macro-by-category, and question-weighted micro scores before write. Source inputs are rejected if they resolve inside the official-rescore output run directory, keeping stored-answer reports, benchmark references, roots, and rubrics separate from derived `run-identity.json`, `progress.jsonl`, and `rescore-summary.json` artifacts. Judge gateway env (`GOODMEMORY_JUDGE_BASE_URL`, `GOODMEMORY_JUDGE_API_KEY`, `GOODMEMORY_JUDGE_MODEL`) is preflighted before output-directory creation or `run-identity.json` writes, and must be present, non-empty, and free of leading/trailing whitespace. Final `rescore-summary.json` writes are refused when any judge call fails; the run must be resumed with the same run id until `progress.jsonl` covers the selected scope without judge failures. This protects the planned official-judge comparability rescore from repeated-selector ambiguity, wrong-protocol source inputs, stale, malformed, unknown-field, duplicated, or out-of-scope cached verdicts, unsafe run directories, source/output directory mixing, malformed judge identity, malformed or unknown-field identity files, non-SHA-256 source fingerprints, ambiguous slice-budget cache reuse, content-drifted source files, partial-judge summary promotion, category/headline aggregate drift, and unauditable source lineage without running a judge, changing scores, or changing public-claim boundaries.
 - Official-protocol rescore cache writer / summary validation note: `eval:official-rescore` now writes question-level progress rows in the same strict `{correct, questionId}` shape that the resumable cache parser accepts, and writes BEAM rubric rows through the same canonical serializer used by parser tests. It also validates each generated `rescore-summary.json` before writing, rejecting stale or internally inconsistent summaries that omit stored-answer comparability metadata, source fingerprints, selected/source scope counts, complete judged coverage, or in-range score fields, and rejecting category aggregates that do not recompute to the headline counts and scores. This closes the resume hazard where newly generated LongMemEval/LoCoMo progress could include raw judge text or category metadata that a later strict resume would reject as unknown fields, and prevents a malformed final summary or drifted category table from replacing auditable evidence. The existing LongMemEval, LoCoMo, and BEAM official-rescore local artifacts were refreshed from complete cached progress with `0 to judge`, preserving the scores while adding `run-identity.json`, SHA-256 source fingerprints, source-vs-selected scope counts, and explicit stored-answer comparability `claimBoundary` metadata to each `rescore-summary.json`.
-- Phase 72 LongMemEval rescore profile / timeout note: `eval:official-rescore --benchmark longmemeval` accepts explicit `--profile`, persists `sourceProfile` in run identity and final summary, and rejects cached progress when the source profile drifts. LoCoMo and BEAM reject this selector. Judge calls are bounded by `GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS` (default 180000 ms), closing the direct-fetch hang path. `rescore-phase72-longmemeval-recommended-terra-gpt54-tail-monotonic-v3` judged all 500 current `goodmemory-recommended` stored answers with `gpt-5.4`, zero judge failures, and 0.680 accuracy; this fails the score gate and is not promotable.
+- Phase 72 LongMemEval rescore profile / timeout note: `eval:official-rescore --benchmark longmemeval` accepts explicit `--profile`, persists `sourceProfile` in run identity and final summary, and rejects cached progress when the source profile drifts. LoCoMo and BEAM reject this selector. Judge calls are bounded by `GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS` (default 180000 ms), closing the direct-fetch hang path. The provider-free full-500 rescore `rescore-phase72-longmemeval-recommended-terra-gpt54-tail-monotonic-v3` remains 340/500 = 0.680, while the direct provider-embedding source rescore `rescore-phase72-longmemeval-semantic-live-full500-c40-v4` is 381/500 = 0.762. The retained verifier chain reaches the strict judge-free floor at 360/500 = 0.720; its accepted independent `gpt-5.4` rescore `rescore-phase72-longmemeval-promoted-verifier-final500-terra-gpt54-v1` is 459/500 = 0.918 with 500/500 judged and zero judge failures. This misses the 0.920 release gate by one case and is not promotable. A 0.922 diagnostic that mixed update/timeline stages was rejected because those stages failed their own gates and unchanged answers showed repeated-judge variance; it is not claim evidence. The verifier CLI requires an explicit `--source-report` and has no implicit local-report fallback. Its resumable checkpoint truncates a torn final JSONL write and rejects duplicate completed rows, malformed nested state, and internally inconsistent outcomes before reuse.
 - LoCoMo's versioned historical dual-track declaration records strict non-adversarial token-F1 0.6117 and judge-protocol 0.837 over 1540 questions; it is not a current-production claim. The older Phase 65 P4 full-10 opt-in result (0.6198 vs no-memory 0.2276 over 1986 questions) also remains historical evidence. Phase 65 case-level repair is paused; Phase 69 owns generalized retrieval: dialog windows, rules-light query expansion, LLM turn-captioning, and a real `text-embedding-3-small` rerank-only probe did not solve the base retrieval gap; the remaining lever is candidate-pool admission plus answer-policy/noise control. Full-root category assembly is complete through sharded/category evidence rather than a monolithic BM25 baseline report, and the current blockers are category quality, missing-evidence / noisy full-recall failures, and noise control before any default-profile promotion or broader claim.
 - Phase 65 source-execution guard note: `eval:phase-65-reanswer-report` rejects source reports with non-zero `executionFailures` before source answer-row completeness checks, so failed retrieval/live-source artifacts cannot be reused as gold-evidence-only or answer-policy replay inputs.
 - Phase 65 reanswer run-directory guard note: `eval:phase-65-reanswer-report` now requires output `--run-id` values to be a single path segment, both at CLI parse time and in the programmatic runner before source reports are read. This protects LoCoMo reanswer, answer-policy replay, and gold-evidence-only noise-isolation evidence from output-directory traversal without changing LoCoMo retrieval scores, answer scores, default status, or public-claim boundaries.

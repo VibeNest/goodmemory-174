@@ -9,6 +9,7 @@ import {
 import { createFactMemory } from "../../src/domain/records";
 import {
   mergeDurableCandidateOrder,
+  resolveRerankerTopK,
   sanitizeRerankerGateway,
 } from "../../src/api/recallReranking";
 
@@ -34,6 +35,25 @@ describe("GoodMemory.recall reranker adapter", () => {
         originalOrder: ["reference-1", "fact-a", "archive-1", "fact-b"],
       }),
     ).toEqual(["reference-1", "fact-b", "archive-1", "fact-a"]);
+  });
+
+  it("caps the first-party listwise window while preserving pointwise defaults", () => {
+    expect(
+      resolveRerankerTopK({
+        candidateCount: 80,
+        target: {
+          adapter: "provider",
+          candidateLimit: 32,
+          strategy: "listwise",
+        },
+      }),
+    ).toBe(32);
+    expect(
+      resolveRerankerTopK({
+        candidateCount: 80,
+        target: { adapter: "provider", strategy: "pointwise" },
+      }),
+    ).toBeUndefined();
   });
 
   // Promotes fact-b above its first-stage position regardless of original order.

@@ -18,6 +18,8 @@ import type { RecallGeneralizedFusionConfig } from "../recall/engine";
 export const RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K = 16;
 export const RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES = 8;
 export const RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 10;
+export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES = 20;
+export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 20;
 
 // Brand carried by createLocalEmbeddingAdapter(): hashed-lexical vectors are
 // not semantic, so the preset must reject them — structural typing makes a
@@ -42,11 +44,13 @@ export interface ResolvedGoodMemoryRetrieval {
   bm25Ranking?: boolean;
   generalizedFusion?: RecallGeneralizedFusionConfig;
   preset?: GoodMemoryRetrievalPresetStatus;
+  rerankGeneralizedFusion?: RecallGeneralizedFusionConfig;
   semanticCandidates?: GoodMemorySemanticCandidatesConfig;
 }
 
 export interface ResolvedGoodMemoryRetrievalRuntime {
   extractionMode: "conversational" | "default";
+  providerRerankingStrategy?: "listwise" | "pointwise";
   retrieval: ResolvedGoodMemoryRetrieval;
 }
 
@@ -58,6 +62,7 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
   assistedExtractorModelConfigured: boolean;
   embeddingEnabled: boolean;
   extraction?: GoodMemoryExtractionProviderConfig;
+  providerRerankerConfigured?: boolean;
   retrieval?: GoodMemoryRetrievalConfig;
 }): ResolvedGoodMemoryRetrievalRuntime {
   const explicitMode = input.extraction?.mode;
@@ -69,6 +74,9 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
     // including the constructor's exact conversational predicate.
     return {
       extractionMode: baselineExtractionMode,
+      ...(input.providerRerankerConfigured
+        ? { providerRerankingStrategy: "pointwise" as const }
+        : {}),
       retrieval: {
         bm25Ranking: input.retrieval?.bm25Ranking,
         semanticCandidates: input.retrieval?.semanticCandidates,
@@ -97,6 +105,14 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
     maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
     maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
   };
+  const rerankGeneralizedFusion: RecallGeneralizedFusionConfig | undefined =
+    input.providerRerankerConfigured
+      ? {
+          maxCandidates:
+            RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+          maxTotalFacts: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+        }
+      : undefined;
 
   let extractionMode = baselineExtractionMode;
   let extractionStatus: GoodMemoryRetrievalPresetStatus["extraction"];
@@ -115,6 +131,9 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
 
   return {
     extractionMode,
+    ...(input.providerRerankerConfigured
+      ? { providerRerankingStrategy: "listwise" as const }
+      : {}),
     retrieval: {
       autoStrategyBias: "hybrid",
       bm25Ranking: input.retrieval.bm25Ranking,
@@ -124,6 +143,7 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
         extraction: extractionStatus,
         requested: "recommended",
       },
+      ...(rerankGeneralizedFusion ? { rerankGeneralizedFusion } : {}),
       semanticCandidates,
     },
   };

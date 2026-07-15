@@ -111,6 +111,12 @@ const memoryCandidateSchema = z.object({
   metadata: z
     .object({
       appliesTo: z.string().optional(),
+      attributes: z
+        .record(
+          z.string(),
+          z.union([z.string(), z.number(), z.boolean(), z.null()]),
+        )
+        .optional(),
       category: z
         .enum(["project", "technical", "personal", "relationship", "event"])
         .optional(),
@@ -138,6 +144,7 @@ const memoryCandidateSchema = z.object({
         .optional(),
       subject: z.string().optional(),
       supersedesPointer: z.string().optional(),
+      tags: z.array(z.string()).optional(),
     })
     .partial()
     .optional(),

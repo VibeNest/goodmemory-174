@@ -6,7 +6,12 @@ import { join } from "node:path";
 
 import { z } from "zod";
 
-import type { GoodMemoryConfig } from "../src/api/contracts";
+import type {
+  GoodMemory,
+  GoodMemoryConfig,
+  GoodMemoryExtractionProviderConfig,
+  GoodMemoryRerankingProviderConfig,
+} from "../src/api/contracts";
 import { createInternalGoodMemory } from "../src/api/createGoodMemory";
 import type { EmbeddingAdapter } from "../src/embedding/contracts";
 import {
@@ -17,9 +22,15 @@ import {
 import type {
   LongMemEvalRecallDiagnosticReport,
   LongMemEvalRecallRunConfiguration,
+  LongMemEvalSupplementalEvidenceAugmenter,
 } from "../src/eval/longmemeval";
-import { createProviderEmbeddingAdapter } from "../src/provider/layer";
+import {
+  createProviderConversationalMemoryExtractor,
+  createProviderEmbeddingAdapter,
+  createProviderPointwiseReranker,
+} from "../src/provider/layer";
 import type { AISDKModelConfig } from "../src/provider/ai-sdk-runtime";
+import type { MemoryExtractor } from "../src/remember/candidates";
 import {
   RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
   RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
@@ -46,6 +57,8 @@ export const PHASE72_LONGMEMEVAL_EMBEDDING_MODEL =
 export const PHASE72_LONGMEMEVAL_MAX_EMBED_BATCH_CHARS = 32_000;
 export const PHASE72_LONGMEMEVAL_MAX_EMBED_BATCH_TEXTS = 8;
 export const PHASE72_LONGMEMEVAL_MAX_EMBED_TEXT_CHARS = 16_000;
+export const PHASE72_LONGMEMEVAL_RERANKER_MAX_CONCURRENCY = 1;
+export const PHASE72_LONGMEMEVAL_RERANKER_MAX_ATTEMPTS = 4;
 
 const GENERATED_BY =
   "scripts/run-phase-72-longmemeval-semantic-recall.ts";
@@ -63,6 +76,14 @@ const semanticSelectionSchema = z.object({
   datasetSha256: z.string().regex(/^[a-f0-9]{64}$/),
   protection: selectionCohortSchema,
   schemaVersion: z.literal(1),
+  selectionPurpose: z.enum([
+    "evidence-turn-augmentation",
+    "semantic-recall",
+  ]).optional(),
+  sourceReport: z.object({
+    path: z.string().min(1),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }).optional(),
   sourceRunId: z.string().min(1),
   target: selectionCohortSchema,
 });
@@ -122,6 +143,78 @@ export type Phase72EmbeddingEvent =
       event: "failure";
     };
 
+export type Phase72ExtractionEvent =
+  | {
+      callId: number;
+      event: "start";
+      messageChars: number;
+      messageCount: number;
+    }
+  | {
+      callId: number;
+      candidateCount: number;
+      durationMs: number;
+      event: "success";
+      ignoredMessageCount: number;
+    }
+  | {
+      callId: number;
+      durationMs: number;
+      errorType: string;
+      event: "failure";
+    };
+
+function classifyPhase72ExtractionError(error: unknown): string {
+  const name = error instanceof Error ? error.name : "NonError";
+  const message = error instanceof Error ? error.message : String(error);
+  const status = message.match(/\b[45]\d{2}\b/u)?.[0];
+  return status ? `${name}:${status}` : name;
+}
+
+export function createObservedPhase72MemoryExtractor(input: {
+  inner: MemoryExtractor;
+  now?: () => number;
+  writeEvent: (event: Phase72ExtractionEvent) => Promise<void>;
+}): MemoryExtractor {
+  const now = input.now ?? Date.now;
+  let callId = 0;
+  return {
+    async extract(payload, context) {
+      callId += 1;
+      const currentCallId = callId;
+      const startedAt = now();
+      await input.writeEvent({
+        callId: currentCallId,
+        event: "start",
+        messageChars: payload.messages.reduce(
+          (total, message) => total + message.content.length,
+          0,
+        ),
+        messageCount: payload.messages.length,
+      });
+      try {
+        const result = await input.inner.extract(payload, context);
+        await input.writeEvent({
+          callId: currentCallId,
+          candidateCount: result.candidates.length,
+          durationMs: now() - startedAt,
+          event: "success",
+          ignoredMessageCount: result.ignoredMessageCount,
+        });
+        return result;
+      } catch (error) {
+        await input.writeEvent({
+          callId: currentCallId,
+          durationMs: now() - startedAt,
+          errorType: classifyPhase72ExtractionError(error),
+          event: "failure",
+        });
+        throw error;
+      }
+    },
+  };
+}
+
 export function createBoundedPhase72EmbeddingAdapter(input: {
   inner: EmbeddingAdapter;
   maxBatchChars: number;
@@ -162,6 +255,114 @@ export function createBoundedPhase72EmbeddingAdapter(input: {
       await flush();
       return vectors;
     },
+  };
+}
+
+function normalizeDenseEvidence(value: string): string {
+  return value
+    .replace(/^\[[^\]]+\]\s*/u, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function cosineSimilarity(
+  left: readonly number[],
+  right: readonly number[],
+): number {
+  if (left.length !== right.length) {
+    throw new Error("Dense evidence vectors must have matching dimensions.");
+  }
+  let dot = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+  for (const [index, leftValue] of left.entries()) {
+    const rightValue = right[index]!;
+    dot += leftValue * rightValue;
+    leftNorm += leftValue * leftValue;
+    rightNorm += rightValue * rightValue;
+  }
+  return leftNorm > 0 && rightNorm > 0
+    ? dot / Math.sqrt(leftNorm * rightNorm)
+    : 0;
+}
+
+export function createPhase72LongMemEvalDenseEvidenceAugmenter(input: {
+  embeddingAdapter: EmbeddingAdapter;
+  maxAdditions: number;
+}): LongMemEvalSupplementalEvidenceAugmenter {
+  if (!Number.isSafeInteger(input.maxAdditions) || input.maxAdditions < 1) {
+    throw new Error("Dense evidence maxAdditions must be a positive integer.");
+  }
+
+  return async ({
+    defaultEvidenceLines,
+    evidenceBySessionId,
+    question,
+    selectedSessionIds,
+  }) => {
+    const defaultEvidence = defaultEvidenceLines.map((line) =>
+      normalizeDenseEvidence(line).toLowerCase()
+    );
+    const candidates: Array<{
+      content: string;
+      messageIndex: number;
+      sessionOrder: number;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const [sessionOrder, sessionId] of selectedSessionIds.entries()) {
+      for (const [fallbackIndex, evidence] of (
+        evidenceBySessionId.get(sessionId) ?? []
+      ).entries()) {
+        const content = normalizeDenseEvidence(evidence.content);
+        const normalized = content.toLowerCase();
+        if (
+          normalized.length === 0 ||
+          seen.has(normalized) ||
+          defaultEvidence.some((line) =>
+            line === normalized ||
+            line.includes(normalized.slice(0, 180)) ||
+            normalized.includes(line.slice(0, 180))
+          )
+        ) {
+          continue;
+        }
+        seen.add(normalized);
+        candidates.push({
+          content,
+          messageIndex: evidence.messageIndex ?? fallbackIndex,
+          sessionOrder,
+        });
+      }
+    }
+    if (candidates.length === 0) {
+      return [];
+    }
+
+    const vectors = await input.embeddingAdapter.embed([
+      question,
+      ...candidates.map(({ content }) => content),
+    ]);
+    if (vectors.length !== candidates.length + 1 || !vectors[0]) {
+      throw new Error("Dense evidence embedding returned the wrong vector count.");
+    }
+    const queryVector = vectors[0];
+    return candidates
+      .map((candidate, index) => ({
+        ...candidate,
+        score: cosineSimilarity(queryVector, vectors[index + 1]!),
+      }))
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          left.sessionOrder - right.sessionOrder ||
+          left.messageIndex - right.messageIndex ||
+          left.content.localeCompare(right.content),
+      )
+      .slice(0, input.maxAdditions)
+      .map(({ content }) => content.length <= 520
+        ? content
+        : `${content.slice(0, 517).trim()}...`);
   };
 }
 
@@ -248,7 +449,7 @@ export function parsePhase72LongMemEvalSemanticRecallOptions(
     ),
     embeddingMode,
     maxConcurrency: parsePositiveInteger(
-      resolveCliFlagValueStrict(argv, "--max-concurrency") ?? "1",
+      resolveCliFlagValueStrict(argv, "--max-concurrency") ?? "40",
       "--max-concurrency",
     ),
     outputDir: resolveCliFlagValueStrict(argv, "--output-dir") ??
@@ -337,6 +538,8 @@ export function resolvePhase72LongMemEvalSemanticEmbedding(
 
 export function buildPhase72LongMemEvalSemanticRunConfiguration(
   embedding: Phase72LongMemEvalSemanticEmbedding,
+  reranking?: GoodMemoryRerankingProviderConfig,
+  extraction?: GoodMemoryExtractionProviderConfig,
 ): LongMemEvalRecallRunConfiguration {
   return {
     contextMaxTokens: LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
@@ -350,7 +553,18 @@ export function buildPhase72LongMemEvalSemanticRunConfiguration(
           provider: embedding.model.provider,
         }
       : null,
-    extractionStrategy: "rules-only",
+    ...(extraction
+      ? {
+          extraction: {
+            contextualDescriptors: extraction.contextualDescriptors === true,
+            gateway: extraction.baseURL ?? null,
+            mode: "conversational" as const,
+            model: extraction.model,
+            provider: extraction.provider,
+          },
+        }
+      : {}),
+    extractionStrategy: extraction ? "llm-assisted" : "rules-only",
     generalizedFusion: {
       maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
       maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
@@ -362,6 +576,18 @@ export function buildPhase72LongMemEvalSemanticRunConfiguration(
       writeThrough: false,
     },
     providerEmbedding: embedding.mode === "provider",
+    reranking: reranking
+      ? {
+          gateway: reranking.baseURL ?? null,
+          maxConcurrency: PHASE72_LONGMEMEVAL_RERANKER_MAX_CONCURRENCY,
+          maxAttempts: PHASE72_LONGMEMEVAL_RERANKER_MAX_ATTEMPTS,
+          model: reranking.model,
+          provider: reranking.provider,
+          ...(reranking.requestTimeoutMs === undefined
+            ? {}
+            : { requestTimeoutMs: reranking.requestTimeoutMs }),
+        }
+      : null,
     recallStrategy: "hybrid",
   };
 }
@@ -442,7 +668,7 @@ export function evaluatePhase72LongMemEvalSemanticAdmission(input: {
   };
 }
 
-async function assertFrozenDataset(input: {
+export async function assertPhase72LongMemEvalFrozenDataset(input: {
   benchmarkRoot: string;
   selection: Phase72LongMemEvalSemanticSelection;
 }): Promise<void> {
@@ -468,33 +694,27 @@ async function assertFrozenDataset(input: {
   }
 }
 
-export async function runPhase72LongMemEvalSemanticRecall(
-  options: Phase72LongMemEvalSemanticRecallOptions,
-  env: Record<string, string | undefined> = process.env,
-): Promise<{
-  metrics?: Phase72LongMemEvalSemanticMetrics;
-  report: LongMemEvalRecallDiagnosticReport;
+export async function createPhase72LongMemEvalSemanticMemoryRuntime(input: {
+  embedding: Phase72LongMemEvalSemanticEmbedding;
+  env: Record<string, string | undefined>;
+  extraction?: GoodMemoryExtractionProviderConfig;
+  outputDir: string;
+  reranking?: GoodMemoryRerankingProviderConfig;
+  runId: string;
+}): Promise<{
+  createMemory: (config: GoodMemoryConfig) => GoodMemory;
+  embeddingAdapter?: EmbeddingAdapter;
+  runConfiguration: LongMemEvalRecallRunConfiguration;
 }> {
-  const selection = await loadPhase72LongMemEvalSemanticSelection(
-    options.selectionFile,
-  );
-  await assertFrozenDataset({
-    benchmarkRoot: options.benchmarkRoot,
-    selection,
-  });
-  const embedding = resolvePhase72LongMemEvalSemanticEmbedding(
-    env,
-    options.embeddingMode,
-  );
-  const runDirectory = join(options.outputDir, options.runId);
+  const runDirectory = join(input.outputDir, input.runId);
   await mkdir(runDirectory, { recursive: true });
   let logWrite = Promise.resolve();
-  const embeddingAdapter = embedding.mode === "provider"
+  const embeddingAdapter = input.embedding.mode === "provider"
     ? createBoundedPhase72EmbeddingAdapter({
         inner: createObservedPhase72EmbeddingAdapter({
           inner: createProviderEmbeddingAdapter({
-            model: embedding.model,
-            requestTimeoutMs: resolvePhase62LiveRequestTimeoutMs(env),
+            model: input.embedding.model,
+            requestTimeoutMs: resolvePhase62LiveRequestTimeoutMs(input.env),
           }),
           writeEvent: (event) => {
             logWrite = logWrite.then(() =>
@@ -511,22 +731,91 @@ export async function runPhase72LongMemEvalSemanticRecall(
         maxTextChars: PHASE72_LONGMEMEVAL_MAX_EMBED_TEXT_CHARS,
       })
     : undefined;
-  const createMemory = (config: GoodMemoryConfig) =>
-    createInternalGoodMemory({
-      ...config,
-      adapters: {
-        ...config.adapters,
-        ...(embeddingAdapter ? { embeddingAdapter } : {}),
-      },
-    }, {
-      environment: {},
-      projectionBulkBackfill: true,
-      projectionWriteThrough: false,
-    });
-  const createProfileMemory = createLongMemEvalMemoryFactory(createMemory, {
-    requestTimeoutMs: resolvePhase62LiveRequestTimeoutMs(env),
-    runNamespace: options.runId,
+  const rerankerAdapter = input.reranking
+    ? createProviderPointwiseReranker({
+        maxConcurrency: PHASE72_LONGMEMEVAL_RERANKER_MAX_CONCURRENCY,
+        model: input.reranking,
+        requestTimeoutMs: input.reranking.requestTimeoutMs,
+        retryLimit: PHASE72_LONGMEMEVAL_RERANKER_MAX_ATTEMPTS,
+      })
+    : undefined;
+  const extractionAdapter = input.extraction
+    ? createObservedPhase72MemoryExtractor({
+        inner: createProviderConversationalMemoryExtractor({
+          contextualDescriptor:
+            input.extraction.contextualDescriptors === true,
+          model: input.extraction,
+          requestTimeoutMs: resolvePhase62LiveRequestTimeoutMs(input.env),
+        }),
+        writeEvent: (event) => {
+          logWrite = logWrite.then(() =>
+            appendFile(
+              join(runDirectory, "extraction-events.jsonl"),
+              `${JSON.stringify(event)}\n`,
+            )
+          );
+          return logWrite;
+        },
+      })
+    : undefined;
+  return {
+    createMemory: (config) =>
+      createInternalGoodMemory({
+        ...config,
+        adapters: {
+          ...config.adapters,
+          ...(embeddingAdapter ? { embeddingAdapter } : {}),
+          ...(extractionAdapter
+            ? { assistedExtractor: extractionAdapter }
+            : {}),
+          ...(rerankerAdapter ? { reranker: rerankerAdapter } : {}),
+        },
+      }, {
+        environment: {},
+        projectionBulkBackfill: true,
+        projectionWriteThrough: false,
+      }),
+    ...(embeddingAdapter ? { embeddingAdapter } : {}),
+    runConfiguration:
+      buildPhase72LongMemEvalSemanticRunConfiguration(
+        input.embedding,
+        input.reranking,
+        input.extraction,
+      ),
+  };
+}
+
+export async function runPhase72LongMemEvalSemanticRecall(
+  options: Phase72LongMemEvalSemanticRecallOptions,
+  env: Record<string, string | undefined> = process.env,
+): Promise<{
+  metrics?: Phase72LongMemEvalSemanticMetrics;
+  report: LongMemEvalRecallDiagnosticReport;
+}> {
+  const selection = await loadPhase72LongMemEvalSemanticSelection(
+    options.selectionFile,
+  );
+  await assertPhase72LongMemEvalFrozenDataset({
+    benchmarkRoot: options.benchmarkRoot,
+    selection,
   });
+  const embedding = resolvePhase72LongMemEvalSemanticEmbedding(
+    env,
+    options.embeddingMode,
+  );
+  const runtime = await createPhase72LongMemEvalSemanticMemoryRuntime({
+    embedding,
+    env,
+    outputDir: options.outputDir,
+    runId: options.runId,
+  });
+  const createProfileMemory = createLongMemEvalMemoryFactory(
+    runtime.createMemory,
+    {
+      requestTimeoutMs: resolvePhase62LiveRequestTimeoutMs(env),
+      runNamespace: options.runId,
+    },
+  );
   const report = await runLongMemEvalRecallDiagnostic({
     benchmarkRoot: options.benchmarkRoot,
     caseIds: selectedQuestionIds(selection, options.cohort),
@@ -538,8 +827,7 @@ export async function runPhase72LongMemEvalSemanticRecall(
     profile: "goodmemory-recommended",
     resume: options.resume,
     retryFailures: options.retryFailures,
-    runConfiguration:
-      buildPhase72LongMemEvalSemanticRunConfiguration(embedding),
+    runConfiguration: runtime.runConfiguration,
     runId: options.runId,
   }, {
     memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({

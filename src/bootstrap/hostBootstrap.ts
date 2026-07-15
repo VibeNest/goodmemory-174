@@ -1205,7 +1205,8 @@ function readTextFlag(flags, name) {
 
 function isPackageResolutionError(error) {
   const message = String(error?.message ?? "");
-  return message.includes("Cannot find module") ||
+  return message.includes("Cannot find package") ||
+    message.includes("Cannot find module") ||
     message.includes("while resolving package 'goodmemory'");
 }
 

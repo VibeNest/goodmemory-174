@@ -15,8 +15,12 @@ import {
 } from "./memory-extractor";
 import { createLLMRecallRouter } from "./recall-router";
 import {
+  createLLMListwiseReranker,
   createLLMPointwiseReranker,
-  type PointwiseRerankerDependencies,
+} from "./reranker";
+import type {
+  ListwiseRerankerDependencies,
+  PointwiseRerankerDependencies,
 } from "./reranker";
 import type {
   ModelProviderId,
@@ -59,7 +63,15 @@ interface ProviderRerankerFactory {
   }): Reranker;
 }
 
+interface ProviderListwiseRerankerFactory {
+  (input: {
+    dependencies?: ListwiseRerankerDependencies;
+    model: AISDKModelConfig;
+  }): Reranker;
+}
+
 const DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_PROVIDER_LISTWISE_RERANKER_REQUEST_TIMEOUT_MS = 60_000;
 
 export interface ProviderRequestDependencies {
   requestTimeoutMs?: number;
@@ -194,18 +206,72 @@ export function createProviderRecallRouter(input: {
 
 export function createProviderPointwiseReranker(input: {
   createReranker?: ProviderRerankerFactory;
+  maxConcurrency?: number;
   model: AISDKModelConfig;
   requestTimeoutMs?: number;
+  retryLimit?: number;
 }): Reranker {
   const requestTimeoutMs =
     input.requestTimeoutMs ?? DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs <= 0) {
     throw new Error("Provider reranker requestTimeoutMs must be a positive integer.");
   }
+  if (
+    input.maxConcurrency !== undefined &&
+    (!Number.isSafeInteger(input.maxConcurrency) || input.maxConcurrency <= 0)
+  ) {
+    throw new Error("Provider reranker maxConcurrency must be a positive integer.");
+  }
+  if (
+    input.retryLimit !== undefined &&
+    (!Number.isSafeInteger(input.retryLimit) || input.retryLimit <= 0)
+  ) {
+    throw new Error("Provider reranker retryLimit must be a positive integer.");
+  }
   return (input.createReranker ?? createLLMPointwiseReranker)({
     dependencies: {
+      ...(input.maxConcurrency === undefined
+        ? {}
+        : { maxConcurrency: input.maxConcurrency }),
       requestTimeoutMs,
-      retryOptions: { retryLimit: 1 },
+      retryOptions: { retryLimit: input.retryLimit ?? 1 },
+    },
+    model: input.model,
+  });
+}
+
+export function createProviderListwiseReranker(input: {
+  createReranker?: ProviderListwiseRerankerFactory;
+  maxConcurrency?: number;
+  model: AISDKModelConfig;
+  requestTimeoutMs?: number;
+  retryLimit?: number;
+}): Reranker {
+  const requestTimeoutMs =
+    input.requestTimeoutMs ??
+    DEFAULT_PROVIDER_LISTWISE_RERANKER_REQUEST_TIMEOUT_MS;
+  if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs <= 0) {
+    throw new Error("Provider reranker requestTimeoutMs must be a positive integer.");
+  }
+  if (
+    input.maxConcurrency !== undefined &&
+    (!Number.isSafeInteger(input.maxConcurrency) || input.maxConcurrency <= 0)
+  ) {
+    throw new Error("Provider reranker maxConcurrency must be a positive integer.");
+  }
+  if (
+    input.retryLimit !== undefined &&
+    (!Number.isSafeInteger(input.retryLimit) || input.retryLimit <= 0)
+  ) {
+    throw new Error("Provider reranker retryLimit must be a positive integer.");
+  }
+  return (input.createReranker ?? createLLMListwiseReranker)({
+    dependencies: {
+      ...(input.maxConcurrency === undefined
+        ? {}
+        : { maxConcurrency: input.maxConcurrency }),
+      requestTimeoutMs,
+      retryOptions: { retryLimit: input.retryLimit ?? 3 },
     },
     model: input.model,
   });

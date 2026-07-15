@@ -6,9 +6,24 @@ import type { RecallResult } from "./contracts";
 
 export interface RerankerExecutionTarget {
   adapter: "custom" | "provider";
+  candidateLimit?: number;
   gateway?: string;
   model?: string;
   provider?: string;
+  strategy?: "listwise" | "pointwise";
+}
+
+export function resolveRerankerTopK(input: {
+  candidateCount: number;
+  target: RerankerExecutionTarget;
+}): number | undefined {
+  if (input.target.strategy !== "listwise") {
+    return undefined;
+  }
+  return Math.min(
+    input.candidateCount,
+    input.target.candidateLimit ?? input.candidateCount,
+  );
 }
 
 export function sanitizeRerankerGateway(
@@ -106,10 +121,15 @@ export async function applyFactRerankingToResult(input: {
   }
   const startedAt = Date.now();
   try {
+    const topK = resolveRerankerTopK({
+      candidateCount: result.facts.length,
+      target,
+    });
     const outcome = await applyRerankingWithScores({
       items: result.facts,
       query,
       reranker,
+      ...(topK === undefined ? {} : { topK }),
       getText: (fact) => `${fact.content} ${fact.subject ?? ""}`,
     });
     const facts = outcome.items;

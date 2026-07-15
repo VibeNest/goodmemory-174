@@ -1,0 +1,33 @@
+{
+  "benchmarkFileSha256": "e442118810a1c57ee0b5454d12583c27be244936350dcfff1d6102d29cc39c28",
+  "benchmarkFingerprint": "240ba2526911a5f965a285b88794c4d3b938b59be5aecd846cc472ee733357fd",
+  "extractionCache": {
+    "path": "reports/eval/research/phase-72/locomo/run-phase72-locomo-nonadversarial1540-recommended-provider-extraction-v1/extraction-cache.jsonl",
+    "sha256": "9bb58a0fb8f4bde6eae1ab9a815cf1e0cd3e47f708a143d94300f6381f9b3470"
+  },
+  "schemaVersion": 1,
+  "selection": {
+    "cohorts": {
+      "development": {
+        "count": 200,
+        "digest": "83fbff6a8f53381f0fc6e15d3786fb6bf0ff3cd1d93dbb3c7d99166e326a2306",
+        "offset": 0
+      },
+      "full": {
+        "count": 1540,
+        "digest": "cff0cdb39ae3a9f9ebe0cc30ffb5dbaa636d295e71f92ba2de901f6eb1df477c",
+        "offset": 0
+      },
+      "holdout": {
+        "count": 200,
+        "digest": "db13e3f9313cb7b9f2e5d0583e20a3868a04a3fb99714a53aec5b8ee97a847cf",
+        "offset": 200
+      }
+    },
+    "salt": "phase72-locomo-reranker-packet-v1"
+  },
+  "sourceReport": {
+    "path": "reports/eval/research/phase-72/locomo/run-phase72-locomo-nonadversarial1540-recommended-provider-extraction-answer-terra-v1/smoke-report.json",
+    "sha256": "81d19516c1820d549a15f69102b58f3163fe7c957bbe083dec60fd769ae3f36f"
+  }
+}

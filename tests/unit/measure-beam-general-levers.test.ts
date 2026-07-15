@@ -152,6 +152,60 @@ describe("measure BEAM general levers", () => {
     });
   });
 
+  it("can share an injected reranker across general-lever memories", async () => {
+    let rerankCalls = 0;
+    const memory = createBeamGeneralLeverMemory({
+      bm25: false,
+      env: {},
+      providerEmbedding: false,
+      reranker: {
+        async rerank({ documents }) {
+          rerankCalls += 1;
+          return documents.map((document, index) => ({
+            id: document.id,
+            score: 1 - index / Math.max(1, documents.length),
+          }));
+        },
+      },
+    });
+    const scope = { userId: "beam-user", workspaceId: "beam-workspace" };
+    await memory.remember({
+      annotations: [
+        {
+          confirmed: true,
+          kindHint: "fact",
+          messageIndex: 0,
+          reason: "test seed",
+          remember: "always",
+          verified: true,
+        },
+        {
+          confirmed: true,
+          kindHint: "fact",
+          messageIndex: 1,
+          reason: "test seed",
+          remember: "always",
+          verified: true,
+        },
+      ],
+      extractionStrategy: "rules-only",
+      messages: [
+        { content: "The rollback owner is Mira.", role: "user" },
+        { content: "The release window is Friday.", role: "user" },
+      ],
+      scope,
+    });
+
+    await memory.recall({
+      query: "Who owns rollback and when is the release window?",
+      rerank: true,
+      scope,
+      strategy: "rules-only",
+    });
+
+    expect(rerankCalls).toBe(1);
+  });
+
   it("parses strict CLI options for a single arm", () => {
     expect(
       parseBeamGeneralLeverCliOptions([

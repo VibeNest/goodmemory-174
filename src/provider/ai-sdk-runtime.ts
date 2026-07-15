@@ -142,6 +142,7 @@ function resolveAISDKRetryDelayMs(
     message.includes("invalid json response") ||
     message.includes("connection reset") ||
     message.includes("econnreset") ||
+    message.includes("certificate verification") ||
     message.includes("socket connection was closed unexpectedly") ||
     message.includes("socket hang up") ||
     message.includes("model_cooldown") ||
@@ -447,6 +448,7 @@ export async function requestOpenAICompatibleText(input: {
   model: AISDKModelConfig;
   system?: string;
   prompt: string;
+  temperature?: number;
   fetch?: FetchLike;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -508,6 +510,9 @@ export async function requestOpenAICompatibleText(input: {
               ].filter(Boolean),
               stream: true,
               reasoning_effort: "medium",
+              ...(input.temperature === undefined
+                ? {}
+                : { temperature: input.temperature }),
             }),
             signal: controller.signal,
           },
@@ -646,6 +651,7 @@ export async function requestOpenAICompatibleObject<T>(input: {
   schema: z.ZodType<T>;
   system?: string;
   prompt: string;
+  temperature?: number;
   fetch?: FetchLike;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -656,6 +662,7 @@ export async function requestOpenAICompatibleObject<T>(input: {
       model: input.model,
       system: input.system,
       prompt: input.prompt,
+      temperature: input.temperature,
       fetch: input.fetch,
       signal: input.signal,
       timeoutMs: input.timeoutMs,

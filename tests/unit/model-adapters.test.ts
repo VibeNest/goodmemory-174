@@ -11,6 +11,7 @@ import {
   createOpenAICompatibleFetch,
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   parseAISDKModelConfigFromEnv,
+  requestOpenAICompatibleText,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
   stripThinkingBlocks,
@@ -30,6 +31,37 @@ afterEach(() => {
 });
 
 describe("model adapters", () => {
+  it("forwards an explicit temperature to openai-compatible gateways", async () => {
+    let requestBody = "";
+
+    const result = await requestOpenAICompatibleText({
+      fetch: async (_url, init) => {
+        requestBody = String(init?.body);
+        return new Response(
+          "data: {\"choices\":[{\"delta\":{\"content\":\"stable\"},\"index\":0}]}\n\ndata: [DONE]\n\n",
+          {
+            headers: { "content-type": "text/event-stream" },
+            status: 200,
+          },
+        );
+      },
+      model: {
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+      prompt: "return stable output",
+      temperature: 0,
+    });
+
+    expect(result).toBe("stable");
+    expect(JSON.parse(requestBody)).toMatchObject({
+      model: "gpt-5.6-terra",
+      temperature: 0,
+    });
+  });
+
   it("strips closed and unclosed thinking blocks before exposing model text", () => {
     expect(stripThinkingBlocks("<think>hidden</think>\n\ngenerated-answer")).toBe(
       "generated-answer",
@@ -331,6 +363,31 @@ describe("model adapters", () => {
           throw new Error(
             "The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
           );
+        }
+
+        return "recovered";
+      },
+      {
+        sleep: async (ms) => {
+          delays.push(ms);
+        },
+      },
+    );
+
+    expect(result).toBe("recovered");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([2_000, 5_000]);
+  });
+
+  it("retries transient certificate verification failures", async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+
+    const result = await withAISDKRetries(
+      async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error("unknown certificate verification error");
         }
 
         return "recovered";

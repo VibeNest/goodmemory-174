@@ -155,6 +155,7 @@ const LOCOMO_SEMANTIC_CANDIDATE_TUNING_FIELDS = [
 const LOCOMO_ANSWER_CONTEXT_MODES = [
   "evidence-pack",
   "gold-evidence-only-pack",
+  "packet-evidence-pack",
   "raw-turns",
   "recalled-records",
 ] as const;
@@ -168,12 +169,15 @@ const LOCOMO_SMOKE_RUNNER_REPORT_WRITER =
   "scripts/run-phase-65-locomo-smoke.ts";
 const LOCOMO_REANSWER_REPORT_WRITER =
   "scripts/reanswer-phase-65-locomo-report.ts";
+const LOCOMO_RERANKER_PACKET_REPLAY_WRITER =
+  "scripts/run-phase-72-locomo-reranker-packet.ts";
 const LOCOMO_UNION_LIVE_REPORT_WRITER =
   "scripts/measure-locomo-union-live.ts";
 
 const LOCOMO_REPORT_WRITERS = [
   LOCOMO_SMOKE_RUNNER_REPORT_WRITER,
   LOCOMO_REANSWER_REPORT_WRITER,
+  LOCOMO_RERANKER_PACKET_REPLAY_WRITER,
   LOCOMO_UNION_LIVE_REPORT_WRITER,
 ] as const;
 const LOCOMO_NO_MEMORY_PROFILES_COMPARED = ["no-memory"] as const;

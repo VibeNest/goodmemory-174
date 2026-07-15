@@ -246,10 +246,10 @@ export function createInMemoryVectorStore(): VectorStore {
     },
 
     async search(collection, queryEmbedding, input) {
-      const vectors = [...getCollection(collection).values()]
+      const scored = [...getCollection(collection).values()]
         .filter((record) => matchesFilter(record.metadata, input.filter))
-        .map<VectorSearchResult>((record) => ({
-          ...clone(record),
+        .map((record) => ({
+          record,
           score: scoreDotProduct(record.embedding, queryEmbedding),
         }))
         .sort((left, right) => {
@@ -257,10 +257,15 @@ export function createInMemoryVectorStore(): VectorStore {
             return right.score - left.score;
           }
 
-          return left.id.localeCompare(right.id);
+          return left.record.id.localeCompare(right.record.id);
         });
 
-      return vectors.slice(0, input.topK);
+      return scored
+        .slice(0, input.topK)
+        .map<VectorSearchResult>(({ record, score }) => ({
+          ...clone(record),
+          score,
+        }));
     },
 
     async delete(collection, id) {

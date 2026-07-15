@@ -37,25 +37,56 @@ extraction, update, and QA with zero failures.
 official answer result is only a 20-question slice and is not a full claim.
 [DONE] ImplicitMemBench retry-merged evidence reaches 0.6923666667 with zero
 failures, but is not a monolithic fresh Full-300 run.
-[DONE] LongMemEval current `goodmemory-recommended` full-500 answer generation
-completed with zero execution failures. Independent `gpt-5.4` official-protocol
-rescore is 340/500 = 0.680 and the judge-free deterministic lower bound is
-269/500 = 0.538. Bounded monotonic tail evidence raised assistant accuracy from
-39/56 to 46/56 while every other category held within the 1pt protection gate,
-but both headline tracks remain below the required 0.92 / 0.72 gates.
+[DONE] LongMemEval provider-embedding source was retry-merged to zero failures:
+381/500 = 0.762 independent official, 297/500 = 0.594 judge-free, and
+0.9234666667 evidence-session recall. Sixty-four of its 119 wrong answers had
+full recall, so the remaining gap was not retrieval-only.
+[DONE] LongMemEval negative arms were stopped at their declared gates. A
+sentence-projection dense arm moved the frozen target recall 0.63125 -> 0.646875
+(+1.5625pt) while protection regressed 0.90625 -> 0.875 (-3.125pt), so its
+production wiring was removed. Provider reranking scored 45/64 versus the
+47/64 baseline, conversational extraction scored 46/64, and a 12/4 evidence
+budget stayed flat at 22/32. None was promoted or expanded to another full run.
+[DONE] A distinct eval-only within-retrieved-session dense evidence arm passed
+its frozen answer gate. It preserves the default six evidence lines, adds at
+most two raw turns only from sessions the normal path already retrieved, and
+improved independent official-protocol accuracy 32/64 -> 44/64. The frozen
+target moved 0/32 -> 12/32, protection held 32/32, and execution failures stayed
+zero. Its first full run stopped at 70/500; that partial aggregate is invalid
+and the arm was not promoted.
+[DONE] The label-free answer/verifier chain completed all 500 cases with zero
+failures and reached 360/500 = 0.720 judge-free. Its best accepted independent
+`gpt-5.4` full rescore is 459/500 = 0.918, one case below the 0.920 gate. A
+later 461/500 diagnostic mixed update/timeline stages that failed their own
+admission gates and also exposed judge flips on unchanged answers; it is not
+closure. The verifier CLI now requires an explicit source report. Checkpoint
+resume truncates a torn final JSONL write and rejects duplicate completed rows,
+malformed nested state, and internally inconsistent outcomes.
 [OPEN] LoCoMo production `goodmemory-recommended` full-1540 scores
 0.5896103896 strict / 0.8344155844 official. The repo-eval-only semantic-union
 diagnostic scores 0.6019480519 / 0.8493506494. Neither clears 0.61 / 0.87.
+[DONE] The apparent LoCoMo abstention-retry opportunity failed a disjoint
+holdout and was stopped. All 17 abstentions in the earlier oracle-derived
+development cohort had full evidence; among the remaining 92, only 17 were
+full, 16 partial, and 59 zero evidence. A SHA-256-ranked 32-row holdout with
+same-session radius-2 expansion plus fixed pointwise top-3 reranking completed
+with zero failures but scored only 5/32 strict and 7/32 official under
+independent `gpt-5.4`, below the roughly 11/32 official conversion required to
+justify a broader run. Nothing was promoted to production.
+[DONE] Failed LoCoMo recovery, pairwise-selection, extractive-reanswer,
+compression, and answer-support runners/profiles/tests were removed.
 [DONE] External adapter PR #17 was refreshed at `6e3b204` with generic
 timestamp preservation, tests, runner compile checks, and a real GoodMemory
 bridge smoke. It remains open pending maintainer review.
-[DONE] The non-score release matrix passes: build, typecheck, 3414 tests / 17901
-assertions, coverage, focused release tests, Node 20/22/24 package-boundary
-smoke, strict public-claim gate, and real pack. The tarball excludes `src/` and
-unpacks to 3,849,991 bytes (3.672 MiB).
-[OPEN] LongMemEval now has a current full-500 replacement but fails both score
-gates; LoCoMo still misses its strict/official score gates. These are the
-remaining release blockers.
+[DONE] The converged diff passes typecheck, build, 3483 tests / 18080 assertions
+across 387 files, 90.71% coverage with every group above threshold, and all 88
+release tests. The 219-file tarball excludes `src/` and unpacks to 3,854,586
+bytes (3.676020 MiB). Package-boundary smoke passes under Node 20.20.2,
+22.14.0, and 24.18.0. The strict claim gate is consistent with zero current
+claims and five historical rows.
+[OPEN] LongMemEval passes its strict floor but misses official by one case;
+LoCoMo still misses both strict/official score gates. These are the remaining
+release blockers.
 
 Release Decision
 ----------------

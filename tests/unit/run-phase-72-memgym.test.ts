@@ -62,7 +62,7 @@ describe("Phase 72 MemGym live runner", () => {
       },
       judge: {
         baseURL: "https://ai.gurkiai.com/v1",
-        model: "gpt-5.4",
+        model: "gpt-5.5",
       },
     });
     expect(() => resolvePhase72MemGymLiveConfig({

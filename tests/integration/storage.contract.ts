@@ -256,6 +256,8 @@ export function runVectorStoreContract(
         });
 
         expect(result[0]?.id).toBe("e-1");
+        result[0]!.embedding[0] = 0;
+        result[0]!.metadata.userId = "mutated";
         expect(await fixture.store.get("episodes", "e-1")).toEqual({
           id: "e-1",
           embedding: [1, 0, 0],

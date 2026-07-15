@@ -4,6 +4,8 @@ import {
   HASHED_LEXICAL_EMBEDDING_BRAND,
   RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
   RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+  RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+  RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
   RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K,
   resolveGoodMemoryRetrievalRuntime,
 } from "../../src/api/retrievalPreset";
@@ -96,6 +98,26 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
       extraction: "unavailable",
       requested: "recommended",
     });
+    expect(resolved.providerRerankingStrategy).toBeUndefined();
+    expect(resolved.retrieval.rerankGeneralizedFusion).toBeUndefined();
+  });
+
+  it("widens only the first-party provider reranker lane", () => {
+    const resolved = resolve({
+      embeddingEnabled: true,
+      providerRerankerConfigured: true,
+      retrieval: { preset: "recommended" },
+    });
+
+    expect(resolved.providerRerankingStrategy).toBe("listwise");
+    expect(resolved.retrieval.rerankGeneralizedFusion).toEqual({
+      maxCandidates: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+    });
+
+    const nonPreset = resolve({ providerRerankerConfigured: true });
+    expect(nonPreset.providerRerankingStrategy).toBe("pointwise");
+    expect(nonPreset.retrieval.rerankGeneralizedFusion).toBeUndefined();
   });
 
   it("merges per key with explicit user fields winning", () => {

@@ -1,6 +1,6 @@
 export const PHASE72_ANSWER_MODEL = "gpt-5.6-terra";
 export const PHASE72_ANSWER_GATEWAY = "https://ai.gurkiai.com/v1";
-export const PHASE72_INDEPENDENT_JUDGE_MODEL = "gpt-5.4";
+export const PHASE72_INDEPENDENT_JUDGE_MODEL = "gpt-5.5";
 
 export const PHASE72_UPSTREAMS = {
   halumem: {

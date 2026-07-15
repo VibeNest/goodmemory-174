@@ -71,14 +71,16 @@ describe("Phase 72 BEAM generalization live runner", () => {
       ]),
     ).toThrow("--semantic-topk cannot be specified more than once");
 
-    expect(
+    expect(() =>
       parsePhase72BeamGeneralizationLiveCliOptions([
         "bun",
         "run",
         "scripts/run-phase-72-beam-generalization-live.ts",
         "--packet-evidence",
-      ]).packetEvidence,
-    ).toBe(true);
+      ]),
+    ).toThrow(
+      "Phase 72 BEAM generalization runs use full recalled membership; --packet-evidence requires a separate rank-consuming experiment.",
+    );
   });
 
   it("disables fitted gates, injects the general memory factory, and restores env", async () => {
@@ -92,7 +94,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
       GOODMEMORY_EVAL_MODEL: "gpt-5.6-terra",
       GOODMEMORY_EVAL_PROVIDER: "openai",
       GOODMEMORY_JUDGE_BASE_URL: "https://ai.gurkiai.com/v1",
-      GOODMEMORY_JUDGE_MODEL: "gpt-5.4",
+      GOODMEMORY_JUDGE_MODEL: "gpt-5.5",
       GOODMEMORY_JUDGE_PROVIDER: "openai",
     };
     const resets: string[] = [];
@@ -143,12 +145,17 @@ describe("Phase 72 BEAM generalization live runner", () => {
         "/tmp/out/run-beam-generalization/phase-72-generalization-manifest.json",
       ),
     ).toBe(true);
-    expect(
-      JSON.parse(
-        writes.get(
-          "/tmp/out/run-beam-generalization/phase-72-generalization-manifest.json",
-        )!,
-      ).evidenceContext,
-    ).toBe("full-recall-evidence-pack");
+    const manifest = JSON.parse(
+      writes.get(
+        "/tmp/out/run-beam-generalization/phase-72-generalization-manifest.json",
+      )!,
+    );
+    expect(manifest.evidenceContext).toBe("full-recall-evidence-pack");
+    expect(manifest.reranking).toEqual({
+      answerContextConsumesRank: false,
+      enabled: false,
+      reason: "full_recall_context_uses_membership_not_rank",
+    });
+    expect(manifest).not.toHaveProperty("rerankerModel");
   });
 });

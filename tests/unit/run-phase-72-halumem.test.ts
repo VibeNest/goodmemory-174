@@ -97,7 +97,7 @@ describe("Phase 72 HaluMem live runner", () => {
       },
       judge: {
         baseURL: "https://ai.gurkiai.com/v1",
-        model: "gpt-5.4",
+        model: "gpt-5.5",
       },
     });
     expect(() => resolvePhase72HaluMemLiveConfig({

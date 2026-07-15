@@ -7,7 +7,10 @@ import {
 } from "../../src/domain/records";
 import type { EmbeddingAdapter } from "../../src/embedding/contracts";
 import { createSessionArchive } from "../../src/evolution/contracts";
-import { createRecallEngine } from "../../src/recall/engine";
+import {
+  createRecallEngine,
+  resolveActiveGeneralizedFusionConfig,
+} from "../../src/recall/engine";
 import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
 import {
   createInMemoryDocumentStore,
@@ -36,6 +39,26 @@ function createFixedEmbeddingAdapter(): EmbeddingAdapter {
 }
 
 describe("generalized fusion through the recall engine", () => {
+  it("uses the wider fusion budget only when reranking is enabled", () => {
+    const base = { maxCandidates: 8, maxTotalFacts: 10 };
+    const reranking = { maxCandidates: 20, maxTotalFacts: 20 };
+
+    expect(
+      resolveActiveGeneralizedFusionConfig({
+        base,
+        rerank: true,
+        reranking,
+      }),
+    ).toBe(reranking);
+    expect(
+      resolveActiveGeneralizedFusionConfig({
+        base,
+        rerank: false,
+        reranking,
+      }),
+    ).toBe(base);
+  });
+
   it("admits a fused dense candidate with generalized attribution and no parallel semantic bypass", async () => {
     const rawStore = createInMemoryDocumentStore();
     const projectionIndex = createRecallProjectionRuntime({

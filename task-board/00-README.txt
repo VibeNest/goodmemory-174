@@ -80,6 +80,15 @@ Current Transition
 - Phase 72 is active. It owns HaluMem, MemGym coding, LongMINT smoke, external
   adapter refresh, complete benchmark reruns, Node LTS/package gates, and the
   `v0.6.0` release decision.
+  LongMemEval's label-free answer/verifier chain now covers 500/500 cases with
+  zero failures and reaches 360/500 = 0.720 judge-free, but its best accepted
+  independent official rescore is 459/500 = 0.918, one case below 0.920. A
+  0.922 diagnostic that mixed rejected stages and judge-variant outcomes is not
+  closure. The verifier now requires an explicit source report. LoCoMo remains
+  below both 0.61 / 0.87 score gates at 0.5896103896 / 0.8344155844 for the
+  production profile and 0.6019480519 / 0.8493506494 for the repo-eval-only
+  semantic union. Failed experimental runners have been removed. These score
+  gates, not packaging, block `v0.6.0`.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and versioned historical evidence scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates. It is not a current-version public claim.

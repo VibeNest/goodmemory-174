@@ -530,6 +530,7 @@ describe("phase-63 BEAM live closure runner", () => {
               answerGapSourceCoverageStatuses: ["covered-or-no-warning"],
               caseIds: null,
               caseSelection: null,
+              concurrency: 1,
               limit: null,
               recallReportPath: "/tmp/recall.json",
             }),

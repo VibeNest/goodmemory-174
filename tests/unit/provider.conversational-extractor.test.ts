@@ -4,6 +4,7 @@ import {
   buildMemoryExtractionPrompt,
   CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
   createLLMMemoryExtractor,
+  memoryExtractionResultSchema,
 } from "../../src/provider/memory-extractor";
 import { createProviderConversationalMemoryExtractor } from "../../src/provider/layer";
 import type { MemoryExtractionInput } from "../../src/remember/candidates";
@@ -62,6 +63,31 @@ describe("conversational atomic-fact extraction prompt", () => {
 });
 
 describe("createProviderConversationalMemoryExtractor", () => {
+  it("accepts structured metadata from provider output", () => {
+    const result = memoryExtractionResultSchema.parse({
+      candidates: [
+        {
+          content: "The user currently owns four bikes.",
+          explicitness: "explicit",
+          id: "c1",
+          kindHint: "fact",
+          metadata: {
+            attributes: { claimKey: "inventory.bicycle.count", count: 4 },
+            tags: ["current-state"],
+          },
+          sourceMessageIndex: 0,
+          sourceRole: "user",
+        },
+      ],
+      ignoredMessageCount: 0,
+    });
+
+    expect(result.candidates[0]?.metadata).toEqual({
+      attributes: { claimKey: "inventory.bicycle.count", count: 4 },
+      tags: ["current-state"],
+    });
+  });
+
   it("uses the conversational prompt and maps atomic candidates through", async () => {
     const seen: { system?: string; prompt?: string } = {};
     const extractor = createProviderConversationalMemoryExtractor({
@@ -86,7 +112,11 @@ describe("createProviderConversationalMemoryExtractor", () => {
                       content: "User adopted a beagle named Biscuit.",
                       sourceMessageIndex: 1,
                       sourceRole: "user",
-                      metadata: { subject: "Biscuit", category: "personal" },
+                      metadata: {
+                        attributes: { claimKey: "pet.dog.identity" },
+                        category: "personal",
+                        subject: "Biscuit",
+                      },
                     },
                     {
                       id: "c2",
@@ -110,6 +140,9 @@ describe("createProviderConversationalMemoryExtractor", () => {
 
     expect(result.candidates).toHaveLength(2);
     expect(result.candidates[0]?.content).toBe("User adopted a beagle named Biscuit.");
+    expect(result.candidates[0]?.metadata?.attributes?.claimKey).toBe(
+      "pet.dog.identity",
+    );
     expect(result.candidates[1]?.content).toContain("vet on Friday");
     expect(result.ignoredMessageCount).toBe(2);
     // Proves the conversational system prompt + prompt builder were actually wired.

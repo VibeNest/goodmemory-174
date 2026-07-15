@@ -490,4 +490,64 @@ describe("run-phase-62 full-500 summary", () => {
     expect(report.summary.abstentionCases).toBe(1);
     expect(report.profiles["goodmemory-rules-only"]?.summary.abstentionCorrectCases).toBe(1);
   });
+
+  it("preserves matching benchmark and retrieval provenance", async () => {
+    const outputDir = "/tmp/phase62-full500-summary-test";
+    const sourceRunId = "run-semantic-source";
+    const retryRunId = "run-semantic-retry";
+    const source = buildShardReport({
+      cases: [buildCase({
+        executionError: true,
+        questionId: "q1",
+        questionType: "single-session-user",
+      })],
+      runId: sourceRunId,
+    });
+    const retry = buildShardReport({
+      cases: [buildCase({
+        questionId: "q1",
+        questionType: "single-session-user",
+      })],
+      runId: retryRunId,
+    });
+    const runConfiguration = {
+      contextMaxTokens: 4000,
+      embedding: {
+        gateway: "https://openrouter.ai/api/v1",
+        model: "text-embedding-3-small",
+        provider: "openai",
+      },
+      extractionStrategy: "rules-only" as const,
+      generalizedFusion: null,
+      projection: { bulkBackfill: true, writeThrough: false },
+      providerEmbedding: true,
+      recallStrategy: "hybrid" as const,
+    };
+    source.benchmarkFingerprint = "fingerprint";
+    source.runConfiguration = runConfiguration;
+    retry.benchmarkFingerprint = "fingerprint";
+    retry.runConfiguration = runConfiguration;
+    const reports = new Map([
+      [join(outputDir, sourceRunId, "report.json"), JSON.stringify(source)],
+      [join(outputDir, retryRunId, "report.json"), JSON.stringify(retry)],
+    ]);
+
+    const report = await runPhase62Full500Summary(
+      {
+        allowDuplicateCaseCoverage: true,
+        expectedTotalCases: 1,
+        outputDir,
+        profiles: ["goodmemory-recommended"],
+        runId: "run-semantic-merged",
+        shardRunIds: [sourceRunId, retryRunId],
+      },
+      {
+        readFile: async (path) => reports.get(path) ?? "{}",
+        writeFile: async () => {},
+      },
+    );
+
+    expect(report.benchmarkFingerprint).toBe("fingerprint");
+    expect(report.runConfiguration).toEqual(runConfiguration);
+  });
 });

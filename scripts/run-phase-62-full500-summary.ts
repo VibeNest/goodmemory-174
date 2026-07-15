@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   assertCliPathSegmentValue,
   hasCliFlagStrict,
@@ -256,6 +257,24 @@ function mergeProfileReports(
   return profileReports;
 }
 
+function resolveSharedProvenance<T>(input: {
+  label: string;
+  reports: readonly LongMemEvalReport[];
+  select: (report: LongMemEvalReport) => T;
+}): T {
+  const first = input.select(input.reports[0]!);
+  if (
+    input.reports.some((report) =>
+      !isDeepStrictEqual(input.select(report), first)
+    )
+  ) {
+    throw new Error(
+      `Phase 62 full-500 summary found inconsistent ${input.label}`,
+    );
+  }
+  return first;
+}
+
 function shouldReplaceCaseResult(input: {
   candidate: LongMemEvalCaseResult;
   existing?: LongMemEvalCaseResult;
@@ -442,15 +461,33 @@ export async function runPhase62Full500Summary(
     options.allowDuplicateCaseCoverage === true,
     profiles,
   );
+  const benchmarkFingerprint = resolveSharedProvenance({
+    label: "benchmark fingerprints",
+    reports,
+    select: (report) => report.benchmarkFingerprint,
+  });
+  const ingestMode = resolveSharedProvenance({
+    label: "ingest modes",
+    reports,
+    select: (report) => report.ingestMode,
+  });
+  const runConfiguration = resolveSharedProvenance({
+    label: "run configurations",
+    reports,
+    select: (report) => report.runConfiguration,
+  });
   const runDirectory = join(outputDir, runId);
   const aggregateReport: LongMemEvalReport = {
+    ...(benchmarkFingerprint === undefined ? {} : { benchmarkFingerprint }),
     benchmarkRoot: reports[0]?.benchmarkRoot ?? "/tmp/LongMemEval",
     generatedAt: now().toISOString(),
     generatedBy: GENERATED_BY,
+    ...(ingestMode === undefined ? {} : { ingestMode }),
     mode: "full",
     outputDir,
     phase: "phase-62",
     profiles: profileReports,
+    ...(runConfiguration === undefined ? {} : { runConfiguration }),
     runDirectory,
     runId,
     source: {
