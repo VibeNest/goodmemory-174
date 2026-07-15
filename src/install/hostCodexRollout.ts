@@ -2,12 +2,10 @@ import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// Codex CLI has no working hooks surface today (the managed hooks.json is a
-// forward-compatible scaffold), so rollout files under
-// ~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl are the honest
-// capture source: `goodmemory codex writeback --from-rollout` feeds the
-// newest (or an explicit) rollout through the same transcript-hydration
-// pipeline the Claude Stop hook uses.
+// Native Codex Stop hooks are the primary automatic writeback path. This
+// module keeps explicit rollout selection as a compatibility and diagnostic
+// fallback: `goodmemory codex writeback --from-rollout` feeds the newest (or
+// an explicit) ~/.codex/sessions rollout through the same hydration pipeline.
 
 const ROLLOUT_FILE_PATTERN = /^rollout-.*\.jsonl$/;
 const ROLLOUT_SESSION_ID_PATTERN =

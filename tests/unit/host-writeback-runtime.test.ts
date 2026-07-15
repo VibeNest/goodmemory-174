@@ -2442,6 +2442,72 @@ describe("installed host writeback transcript hydration", () => {
     }
   });
 
+  it("fails explicitly and retains the cursor when a Codex rollout shape drifts", async () => {
+    const homeRoot = await createWorkspace("goodmemory-codex-drift-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-codex-drift-workspace-");
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "rollout.jsonl");
+      await writeFile(
+        transcriptPath,
+        [
+          JSON.stringify({
+            payload: {
+              content: "changed wire shape",
+              role: "user",
+              type: "message",
+            },
+            timestamp: "2026-07-15T10:00:00.000Z",
+            type: "response_item",
+          }),
+          JSON.stringify({
+            payload: {
+              content: [{ text: "Next step must not be consumed.", type: "input_text" }],
+              role: "user",
+              type: "message",
+            },
+            timestamp: "2026-07-15T10:00:01.000Z",
+            type: "response_item",
+          }),
+        ].join("\n") + "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "codex-drift-session",
+        transcript_path: transcriptPath,
+      };
+      const dependencies = { createMemory: createHydrationMemory({ rememberCalls }) };
+
+      const first = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "codex", payload },
+        dependencies,
+      );
+      const second = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "codex", payload },
+        dependencies,
+      );
+
+      for (const result of [first, second]) {
+        expect(result.reason).toBe("transcript_read_failed");
+        expect(result.trace).toMatchObject({
+          transcriptFormatDrift: {
+            byteOffset: 0,
+            reason: "response_item message content must be an array",
+          },
+          transcriptPathUsed: true,
+          transcriptReadStatus: "format_drift",
+        });
+      }
+      expect(rememberCalls).toEqual([]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("prefers inline messages over transcript_path", async () => {
     const homeRoot = await createWorkspace("goodmemory-hydration-inline-home-");
     const workspaceRoot = await createWorkspace(

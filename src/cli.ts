@@ -829,7 +829,7 @@ const CODEX_WRITEBACK_HELP_TEXT = [
   "  review     queues bounded/redacted candidates for Inspector approval; no durable write until approved",
   "  selective  writes selected candidates through public remember()",
   "",
-  "Reads Codex after-response/session-end JSON from stdin, or a Codex rollout JSONL when --from-rollout is set.",
+  "Reads native Codex Stop hook JSON from stdin. --from-rollout is an explicit compatibility and diagnostic fallback.",
   "Inspect lists recent audit events. Forget deletes linked durable records, or dismisses observe-only events.",
 ].join("\n");
 const CLAUDE_HOOK_HELP_TEXT = [
@@ -5874,8 +5874,8 @@ async function handleHostWriteback(
     throw new Error(`Unknown ${host} writeback command: ${command}.`);
   }
 
-  // Codex has no working hook surface today; --from-rollout feeds a session
-  // rollout file through the same transcript-hydration pipeline instead.
+  // Native Stop hooks are primary. --from-rollout explicitly feeds a selected
+  // session rollout through the same transcript-hydration pipeline.
   let payload: Record<string, unknown>;
   if (flagEnabled(flags, "from-rollout")) {
     if (host !== "codex") {
@@ -5937,6 +5937,7 @@ function hostWritebackExitCode(
   return reason === "missing_config" ||
     reason === "audit_failed" ||
     reason === "missing_repo_opt_in" ||
+    reason === "transcript_read_failed" ||
     reason === "write_failed"
     ? 1
     : 0;

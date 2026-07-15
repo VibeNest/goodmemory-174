@@ -5,7 +5,7 @@ Priority: Codex first
 Claude Code: explicitly deferred until the Codex claim gate closes  
 Scope: evaluation and evidence infrastructure; production changes only when a
 real host canary proves a product defect  
-Last reviewed: 2026-07-12
+Last reviewed: 2026-07-15
 
 ## 0. Executive Decision
 
@@ -1246,6 +1246,7 @@ Proposed commands:
 ~~~text
 eval:codex-coding-effect:smoke
 eval:codex-coding-effect:canary
+project:codex-coding-effect:c2-evidence
 eval:codex-coding-effect:pilot
 eval:codex-coding-effect:full
 summarize:codex-coding-effect
@@ -1500,6 +1501,26 @@ C2 acceptance:
 - no manual newest-rollout selection is used;
 - raw transcript persistence policy is honored;
 - any required production fix is minimal and has a regression test.
+
+C2 implementation result (2026-07-15): **accepted as host-canary evidence**.
+Run `c2-native-20260715-010` installed package SHA-256
+`e16fc6ea5f284f9e8b0688360785839370857b3a4cfdaccacda1bb536ce50756`
+into a fresh isolated home and prefix, then used Codex CLI 0.144.3 with
+`gpt-5.6-sol` / `xhigh` for two distinct native-hook sessions. The first
+session injected a pre-seeded record; native Stop hydrated the exact thread
+transcript, advanced its session cursor, and committed one safe action record;
+the second session injected that record and updated its public writeback recall
+audit. Acceptance ignored model response text, did not select a rollout
+manually, kept raw transcript persistence disabled, and deleted the isolated
+runtime. The content-free current-wire fixture is
+`fixtures/codex-coding-effect/codex-rollout-0.144.3.sanitized.jsonl`; its
+version and hashes are pinned in the adjacent metadata JSON. The adjacent
+`c2-native-host-canary.evidence.json` is generated from the run artifacts,
+retains all ten attempts, binds the runner-time source commit/dirty diff and
+safety-state artifact hashes, and explicitly discloses the BM25 prompt
+calibration that preceded acceptance. This closes host correctness only. It is
+not evidence that GoodMemory improves coding outcomes; that claim remains
+blocked on C3-C7.
 
 ### Phase C3: arms and frozen-prehistory protocol
 
@@ -2183,6 +2204,13 @@ Native canary:
 bun run eval:codex-coding-effect:canary -- \
   --package-tarball <path> \
   --run-id <run-id>
+~~~
+
+Tracked C2 projection from a copied raw run root:
+
+~~~text
+bun run project:codex-coding-effect:c2-evidence -- \
+  --run-root <path>
 ~~~
 
 Pilot:

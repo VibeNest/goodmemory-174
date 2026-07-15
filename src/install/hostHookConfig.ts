@@ -162,13 +162,14 @@ async function areInstalledHostHookRecordsRegistered(input: {
       return false;
     }
 
-    const requiredRecallHooks = buildManagedHookSpecs(input.host, resolvedHomeRoot)
+    const requiredLifecycleHooks = buildManagedHookSpecs(input.host, resolvedHomeRoot)
       .filter(
         (spec) =>
           spec.eventName === "SessionStart" ||
-          spec.eventName === "UserPromptSubmit",
+          spec.eventName === "UserPromptSubmit" ||
+          spec.eventName === "Stop",
       );
-    return requiredRecallHooks.every((spec) =>
+    return requiredLifecycleHooks.every((spec) =>
       hookEventContainsManagedRecord(hooksValue[spec.eventName], spec, target.relativePath),
     );
   } catch {

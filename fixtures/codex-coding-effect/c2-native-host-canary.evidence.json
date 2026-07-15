@@ -1,0 +1,221 @@
+{
+  "accepted": true,
+  "acceptedAt": "2026-07-15T14:41:41.680Z",
+  "acceptedRunId": "c2-native-20260715-010",
+  "artifactHashes": {
+    "canary-result.json": "822ed581c0ff49334f4dc70f0decb1c28bef1c1249e87f5ad1dc6b05b5dc1e7c",
+    "codex-rollout.audit.json": "222fd1bc4e3ce4959c84e883d7273608a9c39958f8df6089bddb3c37e7e5e576",
+    "cursor-state-after-first.json": "12312164ee14cd41e79686c3ebd9765a7dc421b1e824f7de5ff9031ace890b89",
+    "goodmemory-doctor.stdout.log": "848479cd890e025f1c1b032dc292024e3f68cd6bb918687b46a91fc26a745c35",
+    "goodmemory-seed.stdout.log": "50e86573e6c238824972dfd52ff48f06cad8771b55e5d88b1e854d85ad0d10e0",
+    "goodmemory-status-before.stdout.log": "655858e6ee1eb4665c9c7113ade169af49cf310f9ebeb0d4b3b535dabd8e1c6f",
+    "hooks.sanitized.json": "4b9b87a7fdfe03396d480e37c6c556b3563bba47a4ec7cca1e3b0bb946811401",
+    "injection-state-after-first.json": "312f3f30e9238e34e14ad0b90de038e571e1a9e28d238043224e7869dc33debe",
+    "injection-state-final.json": "714a03b3574760aabe2290586fa5d0e303b8497e939d1d1c81ed119a66006192",
+    "run-identity.json": "f83923b3291e8c8a2425dd554fcdc22600a013992106bb9db0c74618c83fe1a1",
+    "source-dirty.diff": "ee2e65314fe34f6a478071ad8ba96f50658146273b475bd18b32822c478f6d4b",
+    "writeback-inspect-final.stdout.log": "3f918b758c9dd0f9daaeb7958dcbb298139d7920859b22300de8c448591054a1",
+    "writeback-inspect-first.stdout.log": "8ef303e81ce16a402456e607276ecbce6666384910f07860577cb6aa74468d47"
+  },
+  "attempts": [
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "failure.json": "975d5f8f47b13f111cc71957ef82810095551dc58686d91aea7766aaea35daa9"
+      },
+      "failureClass": "runner_preflight",
+      "modelTurnCount": 0,
+      "result": "The trust validator did not accept the shell-quoted managed hook command.",
+      "runId": "c2-native-20260715-001"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "818b2b6aacc5bbab4472a93301ab560de2ac24b819418d7ff507778ab48f0570",
+        "codex-first.events.jsonl": "66aa2be2d5f521ee2772d288d6a5ab6bf6c5dbf3c4c7267679e4e6d14028f080",
+        "codex-second.events.jsonl": "f23e02d5dc8d803ced4416a64c73fa89cd41706467770ada6b4ce922110241bb",
+        "failure.json": "17f796012e4afc38327c271b0ef483e5e1c34bdeae4bf55b252947508d853d43",
+        "run-identity.json": "e708286d535ec40587cd1c8c6d96ffc7d300fb324b72a09c019f4e4661c875f0"
+      },
+      "failureClass": "evidence_matching_and_host_scaffolding",
+      "modelTurnCount": 2,
+      "result": "Stop committed and the fresh session recalled the record, but the bounded audit preview omitted the marker; live evidence also exposed recommended_plugins scaffolding as writeback input.",
+      "runId": "c2-native-20260715-002"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "1180ad2c5d08bd11a6b1565cf3f123b84c9bd4783deb7a10346b6011b0fa9712",
+        "codex-first.events.jsonl": "651be1989437d8d7acd09d4f07151338c19bd2741a8b7be5ca40b51954518605",
+        "codex-second.events.jsonl": "71432cbc58e88d9f18ac73b8914699d6a3da9f580ef38df9a3403021601f5f24",
+        "failure.json": "c64054963dcf9cad3abc4c3af21029e57be83c8a087de9417737053960177464",
+        "run-identity.json": "8fa59bc30b0dd53a2382b3942f269569086c3bfd9c30f31747234c73e25a88ce"
+      },
+      "failureClass": "fresh_session_recall",
+      "modelTurnCount": 2,
+      "result": "The marker-matched Stop record committed after scaffolding filtering, but the fresh query did not recall it.",
+      "runId": "c2-native-20260715-003"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "d4a671973ee3249665c981a0b8cc7e910c58d1de5d4e146c0fffbb8b8e4e2ab6",
+        "codex-first.events.jsonl": "6a1f53b3768d5757642b6518a1832691c203de344eed9442002501d9fd7adc8a",
+        "codex-second.events.jsonl": "b76eb1b581e5de35d7418546d23eddf5b0e34c636874344e9aa95406a328e862",
+        "failure.json": "d6a432a4c02dcba0348110131e0f8221cfac6fcfd3f4716041b2879b94f13e74",
+        "run-identity.json": "fbd85b9a3bda9331b590ec734a98e6204838e1a8fc90a8bd101293b63c01f2ac"
+      },
+      "failureClass": "fresh_session_low_relevance",
+      "modelTurnCount": 2,
+      "result": "Persisted injection diagnostics proved the fresh prompt was rejected as low_relevance.",
+      "runId": "c2-native-20260715-004"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "d7fa43816f6cb379db5bc334a5771616cda35242ef7df0d3ca54d857d2c86e2a",
+        "codex-first.events.jsonl": "70c5a6941b5f2153ba1665a523cefab456e29027c0d9561763f1cf80b253808d",
+        "codex-second.events.jsonl": "c7c39a5831d3cfeddbd10a730047ccb86378319885eb3d5b15cb3b11bd315333",
+        "failure.json": "969255d0cc6fd0e45e36f0b0bef13db02824c20e195d96945552066a18b19d8a",
+        "run-identity.json": "3c19d9b5a3809b8f8093875ea03888f17a522fd3f3d789385e82e39aaa57076d"
+      },
+      "failureClass": "seed_injection",
+      "modelTurnCount": 2,
+      "result": "Keyed Stop writeback, fresh-session injection, and recall audit passed; the pre-seeded fact was not injected into the first session.",
+      "runId": "c2-native-20260715-005"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "0822b800fd6cc2a34ca2b3100fb0e6a1a41076aa1ae49ad54a392b74e28d10aa",
+        "codex-first.events.jsonl": "d56667cbe8c6b634e5e9b4b962f3481226f597bb4b23349465bc6900ceb80ee3",
+        "codex-second.events.jsonl": "833455c3fdf191add5a8443545dee4a9a816e7f9e882c11f032caf8b3bfc5dcb",
+        "failure.json": "e99491576d43697b00f14e9e623b674f867d93f00819588503427099818e42ec",
+        "run-identity.json": "9e7e95473f889dac2bfd587f06828d66070052d8d5d1e3600a42aecedbaca039"
+      },
+      "failureClass": "seed_injection",
+      "modelTurnCount": 2,
+      "result": "A separate seed lookup key still failed to select the seeded fact.",
+      "runId": "c2-native-20260715-006"
+    },
+    {
+      "accepted": false,
+      "artifactHashes": {
+        "canary-result.json": "93841f7edc6f42825aa832186b5d852aea349e7a7a0c1ffdef52a0da961b150b",
+        "codex-first.events.jsonl": "9258c3dffb860859db5acfc77078b59eee50a93fc6aab828e636f765f1ba3153",
+        "codex-second.events.jsonl": "f1aa8bd50ae346303be6989d47a7fdf0b5568281d6498278772067c3f6f0f290",
+        "failure.json": "f90e09c1669cf92f732e7dabb60323c95ff00dc2538ca815df1af7f9cc48528c",
+        "run-identity.json": "5922fa2a2e8081cef1829669079e176b114f1ad18f5e27eef0adca919e7fbac5"
+      },
+      "failureClass": "seed_generic_no_slot_signal",
+      "modelTurnCount": 2,
+      "result": "A shared lookup key retained the Stop closure, but deterministic trace showed the long first prompt diluted the seeded fact to generic/no-slot selection.",
+      "runId": "c2-native-20260715-007"
+    },
+    {
+      "accepted": true,
+      "artifactHashes": {
+        "canary-result.json": "ed9213f9e100dd0b339a05219ad282a4ed104bc3c6edc88215c0a4c3ec0d2a8d",
+        "codex-first.events.jsonl": "b70c3c1a31fc4cf8d009489d6a47408bdd87cbf030e8deee84a627f2dd79d25d",
+        "codex-second.events.jsonl": "56eafe0bd4ba0f950a515d0f101d927ff853b4548fa3f9b34b2c8ae014554241",
+        "run-identity.json": "df4720fb3e1a5697c8a0b5e30ed26665a66fb153e2580e73a7f4dda86f07ecfb"
+      },
+      "failureClass": null,
+      "modelTurnCount": 2,
+      "result": "Seed injection, exact-thread Stop hydration and cursor advancement, committed action writeback, distinct-session injection, and recall audit all passed.",
+      "runId": "c2-native-20260715-008"
+    },
+    {
+      "accepted": true,
+      "artifactHashes": {
+        "canary-result.json": "1a4aa4904de9eac1925016a0a7e0cb1c944a93c24938b048a0f7328e0a086ed4",
+        "codex-first.events.jsonl": "991f67f4a78a9c19960ceff6914fd7465027f0d9e639bf98178a27b7abc8be73",
+        "codex-second.events.jsonl": "ff0809d711e63e5c5d2e926d5519f34fae4163e64a803fdddd69d59e24fbbcc9",
+        "run-identity.json": "d1a576a002d630d00bf5ded3d3c9f7a74c684d0b6ad16ea983deda7a7e107c18"
+      },
+      "failureClass": null,
+      "modelTurnCount": 2,
+      "result": "Portable rerun passed the same host canary while binding runner-time source identity and safety artifact hashes into the generated tracked projection.",
+      "runId": "c2-native-20260715-009"
+    },
+    {
+      "accepted": true,
+      "artifactHashes": {
+        "canary-result.json": "822ed581c0ff49334f4dc70f0decb1c28bef1c1249e87f5ad1dc6b05b5dc1e7c",
+        "codex-first.events.jsonl": "fade03105a2a5ddf3e9b885f11b0c85a4d4e95dfa1b0a04fb8b930d84d3171e3",
+        "codex-second.events.jsonl": "97e29fc4f02577aa3643b68d610edbf542a4461d7f172650a2315666bee4b246",
+        "run-identity.json": "f83923b3291e8c8a2425dd554fcdc22600a013992106bb9db0c74618c83fe1a1"
+      },
+      "failureClass": null,
+      "modelTurnCount": 2,
+      "result": "Final portable rerun also retained the source dirty diff artifact, so the tracked projection can verify the runner-time source hash from a copied run bundle.",
+      "runId": "c2-native-20260715-010"
+    }
+  ],
+  "calibrationDisclosure": "The canary prompt was iteratively calibrated with local rules-only BM25 trace after failed runs. The accepted prompt uses one lookup key and withholds both associated values. This calibration is valid for C2 host-chain correctness only and disqualifies C2 from any coding-effect inference.",
+  "checkpoint": "C2",
+  "claimBoundary": {
+    "hostCorrectnessOnly": true,
+    "publicCodingEffectProof": false
+  },
+  "codex": {
+    "executableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+    "firstSessionDigest": "session:e68487d3554df4fba04a2c54",
+    "firstThreadId": "019f6639-7fcf-7230-bfe2-45e46356b9d7",
+    "hooksEnabled": true,
+    "hooksMaturity": "stable",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "xhigh",
+    "secondSessionDigest": "session:eb793ad7fc0947528a5e4c1d",
+    "secondThreadId": "019f6639-c0ef-7392-9616-017ea6c98606",
+    "version": "codex-cli 0.144.3"
+  },
+  "evidenceClass": "host-canary",
+  "manualRolloutSelectionUsed": false,
+  "modelResponseUsedForAcceptance": false,
+  "package": {
+    "sha256": "e16fc6ea5f284f9e8b0688360785839370857b3a4cfdaccacda1bb536ce50756",
+    "version": "goodmemory 0.5.1"
+  },
+  "phase": 73,
+  "projection": {
+    "generator": "scripts/project-codex-coding-effect-c2-evidence.ts",
+    "runIdentitySha256": "f83923b3291e8c8a2425dd554fcdc22600a013992106bb9db0c74618c83fe1a1",
+    "sourceResultSha256": "822ed581c0ff49334f4dc70f0decb1c28bef1c1249e87f5ad1dc6b05b5dc1e7c"
+  },
+  "rawRuntimeRetained": false,
+  "rawTranscriptPersistedByGoodMemory": false,
+  "result": {
+    "committedWritebackRecordId": "0609b769-ad9a-4629-82b6-7f55c952d12d",
+    "cursorAdvancedForFirstSession": true,
+    "exactTranscriptThreadMatched": true,
+    "freshSessionInjectedWritebackRecord": true,
+    "freshSessionRecallAuditCount": 1,
+    "seedMemoryId": "7365c54c-0c13-4d59-9b31-24352a9fefac",
+    "seedMemoryInjected": true
+  },
+  "schemaVersion": 2,
+  "source": {
+    "commit": "62e27009018f781c6ac43f3e0cffa17c7674dc80",
+    "dirty": true,
+    "dirtyDiffSha256": "ee2e65314fe34f6a478071ad8ba96f50658146273b475bd18b32822c478f6d4b",
+    "dirtyStateSha256": "c818c03483465e54f5d03954be6933690f184f4e4d36adc92f32fb485da442a7",
+    "untrackedFiles": [
+      {
+        "path": "fixtures/codex-coding-effect/c2-native-host-canary.annotations.json",
+        "sha256": "a759502e209600909a3c7e0cf2a95c9dd48fdc0e7aec5065c17277d17c5e5eb3"
+      },
+      {
+        "path": "scripts/project-codex-coding-effect-c2-evidence.ts",
+        "sha256": "beeb7fdc9827fd05a8cb7214b51afb47ed827618d93f8b5d151c6f582fdfdfcb"
+      }
+    ]
+  },
+  "sourceRunDirectory": "reports/eval/research/codex-coding-effect/c2-native-20260715-010",
+  "transcript": {
+    "fixture": "fixtures/codex-coding-effect/codex-rollout-0.144.3.sanitized.jsonl",
+    "metadata": "fixtures/codex-coding-effect/codex-rollout-0.144.3.metadata.json",
+    "sanitizedSha256": "21bd2df280dab7216b7a718a2cbbe64033ddf0fdfda94c0d06b4003bc8568d6d",
+    "sourceSha256": "4abfa155844446bd67d85bf63da7c3828847bc7ac377e369c3a3c3307c3ea051"
+  }
+}

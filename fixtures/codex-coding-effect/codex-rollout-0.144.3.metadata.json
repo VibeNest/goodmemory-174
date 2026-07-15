@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-07-15T14:41:41.680Z",
+  "codexVersion": "codex-cli 0.144.3",
+  "conversationMessageCount": 3,
+  "fixtureKind": "sanitized-codex-rollout",
+  "fixtureLineCount": 4,
+  "lineCount": 17,
+  "model": "gpt-5.6-sol",
+  "modelResponseUsedForAcceptance": false,
+  "packageSha256": "e16fc6ea5f284f9e8b0688360785839370857b3a4cfdaccacda1bb536ce50756",
+  "rawTranscriptRetained": false,
+  "reasoningEffort": "xhigh",
+  "runId": "c2-native-20260715-010",
+  "sanitizedSha256": "21bd2df280dab7216b7a718a2cbbe64033ddf0fdfda94c0d06b4003bc8568d6d",
+  "schemaVersion": 1,
+  "sessionId": "019f6639-7fcf-7230-bfe2-45e46356b9d7",
+  "sourceSha256": "4abfa155844446bd67d85bf63da7c3828847bc7ac377e369c3a3c3307c3ea051"
+}

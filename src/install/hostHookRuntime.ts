@@ -194,7 +194,8 @@ export async function executeInstalledHostHook(
         writeback.reason === "written"
           ? "writeback_written"
           : writeback.reason === "write_failed" ||
-              writeback.reason === "audit_failed"
+              writeback.reason === "audit_failed" ||
+              writeback.reason === "transcript_read_failed"
             ? "writeback_failed"
             : "empty_context",
       scope: resolved.context.scope,

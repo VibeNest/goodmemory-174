@@ -1,0 +1,91 @@
+Phase 73: Codex Installed-Host Coding Effect Evaluation
+=======================================================
+
+Status
+------
+
+[ACTIVE]
+
+Goal
+----
+
+Prove whether enabling the packaged GoodMemory installed-host path improves
+real Codex coding outcomes across fresh sessions, using paired repository
+episodes and evaluator-owned hidden tests.
+
+Gate
+----
+
+- The primary metric is hidden-test resolve@1 for stage positions 2+, with the
+  same Codex version, model, prompt, permissions, budget, and repository state
+  across paired arms.
+- Public evidence requires the accepted full gate. Host canaries, deterministic
+  smoke, pilots, MemGym CodeQA, memory QA, and retrieval diagnostics are not
+  public coding-effect proof.
+- The first accepted claim is Codex-only. Claude Code remains deferred.
+
+Progress
+--------
+
+[DONE] The implementation-grade design is routed from `docs/README.md` at
+`docs/plans/GoodMemory-Codex-Coding-Effect-Evaluation-and-Development-Plan.md`.
+[DONE] C0 tests were written first and confirmed red before implementation.
+[DONE] C0 evidence/claim contracts reject Claude, MemGym CodeQA, memory QA,
+retrieval diagnostics, unaccepted candidates, and accepted labels without a
+full gate.
+[DONE] C0 strict Zod manifests cover immutable source identity, paired hidden
+tests, state modes, memory strata, evaluator-only gold paths, duplicate IDs,
+and pilot/full selection boundaries.
+[DONE] C0 strict CLI covers duplicate flags, repeatable selectors, canonical
+positive integers, path traversal/overlap, arm/evidence compatibility, and a
+frozen zero-write dry-run selection.
+[DONE] C1 tests were written first and confirmed red across workspace, fake
+Codex, patch scoring, resume, reporting, and the two-arm harness boundaries.
+[DONE] C1 creates exact-commit detached worktrees, rejects dirty/mismatched
+bases and path collisions, captures tracked/untracked/symlink patches without
+following external targets, and performs Git-owned cleanup without recursively
+deleting a caller-owned workspace root.
+[DONE] C1 strictly parses Codex JSONL, retains malformed/non-zero/timeout
+attempts, runs evaluator-owned fail-to-pass and pass-to-pass commands, and
+separates task failures from infrastructure failures.
+[DONE] C1 persists byte-identity run metadata plus append-only attempts and
+terminal progress, writes atomic per-attempt stage evidence before terminal
+ledger rows, recovers both orphan evidence and missing progress, trims only a
+torn final progress line, and never reruns a finalized task failure.
+[DONE] C1's offline two-arm smoke lets hidden tests reject a plausible wrong
+patch even when the agent workspace contains an ignored cheat file. Tests run
+in a second clean worktree containing only the captured patch; the smoke records
+one paired rescue and reproduces cases byte-for-byte plus summary byte-for-byte
+except `generatedAt`.
+[DONE] C2 packaged native Codex hook and Stop writeback canary. The accepted
+run is `c2-native-20260715-010` on Codex CLI 0.144.3 with `gpt-5.6-sol` /
+`xhigh`, using package SHA-256
+`e16fc6ea5f284f9e8b0688360785839370857b3a4cfdaccacda1bb536ce50756`.
+[DONE] C2 installed the tarball into a fresh isolated prefix/home, validated
+public setup/status/doctor output, and trusted only the exact managed
+SessionStart/UserPromptSubmit/PreToolUse/Stop command set.
+[DONE] C2 proved native seed injection, exact-thread transcript hydration,
+automatic Stop cursor advancement, one committed action record, injection of
+that record into a distinct fresh Codex session, and a public recall-audit hit
+bound to the second session digest. Model response text was not an acceptance
+input and no newest-rollout selection was used.
+[DONE] C2 kept selective writeback raw persistence off and removed its isolated
+runtime after the run. The content-free Codex 0.144.3 fixture and hash metadata
+are pinned under `fixtures/codex-coding-effect/`; the adjacent
+`c2-native-host-canary.evidence.json` is generated from raw run artifacts,
+discloses all ten attempts and prompt calibration, and binds source identity,
+the retained dirty diff, and safety-state artifact hashes. Parser drift now
+fails explicitly without consuming the invalid transcript line. Regenerate the
+tracked projection with `bun run project:codex-coding-effect:c2-evidence`.
+[DONE] Live C2 diagnosis also removed `<recommended_plugins>` host scaffolding
+from Codex writeback input and made lifecycle status require the managed Stop
+hook. These are reproduced host defects, not benchmark-only accommodations.
+[OPEN] C3-C5 paired arms, controlled dataset, and live pilot.
+[OPEN] C6-C7 expanded candidate, statistics, gate, and narrow claim decision.
+
+Boundary
+--------
+
+Benchmark contracts, datasets, scoring, and reporting stay under `scripts/`,
+`tests/`, fixtures, and report directories. Production `src/` changes require a
+reproduced native-host defect or a genuine public product observability need.

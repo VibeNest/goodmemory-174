@@ -1,9 +1,9 @@
 import { open, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-// Claude Code hook payloads reference the session transcript by path
-// (transcript_path); nothing inline. This reader turns that JSONL file into
-// the bounded, role-tagged message window the writeback pipeline consumes.
+// Native Codex and Claude Code Stop payloads reference the session transcript
+// by path (transcript_path); nothing inline. This reader turns that JSONL file
+// into the bounded, role-tagged message window the writeback pipeline consumes.
 // It is the only module that understands the host transcript format, so
 // format drift stays contained here. It never persists anything: callers
 // receive in-memory messages and a byte cursor.
@@ -14,12 +14,19 @@ export interface HostTranscriptMessage {
 }
 
 export type HostTranscriptReadStatus =
+  | "format_drift"
   | "missing_file"
   | "not_absolute"
   | "ok"
   | "read_failed";
 
+export interface HostTranscriptFormatDrift {
+  byteOffset: number;
+  reason: string;
+}
+
 export interface HostTranscriptReadResult {
+  formatDrift?: HostTranscriptFormatDrift;
   messages: HostTranscriptMessage[];
   // Byte offset just past the last fully parsed line; feed back as
   // fromOffset to read only the delta on the next hook firing.
@@ -50,6 +57,8 @@ const NON_CONVERSATIONAL_PREFIXES = [
   "<system-reminder>",
 ];
 const LINE_FEED = 0x0a;
+
+class TranscriptFormatDriftError extends Error {}
 
 export async function readClaudeTranscriptDelta(
   input: ReadTranscriptDeltaInput,
@@ -129,6 +138,7 @@ async function readTranscriptDeltaWithParser(
   const messages: HostTranscriptMessage[] = [];
   let consumedEnd = start + position;
   while (position < buffer.length) {
+    const lineStart = start + position;
     const lineFeed = buffer.indexOf(LINE_FEED, position);
     if (lineFeed === -1) {
       // Unterminated final line: likely mid-write; leave it for next time.
@@ -138,7 +148,21 @@ async function readTranscriptDeltaWithParser(
     position = lineFeed + 1;
     consumedEnd = start + position;
 
-    const message = parseLine(line);
+    let message: HostTranscriptMessage | null;
+    try {
+      message = parseLine(line);
+    } catch (error) {
+      if (!(error instanceof TranscriptFormatDriftError)) {
+        throw error;
+      }
+      return {
+        formatDrift: { byteOffset: lineStart, reason: error.message },
+        messages: [],
+        nextOffset: lineStart,
+        status: "format_drift",
+        truncatedHead,
+      };
+    }
     if (message) {
       messages.push(message);
     }
@@ -221,6 +245,7 @@ function parseAssistantContent(content: unknown): HostTranscriptMessage | null {
 const CODEX_NON_CONVERSATIONAL_PREFIXES = [
   "<environment_context>",
   "<permissions",
+  "<recommended_plugins>",
   "<user_instructions>",
 ];
 
@@ -234,13 +259,21 @@ function parseCodexRolloutLine(line: string): HostTranscriptMessage | null {
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    return null;
+    throw new TranscriptFormatDriftError("line is not valid JSON");
   }
-  if (!isRecord(parsed) || parsed.type !== "response_item") {
+  if (!isRecord(parsed) || typeof parsed.type !== "string") {
+    throw new TranscriptFormatDriftError(
+      "line must be an object with a string type",
+    );
+  }
+  if (parsed.type !== "response_item") {
     return null;
   }
   const payload = parsed.payload;
-  if (!isRecord(payload) || payload.type !== "message") {
+  if (!isRecord(payload)) {
+    throw new TranscriptFormatDriftError("response_item payload must be an object");
+  }
+  if (payload.type !== "message") {
     return null;
   }
   const role = payload.role;
@@ -248,19 +281,33 @@ function parseCodexRolloutLine(line: string): HostTranscriptMessage | null {
     return null;
   }
   if (!Array.isArray(payload.content)) {
-    return null;
+    throw new TranscriptFormatDriftError(
+      "response_item message content must be an array",
+    );
   }
 
-  const text = payload.content
-    .filter(
-      (block): block is { text: string; type: string } =>
-        isRecord(block) &&
-        (block.type === "input_text" || block.type === "output_text") &&
-        typeof block.text === "string",
-    )
-    .map((block) => block.text.trim())
-    .filter((blockText) => blockText.length > 0)
-    .join("\n");
+  const expectedBlockType = role === "user" ? "input_text" : "output_text";
+  const textBlocks: string[] = [];
+  for (const block of payload.content) {
+    if (!isRecord(block) || typeof block.type !== "string") {
+      throw new TranscriptFormatDriftError(
+        "message content blocks must be objects with string types",
+      );
+    }
+    if (block.type !== expectedBlockType) {
+      continue;
+    }
+    if (typeof block.text !== "string") {
+      throw new TranscriptFormatDriftError(
+        `${expectedBlockType} text must be a string`,
+      );
+    }
+    const blockText = block.text.trim();
+    if (blockText.length > 0) {
+      textBlocks.push(blockText);
+    }
+  }
+  const text = textBlocks.join("\n");
   if (text.length === 0) {
     return null;
   }

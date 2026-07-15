@@ -3058,6 +3058,51 @@ describe("phase-65 LoCoMo report reanswer runner", () => {
     });
   });
 
+  it("can retain unselected source answers from a packet evidence report", async () => {
+    const packetSource = {
+      ...sourceReport(),
+      answerContextMode: "packet-evidence-pack" as const,
+    };
+    const report = await runLocomoReportReanswer(
+      {
+        allowCommonsenseResolution: false,
+        outputDir: "/reports/out",
+        questionIds: ["conv-test:q1"],
+        retainUnselected: true,
+        runId: "packet-full-reanswer-run",
+        sourceReportPath: "/reports/source/smoke-report.json",
+        strictNoEvidenceAbstention: false,
+      },
+      {
+        answerGenerator: async () => "No information available",
+        mkdir: async () => undefined,
+        readFile: async (path) => {
+          if (path === "/reports/source/smoke-report.json") {
+            return JSON.stringify(packetSource);
+          }
+          if (path === "/tmp/LOCOMO/cases.json") {
+            return JSON.stringify({ cases: [testCase] });
+          }
+          throw new Error(`unexpected read: ${path}`);
+        },
+        writeFile: async () => undefined,
+      },
+    );
+
+    expect(report.questionCount).toBe(2);
+    expect(report.cases[0]).toMatchObject({
+      generatedAnswer: "No information available",
+      questionId: "conv-test:q1",
+    });
+    expect(report.cases[1]).toMatchObject({
+      generatedAnswer: "I do not know",
+      questionId: "conv-test:q2",
+    });
+    expect(report.sourceReport?.answerContextMode).toBe(
+      "packet-evidence-pack",
+    );
+  });
+
   it("accepts a generalized recommended retrieval report as a reanswer source", async () => {
     const recommendedSource = sourceReport();
     recommendedSource.answerContextMode = "raw-turns";

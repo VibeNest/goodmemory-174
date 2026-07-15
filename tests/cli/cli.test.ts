@@ -3965,6 +3965,22 @@ describe("goodmemory cli installed host config", () => {
           );
           const secondPayload = JSON.parse(second.stdout) as { reason: string };
           expect(secondPayload.reason).toBe("empty_transcript");
+
+          const missing = await withCwd(workspace.root, async () =>
+            runCLI([
+              "codex",
+              "writeback",
+              "--from-rollout",
+              "--rollout-path",
+              join(sessionsRoot, "missing.jsonl"),
+              "--workspace-root",
+              workspace.root,
+              "--json",
+            ]),
+          );
+          expect(missing.exitCode).toBe(1);
+          const missingPayload = JSON.parse(missing.stdout) as { reason: string };
+          expect(missingPayload.reason).toBe("transcript_read_failed");
         },
       );
     } finally {

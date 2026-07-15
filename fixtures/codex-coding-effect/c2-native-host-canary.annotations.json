@@ -1,0 +1,57 @@
+{
+  "acceptedRunId": "c2-native-20260715-010",
+  "attempts": [
+    {
+      "failureClass": "runner_preflight",
+      "result": "The trust validator did not accept the shell-quoted managed hook command.",
+      "runId": "c2-native-20260715-001"
+    },
+    {
+      "failureClass": "evidence_matching_and_host_scaffolding",
+      "result": "Stop committed and the fresh session recalled the record, but the bounded audit preview omitted the marker; live evidence also exposed recommended_plugins scaffolding as writeback input.",
+      "runId": "c2-native-20260715-002"
+    },
+    {
+      "failureClass": "fresh_session_recall",
+      "result": "The marker-matched Stop record committed after scaffolding filtering, but the fresh query did not recall it.",
+      "runId": "c2-native-20260715-003"
+    },
+    {
+      "failureClass": "fresh_session_low_relevance",
+      "result": "Persisted injection diagnostics proved the fresh prompt was rejected as low_relevance.",
+      "runId": "c2-native-20260715-004"
+    },
+    {
+      "failureClass": "seed_injection",
+      "result": "Keyed Stop writeback, fresh-session injection, and recall audit passed; the pre-seeded fact was not injected into the first session.",
+      "runId": "c2-native-20260715-005"
+    },
+    {
+      "failureClass": "seed_injection",
+      "result": "A separate seed lookup key still failed to select the seeded fact.",
+      "runId": "c2-native-20260715-006"
+    },
+    {
+      "failureClass": "seed_generic_no_slot_signal",
+      "result": "A shared lookup key retained the Stop closure, but deterministic trace showed the long first prompt diluted the seeded fact to generic/no-slot selection.",
+      "runId": "c2-native-20260715-007"
+    },
+    {
+      "failureClass": null,
+      "result": "Seed injection, exact-thread Stop hydration and cursor advancement, committed action writeback, distinct-session injection, and recall audit all passed.",
+      "runId": "c2-native-20260715-008"
+    },
+    {
+      "failureClass": null,
+      "result": "Portable rerun passed the same host canary while binding runner-time source identity and safety artifact hashes into the generated tracked projection.",
+      "runId": "c2-native-20260715-009"
+    },
+    {
+      "failureClass": null,
+      "result": "Final portable rerun also retained the source dirty diff artifact, so the tracked projection can verify the runner-time source hash from a copied run bundle.",
+      "runId": "c2-native-20260715-010"
+    }
+  ],
+  "calibrationDisclosure": "The canary prompt was iteratively calibrated with local rules-only BM25 trace after failed runs. The accepted prompt uses one lookup key and withholds both associated values. This calibration is valid for C2 host-chain correctness only and disqualifies C2 from any coding-effect inference.",
+  "schemaVersion": 1
+}

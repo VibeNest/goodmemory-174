@@ -262,6 +262,10 @@ describe("readCodexRolloutDelta", () => {
       rolloutLine("assistant", "Understood, noting the package manager."),
       { payload: {}, timestamp: "t", type: "turn_context" },
       { payload: {}, timestamp: "t", type: "compacted" },
+      rolloutLine(
+        "user",
+        "<recommended_plugins>registry suggestions</recommended_plugins>",
+      ),
       rolloutLine("user", "<environment_context>cwd=/tmp</environment_context>"),
       rolloutLine("user", "<user_instructions>be terse</user_instructions>"),
     ]);
@@ -294,5 +298,34 @@ describe("readCodexRolloutDelta", () => {
       transcriptPath: join(tmpdir(), "gm-rollout-missing", "absent.jsonl"),
     });
     expect(missing.status).toBe("missing_file");
+  });
+
+  it("reports Codex conversation schema drift without consuming the invalid line", async () => {
+    const path = await createTranscript([
+      rolloutLine("user", "Valid statement before the drift."),
+      {
+        payload: {
+          content: "changed wire shape",
+          role: "assistant",
+          type: "message",
+        },
+        timestamp: "2026-07-15T10:00:00.000Z",
+        type: "response_item",
+      },
+      rolloutLine("user", "This line must remain unread for a retry."),
+    ]);
+
+    const result = await readCodexRolloutDelta({ transcriptPath: path });
+
+    expect(result.status).toBe("format_drift");
+    expect(result.messages).toEqual([]);
+    expect(result.formatDrift).toEqual({
+      byteOffset: expect.any(Number),
+      reason: "response_item message content must be an array",
+    });
+    if (!result.formatDrift) {
+      throw new Error("expected Codex transcript format drift evidence");
+    }
+    expect(result.nextOffset).toBe(result.formatDrift.byteOffset);
   });
 });

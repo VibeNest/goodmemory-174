@@ -1148,9 +1148,12 @@ export async function runLocomoReportReanswer(
         "--retain-unselected cannot be combined with --gold-evidence-only-context.",
       );
     }
-    if (rawReport.answerContextMode !== "evidence-pack") {
+    if (
+      rawReport.answerContextMode !== "evidence-pack" &&
+      rawReport.answerContextMode !== "packet-evidence-pack"
+    ) {
       throw new Error(
-        "--retain-unselected requires a source report with answerContextMode evidence-pack.",
+        "--retain-unselected requires a source report with answerContextMode evidence-pack or packet-evidence-pack.",
       );
     }
     if (

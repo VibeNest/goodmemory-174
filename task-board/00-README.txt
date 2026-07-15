@@ -37,6 +37,7 @@ Current Execution Order
 3. 75-phase-70-reranker-and-evidence.txt
 4. 76-phase-71-inspector-console.txt
 5. 77-phase-72-agentic-eval-and-v0-6-release.txt
+6. 78-phase-73-codex-installed-host-coding-effect-evaluation.txt
 
 Open older phase files only when a task names them.
 
@@ -89,6 +90,10 @@ Current Transition
   production profile and 0.6019480519 / 0.8493506494 for the repo-eval-only
   semantic union. Failed experimental runners have been removed. These score
   gates, not packaging, block `v0.6.0`.
+- Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
+  the C2 host-only canary are closed; C3 controlled paired arms are next. See
+  `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
+  and the strict boundary against coding-effect claims.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and versioned historical evidence scoped only to CR 0.959 and TTL 0.767 versus no-memory 0.000 baselines; AR/LRU are excluded because no-memory baselines are higher / multiple-choice leakage dominates. It is not a current-version public claim.

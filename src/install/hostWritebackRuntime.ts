@@ -49,7 +49,10 @@ import {
 import {
   readClaudeTranscriptDelta,
   readCodexRolloutDelta,
-  type HostTranscriptReadStatus,
+} from "./hostTranscriptReader";
+import type {
+  HostTranscriptFormatDrift,
+  HostTranscriptReadStatus,
 } from "./hostTranscriptReader";
 
 export type InstalledHostWritebackCommand = "turn-end" | "session-end";
@@ -94,6 +97,7 @@ export interface InstalledHostWritebackResult {
     | "no_candidates"
     | "observed"
     | "review_queued"
+    | "transcript_read_failed"
     | "write_failed"
     | "written";
   trace: Record<string, unknown>;
@@ -189,8 +193,8 @@ export async function executeInstalledHostWriteback(
     });
   }
 
-  // Real host hook payloads (Claude Code Stop/SessionEnd) reference the
-  // session transcript by path instead of carrying inline messages; hydrate
+  // Real Codex and Claude Code Stop payloads reference the session transcript
+  // by path instead of carrying inline messages; hydrate
   // that path into the same bounded message window. Inline payloads always
   // win, and hydration runs only after the mode gate so `off` never touches
   // the transcript file.
@@ -199,6 +203,22 @@ export async function executeInstalledHostWriteback(
     host: input.host,
     payload: input.payload,
   });
+  if (hydration.attempted && hydration.readStatus !== "ok") {
+    return buildSkippedWritebackResult({
+      host: input.host,
+      mode: config.mode,
+      reason: "transcript_read_failed",
+      trace: {
+        command: input.command,
+        rawTranscriptPersisted: false,
+        ...(hydration.formatDrift
+          ? { transcriptFormatDrift: hydration.formatDrift }
+          : {}),
+        transcriptPathUsed: true,
+        transcriptReadStatus: hydration.readStatus,
+      },
+    });
+  }
   const result = await executeResolvedWriteback({
     config,
     dependencies,
@@ -481,6 +501,7 @@ const CURSOR_ADVANCE_REASONS: ReadonlySet<InstalledHostWritebackResult["reason"]
 interface TranscriptHydration {
   attempted: boolean;
   deltaMessageCount: number;
+  formatDrift?: HostTranscriptFormatDrift;
   nextOffset: number;
   payload: Record<string, unknown>;
   readStatus: HostTranscriptReadStatus | undefined;
@@ -517,9 +538,9 @@ async function hydrateTranscriptPayload(input: {
         sessionDigest,
       })
     : undefined;
-  // Host-specific transcript formats: claude Stop payloads reference the
-  // session JSONL; codex transcript_path values come from the
-  // --from-rollout CLI and point at rollout files.
+  // Host-specific transcript formats: Claude Stop payloads reference Claude
+  // session JSONL; native Codex Stop and --from-rollout both point at rollout
+  // files.
   const readDelta =
     input.host === "codex" ? readCodexRolloutDelta : readClaudeTranscriptDelta;
   const delta = await readDelta({
@@ -530,6 +551,7 @@ async function hydrateTranscriptPayload(input: {
   return {
     attempted: true,
     deltaMessageCount: delta.messages.length,
+    ...(delta.formatDrift ? { formatDrift: delta.formatDrift } : {}),
     nextOffset: delta.nextOffset,
     payload: { ...input.payload, messages: delta.messages },
     readStatus: delta.status,
