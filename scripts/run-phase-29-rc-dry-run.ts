@@ -485,7 +485,12 @@ export async function runPhase29RcDryRun(
       throw new Error("Failed to pack Phase 29 tarball.");
     }
 
-    const tarballOutput = packResult.stdout.trim();
+    const tarballOutput =
+      packResult.stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .at(-1) ?? "";
     const generatedTarballName =
       tarballOutput.length > 0
         ? basename(tarballOutput)

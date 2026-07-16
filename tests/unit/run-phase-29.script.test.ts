@@ -41,6 +41,7 @@ const PHASE29_RC_COMMAND_LABELS = [
 
 function createRcDryRunHarness(input?: {
   cliStdout?: Record<string, unknown>;
+  packStdout?: string;
   smokeStdout?: Record<string, unknown>;
 }): {
   commands: string[];
@@ -87,7 +88,8 @@ function createRcDryRunHarness(input?: {
             durationMs: 10,
             exitCode: 0,
             stderr: "",
-            stdout: "goodmemory-0.1.0-rc.1.tgz",
+            stdout:
+              input?.packStdout ?? "goodmemory-0.1.0-rc.1.tgz",
           };
         }
 
@@ -274,6 +276,31 @@ describe("run-phase-29 release scripts", () => {
         entry.path.endsWith("phase-29-rc-dry-run.json"),
       ),
     ).toBe(true);
+  });
+
+  it("uses the final non-empty pack output line as the tarball path", async () => {
+    const tarballPath =
+      "/tmp/goodmemory/reports/quality-gates/phase-29/run-phase29-rc/goodmemory-0.1.0-rc.1.tgz";
+    const { dependencies } = createRcDryRunHarness({
+      packStdout: [
+        "vite v8.1.4 building client environment for production...",
+        "",
+        tarballPath,
+        "",
+      ].join("\n"),
+    });
+
+    const report = await runPhase29RcDryRun(
+      {
+        outputDir: "/tmp/goodmemory/reports/quality-gates/phase-29",
+        runId: "run-phase29-rc",
+      },
+      dependencies,
+    );
+
+    expect(report.acceptance.decision).toBe("accepted");
+    expect(report.artifact.tarballName).toBe("goodmemory-0.1.0-rc.1.tgz");
+    expect(report.artifact.tarballPath).toBe(tarballPath);
   });
 
   it("blocks an RC dry run when the public smoke exits 0 without proving recall", async () => {
