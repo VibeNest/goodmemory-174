@@ -4,7 +4,7 @@ Phase 72: Agentic Eval and v0.6 Release
 Status
 ------
 
-[IMPLEMENTATION COMPLETE - FINAL VERSIONED VERIFICATION IN PROGRESS]
+[COMPLETE]
 
 Goal
 ----
@@ -111,17 +111,19 @@ distorted to fit those labels.
 [DONE] External adapter PR #17 was refreshed at `6e3b204` with generic
 timestamp preservation, tests, runner compile checks, and a real GoodMemory
 bridge smoke. It remains open pending maintainer review.
-[DONE] Final converged-tree verification is green. Typecheck passes; the
-canonical suite passes 3685 tests / 18775 assertions across 424 files; coverage
-passes at 90.74% (72398/79787); and all 89 release tests pass. Real desktop and
-mobile Chromium flows cover scope pagination, candidate transitions, revision,
-memory/scope deletion, trace, audit, fragment-token clearing, Bearer-only auth,
-ETag conflict handling, idempotent retry, and deprecated read-only viewer mode
-with clean normal-flow consoles. Packed-consumer smoke passes under Node
-20.20.2, 22.23.1, and 24.18.0. The 219-file tarball excludes `src/` and unpacks
-to 3,869,733 bytes (3.690460 MiB). After the `0.6.0` metadata update, the strict
-claim gate reports five consistent declarations with zero over-claiming: three
-current claims and two historical/internal declarations.
+[DONE] Final converged-tree verification is green. Typecheck passes; the exact
+intended tree passes 3743 tests / 19042 assertions across 436 files, with 2
+environment-gated Postgres skips and 0 failures. The separate Postgres-enabled
+coverage run passes 3634 tests with 0 failures and reaches 90.74% overall
+coverage (72432/79824) and 94.40% storage coverage (2528/2678). The focused
+release metadata suite passes 83/83. Real desktop and mobile Chromium flows
+cover scope pagination, candidate transitions, revision, memory/scope deletion,
+trace, audit, fragment-token clearing, Bearer-only auth, ETag conflict handling,
+idempotent retry, and deprecated read-only viewer mode with clean normal-flow
+consoles. Packed-consumer smoke passes under Node 20.20.2, 22.23.1, and 24.18.0.
+The 219-file tarball excludes `src/` and unpacks to 3,868,829 bytes (3.689603
+MiB). The strict claim gate reports five consistent declarations with zero
+over-claiming: three current claims and two historical/internal declarations.
 [DONE] The Phase 72 benchmark release gate reads and fingerprints all accepted
 source reports. Every unchanged threshold passes. BEAM passes the revised
 comparable gate with 0.8276290064 generalized recall, complete 400-question /
@@ -133,6 +135,6 @@ the public 0.49 reference. The 0.620 strict, 0.7650987103 unified stretch, and
 Release Decision
 ----------------
 
-The benchmark gate and `0.6.0` metadata/claim update are closed. Rerun the
-complete versioned release verification. Do not create a tag or publish until
-those final checks pass.
+The benchmark gate, `0.6.0` metadata/claim update, and complete versioned
+release-candidate verification are closed. The accepted commit may proceed to
+the separate tag/publication operation.

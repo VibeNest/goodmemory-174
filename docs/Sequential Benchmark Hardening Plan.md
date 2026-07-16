@@ -70,9 +70,9 @@ Official-protocol scoring must use a different judge model;
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-quality-gate.json`:
   the full repository suite passed with 0 failures, Phase 71 made 0 LLM calls, and the unpacked
   package remained below the 4 MiB release target.
-- Phase 72 has passed its benchmark gate and the `v0.6.0` metadata/claim update;
-  final versioned release verification is in progress. Historical fitted scores
-  must not be presented as current-production gains:
+- Phase 72 is complete. Its benchmark gate, `v0.6.0` metadata/claim update, and
+  complete versioned release-candidate verification pass. Historical fitted
+  scores must not be presented as current-production gains:
   - MemoryAgentBench completed with zero execution failures: CR is effectively
     flat at 0.9589041096 (70/73), while TTL improved from the historical 0.767
     to 0.9333333333 (28/30).
@@ -185,22 +185,24 @@ Official-protocol scoring must use a different judge model;
     gateway. MemGym's 16-question generated coding slice scored 1.0 versus
     0.125 no-memory, while MINTEval remains a one-row unscored smoke. None is a
     public benchmark claim.
-  - Final converged-tree verification is green. Typecheck passes; the canonical
-    suite passes 3685 tests with 18775 assertions across 424 files; coverage
-    passes at 90.74% (72398/79787); and all 89 release tests pass. Real desktop
+  - Final converged-tree verification is green. Typecheck passes; the exact
+    intended tree passes 3743 tests with 19042 assertions across 436 files,
+    with 2 environment-gated Postgres skips and 0 failures. The separate
+    Postgres-enabled coverage run passes 3634 tests with 0 failures and reaches
+    90.74% overall coverage (72432/79824) and 94.40% storage coverage
+    (2528/2678). The focused release metadata suite passes 83/83. Real desktop
     and mobile Chromium flows cover the complete Inspector mutation, trace,
     auth, ETag, idempotency, read-only, and audit paths with clean normal-flow
     consoles. Packed-consumer smoke passes under Node 20.20.2, 22.23.1, and
     24.18.0. The real package archive contains 219 files, excludes `src/`, and
-    unpacks to 3,869,733 bytes (3.690460 MiB). After the `0.6.0` metadata update,
-    the strict claim gate reports five consistent declarations with zero
-    over-claiming: three current claims and two historical/internal rows. The new
+    unpacks to 3,868,829 bytes (3.689603 MiB). The strict claim gate reports
+    five consistent declarations with zero over-claiming: three current claims
+    and two historical/internal rows. The
     `scripts/run-phase-72-release-gate.ts` gate reads and fingerprints the
     accepted reports and passes every unchanged benchmark threshold plus the
     revised BEAM boundary. Its generated artifact is
     `reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json`.
-    The remaining work is the complete versioned release verification, followed
-    by the separate tag/publication operation.
+    Tagging and publication remain separate release operations.
   - The neutral `mem0ai/memory-benchmarks` GoodMemory adapter PR was refreshed
     at commit `6e3b204`: benchmark timestamps are now preserved in indexed text,
     its Python tests and three runner compiles pass, and a real bridge smoke

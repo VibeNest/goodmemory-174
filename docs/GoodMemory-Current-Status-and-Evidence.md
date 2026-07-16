@@ -125,10 +125,14 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   retry-merged artifact reaches 0.6923666667 with zero failures, but does not
   replace a monolithic fresh Full-300 run. HaluMem, MemGym, and MINTEval remain
   release evidence rather than public benchmark claims. External adapter PR
-  #17 remains open pending maintainer review. The complete `v0.6.0` test,
-  coverage, package, Node LTS, and browser verification is being rerun after
-  the version/claim update; no tag or publication is authorized until it
-  passes.
+  #17 remains open pending maintainer review. The complete `v0.6.0`
+  release-candidate verification passes: the exact intended tree has 3743
+  passing tests, 2 environment-gated Postgres skips, and 0 failures across 436
+  files; the separate Postgres-enabled coverage run has 3634 passing tests, 0
+  failures, 90.74% overall coverage, and 94.40% storage coverage. Node
+  20/22/24 packed-consumer smokes and desktop/mobile browser flows pass. The
+  219-file tarball excludes `src/` and unpacks to 3,868,829 bytes (3.689603
+  MiB). Tagging and publication remain separate release operations.
 
 ## Public Boundary Notes
 
