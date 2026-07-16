@@ -89,7 +89,7 @@ describe("Codex coding-effect C3 installed host canary", () => {
           writebackEvents: [{ command: "turn-end", status: "committed" }],
         },
       });
-      expect(await readdir(runtime.plan.paths.result)).toEqual([
+      expect((await readdir(runtime.plan.paths.result)).sort()).toEqual([
         "codex-rollout.sanitized.jsonl",
         "host-canary-state.sanitized.json",
       ]);
