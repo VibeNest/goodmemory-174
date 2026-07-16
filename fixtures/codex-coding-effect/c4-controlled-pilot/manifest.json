@@ -2,6 +2,7 @@
   "datasetId": "codex-c4-controlled-pilot-v2",
   "episodes": [
     {
+      "allowedPublicLeakageRelations": [],
       "allowedPublicLeakageValues": [
         3000,
         "local"
@@ -190,6 +191,7 @@
       ]
     },
     {
+      "allowedPublicLeakageRelations": [],
       "allowedPublicLeakageValues": [
         null,
         "->value",
@@ -380,6 +382,7 @@
       ]
     },
     {
+      "allowedPublicLeakageRelations": [],
       "allowedPublicLeakageValues": [
         "east"
       ],
@@ -566,6 +569,24 @@
       ]
     },
     {
+      "allowedPublicLeakageRelations": [
+        [
+          " direct ",
+          "direct"
+        ],
+        [
+          " info ",
+          true
+        ],
+        [
+          " info ",
+          "info"
+        ],
+        [
+          " json ",
+          "json"
+        ]
+      ],
       "allowedPublicLeakageValues": [
         false,
         true,
@@ -784,6 +805,7 @@
       ]
     },
     {
+      "allowedPublicLeakageRelations": [],
       "allowedPublicLeakageValues": [
         0,
         250,
@@ -972,6 +994,7 @@
       ]
     },
     {
+      "allowedPublicLeakageRelations": [],
       "allowedPublicLeakageValues": [],
       "author": "GoodMemory C4 dataset author",
       "claimEligibility": "pilot-only",

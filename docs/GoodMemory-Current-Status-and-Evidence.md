@@ -81,9 +81,11 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   C4 was reopened again after the hidden-value audit was shown to miss scalar
   values and input-output relationships. The repaired audit derives typed
   scalar values and per-case argument/expected-value relations from both
-  fail-to-pass and pass-to-pass cases. Projection envelope metadata is removed
-  only from that surface's semantic hidden-value view, never from the episode
-  globally. It rejects the reproduced `docs/setup guide#intro`,
+  fail-to-pass and pass-to-pass cases. Only frozen relations already present in
+  the natural public repository surface are exempt; synthetic file/path
+  envelope metadata cannot create an exemption. Projection envelope metadata
+  is removed only from that surface's semantic hidden-value view, never from
+  the episode globally. It rejects the reproduced `docs/setup guide#intro`,
   `2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
   pass-to-pass leaks, `INFO -> invalid-level/false`, and numeric equivalents
   such as `3,000`, `3e3`, and `62.50`. Gold replay stages every

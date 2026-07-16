@@ -19,7 +19,10 @@ import type {
   CodexCodingEffectDatasetV2,
 } from "./dataset";
 import { validateC4ControlledPilotDataset } from "./c4-contracts";
-import { c4HiddenValueAppearsInSurface } from "./c4-leakage";
+import {
+  c4HiddenValueAppearsInSurface,
+  c4HiddenValueRelationAppearsInSurface,
+} from "./c4-leakage";
 import { runBoundaryProcess } from "./process";
 
 const DATASET_ID = "codex-c4-controlled-pilot-v2";
@@ -1289,6 +1292,10 @@ async function writeManifest(
         };
       }));
       return {
+        allowedPublicLeakageRelations: await allowedPublicLeakageRelations(
+          root,
+          episode,
+        ),
         allowedPublicLeakageValues: await allowedPublicLeakageValues(
           root,
           episode,
@@ -1364,6 +1371,48 @@ async function allowedPublicLeakageValues(
     .map(([, value]) => value);
 }
 
+async function allowedPublicLeakageRelations(
+  root: string,
+  episode: EpisodeSpec,
+): Promise<Array<[
+  string | number | boolean | null,
+  string | number | boolean | null,
+]>> {
+  const hidden = new Map<string, [
+    string | number | boolean | null,
+    string | number | boolean | null,
+  ]>();
+  for (const testCase of episode.stages.flatMap((stage) => [
+    ...stage.failToPass,
+    ...stage.passToPass,
+  ])) {
+    const arguments_ = collectLeakageScalars(testCase.args);
+    const expected = collectLeakageScalars(testCase.expected);
+    for (const argument of arguments_) {
+      for (const value of expected) {
+        if (leakageScalarKey(argument) === leakageScalarKey(value)) {
+          continue;
+        }
+        const relation: [
+          string | number | boolean | null,
+          string | number | boolean | null,
+        ] = [argument, value];
+        hidden.set(leakageRelationKey(relation), relation);
+      }
+    }
+  }
+  const publicSurface = (await Promise.all(
+    (await walk(join(root, "repositories", episode.repositoryId)))
+      .map((path) => readFile(path, "utf8")),
+  )).join("\n");
+  return [...hidden.entries()]
+    .filter(([, relation]) =>
+      c4HiddenValueRelationAppearsInSurface(publicSurface, relation)
+    )
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, relation]) => relation);
+}
+
 function collectLeakageScalars(
   value: unknown,
 ): Array<string | number | boolean | null> {
@@ -1389,6 +1438,12 @@ function leakageScalarKey(value: string | number | boolean | null): string {
     type: value === null ? "null" : typeof value,
     value,
   });
+}
+
+function leakageRelationKey(
+  relation: readonly (string | number | boolean | null)[],
+): string {
+  return JSON.stringify(relation.map((value) => leakageScalarKey(value)));
 }
 
 async function collectAssetFiles(root: string): Promise<C4AssetFile[]> {

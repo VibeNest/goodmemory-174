@@ -93,6 +93,15 @@ describe("Codex coding-effect C4 controlled dataset v2 difficulty", () => {
         "duration-configuration-policy",
         "independent-string-utilities",
       ]);
+      const settings = fixture.dataset.episodes.find((episode) =>
+        episode.id === "parse-result-correction"
+      )!;
+      expect(settings.allowedPublicLeakageRelations?.some((relation) =>
+        relation[0] === " info " && relation[1] === true
+      )).toBe(true);
+      expect(settings.allowedPublicLeakageRelations?.some((relation) =>
+        relation[0] === "INFO" && relation[1] === "invalid-level"
+      )).toBe(false);
 
       for (const episode of fixture.dataset.episodes) {
         for (const stage of episode.stages) {

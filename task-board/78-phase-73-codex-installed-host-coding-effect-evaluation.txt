@@ -137,8 +137,10 @@ fresh base clones per stage produced 54 stable expected-failure probes; all 18
 gold patches replayed in fresh clones and passed visible, fail-to-pass, and
 pass-to-pass tests. The repaired leakage audit derives typed scalar leaves and
 per-case input-output relations from both fail-to-pass and pass-to-pass cases.
-Envelope metadata is excluded only from that surface's semantic hidden-value
-view, not from the episode globally. The reproduced `docs/setup guide#intro`,
+Only frozen relations present in natural public repository content are exempt;
+synthetic file/path envelopes cannot create exemptions. Envelope metadata is
+excluded only from that surface's semantic hidden-value view, not from the
+episode globally. The reproduced `docs/setup guide#intro`,
 `2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
 pass-to-pass, `INFO -> invalid-level/false`, `3,000`, `3e3`, and `62.50`
 leaks all fail. Its 1458 mutation cells inject fragment, typed-value, and

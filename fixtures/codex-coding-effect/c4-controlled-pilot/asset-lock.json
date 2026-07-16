@@ -1,5 +1,5 @@
 {
-  "assetRootSha256": "3729caa210fe562e2cc595806c776d5631cc688af933e70eab05c48cf98b21ca",
+  "assetRootSha256": "cecaba25e9739d534a90d63aacdaeb89c35457e46ca56f5efd7fba1aac6bf0de",
   "files": [
     {
       "bytes": 20001,
@@ -134,10 +134,10 @@
       "sha256": "9426c2544406ccb3513a39a8a62b97e510d3cd333c5e8f8610b2c8a39233c079"
     },
     {
-      "bytes": 38492,
+      "bytes": 38990,
       "kind": "manifest",
       "path": "manifest.json",
-      "sha256": "617be1e7060cab09d37bab56649543cf80da53b5caa63ab148b90f323b4e4d94"
+      "sha256": "a856596d5826c36b03e694156997636bc2f4b4fa649f29ede504268ee1d4fbb6"
     },
     {
       "bytes": 482,

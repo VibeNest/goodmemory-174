@@ -128,8 +128,13 @@ const leakageScalarSchema = z.union([
   z.boolean(),
   z.null(),
 ]);
+const leakageRelationSchema = z.tuple([
+  leakageScalarSchema,
+  leakageScalarSchema,
+]);
 
 const episodeBaseShape = {
+  allowedPublicLeakageRelations: z.array(leakageRelationSchema).optional(),
   allowedPublicLeakageValues: z.array(leakageScalarSchema).optional(),
   author: trimmedStringSchema,
   claimEligibility: z.enum(["pilot-only", "claim-eligible"]),

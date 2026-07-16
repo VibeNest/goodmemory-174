@@ -41,6 +41,7 @@ import {
 import {
   auditC4SurfaceHiddenArtifactMatrix,
   c4HiddenValueAppearsInSurface,
+  c4HiddenValueRelationAppearsInSurface,
   C4_HIDDEN_ARTIFACT_IDS,
   C4_LEAKAGE_SURFACE_IDS,
   mutationTestC4SurfaceHiddenArtifactMatrix,
@@ -1024,16 +1025,17 @@ async function auditC4Leakage(
     const repositorySurfaceFiles = await collectC4RepositorySurfaceFiles(
       repositoryRoot,
     );
-    const repositoryInstructions = repositorySurfaceFiles
-      .filter((file) => file.path.split("/").at(-1) === "AGENTS.md")
+    const repositoryInstructionFiles = repositorySurfaceFiles
+      .filter((file) => file.path.split("/").at(-1) === "AGENTS.md");
+    const visibleFiles = repositorySurfaceFiles
+      .filter((file) => file.path.split("/").at(-1) !== "AGENTS.md");
+    const repositoryInstructions = repositoryInstructionFiles
       .map(serializeRepositorySurfaceFile);
-    const visibleRepositoryFiles = repositorySurfaceFiles
-      .filter((file) => file.path.split("/").at(-1) !== "AGENTS.md")
+    const visibleRepositoryFiles = visibleFiles
       .map(serializeRepositorySurfaceFile);
-    const publicNaturalSurface = [
-      ...repositoryInstructions,
-      ...visibleRepositoryFiles,
-    ].join("\n");
+    const publicNaturalSurface = repositorySurfaceFiles
+      .map((file) => file.content)
+      .join("\n\n");
     const prehistoryMessages = artifact.records.map((record) =>
       record.message
     ).join("\n");
@@ -1087,6 +1089,31 @@ async function auditC4Leakage(
     const declaredAllowedValues = uniqueHiddenValues(
       episode.allowedPublicLeakageValues ?? [],
     );
+    const allHiddenRelations = uniqueHiddenValueRelations(
+      episodeCases.flatMap((testCase) => [
+        ...testCase.failToPass,
+        ...testCase.passToPass,
+      ]).flatMap(hiddenCaseRelations),
+    );
+    const allHiddenRelationKeys = new Set(
+      allHiddenRelations.map(hiddenValueRelationKey),
+    );
+    const declaredAllowedRelations = uniqueHiddenValueRelations(
+      episode.allowedPublicLeakageRelations ?? [],
+    );
+    for (const relation of declaredAllowedRelations) {
+      if (
+        !allHiddenRelationKeys.has(hiddenValueRelationKey(relation)) ||
+        !c4HiddenValueRelationAppearsInSurface(
+          publicNaturalSurface,
+          relation,
+        )
+      ) {
+        throw new Error(
+          `C4 public leakage relation allowlist drifted for ${episode.id}`,
+        );
+      }
+    }
     const hiddenValueKeys = new Set(allHiddenValues.map(hiddenValueKey));
     for (const value of declaredAllowedValues) {
       if (
@@ -1100,6 +1127,9 @@ async function auditC4Leakage(
     }
     const declaredAllowedValueKeys = new Set(
       declaredAllowedValues.map(hiddenValueKey),
+    );
+    const declaredAllowedRelationKeys = new Set(
+      declaredAllowedRelations.map(hiddenValueRelationKey),
     );
     for (const [stageIndex, stage] of episode.stages.entries()) {
       const testCase = episodeCases.find((candidate) =>
@@ -1154,6 +1184,9 @@ async function auditC4Leakage(
         },
         {
           content: repositoryInstructions.join("\n"),
+          hiddenValueContent: repositoryInstructionFiles
+            .map((file) => file.content)
+            .join("\n\n"),
           id: "repository-instructions",
         },
         {
@@ -1162,6 +1195,9 @@ async function auditC4Leakage(
         },
         {
           content: visibleRepositoryFiles.join("\n"),
+          hiddenValueContent: visibleFiles
+            .map((file) => file.content)
+            .join("\n\n"),
           id: "visible-repository-files",
         },
       ];
@@ -1184,12 +1220,11 @@ async function auditC4Leakage(
       ).filter((value) =>
         !declaredAllowedValueKeys.has(hiddenValueKey(value))
       );
-      const hiddenValueRelations = stageCases.map((hiddenCase) =>
-        uniqueHiddenValues([
-          ...collectHiddenValues(hiddenCase.args),
-          ...collectHiddenValues(hiddenCase.expected),
-        ])
-      ).filter((relation) => relation.length >= 2);
+      const hiddenValueRelations = uniqueHiddenValueRelations(
+        stageCases.flatMap(hiddenCaseRelations),
+      ).filter((relation) =>
+        !declaredAllowedRelationKeys.has(hiddenValueRelationKey(relation))
+      );
       const goldCandidateLines = meaningfulAddedLines(goldPatch.bytes);
       const hiddenSourceCandidateLines = [...new Set([
         ...meaningfulSourceLines(evaluatorRunnerBytes),
@@ -1571,6 +1606,36 @@ function uniqueHiddenValues(
     hiddenValueKey(value),
     value,
   ])).values()];
+}
+
+function hiddenCaseRelations(hiddenCase: {
+  args: unknown;
+  expected: unknown;
+}): C4HiddenValue[][] {
+  const arguments_ = uniqueHiddenValues(collectHiddenValues(hiddenCase.args));
+  const expected = uniqueHiddenValues(collectHiddenValues(hiddenCase.expected));
+  return arguments_.flatMap((argument) =>
+    expected
+      .filter((value) => hiddenValueKey(value) !== hiddenValueKey(argument))
+      .map((value) => [argument, value])
+  );
+}
+
+function uniqueHiddenValueRelations(
+  relations: readonly (readonly C4HiddenValue[])[],
+): C4HiddenValue[][] {
+  return [...new Map(relations.map((relation) => [
+    hiddenValueRelationKey(relation),
+    [...relation],
+  ])).entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, relation]) => relation);
+}
+
+function hiddenValueRelationKey(
+  relation: readonly C4HiddenValue[],
+): string {
+  return JSON.stringify(relation.map(hiddenValueKey));
 }
 
 function hiddenValueKey(value: C4HiddenValue): string {

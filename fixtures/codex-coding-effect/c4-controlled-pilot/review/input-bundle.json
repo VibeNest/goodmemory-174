@@ -90,7 +90,7 @@
     },
     {
       "path": "manifest.json",
-      "sha256": "617be1e7060cab09d37bab56649543cf80da53b5caa63ab148b90f323b4e4d94"
+      "sha256": "a856596d5826c36b03e694156997636bc2f4b4fa649f29ede504268ee1d4fbb6"
     },
     {
       "path": "prehistory/delimiter-boundary-policy.jsonl",
@@ -241,8 +241,8 @@
       "sha256": "1fa0c4c1301590105df42748c8a05b531b18dd005830b11b27f2feff291980ea"
     }
   ],
-  "assetLockSha256": "e9c7450edf6f61d8f5a744e401e31eb34da18a427a97fa0b3c3a7538870b7cfb",
-  "assetRootSha256": "3729caa210fe562e2cc595806c776d5631cc688af933e70eab05c48cf98b21ca",
+  "assetLockSha256": "e4dc91796e8ffef8eb327521960d7d3a7a26255eff9980b814dd9880a9a6b027",
+  "assetRootSha256": "cecaba25e9739d534a90d63aacdaeb89c35457e46ca56f5efd7fba1aac6bf0de",
   "createdAt": "2026-07-16T15:00:00.000Z",
   "datasetRootPath": "fixtures/codex-coding-effect/c4-controlled-pilot",
   "datasetId": "codex-c4-controlled-pilot-v2",
@@ -251,10 +251,10 @@
     "c4-paired-results",
     "c5-paired-results"
   ],
-  "leakageAuditSha256": "5c93f9afa940fb7f35684f14129f7aaebb32ab38199dd3713cb406cf25e63be7",
-  "manifestSha256": "617be1e7060cab09d37bab56649543cf80da53b5caa63ab148b90f323b4e4d94",
+  "leakageAuditSha256": "0e4ac4435dd571e701378eef282e39969bc6e7f330cef7b66fe02f8a81f8aa2f",
+  "manifestSha256": "a856596d5826c36b03e694156997636bc2f4b4fa649f29ede504268ee1d4fbb6",
   "readinessCorePath": "reports/quality-gates/phase-73/c4-controlled-pilot-core.json",
-  "readinessCoreSha256": "b92caa139aece3034a5077f5254bd4d478a4743348a4b7bcd13b46b406d0118f",
+  "readinessCoreSha256": "3c614213fbe00f9b217da0c19792e6d080ae01b4eaac0af4f2b469943ed1841d",
   "schemaVersion": 1,
   "scope": "dataset-only-no-coding-outcomes"
 }

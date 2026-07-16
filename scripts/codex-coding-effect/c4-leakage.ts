@@ -380,6 +380,13 @@ export function c4HiddenValueAppearsInSurface(
   return matchHiddenValue(surface, value) !== null;
 }
 
+export function c4HiddenValueRelationAppearsInSurface(
+  surface: string,
+  relation: readonly C4HiddenValue[],
+): boolean {
+  return matchHiddenValueRelation(surface, relation) !== null;
+}
+
 function matchHiddenValue(
   surface: string,
   value: C4HiddenValue,
@@ -404,7 +411,7 @@ function matchHiddenValueRelation(
   surface: string,
   relation: readonly C4HiddenValue[],
 ): "exact" | "normalized" | null {
-  for (const segment of surface.split(/\r?\n/u)) {
+  for (const segment of relationSegments(surface)) {
     const matches = relation.map((value) => matchHiddenValue(segment, value));
     if (matches.every((match) => match !== null)) {
       return matches.every((match) => match === "exact")
@@ -413,6 +420,28 @@ function matchHiddenValueRelation(
     }
   }
   return null;
+}
+
+function relationSegments(surface: string): string[] {
+  const segments = new Set<string>();
+  for (const paragraph of surface.split(/\r?\n\s*\r?\n/u)) {
+    const lines = paragraph.split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    for (const [start] of lines.entries()) {
+      for (
+        let end = start + 1;
+        end <= Math.min(lines.length, start + 4);
+        end += 1
+      ) {
+        const segment = lines.slice(start, end).join("\n");
+        if (segment.length <= 512) {
+          segments.add(segment);
+        }
+      }
+    }
+  }
+  return [...segments];
 }
 
 function containsEquivalentNumber(surface: string, value: number): boolean {

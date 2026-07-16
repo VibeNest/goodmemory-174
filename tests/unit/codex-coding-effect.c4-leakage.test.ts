@@ -255,6 +255,35 @@ describe("Codex coding-effect C4 leakage matrix", () => {
     }).status).toBe("rejected");
   });
 
+  it("detects a hidden input-output relation across a short structured block", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "hidden-test-source"
+        ? {
+            ...artifact,
+            hiddenValueRelations: [["INFO", "invalid-level"]],
+            hiddenValues: [],
+          }
+        : artifact
+    );
+    const mutated = surfaces().map((surface) =>
+      surface.id === "stage-prompts"
+        ? {
+            ...surface,
+            hiddenValueContent: [
+              "input: INFO",
+              "metadata: public",
+              "expected: invalid-level",
+            ].join("\n"),
+          }
+        : surface
+    );
+
+    expect(auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: mutated,
+    }).status).toBe("rejected");
+  });
+
   it("audits semantic hidden values without treating projection metadata as leakage", () => {
     const hiddenArtifacts = artifacts().map((artifact) =>
       artifact.id === "hidden-test-source"

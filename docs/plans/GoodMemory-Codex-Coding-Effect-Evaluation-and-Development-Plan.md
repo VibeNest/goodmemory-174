@@ -1748,8 +1748,10 @@ accepted. The leakage audit was reopened after reproduced false negatives
 showed that scalar evaluator values and input-output relationships could escape
 the audit. The repaired audit derives typed scalar leaves and per-case
 argument/expected-value relations from both fail-to-pass and pass-to-pass
-cases. Projection envelope metadata is excluded only from the semantic
-hidden-value view of that surface, not from the episode globally. It rejects
+cases. Only frozen relationships already present in the natural public
+repository surface are exempt; synthetic file/path envelope metadata cannot
+create an exemption. Projection envelope metadata is excluded only from the
+semantic hidden-value view of that surface, not from the episode globally. It rejects
 the reproduced `docs/setup guide#intro`, `2.5 -> 2_500`, hidden value `1`
 beside `schemaVersion: 1`, short pass-to-pass leaks,
 `INFO -> invalid-level/false`, and numeric equivalents such as `3,000`, `3e3`,
