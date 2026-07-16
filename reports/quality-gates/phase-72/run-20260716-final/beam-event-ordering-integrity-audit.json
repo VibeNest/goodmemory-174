@@ -1,0 +1,796 @@
+{
+  "audit": {
+    "cases": [
+      {
+        "evidenceChatIds": [
+          4,
+          60,
+          116
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of developing my personal budget tracker throughout our conversations, in order? Mention ONLY and ONLY three items.",
+        "questionId": "1:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 3,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 3,
+        "uniqueEvidenceCount": 3
+      },
+      {
+        "evidenceChatIds": [
+          6,
+          62,
+          118,
+          120
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my app development and deployment across our conversations? Mention ONLY and ONLY five items.",
+        "questionId": "1:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 4
+      },
+      {
+        "evidenceChatIds": [
+          20,
+          22,
+          24,
+          74,
+          160
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of implementing the city autocomplete feature across our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "2:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          28,
+          162
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of handling errors and promise rejections in my weather app code throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "2:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 2
+      },
+      {
+        "evidenceChatIds": [
+          10,
+          72,
+          148
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of integrating and customizing the framework in my projects across our conversations, in order? Mention ONLY and ONLY three items.",
+        "questionId": "3:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 3,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 3,
+        "uniqueEvidenceCount": 3
+      },
+      {
+        "evidenceChatIds": [
+          12,
+          82,
+          164
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of my project development throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "3:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 3
+      },
+      {
+        "evidenceChatIds": [
+          8,
+          12,
+          16,
+          20,
+          24,
+          26,
+          28,
+          30,
+          58
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of classifying triangles throughout our conversations, including how I first approached understanding their types, then moved on to calculating areas, identifying key characteristics, comparing types, and finally applying these concepts to more complex problems, in order? Mention ONLY and ONLY nine items.",
+        "questionId": "4:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 9,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 9,
+        "uniqueEvidenceCount": 9
+      },
+      {
+        "evidenceChatIds": [
+          116,
+          118,
+          120,
+          122,
+          128,
+          130,
+          132,
+          134,
+          136,
+          138
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different concepts related to triangle geometry throughout our conversations, in order? Mention ONLY and ONLY nine items.",
+        "questionId": "4:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 9,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 9,
+        "uniqueEvidenceCount": 10
+      },
+      {
+        "evidenceChatIds": [
+          6,
+          10,
+          14,
+          34,
+          16,
+          18,
+          30,
+          20,
+          24,
+          50,
+          56,
+          58
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 16,
+            "currentIndex": 4,
+            "previousChatId": 34,
+            "previousIndex": 3
+          },
+          {
+            "currentChatId": 20,
+            "currentIndex": 7,
+            "previousChatId": 30,
+            "previousIndex": 6
+          }
+        ],
+        "question": "Can you list the order in which I brought up different foundational concepts related to probability throughout our conversations, in order? Mention ONLY and ONLY six items.",
+        "questionId": "5:event_ordering:1",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 12
+      },
+      {
+        "evidenceChatIds": [
+          28,
+          76
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of combinatorial calculations and probability concepts throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "5:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 2
+      },
+      {
+        "evidenceChatIds": [
+          4,
+          60,
+          110,
+          156,
+          206,
+          6
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 6,
+            "currentIndex": 5,
+            "previousChatId": 206,
+            "previousIndex": 4
+          }
+        ],
+        "question": "Can you list the order in which I brought up different aspects of improving my professional profile and resume throughout our conversations in order? Mention ONLY and ONLY six items.",
+        "questionId": "6:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          18,
+          56,
+          108,
+          176,
+          244
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my career development and relocation plans in our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "6:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          14,
+          64,
+          124,
+          170,
+          214
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of my academic work and mentorship throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "7:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          16,
+          54,
+          122,
+          168,
+          216
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list in order how I brought up different aspects of my research and writing projects throughout our conversations? Mention ONLY and ONLY five items.",
+        "questionId": "7:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          8,
+          58,
+          116,
+          174,
+          228
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my personal and professional progress throughout our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "8:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          6,
+          56,
+          114,
+          172,
+          226
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my professional connections and preparation throughout our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "8:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          4,
+          60,
+          108,
+          164,
+          166,
+          168
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of refining my personal statement throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "9:event_ordering:1",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          24,
+          76,
+          118,
+          208,
+          260
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different ways my family has supported me in my personal statement across our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "9:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          6,
+          82,
+          182,
+          238,
+          84
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 84,
+            "currentIndex": 4,
+            "previousChatId": 238,
+            "previousIndex": 3
+          }
+        ],
+        "question": "Can you walk me through the order in which I brought up different aspects of my writing journey throughout our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "10:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          52,
+          78,
+          176,
+          228,
+          230,
+          232
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my collaboration with Carla throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "10:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          24,
+          26,
+          28,
+          192,
+          106,
+          108
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 106,
+            "currentIndex": 4,
+            "previousChatId": 192,
+            "previousIndex": 3
+          }
+        ],
+        "question": "Can you walk me through the order in which I brought up different aspects of using AI in our hiring process across our conversations, in order? Mention ONLY and ONLY six items.",
+        "questionId": "11:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          44,
+          104,
+          198,
+          46,
+          200
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 46,
+            "currentIndex": 3,
+            "previousChatId": 198,
+            "previousIndex": 2
+          }
+        ],
+        "question": "Can you walk me through the order in which I brought up different cost-saving and involvement topics related to hiring automation across our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "11:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          58,
+          60,
+          74,
+          110,
+          112,
+          164,
+          166,
+          168,
+          232,
+          234,
+          236,
+          258,
+          260,
+          262
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of balancing my personal relationship and beliefs throughout our conversations, in order? Mention ONLY and ONLY seven items.",
+        "questionId": "12:event_ordering:1",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 7,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 7,
+        "uniqueEvidenceCount": 14
+      },
+      {
+        "evidenceChatIds": [
+          32,
+          50,
+          78,
+          98,
+          176,
+          218
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different ideas related to free will and personal reflection throughout our conversations, in order? Mention ONLY and ONLY six items.",
+        "questionId": "12:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          16,
+          86,
+          164,
+          222,
+          272
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of my book club activities throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "13:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          20,
+          22,
+          70,
+          72,
+          74,
+          174,
+          176,
+          232,
+          282
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different shared entertainment interests with Douglas throughout our conversations, in order? Mention ONLY and ONLY six items.",
+        "questionId": "13:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 9
+      },
+      {
+        "evidenceChatIds": [
+          20,
+          122,
+          168,
+          170,
+          172,
+          224
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different planning details for my movie marathons across our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "14:event_ordering:1",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          14,
+          16,
+          72,
+          182,
+          246,
+          130
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 130,
+            "currentIndex": 5,
+            "previousChatId": 246,
+            "previousIndex": 4
+          }
+        ],
+        "question": "Can you walk me through the order in which I brought up different ideas and contributions related to my movie nights across our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "14:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": true,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          34,
+          70,
+          118,
+          200
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different sneaker shopping experiences and related details throughout our conversations in order? Mention ONLY and ONLY four items.",
+        "questionId": "15:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 4,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 4,
+        "uniqueEvidenceCount": 4
+      },
+      {
+        "evidenceChatIds": [
+          54,
+          94,
+          138,
+          184,
+          262
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different safety and comfort features of my sneakers during our chats, in order? Mention ONLY and ONLY five items.",
+        "questionId": "15:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          22,
+          66,
+          132,
+          256
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different financial planning topics during our chats, in order? Mention ONLY and ONLY four items.",
+        "questionId": "16:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 4,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 4,
+        "uniqueEvidenceCount": 4
+      },
+      {
+        "evidenceChatIds": [
+          24,
+          26,
+          94,
+          96,
+          160,
+          162,
+          164,
+          244
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different ways I’ve been managing stress and financial concerns throughout our chats, in order? Mention ONLY and ONLY four items.",
+        "questionId": "16:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 4,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 4,
+        "uniqueEvidenceCount": 8
+      },
+      {
+        "evidenceChatIds": [
+          26,
+          88,
+          154,
+          202,
+          248
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different strategies and support options for managing my workload throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "17:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      },
+      {
+        "evidenceChatIds": [
+          22,
+          110,
+          160,
+          210,
+          256,
+          258
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of my creative collaborations and related plans throughout our conversations in order? Mention ONLY and ONLY six items.",
+        "questionId": "17:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          30,
+          138,
+          196,
+          254,
+          198,
+          258
+        ],
+        "evidenceOrderInversions": [
+          {
+            "currentChatId": 198,
+            "currentIndex": 4,
+            "previousChatId": 254,
+            "previousIndex": 3
+          }
+        ],
+        "question": "Can you walk me through the order in which I brought up different aspects of my interactions with Patrick throughout our conversations, in order? Mention ONLY and ONLY six items.",
+        "questionId": "18:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          24,
+          26,
+          28,
+          146,
+          202,
+          204,
+          262
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different personal and work-related challenges during our chats, in order? Mention ONLY and ONLY four items.",
+        "questionId": "18:event_ordering:2",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 4,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 4,
+        "uniqueEvidenceCount": 7
+      },
+      {
+        "evidenceChatIds": [
+          22,
+          108,
+          178,
+          180
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you list the order in which I brought up different aspects of my plans involving Douglas throughout our conversations in order? Mention ONLY and ONLY five items.",
+        "questionId": "19:event_ordering:1",
+        "requestedEvidenceCountMismatch": true,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 4
+      },
+      {
+        "evidenceChatIds": [
+          8,
+          10,
+          12,
+          138,
+          210,
+          212,
+          214
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different concerns and plans related to my family’s care and financial arrangements throughout our conversations, in order? Mention ONLY and ONLY seven items.",
+        "questionId": "19:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 7,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 7,
+        "uniqueEvidenceCount": 7
+      },
+      {
+        "evidenceChatIds": [
+          30,
+          164,
+          200,
+          202,
+          204,
+          206
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up different aspects of my patent filing plans and related funding discussions across our conversations in order? Mention ONLY and ONLY six items.",
+        "questionId": "20:event_ordering:1",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 6,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 6,
+        "uniqueEvidenceCount": 6
+      },
+      {
+        "evidenceChatIds": [
+          32,
+          70,
+          122,
+          188,
+          190
+        ],
+        "evidenceOrderInversions": [],
+        "question": "Can you walk me through the order in which I brought up the different stages of my patent process throughout our conversations, in order? Mention ONLY and ONLY five items.",
+        "questionId": "20:event_ordering:2",
+        "requestedEvidenceCountMismatch": false,
+        "requestedItemCount": 5,
+        "requestedRubricCountMismatch": false,
+        "rubricItemCount": 5,
+        "uniqueEvidenceCount": 5
+      }
+    ],
+    "summary": {
+      "adjacentEvidenceOrderInversions": 8,
+      "casesWithNonChronologicalEvidenceOrder": 7,
+      "casesWithRequestedRubricCountMismatch": 1,
+      "casesWithRequestedUniqueEvidenceCountMismatch": 15,
+      "strictBinaryGateEligible": false,
+      "totalEventOrderingCases": 40
+    }
+  },
+  "benchmark": "BEAM-100K",
+  "claimBoundary": {
+    "officialUnifiedScore": "Comparable stored-answer evidence remains valid under the disclosed independent unified-rubric protocol.",
+    "strictBinaryGate": "Diagnostic only: event_ordering ground truth contains chronological-order or question/rubric contradictions."
+  },
+  "generatedAt": "2026-07-16T12:34:11.481Z",
+  "generatedBy": "scripts/audit-phase-72-beam-event-ordering-integrity.ts",
+  "source": {
+    "benchmarkRoot": "/Users/hjqcan/.cache/goodmemory-benchmarks/beam-100k",
+    "normalizedRowsSha256": "a683426c77175a556d4d5548a5ebc84b74dbde5e841c9c12834dd1c74b105dc7",
+    "rubricsPath": "/Users/hjqcan/.goodmemory-beam/rubrics-by-question-id.json",
+    "rubricsSha256": "85d2bdaad39dd63335505c3a5488437a8d380caca75cbad300df46db89ce22b1"
+  },
+  "upstream": {
+    "commit": "3e12035532eb85768f1a7cd779832b650c4b2ef9",
+    "repository": "https://github.com/mohammadtavakoli78/BEAM"
+  }
+}

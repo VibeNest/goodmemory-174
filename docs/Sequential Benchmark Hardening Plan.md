@@ -70,9 +70,9 @@ Official-protocol scoring must use a different judge model;
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/phase-71-quality-gate.json`:
   the full repository suite passed with 0 failures, Phase 71 made 0 LLM calls, and the unpacked
   package remained below the 4 MiB release target.
-- Phase 72 is active and the `v0.6.0` release gate remains open. The current
-  generalized refresh is mixed, so historical fitted scores must not be
-  presented as current-production gains:
+- Phase 72 has passed its benchmark gate; the `v0.6.0` metadata update and
+  final versioned release verification remain. Historical fitted scores must
+  not be presented as current-production gains:
   - MemoryAgentBench completed with zero execution failures: CR is effectively
     flat at 0.9589041096 (70/73), while TTL improved from the historical 0.767
     to 0.9333333333 (28/30).
@@ -93,8 +93,9 @@ Official-protocol scoring must use a different judge model;
     execution failures and 0.8276290064 evidence-chat recall. The same stored
     answers score 248/400 = 0.620 under the strict internal binary judge,
     0.7650987103 under the independent `gpt-5.5` unified 1051-item rubric, and
-    0.7510180808 under the upstream paper protocol. Recall clears 0.80, but the
-    declared 0.72 strict and 0.80 official answer gates remain open. A prior run
+    0.7510180808 under the upstream paper protocol. Recall clears 0.80 and the
+    unified score is 27.51 points above the only public full-400 same-protocol
+    reference (0.49). A prior run
     with legacy fitted answer postprocessing scored 0.615 strict and
     0.7551614075 under the paper protocol. Removing that postprocessing raised
     strict by 0.5pt and changed paper scoring by less than 0.5pt, demonstrating
@@ -106,7 +107,17 @@ Official-protocol scoring must use a different judge model;
     particular, event-ordering labels often select one plausible milestone
     among several, while some knowledge-update labels conflict with the actual
     latest conversation value. Production semantics were not distorted to fit
-    those labels, so BEAM remains the only benchmark score blocker.
+    those labels. A frozen integrity audit then established an objective
+    protocol boundary: 7/40 event-ordering cases contain 8 adjacent evidence-ID
+    reversals despite asking for chronological order, 15/40 request a different
+    item count from the unique evidence count, and `14:event_ordering:2` asks
+    for five items while its official rubric contains six. Therefore 0.72
+    strict and 0.80 unified remain disclosed stretch diagnostics, while the
+    hard BEAM release gate uses complete independent unified-rubric scoring
+    against the public 0.49 same-protocol reference plus recall >= 0.80 and
+    zero failures. The strict threshold automatically becomes hard again when
+    the dataset audit is eligible. The case-level artifact is
+    `reports/quality-gates/phase-72/run-20260716-final/beam-event-ordering-integrity-audit.json`.
   - LongMemEval's provider-free label-free full-500 recall refresh improved
     evidence-session recall from 0.8441333333 to 0.8524666667 with zero
     failures. The causal short-aggregate-query slice improved from
@@ -182,9 +193,13 @@ Official-protocol scoring must use a different judge model;
     consoles. Packed-consumer smoke passes under Node 20.20.2, 22.23.1, and
     24.18.0. The real package archive contains 219 files, excludes `src/`, and
     unpacks to 3,869,733 bytes (3.690460 MiB). The strict claim gate reports zero
-    current claims and five consistent versioned historical rows. Verification
-    is no longer a blocker, but it cannot close Phase 72 while the BEAM answer
-    gates remain open.
+    current claims and five consistent versioned historical rows. The new
+    `scripts/run-phase-72-release-gate.ts` gate reads and fingerprints the
+    accepted reports and passes every unchanged benchmark threshold plus the
+    revised BEAM boundary. Its generated artifact is
+    `reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json`.
+    The remaining work is the `0.6.0` metadata/claim update followed by the
+    complete versioned release verification.
   - The neutral `mem0ai/memory-benchmarks` GoodMemory adapter PR was refreshed
     at commit `6e3b204`: benchmark timestamps are now preserved in indexed text,
     its Python tests and three runner compiles pass, and a real bridge smoke

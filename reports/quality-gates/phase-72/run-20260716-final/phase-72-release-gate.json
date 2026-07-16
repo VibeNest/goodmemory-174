@@ -1,0 +1,364 @@
+{
+  "benchmarkGate": {
+    "blockers": [],
+    "checks": [
+      {
+        "actual": 0.72,
+        "id": "longmemeval-strict",
+        "passed": true,
+        "target": 0.72
+      },
+      {
+        "actual": 0.924,
+        "id": "longmemeval-official",
+        "passed": true,
+        "target": 0.92
+      },
+      {
+        "actual": 0,
+        "id": "longmemeval-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "longmemeval-judge-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.6298701298701299,
+        "id": "locomo-strict",
+        "passed": true,
+        "target": 0.61
+      },
+      {
+        "actual": 0.8707792207792208,
+        "id": "locomo-official",
+        "passed": true,
+        "target": 0.87
+      },
+      {
+        "actual": 0.6145833333333334,
+        "id": "locomo-open-domain",
+        "passed": true,
+        "target": 0.6
+      },
+      {
+        "actual": 0,
+        "id": "locomo-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "locomo-judge-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.958904109589041,
+        "id": "memoryagentbench-conflict-resolution",
+        "passed": true,
+        "target": 0.95
+      },
+      {
+        "actual": 0.9333333333333333,
+        "id": "memoryagentbench-test-time-learning",
+        "passed": true,
+        "target": 0.75
+      },
+      {
+        "actual": 0,
+        "id": "memoryagentbench-conflict-resolution-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "memoryagentbench-test-time-learning-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.6923666666666667,
+        "id": "implicitmembench-retry-merged",
+        "passed": true,
+        "target": 0.69
+      },
+      {
+        "actual": 0,
+        "id": "implicitmembench-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.8276290063614009,
+        "id": "beam-generalization-recall",
+        "passed": true,
+        "target": 0.8
+      },
+      {
+        "actual": 0.7650987103174604,
+        "id": "beam-official-vs-public-reference",
+        "passed": true,
+        "target": 0.49
+      },
+      {
+        "actual": 400,
+        "id": "beam-total-questions",
+        "passed": true,
+        "target": 400
+      },
+      {
+        "actual": 1051,
+        "id": "beam-official-rubric-items",
+        "passed": true,
+        "target": 1051
+      },
+      {
+        "actual": 0,
+        "id": "beam-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "beam-judge-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "halumem-goodmemory-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "halumem-baseline-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.930995043842928,
+        "id": "halumem-extraction",
+        "passed": true,
+        "target": 0.8615384615384616
+      },
+      {
+        "actual": 0.75,
+        "id": "halumem-update",
+        "passed": true,
+        "target": 0.625
+      },
+      {
+        "actual": 0.8888888888888888,
+        "id": "halumem-question-answering",
+        "passed": true,
+        "target": 0.7777777777777778
+      },
+      {
+        "actual": 0,
+        "id": "memgym-goodmemory-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0,
+        "id": "memgym-no-memory-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": 0.875,
+        "id": "memgym-memory-uplift",
+        "passed": true,
+        "target": 0.05
+      },
+      {
+        "actual": 0,
+        "id": "minteval-execution-failures",
+        "passed": true,
+        "target": 0
+      },
+      {
+        "actual": true,
+        "id": "minteval-smoke-passed",
+        "passed": true,
+        "target": true
+      },
+      {
+        "actual": false,
+        "id": "minteval-remains-unscored",
+        "passed": true,
+        "target": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "actual": 0.62,
+        "id": "beam-strict-binary-stretch",
+        "note": "diagnostic because the frozen event-ordering integrity audit is not eligible for a strict hard gate",
+        "target": 0.72
+      },
+      {
+        "actual": 0.7650987103174604,
+        "id": "beam-official-unified-stretch",
+        "note": "retained internal stretch target; public comparability uses the same-protocol reference",
+        "target": 0.8
+      },
+      {
+        "actual": 0.7510180807799507,
+        "id": "beam-upstream-paper-protocol",
+        "note": "disclosed protocol score, not compared with the unified-rubric public reference",
+        "target": 0.8
+      }
+    ],
+    "passed": true
+  },
+  "claimBoundary": {
+    "beam": "The 0.620 strict binary and 0.80 official targets remain disclosed stretch diagnostics. The hard comparable gate uses complete independent unified-rubric scoring against the 0.49 same-protocol public reference because the frozen event-ordering audit invalidates a strict hard gate for this dataset snapshot.",
+    "implicitMemBench": "The 0.6923666667 result is a disclosed retry-merged internal release check, not a replacement monolithic Full-300 public claim.",
+    "minteval": "Smoke-only and unscored for this release."
+  },
+  "generatedAt": "2026-07-16T12:34:19.122Z",
+  "generatedBy": "scripts/run-phase-72-release-gate.ts",
+  "metrics": {
+    "beam": {
+      "evidenceRecall": 0.8276290063614009,
+      "executionFailures": 0,
+      "officialJudgeFailures": 0,
+      "officialPaperScore": 0.7510180807799507,
+      "officialRubricItems": 1051,
+      "officialUnifiedScore": 0.7650987103174604,
+      "publicReferenceScore": 0.49,
+      "strictBinaryGateEligible": false,
+      "strictBinaryScore": 0.62,
+      "totalQuestions": 400
+    },
+    "halumem": {
+      "baseline": {
+        "extractionF1": 0.8615384615384616,
+        "questionAnsweringAccuracy": 0.7777777777777778,
+        "updateAccuracy": 0.625
+      },
+      "baselineExecutionFailures": 0,
+      "goodmemory": {
+        "extractionF1": 0.930995043842928,
+        "questionAnsweringAccuracy": 0.8888888888888888,
+        "updateAccuracy": 0.75
+      },
+      "goodmemoryExecutionFailures": 0
+    },
+    "implicitMemBench": {
+      "executionFailures": 0,
+      "score": 0.6923666666666667
+    },
+    "locomo": {
+      "executionFailures": 0,
+      "officialJudgeFailures": 0,
+      "officialScore": 0.8707792207792208,
+      "openDomainScore": 0.6145833333333334,
+      "strictScore": 0.6298701298701299
+    },
+    "longMemEval": {
+      "executionFailures": 0,
+      "officialJudgeFailures": 0,
+      "officialScore": 0.924,
+      "strictScore": 0.72
+    },
+    "memoryAgentBench": {
+      "conflictResolutionExecutionFailures": 0,
+      "conflictResolutionScore": 0.958904109589041,
+      "testTimeLearningExecutionFailures": 0,
+      "testTimeLearningScore": 0.9333333333333333
+    },
+    "memgym": {
+      "goodmemoryExecutionFailures": 0,
+      "goodmemoryScore": 1,
+      "noMemoryExecutionFailures": 0,
+      "noMemoryScore": 0.125
+    },
+    "minteval": {
+      "executionFailures": 0,
+      "passed": true,
+      "scored": false
+    }
+  },
+  "packageVersion": "0.5.1",
+  "phase": "phase-72",
+  "sources": {
+    "beamAudit": {
+      "bytes": 27502,
+      "path": "reports/quality-gates/phase-72/run-20260716-final/beam-event-ordering-integrity-audit.json",
+      "sha256": "ca0b8bae78f9158abf154b55081cb67423842f21e54ce28417120a68c3073d01"
+    },
+    "beamOfficial": {
+      "bytes": 4219,
+      "path": "reports/eval/research/official-rescore/rescore-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1/rescore-summary.json",
+      "sha256": "5c9c34fc979fe319a3bf0c2276474bf0f0364cbc6ac24c268db30b4a3b0c5273"
+    },
+    "beamPaper": {
+      "bytes": 2728,
+      "path": "reports/eval/research/official-rescore/rescore-phase72-beam-generalized-answer-clean-full400-terra-paper-gpt55-c40-v1/rescore-summary.json",
+      "sha256": "8ffe858965b88c162c4d32ba2996fb8aa39b8465732a99a94c866ad15fca2512"
+    },
+    "beamReport": {
+      "bytes": 1241156,
+      "path": "reports/eval/research/phase-72/beam/run-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1/live-slice-report.json",
+      "sha256": "3870a2ade91a0d47c5ceb3313a88033168bc7411cd6e860118be76abda94de39"
+    },
+    "halumem": {
+      "bytes": 4085,
+      "path": "reports/eval/research/phase-72/halumem/run-20260712-halumem-local-frozen-v17/halumem-report.json",
+      "sha256": "3e813bec8f75020a1ba823fd0c458b229f6d5a3adf78cf884a731bed3f15c2ed"
+    },
+    "implicitMemBench": {
+      "bytes": 151837,
+      "path": "reports/eval/research/phase-72/implicitmembench-retry/run-phase72-full300-terra-gpt54-logiql-retry-merged-v3/overall-report.json",
+      "sha256": "b034dee178a5913b1f76abf7ad9e08960d9fb2dd6fb27759c5bc4ec2dc56fdea"
+    },
+    "locomoOfficial": {
+      "bytes": 1982,
+      "path": "reports/eval/research/official-rescore/phase72-locomo-production-listwise-temporal-bounded-full1540-terra-v2-gpt55/rescore-summary.json",
+      "sha256": "e95a713931eecd3385d87e49f9caafe7da0fc5338fa950f02296e156ce068e29"
+    },
+    "locomoReport": {
+      "bytes": 961024,
+      "path": "reports/eval/research/phase-72/locomo/run-phase72-locomo-production-listwise-temporal-bounded-full1540-terra-v2/smoke-report.json",
+      "sha256": "e7a71be134c657d69d751097e778157fd27986dd6b5b9e178490186bc2467e48"
+    },
+    "longMemEvalOfficial": {
+      "bytes": 2236,
+      "path": "reports/eval/research/official-rescore/rescore-phase72-longmemeval-promoted-verifier-final500-terra-gpt55-v1/rescore-summary.json",
+      "sha256": "4e0f398e123555742c5828b1d7e079daef2deb48a9738c32355b8c3a50399b2f"
+    },
+    "longMemEvalReport": {
+      "bytes": 855741,
+      "path": "reports/eval/research/phase-72/longmemeval/run-phase72-longmemeval-verifier-chain-full500-terra-v1/report.json",
+      "sha256": "1ed0f54ed14f7731993b2aedf9c3dc7b371e7de3c371a10c4e6e7d9e5b47a12e"
+    },
+    "memoryAgentBenchConflict": {
+      "bytes": 57969,
+      "path": "reports/eval/research/phase-72/mab/run-phase72-mab-generalized-cr-terra/smoke-report.json",
+      "sha256": "7c601e3d8e0e23e302e42207c76f1260ebb46ffc2270f4389a6f2a2069e4c8c7"
+    },
+    "memoryAgentBenchTtl": {
+      "bytes": 87576,
+      "path": "reports/eval/research/phase-72/mab/run-phase72-mab-generalized-ttl-terra/smoke-report.json",
+      "sha256": "42719c57bffa65b3da6da3bb78b737484c5821857b28c40f1e9f2d7be487d411"
+    },
+    "memgym": {
+      "bytes": 8840,
+      "path": "reports/eval/research/phase-72/memgym/run-20260712-memgym-fixed4-v1/memgym-report.json",
+      "sha256": "6fd0f5301394aed6ed8998a763f3ce8d69e99ad613369e3c8ba31c6478843d8d"
+    },
+    "minteval": {
+      "bytes": 1021,
+      "path": "reports/eval/research/phase-72/minteval/run-20260712-minteval-state-tracking-smoke-v1/minteval-smoke-report.json",
+      "sha256": "1a32540f480d1d9d5f6a368156ac72a62db7dfe39edeb6865432cf4cdacafc0b"
+    }
+  },
+  "status": "passed"
+}

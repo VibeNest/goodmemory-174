@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runId": "run-20260716-final",
+  "recordedAt": "2026-07-16T05:03:30Z",
+  "runner": {
+    "name": "@playwright/cli",
+    "version": "0.1.17",
+    "browser": "Chromium 150"
+  },
+  "fixture": {
+    "command": "GOODMEMORY_PHASE71_FIXTURE_PORT=4782 GOODMEMORY_PHASE71_FIXTURE_PAGINATION=1 bun run scripts/run-phase-71-inspector-fixture.ts",
+    "storage": "temporary SQLite",
+    "providerMode": "local injected adapters",
+    "llmCalls": 0
+  },
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "checks": {
+    "adminApiUsersScopes": true,
+    "auditLog": true,
+    "candidateApproveRejectRelease": true,
+    "cursorPagination": true,
+    "desktopNoOverlap": true,
+    "etagConflict": true,
+    "fragmentTokenCleared": true,
+    "idempotencyReplay": true,
+    "memoryCategorization": true,
+    "memoryDeleteConfirmation": true,
+    "memoryHistorySupersession": true,
+    "mobileNoOverlap": true,
+    "mutationErrorsVisible": true,
+    "normalConsoleClean": true,
+    "queryTokenRemoved": true,
+    "readOnlyMode": true,
+    "recallTrace": true,
+    "revisionFlow": true,
+    "scopeCountsRefresh": true,
+    "scopeDeleteConfirmation": true,
+    "temporaryArtifactsCleaned": true,
+    "tokenOnlyInAuthorization": true
+  },
+  "conflictProbe": {
+    "expectedHttpStatus": 412,
+    "expectedConsoleNetworkErrors": 1,
+    "dialogStayedOpen": true,
+    "messageVisible": true
+  },
+  "normalFlowConsole": {
+    "errors": 0,
+    "warnings": 0
+  }
+}

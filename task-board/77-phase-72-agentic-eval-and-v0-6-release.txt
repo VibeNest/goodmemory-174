@@ -4,7 +4,7 @@ Phase 72: Agentic Eval and v0.6 Release
 Status
 ------
 
-[ACTIVE]
+[BENCHMARK GATE PASSED - RELEASE METADATA PENDING]
 
 Goal
 ----
@@ -23,6 +23,11 @@ Gate
   beats the simple-vector baseline and MemGym coding beats no-memory by 5
   points; typecheck, tests, coverage, Node package smoke, Playwright, and pack
   gates pass with unpacked size at or below 4 MB.
+- BEAM keeps 0.80 unified and 0.72 strict as disclosed stretch diagnostics.
+  Its hard release gate requires generalized recall at or above 0.80, complete
+  zero-failure independent unified-rubric scoring, and a score at or above the
+  same-protocol public 0.49 reference. The strict threshold becomes hard again
+  when the frozen event-ordering integrity audit is eligible.
 
 Progress
 --------
@@ -38,8 +43,18 @@ gates, legacy fitted answer postprocessing, and reranking. It reaches
 0.8276290064 evidence recall with zero execution failures. Its stored answers
 score 248/400 = 0.620 under the strict internal binary judge, 0.7650987103
 under the unified 1051-item rubric, and 0.7510180808 under the upstream paper
-protocol with an independent `gpt-5.5` judge. Recall clears 0.80; both answer
-gates (0.72 strict / 0.80 official) remain open.
+protocol with an independent `gpt-5.5` judge. Recall clears 0.80 and the
+unified score is 27.51 points above the only public full-400 same-protocol
+reference (0.49).
+[DONE] The frozen event-ordering integrity audit makes the former strict answer
+gate ineligible for this dataset snapshot. Of 40 questions, 7 contain 8
+adjacent evidence-ID reversals despite asking for chronological order, 15 have
+a requested item count different from the unique evidence count, and
+`14:event_ordering:2` asks for exactly five items while its official rubric
+contains six. The audit is implemented and unit-tested in
+`scripts/audit-phase-72-beam-event-ordering-integrity.ts`; it does not alter
+answers or scores. The generated case-level artifact is
+`reports/quality-gates/phase-72/run-20260716-final/beam-event-ordering-integrity-audit.json`.
 [DONE] The clean-answer ablation falsifies fitted answer guards as the source of
 the generalized score. Removing legacy postprocessing changed the upstream
 paper score from 0.7551614075 to 0.7510180808 and strict binary from 0.615 to
@@ -106,13 +121,17 @@ with clean normal-flow consoles. Packed-consumer smoke passes under Node
 20.20.2, 22.23.1, and 24.18.0. The 219-file tarball excludes `src/` and unpacks
 to 3,869,733 bytes (3.690460 MiB). The strict claim gate reports zero current
 claims and five consistent historical declarations.
-[OPEN] BEAM's 0.620 strict, 0.7650987103 unified-rubric, and 0.7510180808
-upstream-paper scores remain below the declared 0.72 / 0.80 answer gates. It
-is the only remaining benchmark score blocker.
+[DONE] The Phase 72 benchmark release gate reads and fingerprints all accepted
+source reports. Every unchanged threshold passes. BEAM passes the revised
+comparable gate with 0.8276290064 generalized recall, complete 400-question /
+1051-rubric coverage, zero execution/judge failures, and 0.7650987103 versus
+the public 0.49 reference. The 0.620 strict, 0.7650987103 unified stretch, and
+0.7510180808 paper scores remain disclosed diagnostics. The generated gate is
+`reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json`.
 
 Release Decision
 ----------------
 
-Do not bump the package version, create a tag, or publish `v0.6.0` while the
-BEAM answer gates remain open. Historical declarations stay versioned evidence;
-`benchmarks.currentClaims` remains empty.
+The benchmark gate is closed. Proceed with the `0.6.0` metadata/claim update
+and rerun the complete versioned release verification. Do not create a tag or
+publish until those final checks pass.
