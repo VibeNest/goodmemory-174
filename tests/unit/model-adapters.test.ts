@@ -601,6 +601,73 @@ describe("model adapters", () => {
     expect(calls[0]?.values).toEqual(["alpha", "beta"]);
   });
 
+  it("batches large embedding requests while preserving input order", async () => {
+    const calls: string[][] = [];
+    let activeCalls = 0;
+    let peakActiveCalls = 0;
+    const adapter = createAISDKEmbeddingAdapter({
+      model: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+      },
+      dependencies: {
+        resolveEmbeddingModel: (config) => ({ resolvedFrom: config.model }) as never,
+        embedMany: async ({ values }) => {
+          activeCalls += 1;
+          peakActiveCalls = Math.max(peakActiveCalls, activeCalls);
+          calls.push([...values]);
+          await new Promise((resolve) => setTimeout(resolve, 1));
+          activeCalls -= 1;
+          return {
+            embeddings: values.map((value) => [value.charCodeAt(0), value.length]),
+          } as never;
+        },
+      },
+    });
+    const texts = [
+      `a${"x".repeat(119_999)}`,
+      `b${"x".repeat(119_999)}`,
+      "charlie",
+    ];
+
+    const result = await adapter.embed(texts);
+
+    expect(calls).toHaveLength(2);
+    expect(peakActiveCalls).toBe(2);
+    expect(calls.map((batch) => batch.map((value) => value[0]))).toEqual([
+      ["a"],
+      ["b", "c"],
+    ]);
+    expect(result).toEqual([
+      ["a".charCodeAt(0), 120_000],
+      ["b".charCodeAt(0), 120_000],
+      ["c".charCodeAt(0), 7],
+    ]);
+  });
+
+  it("budgets embedding batches by UTF-8 bytes", async () => {
+    const calls: string[][] = [];
+    const adapter = createAISDKEmbeddingAdapter({
+      model: {
+        provider: "openai",
+        model: "text-embedding-3-small",
+      },
+      dependencies: {
+        resolveEmbeddingModel: (config) => ({ resolvedFrom: config.model }) as never,
+        embedMany: async ({ values }) => {
+          calls.push([...values]);
+          return {
+            embeddings: values.map((value) => [Buffer.byteLength(value, "utf8")]),
+          } as never;
+        },
+      },
+    });
+
+    await adapter.embed(["a".repeat(110_000), "🧠".repeat(30_000)]);
+
+    expect(calls).toHaveLength(2);
+  });
+
   it("aborts embedding requests that exceed the adapter timeout", async () => {
     let aborted = false;
     const adapter = createAISDKEmbeddingAdapter({

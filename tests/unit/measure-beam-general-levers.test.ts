@@ -96,8 +96,11 @@ describe("measure BEAM general levers", () => {
   it("caps oversized benchmark turns before provider embedding", () => {
     expect(capBeamGeneralLeverEmbeddingText("short text")).toBe("short text");
     expect(capBeamGeneralLeverEmbeddingText("a".repeat(30_000))).toHaveLength(
-      12_000,
+      8_000,
     );
+    const unicodeText = capBeamGeneralLeverEmbeddingText("🧠".repeat(3_000));
+    expect(Buffer.byteLength(unicodeText, "utf8")).toBeLessThanOrEqual(8_000);
+    expect(unicodeText.endsWith("🧠")).toBe(true);
   });
 
   it("can attach the first-party pointwise reranker to a general-lever memory", async () => {

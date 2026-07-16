@@ -30,6 +30,9 @@ type FetchInput = Parameters<FetchFunction>[0];
 type FetchInit = Parameters<FetchFunction>[1];
 export type FetchLike = (input: FetchInput, init?: FetchInit) => Promise<Response>;
 export const DEFAULT_AISDK_REQUEST_TIMEOUT_MS = 45_000;
+export const DEFAULT_AISDK_EMBEDDING_BATCH_MAX_UTF8_BYTES = 200_000;
+export const DEFAULT_AISDK_EMBEDDING_BATCH_MAX_CONCURRENCY = 8;
+export const DEFAULT_AISDK_EMBEDDING_BATCH_MAX_INPUTS = 256;
 const DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS =
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS;
 const DEFAULT_AISDK_RETRY_LIMIT = 4;
@@ -776,29 +779,42 @@ export function createAISDKEmbeddingAdapter(input: {
         return [];
       }
 
-      const embeddings = await withAISDKRetries(async () => {
-        const controller = new AbortController();
-        const timeoutMs =
-          input.dependencies?.requestTimeoutMs ??
-          DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
-        const timeoutMessage = `AI SDK embedding timeout after ${timeoutMs}ms.`;
-        const result = await withOpenAICompatibleTimeout({
-          timeoutMs,
-          message: timeoutMessage,
-          onTimeout: () => controller.abort(new Error(timeoutMessage)),
-          operation: () =>
-            (input.dependencies?.embedMany ?? embedMany)({
-              abortSignal: controller.signal,
-              maxRetries: 0,
-              model: (
-                input.dependencies?.resolveEmbeddingModel ?? resolveAISDKEmbeddingModel
-              )(input.model),
-              values: texts,
-            }),
-        });
+      const batchEmbeddings = await mapEmbeddingBatches(
+        batchEmbeddingTexts(texts),
+        async (values) => {
+          const embeddings = await withAISDKRetries(async () => {
+            const controller = new AbortController();
+            const timeoutMs =
+              input.dependencies?.requestTimeoutMs ??
+              DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
+            const timeoutMessage = `AI SDK embedding timeout after ${timeoutMs}ms.`;
+            const result = await withOpenAICompatibleTimeout({
+              timeoutMs,
+              message: timeoutMessage,
+              onTimeout: () => controller.abort(new Error(timeoutMessage)),
+              operation: () =>
+                (input.dependencies?.embedMany ?? embedMany)({
+                  abortSignal: controller.signal,
+                  maxRetries: 0,
+                  model: (
+                    input.dependencies?.resolveEmbeddingModel ??
+                    resolveAISDKEmbeddingModel
+                  )(input.model),
+                  values,
+                }),
+            });
 
-        return result.embeddings;
-      }, input.dependencies?.retryOptions);
+            return result.embeddings;
+          }, input.dependencies?.retryOptions);
+          if (embeddings.length !== values.length) {
+            throw new Error(
+              `Embedding response count mismatch: expected ${values.length}, received ${embeddings.length}.`,
+            );
+          }
+          return embeddings;
+        },
+      );
+      const embeddings = batchEmbeddings.flat();
 
       if (embeddings.some((embedding) => embedding.length === 0)) {
         throw new Error("Empty embedding response");
@@ -807,4 +823,61 @@ export function createAISDKEmbeddingAdapter(input: {
       return embeddings.map((embedding) => embedding.map((value) => Number(value)));
     },
   };
+}
+
+function batchEmbeddingTexts(texts: readonly string[]): string[][] {
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  let batchBytes = 0;
+
+  for (const text of texts) {
+    const textBytes = Buffer.byteLength(text, "utf8");
+    if (
+      batch.length > 0 &&
+      (batch.length >= DEFAULT_AISDK_EMBEDDING_BATCH_MAX_INPUTS ||
+        batchBytes + textBytes >
+          DEFAULT_AISDK_EMBEDDING_BATCH_MAX_UTF8_BYTES)
+    ) {
+      batches.push(batch);
+      batch = [];
+      batchBytes = 0;
+    }
+    batch.push(text);
+    batchBytes += textBytes;
+  }
+  if (batch.length > 0) {
+    batches.push(batch);
+  }
+
+  return batches;
+}
+
+async function mapEmbeddingBatches(
+  batches: readonly string[][],
+  worker: (values: string[]) => Promise<number[][]>,
+): Promise<number[][][]> {
+  const results: number[][][] = new Array(batches.length);
+  let cursor = 0;
+  const run = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= batches.length) {
+        return;
+      }
+      results[index] = await worker(batches[index]);
+    }
+  };
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.min(
+          DEFAULT_AISDK_EMBEDDING_BATCH_MAX_CONCURRENCY,
+          batches.length,
+        ),
+      },
+      () => run(),
+    ),
+  );
+  return results;
 }

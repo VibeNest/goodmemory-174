@@ -44,11 +44,43 @@ export const BEAM_GENERAL_LEVER_ARM_NAMES = [
   "bm25-union16",
 ] as const;
 
-export const BEAM_GENERAL_LEVER_EMBEDDING_MAX_CHARS = 12_000;
+export const BEAM_GENERAL_LEVER_EMBEDDING_MAX_UTF8_BYTES = 8_000;
 const BEAM_GENERAL_LEVER_EMBEDDING_TIMEOUT_MS = 120_000;
 
 export function capBeamGeneralLeverEmbeddingText(text: string): string {
-  return text.slice(0, BEAM_GENERAL_LEVER_EMBEDDING_MAX_CHARS);
+  if (
+    Buffer.byteLength(text, "utf8") <=
+    BEAM_GENERAL_LEVER_EMBEDDING_MAX_UTF8_BYTES
+  ) {
+    return text;
+  }
+
+  let bestEnd = 0;
+  let high = Math.min(
+    text.length,
+    BEAM_GENERAL_LEVER_EMBEDDING_MAX_UTF8_BYTES,
+  );
+  let low = 0;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    if (
+      Buffer.byteLength(text.slice(0, middle), "utf8") <=
+      BEAM_GENERAL_LEVER_EMBEDDING_MAX_UTF8_BYTES
+    ) {
+      bestEnd = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  if (
+    bestEnd > 0 &&
+    /[\uD800-\uDBFF]/.test(text[bestEnd - 1] ?? "") &&
+    /[\uDC00-\uDFFF]/.test(text[bestEnd] ?? "")
+  ) {
+    bestEnd -= 1;
+  }
+  return text.slice(0, bestEnd);
 }
 
 export type BeamGeneralLeverArmName =
