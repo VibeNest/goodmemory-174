@@ -1406,7 +1406,7 @@ export function resolveOfficialRescoreJudgeEnvironment(
   };
 }
 
-async function callJudge(input: {
+export async function callJudge(input: {
   maxTokens: number;
   prompt: string;
   system?: string;

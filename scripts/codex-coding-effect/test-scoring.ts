@@ -86,13 +86,16 @@ export function scoreCodexStage(input: {
   patch: WorkspacePatch;
 }): CodexStageScore {
   if (
+    input.codex.status === "not-started" ||
     input.codex.status === "spawn-failed" ||
     input.codex.status === "event-parse-failed" ||
     input.codex.status === "missing-final-message"
   ) {
     return {
       disposition: "infrastructure-failure",
-      executionFailureStage: input.codex.status === "spawn-failed"
+      executionFailureStage: input.codex.status === "not-started"
+        ? "codex-not-started"
+        : input.codex.status === "spawn-failed"
         ? "codex-launch"
         : "codex-events",
       resolved: false,

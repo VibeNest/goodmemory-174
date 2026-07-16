@@ -32,6 +32,12 @@ describe("answer evidence pack", () => {
       ),
     ).toBe("count");
     expect(
+      inferAnswerOperation(
+        "How long did it take to reach the goal?",
+        "temporal_reasoning",
+      ),
+    ).toBe("count");
+    expect(
       inferAnswerOperation("Which topics did I mention?", "event_ordering"),
     ).toBe("order");
     expect(

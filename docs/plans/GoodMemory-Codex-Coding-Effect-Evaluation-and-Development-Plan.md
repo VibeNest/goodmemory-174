@@ -166,26 +166,38 @@ Within a paired comparison, the intended product variable is:
 Everything else must be held constant or explicitly disclosed:
 
 - Codex CLI version and executable hash;
-- Codex model and reasoning configuration;
+- Codex model and reasoning configuration, including reasoning-effort value;
 - repository URL, license, commit, and prepared snapshot hash;
-- issue prompt and stage prompt;
-- AGENTS.md and other repository instructions;
+- issue prompt, stage prompt, and exact prompt hash;
+- AGENTS.md and other repository-instruction file hashes;
 - shell environment and dependency cache;
-- tool permissions and network policy;
-- external wall-clock timeout;
+- sandbox, tool permissions, and network policy;
+- token/tool budget and external wall-clock timeout;
 - stage test harness;
 - order seed and repetition number.
+
+The complete host configurations cannot be byte-identical because the installed
+host configuration is the treatment. The runner must instead persist both
+arm-specific configurations plus a normalized configuration diff, while proving
+the invariant fields above are identical.
 
 ### 3.2 Measure the product, not an internal shortcut
 
 The native-longitudinal protocol must exercise packaged product surfaces:
 
 - package or tarball installation;
-- goodmemory setup/enable for Codex;
+- GoodMemory setup for Codex through the packaged public CLI;
 - native SessionStart/UserPromptSubmit injection;
 - native Stop writeback;
 - installed storage;
 - public CLI status and audit surfaces.
+
+The C3 frozen-prehistory installed arm specifically uses packaged
+`goodmemory setup --recommended --host codex --user-id <id> --yes --json` with
+isolated global activation. It does not call workspace `goodmemory enable`:
+setup must not create a task-workspace `.goodmemory` directory or mutate
+AGENTS.md or any other repository instruction. A later protocol that deliberately
+tests workspace activation must be named and reported as a different treatment.
 
 The benchmark runner must not call createGoodMemory or internal host functions
 to simulate success in the product-effect arm.
@@ -335,16 +347,24 @@ Question:
 
 Procedure:
 
-1. Construct one immutable prehistory artifact for an episode.
-2. Validate that it contains no gold patch or hidden-test leakage.
-3. Initialize the GoodMemory arm from that history through the installed
-   writeback surface.
-4. Leave the no-memory arm without durable history.
-5. Start a fresh Codex process in each arm from the same current repository
+1. Construct one native Codex rollout prehistory artifact for an episode.
+2. Hash it, copy it into an evaluator-owned sealed read-only location, and
+   validate that it contains no gold patch or hidden-test leakage.
+3. Persist immutable run identity, including the sealed history hash, before
+   any seed operation.
+4. Initialize the GoodMemory arm only through packaged public
+   `goodmemory codex writeback --from-rollout --rollout-path <sealed>`, not
+   `goodmemory remember` or an internal repository API.
+5. Persist an exact seed receipt binding source hash, session digest, written
+   outcome, memory IDs, and public export hash; run a post-seed export leakage
+   audit before starting Codex.
+6. Leave the no-memory arm without durable history.
+7. Start a fresh Codex process in each arm from the same current repository
    snapshot.
-6. Provide the same current prompt.
-7. Run the same external hidden tests.
-8. Compare the paired patches and results.
+8. Provide the same current prompt.
+9. Wait for both Codex processes to exit, then materialize the evaluator-owned
+   hidden tests so neither live arm can inspect them.
+10. Run the same external hidden tests and compare the paired patches/results.
 
 This protocol isolates the memory channel. It does not prove that native Codex
 writeback can automatically create the same useful history; that is tested by
@@ -440,11 +460,21 @@ state may not.
 - isolated Codex home;
 - isolated GoodMemory home;
 - packaged GoodMemory installed;
-- workspace explicitly enabled;
-- selective writeback explicitly enabled;
+- packaged `setup --recommended --host codex --user-id <id> --yes --json` run
+  once with isolated global activation;
+- workspace `enable` not called, with no task-workspace `.goodmemory` or
+  repository-instruction mutation;
+- public status reports healthy global activation and workspace status with the
+  `coding_agent` / `selective` profile and raw transcript persistence disabled;
+- native hooks and MCP registered by the recommended profile;
 - native hooks enabled and trusted in the isolated environment;
 - exact provider and retrieval configuration recorded;
 - no benchmark-only recall or feedback call.
+
+The no-memory and installed arms must bind the same prepared snapshot, prompt
+hash, Codex executable hash/version, model, reasoning effort, sandbox, budget,
+and repository-instruction hashes. The installed host files are intentionally
+different; freeze and persist their normalized diff.
 
 ### 6.2 Required promotion control
 
@@ -730,12 +760,16 @@ recommended user configuration.
 Every goodmemory-installed stage must prove:
 
 1. Codex loaded the expected hooks configuration.
-2. SessionStart or UserPromptSubmit produced an injection decision.
-3. The injected content hash and record IDs were captured.
-4. Stop fired.
-5. Stop provided a readable transcript source or equivalent supported payload.
-6. GoodMemory writeback returned a terminal outcome.
-7. The writeback ledger contains the current session digest.
+2. The canary is bound to the current stage's exact new Codex thread ID.
+3. SessionStart or UserPromptSubmit produced an injection decision containing
+   every seed receipt memory ID required by the task.
+4. The injected content hash, selected record IDs, and sanitized exact-thread
+   transcript hash were captured without accepting model response text.
+5. The current session cursor advanced.
+6. Stop fired for that exact thread and provided a readable transcript source
+   or equivalent supported payload.
+7. GoodMemory writeback returned a committed terminal outcome for the current
+   thread, and the ledger binds its current session digest.
 8. No raw transcript was persisted when the profile forbids it.
 
 Allowed injection outcomes:
@@ -748,6 +782,11 @@ Allowed injection outcomes:
 For tasks that declare required prior memory, empty-context, low-relevance, or a
 missing expected record is a memory-channel failure, not a normal successful
 canary.
+
+Any current-stage injection, transcript, cursor, Stop, or terminal-writeback
+failure is an installed-arm infrastructure failure. The runner must retain the
+patch and deterministic test statuses for diagnosis, but it must not fall back
+to no-memory behavior; the paired result is incomparable.
 
 ### 8.5 Transcript format drift
 
@@ -818,9 +857,15 @@ their cost and cannot describe the result as zero-dependency.
 
 For a live candidate:
 
-- setup through the packaged CLI;
-- enable through the packaged CLI;
+- run packaged
+  `goodmemory setup --recommended --host codex --user-id <id> --yes --json`
+  in an isolated home with global activation;
+- do not call workspace `enable` for the C3 installed arm, and prove setup did
+  not create task-workspace `.goodmemory` state or alter repository instructions;
 - inspect status through the packaged CLI;
+- require public status to report healthy global activation/workspace status,
+  `coding_agent` / `selective`, raw transcript persistence disabled, and hooks
+  plus MCP registered;
 - inspect writeback/audit through the packaged CLI or versioned admin API;
 - use native Codex hook output;
 - avoid importing src/install modules from the benchmark runner.
@@ -863,7 +908,8 @@ For each stage:
 8. Wait for Codex and hooks to finish.
 9. Capture patch and file inventory.
 10. Remove model credentials from the test environment.
-11. Attach hidden tests from an evaluator-owned path.
+11. Attach hidden tests from an evaluator-owned path. For a C3 paired pilot,
+    this materialization occurs only after both Codex arm processes have exited.
 12. Run fail-to-pass and pass-to-pass suites.
 13. Write immutable stage results.
 14. Cleanup unless keep-workspaces is explicitly enabled.
@@ -1520,9 +1566,15 @@ retains all ten attempts, binds the runner-time source commit/dirty diff and
 safety-state artifact hashes, and explicitly discloses the BM25 prompt
 calibration that preceded acceptance. This closes host correctness only. It is
 not evidence that GoodMemory improves coding outcomes; that claim remains
-blocked on C3-C7.
+blocked on C4-C7 after the separate C3 protocol closure below.
 
 ### Phase C3: arms and frozen-prehistory protocol
+
+Status: **DONE — accepted as `frozen-prehistory-pilot` protocol evidence**.
+The arm planning, packaged runtime preflight, frozen-prehistory
+validation/sealing, strict seed receipt, stage evidence, reporting, and
+current-stage canary contracts are implemented under unit and integration
+tests, and one real two-process pair now closes the C3 protocol gate.
 
 #### C3-T001: no-memory isolation
 
@@ -1538,9 +1590,13 @@ Tests prove:
 Tests prove:
 
 - packaged install only;
-- explicit selective writeback;
+- packaged recommended global setup without workspace `enable`;
+- no task-workspace `.goodmemory` or repository-instruction mutation;
+- public global activation/workspace status is healthy and reports
+  `coding_agent` / `selective`, raw persistence off, hooks, and MCP;
 - expected profile persisted;
-- hook canary included in stage result;
+- current-stage canary binds exact thread, seed IDs, sanitized transcript hash,
+  cursor advancement, and committed Stop writeback in the stage result;
 - failures do not degrade to no-memory silently.
 
 #### C3-T003: frozen prehistory
@@ -1549,7 +1605,10 @@ Tests prove:
 
 - identical history source hash;
 - no gold leakage;
-- GoodMemory seeded through an accepted installed surface;
+- evaluator-owned sealed native rollout is written only after run identity;
+- GoodMemory is seeded through packaged public `goodmemory codex writeback
+  --from-rollout`, never `remember`;
+- exact seed receipt, public export hash, and post-seed leakage audit persist;
 - current Codex sessions start fresh;
 - history cannot be edited after run identity.
 
@@ -1560,10 +1619,47 @@ comparison should be designed now.
 
 C3 acceptance:
 
-- one real paired current task completes;
-- both arms share current snapshot/prompt/config;
-- deterministic hidden tests score the result;
-- memory diagnostics explain but do not override the score.
+- one real paired current task completes through two real Codex processes with
+  distinct thread IDs;
+- both arms bind the same snapshot, prompt/prompt hash, Codex executable
+  hash/version, model, reasoning effort, sandbox, budget, and
+  repository-instruction hashes;
+- the intentional arm-specific host-configuration diff is frozen and persisted;
+- the installed current-stage canary is valid for the exact thread, injected
+  seed IDs, sanitized transcript hash, cursor, and committed Stop event;
+- evaluator-owned hidden tests are materialized only after both processes exit;
+- deterministic hidden fail-to-pass and pass-to-pass tests alone score task
+  correctness; memory diagnostics explain but never override the score;
+- a canary/infrastructure failure has no fallback and makes the pair
+  incomparable.
+
+Tie, rescue, and regression are all valid protocol outcomes. Completing this
+pilot establishes only `frozen-prehistory-pilot` evidence: it is not proof of
+uplift, is not eligible for a public coding-effect claim, and does not close the
+later candidate/statistical gates.
+
+C3 implementation result (2026-07-15): **accepted as protocol evidence**. Run
+`c3-controlled-20260715-1747z` installed GoodMemory 0.5.1 from tarball SHA-256
+`341a9c82a26f8e231202bc57fd80af2545d32c11b9dbdbec8146d244bf4fda4d`
+and executed two real, distinct Codex CLI 0.144.3 threads with
+`gpt-5.6-sol` / `xhigh`. The controlled task used an independent clone; each
+arm ran under a custom permission profile with filesystem-root deny, minimal
+read, workspace write, network off, and explicit deny/read/write probes. The
+no-memory Codex process exited before frozen prehistory materialization, and
+both Codex processes exited before evaluator-owned hidden tests were
+materialized.
+
+The installed recall preflight injected the exact seeded memory ID. The real
+current-session canary then injected the same expected ID, bound the sanitized
+exact-thread transcript hash, advanced the session cursor, observed committed
+turn-end writeback, and confirmed raw-transcript persistence remained false.
+Both arms passed deterministic hidden fail-to-pass and pass-to-pass tests; the
+two attempts were finalized and resolved with zero infrastructure failures.
+The comparable result is `tie-both-pass`, and the summary records
+`publicClaimEligible: false`. This proves the real C3 protocol and that the
+GoodMemory treatment was active in the installed arm. Because the no-memory arm
+also solved the task, it does not establish coding uplift or support a public
+coding-effect claim. Phase 73 remains active with C4-C7 open.
 
 ### Phase C4: controlled pilot dataset
 

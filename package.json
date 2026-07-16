@@ -232,6 +232,7 @@
     "eval:phase-63-general-levers": "bun run scripts/measure-beam-general-levers.ts",
     "eval:codex-coding-effect:smoke": "bun run scripts/run-codex-coding-effect.ts",
     "eval:codex-coding-effect:canary": "bun run scripts/run-codex-coding-effect-canary.ts",
+    "eval:codex-coding-effect:c3-pilot": "bun run scripts/run-codex-coding-effect-c3-pilot.ts",
     "project:codex-coding-effect:c2-evidence": "bun run scripts/project-codex-coding-effect-c2-evidence.ts",
     "eval:phase-72-beam-generalization-live": "bun run scripts/run-phase-72-beam-generalization-live.ts",
     "eval:phase-72-halumem": "bun run scripts/run-phase-72-halumem.ts",

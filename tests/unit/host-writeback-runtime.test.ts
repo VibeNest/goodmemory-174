@@ -2428,6 +2428,7 @@ describe("installed host writeback transcript hydration", () => {
         transcriptDeltaMessageCount: 1,
         transcriptPathUsed: true,
         transcriptReadStatus: "ok",
+        transcriptSessionDigest: expect.stringMatching(/^session:[a-f0-9]{24}$/u),
       });
       expect(rememberCalls).toHaveLength(1);
       expect(rememberCalls[0]?.messages).toEqual([

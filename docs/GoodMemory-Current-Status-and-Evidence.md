@@ -45,6 +45,26 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   the same server in exact-scope read-only mode. See
   `docs/GoodMemory-Inspector-and-Admin-API.md` and
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
+- Phase 73 remains active as a separate Codex-only product-effect lane, but C3
+  is now closed as accepted `frozen-prehistory-pilot` protocol evidence. Real
+  run `c3-controlled-20260715-1747z` used GoodMemory 0.5.1 tarball SHA-256
+  `341a9c82a26f8e231202bc57fd80af2545d32c11b9dbdbec8146d244bf4fda4d`,
+  Codex CLI 0.144.3, and `gpt-5.6-sol` / `xhigh` across two distinct threads.
+  Both arms ran from an independent controlled clone under root-deny,
+  minimal-read, workspace-write, network-off permission profiles with custom
+  isolation probes. No-memory completed before frozen-prehistory
+  materialization, and both Codex processes completed before hidden-evaluator
+  materialization. The installed recall preflight and real current-session
+  canary both injected the exact seeded memory ID; the canary also bound the
+  sanitized exact-thread transcript, advanced the cursor, committed turn-end
+  writeback, and kept raw transcript persistence false. Deterministic hidden
+  fail-to-pass and pass-to-pass tests passed in both arms: 2/2 attempts were
+  finalized and resolved, with zero infrastructure failures and outcome
+  `tie-both-pass`. The summary explicitly records `publicClaimEligible: false`.
+  This proves the paired protocol and that the real GoodMemory treatment was
+  active; it does not prove coding uplift or authorize a public coding-effect
+  claim. C4-C7 remain open. Evidence is under
+  `reports/eval/research/codex-coding-effect/c3-controlled-20260715-1747z/`.
 - Phase 72 remains open. Current generalized end-to-end evidence does not yet
   support a `v0.6.0` performance claim: MemoryAgentBench CR/TTL are
   0.9589041096/0.9333333333. ImplicitMemBench Full-300 with `gpt-5.6-terra`

@@ -139,8 +139,16 @@ export function parseCodexCodingEffectCliOptions(
   const networkMode = parseNetworkMode(
     resolveCliFlagValueStrict(argv, "--network-mode") ?? "disabled",
   );
+  const codexModel = resolveCliFlagValueStrict(argv, "--codex-model");
+  const reasoningEffort = resolveCliFlagValueStrict(argv, "--reasoning-effort");
 
   validateArmCompatibility(evidenceClass, arms);
+  validatePinnedLiveIdentity({
+    codexModel,
+    evidenceClass,
+    packageTarball,
+    reasoningEffort,
+  });
   assertDisjointCliPaths("--output-dir", runOutputDir, "--dataset-root", datasetRoot);
   assertDisjointCliPaths("--output-dir", runOutputDir, "--workspace-root", workspaceRoot);
   assertDisjointCliPaths("--output-dir", runOutputDir, "--attempts-root", attemptsRoot);
@@ -171,7 +179,7 @@ export function parseCodexCodingEffectCliOptions(
   return {
     arms,
     attemptsRoot,
-    codexModel: resolveCliFlagValueStrict(argv, "--codex-model"),
+    ...(codexModel === undefined ? {} : { codexModel }),
     datasetRoot,
     dryRun: hasCliFlagStrict(argv, "--dry-run"),
     episodeIds,
@@ -182,7 +190,7 @@ export function parseCodexCodingEffectCliOptions(
     networkMode,
     outputDir,
     packageTarball,
-    reasoningEffort: resolveCliFlagValueStrict(argv, "--reasoning-effort"),
+    ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
     repetitionCount:
       parseCliPositiveIntegerFlagStrict(argv, "--repetition-count") ?? 1,
     resume: hasCliFlagStrict(argv, "--resume"),
@@ -195,6 +203,29 @@ export function parseCodexCodingEffectCliOptions(
       parseCliPositiveIntegerFlagStrict(argv, "--test-timeout-ms") ?? 300_000,
     workspaceRoot,
   };
+}
+
+function validatePinnedLiveIdentity(input: {
+  codexModel?: string;
+  evidenceClass: CodexCodingEffectEvidenceClass;
+  packageTarball?: string;
+  reasoningEffort?: string;
+}): void {
+  if (input.evidenceClass === "deterministic-smoke") {
+    return;
+  }
+  if (input.packageTarball === undefined) {
+    throw new Error(`${input.evidenceClass} requires --package-tarball`);
+  }
+  if (!input.packageTarball.endsWith(".tgz")) {
+    throw new Error("--package-tarball must point to a .tgz package artifact");
+  }
+  if (input.codexModel === undefined) {
+    throw new Error(`${input.evidenceClass} requires --codex-model`);
+  }
+  if (input.reasoningEffort === undefined) {
+    throw new Error(`${input.evidenceClass} requires --reasoning-effort`);
+  }
 }
 
 function assertKnownOptions(argv: readonly string[]): void {

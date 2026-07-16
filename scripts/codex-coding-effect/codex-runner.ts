@@ -14,6 +14,7 @@ export type CodexRunStatus =
   | "event-parse-failed"
   | "missing-final-message"
   | "non-zero-exit"
+  | "not-started"
   | "spawn-failed"
   | "timed-out";
 

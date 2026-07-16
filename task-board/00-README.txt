@@ -91,7 +91,11 @@ Current Transition
   semantic union. Failed experimental runners have been removed. These score
   gates, not packaging, block `v0.6.0`.
 - Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
-  the C2 host-only canary are closed; C3 controlled paired arms are next. See
+  the C2 host-only canary are closed. C3 is accepted as
+  `frozen-prehistory-pilot` protocol evidence from real two-process run
+  `c3-controlled-20260715-1747z`; both arms passed (`tie-both-pass`), so it
+  proves the paired protocol and real installed treatment path, not coding
+  uplift. Phase 73 remains active with C4-C7 open. See
   `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
   and the strict boundary against coding-effect claims.
 

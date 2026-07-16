@@ -17,8 +17,20 @@ Gate
 ----
 
 - The primary metric is hidden-test resolve@1 for stage positions 2+, with the
-  same Codex version, model, prompt, permissions, budget, and repository state
-  across paired arms.
+  same prepared snapshot, prompt and prompt hash, Codex executable hash and
+  version, model, reasoning effort, sandbox, budget, and repository-instruction
+  hashes across paired arms. Arm-specific host configuration is the treatment:
+  its normalized diff must be frozen and persisted rather than falsely requiring
+  the complete host configurations to be identical.
+- C3's installed arm runs the packaged
+  `goodmemory setup --recommended --host codex --user-id <id> --yes --json`
+  surface in an isolated home with global activation. It does not run workspace
+  `goodmemory enable`, and setup must not create task-workspace `.goodmemory`
+  state or alter repository instructions.
+- Public status must resolve global activation and workspace status as healthy
+  and bind
+  the `coding_agent` / `selective` profile, raw transcript persistence disabled,
+  and registered native hooks plus MCP.
 - Public evidence requires the accepted full gate. Host canaries, deterministic
   smoke, pilots, MemGym CodeQA, memory QA, and retrieval diagnostics are not
   public coding-effect proof.
@@ -80,8 +92,39 @@ tracked projection with `bun run project:codex-coding-effect:c2-evidence`.
 [DONE] Live C2 diagnosis also removed `<recommended_plugins>` host scaffolding
 from Codex writeback input and made lifecycle status require the managed Stop
 hook. These are reproduced host defects, not benchmark-only accommodations.
-[OPEN] C3-C5 paired arms, controlled dataset, and live pilot.
+[DONE] C3 unit/integration implementation now covers isolated no-memory and
+installed arm plans, packaged recommended global setup, frozen-prehistory
+parsing/sealing/leakage checks, strict seed receipts, installed runtime
+preflight, arm-specific stage evidence, reporting contracts, and current-stage
+host-canary parsing. These tests and synthetic doubles are protocol development
+evidence only.
+[DONE] C3 real run `c3-controlled-20260715-1747z` is accepted as
+`frozen-prehistory-pilot` protocol evidence. It used GoodMemory 0.5.1 tarball
+SHA-256 `341a9c82a26f8e231202bc57fd80af2545d32c11b9dbdbec8146d244bf4fda4d`
+with Codex CLI 0.144.3 and `gpt-5.6-sol` / `xhigh` in two distinct real thread
+IDs.
+[DONE] The run used an independent controlled clone. Both arms passed the
+custom permission probes under filesystem-root deny, minimal read,
+workspace-write, and network-off policy. The no-memory process completed before
+the frozen prehistory was materialized; both Codex processes completed before
+the evaluator-owned hidden tests were materialized.
+[DONE] The installed arm's recall preflight injected the exact seeded memory ID.
+Its real current-session canary injected that expected ID, bound the sanitized
+exact-thread transcript, advanced the cursor, committed the turn-end writeback,
+and kept raw-transcript persistence false.
+[DONE] Deterministic hidden fail-to-pass and pass-to-pass tests passed in both
+arms. Both attempts were finalized and resolved, infrastructure failures were
+zero, and the comparable-pair outcome was `tie-both-pass` with
+`publicClaimEligible: false`.
+[OPEN] C4-C5 controlled dataset and broader live pilot.
 [OPEN] C6-C7 expanded candidate, statistics, gate, and narrow claim decision.
+
+C3's deterministic hidden fail-to-pass and pass-to-pass tests alone decide task
+correctness. Memory, injection, transcript, and writeback diagnostics can explain
+the result but never override it. The accepted C3 run proves that the real
+paired protocol executes and that the installed GoodMemory treatment reached
+the current session; its tie does not prove coding uplift and is not a public
+coding-effect claim. Phase 73 remains active while C4-C7 are open.
 
 Boundary
 --------

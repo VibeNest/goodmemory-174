@@ -3949,6 +3949,9 @@ describe("goodmemory cli installed host config", () => {
           expect(payload.reason).toBe("written");
           expect(payload.wrote).toBe(true);
           expect(payload.trace.transcriptPathUsed).toBe(true);
+          expect(payload.trace.transcriptSessionDigest).toMatch(
+            /^session:[a-f0-9]{24}$/u,
+          );
 
           // Second run: the cursor makes it a no-op instead of a duplicate.
           const second = await withCwd(workspace.root, async () =>

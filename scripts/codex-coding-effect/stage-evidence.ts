@@ -195,11 +195,12 @@ function codexResultFromCase(
   return {
     durationMs: 0,
     events: [],
-    exitCode: row.codexStatus === "spawn-failed"
-      ? null
-      : row.codexStatus === "non-zero-exit"
-      ? 1
-      : 0,
+    exitCode:
+      row.codexStatus === "not-started" || row.codexStatus === "spawn-failed"
+        ? null
+        : row.codexStatus === "non-zero-exit"
+        ? 1
+        : 0,
     normalized: null,
     status: row.codexStatus,
     stderr: "",

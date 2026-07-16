@@ -234,6 +234,42 @@ describe("Codex coding-effect CLI", () => {
     ])).toThrow("codex-coding-effect-accepted is produced by the gate, not the runner");
   });
 
+  it("fails closed when a frozen-prehistory live identity is not fully pinned", () => {
+    const pilotArgs = requiredArgs().map((value) =>
+      value === "deterministic-smoke" ? "frozen-prehistory-pilot" : value
+    );
+    expect(() => parseCodexCodingEffectCliOptions(pilotArgs)).toThrow(
+      "frozen-prehistory-pilot requires --package-tarball",
+    );
+    expect(() => parseCodexCodingEffectCliOptions([
+      ...pilotArgs,
+      "--package-tarball",
+      "/artifacts/goodmemory.tgz",
+    ])).toThrow("frozen-prehistory-pilot requires --codex-model");
+    expect(() => parseCodexCodingEffectCliOptions([
+      ...pilotArgs,
+      "--package-tarball",
+      "/artifacts/goodmemory.tgz",
+      "--codex-model",
+      "gpt-5.6-sol",
+    ])).toThrow("frozen-prehistory-pilot requires --reasoning-effort");
+
+    expect(parseCodexCodingEffectCliOptions([
+      ...pilotArgs,
+      "--package-tarball",
+      "/artifacts/goodmemory.tgz",
+      "--codex-model",
+      "gpt-5.6-sol",
+      "--reasoning-effort",
+      "xhigh",
+    ])).toMatchObject({
+      codexModel: "gpt-5.6-sol",
+      evidenceClass: "frozen-prehistory-pilot",
+      packageTarball: "/artifacts/goodmemory.tgz",
+      reasoningEffort: "xhigh",
+    });
+  });
+
   it("resolves a frozen dry-run selection without writing result artifacts", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-codex-c0-"));
     try {

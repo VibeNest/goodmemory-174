@@ -605,6 +605,7 @@ async function applyTranscriptHydrationOutcome(args: {
       transcriptDeltaMessageCount: hydration.deltaMessageCount,
       transcriptPathUsed: true,
       transcriptReadStatus: hydration.readStatus,
+      ...(sessionDigest ? { transcriptSessionDigest: sessionDigest } : {}),
     },
   };
 }
