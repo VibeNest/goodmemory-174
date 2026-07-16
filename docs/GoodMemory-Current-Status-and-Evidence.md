@@ -4,8 +4,9 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 
 ## Stable OSS Surface
 
-- Current release-candidate package line: 0.6.0; npm still serves 0.5.1 until
-  the tagged release workflow publishes the accepted commit.
+- Current stable package line: 0.6.0. Tag `v0.6.0` resolves to release commit
+  `6fdd63ec`; workflow run `29522907352` published the GitHub release and npm
+  `latest` resolves to `goodmemory@0.6.0`.
 - Main has completed Phases 68 through 72 on the generalization-first line.
   The production selector graph contains only
   generalized selection primitives, and the `recommended` preset now has a
@@ -149,7 +150,9 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   failures, 90.74% overall coverage, and 94.40% storage coverage. Node
   20/22/24 packed-consumer smokes and desktop/mobile browser flows pass. The
   219-file tarball excludes `src/` and unpacks to 3,868,829 bytes (3.689603
-  MiB). Tagging and publication remain separate release operations.
+  MiB). The published GitHub asset is `goodmemory-0.6.0.tgz` with SHA-256
+  `4b9c3d4b2aa7300943dfc334860bdc58bc88dcb0adc2f88137f1cd548bfe1cdf`;
+  npm reports an unpacked size of 3,867,885 bytes.
 
 ## Public Boundary Notes
 

@@ -10,7 +10,7 @@ This file is the compact route for external benchmark hardening. Historical per-
    gains on held-out slices.
 3. Phase 70: add provider-backed pointwise reranking and auditable evidence.
 4. Phase 71: ship the versioned Admin API and built-in React Inspector.
-5. Phase 72: add agentic eval coverage and prepare `v0.6.0`.
+5. Phase 72: add agentic eval coverage and release `v0.6.0`.
 
 Phase 63 BEAM answer-rule tuning and Phase 65 LoCoMo case-level repair are
 paused. Accepted artifacts remain historical evidence; no new
@@ -202,7 +202,9 @@ Official-protocol scoring must use a different judge model;
     accepted reports and passes every unchanged benchmark threshold plus the
     revised BEAM boundary. Its generated artifact is
     `reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json`.
-    Tagging and publication remain separate release operations.
+    Publication is closed: tag `v0.6.0` resolves to release commit `6fdd63ec`,
+    workflow run `29522907352` published the GitHub release, and npm `latest`
+    resolves to `goodmemory@0.6.0`.
   - The neutral `mem0ai/memory-benchmarks` GoodMemory adapter PR was refreshed
     at commit `6e3b204`: benchmark timestamps are now preserved in indexed text,
     its Python tests and three runner compiles pass, and a real bridge smoke

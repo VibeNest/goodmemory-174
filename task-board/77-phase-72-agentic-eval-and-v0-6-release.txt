@@ -136,5 +136,7 @@ Release Decision
 ----------------
 
 The benchmark gate, `0.6.0` metadata/claim update, and complete versioned
-release-candidate verification are closed. The accepted commit may proceed to
-the separate tag/publication operation.
+release-candidate verification are closed. Tag `v0.6.0` resolves to release
+commit `6fdd63ec`. Release workflow run `29522907352` completed successfully,
+published the GitHub release and `goodmemory@0.6.0`, and moved npm `latest` to
+`0.6.0`.

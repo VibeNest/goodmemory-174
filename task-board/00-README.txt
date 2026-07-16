@@ -85,7 +85,7 @@ Current Transition
   score is compared with the public same-protocol 0.49 reference; the 0.72 strict and 0.80 unified targets remain disclosed stretch diagnostics because
   the frozen event-ordering integrity audit makes the strict gate ineligible
   for this dataset snapshot. The `v0.6.0` versioned release gate and strict
-  claim gate pass; tag/publication remain separate release operations.
+  claim gate pass; tag `v0.6.0` at `6fdd63ec` was published by workflow run `29522907352` to GitHub and npm `latest` as `goodmemory@0.6.0`.
 - Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
   the C2 host-only canary are closed. C3 implementation is complete, but its
   acceptance is reopened: real two-process run
