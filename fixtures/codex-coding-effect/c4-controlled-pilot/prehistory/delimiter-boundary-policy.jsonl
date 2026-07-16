@@ -1,0 +1,2 @@
+{"payload":{"content":[{"text":"The related pair parsers need one repository-level boundary policy. Establish it in the first task and apply the accepted policy to the follow-up parsers.","type":"input_text"}],"role":"user","type":"message"},"type":"response_item"}
+{"payload":{"content":[{"text":"Recorded that the first parser task will define the local delimiter rule for the remaining stages.","type":"output_text"}],"role":"assistant","type":"message"},"type":"response_item"}

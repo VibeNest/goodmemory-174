@@ -11,9 +11,10 @@ import type {
   C4ReviewInputBundle,
 } from "./c4-contracts";
 
-export const C4_FINAL_REVIEWER_TASK_NAME = "c4_final_independent_review";
+export const C4_FINAL_REVIEWER_TASK_NAME =
+  "c4_final_independent_review_v3";
 export const C4_FINAL_REVIEWER_AGENT_NAME =
-  "/root/c4_final_independent_review";
+  "/root/c4_final_independent_review_v3";
 export const C4_DATASET_ROOT_PATH =
   "fixtures/codex-coding-effect/c4-controlled-pilot";
 export const C4_READINESS_CORE_PATH =
@@ -84,13 +85,39 @@ export function buildC4ReviewRequest(input: {
     "These two memory checks are mutually exclusive. Do not include the check",
     "for the other mode in the episode's `checks` object.",
     "",
-    "Write only `review/independent-review.json` using schemaVersion 2. Set",
-    "`scope` to `dataset-only-no-coding-outcomes`, both inspected flags to",
-    "false, and `inputBundleSha256` to the required hash above. Use status",
-    "`accepted` only when every shared check and the applicable mode-specific",
-    "memory check passes; otherwise use `changes-requested` and leave each",
-    "failed check as false. Set `reviewerTaskName` to",
-    `\`${C4_FINAL_REVIEWER_AGENT_NAME}\`. Do not edit any other file.`,
+    "Write only `review/independent-review.json` as one strict JSON object.",
+    "It must contain exactly these top-level fields:",
+    "",
+    "- `schemaVersion`: 2;",
+    "- `datasetId`, `assetLockSha256`, `assetRootSha256`, `manifestSha256`,",
+    "  `leakageAuditSha256`, and `readinessCoreSha256`: copy the exact values",
+    "  from the input bundle;",
+    `- \`inputBundleSha256\`: \`${input.inputBundleSha256}\`;`,
+    "- `scope`: `dataset-only-no-coding-outcomes`;",
+    `- \`reviewerTaskName\`: \`${C4_FINAL_REVIEWER_AGENT_NAME}\`;`,
+    "- `reviewer`: a non-empty reviewer label;",
+    "- `reviewedAt`: the review completion timestamp;",
+    "- `c4AbResultsInspected`: false;",
+    "- `codingOutcomeArtifactsInspected`: false;",
+    "- `publicCodingEffectProof`: false;",
+    "- `status`: `accepted` or `changes-requested`; and",
+    "- `episodeReviews`: exactly six objects, one for each manifest episode.",
+    "",
+    "Each `episodeReviews` object must contain exactly:",
+    "",
+    "- `episodeId`: copy the manifest episode `id`;",
+    "- `author`: copy the manifest episode `author`;",
+    "- `memoryExpectationMode`: `required` or `irrelevant-control`;",
+    "- `rationale`: a non-empty explanation; and",
+    "- `checks`, with `codingNotTrivia`, `hiddenTestsFair`,",
+    "  `negativeControlCredible`, and",
+    "  `noRepositorySpecificRunnerException`, plus exactly one applicable",
+    "  memory check described above.",
+    "",
+    "Use `accepted` only when every shared check and applicable memory check",
+    "is true. Otherwise use `changes-requested` and leave each failed check",
+    "false. Do not add aliases, per-episode status fields, or other keys.",
+    "Do not edit any other file.",
     "",
   ].join("\n");
 }

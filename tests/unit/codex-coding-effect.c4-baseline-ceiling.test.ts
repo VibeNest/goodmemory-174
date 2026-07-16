@@ -1,21 +1,35 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
   assertC4BaselineCeilingReportBindings,
+  buildC4BaselineStageEvidenceBindings,
   buildC4BaselineCeilingTargets,
   buildC4BaselinePrompt,
   runC4AdaptiveBaselineCeiling,
+  verifyC4BaselineStageEvidenceFiles,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import type {
+  C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
+  C4BaselineStageEvidenceFile,
+  C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import { loadCodexCodingEffectDataset } from "../../scripts/codex-coding-effect/dataset";
 import {
   assertC4BaselinePathIsolation,
   parseC4BaselineOptions,
+  persistC4BaselinePublication,
   runC4BaselineCli,
 } from "../../scripts/run-codex-coding-effect-c4-baseline-ceiling";
 
@@ -38,9 +52,13 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
     })).toThrow("C4 baseline run identity hash is inconsistent");
     expect(() => assertC4BaselineCeilingReportBindings({
       ...report,
+      stageTimeoutMs: report.stageTimeoutMs + 1,
+    })).toThrow("C4 baseline run identity hash is inconsistent");
+    expect(() => assertC4BaselineCeilingReportBindings({
+      ...report,
       results: report.results.map((result, index) =>
         index === 0
-          ? { ...result, changedFiles: ["src/drift.ts"] }
+          ? { ...result, stageEvidenceSha256: "f".repeat(64) }
           : result
       ),
     })).toThrow("C4 baseline stage evidence aggregate is inconsistent");
@@ -48,6 +66,41 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
       ...report,
       decision: "proceed-to-c5-pilot",
     })).toThrow("C4 baseline ceiling decision is inconsistent");
+    const stageEvidenceFiles = evidenceFiles(report);
+    expect(() => verifyC4BaselineStageEvidenceFiles(
+      report,
+      stageEvidenceFiles,
+    )).not.toThrow();
+    expect(stageEvidenceFiles.every((file) =>
+      Object.keys(JSON.parse(file.bytes) as Record<string, unknown>)
+        .sort()
+        .join(",") === "evidence,rawStageEvidenceSha256,result,schemaVersion"
+    )).toBe(true);
+    expect(stageEvidenceFiles.every((file) => {
+      const binding = JSON.parse(file.bytes) as {
+        evidence: { dataset: { stageInputSha256: string } };
+        rawStageEvidenceSha256: string;
+        schemaVersion: number;
+      };
+      return binding.schemaVersion === 2 &&
+        binding.rawStageEvidenceSha256.length === 64 &&
+        binding.evidence.dataset.stageInputSha256.length === 64;
+    })).toBe(true);
+    expect(stageEvidenceFiles.some((file) =>
+      file.bytes.includes("/Users/")
+    )).toBe(false);
+    expect(() => verifyC4BaselineStageEvidenceFiles(
+      report,
+      stageEvidenceFiles.map((file, index) =>
+        index === 0
+          ? { ...file, bytes: file.bytes.replace("src/tasks.ts", "src/drift.ts") }
+          : file
+      ),
+    )).toThrow("C4 baseline patch observation mismatch");
+    expect(() => verifyC4BaselineStageEvidenceFiles(
+      report,
+      stageEvidenceFiles.slice(1),
+    )).toThrow("C4 baseline stage evidence file set is inconsistent");
     expect(calls).toHaveLength(6);
     expect(calls.every((call) => call.endsWith("/stage-3"))).toBe(true);
     expect(report).toMatchObject({
@@ -61,6 +114,8 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
       resolvedCount: 6,
       runIdentitySha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
       stageEvidenceAggregateSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      stageTimeoutMs: 900_000,
+      testTimeoutMs: 300_000,
     });
     expect(report.rounds).toHaveLength(1);
     expect(report.publicClaimEligible).toBe(false);
@@ -169,12 +224,12 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
       "--run-id=c4-baseline-test",
       "--dataset-root=/tmp/c4-dataset",
       "--output-root=/tmp/c4-output",
-      "--report-output=/tmp/c4-dataset/manifest.json",
+      "--publication-output=/tmp/c4-dataset/baseline",
       "--work-root=/tmp/c4-work",
     ]);
 
     expect(() => assertC4BaselinePathIsolation(options)).toThrow(
-      "C4 baseline report output overlaps the frozen dataset",
+      "C4 baseline publication overlaps the frozen dataset",
     );
   });
 
@@ -189,13 +244,13 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
         "--run-id=c4-baseline-test",
         `--dataset-root=${datasetRoot}`,
         `--output-root=${join(root, "output")}`,
-        `--report-output=${join(datasetAlias, "report.json")}`,
+        `--publication-output=${join(datasetAlias, "baseline")}`,
         `--work-root=${join(root, "work")}`,
         `--auth-file=${join(root, "auth.json")}`,
       ]);
 
       expect(() => assertC4BaselinePathIsolation(options)).toThrow(
-        "C4 baseline report output overlaps the frozen dataset",
+        "C4 baseline publication overlaps the frozen dataset",
       );
     } finally {
       await rm(root, { force: true, recursive: true });
@@ -215,7 +270,7 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
         "--run-id=c4-baseline-test",
         `--dataset-root=${datasetRoot}`,
         `--output-root=${join(root, "output")}`,
-        `--report-output=${join(root, "report.json")}`,
+        `--publication-output=${join(root, "baseline")}`,
         `--work-root=${workRoot}`,
         `--auth-file=${join(root, "auth.json")}`,
       ])).rejects.toThrow(
@@ -226,15 +281,82 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
       await rm(root, { force: true, recursive: true });
     }
   });
+
+  it("publishes report and stage evidence as one replaceable bundle", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c4-publication-"));
+    const publication = join(root, "baseline");
+    try {
+      await mkdir(join(publication, "stages", "old-stage"), {
+        recursive: true,
+      });
+      await Promise.all([
+        writeFile(join(publication, "report.json"), "old-report\n", "utf8"),
+        writeFile(
+          join(publication, "stages", "old-stage", "stage-evidence.json"),
+          "old-stage\n",
+          "utf8",
+        ),
+      ]);
+
+      await expect(persistC4BaselinePublication({
+        files: [
+          { bytes: "first\n", path: "new-stage/stage-evidence.json" },
+          { bytes: "duplicate\n", path: "new-stage/stage-evidence.json" },
+        ],
+        path: publication,
+        replace: true,
+        reportBytes: "new-report\n",
+      })).rejects.toThrow();
+
+      expect(await readFile(join(publication, "report.json"), "utf8")).toBe(
+        "old-report\n",
+      );
+      expect(await readFile(
+        join(publication, "stages", "old-stage", "stage-evidence.json"),
+        "utf8",
+      )).toBe("old-stage\n");
+
+      await persistC4BaselinePublication({
+        files: [
+          { bytes: "new-stage\n", path: "new-stage/stage-evidence.json" },
+        ],
+        path: publication,
+        replace: true,
+        reportBytes: "new-report\n",
+      });
+      expect(await readFile(join(publication, "report.json"), "utf8")).toBe(
+        "new-report\n",
+      );
+      expect(await readFile(
+        join(publication, "stages", "new-stage", "stage-evidence.json"),
+        "utf8",
+      )).toBe("new-stage\n");
+      expect(await Bun.file(
+        join(publication, "stages", "old-stage", "stage-evidence.json"),
+      ).exists()).toBe(false);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
 });
 
 function targets(): C4BaselineCeilingTarget[] {
   return Array.from({ length: 6 }, (_, index) => {
     const episodeId = `episode-${index + 1}`;
     return [
-      { episodeId, position: 2, stageId: "stage-2" } satisfies
+      {
+        episodeId,
+        position: 2,
+        stageId: "stage-2",
+        stageInputSha256: sha256(`${episodeId}/stage-2`),
+      } satisfies
         C4BaselineCeilingTarget,
-      { episodeId, position: 3, stageId: "stage-3" } satisfies
+      {
+        episodeId,
+        position: 3,
+        stageId: "stage-3",
+        stageInputSha256: sha256(`${episodeId}/stage-3`),
+      } satisfies
         C4BaselineCeilingTarget,
     ];
   }).flat();
@@ -247,6 +369,7 @@ function identity(runId: string) {
     claimBoundary: "diagnostic-no-memory-ceiling-only" as const,
     codexExecutableSha256: "d".repeat(64),
     codexVersion: "codex-cli 0.144.5",
+    datasetSnapshotMode: "asset-locked-copy" as const,
     datasetId: "codex-c4-controlled-pilot-v2",
     generatedAt: "2026-07-16T08:00:00.000Z",
     host: "codex" as const,
@@ -256,8 +379,10 @@ function identity(runId: string) {
     publicClaimEligible: false as const,
     reasoningEffort: "xhigh",
     runId,
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
+    stageTimeoutMs: 900_000,
     strategy: "stage-3-first-then-stage-2-if-needed" as const,
+    testTimeoutMs: 300_000,
   };
 }
 
@@ -265,7 +390,10 @@ function result(
   target: C4BaselineCeilingTarget,
   resolved: boolean,
 ) {
-  return {
+  const diff = resolved
+    ? "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n"
+    : "";
+  const result = {
     changedFiles: resolved ? ["src/tasks.ts"] : [],
     codexStatus: "completed" as const,
     disposition: "finalized" as const,
@@ -273,11 +401,110 @@ function result(
     executionFailureStage: null,
     failToPassStatus: resolved ? "passed" as const : "failed" as const,
     passToPassStatus: "passed" as const,
-    patchSha256: resolved ? "a".repeat(64) : null,
+    patchSha256: resolved ? sha256(diff) : null,
     resolved,
-    stageEvidenceSha256: "b".repeat(64),
     stageId: target.stageId,
+    stageInputSha256: target.stageInputSha256,
     taskFailureReasons: resolved ? [] : ["no-patch"],
     threadId: `${target.episodeId}-${target.stageId}`,
   };
+  return {
+    ...result,
+    stageEvidenceSha256: sha256(rawStageEvidenceBytes(result, diff)),
+  };
+}
+
+function evidenceFiles(
+  report: C4BaselineCeilingReport,
+): C4BaselineStageEvidenceFile[] {
+  return buildC4BaselineStageEvidenceBindings(
+    report,
+    report.results.map((stage) => ({
+      bytes: rawStageEvidenceBytes(
+        stageEvidenceResult(stage),
+        stage.patchSha256 === null
+          ? ""
+          : "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n",
+      ),
+      path: `${stage.episodeId}-${stage.stageId}/stage-evidence.json`,
+    })),
+  );
+}
+
+function rawStageEvidenceBytes(
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  diff: string,
+): string {
+  return `${JSON.stringify({
+    codex: {
+      durationMs: 1,
+      eventCount: 1,
+      exitCode: 0,
+      status: result.codexStatus,
+      stderr: "",
+      timedOut: false,
+      usage: null,
+    },
+    dataset: {
+      episodeId: result.episodeId,
+      promptSha256: "1".repeat(64),
+      repositoryCommit: "2".repeat(40),
+      repositoryTree: "3".repeat(40),
+      snapshot: "2".repeat(40),
+      stageId: result.stageId,
+      stageInputSha256: result.stageInputSha256,
+    },
+    evaluator: {
+      commitments: [],
+      credentialsRemovedBeforeMaterialization: true,
+      failToPass: {
+        durationMs: 1,
+        exitCode: result.failToPassStatus === "passed" ? 0 : 1,
+        kind: "fail-to-pass",
+        status: result.failToPassStatus,
+        stderr: "",
+        stdout: "",
+      },
+      materializedAfterCodexExit: true,
+      passToPass: {
+        durationMs: 1,
+        exitCode: result.passToPassStatus === "passed" ? 0 : 1,
+        kind: "pass-to-pass",
+        status: result.passToPassStatus,
+        stderr: "",
+        stdout: "",
+      },
+      sandbox: {},
+    },
+    patch: {
+      baseCommit: "2".repeat(40),
+      changedFiles: result.changedFiles,
+      diff,
+      forbiddenFiles: [],
+      hasPatch: result.patchSha256 !== null,
+      sha256: result.patchSha256,
+      untrackedFiles: [],
+    },
+    result,
+    schemaVersion: 1,
+    visibleBaseHealth: {
+      durationMs: 1,
+      exitCode: 0,
+      passed: true,
+      status: "passed",
+      stderr: "",
+      stdout: "",
+    },
+  }, null, 2)}\n`;
+}
+
+function stageEvidenceResult(
+  stage: C4BaselineStageResult,
+): Omit<C4BaselineStageResult, "stageEvidenceSha256"> {
+  const { stageEvidenceSha256: _, ...result } = stage;
+  return result;
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }

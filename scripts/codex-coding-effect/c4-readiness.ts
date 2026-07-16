@@ -13,11 +13,15 @@ import { z } from "zod";
 
 import {
   assertC4BaselineCeilingReportBindings,
+  buildC4BaselinePrompt,
+  c4BaselineStageInputSha256,
   serializeC4BaselineCeilingReport,
+  verifyC4BaselineDatasetTargets,
   verifyC4BaselineStageEvidenceFiles,
 } from "./c4-baseline-ceiling";
 import type {
   C4BaselineCeilingReport,
+  C4BaselineCeilingTarget,
   C4BaselineStageEvidenceFile,
 } from "./c4-baseline-ceiling";
 import {
@@ -39,12 +43,15 @@ import {
   c4HiddenValueAppearsInSurface,
   C4_HIDDEN_ARTIFACT_IDS,
   C4_LEAKAGE_SURFACE_IDS,
+  mutationTestC4SurfaceHiddenArtifactMatrix,
 } from "./c4-leakage";
 import type {
   C4HiddenArtifact,
   C4HiddenValue,
   C4LeakageMatrixCell,
+  C4LeakageMutationCell,
   C4LeakageSurface,
+  C4LeakageSurfaceId,
 } from "./c4-leakage";
 import {
   assertC4CanonicalIndependentReviewInstructions,
@@ -140,10 +147,11 @@ const baselineStageResultSchema = z.object({
   passToPassStatus: z.string().min(1),
   patchSha256: sha256Schema.nullable(),
   resolved: z.boolean(),
-  stageEvidenceSha256: sha256Schema,
   stageId: z.enum(["stage-2", "stage-3"]),
+  stageInputSha256: sha256Schema,
   taskFailureReasons: z.array(z.string()),
   threadId: z.string().nullable(),
+  stageEvidenceSha256: sha256Schema,
 }).strict();
 const baselineRoundSchema = z.object({
   attemptedCount: z.number().int().nonnegative(),
@@ -161,6 +169,7 @@ const baselineCeilingReportSchema = z.object({
   claimBoundary: z.literal("diagnostic-no-memory-ceiling-only"),
   codexExecutableSha256: sha256Schema,
   codexVersion: z.string().min(1),
+  datasetSnapshotMode: z.literal("asset-locked-copy"),
   datasetId: z.literal(C4_DATASET_ID),
   decision: z.enum([
     "inconclusive",
@@ -179,7 +188,7 @@ const baselineCeilingReportSchema = z.object({
   rounds: z.array(baselineRoundSchema).min(1).max(2),
   runIdentitySha256: sha256Schema,
   runId: z.string().min(1),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   stageEvidenceAggregateSha256: sha256Schema,
   stageTimeoutMs: z.number().int().positive(),
   strategy: z.object({
@@ -193,7 +202,7 @@ const baselineCeilingReportSchema = z.object({
 }).strict();
 
 export const C4_BASELINE_CEILING_REPORT_PATH =
-  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot.json";
+  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/report.json";
 
 export interface C4BaseProbeEvidence {
   commit: string;
@@ -214,20 +223,36 @@ export interface C4StageReadiness {
   goldReplaySha256: string;
   memoryExpectation: "irrelevant-control" | "none" | "required";
   stageId: string;
+  stageInputSha256: string;
 }
+
+type C4LiveReauditSurfaceId =
+  | "effective-codex-input-after-seeding"
+  | "flat-summary-after-seeding"
+  | "goodmemory-export-after-seeding"
+  | "goodmemory-hook-context-after-seeding";
 
 export interface C4LeakageReadiness {
   auditSha256: string;
   auditedHiddenArtifacts: string[];
-  auditedSurfaces: string[];
-  deferredC5Surfaces: [];
+  auditedSurfaces: C4LeakageSurfaceId[];
+  c5LiveReauditSurfaces: C4LiveReauditSurfaceId[];
+  deferredC5Surfaces: C4LiveReauditSurfaceId[];
+  directFrozenSurfaces: C4LeakageSurfaceId[];
   episodeCount: number;
-  episodeMatrices: Array<{
+  stageCount: number;
+  stageMatrices: Array<{
     auditSha256: string;
     cells: C4LeakageMatrixCell[];
     episodeId: string;
+    mutationAuditSha256: string;
+    mutationCells: C4LeakageMutationCell[];
+    stageId: string;
   }>;
   matrixCellCount: number;
+  mutationApplicableCellCount: number;
+  mutationCellCount: number;
+  mutationNotApplicableCellCount: number;
   overlapCount: number;
   runtimeSurfacePolicy:
     "content-preserving-projection-plus-C5-live-reaudit";
@@ -322,7 +347,7 @@ export interface C4DatasetReadinessReport {
   reviewerAgentName: string;
   reviewerIdentityEvidence:
     "orchestrator-attestation-not-cryptographic-receipt";
-  reviewerRequestedTaskName: "c4_final_independent_review";
+  reviewerRequestedTaskName: "c4_final_independent_review_v3";
   reviewerType: "independent-ai-agent";
   reviewContextPolicy: "fork-turns-none";
   reviewDispatchSha256: string;
@@ -493,6 +518,7 @@ export async function runC4DatasetCoreReadiness(input: {
 export function validateC4BaselineCeilingEvidence(
   baselineBytes: string,
   stageEvidenceFiles: readonly C4BaselineStageEvidenceFile[],
+  expectedTargets: readonly C4BaselineCeilingTarget[],
 ): {
   report: C4BaselineCeilingReport;
   reportSha256: string;
@@ -511,6 +537,7 @@ export function validateC4BaselineCeilingEvidence(
     throw new Error("C4 baseline ceiling report is not canonically serialized");
   }
   assertC4BaselineCeilingReportBindings(report);
+  verifyC4BaselineDatasetTargets(report, expectedTargets);
   verifyC4BaselineStageEvidenceFiles(report, stageEvidenceFiles);
   if (report.decision === "redesign-episodes-before-c5") {
     throw new Error(
@@ -545,6 +572,14 @@ export function finalizeC4DatasetReadiness(input: {
   const baseline = validateC4BaselineCeilingEvidence(
     input.baselineBytes,
     input.baselineStageEvidenceFiles,
+    input.result.core.stages
+      .filter((stage) => stage.stageId === "stage-2" || stage.stageId === "stage-3")
+      .map((stage) => ({
+        episodeId: stage.episodeId,
+        position: stage.stageId === "stage-2" ? 2 : 3,
+        stageId: stage.stageId === "stage-2" ? "stage-2" : "stage-3",
+        stageInputSha256: stage.stageInputSha256,
+      })),
   );
   assertC4CanonicalIndependentReviewInstructions({
     dispatchBytes: input.dispatchBytes,
@@ -903,6 +938,10 @@ async function verifyStage(input: {
     goldReplaySha256,
     memoryExpectation: input.stage.memoryExpectation.mode,
     stageId: input.stage.id,
+    stageInputSha256: c4BaselineStageInputSha256(
+      input.episode,
+      input.stage,
+    ),
   };
 }
 
@@ -971,7 +1010,7 @@ async function auditC4Leakage(
   if (!evaluatorCases.success) {
     throw new Error("invalid C4 evaluator cases for leakage audit");
   }
-  const episodeMatrices: C4LeakageReadiness["episodeMatrices"] = [];
+  const stageMatrices: C4LeakageReadiness["stageMatrices"] = [];
   for (const episode of dataset.episodes) {
     if (episode.prehistory.source !== "frozen-artifact") {
       throw new Error(`C4 episode ${episode.id} must use frozen prehistory`);
@@ -1020,57 +1059,22 @@ async function auditC4Leakage(
       throw new Error(`C4 forbidden source commitments drifted for ${episode.id}`);
     }
 
-    const surfaces: C4LeakageSurface[] = [
-      {
-        content: episode.stages.flatMap((stage) =>
-          stage.allowedFeedback
-        ).join("\n"),
-        id: "allowed-feedback",
+    const flatSummarySurface = artifact.records.map((record) =>
+      `${record.role}: ${record.message}`
+    ).join("\n");
+    const goodMemoryExportSurface = JSON.stringify({
+      durable: {
+        episodes: artifact.records.map((record) => ({
+          content: record.message,
+          role: record.role,
+          sourceId: record.id,
+        })),
       },
-      {
-        content: artifact.records.map((record) =>
-          `${record.role}: ${record.message}`
-        ).join("\n"),
-        id: "flat-summary-after-seeding",
-      },
-      {
-        content: artifact.sourceBytes,
-        hiddenValueContent: prehistoryMessages,
-        id: "frozen-prehistory",
-      },
-      {
-        content: JSON.stringify({
-          durable: {
-            episodes: artifact.records.map((record) => ({
-              content: record.message,
-              role: record.role,
-              sourceId: record.id,
-            })),
-          },
-          schemaVersion: 1,
-        }),
-        hiddenValueContent: prehistoryMessages,
-        id: "goodmemory-export-after-seeding",
-      },
-      {
-        content: repositoryInstructions.join("\n"),
-        id: "repository-instructions",
-      },
-      {
-        content: (await Promise.all(episode.stages.map((stage) =>
-          readFile(join(datasetRoot, stage.promptPath), "utf8")
-        ))).join("\n"),
-        id: "stage-prompts",
-      },
-      {
-        content: visibleRepositoryFiles.join("\n"),
-        id: "visible-repository-files",
-      },
-    ];
-    const hiddenSourceContent = [
-      evaluatorRunnerBytes,
-      JSON.stringify({ cases: episodeCases, schemaVersion: 1 }, null, 2),
-    ].join("\n");
+      schemaVersion: 1,
+    });
+    const goodMemoryHookContextSurface = artifact.records.map((record) =>
+      `[${record.role}] ${record.message}`
+    ).join("\n");
     const allHiddenValues = uniqueHiddenValues(
       episodeCases.flatMap((testCase) => [
         ...testCase.failToPass,
@@ -1097,104 +1101,241 @@ async function auditC4Leakage(
     const declaredAllowedValueKeys = new Set(
       declaredAllowedValues.map(hiddenValueKey),
     );
-    const hiddenValues = allHiddenValues.filter((value) =>
-      !declaredAllowedValueKeys.has(hiddenValueKey(value))
-    );
-    const goldCandidateLines = [...new Set([
-      ...goldPatches.flatMap((patch) => meaningfulAddedLines(patch.bytes)),
-      ...episode.forbiddenLeakage.strings.filter((fragment) =>
-        !fragment.startsWith("C4_HIDDEN|")
-      ),
-    ])];
-    const hiddenSourceCandidateLines = [...new Set([
-      ...meaningfulSourceLines(evaluatorRunnerBytes),
-      ...episodeCases.flatMap(hiddenStageMetadataFragments),
-      ...episode.forbiddenLeakage.strings.filter((fragment) =>
-        fragment.startsWith("C4_HIDDEN|")
-      ),
-    ])];
-    const artifacts: C4HiddenArtifact[] = [
-      {
-        allowedPublicFragments: [...new Set(episode.stages.flatMap((stage) =>
-          stage.expectedChangedFiles
-        ))].filter((fragment) =>
-          containsNormalized(publicNaturalSurface, fragment)
-        ),
-        content: JSON.stringify(
-          [...new Set(episode.stages.flatMap((stage) =>
-            stage.expectedChangedFiles
-          ))].sort(),
-        ),
-        fragments: [...new Set(episode.stages.flatMap((stage) =>
-          stage.expectedChangedFiles
-        ))].filter((fragment) =>
-          !containsNormalized(publicNaturalSurface, fragment)
-        ),
-        id: "expected-changed-files",
-      },
-      {
-        allowedPublicFragments: goldCandidateLines.filter((fragment) =>
-          containsNormalized(publicNaturalSurface, fragment)
-        ),
-        content: goldPatches.map((patch) => patch.bytes).join("\n"),
-        fragments: goldCandidateLines.filter((fragment) =>
-          !containsNormalized(publicNaturalSurface, fragment)
-        ),
-        id: "gold-patches",
-      },
-      {
-        allowedPublicFragments: hiddenSourceCandidateLines.filter((fragment) =>
-          containsNormalized(publicNaturalSurface, fragment)
-        ).concat(declaredAllowedValues.map(String)),
-        content: hiddenSourceContent,
-        fragments: hiddenSourceCandidateLines.filter((fragment) =>
-          !containsNormalized(publicNaturalSurface, fragment)
-        ),
-        hiddenValues,
-        id: "hidden-test-source",
-      },
-    ];
-    const matrix = auditC4SurfaceHiddenArtifactMatrix({
-      artifacts,
-      surfaces,
-    });
-    if (matrix.status !== "accepted") {
-      const first = matrix.cells.find((cell) => cell.status === "rejected");
-      throw new Error(
-        `C4 leakage audit failed for ${episode.id}` +
-          (first === undefined
-            ? ""
-            : ` at ${first.surfaceId}/${first.artifactId}`),
+    for (const [stageIndex, stage] of episode.stages.entries()) {
+      const testCase = episodeCases.find((candidate) =>
+        candidate.stageId === stage.id
       );
+      const goldPatch = goldPatches[stageIndex];
+      if (testCase === undefined || goldPatch === undefined) {
+        throw new Error(
+          `C4 hidden evaluator stage coverage mismatch for ${episode.id}/${stage.id}`,
+        );
+      }
+      const allowedFeedbackSurface = stage.allowedFeedback.join("\n");
+      const stagePromptSurface = await readFile(
+        join(datasetRoot, stage.promptPath),
+        "utf8",
+      );
+      const effectiveCodexInputSurface = [
+        buildC4BaselinePrompt({
+          allowedFeedback: stage.allowedFeedback,
+          prompt: stagePromptSurface,
+        }),
+        goodMemoryHookContextSurface,
+      ].join("\n");
+      const surfaces: C4LeakageSurface[] = [
+        {
+          content: allowedFeedbackSurface,
+          id: "allowed-feedback",
+        },
+        {
+          content: effectiveCodexInputSurface,
+          hiddenValueContent: effectiveCodexInputSurface,
+          id: "effective-codex-input-after-seeding",
+        },
+        {
+          content: flatSummarySurface,
+          id: "flat-summary-after-seeding",
+        },
+        {
+          content: artifact.sourceBytes,
+          hiddenValueContent: prehistoryMessages,
+          id: "frozen-prehistory",
+        },
+        {
+          content: goodMemoryExportSurface,
+          hiddenValueContent: prehistoryMessages,
+          id: "goodmemory-export-after-seeding",
+        },
+        {
+          content: goodMemoryHookContextSurface,
+          hiddenValueContent: prehistoryMessages,
+          id: "goodmemory-hook-context-after-seeding",
+        },
+        {
+          content: repositoryInstructions.join("\n"),
+          id: "repository-instructions",
+        },
+        {
+          content: stagePromptSurface,
+          id: "stage-prompts",
+        },
+        {
+          content: visibleRepositoryFiles.join("\n"),
+          id: "visible-repository-files",
+        },
+      ];
+      const stageCases = [
+        ...testCase.failToPass,
+        ...testCase.passToPass,
+      ];
+      const hiddenSourceContent = [
+        evaluatorRunnerBytes,
+        JSON.stringify({
+          cases: [testCase],
+          schemaVersion: 1,
+        }, null, 2),
+      ].join("\n");
+      const hiddenValues = uniqueHiddenValues(
+        stageCases.flatMap((hiddenCase) => [
+          ...collectHiddenValues(hiddenCase.args),
+          ...collectHiddenValues(hiddenCase.expected),
+        ]),
+      ).filter((value) =>
+        !declaredAllowedValueKeys.has(hiddenValueKey(value))
+      );
+      const hiddenValueRelations = stageCases.map((hiddenCase) =>
+        uniqueHiddenValues([
+          ...collectHiddenValues(hiddenCase.args),
+          ...collectHiddenValues(hiddenCase.expected),
+        ])
+      ).filter((relation) => relation.length >= 2);
+      const goldCandidateLines = meaningfulAddedLines(goldPatch.bytes);
+      const hiddenSourceCandidateLines = [...new Set([
+        ...meaningfulSourceLines(evaluatorRunnerBytes),
+        ...hiddenStageMetadataFragments(testCase),
+        ...stageCases.flatMap((hiddenCase) => {
+          const completeCase = {
+            args: hiddenCase.args,
+            expected: hiddenCase.expected,
+          };
+          return [
+            JSON.stringify(completeCase),
+            JSON.stringify(completeCase, null, 2),
+          ];
+        }),
+      ])];
+      const expectedChangedFiles = [...new Set(
+        stage.expectedChangedFiles,
+      )].sort();
+      const artifacts: C4HiddenArtifact[] = [
+        {
+          allowedPublicFragments: expectedChangedFiles.filter((fragment) =>
+            containsNormalized(publicNaturalSurface, fragment)
+          ),
+          content: JSON.stringify(expectedChangedFiles),
+          fragments: expectedChangedFiles.filter((fragment) =>
+            !containsNormalized(publicNaturalSurface, fragment)
+          ),
+          id: "expected-changed-files",
+        },
+        {
+          allowedPublicFragments: goldCandidateLines.filter((fragment) =>
+            containsNormalized(publicNaturalSurface, fragment)
+          ),
+          content: goldPatch.bytes,
+          fragments: goldCandidateLines.filter((fragment) =>
+            !containsNormalized(publicNaturalSurface, fragment)
+          ),
+          id: "gold-patches",
+        },
+        {
+          allowedPublicFragments: hiddenSourceCandidateLines.filter(
+            (fragment) => containsNormalized(publicNaturalSurface, fragment),
+          ).concat(declaredAllowedValues.map(String)),
+          content: hiddenSourceContent,
+          fragments: hiddenSourceCandidateLines.filter((fragment) =>
+            !containsNormalized(publicNaturalSurface, fragment)
+          ),
+          hiddenValueRelations,
+          hiddenValues,
+          id: "hidden-test-source",
+        },
+      ];
+      const matrix = auditC4SurfaceHiddenArtifactMatrix({
+        artifacts,
+        surfaces,
+      });
+      if (matrix.status !== "accepted") {
+        const first = matrix.cells.find((cell) =>
+          cell.status === "rejected"
+        );
+        throw new Error(
+          `C4 leakage audit failed for ${episode.id}/${stage.id}` +
+            (first === undefined
+              ? ""
+              : ` at ${first.surfaceId}/${first.artifactId}`),
+        );
+      }
+      const mutation = mutationTestC4SurfaceHiddenArtifactMatrix({
+        artifacts,
+        surfaces,
+      });
+      stageMatrices.push({
+        auditSha256: matrix.auditSha256,
+        cells: matrix.cells,
+        episodeId: episode.id,
+        mutationAuditSha256: mutation.auditSha256,
+        mutationCells: mutation.cells,
+        stageId: stage.id,
+      });
     }
-    episodeMatrices.push({
-      auditSha256: matrix.auditSha256,
-      cells: matrix.cells,
-      episodeId: episode.id,
-    });
   }
   const auditBasis = {
     auditedHiddenArtifacts: [...C4_HIDDEN_ARTIFACT_IDS],
     auditedSurfaces: [...C4_LEAKAGE_SURFACE_IDS],
-    deferredC5Surfaces: [],
-    episodeMatrices,
-    matrixCellCount: episodeMatrices.reduce(
-      (total, episode) => total + episode.cells.length,
+    c5LiveReauditSurfaces: [
+      "effective-codex-input-after-seeding",
+      "flat-summary-after-seeding",
+      "goodmemory-export-after-seeding",
+      "goodmemory-hook-context-after-seeding",
+    ],
+    deferredC5Surfaces: [
+      "effective-codex-input-after-seeding",
+      "flat-summary-after-seeding",
+      "goodmemory-export-after-seeding",
+      "goodmemory-hook-context-after-seeding",
+    ],
+    directFrozenSurfaces: [
+      "allowed-feedback",
+      "frozen-prehistory",
+      "repository-instructions",
+      "stage-prompts",
+      "visible-repository-files",
+    ],
+    matrixCellCount: stageMatrices.reduce(
+      (total, stage) => total + stage.cells.length,
+      0,
+    ),
+    mutationApplicableCellCount: stageMatrices.reduce(
+      (total, stage) =>
+        total + stage.mutationCells.filter((cell) =>
+          cell.applicability === "applicable"
+        ).length,
+      0,
+    ),
+    mutationCellCount: stageMatrices.reduce(
+      (total, stage) => total + stage.mutationCells.length,
+      0,
+    ),
+    mutationNotApplicableCellCount: stageMatrices.reduce(
+      (total, stage) =>
+        total + stage.mutationCells.filter((cell) =>
+          cell.applicability === "not-applicable-no-secret-candidate"
+        ).length,
       0,
     ),
     overlapCount: 0,
     runtimeSurfacePolicy:
       "content-preserving-projection-plus-C5-live-reaudit",
+    stageMatrices,
     status: "accepted",
   } as const;
   return {
     auditSha256: sha256(JSON.stringify(auditBasis)),
     auditedHiddenArtifacts: [...auditBasis.auditedHiddenArtifacts],
     auditedSurfaces: [...auditBasis.auditedSurfaces],
-    deferredC5Surfaces: [],
-    episodeCount: episodeMatrices.length,
-    episodeMatrices,
+    c5LiveReauditSurfaces: [...auditBasis.c5LiveReauditSurfaces],
+    deferredC5Surfaces: [...auditBasis.deferredC5Surfaces],
+    directFrozenSurfaces: [...auditBasis.directFrozenSurfaces],
+    episodeCount: dataset.episodes.length,
+    stageCount: stageMatrices.length,
+    stageMatrices,
     matrixCellCount: auditBasis.matrixCellCount,
+    mutationApplicableCellCount: auditBasis.mutationApplicableCellCount,
+    mutationCellCount: auditBasis.mutationCellCount,
+    mutationNotApplicableCellCount:
+      auditBasis.mutationNotApplicableCellCount,
     overlapCount: 0,
     runtimeSurfacePolicy: auditBasis.runtimeSurfacePolicy,
     status: "accepted",

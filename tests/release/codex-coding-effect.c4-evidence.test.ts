@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import {
@@ -20,6 +21,9 @@ import {
 import type {
   C4DatasetCoreReadiness,
 } from "../../scripts/codex-coding-effect/c4-readiness";
+import {
+  runC4DatasetCoreReadiness,
+} from "../../scripts/codex-coding-effect/c4-readiness";
 
 const REPOSITORY_ROOT = resolve(import.meta.dir, "../..");
 const DATASET_ROOT = join(
@@ -35,7 +39,6 @@ const HISTORICAL_BASELINE_PATH = join(
 describe("Codex coding-effect C4 tracked evidence", () => {
   it("binds the frozen dataset and current core while independent review remains open", async () => {
     const [
-      baselineBytes,
       coreBytes,
       dispatchBytes,
       historicalBaselineBytes,
@@ -46,7 +49,6 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       taskBoard,
       plan,
     ] = await Promise.all([
-      readFile(join(REPORT_ROOT, "c4-baseline-ceiling-pilot.json"), "utf8"),
       readFile(join(REPORT_ROOT, "c4-controlled-pilot-core.json"), "utf8"),
       readFile(join(DATASET_ROOT, "review/dispatch.json"), "utf8"),
       readFile(HISTORICAL_BASELINE_PATH, "utf8"),
@@ -75,11 +77,6 @@ describe("Codex coding-effect C4 tracked evidence", () => {
         "utf8",
       ),
     ]);
-    const baseline = JSON.parse(baselineBytes) as {
-      claimBoundary: string;
-      datasetId: string;
-      publicClaimEligible: boolean;
-    };
     const core = JSON.parse(coreBytes) as C4DatasetCoreReadiness;
     const dispatch = parseC4IndependentReviewDispatch(
       JSON.parse(dispatchBytes) as unknown,
@@ -106,11 +103,15 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       publicClaimEligible: false,
       resolvedCount: 6,
     });
-    expect(baseline).toMatchObject({
-      claimBoundary: "diagnostic-no-memory-ceiling-only",
-      datasetId: "codex-c4-controlled-pilot-v2",
-      publicClaimEligible: false,
-    });
+    expect(await Bun.file(
+      join(REPORT_ROOT, "c4-baseline-ceiling-pilot.json"),
+    ).exists()).toBe(false);
+    expect(await Bun.file(
+      join(REPORT_ROOT, "c4-baseline-ceiling-pilot-stages"),
+    ).exists()).toBe(false);
+    expect(await Bun.file(
+      join(REPORT_ROOT, "c4-baseline-ceiling-pilot"),
+    ).exists()).toBe(false);
     expect(await buildC4AssetLock(DATASET_ROOT)).toEqual(assetLock);
     expect(core).toMatchObject({
       assetLockSha256,
@@ -158,7 +159,9 @@ describe("Codex coding-effect C4 tracked evidence", () => {
     expect(core.authorAttestation.authorTaskName).toBe("/root");
     expect(dispatch.authorTaskName).toBe("/root");
     expect(dispatch.reviewerAgentName).not.toBe(dispatch.authorTaskName);
-    expect(dispatch.requestedTaskName).toBe("c4_final_independent_review");
+    expect(dispatch.requestedTaskName).toBe(
+      "c4_final_independent_review_v3",
+    );
     expect(dispatch.spawnMessage.length).toBeGreaterThan(0);
     expect(inputBundle.excludedOutcomeArtifacts).toEqual([
       "c4-baseline-results",
@@ -171,20 +174,52 @@ describe("Codex coding-effect C4 tracked evidence", () => {
     expect(core.leakage.auditedSurfaces).toContain(
       "goodmemory-export-after-seeding",
     );
-    expect(core.leakage.matrixCellCount).toBe(126);
-    expect(core.leakage.episodeMatrices.every((episode) =>
-      episode.cells.length === 21
+    expect(core.leakage.matrixCellCount).toBe(486);
+    expect(core.leakage.mutationApplicableCellCount).toBe(648);
+    expect(core.leakage.mutationCellCount).toBe(1458);
+    expect(core.leakage.mutationNotApplicableCellCount).toBe(810);
+    expect(core.leakage.stageCount).toBe(18);
+    expect(core.leakage.stageMatrices.every((stage) =>
+      stage.cells.length === 27 &&
+      stage.mutationCells.length === 81
     )).toBe(true);
+    expect(core.leakage.c5LiveReauditSurfaces).toEqual([
+      "effective-codex-input-after-seeding",
+      "flat-summary-after-seeding",
+      "goodmemory-export-after-seeding",
+      "goodmemory-hook-context-after-seeding",
+    ]);
+    expect(core.leakage.deferredC5Surfaces).toEqual(
+      core.leakage.c5LiveReauditSurfaces,
+    );
+    expect([
+      ...core.leakage.directFrozenSurfaces,
+      ...core.leakage.deferredC5Surfaces,
+    ].map(String).sort()).toEqual([...core.leakage.auditedSurfaces].sort());
     expect(core.stages).toHaveLength(18);
     expect(core.stages.every((stage) =>
       stage.baseProbeStable &&
       stage.baseProbes.length === 3 &&
-      stage.goldPassed
+      stage.goldPassed &&
+      /^[a-f0-9]{64}$/u.test(stage.stageInputSha256)
     )).toBe(true);
     expect(core.repositories.every((repository) =>
       Object.keys(repository).sort().join(",") === "commit,id,tree,url"
     )).toBe(true);
     expect(coreBytes).not.toContain(REPOSITORY_ROOT);
+    const regenerationRoot = await mkdtemp(
+      join(tmpdir(), "goodmemory-c4-release-regeneration-"),
+    );
+    try {
+      const regenerated = await runC4DatasetCoreReadiness({
+        datasetRoot: DATASET_ROOT,
+        workspaceRoot: join(regenerationRoot, "readiness"),
+      });
+      expect(regenerated.coreBytes).toBe(coreBytes);
+      expect(regenerated.coreSha256).toBe(sha256(coreBytes));
+    } finally {
+      await rm(regenerationRoot, { force: true, recursive: true });
+    }
     expect(await Bun.file(
       join(DATASET_ROOT, "review/independent-review.json"),
     ).exists()).toBe(false);
@@ -195,15 +230,15 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       join(REPORT_ROOT, "c4-controlled-pilot-readiness.json"),
     ).exists()).toBe(false);
     expect(taskBoard).toContain(
-      "[OPEN] C4 controlled pilot dataset readiness awaits a new independent review.",
+      "[OPEN] C4 controlled pilot dataset readiness awaits a new v2 no-memory baseline",
     );
     expect(plan).toContain(
       "C4 implementation status (2026-07-16): **reopened pending independent review**.",
     );
     expect(currentStatus).toContain(
-      "C4 therefore remains open until a separate reviewer produces a review",
+      "C4 therefore remains open until the v2 baseline exists",
     );
-  });
+  }, 120_000);
 });
 
 function sha256(value: string): string {

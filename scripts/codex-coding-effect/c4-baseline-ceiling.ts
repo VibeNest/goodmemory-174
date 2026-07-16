@@ -8,6 +8,7 @@ import type { CodexCodingEffectDataset } from "./dataset";
 export interface C4BaselineCeilingTarget {
   episodeId: string;
   position: 2 | 3;
+  stageInputSha256: string;
   stageId: "stage-2" | "stage-3";
 }
 
@@ -22,7 +23,8 @@ export interface C4BaselineStageResult {
   patchSha256: string | null;
   resolved: boolean;
   stageEvidenceSha256: string;
-  stageId: string;
+  stageId: "stage-2" | "stage-3";
+  stageInputSha256: string;
   taskFailureReasons: string[];
   threadId: string | null;
 }
@@ -44,6 +46,7 @@ export interface C4BaselineCeilingReport {
   claimBoundary: "diagnostic-no-memory-ceiling-only";
   codexExecutableSha256: string;
   codexVersion: string;
+  datasetSnapshotMode: "asset-locked-copy";
   datasetId: string;
   decision:
     | "inconclusive"
@@ -61,7 +64,7 @@ export interface C4BaselineCeilingReport {
   rounds: C4BaselineCeilingRound[];
   runIdentitySha256: string;
   runId: string;
-  schemaVersion: 1;
+  schemaVersion: 2;
   stageEvidenceAggregateSha256: string;
   stageTimeoutMs: number;
   strategy: {
@@ -80,6 +83,7 @@ export interface C4BaselineRunIdentity {
   claimBoundary: "diagnostic-no-memory-ceiling-only";
   codexExecutableSha256: string;
   codexVersion: string;
+  datasetSnapshotMode: "asset-locked-copy";
   datasetId: string;
   generatedAt: string;
   host: "codex";
@@ -89,7 +93,7 @@ export interface C4BaselineRunIdentity {
   publicClaimEligible: false;
   reasoningEffort: string;
   runId: string;
-  schemaVersion: 1;
+  schemaVersion: 2;
   stageTimeoutMs: number;
   strategy: "stage-3-first-then-stage-2-if-needed";
   testTimeoutMs: number;
@@ -109,9 +113,25 @@ export function buildC4BaselineCeilingTargets(
       .map((stage) => ({
         episodeId: episode.id,
         position: stage.position as 2 | 3,
+        stageInputSha256: c4BaselineStageInputSha256(episode, stage),
         stageId: stage.id as "stage-2" | "stage-3",
       }))
   );
+}
+
+export function c4BaselineStageInputSha256(
+  episode: CodexCodingEffectDataset["episodes"][number],
+  stage: CodexCodingEffectDataset["episodes"][number]["stages"][number],
+): string {
+  return sha256(canonicalJson({
+    episode: {
+      id: episode.id,
+      preparation: episode.preparation,
+      prehistory: episode.prehistory,
+      repository: episode.repository,
+    },
+    stage,
+  }));
 }
 
 export function buildC4BaselinePrompt(input: {
@@ -173,6 +193,7 @@ export async function runC4AdaptiveBaselineCeiling(input: {
     claimBoundary: "diagnostic-no-memory-ceiling-only",
     codexExecutableSha256: input.runIdentity.codexExecutableSha256,
     codexVersion: input.runIdentity.codexVersion,
+    datasetSnapshotMode: input.runIdentity.datasetSnapshotMode,
     datasetId: input.runIdentity.datasetId,
     decision: ceilingRisk === null
       ? "inconclusive"
@@ -191,7 +212,7 @@ export async function runC4AdaptiveBaselineCeiling(input: {
     rounds,
     runIdentitySha256: sha256(runIdentityBytes),
     runId: input.runIdentity.runId,
-    schemaVersion: 1,
+    schemaVersion: 2,
     stageEvidenceAggregateSha256: sha256(JSON.stringify(
       stageEvidenceReferences(results),
     )),
@@ -218,6 +239,7 @@ export function assertC4BaselineCeilingReportBindings(
     claimBoundary: "diagnostic-no-memory-ceiling-only",
     codexExecutableSha256: report.codexExecutableSha256,
     codexVersion: report.codexVersion,
+    datasetSnapshotMode: report.datasetSnapshotMode,
     datasetId: report.datasetId,
     generatedAt: report.generatedAt,
     host: "codex",
@@ -227,7 +249,7 @@ export function assertC4BaselineCeilingReportBindings(
     publicClaimEligible: false,
     reasoningEffort: report.reasoningEffort,
     runId: report.runId,
-    schemaVersion: 1,
+    schemaVersion: 2,
     stageTimeoutMs: report.stageTimeoutMs,
     strategy: "stage-3-first-then-stage-2-if-needed",
     testTimeoutMs: report.testTimeoutMs,
@@ -269,7 +291,9 @@ export function assertC4BaselineCeilingReportBindings(
     stage2Results.length !== (shouldRunSecondRound ? 6 : 0) ||
     new Set(resultKeys).size !== resultKeys.length ||
     report.results.some((result) =>
-      result.stageId !== "stage-2" && result.stageId !== "stage-3"
+      (result.stageId !== "stage-2" && result.stageId !== "stage-3") ||
+      !/^[a-z0-9][a-z0-9._-]*$/u.test(result.episodeId) ||
+      !/^[a-f0-9]{64}$/u.test(result.stageInputSha256)
     )
   ) {
     throw new Error("C4 baseline adaptive rounds are inconsistent");
@@ -301,6 +325,43 @@ export function assertC4BaselineCeilingReportBindings(
   }
 }
 
+export function verifyC4BaselineDatasetTargets(
+  report: C4BaselineCeilingReport,
+  expectedTargets: readonly C4BaselineCeilingTarget[],
+): void {
+  const expectedByKey = new Map(
+    validateTargets(expectedTargets).map((target) => [
+      `${target.episodeId}/${target.stageId}`,
+      target,
+    ]),
+  );
+  const expected = report.results.map((result) => {
+    const target = expectedByKey.get(`${result.episodeId}/${result.stageId}`);
+    if (target === undefined) {
+      return null;
+    }
+    return targetKey(target);
+  });
+  const actual = report.results.map((result) =>
+    targetKey({
+      episodeId: result.episodeId,
+      position: result.stageId === "stage-2" ? 2 : 3,
+      stageId: result.stageId,
+      stageInputSha256: result.stageInputSha256,
+    })
+  );
+  const expectedKeys = expected.filter(
+    (target): target is string => target !== null,
+  );
+  if (
+    expectedKeys.length !== expected.length ||
+    JSON.stringify([...actual].sort()) !==
+      JSON.stringify(expectedKeys.sort())
+  ) {
+    throw new Error("C4 baseline results do not match the frozen dataset targets");
+  }
+}
+
 export async function loadC4BaselineStageEvidenceFiles(
   stageEvidenceRoot: string,
   report: C4BaselineCeilingReport,
@@ -314,7 +375,75 @@ export async function loadC4BaselineStageEvidenceFiles(
   }));
 }
 
+export function buildC4BaselineStageEvidenceBindings(
+  report: C4BaselineCeilingReport,
+  rawFiles: readonly C4BaselineStageEvidenceFile[],
+): C4BaselineStageEvidenceFile[] {
+  verifyC4BaselineRawStageEvidenceFiles(report, rawFiles);
+  const byPath = new Map(rawFiles.map((file) => [file.path, file.bytes]));
+  return report.results.map((result) => {
+    const path = stageEvidenceRelativePath(result);
+    const rawBytes = byPath.get(path);
+    if (rawBytes === undefined) {
+      throw new Error(`missing C4 baseline raw stage evidence for ${path}`);
+    }
+    return {
+      bytes: `${JSON.stringify({
+        evidence: projectStageEvidence(parseRawStageEvidence(rawBytes, path)),
+        rawStageEvidenceSha256: result.stageEvidenceSha256,
+        result: stageEvidenceResult(result),
+        schemaVersion: 2,
+      }, null, 2)}\n`,
+      path,
+    };
+  });
+}
+
 export function verifyC4BaselineStageEvidenceFiles(
+  report: C4BaselineCeilingReport,
+  files: readonly C4BaselineStageEvidenceFile[],
+): void {
+  verifyStageEvidenceFileSet(report, files);
+  const byPath = new Map(files.map((file) => [file.path, file.bytes]));
+  for (const result of report.results) {
+    const path = stageEvidenceRelativePath(result);
+    const bytes = byPath.get(path);
+    if (bytes === undefined) {
+      throw new Error(`missing C4 baseline stage evidence binding for ${path}`);
+    }
+    const parsed = parseStageEvidenceBinding(bytes, path);
+    if (parsed.rawStageEvidenceSha256 !== result.stageEvidenceSha256) {
+      throw new Error(`C4 baseline stage evidence source mismatch for ${path}`);
+    }
+    const expectedResult = stageEvidenceResult(result);
+    if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
+      throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
+    }
+    verifyProjectedStageEvidence(parsed.evidence, expectedResult, path);
+  }
+}
+
+export function verifyC4BaselineRawStageEvidenceFiles(
+  report: C4BaselineCeilingReport,
+  files: readonly C4BaselineStageEvidenceFile[],
+): void {
+  verifyStageEvidenceFileSet(report, files);
+  const byPath = new Map(files.map((file) => [file.path, file.bytes]));
+  for (const result of report.results) {
+    const path = stageEvidenceRelativePath(result);
+    const bytes = byPath.get(path);
+    if (bytes === undefined || sha256(bytes) !== result.stageEvidenceSha256) {
+      throw new Error(`C4 baseline stage evidence hash mismatch for ${path}`);
+    }
+    const parsed = parseRawStageEvidence(bytes, path);
+    const expectedResult = stageEvidenceResult(result);
+    if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
+      throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
+    }
+  }
+}
+
+function verifyStageEvidenceFileSet(
   report: C4BaselineCeilingReport,
   files: readonly C4BaselineStageEvidenceFile[],
 ): void {
@@ -325,19 +454,6 @@ export function verifyC4BaselineStageEvidenceFiles(
     JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)
   ) {
     throw new Error("C4 baseline stage evidence file set is inconsistent");
-  }
-  const byPath = new Map(files.map((file) => [file.path, file.bytes]));
-  for (const result of report.results) {
-    const path = stageEvidenceRelativePath(result);
-    const bytes = byPath.get(path);
-    if (bytes === undefined || sha256(bytes) !== result.stageEvidenceSha256) {
-      throw new Error(`C4 baseline stage evidence hash mismatch for ${path}`);
-    }
-    const parsed = parseStageEvidence(bytes, path);
-    const expectedResult = stageEvidenceResult(result);
-    if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
-      throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
-    }
   }
 }
 
@@ -364,7 +480,8 @@ async function runRound(input: {
     const result = await input.executeStage(target);
     if (
       result.episodeId !== target.episodeId ||
-      result.stageId !== target.stageId
+      result.stageId !== target.stageId ||
+      result.stageInputSha256 !== target.stageInputSha256
     ) {
       throw new Error("C4 baseline stage result does not match its target");
     }
@@ -401,6 +518,9 @@ function validateTargets(
     if (target.stageId !== `stage-${target.position}`) {
       throw new Error("C4 baseline target position and stage id must match");
     }
+    if (!/^[a-f0-9]{64}$/u.test(target.stageInputSha256)) {
+      throw new Error("C4 baseline target input hash is invalid");
+    }
     const key = `${target.episodeId}/${target.stageId}`;
     if (keys.has(key)) {
       throw new Error(`C4 baseline repeats target ${key}`);
@@ -422,6 +542,10 @@ function validateTargets(
       ? first.episodeId.localeCompare(second.episodeId)
       : second.position - first.position
   );
+}
+
+function targetKey(target: C4BaselineCeilingTarget): string {
+  return `${target.episodeId}\0${target.stageId}\0${target.stageInputSha256}`;
 }
 
 function infrastructureFailureCount(
@@ -456,10 +580,10 @@ function stageEvidenceResult(
   return evidenceResult;
 }
 
-function parseStageEvidence(
+function parseRawStageEvidence(
   bytes: string,
   path: string,
-): { result: unknown } {
+): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(bytes) as unknown;
@@ -473,7 +597,220 @@ function parseStageEvidence(
   ) {
     throw new Error(`C4 baseline stage evidence lacks result for ${path}`);
   }
-  return parsed as { result: unknown };
+  return parsed as Record<string, unknown>;
+}
+
+function parseStageEvidenceBinding(
+  bytes: string,
+  path: string,
+): {
+  evidence: Record<string, unknown>;
+  rawStageEvidenceSha256: string;
+  result: unknown;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes) as unknown;
+  } catch {
+    throw new Error(`invalid C4 baseline stage evidence binding JSON for ${path}`);
+  }
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Object.keys(parsed).sort().join(",") !==
+      "evidence,rawStageEvidenceSha256,result,schemaVersion" ||
+    !("evidence" in parsed) ||
+    typeof parsed.evidence !== "object" ||
+    parsed.evidence === null ||
+    !("result" in parsed) ||
+    !("schemaVersion" in parsed) ||
+    parsed.schemaVersion !== 2 ||
+    !("rawStageEvidenceSha256" in parsed) ||
+    typeof parsed.rawStageEvidenceSha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(parsed.rawStageEvidenceSha256)
+  ) {
+    throw new Error(`invalid C4 baseline stage evidence binding for ${path}`);
+  }
+  const binding = parsed as {
+    evidence: Record<string, unknown>;
+    rawStageEvidenceSha256: string;
+    result: unknown;
+    schemaVersion: 2;
+  };
+  if (
+    bytes !== `${JSON.stringify(binding, null, 2)}\n`
+  ) {
+    throw new Error(
+      `non-canonical C4 baseline stage evidence binding for ${path}`,
+    );
+  }
+  return binding;
+}
+
+function projectStageEvidence(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const arm = optionalRecord(raw.arm);
+  const codex = optionalRecord(raw.codex);
+  const dataset = optionalRecord(raw.dataset);
+  const evaluator = optionalRecord(raw.evaluator);
+  const failure = optionalRecord(raw.failure);
+  const patch = optionalRecord(raw.patch);
+  const visibleBaseHealth = optionalRecord(raw.visibleBaseHealth);
+  return {
+    arm: arm === null
+      ? null
+      : {
+          absenceAuditSha256: sha256(canonicalJson(arm.absenceAudit)),
+          codexExecutableSha256: arm.codexExecutableSha256,
+          codexVersion: arm.codexVersion,
+          instructionSha256: arm.instructionSha256,
+          networkAccess: arm.networkAccess,
+          permissionIsolationEvidenceSha256:
+            optionalRecord(arm.permissionIsolation)?.evidenceSha256 ?? null,
+          permissionIsolationPassed:
+            optionalRecord(optionalRecord(arm.permissionIsolation)?.audit)
+              ?.passed ?? null,
+        },
+    codex: codex === null
+      ? null
+      : {
+          durationMs: codex.durationMs,
+          eventCount: codex.eventCount,
+          exitCode: codex.exitCode,
+          status: codex.status,
+          stderrSha256: sha256(String(codex.stderr ?? "")),
+          timedOut: codex.timedOut,
+          usage: codex.usage ?? null,
+        },
+    dataset: dataset === null
+      ? null
+      : {
+          episodeId: dataset.episodeId,
+          promptSha256: dataset.promptSha256,
+          repositoryCommit: dataset.repositoryCommit,
+          repositoryTree: dataset.repositoryTree,
+          snapshot: dataset.snapshot,
+          stageId: dataset.stageId,
+          stageInputSha256: dataset.stageInputSha256,
+        },
+    evaluator: evaluator === null
+      ? null
+      : {
+          commitments: evaluator.commitments,
+          credentialsRemovedBeforeMaterialization:
+            evaluator.credentialsRemovedBeforeMaterialization,
+          failToPass: projectTestObservation(evaluator.failToPass),
+          materializedAfterCodexExit: evaluator.materializedAfterCodexExit,
+          passToPass: projectTestObservation(evaluator.passToPass),
+          sandboxEvidenceSha256: sha256(canonicalJson(evaluator.sandbox)),
+        },
+    failure: failure === null
+      ? null
+      : {
+          failureStage: failure.failureStage,
+          reasonSha256: failure.reasonSha256,
+        },
+    patch: patch === null
+      ? null
+      : {
+          baseCommit: patch.baseCommit,
+          changedFiles: patch.changedFiles,
+          diff: patch.diff,
+          forbiddenFiles: patch.forbiddenFiles,
+          hasPatch: patch.hasPatch,
+          sha256: patch.sha256,
+          untrackedFiles: patch.untrackedFiles,
+        },
+    visibleBaseHealth: visibleBaseHealth === null
+      ? null
+      : {
+          durationMs: visibleBaseHealth.durationMs,
+          exitCode: visibleBaseHealth.exitCode,
+          passed: visibleBaseHealth.passed,
+          status: visibleBaseHealth.status,
+          stderrSha256: sha256(String(visibleBaseHealth.stderr ?? "")),
+          stdoutSha256: sha256(String(visibleBaseHealth.stdout ?? "")),
+        },
+  };
+}
+
+function projectTestObservation(value: unknown): Record<string, unknown> | null {
+  const test = optionalRecord(value);
+  return test === null
+    ? null
+    : {
+        durationMs: test.durationMs,
+        exitCode: test.exitCode,
+        kind: test.kind,
+        status: test.status,
+        stderrSha256: sha256(String(test.stderr ?? "")),
+        stdoutSha256: sha256(String(test.stdout ?? "")),
+      };
+}
+
+function verifyProjectedStageEvidence(
+  evidence: Record<string, unknown>,
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  path: string,
+): void {
+  const dataset = optionalRecord(evidence.dataset);
+  if (
+    dataset === null ||
+    dataset.episodeId !== result.episodeId ||
+    dataset.stageId !== result.stageId ||
+    dataset.stageInputSha256 !== result.stageInputSha256
+  ) {
+    throw new Error(`C4 baseline stage dataset binding mismatch for ${path}`);
+  }
+  const codex = optionalRecord(evidence.codex);
+  const evaluator = optionalRecord(evidence.evaluator);
+  const patch = optionalRecord(evidence.patch);
+  if (
+    result.disposition === "finalized" &&
+    (codex === null || evaluator === null || patch === null)
+  ) {
+    throw new Error(`C4 baseline stage observations are incomplete for ${path}`);
+  }
+  if (codex !== null && codex.status !== result.codexStatus) {
+    throw new Error(`C4 baseline Codex observation mismatch for ${path}`);
+  }
+  if (evaluator !== null) {
+    const failToPass = optionalRecord(evaluator.failToPass);
+    const passToPass = optionalRecord(evaluator.passToPass);
+    if (
+      failToPass?.status !== result.failToPassStatus ||
+      passToPass?.status !== result.passToPassStatus
+    ) {
+      throw new Error(`C4 baseline evaluator observation mismatch for ${path}`);
+    }
+  }
+  if (patch !== null) {
+    const diff = patch.diff;
+    const patchSha256 = typeof diff === "string" && diff.length > 0
+      ? sha256(diff)
+      : null;
+    if (
+      canonicalJson(patch.changedFiles) !== canonicalJson(result.changedFiles) ||
+      patch.sha256 !== result.patchSha256 ||
+      patchSha256 !== result.patchSha256
+    ) {
+      throw new Error(`C4 baseline patch observation mismatch for ${path}`);
+    }
+  }
+  const failure = optionalRecord(evidence.failure);
+  if (
+    failure !== null &&
+    failure.failureStage !== result.executionFailureStage
+  ) {
+    throw new Error(`C4 baseline failure observation mismatch for ${path}`);
+  }
+}
+
+function optionalRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
 }
 
 function canonicalJson(value: unknown): string {

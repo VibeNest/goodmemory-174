@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..46ef765c4e1a49aab08e18e342d0fbc661efe161 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -11,8 +11,10 @@ export function renderTargetDisplay(target: string, host: string, port: number):
+ }
+ 
+ export function splitAssignment(input: string): [string, string] | null {
+-  const [head, tail] = input.split("=");
+-  return head !== undefined && tail !== undefined ? [head, tail] : null;
++  const delimiterIndex = input.lastIndexOf("=");
++  return delimiterIndex === -1
++    ? null
++    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 1)];
+ }
+ 
+ export function splitHeader(input: string): [string, string] | null {

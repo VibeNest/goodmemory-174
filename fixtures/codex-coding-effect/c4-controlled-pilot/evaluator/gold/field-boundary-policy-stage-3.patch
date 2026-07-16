@@ -1,0 +1,31 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..f72a087fc25bee8b5df0310c8f13ceeaee94fed1 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -34,5 +34,25 @@ export function parsePipeFields(input: string): string[] {
+ }
+ 
+ export function parseSemicolonFields(input: string): string[] {
+-  return input.split(";").map((field) => field.trim());
++  const fields: string[] = [];
++  let current = "";
++  let quoted = false;
++  for (let index = 0; index < input.length; index += 1) {
++    const character = input[index]!;
++    if (character === "\"") {
++      if (quoted && input[index + 1] === "\"") {
++        current += "\"";
++        index += 1;
++      } else {
++        quoted = !quoted;
++      }
++    } else if (character === ";" && !quoted) {
++      fields.push(current.trim());
++      current = "";
++    } else {
++      current += character;
++    }
++  }
++  fields.push(current.trim());
++  return fields;
+ }

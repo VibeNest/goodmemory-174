@@ -1,15 +1,23 @@
 import { describe, expect, it } from "bun:test";
 import {
   chmod,
+  cp,
   mkdtemp,
   readFile,
   readdir,
   rm,
   writeFile,
 } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import {
+  buildC4BaselineStageEvidenceBindings,
+  buildC4BaselinePrompt,
+  loadC4BaselineStageEvidenceFiles,
+  verifyC4BaselineStageEvidenceFiles,
+} from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import {
   runC4NoMemoryCeilingPilot,
 } from "../../scripts/codex-coding-effect/c4-baseline-live";
@@ -49,6 +57,30 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
         workspaceRoot: join(root, "workspaces"),
       });
 
+      const preflightFailures = await Promise.all(
+        (await readdir(join(outputDirectory, "stages"))).map(
+          async (stageDirectory) => {
+            const evidence = JSON.parse(await readFile(
+              join(
+                outputDirectory,
+                "stages",
+                stageDirectory,
+                "stage-evidence.json",
+              ),
+              "utf8",
+            )) as { failure?: { failureStage: string; reason: string } };
+            return evidence.failure === undefined
+              ? null
+              : {
+                  stageDirectory,
+                  ...evidence.failure,
+                };
+          },
+        ),
+      );
+      expect(preflightFailures.filter((failure) => failure !== null)).toEqual(
+        [],
+      );
       expect(result.report).toMatchObject({
         attemptedCount: 12,
         ceilingRisk: false,
@@ -56,8 +88,10 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
         infrastructureFailureCount: 0,
         resolvedCount: 0,
         runIdentitySha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+        stageTimeoutMs: 10_000,
         stageEvidenceAggregateSha256:
           expect.stringMatching(/^[a-f0-9]{64}$/u),
+        testTimeoutMs: 10_000,
       });
       expect(result.report.results.every((stage) =>
         stage.codexStatus === "completed" &&
@@ -66,6 +100,24 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
       )).toBe(true);
       expect(new Set(result.report.results.map((stage) => stage.threadId)).size)
         .toBe(12);
+      const trackedStageEvidence = buildC4BaselineStageEvidenceBindings(
+        result.report,
+        await loadC4BaselineStageEvidenceFiles(
+          join(outputDirectory, "stages"),
+          result.report,
+        ),
+      );
+      expect(() => verifyC4BaselineStageEvidenceFiles(
+        result.report,
+        trackedStageEvidence,
+      )).not.toThrow();
+      expect(trackedStageEvidence.every((file) =>
+        !file.bytes.includes(root) &&
+        !file.bytes.includes("/Users/") &&
+        file.bytes.includes('"schemaVersion": 2') &&
+        file.bytes.includes('"stageInputSha256"') &&
+        file.bytes.includes('"diff"')
+      )).toBe(true);
       expect(await Bun.file(sourceRoot).exists()).toBe(false);
       for (const stageDirectory of await readdir(
         join(outputDirectory, "stages"),
@@ -165,13 +217,169 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
       await rm(root, { force: true, recursive: true });
     }
   }, 30_000);
+
+  it("treats formal Codex authentication failures as inconclusive infrastructure", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c4-baseline-auth-"));
+    const outputDirectory = join(root, "output");
+    const sourceRoot = join(root, "sources");
+    const codexExecutable = join(root, "fake-codex");
+    const authFile = join(root, "auth.json");
+    try {
+      await Promise.all([
+        writeFile(authFile, "{}\n", "utf8"),
+        writeFile(
+          codexExecutable,
+          fakeCodexSource("authentication-failure"),
+          "utf8",
+        ),
+      ]);
+      await chmod(codexExecutable, 0o755);
+
+      const result = await runC4NoMemoryCeilingPilot({
+        authFile,
+        bunExecutable: process.execPath,
+        codexExecutable,
+        datasetRoot: "fixtures/codex-coding-effect/c4-controlled-pilot",
+        evaluatorNetworkProbe: async () => ({
+          networkDenied: true,
+          networkPositiveControl: true,
+        }),
+        generatedAt: "2026-07-16T10:00:00.000Z",
+        model: "test-model",
+        outputDirectory,
+        reasoningEffort: "low",
+        runId: "c4-baseline-authentication-failure",
+        runtimeRoot: join(root, "runtime"),
+        sourceRoot,
+        stageTimeoutMs: 10_000,
+        testTimeoutMs: 10_000,
+        workspaceRoot: join(root, "workspaces"),
+      });
+
+      expect(result.report).toMatchObject({
+        attemptedCount: 6,
+        ceilingRisk: null,
+        decision: "inconclusive",
+        infrastructureFailureCount: 6,
+        resolvedCount: 0,
+      });
+      expect(result.report.results.every((stage) =>
+        stage.codexStatus === "non-zero-exit" &&
+        stage.disposition === "infrastructure-failure" &&
+        stage.executionFailureStage === "codex-execution"
+      )).toBe(true);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  }, 120_000);
+
+  it("runs every stage from the asset-locked dataset snapshot", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c4-baseline-snapshot-"));
+    const datasetRoot = join(root, "dataset");
+    const outputDirectory = join(root, "output");
+    const sourceRoot = join(root, "sources");
+    const codexExecutable = join(root, "fake-codex");
+    const authFile = join(root, "auth.json");
+    const promptRelativePath =
+      "prompts/endpoint-open-loop-render-target-display.md";
+    try {
+      await cp(
+        "fixtures/codex-coding-effect/c4-controlled-pilot",
+        datasetRoot,
+        { recursive: true },
+      );
+      const originalPrompt = await readFile(
+        join(datasetRoot, promptRelativePath),
+        "utf8",
+      );
+      const manifest = JSON.parse(await readFile(
+        join(datasetRoot, "manifest.json"),
+        "utf8",
+      )) as {
+        episodes: Array<{
+          id: string;
+          stages: Array<{
+            allowedFeedback: string[];
+            id: string;
+          }>;
+        }>;
+      };
+      const allowedFeedback = manifest.episodes.find((episode) =>
+        episode.id === "endpoint-open-loop"
+      )!.stages.find((stage) => stage.id === "stage-3")!.allowedFeedback;
+      await Promise.all([
+        writeFile(authFile, "{}\n", "utf8"),
+        writeFile(codexExecutable, fakeCodexSource(), "utf8"),
+      ]);
+      await chmod(codexExecutable, 0o755);
+
+      const result = await runC4NoMemoryCeilingPilot({
+        authFile,
+        bunExecutable: process.execPath,
+        codexExecutable,
+        datasetRoot,
+        evaluatorNetworkProbe: async () => ({
+          networkDenied: true,
+          networkPositiveControl: true,
+        }),
+        generatedAt: "2026-07-16T11:00:00.000Z",
+        model: "test-model",
+        onLog: (event) => {
+          if (event.event === "baseline_preflight_completed") {
+            writeFileSync(
+              join(datasetRoot, promptRelativePath),
+              `${originalPrompt}MUTATED AFTER PREFLIGHT\n`,
+              "utf8",
+            );
+          }
+        },
+        outputDirectory,
+        reasoningEffort: "low",
+        runId: "c4-baseline-dataset-snapshot",
+        runtimeRoot: join(root, "runtime"),
+        sourceRoot,
+        stageTimeoutMs: 10_000,
+        testTimeoutMs: 10_000,
+        workspaceRoot: join(root, "workspaces"),
+      });
+
+      const target = result.report.results.find((stage) =>
+        stage.episodeId === "endpoint-open-loop" &&
+        stage.stageId === "stage-3"
+      )!;
+      const evidence = JSON.parse(await readFile(
+        join(
+          outputDirectory,
+          "stages",
+          `${target.episodeId}-${target.stageId}`,
+          "stage-evidence.json",
+        ),
+        "utf8",
+      )) as { dataset: { promptSha256: string } };
+      expect(evidence.dataset.promptSha256).toBe(sha256(
+        buildC4BaselinePrompt({
+          allowedFeedback,
+          prompt: originalPrompt,
+        }),
+      ));
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  }, 120_000);
 });
 
-function fakeCodexSource(): string {
+function sha256(value: string): string {
+  return new Bun.CryptoHasher("sha256").update(value).digest("hex");
+}
+
+function fakeCodexSource(
+  mode: "authentication-failure" | "success" = "success",
+): string {
   return `#!/usr/bin/env bun
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 
+const mode = ${JSON.stringify(mode)};
 const args = process.argv.slice(2);
 if (args.length === 1 && args[0] === "--version") {
   console.log("codex-cli fake-0.1");
@@ -224,6 +432,10 @@ if (args[0] === "sandbox") {
   process.stdout.write(child.stdout);
   process.stderr.write(child.stderr);
   process.exit(child.exitCode);
+}
+if (mode === "authentication-failure") {
+  console.error("401 authentication expired");
+  process.exit(1);
 }
 const threadId = \`fake-\${randomUUID()}\`;
 console.log(JSON.stringify({ type: "thread.started", thread_id: threadId }));

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { COPYFILE_EXCL } from "node:constants";
 import { appendFileSync } from "node:fs";
 import {
+  cp,
   copyFile,
   lstat,
   mkdir,
@@ -35,7 +36,7 @@ import {
   runC4AdaptiveBaselineCeiling,
   serializeC4BaselineCeilingReport,
   serializeC4BaselineRunIdentity,
-  verifyC4BaselineStageEvidenceFiles,
+  verifyC4BaselineRawStageEvidenceFiles,
 } from "./c4-baseline-ceiling";
 import type {
   C4BaselineCeilingReport,
@@ -134,11 +135,17 @@ export async function runC4NoMemoryCeilingPilot(
       codexExecutable: input.codexExecutable,
       cwd: input.datasetRoot,
     });
+    const datasetSnapshotRoot = join(sourceRoot, "dataset");
+    await cp(resolve(input.datasetRoot), datasetSnapshotRoot, {
+      errorOnExist: true,
+      force: false,
+      recursive: true,
+    });
     const [{ dataset, manifestSha256 }, storedAssetLock, currentAssetLock] =
       await Promise.all([
-        loadCodexCodingEffectDataset(input.datasetRoot),
-        loadC4AssetLock(input.datasetRoot),
-        buildC4AssetLock(input.datasetRoot),
+        loadCodexCodingEffectDataset(datasetSnapshotRoot),
+        loadC4AssetLock(datasetSnapshotRoot),
+        buildC4AssetLock(datasetSnapshotRoot),
       ]);
     const controlledDataset = validateC4ControlledPilotDataset(dataset);
     assertAssetLockCurrent(
@@ -147,8 +154,8 @@ export async function runC4NoMemoryCeilingPilot(
     );
     const repositories = await materializeRepositories({
       dataset: controlledDataset,
-      datasetRoot: input.datasetRoot,
-      sourceRoot,
+      datasetRoot: datasetSnapshotRoot,
+      sourceRoot: join(sourceRoot, "repositories"),
     });
     const runIdentity: C4BaselineRunIdentity = {
       assetLockSha256: storedAssetLock.assetLockSha256,
@@ -156,6 +163,7 @@ export async function runC4NoMemoryCeilingPilot(
       claimBoundary: "diagnostic-no-memory-ceiling-only",
       codexExecutableSha256: codexHost.sha256,
       codexVersion: codexHost.version,
+      datasetSnapshotMode: "asset-locked-copy",
       datasetId: controlledDataset.datasetId,
       generatedAt: input.generatedAt,
       host: "codex",
@@ -165,7 +173,7 @@ export async function runC4NoMemoryCeilingPilot(
       publicClaimEligible: false,
       reasoningEffort: input.reasoningEffort,
       runId: input.runId,
-      schemaVersion: 1,
+      schemaVersion: 2,
       stageTimeoutMs: input.stageTimeoutMs,
       strategy: "stage-3-first-then-stage-2-if-needed",
       testTimeoutMs: input.testTimeoutMs,
@@ -187,6 +195,7 @@ export async function runC4NoMemoryCeilingPilot(
       executeStage: (target) =>
         executeBaselineStage({
           dataset: controlledDataset,
+          datasetRoot: datasetSnapshotRoot,
           input,
           log,
           repositories,
@@ -197,7 +206,7 @@ export async function runC4NoMemoryCeilingPilot(
       runIdentity,
       targets: buildC4BaselineCeilingTargets(controlledDataset),
     });
-    verifyC4BaselineStageEvidenceFiles(
+    verifyC4BaselineRawStageEvidenceFiles(
       report,
       await loadC4BaselineStageEvidenceFiles(
         join(outputDirectory, "stages"),
@@ -241,6 +250,7 @@ export async function runC4NoMemoryCeilingPilot(
 
 async function executeBaselineStage(input: {
   dataset: CodexCodingEffectDatasetV2;
+  datasetRoot: string;
   input: C4NoMemoryCeilingPilotInput;
   log: (event: string, details?: Record<string, unknown>) => void;
   repositories: ReadonlyMap<string, MaterializedRepository>;
@@ -260,6 +270,23 @@ async function executeBaselineStage(input: {
   const evaluatorRoot = join(evaluationRoot, "evaluator");
   const evaluationWorkspace = join(evaluationRoot, "workspace");
   const logEvents: CodexCodingEffectLogEvent[] = [];
+  const promptSource = await readFile(
+    join(input.datasetRoot, stage.promptPath),
+    "utf8",
+  );
+  const prompt = buildC4BaselinePrompt({
+    allowedFeedback: stage.allowedFeedback,
+    prompt: promptSource,
+  });
+  const datasetEvidence = {
+    episodeId: episode.id,
+    promptSha256: sha256(prompt),
+    repositoryCommit: repository.commit,
+    repositoryTree: repository.tree,
+    snapshot: stage.snapshot,
+    stageId: input.target.stageId,
+    stageInputSha256: input.target.stageInputSha256,
+  };
   const [plan] = buildFrozenPrehistoryArmPlans({
     episodeId: episode.id,
     repetition: 1,
@@ -311,7 +338,7 @@ async function executeBaselineStage(input: {
       repetition: 1,
       runId: input.input.runId,
       seed: 1,
-      stageId: stage.id,
+      stageId: input.target.stageId,
       traceId: `${input.input.runId}/${episode.id}/${stage.id}/no-memory`,
     }, (event) => {
       logEvents.push(event);
@@ -336,7 +363,7 @@ async function executeBaselineStage(input: {
     failureStage = "permission-isolation";
     const permissionIsolation = await auditC3PermissionIsolation({
       deniedReadPaths: hiddenReadPaths(
-        input.input.datasetRoot,
+        input.datasetRoot,
         episode,
         stage.goldPatch.path,
       ),
@@ -344,14 +371,6 @@ async function executeBaselineStage(input: {
       runtime,
     });
 
-    const promptSource = await readFile(
-      join(input.input.datasetRoot, stage.promptPath),
-      "utf8",
-    );
-    const prompt = buildC4BaselinePrompt({
-      allowedFeedback: stage.allowedFeedback,
-      prompt: promptSource,
-    });
     const args = buildC3CodexArgs({
       arm: "no-memory",
       model: input.input.model,
@@ -403,7 +422,7 @@ async function executeBaselineStage(input: {
     failureStage = "evaluator-materialization";
     const evaluatorMaterializedAt = new Date().toISOString();
     const commitments = await materializeEvaluator({
-      datasetRoot: input.input.datasetRoot,
+      datasetRoot: input.datasetRoot,
       evaluatorRoot,
     });
     await verifyC3EvaluatorFiles(evaluatorRoot, commitments);
@@ -461,7 +480,8 @@ async function executeBaselineStage(input: {
       passToPassStatus: evaluated.passToPass.status,
       patchSha256: evaluated.patch.sha256,
       resolved: score.resolved,
-      stageId: stage.id,
+      stageId: input.target.stageId,
+      stageInputSha256: input.target.stageInputSha256,
       taskFailureReasons: score.taskFailureReasons,
       threadId,
     };
@@ -484,14 +504,7 @@ async function executeBaselineStage(input: {
         timedOut: codex.timedOut,
         usage: codex.normalized?.usage ?? null,
       },
-      dataset: {
-        episodeId: episode.id,
-        promptSha256: sha256(prompt),
-        repositoryCommit: repository.commit,
-        repositoryTree: repository.tree,
-        snapshot: stage.snapshot,
-        stageId: stage.id,
-      },
+      dataset: datasetEvidence,
       evaluator: {
         commitments,
         credentialsRemovedAt,
@@ -514,7 +527,7 @@ async function executeBaselineStage(input: {
       episodeId: episode.id,
       resolved: result.resolved,
       stageEvidenceSha256,
-      stageId: stage.id,
+      stageId: input.target.stageId,
     });
     return { ...result, stageEvidenceSha256 };
   } catch (error) {
@@ -529,11 +542,13 @@ async function executeBaselineStage(input: {
       passToPassStatus: "infrastructure-failure",
       patchSha256: null,
       resolved: false,
-      stageId: stage.id,
+      stageId: input.target.stageId,
+      stageInputSha256: input.target.stageInputSha256,
       taskFailureReasons: [],
       threadId: null,
     };
     const stageEvidenceSha256 = await persistStageEvidence(stageDirectory, {
+      dataset: datasetEvidence,
       events: logEvents,
       failure: {
         failureStage,

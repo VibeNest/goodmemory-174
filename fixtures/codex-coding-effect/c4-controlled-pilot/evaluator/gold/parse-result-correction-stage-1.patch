@@ -1,19 +1,17 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index f7232073bb3438ffc04a735714da65a0ff51c842..3de3591d37a176982a6a0f37a00bae28eae3389d 100644
+index 913dc38c9bb6a26e73bd722148427d6b649b7f98..5caf78f2c48ac78ba0b21290cca5369cf9b244f2 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -11,7 +11,13 @@ export const SETTING_ERROR_CODES = {
+@@ -15,7 +15,11 @@ export const SETTING_ERROR_CODES = {
  } as const;
  
- export function parseBooleanSetting(input: string): ParseResult<boolean> {
--  return { ok: true, value: input === "true" };
-+  if (input === "true") {
-+    return { ok: true, value: true };
+ export function parseModeSetting(input: string): ParseResult<TransportMode> {
+-  return { ok: true, value: input as TransportMode };
++  const normalized = input.replace(/^ +| +$/gu, "");
++  if (normalized === "buffered" || normalized === "direct" || normalized === "relay") {
++    return { ok: true, value: normalized };
 +  }
-+  if (input === "false") {
-+    return { ok: true, value: false };
-+  }
-+  return { error: SETTING_ERROR_CODES.boolean, ok: false };
++  return { error: SETTING_ERROR_CODES.mode, ok: false };
  }
  
- export function parseIntegerSetting(input: string): ParseResult<number> {
+ export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {

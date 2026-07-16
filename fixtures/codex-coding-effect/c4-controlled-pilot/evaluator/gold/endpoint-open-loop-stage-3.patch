@@ -1,16 +1,16 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..71a767da0d1459e1da322a80554ddb6b5e843461 100644
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..6069621341512368acc7b36d3e4c9f111084262f 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -10,7 +10,10 @@ export function parsePort(value: string): number | null {
+@@ -7,7 +7,10 @@ export function renderEndpointDisplay(host: string, port: number): string {
  }
  
- export function formatEndpoint(host: string, port: number): string {
--  return `${host}:${port}`;
-+  const renderedHost = host.includes(":") && !host.startsWith("[")
-+    ? `[${host}]`
+ export function renderTargetDisplay(target: string, host: string, port: number): string {
+-  return `${target} ${host}:${port}`;
++  const renderedHost = host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))
++    ? `(${host})`
 +    : host;
-+  return `${renderedHost}:${port}`;
++  return `${target} ${renderedHost}:${port}`;
  }
  
  export function splitAssignment(input: string): [string, string] | null {

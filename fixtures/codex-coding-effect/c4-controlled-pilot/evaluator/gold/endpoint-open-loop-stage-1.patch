@@ -1,11 +1,13 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..bce18fda6ba91ff45f59e6ef96ead3b2b188ab31 100644
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..1c9e371ec456ae3d2e30658996d1ddfb556093dc 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -1,5 +1,5 @@
- export function normalizeHost(value: string): string {
--  return value;
-+  return value.trim();
+@@ -1,5 +1,7 @@
+ export function renderHostDisplay(host: string): string {
+-  return host;
++  return host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))
++    ? `(${host})`
++    : host;
  }
  
- export function parsePort(value: string): number | null {
+ export function renderEndpointDisplay(host: string, port: number): string {

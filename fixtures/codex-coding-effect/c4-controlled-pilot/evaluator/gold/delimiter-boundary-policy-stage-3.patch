@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..cf2848bdeff02425307e98acfa95ea3e1b775084 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -21,8 +21,10 @@ export function splitHeader(input: string): [string, string] | null {
+ }
+ 
+ export function splitRoute(input: string): [string, string] | null {
+-  const [head, tail] = input.split("->");
+-  return head !== undefined && tail !== undefined ? [head, tail] : null;
++  const delimiterIndex = input.lastIndexOf("->");
++  return delimiterIndex === -1
++    ? null
++    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 2)];
+ }
+ 
+ export function parseCsvFields(input: string): string[] {

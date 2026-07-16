@@ -4,67 +4,76 @@ import * as taskModule from "../src/tasks";
 const cases = [
   {
     "args": [
-      "true"
+      "buffered"
     ],
     "expected": {
       "ok": true,
-      "value": true
-    },
-    "functionName": "parseBooleanSetting",
-    "taskId": "parse-boolean-result"
-  },
-  {
-    "args": [
-      "-7"
-    ],
-    "expected": {
-      "ok": true,
-      "value": -7
-    },
-    "functionName": "parseIntegerSetting",
-    "taskId": "parse-integer-result"
-  },
-  {
-    "args": [
-      "relay"
-    ],
-    "expected": {
-      "ok": true,
-      "value": "relay"
+      "value": "buffered"
     },
     "functionName": "parseModeSetting",
-    "taskId": "parse-mode-result"
+    "taskId": "parse-mode-setting"
   },
   {
     "args": [
-      0
+      "info"
     ],
-    "expected": 0,
-    "functionName": "timeoutToMs",
-    "taskId": "convert-timeout-seconds"
+    "expected": {
+      "ok": true,
+      "value": "info"
+    },
+    "functionName": "parseLogLevelSetting",
+    "taskId": "parse-log-level-setting"
+  },
+  {
+    "args": [
+      "yaml"
+    ],
+    "expected": {
+      "ok": true,
+      "value": "yaml"
+    },
+    "functionName": "parseOutputFormatSetting",
+    "taskId": "parse-output-format-setting"
   },
   {
     "args": [
       {
-        "initialSeconds": 0,
-        "maxSeconds": 0
+        "graceMs": 250,
+        "timeout": 0
       }
     ],
     "expected": {
-      "initialMs": 0,
-      "maxMs": 0
+      "graceMs": 250,
+      "timeoutMs": 0
     },
-    "functionName": "scheduleToMs",
-    "taskId": "convert-schedule-seconds"
+    "functionName": "resolveTimeoutConfig",
+    "taskId": "resolve-timeout-config"
   },
   {
     "args": [
-      5000,
-      0
+      {
+        "capMs": 250,
+        "initial": 0
+      }
     ],
-    "expected": 5000,
+    "expected": {
+      "capMs": 250,
+      "initialMs": 0
+    },
+    "functionName": "resolveRetryConfig",
+    "taskId": "resolve-retry-config"
+  },
+  {
+    "args": [
+      {
+        "skewMs": 25,
+        "startMs": 5000,
+        "timeout": 0
+      }
+    ],
+    "expected": 5025,
     "functionName": "deadlineFromConfig",
-    "taskId": "compute-deadline-seconds"
+    "taskId": "compute-config-deadline"
   },
   {
     "args": [
@@ -87,9 +96,9 @@ const cases = [
   },
   {
     "args": [
-      "read me"
+      "guide name"
     ],
-    "expected": "read%20me",
+    "expected": "guide%20name",
     "functionName": "encodePathSegment",
     "taskId": "encode-path-segment"
   }

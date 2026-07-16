@@ -427,11 +427,13 @@ export interface C3ReplayFixture {
 export interface C3ProjectionVerification {
   decision: "accepted" | "rejected";
   evidenceClass: "frozen-prehistory-pilot";
+  externalAuthenticityVerified: false;
   projectionManifestSha256: string | null;
   reasons: string[];
   replayedArmCount: number;
   runId: string | null;
   schemaVersion: 1;
+  verificationScope: "internal-consistency-and-clean-clone-patch-replay";
   verifiedFileCount: number;
 }
 
@@ -450,17 +452,21 @@ export async function verifyC3Projection(input: {
     return {
       decision: "accepted",
       evidenceClass: "frozen-prehistory-pilot",
+      externalAuthenticityVerified: false,
       projectionManifestSha256: result.projectionManifestSha256,
       reasons: [],
       replayedArmCount: result.replayedArmCount,
       runId: result.runId,
       schemaVersion: 1,
+      verificationScope:
+        "internal-consistency-and-clean-clone-patch-replay",
       verifiedFileCount: result.verifiedFileCount,
     };
   } catch (error) {
     return {
       decision: "rejected",
       evidenceClass: "frozen-prehistory-pilot",
+      externalAuthenticityVerified: false,
       projectionManifestSha256: await optionalFileSha256(
         join(resolve(input.projectionDirectory), "projection-manifest.json"),
       ),
@@ -468,6 +474,8 @@ export async function verifyC3Projection(input: {
       replayedArmCount: 0,
       runId: observedManifest.current?.runId ?? null,
       schemaVersion: 1,
+      verificationScope:
+        "internal-consistency-and-clean-clone-patch-replay",
       verifiedFileCount: 0,
     };
   }

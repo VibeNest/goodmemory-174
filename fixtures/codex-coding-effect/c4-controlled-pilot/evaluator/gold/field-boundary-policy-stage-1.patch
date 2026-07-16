@@ -1,0 +1,33 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..e1e9229df4d818c8890b5c02bb9e07d7a220b493 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -26,7 +26,27 @@ export function splitRoute(input: string): [string, string] | null {
+ }
+ 
+ export function parseCsvFields(input: string): string[] {
+-  return input.split(",").map((field) => field.trim());
++  const fields: string[] = [];
++  let current = "";
++  let quoted = false;
++  for (let index = 0; index < input.length; index += 1) {
++    const character = input[index]!;
++    if (character === "\"") {
++      if (quoted && input[index + 1] === "\"") {
++        current += "\"";
++        index += 1;
++      } else {
++        quoted = !quoted;
++      }
++    } else if (character === "," && !quoted) {
++      fields.push(current.trim());
++      current = "";
++    } else {
++      current += character;
++    }
++  }
++  fields.push(current.trim());
++  return fields;
+ }
+ 
+ export function parsePipeFields(input: string): string[] {

@@ -363,9 +363,12 @@ describe("Codex coding-effect C3 paired runner", () => {
       });
       expect(verification).toMatchObject({
         decision: "accepted",
+        externalAuthenticityVerified: false,
         replayedArmCount: 2,
         runId: "paired-success",
         schemaVersion: 1,
+        verificationScope:
+          "internal-consistency-and-clean-clone-patch-replay",
       });
     });
   }, 15_000);

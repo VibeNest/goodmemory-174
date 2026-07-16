@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index a2aedf47cba4bdfda96157a97231f8d6a2df2866..4a24b0119bc58302b06e562345335782ae1b6b26 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -16,8 +16,10 @@ export function splitAssignment(input: string): [string, string] | null {
+ }
+ 
+ export function splitHeader(input: string): [string, string] | null {
+-  const [head, tail] = input.split(":");
+-  return head !== undefined && tail !== undefined ? [head, tail] : null;
++  const delimiterIndex = input.lastIndexOf(":");
++  return delimiterIndex === -1
++    ? null
++    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 1)];
+ }
+ 
+ export function splitRoute(input: string): [string, string] | null {

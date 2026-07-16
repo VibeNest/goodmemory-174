@@ -2,9 +2,11 @@ import { createHash } from "node:crypto";
 
 export const C4_LEAKAGE_SURFACE_IDS = [
   "allowed-feedback",
+  "effective-codex-input-after-seeding",
   "flat-summary-after-seeding",
   "frozen-prehistory",
   "goodmemory-export-after-seeding",
+  "goodmemory-hook-context-after-seeding",
   "repository-instructions",
   "stage-prompts",
   "visible-repository-files",
@@ -31,6 +33,7 @@ export interface C4HiddenArtifact {
   allowedPublicFragments?: readonly string[];
   content: string;
   fragments: readonly string[];
+  hiddenValueRelations?: readonly (readonly C4HiddenValue[])[];
   hiddenValues?: readonly C4HiddenValue[];
   id: C4HiddenArtifactId;
 }
@@ -46,6 +49,8 @@ export interface C4LeakageMatrixCell {
   candidateFragmentSetSha256: string;
   exactOverlapCount: number;
   hiddenValueCount: number;
+  hiddenValueRelationCount: number;
+  hiddenValueRelationSetSha256: string;
   hiddenValueSetSha256: string;
   hiddenValueSurfaceSha256: string;
   matchedFragmentSha256: string[];
@@ -59,13 +64,34 @@ export interface C4LeakageMatrixAudit {
   artifactIds: readonly C4HiddenArtifactId[];
   auditSha256: string;
   candidateBindingVersion: 1;
-  candidateExtractionVersion: "semantic-lines-plus-typed-values-v3";
+  candidateExtractionVersion:
+    "semantic-lines-complete-cases-plus-typed-relations-v5";
   cells: C4LeakageMatrixCell[];
-  normalizationVersion: "nfkc-lowercase-whitespace-numeric-separators-v2";
+  normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v3";
   overlapCount: number;
   schemaVersion: 1;
   status: "accepted" | "rejected";
   surfaceIds: readonly C4LeakageSurfaceId[];
+}
+
+export interface C4LeakageMutationCell {
+  applicability: "applicable" | "not-applicable-no-secret-candidate";
+  artifactId: C4HiddenArtifactId;
+  candidateKind: "fragment" | "hidden-value" | "hidden-value-relation";
+  injectedCandidateSha256: string | null;
+  surfaceId: C4LeakageSurfaceId;
+  targetCellRejected: boolean | null;
+}
+
+export interface C4LeakageMutationAudit {
+  applicableCellCount: number;
+  auditSha256: string;
+  cells: C4LeakageMutationCell[];
+  matrixCellCount: number;
+  mutationCellCount: number;
+  notApplicableCellCount: number;
+  schemaVersion: 1;
+  status: "accepted";
 }
 
 export function auditC4SurfaceHiddenArtifactMatrix(input: {
@@ -98,13 +124,111 @@ export function auditC4SurfaceHiddenArtifactMatrix(input: {
   const basis = {
     artifactIds: [...C4_HIDDEN_ARTIFACT_IDS],
     candidateBindingVersion: 1,
-    candidateExtractionVersion: "semantic-lines-plus-typed-values-v3",
+    candidateExtractionVersion:
+      "semantic-lines-complete-cases-plus-typed-relations-v5",
     cells,
-    normalizationVersion: "nfkc-lowercase-whitespace-numeric-separators-v2",
+    normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v3",
     overlapCount,
     schemaVersion: 1,
     status: overlapCount === 0 ? "accepted" : "rejected",
     surfaceIds: [...C4_LEAKAGE_SURFACE_IDS],
+  } as const;
+  return {
+    ...basis,
+    auditSha256: sha256(JSON.stringify(basis)),
+  };
+}
+
+export function mutationTestC4SurfaceHiddenArtifactMatrix(input: {
+  artifacts: readonly C4HiddenArtifact[];
+  surfaces: readonly C4LeakageSurface[];
+}): C4LeakageMutationAudit {
+  const clean = auditC4SurfaceHiddenArtifactMatrix(input);
+  if (clean.status !== "accepted") {
+    throw new Error("C4 leakage mutation test requires a clean matrix");
+  }
+  const artifacts = new Map(input.artifacts.map((artifact) => [
+    artifact.id,
+    artifact,
+  ]));
+  const cells = clean.cells.flatMap((cell) => {
+    const artifact = artifacts.get(cell.artifactId);
+    if (artifact === undefined) {
+      throw new Error(`missing C4 hidden artifact ${cell.artifactId}`);
+    }
+    return ([
+      ["fragment", artifact.fragments.find((fragment) => fragment.length > 0)],
+      ["hidden-value", artifact.hiddenValues?.[0]],
+      ["hidden-value-relation", artifact.hiddenValueRelations?.[0]],
+    ] as const).map(([candidateKind, candidate]): C4LeakageMutationCell => {
+      if (candidate === undefined) {
+        return {
+          applicability: "not-applicable-no-secret-candidate",
+          artifactId: cell.artifactId,
+          candidateKind,
+          injectedCandidateSha256: null,
+          surfaceId: cell.surfaceId,
+          targetCellRejected: null,
+        };
+      }
+      const injection = candidateKind === "fragment"
+        ? candidate
+        : candidateKind === "hidden-value"
+        ? renderHiddenValue(candidate)
+        : candidate.map(renderHiddenValue).join(" | ");
+      const mutated = input.surfaces.map((surface) => {
+        if (surface.id !== cell.surfaceId) {
+          return surface;
+        }
+        if (candidateKind === "fragment") {
+          return {
+            ...surface,
+            content: `${surface.content}\n${injection}\n`,
+          };
+        }
+        return {
+          ...surface,
+          hiddenValueContent:
+            `${surface.hiddenValueContent ?? surface.content}\n${injection}\n`,
+        };
+      });
+      const mutation = auditC4SurfaceHiddenArtifactMatrix({
+        artifacts: input.artifacts,
+        surfaces: mutated,
+      });
+      const target = mutation.cells.find((candidateCell) =>
+        candidateCell.surfaceId === cell.surfaceId &&
+        candidateCell.artifactId === cell.artifactId
+      );
+      if (target?.status !== "rejected") {
+        throw new Error(
+          `C4 leakage mutation escaped at ${cell.surfaceId}/${cell.artifactId}/${candidateKind}`,
+        );
+      }
+      return {
+        applicability: "applicable",
+        artifactId: cell.artifactId,
+        candidateKind,
+        injectedCandidateSha256: sha256(JSON.stringify({
+          candidate,
+          candidateKind,
+        })),
+        surfaceId: cell.surfaceId,
+        targetCellRejected: true,
+      };
+    });
+  });
+  const applicableCellCount = cells.filter((cell) =>
+    cell.applicability === "applicable"
+  ).length;
+  const basis = {
+    applicableCellCount,
+    cells,
+    matrixCellCount: clean.cells.length,
+    mutationCellCount: cells.length,
+    notApplicableCellCount: cells.length - applicableCellCount,
+    schemaVersion: 1,
+    status: "accepted",
   } as const;
   return {
     ...basis,
@@ -123,6 +247,9 @@ function auditCell(
     ...artifact.fragments,
   ].filter((fragment) => fragment.length > 0))].sort();
   const hiddenValues = canonicalHiddenValues(artifact.hiddenValues ?? []);
+  const hiddenValueRelations = canonicalHiddenValueRelations(
+    artifact.hiddenValueRelations ?? [],
+  );
   const exact = new Set<string>();
   const normalized = new Set<string>();
   const allowedPublic = new Set<string>();
@@ -159,6 +286,17 @@ function auditCell(
     }));
     (match === "exact" ? exact : normalized).add(valueSha256);
   }
+  for (const relation of hiddenValueRelations) {
+    const match = matchHiddenValueRelation(hiddenValueSurface, relation);
+    if (match === null) {
+      continue;
+    }
+    const relationSha256 = sha256(JSON.stringify({
+      type: "relation",
+      values: relation.map(canonicalHiddenValue),
+    }));
+    (match === "exact" ? exact : normalized).add(relationSha256);
+  }
   const matchedFragmentSha256 = [...exact, ...normalized].sort();
   return {
     artifactId: artifact.id,
@@ -169,6 +307,12 @@ function auditCell(
     candidateFragmentSetSha256: sha256(JSON.stringify(fragments)),
     exactOverlapCount: exact.size,
     hiddenValueCount: hiddenValues.length,
+    hiddenValueRelationCount: hiddenValueRelations.length,
+    hiddenValueRelationSetSha256: sha256(JSON.stringify(
+      hiddenValueRelations.map((relation) =>
+        relation.map(canonicalHiddenValue)
+      ),
+    )),
     hiddenValueSetSha256: sha256(JSON.stringify(hiddenValues.map(
       canonicalHiddenValue,
     ))),
@@ -190,6 +334,26 @@ function canonicalHiddenValues(
   ])).entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, value]) => value);
+}
+
+function canonicalHiddenValueRelations(
+  relations: readonly (readonly C4HiddenValue[])[],
+): C4HiddenValue[][] {
+  const canonical = new Map<string, C4HiddenValue[]>();
+  for (const relation of relations) {
+    const values = [...new Map(relation.map((value) => [
+      relationValueKey(value),
+      value,
+    ])).values()];
+    if (values.length < 2) {
+      continue;
+    }
+    const key = JSON.stringify(values.map(canonicalHiddenValue));
+    canonical.set(key, values);
+  }
+  return [...canonical.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, relation]) => relation);
 }
 
 function canonicalHiddenValue(value: C4HiddenValue): {
@@ -224,11 +388,10 @@ function matchHiddenValue(
   if (containsDelimited(surface, fragment)) {
     return "exact";
   }
-  const normalizedSurface = normalizeLeakageText(
-    typeof value === "number"
-      ? removeNumericSeparators(surface)
-      : surface,
-  );
+  if (typeof value === "number" && containsEquivalentNumber(surface, value)) {
+    return "normalized";
+  }
+  const normalizedSurface = normalizeLeakageText(surface);
   return containsDelimited(
       normalizedSurface,
       normalizeLeakageText(fragment),
@@ -237,8 +400,42 @@ function matchHiddenValue(
     : null;
 }
 
-function removeNumericSeparators(value: string): string {
-  return value.replace(/(?<=\p{N})_(?=\p{N})/gu, "");
+function matchHiddenValueRelation(
+  surface: string,
+  relation: readonly C4HiddenValue[],
+): "exact" | "normalized" | null {
+  for (const segment of surface.split(/\r?\n/u)) {
+    const matches = relation.map((value) => matchHiddenValue(segment, value));
+    if (matches.every((match) => match !== null)) {
+      return matches.every((match) => match === "exact")
+        ? "exact"
+        : "normalized";
+    }
+  }
+  return null;
+}
+
+function containsEquivalentNumber(surface: string, value: number): boolean {
+  for (const match of surface.matchAll(
+    /(?<![\p{L}\p{N}_])[-+]?(?:(?:\d{1,3}(?:,\d{3})+)|(?:\d(?:[\d_]*\d)?))(?:\.(?:\d(?:[\d_]*\d)?))?(?:[eE][-+]?\d(?:[\d_]*\d)?)?(?![\p{L}\p{N}_])/gu,
+  )) {
+    const candidate = Number(match[0].replaceAll(",", "").replaceAll("_", ""));
+    if (Number.isFinite(candidate) && candidate === value) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function relationValueKey(value: C4HiddenValue): string {
+  return JSON.stringify({
+    type: value === null ? "null" : typeof value,
+    value: typeof value === "string" ? normalizeLeakageText(value) : value,
+  });
+}
+
+function renderHiddenValue(value: C4HiddenValue): string {
+  return value === null ? "null" : String(value);
 }
 
 function containsDelimited(surface: string, fragment: string): boolean {

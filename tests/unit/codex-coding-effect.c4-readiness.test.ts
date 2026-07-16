@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { createHash } from "node:crypto";
 import {
   mkdir,
   mkdtemp,
@@ -11,11 +12,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  buildC4BaselineStageEvidenceBindings,
   runC4AdaptiveBaselineCeiling,
   serializeC4BaselineCeilingReport,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import type {
   C4BaselineCeilingTarget,
+  C4BaselineStageEvidenceFile,
+  C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import {
   captureC4ChangedFiles,
@@ -102,6 +106,48 @@ describe("Codex coding-effect C4 readiness", () => {
     }
   });
 
+  it("captures deleted and binary expected files in gold replay bytes", async () => {
+    const repositoryRoot = await mkdtemp(join(tmpdir(), "goodmemory-c4-binary-"));
+    try {
+      await runGit(repositoryRoot, ["init", "--quiet"]);
+      await writeFile(join(repositoryRoot, "obsolete.txt"), "remove me\n");
+      await writeFile(
+        join(repositoryRoot, "asset.bin"),
+        new Uint8Array([0, 1, 2, 3, 4]),
+      );
+      await runGit(repositoryRoot, ["add", "."]);
+      await runGit(repositoryRoot, [
+        "-c",
+        "user.name=GoodMemory Test",
+        "-c",
+        "user.email=test@goodmemory.local",
+        "commit",
+        "--quiet",
+        "-m",
+        "fixture",
+      ]);
+      await rm(join(repositoryRoot, "obsolete.txt"));
+      await writeFile(
+        join(repositoryRoot, "asset.bin"),
+        new Uint8Array([0, 9, 8, 7, 6, 5, 4, 3, 2, 1]),
+      );
+
+      expect(await captureC4ChangedFiles(repositoryRoot)).toEqual([
+        "asset.bin",
+        "obsolete.txt",
+      ]);
+      const replay = await captureC4GoldReplay(repositoryRoot, [
+        "obsolete.txt",
+        "asset.bin",
+      ]);
+
+      expect(replay).toContain("deleted file mode");
+      expect(replay).toContain("GIT binary patch");
+    } finally {
+      await rm(repositoryRoot, { force: true, recursive: true });
+    }
+  });
+
   it("rejects realpath-equivalent inputs and outputs before dataset execution", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-outputs-"));
     try {
@@ -176,13 +222,34 @@ describe("Codex coding-effect C4 readiness", () => {
   });
 
   it("accepts only the current v2 dataset in canonical baseline evidence", async () => {
-    const v1Bytes = await baselineBytes("codex-c4-controlled-pilot-v1");
-    const v2Bytes = await baselineBytes("codex-c4-controlled-pilot-v2");
+    const v1 = await baselineEvidence("codex-c4-controlled-pilot-v1");
+    const v2 = await baselineEvidence("codex-c4-controlled-pilot-v2");
 
-    expect(() => validateC4BaselineCeilingEvidence(v1Bytes)).toThrow();
-    expect(validateC4BaselineCeilingEvidence(v2Bytes).report.datasetId).toBe(
+    expect(() => validateC4BaselineCeilingEvidence(
+      v1.bytes,
+      v1.files,
+      v1.targets,
+    )).toThrow();
+    expect(validateC4BaselineCeilingEvidence(
+      v2.bytes,
+      v2.files,
+      v2.targets,
+    ).report.datasetId).toBe(
       "codex-c4-controlled-pilot-v2",
     );
+    expect(() => validateC4BaselineCeilingEvidence(
+      v2.bytes,
+      v2.files.slice(1),
+      v2.targets,
+    )).toThrow("C4 baseline stage evidence file set is inconsistent");
+    expect(() => validateC4BaselineCeilingEvidence(
+      v2.bytes,
+      v2.files,
+      v2.targets.map((target) => ({
+        ...target,
+        episodeId: `unrelated-${target.episodeId}`,
+      })),
+    )).toThrow("C4 baseline results do not match the frozen dataset targets");
   });
 
   it("replaces only known v1 or v2 C4 dataset directories", async () => {
@@ -224,36 +291,57 @@ describe("Codex coding-effect C4 readiness", () => {
   }, 120_000);
 });
 
-async function baselineBytes(datasetId: string): Promise<string> {
+async function baselineEvidence(datasetId: string): Promise<{
+  bytes: string;
+  files: C4BaselineStageEvidenceFile[];
+  targets: C4BaselineCeilingTarget[];
+}> {
   const targets = Array.from({ length: 6 }, (_, index) => {
     const episodeId = `episode-${index + 1}`;
     return [
-      { episodeId, position: 2, stageId: "stage-2" },
-      { episodeId, position: 3, stageId: "stage-3" },
+      {
+        episodeId,
+        position: 2,
+        stageId: "stage-2",
+        stageInputSha256: sha256(`${episodeId}/stage-2`),
+      },
+      {
+        episodeId,
+        position: 3,
+        stageId: "stage-3",
+        stageInputSha256: sha256(`${episodeId}/stage-3`),
+      },
     ] satisfies C4BaselineCeilingTarget[];
   }).flat();
   const report = await runC4AdaptiveBaselineCeiling({
-    executeStage: async (target) => ({
-      changedFiles: [],
-      codexStatus: "completed",
-      disposition: "finalized",
-      episodeId: target.episodeId,
-      executionFailureStage: null,
-      failToPassStatus: "failed",
-      passToPassStatus: "passed",
-      patchSha256: null,
-      resolved: false,
-      stageEvidenceSha256: "a".repeat(64),
-      stageId: target.stageId,
-      taskFailureReasons: ["unresolved"],
-      threadId: `${target.episodeId}-${target.stageId}`,
-    }),
+    executeStage: async (target) => {
+      const result = {
+        changedFiles: [],
+        codexStatus: "completed",
+        disposition: "finalized" as const,
+        episodeId: target.episodeId,
+        executionFailureStage: null,
+        failToPassStatus: "failed",
+        passToPassStatus: "passed",
+        patchSha256: null,
+        resolved: false,
+        stageId: target.stageId,
+        stageInputSha256: target.stageInputSha256,
+        taskFailureReasons: ["unresolved"],
+        threadId: `${target.episodeId}-${target.stageId}`,
+      };
+      return {
+        ...result,
+        stageEvidenceSha256: sha256(rawStageEvidenceBytes(result)),
+      };
+    },
     runIdentity: {
       assetLockSha256: "a".repeat(64),
       assetRootSha256: "b".repeat(64),
       claimBoundary: "diagnostic-no-memory-ceiling-only",
       codexExecutableSha256: "c".repeat(64),
       codexVersion: "codex-cli test",
+      datasetSnapshotMode: "asset-locked-copy",
       datasetId,
       generatedAt: "2026-07-16T13:00:00.000Z",
       host: "codex",
@@ -263,12 +351,102 @@ async function baselineBytes(datasetId: string): Promise<string> {
       publicClaimEligible: false,
       reasoningEffort: "xhigh",
       runId: `baseline-${datasetId}`,
-      schemaVersion: 1,
+      schemaVersion: 2,
+      stageTimeoutMs: 900_000,
       strategy: "stage-3-first-then-stage-2-if-needed",
+      testTimeoutMs: 300_000,
     },
     targets,
   });
-  return serializeC4BaselineCeilingReport(report);
+  const bytes = serializeC4BaselineCeilingReport(report);
+  return {
+    bytes,
+    files: buildC4BaselineStageEvidenceBindings(
+      report,
+      report.results.map(rawStageEvidenceFile),
+    ),
+    targets,
+  };
+}
+
+function rawStageEvidenceFile(
+  stage: C4BaselineStageResult,
+): C4BaselineStageEvidenceFile {
+  const { stageEvidenceSha256: _, ...result } = stage;
+  return {
+    bytes: rawStageEvidenceBytes(result),
+    path: `${stage.episodeId}-${stage.stageId}/stage-evidence.json`,
+  };
+}
+
+function rawStageEvidenceBytes(
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+): string {
+  return `${JSON.stringify({
+    codex: {
+      durationMs: 1,
+      eventCount: 1,
+      exitCode: 0,
+      status: result.codexStatus,
+      stderr: "",
+      timedOut: false,
+      usage: null,
+    },
+    dataset: {
+      episodeId: result.episodeId,
+      promptSha256: "1".repeat(64),
+      repositoryCommit: "2".repeat(40),
+      repositoryTree: "3".repeat(40),
+      snapshot: "2".repeat(40),
+      stageId: result.stageId,
+      stageInputSha256: result.stageInputSha256,
+    },
+    evaluator: {
+      commitments: [],
+      credentialsRemovedBeforeMaterialization: true,
+      failToPass: {
+        durationMs: 1,
+        exitCode: 1,
+        kind: "fail-to-pass",
+        status: result.failToPassStatus,
+        stderr: "",
+        stdout: "",
+      },
+      materializedAfterCodexExit: true,
+      passToPass: {
+        durationMs: 1,
+        exitCode: 0,
+        kind: "pass-to-pass",
+        status: result.passToPassStatus,
+        stderr: "",
+        stdout: "",
+      },
+      sandbox: {},
+    },
+    patch: {
+      baseCommit: "2".repeat(40),
+      changedFiles: result.changedFiles,
+      diff: "",
+      forbiddenFiles: [],
+      hasPatch: false,
+      sha256: result.patchSha256,
+      untrackedFiles: [],
+    },
+    result,
+    schemaVersion: 1,
+    visibleBaseHealth: {
+      durationMs: 1,
+      exitCode: 0,
+      passed: true,
+      status: "passed",
+      stderr: "",
+      stdout: "",
+    },
+  }, null, 2)}\n`;
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 async function runGit(cwd: string, args: readonly string[]): Promise<string> {

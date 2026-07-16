@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 913dc38c9bb6a26e73bd722148427d6b649b7f98..a24d6e69eea5c4d64cc4a8fccaf96fb405bc9b29 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -39,7 +39,11 @@ export function deadlineFromConfig(input: { skewMs: number; startMs: number; tim
+ }
+ 
+ export function slugify(value: string): string {
+-  return value.toLowerCase().replace(" ", "-");
++  return value
++    .trim()
++    .toLowerCase()
++    .replace(/[^a-z0-9]+/gu, "-")
++    .replace(/^-|-$/gu, "");
+ }
+ 
+ export function parseCsvUnique(input: string): string[] {

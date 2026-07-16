@@ -122,22 +122,37 @@ diff, and its gitignored raw directory had no tracked sanitized projection. The
 hardened runner now requires a clean GoodMemory source tree, persists only
 status/digest/file-metadata projections before and after the live pair, and
 exposes those sanitized artifacts for tracking. Unmatched host PATH entries are
-projected as `<host-path>`, and the installed arm repeats config-hash and
-permission-isolation probes immediately before Codex launch. The historical
-rejection is tracked under `reports/quality-gates/phase-73/`.
-[OPEN] C4 controlled pilot dataset readiness awaits a new independent review.
+projected as `<host-path>` using complete path-prefix boundaries, and both arms
+repeat config-hash and permission-isolation probes immediately before Codex
+launch. The projection verifier explicitly reports internal-consistency and
+clean-clone patch-replay scope with `externalAuthenticityVerified: false`;
+package/raw-run/canary authenticity still requires an external CI artifact,
+signature, or transparency root. The historical rejection is tracked under
+`reports/quality-gates/phase-73/`.
+[OPEN] C4 controlled pilot dataset readiness awaits a new v2 no-memory baseline
+and independent review.
 The frozen schema-v2 fixture has 6 episodes, 18 stages, 2 controlled
 repositories, all 8 required memory strata, and a 60-file asset lock. Three
 fresh base clones per stage produced 54 stable expected-failure probes; all 18
 gold patches replayed in fresh clones and passed visible, fail-to-pass, and
-pass-to-pass tests. The repaired leakage audit derives typed scalar leaves from
-both fail-to-pass and pass-to-pass cases, and the reproduced
-`docs/setup guide#intro`, `2.5 -> 2500`, and short pass-to-pass prompt leaks all
-fail. Gold replay covers schema-declared added, modified, and deleted files.
+pass-to-pass tests. The repaired leakage audit derives typed scalar leaves and
+per-case input-output relations from both fail-to-pass and pass-to-pass cases.
+Envelope metadata is excluded only from that surface's semantic hidden-value
+view, not from the episode globally. The reproduced `docs/setup guide#intro`,
+`2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
+pass-to-pass, `INFO -> invalid-level/false`, `3,000`, `3e3`, and `62.50`
+leaks all fail. Its 1458 mutation cells inject fragment, typed-value, and
+typed-relation channels. Gold replay covers schema-declared added, modified,
+deleted, and binary files.
 The deterministic core and a new review dispatch/input/request bundle are
 tracked, but the previous review/provenance/final report bound an older core and
-are intentionally absent. C4 cannot be accepted until a separate reviewer
-produces new bound review evidence and the final gate regenerates the report.
+are intentionally absent. Only the historical v1 baseline is retained. A new
+v2 baseline must run from an asset-locked dataset copy, bind results to
+dataset-derived stage input hashes, project auditable evaluator/patch evidence,
+atomically publish one report-plus-stages bundle, and bind stage/test timeouts.
+Formal Codex non-zero exits such as authentication failures make it
+inconclusive. C4 cannot be accepted until that baseline and a separate bound
+review exist and the final gate regenerates the report.
 [OPEN] C5 broader live pilot. C4 made no live Codex call, compared no arms, and
 records `publicClaimEligible: false`, `publicCodingEffectProof: false`, and
 `readmeRowAllowed: false`.
@@ -148,9 +163,9 @@ correctness. Memory, injection, transcript, and writeback diagnostics can explai
 the result but never override it. The historical run shows local protocol
 execution, but is not accepted C3 evidence without complete source/config
 provenance and a tracked projection. Its tie does not prove coding uplift, and
-the accepted C4 dataset-readiness gate contains no treatment comparison. Neither
-is a public coding-effect claim. Phase 73 remains active while C3 and C5-C7 are
-open.
+the current C4 core contains no treatment comparison and is not an accepted C4
+gate. Neither is a public coding-effect claim. Phase 73 remains active while
+C3-C7 are open.
 
 Boundary
 --------

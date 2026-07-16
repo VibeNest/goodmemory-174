@@ -5,56 +5,40 @@
       "failToPass": [
         {
           "args": [
-            " \tapi.internal\n"
+            "2001:db8::1"
           ],
-          "expected": "api.internal"
+          "expected": "(2001:db8::1)"
+        },
+        {
+          "args": [
+            "::1"
+          ],
+          "expected": "(::1)"
+        },
+        {
+          "args": [
+            "fe80::1%en0"
+          ],
+          "expected": "(fe80::1%en0)"
         }
       ],
-      "functionName": "normalizeHost",
+      "functionName": "renderHostDisplay",
       "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-1",
       "passToPass": [
         {
           "args": [
-            "localhost"
+            "api.internal"
           ],
-          "expected": "localhost"
+          "expected": "api.internal"
+        },
+        {
+          "args": [
+            "(2001:db8::4)"
+          ],
+          "expected": "(2001:db8::4)"
         }
       ],
       "stageId": "stage-1"
-    },
-    {
-      "episodeId": "endpoint-open-loop",
-      "failToPass": [
-        {
-          "args": [
-            "+443"
-          ],
-          "expected": null
-        },
-        {
-          "args": [
-            " 443"
-          ],
-          "expected": null
-        }
-      ],
-      "functionName": "parsePort",
-      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-2",
-      "passToPass": [
-        {
-          "args": [
-            "443"
-          ],
-          "expected": 443
-        },
-        {
-          "args": [
-            "0"
-          ],
-          "expected": null
-        }
-      ],
-      "stageId": "stage-2"
     },
     {
       "episodeId": "endpoint-open-loop",
@@ -64,11 +48,25 @@
             "2001:db8::1",
             443
           ],
-          "expected": "[2001:db8::1]:443"
+          "expected": "(2001:db8::1):443"
+        },
+        {
+          "args": [
+            "::1",
+            8080
+          ],
+          "expected": "(::1):8080"
+        },
+        {
+          "args": [
+            "fe80::2%en0",
+            3000
+          ],
+          "expected": "(fe80::2%en0):3000"
         }
       ],
-      "functionName": "formatEndpoint",
-      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-3",
+      "functionName": "renderEndpointDisplay",
+      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-2",
       "passToPass": [
         {
           "args": [
@@ -76,25 +74,100 @@
             443
           ],
           "expected": "api.internal:443"
+        },
+        {
+          "args": [
+            "(2001:db8::3)",
+            8443
+          ],
+          "expected": "(2001:db8::3):8443"
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "endpoint-open-loop",
+      "failToPass": [
+        {
+          "args": [
+            "primary",
+            "2001:db8::9",
+            443
+          ],
+          "expected": "primary (2001:db8::9):443"
+        },
+        {
+          "args": [
+            "local",
+            "::1",
+            8080
+          ],
+          "expected": "local (::1):8080"
+        },
+        {
+          "args": [
+            "backup",
+            "fe80::7%en0",
+            9000
+          ],
+          "expected": "backup (fe80::7%en0):9000"
+        }
+      ],
+      "functionName": "renderTargetDisplay",
+      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "primary",
+            "proxy.internal",
+            443
+          ],
+          "expected": "primary proxy.internal:443"
+        },
+        {
+          "args": [
+            "backup",
+            "(2001:db8::8)",
+            80
+          ],
+          "expected": "backup (2001:db8::8):80"
         }
       ],
       "stageId": "stage-3"
     },
     {
-      "episodeId": "validated-first-delimiter",
+      "episodeId": "delimiter-boundary-policy",
       "failToPass": [
         {
           "args": [
-            "token=a=b"
+            "head=middle=tail"
           ],
           "expected": [
-            "token",
-            "a=b"
+            "head=middle",
+            "tail"
+          ]
+        },
+        {
+          "args": [
+            "=value=rest"
+          ],
+          "expected": [
+            "=value",
+            "rest"
+          ]
+        },
+        {
+          "args": [
+            "name=="
+          ],
+          "expected": [
+            "name=",
+            ""
           ]
         }
       ],
       "functionName": "splitAssignment",
-      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-1",
+      "hiddenSentinel": "C4_HIDDEN|delimiter-boundary-policy|stage-1",
       "passToPass": [
         {
           "args": [
@@ -104,25 +177,49 @@
             "left",
             "right"
           ]
+        },
+        {
+          "args": [
+            "plain"
+          ],
+          "expected": null
         }
       ],
       "stageId": "stage-1"
     },
     {
-      "episodeId": "validated-first-delimiter",
+      "episodeId": "delimiter-boundary-policy",
       "failToPass": [
         {
           "args": [
-            "x-trace:a:b"
+            "head:middle:tail"
           ],
           "expected": [
-            "x-trace",
-            "a:b"
+            "head:middle",
+            "tail"
+          ]
+        },
+        {
+          "args": [
+            ":value:rest"
+          ],
+          "expected": [
+            ":value",
+            "rest"
+          ]
+        },
+        {
+          "args": [
+            "name::"
+          ],
+          "expected": [
+            "name:",
+            ""
           ]
         }
       ],
       "functionName": "splitHeader",
-      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-2",
+      "hiddenSentinel": "C4_HIDDEN|delimiter-boundary-policy|stage-2",
       "passToPass": [
         {
           "args": [
@@ -132,25 +229,49 @@
             "left",
             "right"
           ]
+        },
+        {
+          "args": [
+            "plain"
+          ],
+          "expected": null
         }
       ],
       "stageId": "stage-2"
     },
     {
-      "episodeId": "validated-first-delimiter",
+      "episodeId": "delimiter-boundary-policy",
       "failToPass": [
         {
           "args": [
-            "api->worker->store"
+            "head->middle->tail"
           ],
           "expected": [
-            "api",
-            "worker->store"
+            "head->middle",
+            "tail"
+          ]
+        },
+        {
+          "args": [
+            "->value->rest"
+          ],
+          "expected": [
+            "->value",
+            "rest"
+          ]
+        },
+        {
+          "args": [
+            "name->->"
+          ],
+          "expected": [
+            "name->",
+            ""
           ]
         }
       ],
       "functionName": "splitRoute",
-      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-3",
+      "hiddenSentinel": "C4_HIDDEN|delimiter-boundary-policy|stage-3",
       "passToPass": [
         {
           "args": [
@@ -160,63 +281,18 @@
             "left",
             "right"
           ]
+        },
+        {
+          "args": [
+            "plain"
+          ],
+          "expected": null
         }
       ],
       "stageId": "stage-3"
     },
     {
-      "episodeId": "avoid-naive-split",
-      "failToPass": [
-        {
-          "args": [
-            "name=\"blue#green\" # note"
-          ],
-          "expected": "name=\"blue#green\""
-        }
-      ],
-      "functionName": "stripConfigComment",
-      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-1",
-      "passToPass": [
-        {
-          "args": [
-            "name=blue # note"
-          ],
-          "expected": "name=blue"
-        }
-      ],
-      "stageId": "stage-1"
-    },
-    {
-      "episodeId": "avoid-naive-split",
-      "failToPass": [
-        {
-          "args": [
-            "deploy --label \"blue green\""
-          ],
-          "expected": [
-            "deploy",
-            "--label",
-            "blue green"
-          ]
-        }
-      ],
-      "functionName": "tokenizeCommand",
-      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-2",
-      "passToPass": [
-        {
-          "args": [
-            "deploy --dry-run"
-          ],
-          "expected": [
-            "deploy",
-            "--dry-run"
-          ]
-        }
-      ],
-      "stageId": "stage-2"
-    },
-    {
-      "episodeId": "avoid-naive-split",
+      "episodeId": "field-boundary-policy",
       "failToPass": [
         {
           "args": [
@@ -227,10 +303,29 @@
             "beta,gamma",
             "delta"
           ]
+        },
+        {
+          "args": [
+            "alpha,\"say \"\"hello\"\"\",omega"
+          ],
+          "expected": [
+            "alpha",
+            "say \"hello\"",
+            "omega"
+          ]
+        },
+        {
+          "args": [
+            "\"a,b\",\"c,d\""
+          ],
+          "expected": [
+            "a,b",
+            "c,d"
+          ]
         }
       ],
       "functionName": "parseCsvFields",
-      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-3",
+      "hiddenSentinel": "C4_HIDDEN|field-boundary-policy|stage-1",
       "passToPass": [
         {
           "args": [
@@ -239,6 +334,132 @@
           "expected": [
             "alpha",
             "beta"
+          ]
+        },
+        {
+          "args": [
+            "'north,south',east"
+          ],
+          "expected": [
+            "'north",
+            "south'",
+            "east"
+          ]
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "field-boundary-policy",
+      "failToPass": [
+        {
+          "args": [
+            "alpha|\"beta|gamma\"|delta"
+          ],
+          "expected": [
+            "alpha",
+            "beta|gamma",
+            "delta"
+          ]
+        },
+        {
+          "args": [
+            "alpha|\"say \"\"hello\"\"\"|omega"
+          ],
+          "expected": [
+            "alpha",
+            "say \"hello\"",
+            "omega"
+          ]
+        },
+        {
+          "args": [
+            "\"a|b\"|\"c|d\""
+          ],
+          "expected": [
+            "a|b",
+            "c|d"
+          ]
+        }
+      ],
+      "functionName": "parsePipeFields",
+      "hiddenSentinel": "C4_HIDDEN|field-boundary-policy|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "alpha|beta"
+          ],
+          "expected": [
+            "alpha",
+            "beta"
+          ]
+        },
+        {
+          "args": [
+            "'north|middle'|south"
+          ],
+          "expected": [
+            "'north",
+            "middle'",
+            "south"
+          ]
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "field-boundary-policy",
+      "failToPass": [
+        {
+          "args": [
+            "alpha;\"beta;gamma\";delta"
+          ],
+          "expected": [
+            "alpha",
+            "beta;gamma",
+            "delta"
+          ]
+        },
+        {
+          "args": [
+            "alpha;\"say \"\"hello\"\"\";omega"
+          ],
+          "expected": [
+            "alpha",
+            "say \"hello\"",
+            "omega"
+          ]
+        },
+        {
+          "args": [
+            "\"a;b\";\"c;d\""
+          ],
+          "expected": [
+            "a;b",
+            "c;d"
+          ]
+        }
+      ],
+      "functionName": "parseSemicolonFields",
+      "hiddenSentinel": "C4_HIDDEN|field-boundary-policy|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "alpha;beta"
+          ],
+          "expected": [
+            "alpha",
+            "beta"
+          ]
+        },
+        {
+          "args": [
+            "'north;middle';south"
+          ],
+          "expected": [
+            "'north",
+            "middle'",
+            "south"
           ]
         }
       ],
@@ -249,78 +470,31 @@
       "failToPass": [
         {
           "args": [
-            "yes"
-          ],
-          "expected": {
-            "error": "invalid-boolean",
-            "ok": false
-          }
-        }
-      ],
-      "functionName": "parseBooleanSetting",
-      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-1",
-      "passToPass": [
-        {
-          "args": [
-            "true"
+            " direct "
           ],
           "expected": {
             "ok": true,
-            "value": true
+            "value": "direct"
           }
         },
         {
           "args": [
-            "false"
+            "DIRECT"
           ],
           "expected": {
-            "ok": true,
-            "value": false
-          }
-        }
-      ],
-      "stageId": "stage-1"
-    },
-    {
-      "episodeId": "parse-result-correction",
-      "failToPass": [
-        {
-          "args": [
-            "4.2"
-          ],
-          "expected": {
-            "error": "invalid-integer",
+            "error": "invalid-mode",
             "ok": false
           }
         },
         {
           "args": [
-            "12x"
+            "\tdirect\t"
           ],
           "expected": {
-            "error": "invalid-integer",
+            "error": "invalid-mode",
             "ok": false
           }
-        }
-      ],
-      "functionName": "parseIntegerSetting",
-      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-2",
-      "passToPass": [
-        {
-          "args": [
-            "12"
-          ],
-          "expected": {
-            "ok": true,
-            "value": 12
-          }
-        }
-      ],
-      "stageId": "stage-2"
-    },
-    {
-      "episodeId": "parse-result-correction",
-      "failToPass": [
+        },
         {
           "args": [
             "turbo"
@@ -332,7 +506,7 @@
         }
       ],
       "functionName": "parseModeSetting",
-      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-3",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-1",
       "passToPass": [
         {
           "args": [
@@ -342,114 +516,389 @@
             "ok": true,
             "value": "direct"
           }
-        }
-      ],
-      "stageId": "stage-3"
-    },
-    {
-      "episodeId": "stale-time-unit-update",
-      "failToPass": [
+        },
         {
           "args": [
-            2.5
+            "relay"
           ],
-          "expected": 2500
-        }
-      ],
-      "functionName": "timeoutToMs",
-      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-1",
-      "passToPass": [
-        {
-          "args": [
-            0
-          ],
-          "expected": 0
+          "expected": {
+            "ok": true,
+            "value": "relay"
+          }
         }
       ],
       "stageId": "stage-1"
     },
     {
-      "episodeId": "stale-time-unit-update",
+      "episodeId": "parse-result-correction",
       "failToPass": [
         {
           "args": [
-            {
-              "initialSeconds": 1,
-              "maxSeconds": 8
-            }
+            " info "
           ],
           "expected": {
-            "initialMs": 1000,
-            "maxMs": 8000
+            "ok": true,
+            "value": "info"
+          }
+        },
+        {
+          "args": [
+            "INFO"
+          ],
+          "expected": {
+            "error": "invalid-level",
+            "ok": false
+          }
+        },
+        {
+          "args": [
+            "\tinfo\t"
+          ],
+          "expected": {
+            "error": "invalid-level",
+            "ok": false
+          }
+        },
+        {
+          "args": [
+            "trace"
+          ],
+          "expected": {
+            "error": "invalid-level",
+            "ok": false
           }
         }
       ],
-      "functionName": "scheduleToMs",
-      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-2",
+      "functionName": "parseLogLevelSetting",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-2",
       "passToPass": [
         {
           "args": [
-            {
-              "initialSeconds": 0,
-              "maxSeconds": 0
-            }
+            "debug"
           ],
           "expected": {
-            "initialMs": 0,
-            "maxMs": 0
+            "ok": true,
+            "value": "debug"
+          }
+        },
+        {
+          "args": [
+            "warn"
+          ],
+          "expected": {
+            "ok": true,
+            "value": "warn"
           }
         }
       ],
       "stageId": "stage-2"
     },
     {
-      "episodeId": "stale-time-unit-update",
+      "episodeId": "parse-result-correction",
       "failToPass": [
         {
           "args": [
-            1000,
-            2
+            " json "
           ],
-          "expected": 3000
+          "expected": {
+            "ok": true,
+            "value": "json"
+          }
+        },
+        {
+          "args": [
+            "JSON"
+          ],
+          "expected": {
+            "error": "invalid-format",
+            "ok": false
+          }
+        },
+        {
+          "args": [
+            "\ttext\t"
+          ],
+          "expected": {
+            "error": "invalid-format",
+            "ok": false
+          }
+        },
+        {
+          "args": [
+            "xml"
+          ],
+          "expected": {
+            "error": "invalid-format",
+            "ok": false
+          }
         }
       ],
-      "functionName": "deadlineFromConfig",
-      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-3",
+      "functionName": "parseOutputFormatSetting",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-3",
       "passToPass": [
         {
           "args": [
-            1000,
-            0
+            "json"
           ],
-          "expected": 1000
+          "expected": {
+            "ok": true,
+            "value": "json"
+          }
+        },
+        {
+          "args": [
+            "text"
+          ],
+          "expected": {
+            "ok": true,
+            "value": "text"
+          }
         }
       ],
       "stageId": "stage-3"
     },
     {
-      "episodeId": "irrelevant-history-control",
+      "episodeId": "duration-configuration-policy",
+      "failToPass": [
+        {
+          "args": [
+            {
+              "graceMs": 125,
+              "timeout": 2.5
+            }
+          ],
+          "expected": {
+            "graceMs": 125,
+            "timeoutMs": 625
+          }
+        },
+        {
+          "args": [
+            {
+              "graceMs": 6000,
+              "timeout": 0.25
+            }
+          ],
+          "expected": {
+            "graceMs": 6000,
+            "timeoutMs": 62.5
+          }
+        },
+        {
+          "args": [
+            {
+              "graceMs": 75,
+              "timeout": 12
+            }
+          ],
+          "expected": {
+            "graceMs": 75,
+            "timeoutMs": 3000
+          }
+        }
+      ],
+      "functionName": "resolveTimeoutConfig",
+      "hiddenSentinel": "C4_HIDDEN|duration-configuration-policy|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            {
+              "graceMs": 0,
+              "timeout": 0
+            }
+          ],
+          "expected": {
+            "graceMs": 0,
+            "timeoutMs": 0
+          }
+        },
+        {
+          "args": [
+            {
+              "graceMs": 500,
+              "timeout": 0
+            }
+          ],
+          "expected": {
+            "graceMs": 500,
+            "timeoutMs": 0
+          }
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "duration-configuration-policy",
+      "failToPass": [
+        {
+          "args": [
+            {
+              "capMs": 8000,
+              "initial": 1
+            }
+          ],
+          "expected": {
+            "capMs": 8000,
+            "initialMs": 250
+          }
+        },
+        {
+          "args": [
+            {
+              "capMs": 250,
+              "initial": 0.5
+            }
+          ],
+          "expected": {
+            "capMs": 250,
+            "initialMs": 125
+          }
+        },
+        {
+          "args": [
+            {
+              "capMs": 60000,
+              "initial": 12
+            }
+          ],
+          "expected": {
+            "capMs": 60000,
+            "initialMs": 3000
+          }
+        }
+      ],
+      "functionName": "resolveRetryConfig",
+      "hiddenSentinel": "C4_HIDDEN|duration-configuration-policy|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            {
+              "capMs": 0,
+              "initial": 0
+            }
+          ],
+          "expected": {
+            "capMs": 0,
+            "initialMs": 0
+          }
+        },
+        {
+          "args": [
+            {
+              "capMs": 7000,
+              "initial": 0
+            }
+          ],
+          "expected": {
+            "capMs": 7000,
+            "initialMs": 0
+          }
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "duration-configuration-policy",
+      "failToPass": [
+        {
+          "args": [
+            {
+              "skewMs": 50,
+              "startMs": 1000,
+              "timeout": 2
+            }
+          ],
+          "expected": 1550
+        },
+        {
+          "args": [
+            {
+              "skewMs": 250,
+              "startMs": 5000,
+              "timeout": 0.5
+            }
+          ],
+          "expected": 5375
+        },
+        {
+          "args": [
+            {
+              "skewMs": 5,
+              "startMs": 10000,
+              "timeout": 12
+            }
+          ],
+          "expected": 13005
+        }
+      ],
+      "functionName": "deadlineFromConfig",
+      "hiddenSentinel": "C4_HIDDEN|duration-configuration-policy|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            {
+              "skewMs": 0,
+              "startMs": 1000,
+              "timeout": 0
+            }
+          ],
+          "expected": 1000
+        },
+        {
+          "args": [
+            {
+              "skewMs": 125,
+              "startMs": 8000,
+              "timeout": 0
+            }
+          ],
+          "expected": 8125
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "independent-string-utilities",
       "failToPass": [
         {
           "args": [
             "  Blue__Green  "
           ],
           "expected": "blue-green"
+        },
+        {
+          "args": [
+            "Alpha / Beta"
+          ],
+          "expected": "alpha-beta"
+        },
+        {
+          "args": [
+            "--Green---Field--"
+          ],
+          "expected": "green-field"
         }
       ],
       "functionName": "slugify",
-      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-1",
+      "hiddenSentinel": "C4_HIDDEN|independent-string-utilities|stage-1",
       "passToPass": [
         {
           "args": [
-            "Hello World"
+            "already-slug"
           ],
-          "expected": "hello-world"
+          "expected": "already-slug"
+        },
+        {
+          "args": [
+            "Two Words"
+          ],
+          "expected": "two-words"
         }
       ],
       "stageId": "stage-1"
     },
     {
-      "episodeId": "irrelevant-history-control",
+      "episodeId": "independent-string-utilities",
       "failToPass": [
         {
           "args": [
@@ -459,10 +908,29 @@
             "alpha",
             "beta"
           ]
+        },
+        {
+          "args": [
+            "one,, two, "
+          ],
+          "expected": [
+            "one",
+            "two"
+          ]
+        },
+        {
+          "args": [
+            " red ,blue, red ,green,blue"
+          ],
+          "expected": [
+            "red",
+            "blue",
+            "green"
+          ]
         }
       ],
       "functionName": "parseCsvUnique",
-      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-2",
+      "hiddenSentinel": "C4_HIDDEN|independent-string-utilities|stage-2",
       "passToPass": [
         {
           "args": [
@@ -472,28 +940,54 @@
             "alpha",
             "beta"
           ]
+        },
+        {
+          "args": [
+            "solo"
+          ],
+          "expected": [
+            "solo"
+          ]
         }
       ],
       "stageId": "stage-2"
     },
     {
-      "episodeId": "irrelevant-history-control",
+      "episodeId": "independent-string-utilities",
       "failToPass": [
         {
           "args": [
             "docs/setup guide#intro"
           ],
           "expected": "docs%2Fsetup%20guide%23intro"
+        },
+        {
+          "args": [
+            "query?mode=fast"
+          ],
+          "expected": "query%3Fmode%3Dfast"
+        },
+        {
+          "args": [
+            "a/b:c"
+          ],
+          "expected": "a%2Fb%3Ac"
         }
       ],
       "functionName": "encodePathSegment",
-      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-3",
+      "hiddenSentinel": "C4_HIDDEN|independent-string-utilities|stage-3",
       "passToPass": [
         {
           "args": [
             "read me"
           ],
           "expected": "read%20me"
+        },
+        {
+          "args": [
+            "alpha-1"
+          ],
+          "expected": "alpha-1"
         }
       ],
       "stageId": "stage-3"

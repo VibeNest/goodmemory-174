@@ -20,14 +20,21 @@ import {
 } from "node:path";
 
 import {
+  assertC4BaselineCeilingReportBindings,
+  loadC4BaselineStageEvidenceFiles,
+} from "./codex-coding-effect/c4-baseline-ceiling";
+import type {
+  C4BaselineCeilingReport,
+} from "./codex-coding-effect/c4-baseline-ceiling";
+import {
   C4_BASELINE_CEILING_REPORT_PATH,
   finalizeC4DatasetReadiness,
   runC4DatasetCoreReadiness,
-  validateC4BaselineCeilingEvidence,
 } from "./codex-coding-effect/c4-readiness";
 
 interface C4ReadinessOptions {
   baselinePath: string;
+  baselineStageEvidenceRoot?: string;
   coreOutput: string;
   datasetRoot: string;
   dispatchPath: string;
@@ -57,7 +64,15 @@ export async function runC4ReadinessGate(
   const temporaryRoot = await mkdtemp(join(tmpdir(), "goodmemory-c4-gate-"));
   try {
     const baselineBytes = await readFile(options.baselinePath, "utf8");
-    validateC4BaselineCeilingEvidence(baselineBytes);
+    const baselineReport = JSON.parse(
+      baselineBytes,
+    ) as C4BaselineCeilingReport;
+    assertC4BaselineCeilingReportBindings(baselineReport);
+    const baselineStageEvidenceFiles =
+      await loadC4BaselineStageEvidenceFiles(
+        baselineStageEvidenceRoot(options),
+        baselineReport,
+      );
     const result = await runC4DatasetCoreReadiness({
       datasetRoot: options.datasetRoot,
       workspaceRoot: join(temporaryRoot, "readiness"),
@@ -77,6 +92,7 @@ export async function runC4ReadinessGate(
     ]);
     const final = finalizeC4DatasetReadiness({
       baselineBytes,
+      baselineStageEvidenceFiles,
       dispatchBytes,
       inputBundleBytes,
       provenanceBytes,
@@ -102,6 +118,10 @@ export async function runC4ReadinessGate(
 function parseOptions(args: readonly string[]): C4ReadinessOptions {
   const options: C4ReadinessOptions = {
     baselinePath: resolve(C4_BASELINE_CEILING_REPORT_PATH),
+    baselineStageEvidenceRoot: resolve(
+      dirname(C4_BASELINE_CEILING_REPORT_PATH),
+      "stages",
+    ),
     coreOutput: join(DEFAULT_REPORT_ROOT, "c4-controlled-pilot-core.json"),
     datasetRoot: DEFAULT_DATASET_ROOT,
     dispatchPath: join(DEFAULT_DATASET_ROOT, "review", "dispatch.json"),
@@ -119,6 +139,9 @@ function parseOptions(args: readonly string[]): C4ReadinessOptions {
     const name = argument.slice(2, separator);
     const value = resolve(argument.slice(separator + 1));
     if (name === "baseline-report") options.baselinePath = value;
+    else if (name === "baseline-stage-evidence") {
+      options.baselineStageEvidenceRoot = value;
+    }
     else if (name === "core-output") options.coreOutput = value;
     else if (name === "dataset-root") options.datasetRoot = value;
     else if (name === "dispatch") options.dispatchPath = value;
@@ -152,6 +175,7 @@ async function validateC4ReadinessPaths(
 ): Promise<void> {
   const [
     baselinePath,
+    baselineStageEvidence,
     coreOutput,
     datasetRoot,
     dispatchPath,
@@ -162,6 +186,7 @@ async function validateC4ReadinessPaths(
     reviewPath,
   ] = await Promise.all([
     resolvePhysicalPath(options.baselinePath),
+    resolvePhysicalPath(baselineStageEvidenceRoot(options)),
     resolvePhysicalPath(options.coreOutput),
     resolvePhysicalPath(options.datasetRoot),
     resolvePhysicalPath(options.dispatchPath),
@@ -183,6 +208,7 @@ async function validateC4ReadinessPaths(
     }
     for (const [inputLabel, inputPath] of [
       ["baseline report", baselinePath],
+      ["baseline stage evidence", baselineStageEvidence],
       ["dispatch", dispatchPath],
       ["input bundle", inputBundlePath],
       ["provenance", provenancePath],
@@ -196,6 +222,13 @@ async function validateC4ReadinessPaths(
       }
     }
   }
+}
+
+function baselineStageEvidenceRoot(options: C4ReadinessOptions): string {
+  return resolve(
+    options.baselineStageEvidenceRoot ??
+      join(dirname(options.baselinePath), "stages"),
+  );
 }
 
 async function resolvePhysicalPath(path: string): Promise<string> {

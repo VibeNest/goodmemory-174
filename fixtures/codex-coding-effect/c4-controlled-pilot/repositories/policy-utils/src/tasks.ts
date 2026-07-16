@@ -2,36 +2,40 @@ export type ParseResult<T> =
   | { ok: true; value: T }
   | { error: string; ok: false };
 
-export type TransportMode = "direct" | "relay";
+export type LogLevel = "debug" | "info" | "warn";
+
+export type OutputFormat = "json" | "text" | "yaml";
+
+export type TransportMode = "buffered" | "direct" | "relay";
 
 export const SETTING_ERROR_CODES = {
-  boolean: "invalid-boolean",
-  integer: "invalid-integer",
+  format: "invalid-format",
+  level: "invalid-level",
   mode: "invalid-mode",
 } as const;
-
-export function parseBooleanSetting(input: string): ParseResult<boolean> {
-  return { ok: true, value: input === "true" };
-}
-
-export function parseIntegerSetting(input: string): ParseResult<number> {
-  return { ok: true, value: Number(input) };
-}
 
 export function parseModeSetting(input: string): ParseResult<TransportMode> {
   return { ok: true, value: input as TransportMode };
 }
 
-export function timeoutToMs(seconds: number): number {
-  return seconds;
+export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
+  return { ok: true, value: input as LogLevel };
 }
 
-export function scheduleToMs(input: { initialSeconds: number; maxSeconds: number }): { initialMs: number; maxMs: number } {
-  return { initialMs: input.initialSeconds, maxMs: input.maxSeconds };
+export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {
+  return { ok: true, value: input as OutputFormat };
 }
 
-export function deadlineFromConfig(startMs: number, timeoutSeconds: number): number {
-  return startMs + timeoutSeconds;
+export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {
+  return { graceMs: input.graceMs, timeoutMs: input.timeout };
+}
+
+export function resolveRetryConfig(input: { capMs: number; initial: number }): { capMs: number; initialMs: number } {
+  return { capMs: input.capMs, initialMs: input.initial };
+}
+
+export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {
+  return input.startMs + input.timeout + input.skewMs;
 }
 
 export function slugify(value: string): string {

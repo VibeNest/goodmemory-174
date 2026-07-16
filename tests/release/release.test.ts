@@ -5059,6 +5059,55 @@ describe("release metadata and docs", () => {
     }
   });
 
+  it("keeps only the canonical C3 projection bundle trackable", async () => {
+    const root =
+      "reports/quality-gates/phase-73/c3-controlled-20260716-cleanclone-001";
+    const projectedFiles = [
+      "audit-evidence.sanitized.json",
+      "base-health.json",
+      "c3-verification.json",
+      "cases.jsonl",
+      "evaluator-security.sanitized.json",
+      "frozen-prehistory-seed-receipt.json",
+      "goodmemory-source-state-post-run.json",
+      "goodmemory-source-state.json",
+      "host-configurations.sanitized.json",
+      "host-preflight.sanitized.json",
+      "prehistory-leakage-audit.json",
+      "projection-manifest.json",
+      "prompt-leakage-audit.json",
+      "run-identity.json",
+      "runner-source-state-post-run.json",
+      "runner-source-state.json",
+      "stage-evidence/example-stage.json",
+      "summary.json",
+    ].map((path) => `${root}/${path}`);
+
+    const projected = await runGitCommand([
+      "check-ignore",
+      "-v",
+      "--no-index",
+      ...projectedFiles,
+    ]);
+    expect(projected.exitCode).toBe(0);
+    for (const path of projectedFiles) {
+      expect(projected.stdout).toContain(`\t${path}`);
+    }
+    expect(
+      projected.stdout
+        .trim()
+        .split(/\r?\n/u)
+        .every((line) => line.includes("!")),
+    ).toBe(true);
+
+    for (const path of [
+      `${root}/codex.stdout.log`,
+      `${root}/raw-run.json`,
+    ]) {
+      await expectIgnoredGeneratedArtifact(path);
+    }
+  });
+
   it("coding-agent example stays on the public path and avoids internal evolution imports", async () => {
     const example = await readFile(
       join(import.meta.dir, "../../examples/coding-agent.ts"),

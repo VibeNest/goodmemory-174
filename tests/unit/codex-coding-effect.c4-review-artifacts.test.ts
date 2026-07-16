@@ -51,6 +51,31 @@ describe("Codex coding-effect C4 review artifacts", () => {
     expect(request).toContain("`irrelevant-control`");
     expect(request).toContain("`memoryIrrelevantAndNonMisleading`");
     expect(request).toContain("mutually exclusive");
+    expect(request).toContain("`c4AbResultsInspected`");
+    expect(request).toContain("`codingOutcomeArtifactsInspected`");
+    for (const field of [
+      "assetLockSha256",
+      "assetRootSha256",
+      "datasetId",
+      "episodeReviews",
+      "author",
+      "codingNotTrivia",
+      "hiddenTestsFair",
+      "negativeControlCredible",
+      "noRepositorySpecificRunnerException",
+      "episodeId",
+      "rationale",
+      "manifestSha256",
+      "leakageAuditSha256",
+      "publicCodingEffectProof",
+      "readinessCoreSha256",
+      "reviewedAt",
+      "reviewer",
+      "reviewerTaskName",
+      "status",
+    ]) {
+      expect(request).toContain(`\`${field}\``);
+    }
   });
 
   it("hash-binds the exact request, input bundle, and reviewer response", () => {
@@ -81,7 +106,7 @@ describe("Codex coding-effect C4 review artifacts", () => {
       recordedAt: "2026-07-16T10:30:00.000Z",
       requestBytes,
       responseBytes,
-      reviewerAgentName: "/root/c4_final_independent_review",
+      reviewerAgentName: "/root/c4_final_independent_review_v3",
     });
 
     expect(parseC4IndependentReviewProvenance(provenance)).toEqual(provenance);
@@ -118,7 +143,7 @@ describe("Codex coding-effect C4 review artifacts", () => {
       inputBundleBytes,
       recordedAt: "2026-07-16T10:30:00.000Z",
       responseBytes: '{"schemaVersion":2}\n',
-      reviewerAgentName: "/root/c4_final_independent_review",
+      reviewerAgentName: "/root/c4_final_independent_review_v3",
     };
 
     expect(() => buildC4IndependentReviewProvenance({

@@ -6,19 +6,57 @@ dataset root is `fixtures/codex-coding-effect/c4-controlled-pilot` and the readi
 `reports/quality-gates/phase-73/c4-controlled-pilot-core.json`. Do not inspect baseline results, C4
 paired A/B results, C5 results, or any other coding outcome artifact.
 
-Required input-bundle SHA-256: `4b46e56810ddbc294ca2410f5e51b470235e587560900a6babd7490ad9dabe0b`.
+Required input-bundle SHA-256: `7a7c8d68210160a6815292db729ec9ae8e27b08d48eb1c1d3c492101ff342305`.
 
 For every one of the six episodes, independently decide whether:
 
 - the task is real coding work rather than trivia;
 - hidden tests are fair and prompt/repository discoverable;
-- memory is useful context but does not contain the answer or patch;
 - negative controls are credible;
 - the shared evaluator has no repository-specific exception.
 
-Write only `review/independent-review.json` using schemaVersion 2. Set
-`scope` to `dataset-only-no-coding-outcomes`, both inspected flags to
-false, and `inputBundleSha256` to the required hash above. Use status
-`accepted` only when every check passes; otherwise use `changes-requested`
-and leave each failed check as false. Set `reviewerTaskName` to
-`/root/c4_final_independent_review`. Do not edit any other file.
+Set `memoryExpectationMode` from the episode's later-stage
+`memoryExpectation.mode`, then apply exactly one mode-specific check:
+
+- for `required`, include only `memoryUsefulNotAnswer` and decide whether
+  memory is useful context but does not contain the answer or patch;
+- for `irrelevant-control`, include only
+  `memoryIrrelevantAndNonMisleading` and decide whether the unrelated
+  memory is genuinely irrelevant and does not mislead the implementation.
+
+These two memory checks are mutually exclusive. Do not include the check
+for the other mode in the episode's `checks` object.
+
+Write only `review/independent-review.json` as one strict JSON object.
+It must contain exactly these top-level fields:
+
+- `schemaVersion`: 2;
+- `datasetId`, `assetLockSha256`, `assetRootSha256`, `manifestSha256`,
+  `leakageAuditSha256`, and `readinessCoreSha256`: copy the exact values
+  from the input bundle;
+- `inputBundleSha256`: `7a7c8d68210160a6815292db729ec9ae8e27b08d48eb1c1d3c492101ff342305`;
+- `scope`: `dataset-only-no-coding-outcomes`;
+- `reviewerTaskName`: `/root/c4_final_independent_review_v3`;
+- `reviewer`: a non-empty reviewer label;
+- `reviewedAt`: the review completion timestamp;
+- `c4AbResultsInspected`: false;
+- `codingOutcomeArtifactsInspected`: false;
+- `publicCodingEffectProof`: false;
+- `status`: `accepted` or `changes-requested`; and
+- `episodeReviews`: exactly six objects, one for each manifest episode.
+
+Each `episodeReviews` object must contain exactly:
+
+- `episodeId`: copy the manifest episode `id`;
+- `author`: copy the manifest episode `author`;
+- `memoryExpectationMode`: `required` or `irrelevant-control`;
+- `rationale`: a non-empty explanation; and
+- `checks`, with `codingNotTrivia`, `hiddenTestsFair`,
+  `negativeControlCredible`, and
+  `noRepositorySpecificRunnerException`, plus exactly one applicable
+  memory check described above.
+
+Use `accepted` only when every shared check and applicable memory check
+is true. Otherwise use `changes-requested` and leave each failed check
+false. Do not add aliases, per-episode status fields, or other keys.
+Do not edit any other file.

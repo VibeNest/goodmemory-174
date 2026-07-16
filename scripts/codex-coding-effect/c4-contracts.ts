@@ -112,7 +112,7 @@ const independentDatasetReviewSchema = z.object({
   readinessCoreSha256: sha256Schema,
   reviewedAt: trimmedStringSchema,
   reviewer: trimmedStringSchema,
-  reviewerTaskName: z.literal("/root/c4_final_independent_review"),
+  reviewerTaskName: z.literal("/root/c4_final_independent_review_v3"),
   schemaVersion: z.literal(2),
   scope: z.literal("dataset-only-no-coding-outcomes"),
   status: z.enum(["accepted", "changes-requested"]),
@@ -173,11 +173,11 @@ const independentReviewDispatchSchema = z.object({
   requestPath: z.literal(
     "fixtures/codex-coding-effect/c4-controlled-pilot/review/request.md",
   ),
-  requestedTaskName: z.literal("c4_final_independent_review"),
+  requestedTaskName: z.literal("c4_final_independent_review_v3"),
   responsePath: z.literal(
     "fixtures/codex-coding-effect/c4-controlled-pilot/review/independent-review.json",
   ),
-  reviewerAgentName: z.literal("/root/c4_final_independent_review"),
+  reviewerAgentName: z.literal("/root/c4_final_independent_review_v3"),
   schemaVersion: z.literal(1),
   spawnMessage: trimmedStringSchema,
 }).strict();
@@ -199,16 +199,16 @@ const independentReviewProvenanceSchema = z.object({
     path: z.literal("review/independent-review.json"),
   }).strict(),
   reviewer: z.object({
-    agentName: z.literal("/root/c4_final_independent_review"),
+    agentName: z.literal("/root/c4_final_independent_review_v3"),
     contextPolicy: z.literal("fork-turns-none"),
     orchestratorAttestation: z.object({
       attestedByTaskName: trimmedStringSchema,
       basis: z.literal(
         "dispatch-plus-recorder-cli-no-cryptographic-receipt",
       ),
-      canonicalTaskName: z.literal("/root/c4_final_independent_review"),
+      canonicalTaskName: z.literal("/root/c4_final_independent_review_v3"),
     }).strict(),
-    requestedTaskName: z.literal("c4_final_independent_review"),
+    requestedTaskName: z.literal("c4_final_independent_review_v3"),
     type: z.literal("independent-ai-agent"),
   }).strict(),
   schemaVersion: z.literal(2),

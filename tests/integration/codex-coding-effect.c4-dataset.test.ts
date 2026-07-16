@@ -14,11 +14,14 @@ import {
 } from "../../scripts/codex-coding-effect/c4-controlled-dataset";
 import type { C4IndependentDatasetReview } from "../../scripts/codex-coding-effect/c4-contracts";
 import {
+  buildC4BaselineStageEvidenceBindings,
   runC4AdaptiveBaselineCeiling,
   serializeC4BaselineCeilingReport,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import type {
+  C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
+  C4BaselineStageEvidenceFile,
   C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import {
@@ -84,6 +87,30 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         stage.goldPassed
       )).toBe(true);
       expect(result.core.leakage.status).toBe("accepted");
+      expect(result.core.leakage.matrixCellCount).toBe(486);
+      expect(result.core.leakage.mutationApplicableCellCount).toBe(648);
+      expect(result.core.leakage.mutationCellCount).toBe(1458);
+      expect(result.core.leakage.mutationNotApplicableCellCount).toBe(810);
+      expect(result.core.leakage.stageCount).toBe(18);
+      expect(result.core.leakage.stageMatrices.every((stage) =>
+        stage.cells.length === 27 &&
+        stage.mutationCells.length === 81
+      )).toBe(true);
+      expect(result.core.leakage.c5LiveReauditSurfaces).toEqual([
+        "effective-codex-input-after-seeding",
+        "flat-summary-after-seeding",
+        "goodmemory-export-after-seeding",
+        "goodmemory-hook-context-after-seeding",
+      ]);
+      expect(result.core.leakage.deferredC5Surfaces).toEqual(
+        result.core.leakage.c5LiveReauditSurfaces,
+      );
+      expect([
+        ...result.core.leakage.directFrozenSurfaces,
+        ...result.core.leakage.deferredC5Surfaces,
+      ].map(String).sort()).toEqual(
+        [...result.core.leakage.auditedSurfaces].sort(),
+      );
       expect(result.core.licenses.status).toBe("accepted");
       expect(result.core.authorAttestation).toMatchObject({
         authorTaskName: "/root",
@@ -96,7 +123,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       expect(result.core.publicCodingEffectProof).toBe(false);
       expect(result.core.episodes).toContainEqual({
         author: "GoodMemory C4 dataset author",
-        id: "irrelevant-history-control",
+        id: "independent-string-utilities",
         memoryExpectationMode: "irrelevant-control",
       });
 
@@ -116,8 +143,11 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         })),
       );
       const baselineBytes = await baselineCeilingBytes(result, "proceed");
+      const baselineStageEvidenceFiles =
+        baselineEvidenceFiles(baselineBytes);
       const final = finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
       });
@@ -133,7 +163,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         publicClaimEligible: false,
         publicCodingEffectProof: false,
         reviewContextPolicy: "fork-turns-none",
-        reviewerAgentName: "/root/c4_final_independent_review",
+        reviewerAgentName: "/root/c4_final_independent_review_v3",
         reviewerIdentityEvidence:
           "orchestrator-attestation-not-cryptographic-receipt",
         reviewerType: "independent-ai-agent",
@@ -149,7 +179,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       ) as C4IndependentDatasetReview;
       mismatchedModeReview.episodeReviews =
         mismatchedModeReview.episodeReviews.map((episode) =>
-          episode.episodeId === "irrelevant-history-control"
+          episode.episodeId === "independent-string-utilities"
             ? {
                 author: episode.author,
                 checks: {
@@ -169,6 +199,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         `${JSON.stringify(mismatchedModeReview, null, 2)}\n`;
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         provenanceBytes: review.provenanceBytes.replace(
@@ -179,6 +210,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       })).toThrow("C4 independent review episode coverage mismatch");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         reviewBytes: `${JSON.stringify({
@@ -188,12 +220,14 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       })).toThrow("C4 independent review response hash mismatch");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         requestBytes: `${review.requestBytes}drift`,
       })).toThrow("C4 independent review request is not canonical");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         inputBundleBytes: review.inputBundleBytes.replace(
@@ -203,12 +237,14 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       })).toThrow("C4 independent review request is not canonical");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         dispatchBytes: mutateDispatch(review.dispatchBytes),
       })).toThrow("C4 independent review dispatch is not canonical");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...review,
         provenanceBytes: review.provenanceBytes.replace(
@@ -228,6 +264,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       );
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
+        baselineStageEvidenceFiles,
         result,
         ...incompleteInventoryReview,
       })).toThrow(
@@ -252,6 +289,8 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       );
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes: mismatchedBaseline,
+        baselineStageEvidenceFiles:
+          baselineEvidenceFiles(mismatchedBaseline),
         result,
         ...review,
       })).toThrow("C4 baseline asset lock binding mismatch");
@@ -260,6 +299,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
           /"stageEvidenceAggregateSha256": "[a-f0-9]{64}"/u,
           `"stageEvidenceAggregateSha256": "${"f".repeat(64)}"`,
         ),
+        baselineStageEvidenceFiles,
         result,
         ...review,
       })).toThrow("C4 baseline stage evidence aggregate is inconsistent");
@@ -292,7 +332,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       await cleanupC4ControlledPilotDataset(fixture);
       await rm(sandbox, { force: true, recursive: true });
     }
-  });
+  }, 120_000);
 
   it("rejects hidden fail-to-pass inputs copied into agent-visible prompts", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-leakage-"));
@@ -301,7 +341,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     });
     try {
       const episode = fixture.dataset.episodes.find((candidate) =>
-        candidate.id === "irrelevant-history-control"
+        candidate.id === "independent-string-utilities"
       )!;
       const promptPath = join(fixture.root, episode.stages[2]!.promptPath);
       await writeFile(
@@ -319,12 +359,12 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       await expect(runC4DatasetCoreReadiness({
         datasetRoot: fixture.root,
         workspaceRoot: join(sandbox, "readiness"),
-      })).rejects.toThrow("C4 leakage audit failed for irrelevant-history-control");
+      })).rejects.toThrow("C4 leakage audit failed for independent-string-utilities");
     } finally {
       await cleanupC4ControlledPilotDataset(fixture);
       await rm(sandbox, { force: true, recursive: true });
     }
-  });
+  }, 120_000);
 
   it("rejects numeric hidden values copied into agent-visible prompts", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-number-leakage-"));
@@ -333,12 +373,12 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     });
     try {
       const episode = fixture.dataset.episodes.find((candidate) =>
-        candidate.id === "stale-time-unit-update"
+        candidate.id === "duration-configuration-policy"
       )!;
       const promptPath = join(fixture.root, episode.stages[0]!.promptPath);
       await writeFile(
         promptPath,
-        `${await readFile(promptPath, "utf8")}Assert 2.5 -> 2500.\n`,
+        `${await readFile(promptPath, "utf8")}Assert 2.5 -> 2_500.\n`,
         "utf8",
       );
       const assetLock = await buildC4AssetLock(fixture.root);
@@ -351,7 +391,124 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       await expect(runC4DatasetCoreReadiness({
         datasetRoot: fixture.root,
         workspaceRoot: join(sandbox, "readiness"),
-      })).rejects.toThrow("C4 leakage audit failed for stale-time-unit-update");
+      })).rejects.toThrow("C4 leakage audit failed for duration-configuration-policy");
+    } finally {
+      await cleanupC4ControlledPilotDataset(fixture);
+      await rm(sandbox, { force: true, recursive: true });
+    }
+  }, 120_000);
+
+  it("rejects hidden input-output relations assembled from public scalars", async () => {
+    const sandbox = await mkdtemp(join(
+      tmpdir(),
+      "goodmemory-c4-relation-leakage-",
+    ));
+    const fixture = await prepareC4ControlledPilotDataset({
+      root: join(sandbox, "dataset"),
+    });
+    try {
+      const episode = fixture.dataset.episodes.find((candidate) =>
+        candidate.id === "parse-result-correction"
+      )!;
+      const promptPath = join(fixture.root, episode.stages[1]!.promptPath);
+      await writeFile(
+        promptPath,
+        `${await readFile(promptPath, "utf8")}For INFO, return invalid-level with ok false.\n`,
+        "utf8",
+      );
+      const assetLock = await buildC4AssetLock(fixture.root);
+      await writeFile(
+        join(fixture.root, "asset-lock.json"),
+        serializeC4AssetLock(assetLock),
+        "utf8",
+      );
+
+      await expect(runC4DatasetCoreReadiness({
+        datasetRoot: fixture.root,
+        workspaceRoot: join(sandbox, "readiness"),
+      })).rejects.toThrow(
+        "C4 leakage audit failed for parse-result-correction/stage-2",
+      );
+    } finally {
+      await cleanupC4ControlledPilotDataset(fixture);
+      await rm(sandbox, { force: true, recursive: true });
+    }
+  }, 120_000);
+
+  it("rejects hidden value 1 even when projection envelopes use schemaVersion 1", async () => {
+    const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-one-leakage-"));
+    const fixture = await prepareC4ControlledPilotDataset({
+      root: join(sandbox, "dataset"),
+    });
+    try {
+      const casesPath = join(fixture.root, "evaluator/cases.json");
+      const originalCasesBytes = await readFile(casesPath, "utf8");
+      const evaluator = JSON.parse(originalCasesBytes) as {
+        cases: Array<{
+          episodeId: string;
+          failToPass: Array<{ expected: unknown }>;
+          stageId: string;
+        }>;
+        schemaVersion: 1;
+      };
+      const hiddenCase = evaluator.cases.find((testCase) =>
+        testCase.episodeId === "independent-string-utilities" &&
+        testCase.stageId === "stage-1"
+      )!;
+      hiddenCase.failToPass[0]!.expected = 1;
+      const mutatedCasesBytes = `${JSON.stringify(evaluator, null, 2)}\n`;
+      await writeFile(casesPath, mutatedCasesBytes, "utf8");
+
+      const originalCasesSha256 = sha256(originalCasesBytes);
+      const mutatedCasesSha256 = sha256(mutatedCasesBytes);
+      const manifestPath = join(fixture.root, "manifest.json");
+      const manifest = JSON.parse(
+        await readFile(manifestPath, "utf8"),
+      ) as {
+        episodes: Array<{
+          forbiddenLeakage: { fileSha256: string[] };
+          id: string;
+          prehistory: { forbiddenLeakageSha256: string[] };
+          stages: Array<{ promptPath: string }>;
+        }>;
+      };
+      for (const episode of manifest.episodes) {
+        episode.forbiddenLeakage.fileSha256 =
+          episode.forbiddenLeakage.fileSha256.map((value) =>
+            value === originalCasesSha256 ? mutatedCasesSha256 : value
+          );
+        episode.prehistory.forbiddenLeakageSha256 =
+          episode.prehistory.forbiddenLeakageSha256.map((value) =>
+            value === originalCasesSha256 ? mutatedCasesSha256 : value
+          );
+      }
+      await writeFile(
+        manifestPath,
+        `${JSON.stringify(manifest, null, 2)}\n`,
+        "utf8",
+      );
+      const episode = manifest.episodes.find((candidate) =>
+        candidate.id === "independent-string-utilities"
+      )!;
+      const promptPath = join(fixture.root, episode.stages[0]!.promptPath);
+      await writeFile(
+        promptPath,
+        `${await readFile(promptPath, "utf8")}Hidden expected value = 1.\n`,
+        "utf8",
+      );
+      const assetLock = await buildC4AssetLock(fixture.root);
+      await writeFile(
+        join(fixture.root, "asset-lock.json"),
+        serializeC4AssetLock(assetLock),
+        "utf8",
+      );
+
+      await expect(runC4DatasetCoreReadiness({
+        datasetRoot: fixture.root,
+        workspaceRoot: join(sandbox, "readiness"),
+      })).rejects.toThrow(
+        "C4 leakage audit failed for independent-string-utilities",
+      );
     } finally {
       await cleanupC4ControlledPilotDataset(fixture);
       await rm(sandbox, { force: true, recursive: true });
@@ -365,7 +522,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     });
     try {
       const episode = fixture.dataset.episodes.find((candidate) =>
-        candidate.id === "validated-first-delimiter"
+        candidate.id === "delimiter-boundary-policy"
       )!;
       const promptPath = join(fixture.root, episode.stages[0]!.promptPath);
       await writeFile(
@@ -384,7 +541,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         datasetRoot: fixture.root,
         workspaceRoot: join(sandbox, "readiness"),
       })).rejects.toThrow(
-        "C4 leakage audit failed for validated-first-delimiter",
+        "C4 leakage audit failed for delimiter-boundary-policy",
       );
     } finally {
       await cleanupC4ControlledPilotDataset(fixture);
@@ -402,7 +559,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     });
     try {
       const episode = fixture.dataset.episodes.find((candidate) =>
-        candidate.id === "irrelevant-history-control"
+        candidate.id === "independent-string-utilities"
       )!;
       const promptPath = join(fixture.root, episode.stages[0]!.promptPath);
       await writeFile(
@@ -421,7 +578,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         datasetRoot: fixture.root,
         workspaceRoot: join(sandbox, "readiness"),
       })).rejects.toThrow(
-        "C4 leakage audit failed for irrelevant-history-control",
+        "C4 leakage audit failed for independent-string-utilities",
       );
     } finally {
       await cleanupC4ControlledPilotDataset(fixture);
@@ -439,7 +596,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     });
     try {
       const episode = fixture.dataset.episodes.find((candidate) =>
-        candidate.id === "irrelevant-history-control"
+        candidate.id === "independent-string-utilities"
       )!;
       const repositoryId = c4RepositoryIdForUrl(episode.repository.url);
       await writeFile(
@@ -493,7 +650,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         datasetRoot: fixture.root,
         workspaceRoot: join(sandbox, "readiness"),
       })).rejects.toThrow(
-        "C4 leakage audit failed for irrelevant-history-control",
+        "C4 leakage audit failed for independent-string-utilities",
       );
     } finally {
       await cleanupC4ControlledPilotDataset(fixture);
@@ -554,7 +711,7 @@ function independentReviewArtifacts(
     codingOutcomeArtifactsInspected: false,
     datasetId: result.core.datasetId,
     episodeReviews: episodes.map((episode) =>
-      episode.id === "irrelevant-history-control"
+      episode.id === "independent-string-utilities"
         ? {
             author: episode.author,
             checks: {
@@ -591,7 +748,7 @@ function independentReviewArtifacts(
     readinessCoreSha256: result.coreSha256,
     reviewedAt: "2026-07-15T20:00:00.000Z",
     reviewer: "Codex C4 independent reviewer",
-    reviewerTaskName: "/root/c4_final_independent_review",
+    reviewerTaskName: "/root/c4_final_independent_review_v3",
     schemaVersion: 2,
     scope: "dataset-only-no-coding-outcomes",
     status: "accepted",
@@ -613,7 +770,7 @@ function independentReviewArtifacts(
       recordedAt: "2026-07-15T20:01:00.000Z",
       requestBytes,
       responseBytes: reviewBytes,
-      reviewerAgentName: "/root/c4_final_independent_review",
+      reviewerAgentName: "/root/c4_final_independent_review_v3",
     }),
   );
   return {
@@ -642,6 +799,7 @@ async function baselineCeilingBytes(
       claimBoundary: "diagnostic-no-memory-ceiling-only",
       codexExecutableSha256: "d".repeat(64),
       codexVersion: "codex-cli 0.144.5",
+      datasetSnapshotMode: "asset-locked-copy",
       datasetId: result.core.datasetId,
       generatedAt: "2026-07-16T11:00:00.000Z",
       host: "codex",
@@ -651,21 +809,19 @@ async function baselineCeilingBytes(
       publicClaimEligible: false,
       reasoningEffort: "xhigh",
       runId: "c4-baseline-test",
-      schemaVersion: 1,
+      schemaVersion: 2,
+      stageTimeoutMs: 900_000,
       strategy: "stage-3-first-then-stage-2-if-needed",
+      testTimeoutMs: 300_000,
     },
-    targets: result.core.episodes.flatMap((episode) => [
-      {
-        episodeId: episode.id,
-        position: 2 as const,
-        stageId: "stage-2" as const,
-      },
-      {
-        episodeId: episode.id,
-        position: 3 as const,
-        stageId: "stage-3" as const,
-      },
-    ]),
+    targets: result.core.stages
+      .filter((stage) => stage.stageId === "stage-2" || stage.stageId === "stage-3")
+      .map((stage) => ({
+        episodeId: stage.episodeId,
+        position: stage.stageId === "stage-2" ? 2 as const : 3 as const,
+        stageId: stage.stageId === "stage-2" ? "stage-2" : "stage-3",
+        stageInputSha256: stage.stageInputSha256,
+      })),
   });
   return serializeC4BaselineCeilingReport(report);
 }
@@ -680,7 +836,10 @@ function baselineStageResult(
   const resolved = outcome === "redesign" &&
     target.stageId === "stage-3" &&
     executionIndex <= 5;
-  return {
+  const patchDiff = resolved
+    ? "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n"
+    : "";
+  const result: Omit<C4BaselineStageResult, "stageEvidenceSha256"> = {
     changedFiles: resolved ? ["src/tasks.ts"] : [],
     codexStatus: infrastructureFailure ? "failed" : "completed",
     disposition: infrastructureFailure
@@ -690,16 +849,18 @@ function baselineStageResult(
     executionFailureStage: infrastructureFailure ? "codex-exec" : null,
     failToPassStatus: resolved ? "passed" : "failed",
     passToPassStatus: infrastructureFailure ? "not-run" : "passed",
-    patchSha256: resolved ? "e".repeat(64) : null,
+    patchSha256: resolved ? sha256(patchDiff) : null,
     resolved,
-    stageEvidenceSha256: sha256(
-      `${target.episodeId}/${target.stageId}/${outcome}`,
-    ),
     stageId: target.stageId,
+    stageInputSha256: target.stageInputSha256,
     taskFailureReasons: infrastructureFailure ? ["codex-exec"] : [],
     threadId: infrastructureFailure
       ? null
       : `thread-${target.episodeId}-${target.stageId}`,
+  };
+  return {
+    ...result,
+    stageEvidenceSha256: sha256(rawBaselineStageEvidenceBytes(result)),
   };
 }
 
@@ -708,11 +869,106 @@ async function finalizeWithBaseline(
   review: ReturnType<typeof independentReviewArtifacts>,
   outcome: "inconclusive" | "proceed" | "redesign",
 ) {
+  const baselineBytes = await baselineCeilingBytes(result, outcome);
   return finalizeC4DatasetReadiness({
-    baselineBytes: await baselineCeilingBytes(result, outcome),
+    baselineBytes,
+    baselineStageEvidenceFiles: baselineEvidenceFiles(baselineBytes),
     result,
     ...review,
   });
+}
+
+function baselineEvidenceFiles(
+  baselineBytes: string,
+): C4BaselineStageEvidenceFile[] {
+  const report = JSON.parse(baselineBytes) as C4BaselineCeilingReport;
+  return buildC4BaselineStageEvidenceBindings(
+    report,
+    report.results.map((stage) => {
+      const { stageEvidenceSha256: _, ...result } = stage;
+      return {
+        bytes: rawBaselineStageEvidenceBytes(result),
+        path: `${stage.episodeId}-${stage.stageId}/stage-evidence.json`,
+      };
+    }),
+  );
+}
+
+function rawBaselineStageEvidenceBytes(
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+): string {
+  return `${JSON.stringify({
+    ...(result.disposition === "infrastructure-failure"
+      ? {
+          failure: {
+            failureStage: result.executionFailureStage,
+            reasonSha256: "f".repeat(64),
+          },
+        }
+      : {
+          codex: {
+            durationMs: 1,
+            eventCount: 1,
+            exitCode: 0,
+            status: result.codexStatus,
+            stderr: "",
+            timedOut: false,
+            usage: null,
+          },
+          evaluator: {
+            commitments: [],
+            credentialsRemovedBeforeMaterialization: true,
+            failToPass: {
+              durationMs: 1,
+              exitCode: result.failToPassStatus === "passed" ? 0 : 1,
+              kind: "fail-to-pass",
+              status: result.failToPassStatus,
+              stderr: "",
+              stdout: "",
+            },
+            materializedAfterCodexExit: true,
+            passToPass: {
+              durationMs: 1,
+              exitCode: result.passToPassStatus === "passed" ? 0 : 1,
+              kind: "pass-to-pass",
+              status: result.passToPassStatus,
+              stderr: "",
+              stdout: "",
+            },
+            sandbox: {},
+          },
+          patch: {
+            baseCommit: "2".repeat(40),
+            changedFiles: result.changedFiles,
+            diff: result.patchSha256 === null
+              ? ""
+              : "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n",
+            forbiddenFiles: [],
+            hasPatch: false,
+            sha256: result.patchSha256,
+            untrackedFiles: [],
+          },
+          visibleBaseHealth: {
+            durationMs: 1,
+            exitCode: 0,
+            passed: true,
+            status: "passed",
+            stderr: "",
+            stdout: "",
+          },
+        }),
+    dataset: {
+      episodeId: result.episodeId,
+      promptSha256: "1".repeat(64),
+      repositoryCommit: "2".repeat(40),
+      repositoryTree: "3".repeat(40),
+      snapshot: "2".repeat(40),
+      stageId: result.stageId,
+      stageInputSha256: result.stageInputSha256,
+    },
+    result,
+    schemaVersion: 1,
+  }, null, 2)}\n`;
 }
 
 function mutateDispatch(dispatchBytes: string): string {

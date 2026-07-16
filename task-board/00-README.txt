@@ -91,12 +91,14 @@ Current Transition
   acceptance is reopened: real two-process run
   `c3-controlled-20260715-1747z` observed `tie-both-pass` and an active installed
   treatment, but omitted runner-source provenance and the normalized arm config
-  diff from its gitignored evidence. A new auditable pair is required. C4 is
-  accepted only as offline dataset-readiness evidence: 6 episodes / 18 stages /
-  54 stable base probes / 18 passing gold replays, with independent review and
-  tracked deterministic evidence. It made no live Codex comparison and proves
-  no coding uplift. Phase 73 remains active with C3 and C5-C7 open. See
-  `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
+  diff from its gitignored evidence. A new auditable pair is required. Its
+  projection verifier proves internal consistency and clean-clone patch replay,
+  not external authenticity of the tarball, raw run, or canary. C4 is reopened:
+  its deterministic v2 core has 6 episodes / 18 stages / 54 stable base probes /
+  18 passing gold replays, but the current v2 no-memory baseline and its bound
+  per-stage evidence have not been generated, and a new independent review is
+  still required. It made no paired treatment comparison and proves no coding
+  uplift. Phase 73 remains active with C3-C7 open. See `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
   and the strict boundary against coding-effect claims.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.

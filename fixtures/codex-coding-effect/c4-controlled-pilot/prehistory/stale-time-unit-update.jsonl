@@ -1,2 +1,0 @@
-{"payload":{"content":[{"text":"The configuration contract changed: timeout and delay fields are now expressed in seconds, superseding the old millisecond-input assumption. Public runtime values remain milliseconds.","type":"input_text"}],"role":"user","type":"message"},"type":"response_item"}
-{"payload":{"content":[{"text":"Recorded the newer seconds-at-config-boundary rule and that runtime outputs remain milliseconds.","type":"output_text"}],"role":"assistant","type":"message"},"type":"response_item"}

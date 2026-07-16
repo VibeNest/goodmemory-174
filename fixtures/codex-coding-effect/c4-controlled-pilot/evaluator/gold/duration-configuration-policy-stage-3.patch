@@ -1,0 +1,13 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 913dc38c9bb6a26e73bd722148427d6b649b7f98..8e58ccbefcc9ff228c40857e6d61c2927a34f7f3 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -35,7 +35,7 @@ export function resolveRetryConfig(input: { capMs: number; initial: number }): {
+ }
+ 
+ export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {
+-  return input.startMs + input.timeout + input.skewMs;
++  return input.startMs + input.timeout * 250 + input.skewMs;
+ }
+ 
+ export function slugify(value: string): string {

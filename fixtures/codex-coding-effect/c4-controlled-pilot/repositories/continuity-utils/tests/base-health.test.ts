@@ -4,19 +4,11 @@ import * as taskModule from "../src/tasks";
 const cases = [
   {
     "args": [
-      "api.internal"
+      "localhost"
     ],
-    "expected": "api.internal",
-    "functionName": "normalizeHost",
-    "taskId": "normalize-host-boundary"
-  },
-  {
-    "args": [
-      "8080"
-    ],
-    "expected": 8080,
-    "functionName": "parsePort",
-    "taskId": "parse-strict-port"
+    "expected": "localhost",
+    "functionName": "renderHostDisplay",
+    "taskId": "render-host-display"
   },
   {
     "args": [
@@ -24,8 +16,18 @@ const cases = [
       3000
     ],
     "expected": "localhost:3000",
-    "functionName": "formatEndpoint",
-    "taskId": "format-ipv6-endpoint"
+    "functionName": "renderEndpointDisplay",
+    "taskId": "render-endpoint-display"
+  },
+  {
+    "args": [
+      "local",
+      "localhost",
+      3000
+    ],
+    "expected": "local localhost:3000",
+    "functionName": "renderTargetDisplay",
+    "taskId": "render-target-display"
   },
   {
     "args": [
@@ -36,7 +38,7 @@ const cases = [
       "value"
     ],
     "functionName": "splitAssignment",
-    "taskId": "split-assignment-tail"
+    "taskId": "split-assignment"
   },
   {
     "args": [
@@ -47,7 +49,7 @@ const cases = [
       "value"
     ],
     "functionName": "splitHeader",
-    "taskId": "split-header-tail"
+    "taskId": "split-header"
   },
   {
     "args": [
@@ -58,26 +60,7 @@ const cases = [
       "value"
     ],
     "functionName": "splitRoute",
-    "taskId": "split-route-tail"
-  },
-  {
-    "args": [
-      "mode=fast # local"
-    ],
-    "expected": "mode=fast",
-    "functionName": "stripConfigComment",
-    "taskId": "strip-quoted-comment"
-  },
-  {
-    "args": [
-      "build --clean"
-    ],
-    "expected": [
-      "build",
-      "--clean"
-    ],
-    "functionName": "tokenizeCommand",
-    "taskId": "tokenize-quoted-command"
+    "taskId": "split-route"
   },
   {
     "args": [
@@ -88,7 +71,29 @@ const cases = [
       "b"
     ],
     "functionName": "parseCsvFields",
-    "taskId": "parse-quoted-csv"
+    "taskId": "parse-csv-fields"
+  },
+  {
+    "args": [
+      "west|east"
+    ],
+    "expected": [
+      "west",
+      "east"
+    ],
+    "functionName": "parsePipeFields",
+    "taskId": "parse-pipe-fields"
+  },
+  {
+    "args": [
+      "west;east"
+    ],
+    "expected": [
+      "west",
+      "east"
+    ],
+    "functionName": "parseSemicolonFields",
+    "taskId": "parse-semicolon-fields"
   }
 ] as const;
 

@@ -1,16 +1,17 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index f7232073bb3438ffc04a735714da65a0ff51c842..2fd590ecd216c1f61c1ba893a312f3c8170ee646 100644
+index 913dc38c9bb6a26e73bd722148427d6b649b7f98..fadb4610f4858382aaf61ccb6bc680be5debaf8d 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -19,7 +19,10 @@ export function parseIntegerSetting(input: string): ParseResult<number> {
+@@ -23,7 +23,11 @@ export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
  }
  
- export function parseModeSetting(input: string): ParseResult<TransportMode> {
--  return { ok: true, value: input as TransportMode };
-+  if (input === "direct" || input === "relay") {
-+    return { ok: true, value: input };
+ export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {
+-  return { ok: true, value: input as OutputFormat };
++  const normalized = input.replace(/^ +| +$/gu, "");
++  if (normalized === "json" || normalized === "text" || normalized === "yaml") {
++    return { ok: true, value: normalized };
 +  }
-+  return { error: SETTING_ERROR_CODES.mode, ok: false };
++  return { error: SETTING_ERROR_CODES.format, ok: false };
  }
  
- export function timeoutToMs(seconds: number): number {
+ export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {

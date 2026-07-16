@@ -138,11 +138,15 @@ const REPOSITORIES: readonly RepositorySpec[] = [
       "  | { ok: true; value: T }",
       "  | { error: string; ok: false };",
       "",
+      'export type LogLevel = "debug" | "info" | "warn";',
+      "",
+      'export type OutputFormat = "json" | "text" | "yaml";',
+      "",
       'export type TransportMode = "buffered" | "direct" | "relay";',
       "",
       "export const SETTING_ERROR_CODES = {",
-      '  boolean: "invalid-boolean",',
-      '  integer: "invalid-integer",',
+      '  format: "invalid-format",',
+      '  level: "invalid-level",',
       '  mode: "invalid-mode",',
       "} as const;",
       "",
@@ -157,11 +161,11 @@ const EPISODES: readonly EpisodeSpec[] = [
     history: [
       {
         role: "user",
-        text: "The endpoint utilities need one consistent authority-host rendering rule. Establish it in the first task, then apply the accepted project rule to the remaining utilities without changing exported signatures.",
+        text: "The endpoint display utilities need one project-specific presentation rule. Establish it in the first task, then apply the accepted rule to the remaining display functions without changing exported signatures.",
       },
       {
         role: "assistant",
-        text: "Recorded that the first endpoint task will establish the local rule and that later work must reuse it with a stable public surface.",
+        text: "Recorded that the first endpoint task will establish the local presentation policy for the later display functions.",
       },
     ],
     id: "endpoint-open-loop",
@@ -169,113 +173,119 @@ const EPISODES: readonly EpisodeSpec[] = [
     repositoryId: "continuity-utils",
     stages: [
       task({
-        allowedFeedback: "Use the authority-host rule stated in this task.",
+        allowedFeedback: "Use the endpoint-display rule stated in this task.",
         baseImplementation: [
-          "export function renderAuthorityHost(host: string): string {",
+          "export function renderHostDisplay(host: string): string {",
           "  return host;",
           "}",
         ],
         failToPass: [
-          { args: ["2001:db8::1"], expected: "[2001:db8::1]" },
-          { args: ["::1"], expected: "[::1]" },
-          { args: ["fe80::1%en0"], expected: "[fe80::1%en0]" },
+          { args: ["2001:db8::1"], expected: "(2001:db8::1)" },
+          { args: ["::1"], expected: "(::1)" },
+          { args: ["fe80::1%en0"], expected: "(fe80::1%en0)" },
         ],
-        forbiddenStrings: ['host.includes(":") && !host.startsWith("[")'],
-        functionName: "renderAuthorityHost",
+        forbiddenStrings: [
+          'host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+        ],
+        functionName: "renderHostDisplay",
         goldImplementation: [
-          "export function renderAuthorityHost(host: string): string {",
-          '  return host.includes(":") && !host.startsWith("[")',
-          "    ? `[${host}]`",
+          "export function renderHostDisplay(host: string): string {",
+          '  return host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+          "    ? `(${host})`",
           "    : host;",
           "}",
         ],
-        id: "render-authority-host",
+        id: "render-host-display",
         passToPass: [
           { args: ["api.internal"], expected: "api.internal" },
-          { args: ["[2001:db8::4]"], expected: "[2001:db8::4]" },
+          { args: ["(2001:db8::4)"], expected: "(2001:db8::4)" },
         ],
-        prompt: "Establish and implement the authority-host rendering policy for this repository. Project policy: keep hostnames and already-bracketed literals unchanged; render an unbracketed host containing a colon inside one pair of square brackets. Keep the exported signature stable.",
+        prompt: "Establish and implement the endpoint-display policy for this repository. Project policy: for endpoint display text, wrap a host containing a colon in one pair of parentheses unless it already begins with an opening parenthesis and ends with a closing parenthesis; leave other hosts unchanged. Keep the exported signature stable.",
         visible: [{ args: ["localhost"], expected: "localhost" }],
       }),
       task({
-        allowedFeedback: "Use the accepted authority-host rendering policy.",
+        allowedFeedback: "Use the accepted endpoint-display policy.",
         baseImplementation: [
-          "export function formatEndpoint(host: string, port: number): string {",
+          "export function renderEndpointDisplay(host: string, port: number): string {",
           "  return `${host}:${port}`;",
           "}",
         ],
         failToPass: [
-          { args: ["2001:db8::1", 443], expected: "[2001:db8::1]:443" },
-          { args: ["::1", 8080], expected: "[::1]:8080" },
-          { args: ["fe80::2%en0", 3000], expected: "[fe80::2%en0]:3000" },
+          { args: ["2001:db8::1", 443], expected: "(2001:db8::1):443" },
+          { args: ["::1", 8080], expected: "(::1):8080" },
+          { args: ["fe80::2%en0", 3000], expected: "(fe80::2%en0):3000" },
         ],
-        forbiddenStrings: ['host.includes(":") && !host.startsWith("[")'],
-        functionName: "formatEndpoint",
+        forbiddenStrings: [
+          'host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+        ],
+        functionName: "renderEndpointDisplay",
         goldImplementation: [
-          "export function formatEndpoint(host: string, port: number): string {",
-          '  const renderedHost = host.includes(":") && !host.startsWith("[")',
-          "    ? `[${host}]`",
+          "export function renderEndpointDisplay(host: string, port: number): string {",
+          '  const renderedHost = host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+          "    ? `(${host})`",
           "    : host;",
           "  return `${renderedHost}:${port}`;",
           "}",
         ],
-        id: "format-ipv6-endpoint",
+        id: "render-endpoint-display",
         passToPass: [
           { args: ["api.internal", 443], expected: "api.internal:443" },
-          { args: ["[2001:db8::3]", 8443], expected: "[2001:db8::3]:8443" },
+          { args: ["(2001:db8::3)", 8443], expected: "(2001:db8::3):8443" },
         ],
-        prompt: "Apply the accepted authority-host rendering policy to formatEndpoint while keeping its existing signature and endpoint shape.",
+        prompt: "Apply the accepted endpoint-display policy to renderEndpointDisplay. Keep the exported signature unchanged.",
         visible: [{
           args: ["localhost", 3000],
           expected: "localhost:3000",
         }],
       }),
       task({
-        allowedFeedback: "Use the accepted authority-host rendering policy.",
+        allowedFeedback: "Use the accepted endpoint-display policy.",
         baseImplementation: [
-          "export function formatProxyTarget(scheme: string, host: string, port: number): string {",
-          "  return `${scheme}://${host}:${port}`;",
+          "export function renderTargetDisplay(target: string, host: string, port: number): string {",
+          "  return `${target} ${host}:${port}`;",
           "}",
         ],
         failToPass: [
           {
-            args: ["https", "2001:db8::9", 443],
-            expected: "https://[2001:db8::9]:443",
+            args: ["primary", "2001:db8::9", 443],
+            expected: "primary (2001:db8::9):443",
           },
           {
-            args: ["http", "::1", 8080],
-            expected: "http://[::1]:8080",
+            args: ["local", "::1", 8080],
+            expected: "local (::1):8080",
           },
           {
-            args: ["tcp", "fe80::7%en0", 9000],
-            expected: "tcp://[fe80::7%en0]:9000",
+            args: ["backup", "fe80::7%en0", 9000],
+            expected: "backup (fe80::7%en0):9000",
           },
         ],
-        forbiddenStrings: ['host.includes(":") && !host.startsWith("[")'],
-        functionName: "formatProxyTarget",
+        forbiddenStrings: [
+          'host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+        ],
+        functionName: "renderTargetDisplay",
         goldImplementation: [
-          "export function formatProxyTarget(scheme: string, host: string, port: number): string {",
-          '  const renderedHost = host.includes(":") && !host.startsWith("[")',
-          "    ? `[${host}]`",
+          "export function renderTargetDisplay(target: string, host: string, port: number): string {",
+          '  const renderedHost = host.includes(":") && !(host.startsWith("(") && host.endsWith(")"))',
+          "    ? `(${host})`",
           "    : host;",
-          "  return `${scheme}://${renderedHost}:${port}`;",
+          "  return `${target} ${renderedHost}:${port}`;",
           "}",
         ],
-        id: "format-proxy-target",
+        id: "render-target-display",
         passToPass: [
           {
-            args: ["https", "proxy.internal", 443],
-            expected: "https://proxy.internal:443",
+            args: ["primary", "proxy.internal", 443],
+            expected: "primary proxy.internal:443",
           },
           {
-            args: ["http", "[2001:db8::8]", 80],
-            expected: "http://[2001:db8::8]:80",
+            args: ["backup", "(2001:db8::8)", 80],
+            expected: "backup (2001:db8::8):80",
           },
         ],
-        prompt: "Apply the accepted authority-host rendering policy to formatProxyTarget while preserving its current URL-like output shape.",
+        prompt: "Apply the accepted endpoint-display policy to renderTargetDisplay. Keep the exported signature unchanged.",
         visible: [{
-          args: ["http", "localhost", 3000],
-          expected: "http://localhost:3000",
+          args: ["local", "localhost", 3000],
+          expected: "local localhost:3000",
         }],
       }),
     ],
@@ -285,14 +295,14 @@ const EPISODES: readonly EpisodeSpec[] = [
     history: [
       {
         role: "user",
-        text: "The related pair parsers need one repository-level delimiter policy. Establish it in the first task and apply the accepted policy to the follow-up parsers.",
+        text: "The related pair parsers need one repository-level boundary policy. Establish it in the first task and apply the accepted policy to the follow-up parsers.",
       },
       {
         role: "assistant",
         text: "Recorded that the first parser task will define the local delimiter rule for the remaining stages.",
       },
     ],
-    id: "validated-first-delimiter",
+    id: "delimiter-boundary-policy",
     memoryMode: "required",
     repositoryId: "continuity-utils",
     stages: [
@@ -321,19 +331,19 @@ const EPISODES: readonly EpisodeSpec[] = [
     history: [
       {
         role: "user",
-        text: "The text utilities need one consistent rule for quoted fields. Establish the repository rule in the first task, then reuse the accepted rule in the remaining parsers.",
+        text: "We tried treating every separator as a field boundary, and it corrupted embedded field content. Do not repeat that failed approach. Establish the replacement project policy in the first task, then reuse it in the remaining parsers.",
       },
       {
         role: "assistant",
-        text: "Recorded that the first parser will establish the local quoted-field policy for later stages.",
+        text: "Recorded the unconditional-split failure and that the first parser must establish the replacement field-boundary policy for later stages.",
       },
     ],
-    id: "avoid-naive-split",
+    id: "field-boundary-policy",
     memoryMode: "required",
     repositoryId: "continuity-utils",
     stages: [
       task({
-        allowedFeedback: "Use the quoted-field rule stated in this task.",
+        allowedFeedback: "Use the field-boundary rule stated in this task.",
         baseImplementation: [
           "export function parseCsvFields(input: string): string[] {",
           '  return input.split(",").map((field) => field.trim());',
@@ -345,8 +355,8 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: ["alpha", "beta,gamma", "delta"],
           },
           {
-            args: ["'north,south',east"],
-            expected: ["north,south", "east"],
+            args: ['alpha,"say ""hello""",omega'],
+            expected: ["alpha", 'say "hello"', "omega"],
           },
           {
             args: ['"a,b","c,d"'],
@@ -356,54 +366,19 @@ const EPISODES: readonly EpisodeSpec[] = [
         forbiddenStrings: ["const fields: string[] = [];"],
         functionName: "parseCsvFields",
         goldImplementation: csvFieldsImplementation(),
-        id: "parse-quoted-csv",
+        id: "parse-csv-fields",
         passToPass: [
           { args: ["alpha,beta"], expected: ["alpha", "beta"] },
-          { args: ["alpha, beta, gamma"], expected: ["alpha", "beta", "gamma"] },
+          {
+            args: ["'north,south',east"],
+            expected: ["'north", "south'", "east"],
+          },
         ],
-        prompt: "Establish and implement the quoted-delimiter policy for this repository. Project policy: matching single or double quotes group structural delimiters, delimiters inside a quoted field remain data, and grouping quotes are omitted from returned field values. Preserve the existing return shape.",
+        prompt: "Establish and implement the field-boundary policy for this repository. Project policy: only double quotes protect a delimiter; grouping double quotes are removed; two consecutive double quotes inside a protected field produce one literal double quote; single quotes are ordinary characters. Preserve the existing return shape.",
         visible: [{ args: ["a, b"], expected: ["a", "b"] }],
       }),
       task({
-        allowedFeedback: "Use the accepted quoted-delimiter policy.",
-        baseImplementation: [
-          "export function tokenizeCommand(input: string): string[] {",
-          "  return input.trim().split(/\\s+/u);",
-          "}",
-        ],
-        failToPass: [
-          {
-            args: ['deploy --label "blue green"'],
-            expected: ["deploy", "--label", "blue green"],
-          },
-          {
-            args: ["run 'two words' tail"],
-            expected: ["run", "two words", "tail"],
-          },
-          {
-            args: ['say "a  b" now'],
-            expected: ["say", "a  b", "now"],
-          },
-        ],
-        forbiddenStrings: ["const tokens: string[] = [];"],
-        functionName: "tokenizeCommand",
-        goldImplementation: tokenizeCommandImplementation(),
-        id: "tokenize-quoted-command",
-        passToPass: [
-          {
-            args: ["deploy --dry-run"],
-            expected: ["deploy", "--dry-run"],
-          },
-          {
-            args: ["  build   --clean  "],
-            expected: ["build", "--clean"],
-          },
-        ],
-        prompt: "Apply the accepted quoted-delimiter policy to tokenizeCommand while preserving its array return type and ordinary command behavior.",
-        visible: [{ args: ["build --clean"], expected: ["build", "--clean"] }],
-      }),
-      task({
-        allowedFeedback: "Use the accepted quoted-delimiter policy.",
+        allowedFeedback: "Use the accepted field-boundary policy.",
         baseImplementation: [
           "export function parsePipeFields(input: string): string[] {",
           '  return input.split("|").map((field) => field.trim());',
@@ -415,8 +390,8 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: ["alpha", "beta|gamma", "delta"],
           },
           {
-            args: ["'north|middle'|south"],
-            expected: ["north|middle", "south"],
+            args: ['alpha|"say ""hello"""|omega'],
+            expected: ["alpha", 'say "hello"', "omega"],
           },
           {
             args: ['"a|b"|"c|d"'],
@@ -426,13 +401,51 @@ const EPISODES: readonly EpisodeSpec[] = [
         forbiddenStrings: ["const fields: string[] = [];"],
         functionName: "parsePipeFields",
         goldImplementation: pipeFieldsImplementation(),
-        id: "parse-quoted-pipe-fields",
+        id: "parse-pipe-fields",
         passToPass: [
           { args: ["alpha|beta"], expected: ["alpha", "beta"] },
-          { args: ["a | b | c"], expected: ["a", "b", "c"] },
+          {
+            args: ["'north|middle'|south"],
+            expected: ["'north", "middle'", "south"],
+          },
         ],
-        prompt: "Apply the accepted quoted-delimiter policy to parsePipeFields while retaining its existing field-array contract.",
+        prompt: "Apply the accepted field-boundary policy to parsePipeFields. Keep the exported signature unchanged.",
         visible: [{ args: ["west|east"], expected: ["west", "east"] }],
+      }),
+      task({
+        allowedFeedback: "Use the accepted field-boundary policy.",
+        baseImplementation: [
+          "export function parseSemicolonFields(input: string): string[] {",
+          '  return input.split(";").map((field) => field.trim());',
+          "}",
+        ],
+        failToPass: [
+          {
+            args: ['alpha;"beta;gamma";delta'],
+            expected: ["alpha", "beta;gamma", "delta"],
+          },
+          {
+            args: ['alpha;"say ""hello""";omega'],
+            expected: ["alpha", 'say "hello"', "omega"],
+          },
+          {
+            args: ['"a;b";"c;d"'],
+            expected: ["a;b", "c;d"],
+          },
+        ],
+        forbiddenStrings: ["const fields: string[] = [];"],
+        functionName: "parseSemicolonFields",
+        goldImplementation: semicolonFieldsImplementation(),
+        id: "parse-semicolon-fields",
+        passToPass: [
+          { args: ["alpha;beta"], expected: ["alpha", "beta"] },
+          {
+            args: ["'north;middle';south"],
+            expected: ["'north", "middle'", "south"],
+          },
+        ],
+        prompt: "Apply the accepted field-boundary policy to parseSemicolonFields. Keep the exported signature unchanged.",
+        visible: [{ args: ["west;east"], expected: ["west", "east"] }],
       }),
     ],
     strata: ["failure-avoidance"],
@@ -441,11 +454,11 @@ const EPISODES: readonly EpisodeSpec[] = [
     history: [
       {
         role: "user",
-        text: "The setting parsers need one project-level result contract. Establish it in the first task, then apply the accepted contract to the remaining parsers.",
+        text: "I reject the current setting-parser behavior that broadly trims whitespace, folds case, or trusts unchecked casts. The first task will define the corrected input policy; later parsers must follow that correction.",
       },
       {
         role: "assistant",
-        text: "Recorded that the first setting task will establish the local parser policy for later stages.",
+        text: "Recorded the rejected normalization and cast behavior, and that the first setting task will establish the corrected input policy for later stages.",
       },
     ],
     id: "parse-result-correction",
@@ -453,89 +466,7 @@ const EPISODES: readonly EpisodeSpec[] = [
     repositoryId: "policy-utils",
     stages: [
       task({
-        allowedFeedback: "Use the setting-parser rule stated in this task.",
-        baseImplementation: [
-          "export function parseBooleanSetting(input: string): ParseResult<boolean> {",
-          '  return { ok: true, value: input === "true" };',
-          "}",
-        ],
-        failToPass: [
-          {
-            args: ["yes"],
-            expected: { error: "invalid-boolean", ok: false },
-          },
-          {
-            args: ["TRUE"],
-            expected: { error: "invalid-boolean", ok: false },
-          },
-          {
-            args: [""],
-            expected: { error: "invalid-boolean", ok: false },
-          },
-        ],
-        forbiddenStrings: [
-          "return { error: SETTING_ERROR_CODES.boolean, ok: false };",
-        ],
-        functionName: "parseBooleanSetting",
-        goldImplementation: [
-          "export function parseBooleanSetting(input: string): ParseResult<boolean> {",
-          '  if (input === "true") {',
-          "    return { ok: true, value: true };",
-          "  }",
-          '  if (input === "false") {',
-          "    return { ok: true, value: false };",
-          "  }",
-          "  return { error: SETTING_ERROR_CODES.boolean, ok: false };",
-          "}",
-        ],
-        id: "parse-boolean-result",
-        passToPass: [
-          { args: ["true"], expected: { ok: true, value: true } },
-          { args: ["false"], expected: { ok: true, value: false } },
-        ],
-        prompt: "Establish and implement the setting-parser policy for this repository. Project policy: exported setting parsers return ParseResult, accept only values declared by their TypeScript contract, and return the matching shared SETTING_ERROR_CODES branch for every invalid value instead of throwing, coercing, or using unchecked casts.",
-        visible: [{ args: ["false"], expected: { ok: true, value: false } }],
-      }),
-      task({
-        allowedFeedback: "Use the accepted setting-parser policy.",
-        baseImplementation: [
-          "export function parseIntegerSetting(input: string): ParseResult<number> {",
-          "  return { ok: true, value: Number(input) };",
-          "}",
-        ],
-        failToPass: [
-          { args: ["4.2"], expected: { error: "invalid-integer", ok: false } },
-          { args: ["12x"], expected: { error: "invalid-integer", ok: false } },
-          { args: ["+7"], expected: { error: "invalid-integer", ok: false } },
-          {
-            args: ["9007199254740992"],
-            expected: { error: "invalid-integer", ok: false },
-          },
-        ],
-        forbiddenStrings: ["error: SETTING_ERROR_CODES.integer"],
-        functionName: "parseIntegerSetting",
-        goldImplementation: [
-          "export function parseIntegerSetting(input: string): ParseResult<number> {",
-          "  if (!/^-?(?:0|[1-9][0-9]*)$/u.test(input)) {",
-          "    return { error: SETTING_ERROR_CODES.integer, ok: false };",
-          "  }",
-          "  const value = Number(input);",
-          "  return Number.isSafeInteger(value)",
-          "    ? { ok: true, value }",
-          "    : { error: SETTING_ERROR_CODES.integer, ok: false };",
-          "}",
-        ],
-        id: "parse-integer-result",
-        passToPass: [
-          { args: ["0"], expected: { ok: true, value: 0 } },
-          { args: ["-4"], expected: { ok: true, value: -4 } },
-          { args: ["73"], expected: { ok: true, value: 73 } },
-        ],
-        prompt: "Apply the accepted setting-parser policy to parseIntegerSetting while preserving its exported signature.",
-        visible: [{ args: ["7"], expected: { ok: true, value: 7 } }],
-      }),
-      task({
-        allowedFeedback: "Use the accepted setting-parser policy.",
+        allowedFeedback: "Use the setting-input rule stated in this task.",
         baseImplementation: [
           "export function parseModeSetting(input: string): ParseResult<TransportMode> {",
           "  return { ok: true, value: input as TransportMode };",
@@ -543,45 +474,148 @@ const EPISODES: readonly EpisodeSpec[] = [
         ],
         failToPass: [
           {
-            args: ["turbo"],
-            expected: { error: "invalid-mode", ok: false },
+            args: [" direct "],
+            expected: { ok: true, value: "direct" },
           },
           {
             args: ["DIRECT"],
             expected: { error: "invalid-mode", ok: false },
           },
           {
-            args: [""],
+            args: ["\tdirect\t"],
+            expected: { error: "invalid-mode", ok: false },
+          },
+          {
+            args: ["turbo"],
             expected: { error: "invalid-mode", ok: false },
           },
         ],
         forbiddenStrings: [
+          'input.replace(/^ +| +$/gu, "")',
           "return { error: SETTING_ERROR_CODES.mode, ok: false };",
         ],
         functionName: "parseModeSetting",
         goldImplementation: [
           "export function parseModeSetting(input: string): ParseResult<TransportMode> {",
-          '  if (input === "buffered" || input === "direct" || input === "relay") {',
-          "    return { ok: true, value: input };",
+          '  const normalized = input.replace(/^ +| +$/gu, "");',
+          '  if (normalized === "buffered" || normalized === "direct" || normalized === "relay") {',
+          "    return { ok: true, value: normalized };",
           "  }",
           "  return { error: SETTING_ERROR_CODES.mode, ok: false };",
           "}",
         ],
-        id: "parse-mode-result",
+        id: "parse-mode-setting",
         passToPass: [
-          {
-            args: ["direct"],
-            expected: { ok: true, value: "direct" },
-          },
-          {
-            args: ["relay"],
-            expected: { ok: true, value: "relay" },
-          },
+          { args: ["direct"], expected: { ok: true, value: "direct" } },
+          { args: ["relay"], expected: { ok: true, value: "relay" } },
         ],
-        prompt: "Apply the accepted setting-parser policy to parseModeSetting while preserving its exported signature.",
+        prompt: "Establish and implement the setting-input policy for this repository. Project policy: remove only leading and trailing U+0020 SPACE characters; tabs and other whitespace remain part of the input; preserve letter case; after normalization accept only exact values declared by the function's TypeScript union; return ParseResult with the matching shared error code for every other value.",
         visible: [{
           args: ["buffered"],
           expected: { ok: true, value: "buffered" },
+        }],
+      }),
+      task({
+        allowedFeedback: "Use the accepted setting-input policy.",
+        baseImplementation: [
+          "export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {",
+          "  return { ok: true, value: input as LogLevel };",
+          "}",
+        ],
+        failToPass: [
+          {
+            args: [" info "],
+            expected: { ok: true, value: "info" },
+          },
+          {
+            args: ["INFO"],
+            expected: { error: "invalid-level", ok: false },
+          },
+          {
+            args: ["\tinfo\t"],
+            expected: { error: "invalid-level", ok: false },
+          },
+          {
+            args: ["trace"],
+            expected: { error: "invalid-level", ok: false },
+          },
+        ],
+        forbiddenStrings: [
+          'input.replace(/^ +| +$/gu, "")',
+          "return { error: SETTING_ERROR_CODES.level, ok: false };",
+        ],
+        functionName: "parseLogLevelSetting",
+        goldImplementation: [
+          "export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {",
+          '  const normalized = input.replace(/^ +| +$/gu, "");',
+          '  if (normalized === "debug" || normalized === "info" || normalized === "warn") {',
+          "    return { ok: true, value: normalized };",
+          "  }",
+          "  return { error: SETTING_ERROR_CODES.level, ok: false };",
+          "}",
+        ],
+        id: "parse-log-level-setting",
+        passToPass: [
+          { args: ["debug"], expected: { ok: true, value: "debug" } },
+          { args: ["warn"], expected: { ok: true, value: "warn" } },
+        ],
+        prompt: "Apply the accepted setting-input policy to parseLogLevelSetting. Keep the exported signature unchanged.",
+        visible: [{ args: ["info"], expected: { ok: true, value: "info" } }],
+      }),
+      task({
+        allowedFeedback: "Use the accepted setting-input policy.",
+        baseImplementation: [
+          "export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {",
+          "  return { ok: true, value: input as OutputFormat };",
+          "}",
+        ],
+        failToPass: [
+          {
+            args: [" json "],
+            expected: { ok: true, value: "json" },
+          },
+          {
+            args: ["JSON"],
+            expected: { error: "invalid-format", ok: false },
+          },
+          {
+            args: ["\ttext\t"],
+            expected: { error: "invalid-format", ok: false },
+          },
+          {
+            args: ["xml"],
+            expected: { error: "invalid-format", ok: false },
+          },
+        ],
+        forbiddenStrings: [
+          'input.replace(/^ +| +$/gu, "")',
+          "return { error: SETTING_ERROR_CODES.format, ok: false };",
+        ],
+        functionName: "parseOutputFormatSetting",
+        goldImplementation: [
+          "export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {",
+          '  const normalized = input.replace(/^ +| +$/gu, "");',
+          '  if (normalized === "json" || normalized === "text" || normalized === "yaml") {',
+          "    return { ok: true, value: normalized };",
+          "  }",
+          "  return { error: SETTING_ERROR_CODES.format, ok: false };",
+          "}",
+        ],
+        id: "parse-output-format-setting",
+        passToPass: [
+          {
+            args: ["json"],
+            expected: { ok: true, value: "json" },
+          },
+          {
+            args: ["text"],
+            expected: { ok: true, value: "text" },
+          },
+        ],
+        prompt: "Apply the accepted setting-input policy to parseOutputFormatSetting. Keep the exported signature unchanged.",
+        visible: [{
+          args: ["yaml"],
+          expected: { ok: true, value: "yaml" },
         }],
       }),
     ],
@@ -591,19 +625,19 @@ const EPISODES: readonly EpisodeSpec[] = [
     history: [
       {
         role: "user",
-        text: "The duration configuration utilities need one corrected boundary-unit policy. Establish it in the first task, then apply the accepted policy to the remaining conversions.",
+        text: "The earlier instruction to pass unqualified duration values through unchanged is superseded. The first task will establish the replacement boundary policy, and the remaining conversions must follow the newer rule.",
       },
       {
         role: "assistant",
-        text: "Recorded that the first duration task will establish the corrected project policy for later stages.",
+        text: "Recorded that the old pass-through instruction is stale and that the replacement duration policy established in the first task governs later stages.",
       },
     ],
-    id: "stale-time-unit-update",
+    id: "duration-configuration-policy",
     memoryMode: "required",
     repositoryId: "policy-utils",
     stages: [
       task({
-        allowedFeedback: "Use the configuration-duration rule stated in this task.",
+        allowedFeedback: "Use the duration-boundary rule stated in this task.",
         baseImplementation: [
           "export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {",
           "  return { graceMs: input.graceMs, timeoutMs: input.timeout };",
@@ -612,22 +646,22 @@ const EPISODES: readonly EpisodeSpec[] = [
         failToPass: [
           {
             args: [{ graceMs: 125, timeout: 2.5 }],
-            expected: { graceMs: 125, timeoutMs: 2500 },
+            expected: { graceMs: 125, timeoutMs: 625 },
           },
           {
             args: [{ graceMs: 6000, timeout: 0.25 }],
-            expected: { graceMs: 6000, timeoutMs: 250 },
+            expected: { graceMs: 6000, timeoutMs: 62.5 },
           },
           {
             args: [{ graceMs: 75, timeout: 12 }],
-            expected: { graceMs: 75, timeoutMs: 12000 },
+            expected: { graceMs: 75, timeoutMs: 3000 },
           },
         ],
-        forbiddenStrings: ["timeoutMs: input.timeout * 1_000"],
+        forbiddenStrings: ["timeoutMs: input.timeout * 250"],
         functionName: "resolveTimeoutConfig",
         goldImplementation: [
           "export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {",
-          "  return { graceMs: input.graceMs, timeoutMs: input.timeout * 1_000 };",
+          "  return { graceMs: input.graceMs, timeoutMs: input.timeout * 250 };",
           "}",
         ],
         id: "resolve-timeout-config",
@@ -641,14 +675,14 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: { graceMs: 500, timeoutMs: 0 },
           },
         ],
-        prompt: "Establish and implement the configuration-duration policy for this repository. Project policy: unqualified duration fields at the configuration boundary are expressed in seconds and converted exactly once, while fields whose names end in Ms are already milliseconds and pass through unchanged.",
+        prompt: "Establish and implement the duration-boundary policy for this repository. Project policy: each unqualified configuration duration value represents one 250 millisecond project quantum; multiply it by 250 exactly once; fields whose names end in Ms are already measured values and pass through unchanged.",
         visible: [{
           args: [{ graceMs: 250, timeout: 0 }],
           expected: { graceMs: 250, timeoutMs: 0 },
         }],
       }),
       task({
-        allowedFeedback: "Use the accepted configuration-duration policy.",
+        allowedFeedback: "Use the accepted duration-boundary policy.",
         baseImplementation: [
           "export function resolveRetryConfig(input: { capMs: number; initial: number }): { capMs: number; initialMs: number } {",
           "  return { capMs: input.capMs, initialMs: input.initial };",
@@ -657,22 +691,22 @@ const EPISODES: readonly EpisodeSpec[] = [
         failToPass: [
           {
             args: [{ capMs: 8000, initial: 1 }],
-            expected: { capMs: 8000, initialMs: 1000 },
+            expected: { capMs: 8000, initialMs: 250 },
           },
           {
             args: [{ capMs: 250, initial: 0.5 }],
-            expected: { capMs: 250, initialMs: 500 },
+            expected: { capMs: 250, initialMs: 125 },
           },
           {
             args: [{ capMs: 60_000, initial: 12 }],
-            expected: { capMs: 60_000, initialMs: 12000 },
+            expected: { capMs: 60_000, initialMs: 3000 },
           },
         ],
-        forbiddenStrings: ["initialMs: input.initial * 1_000"],
+        forbiddenStrings: ["initialMs: input.initial * 250"],
         functionName: "resolveRetryConfig",
         goldImplementation: [
           "export function resolveRetryConfig(input: { capMs: number; initial: number }): { capMs: number; initialMs: number } {",
-          "  return { capMs: input.capMs, initialMs: input.initial * 1_000 };",
+          "  return { capMs: input.capMs, initialMs: input.initial * 250 };",
           "}",
         ],
         id: "resolve-retry-config",
@@ -686,14 +720,14 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: { capMs: 7000, initialMs: 0 },
           },
         ],
-        prompt: "Apply the accepted configuration-duration policy to resolveRetryConfig while preserving its current object shape.",
+        prompt: "Apply the accepted duration-boundary policy to resolveRetryConfig. Keep the exported signature unchanged.",
         visible: [{
           args: [{ capMs: 250, initial: 0 }],
           expected: { capMs: 250, initialMs: 0 },
         }],
       }),
       task({
-        allowedFeedback: "Use the accepted configuration-duration policy.",
+        allowedFeedback: "Use the accepted duration-boundary policy.",
         baseImplementation: [
           "export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {",
           "  return input.startMs + input.timeout + input.skewMs;",
@@ -702,22 +736,22 @@ const EPISODES: readonly EpisodeSpec[] = [
         failToPass: [
           {
             args: [{ skewMs: 50, startMs: 1000, timeout: 2 }],
-            expected: 3050,
+            expected: 1550,
           },
           {
             args: [{ skewMs: 250, startMs: 5000, timeout: 0.5 }],
-            expected: 5750,
+            expected: 5375,
           },
           {
             args: [{ skewMs: 5, startMs: 10_000, timeout: 12 }],
-            expected: 22005,
+            expected: 13005,
           },
         ],
-        forbiddenStrings: ["input.timeout * 1_000"],
+        forbiddenStrings: ["input.timeout * 250"],
         functionName: "deadlineFromConfig",
         goldImplementation: [
           "export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {",
-          "  return input.startMs + input.timeout * 1_000 + input.skewMs;",
+          "  return input.startMs + input.timeout * 250 + input.skewMs;",
           "}",
         ],
         id: "compute-config-deadline",
@@ -731,7 +765,7 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: 8125,
           },
         ],
-        prompt: "Apply the accepted configuration-duration policy to deadlineFromConfig while retaining its numeric return type.",
+        prompt: "Apply the accepted duration-boundary policy to deadlineFromConfig. Keep the exported signature unchanged.",
         visible: [{
           args: [{ skewMs: 25, startMs: 5000, timeout: 0 }],
           expected: 5025,
@@ -751,7 +785,7 @@ const EPISODES: readonly EpisodeSpec[] = [
         text: "Recorded the documentation visual convention and illustration follow-up.",
       },
     ],
-    id: "irrelevant-history-control",
+    id: "independent-string-utilities",
     memoryMode: "irrelevant-control",
     repositoryId: "policy-utils",
     stages: [
@@ -828,7 +862,7 @@ const EPISODES: readonly EpisodeSpec[] = [
             expected: ["solo"],
           },
         ],
-        prompt: "Make parseCsvUnique trim fields, ignore empty entries, and preserve first-seen order while removing duplicates.",
+        prompt: "Make parseCsvUnique trim fields, drop empty entries, and preserve first-seen order while removing duplicates.",
         visible: [{ args: ["a,b"], expected: ["a", "b"] }],
       }),
       task({
@@ -1529,7 +1563,7 @@ function delimiterTask(input: {
   return task({
     allowedFeedback: establishPolicy
       ? "Use the delimiter rule stated in this task."
-      : "Use the accepted first-delimiter policy.",
+      : "Use the accepted delimiter-boundary policy.",
     baseImplementation: [
       `export function ${functionName}(input: string): [string, string] | null {`,
       `  const [head, tail] = input.split(${escapedDelimiter});`,
@@ -1539,28 +1573,30 @@ function delimiterTask(input: {
     failToPass: [
       {
         args: [`head${delimiter}middle${delimiter}tail`],
-        expected: ["head", `middle${delimiter}tail`],
+        expected: [`head${delimiter}middle`, "tail"],
       },
       {
         args: [`${delimiter}value${delimiter}rest`],
-        expected: ["", `value${delimiter}rest`],
+        expected: [`${delimiter}value`, "rest"],
       },
       {
         args: [`name${delimiter}${delimiter}`],
-        expected: ["name", delimiter],
+        expected: [`name${delimiter}`, ""],
       },
     ],
-    forbiddenStrings: [`const delimiterIndex = input.indexOf(${escapedDelimiter});`],
+    forbiddenStrings: [
+      `const delimiterIndex = input.lastIndexOf(${escapedDelimiter});`,
+    ],
     functionName,
     goldImplementation: [
       `export function ${functionName}(input: string): [string, string] | null {`,
-      `  const delimiterIndex = input.indexOf(${escapedDelimiter});`,
+      `  const delimiterIndex = input.lastIndexOf(${escapedDelimiter});`,
       "  return delimiterIndex === -1",
       "    ? null",
       `    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + ${delimiter.length})];`,
       "}",
     ],
-    id: `${functionName.replace(/[A-Z]/gu, (value) => `-${value.toLowerCase()}`)}-tail`,
+    id: functionName.replace(/[A-Z]/gu, (value) => `-${value.toLowerCase()}`),
     passToPass: [
       {
         args: [`left${delimiter}right`],
@@ -1572,41 +1608,13 @@ function delimiterTask(input: {
       },
     ],
     prompt: establishPolicy
-      ? `Establish and implement the first-delimiter policy for this repository using ${functionName}. Project policy: locate the first occurrence of the ${noun} delimiter, preserve the complete remaining tail, and return null when the delimiter is absent. Keep the tuple-or-null signature stable.`
-      : `Apply the accepted first-delimiter policy to ${functionName} while preserving its tuple-or-null signature.`,
+      ? `Establish and implement the delimiter-boundary policy for this repository using ${functionName}. Project policy: split at the last occurrence of the ${noun} delimiter, preserve the complete head before that boundary, use the content after it as the second item, and return null when the delimiter is absent. Keep the exported signature stable.`
+      : `Apply the accepted delimiter-boundary policy to ${functionName}. Keep the exported signature unchanged.`,
     visible: [{
       args: [`key${delimiter}value`],
       expected: ["key", "value"],
     }],
   });
-}
-
-function tokenizeCommandImplementation(): string[] {
-  return [
-    "export function tokenizeCommand(input: string): string[] {",
-    "  const tokens: string[] = [];",
-    '  let current = "";',
-    "  let quote: string | null = null;",
-    "  for (const character of input.trim()) {",
-    '    if (quote === null && (character === "\\\"" || character === "\'")) {',
-    "      quote = character;",
-    "    } else if (character === quote) {",
-    "      quote = null;",
-    "    } else if (/\\s/u.test(character) && quote === null) {",
-    "      if (current.length > 0) {",
-    "        tokens.push(current);",
-    '        current = "";',
-    "      }",
-    "    } else {",
-    "      current += character;",
-    "    }",
-    "  }",
-    "  if (current.length > 0) {",
-    "    tokens.push(current);",
-    "  }",
-    "  return tokens;",
-    "}",
-  ];
 }
 
 function csvFieldsImplementation(): string[] {
@@ -1615,6 +1623,10 @@ function csvFieldsImplementation(): string[] {
 
 function pipeFieldsImplementation(): string[] {
   return delimitedFieldsImplementation("parsePipeFields", "|");
+}
+
+function semicolonFieldsImplementation(): string[] {
+  return delimitedFieldsImplementation("parseSemicolonFields", ";");
 }
 
 function delimitedFieldsImplementation(
@@ -1626,13 +1638,17 @@ function delimitedFieldsImplementation(
     `export function ${functionName}(input: string): string[] {`,
     "  const fields: string[] = [];",
     '  let current = "";',
-    "  let quote: string | null = null;",
-    "  for (const character of input) {",
-    '    if (quote === null && (character === "\\\"" || character === "\'")) {',
-    "      quote = character;",
-    "    } else if (character === quote) {",
-    "      quote = null;",
-    `    } else if (character === ${escapedDelimiter} && quote === null) {`,
+    "  let quoted = false;",
+    "  for (let index = 0; index < input.length; index += 1) {",
+    "    const character = input[index]!;",
+    '    if (character === "\\\"") {',
+    '      if (quoted && input[index + 1] === "\\\"") {',
+    '        current += "\\\"";',
+    "        index += 1;",
+    "      } else {",
+    "        quoted = !quoted;",
+    "      }",
+    `    } else if (character === ${escapedDelimiter} && !quoted) {`,
     "      fields.push(current.trim());",
     '      current = "";',
     "    } else {",
@@ -1695,14 +1711,14 @@ function hiddenSentinel(episodeId: string, stageId: string): string {
 
 function memoryDependencyDescription(category: MemoryStratum): string {
   const descriptions: Record<MemoryStratum, string> = {
-    "failure-avoidance": "Apply the accepted quoted-delimiter policy.",
+    "failure-avoidance": "Apply the accepted field-boundary policy.",
     "irrelevant-memory-negative-control": "Complete the self-contained coding task.",
-    "no-history-negative-control": "No prior history is available at the first stage.",
-    "open-loop-handoff": "Apply the accepted authority-host rendering policy.",
-    "project-convention": "Apply the accepted setting-parser policy.",
-    "stale-update": "Apply the accepted configuration-duration policy.",
-    "user-correction": "Apply the accepted setting-parser policy.",
-    "validated-approach": "Apply the accepted first-delimiter policy.",
+    "no-history-negative-control": "First stage establishes the project policy.",
+    "open-loop-handoff": "Apply the accepted endpoint-display policy.",
+    "project-convention": "Apply the accepted setting-input policy.",
+    "stale-update": "Apply the accepted duration-boundary policy.",
+    "user-correction": "Apply the accepted setting-input policy.",
+    "validated-approach": "Apply the accepted delimiter-boundary policy.",
   };
   return descriptions[category];
 }

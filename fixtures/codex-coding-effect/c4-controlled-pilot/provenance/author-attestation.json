@@ -2,9 +2,20 @@
   "author": "GoodMemory C4 dataset author",
   "authorTaskName": "/root",
   "authoredBeforePairedExecution": true,
-  "c4AbResultsInspectedBeforeFreeze": false,
-  "datasetId": "codex-c4-controlled-pilot-v1",
-  "frozenAt": "2026-07-15T20:00:00.000Z",
-  "schemaVersion": 2,
-  "scope": "dataset-authoring-only-no-c4-ab-results"
+  "c4PairedOutcomesInspectedBeforeFreeze": false,
+  "c5PairedOutcomesInspectedBeforeFreeze": false,
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "frozenAt": "2026-07-16T13:30:00.000Z",
+  "priorV1BaselineCeiling": {
+    "attemptedStages": 6,
+    "decision": "redesign-episodes-before-c5",
+    "evidenceScope": "aggregate-ceiling-decision-only",
+    "patchesInspected": false,
+    "reportPath": "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot-v1.json",
+    "reportSha256": "28d3bc535cd1c26ed7e30fc7b541f66e16548ff4219d870050adbd823c71a952",
+    "resolvedStages": 6,
+    "transcriptsInspected": false
+  },
+  "schemaVersion": 3,
+  "scope": "v2-redesign-from-aggregate-v1-ceiling-no-paired-outcomes"
 }

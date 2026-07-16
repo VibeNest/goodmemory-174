@@ -1,0 +1,13 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 913dc38c9bb6a26e73bd722148427d6b649b7f98..96af710dc7b798fc30eaac9922fc2186be5638b8 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -27,7 +27,7 @@ export function parseOutputFormatSetting(input: string): ParseResult<OutputForma
+ }
+ 
+ export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {
+-  return { graceMs: input.graceMs, timeoutMs: input.timeout };
++  return { graceMs: input.graceMs, timeoutMs: input.timeout * 250 };
+ }
+ 
+ export function resolveRetryConfig(input: { capMs: number; initial: number }): { capMs: number; initialMs: number } {

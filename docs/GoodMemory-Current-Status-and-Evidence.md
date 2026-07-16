@@ -72,25 +72,40 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   produce them before C3 can be accepted. The tracked rejection decision is
   `reports/quality-gates/phase-73/c3-controlled-20260715-1747z/c3-audit-decision.json`.
   The hardened C3 runner also re-runs the config-hash and permission probes
-  immediately before the installed Codex launch, and projects unmatched host
-  `PATH` entries as `<host-path>` instead of persisting machine paths. C4 was
-  reopened again after the hidden-value audit was shown to miss numeric,
-  boolean, short-string, and other scalar leaves because of its length
-  threshold. The repaired audit derives typed scalar values from both
-  fail-to-pass and pass-to-pass cases, excludes values already public in
-  repository or fixed projection scaffolding, and rejects the reproduced
-  `docs/setup guide#intro`, `2.5 -> 2500`, and short pass-to-pass leaks. Gold
-  replay now stages the schema-declared paths in the isolated clone, so new,
-  modified, and deleted files are included. The frozen dataset and deterministic
-  core were regenerated against those stronger checks, and a new independent
-  review dispatch/input/request bundle is tracked. The previous independent
-  review and final readiness report are obsolete because they bind an older
-  core. C4 therefore remains open until a separate reviewer produces a review
-  and provenance bound to the current core and the final gate regenerates the
-  readiness report. The current core still records 6 episodes, 18 stages, 2
+  immediately before both Codex launches, and projects unmatched host `PATH`
+  entries as `<host-path>` using complete path-prefix boundaries instead of
+  persisting or partially rewriting machine paths. Its projection verifier is
+  explicitly scoped to internal consistency and clean-clone patch replay; it
+  records `externalAuthenticityVerified: false` and does not authenticate the
+  package tarball, raw run, or canary without an external CI/signature root.
+  C4 was reopened again after the hidden-value audit was shown to miss scalar
+  values and input-output relationships. The repaired audit derives typed
+  scalar values and per-case argument/expected-value relations from both
+  fail-to-pass and pass-to-pass cases. Projection envelope metadata is removed
+  only from that surface's semantic hidden-value view, never from the episode
+  globally. It rejects the reproduced `docs/setup guide#intro`,
+  `2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
+  pass-to-pass leaks, `INFO -> invalid-level/false`, and numeric equivalents
+  such as `3,000`, `3e3`, and `62.50`. Gold replay stages every
+  schema-declared path in the isolated clone, including added, modified,
+  deleted, and binary files. The frozen dataset and deterministic core were
+  regenerated against those checks, and a new independent review
+  dispatch/input/request bundle is tracked. The previous independent review
+  and final readiness report are obsolete because they bind an older core. The
+  duplicate v1 report was removed from the current baseline path and retained
+  only as `c4-baseline-ceiling-pilot-v1.json`. A fresh v2 no-memory baseline
+  must run from an asset-locked dataset copy, bind each result to a
+  dataset-derived stage input hash, publish auditable sanitized evaluator/patch
+  observations, and atomically replace one report-plus-stages bundle. Formal
+  Codex non-zero exits, including authentication failures, make that baseline
+  inconclusive. C4 therefore remains open until the v2 baseline exists, a
+  separate reviewer produces a review and provenance bound to the current core,
+  and the final gate regenerates the readiness report. The current core records
+  6 episodes, 18 stages, 2
   controlled repositories, all 8 required memory strata, 54 stable fresh-base
-  probes, 18 passing fresh gold replays, 126 leakage matrix cells, and no live
-  Codex or treatment comparison. It is deterministic dataset-core evidence,
+  probes, 18 passing fresh gold replays, 486 per-stage leakage matrix cells,
+  1458 fragment/typed-value/relation mutation cells, and no live Codex or
+  treatment comparison. It is deterministic dataset-core evidence,
   not accepted C4 evidence and not coding-uplift proof. C3 and C5-C7 remain
   open.
 - The Phase 72 benchmark gate and versioned release gate are closed for

@@ -19,8 +19,9 @@ import {
 } from "node:fs/promises";
 
 import {
+  buildC4BaselineStageEvidenceBindings,
   loadC4BaselineStageEvidenceFiles,
-  verifyC4BaselineStageEvidenceFiles,
+  verifyC4BaselineRawStageEvidenceFiles,
 } from "./codex-coding-effect/c4-baseline-ceiling";
 import type {
   C4BaselineStageEvidenceFile,
@@ -38,6 +39,7 @@ export interface C4BaselineOptions {
   datasetRoot: string;
   model: string;
   outputDirectory: string;
+  publicationOutput: string;
   reasoningEffort: string;
   replace: boolean;
   reportOutput: string;
@@ -55,7 +57,7 @@ const DEFAULT_OUTPUT_ROOT = resolve(
   "reports/eval/research/codex-coding-effect",
 );
 const DEFAULT_REPORT_OUTPUT = resolve(
-  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot.json",
+  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot",
 );
 
 export async function runC4BaselineCeilingCommand(
@@ -87,20 +89,22 @@ export async function runC4BaselineCeilingCommand(
     testTimeoutMs: options.testTimeoutMs,
     workspaceRoot: join(options.workRoot, "workspaces"),
   });
-  await mkdir(dirname(options.reportOutput), { recursive: true });
-  await persistCanonicalReport({
-    bytes: result.reportBytes,
-    path: options.reportOutput,
-    replace: options.replace,
-  });
-  const stageEvidenceFiles = await loadC4BaselineStageEvidenceFiles(
+  const rawStageEvidenceFiles = await loadC4BaselineStageEvidenceFiles(
     join(options.outputDirectory, "stages"),
     result.report,
   );
-  verifyC4BaselineStageEvidenceFiles(result.report, stageEvidenceFiles);
-  await persistCanonicalStageEvidence({
+  verifyC4BaselineRawStageEvidenceFiles(
+    result.report,
+    rawStageEvidenceFiles,
+  );
+  const stageEvidenceFiles = buildC4BaselineStageEvidenceBindings(
+    result.report,
+    rawStageEvidenceFiles,
+  );
+  await persistC4BaselinePublication({
     files: stageEvidenceFiles,
-    path: options.stageEvidenceOutput,
+    path: options.publicationOutput,
+    reportBytes: result.reportBytes,
     replace: options.replace,
   });
   return {
@@ -159,10 +163,9 @@ export function parseC4BaselineOptions(
     "dataset-root",
     "model",
     "output-root",
+    "publication-output",
     "reasoning-effort",
-    "report-output",
     "run-id",
-    "stage-evidence-output",
     "stage-timeout-ms",
     "test-timeout-ms",
     "work-root",
@@ -172,8 +175,8 @@ export function parseC4BaselineOptions(
       throw new Error(`unknown C4 baseline option --${name}`);
     }
   }
-  const reportOutput = resolve(
-    values.get("report-output") ?? DEFAULT_REPORT_OUTPUT,
+  const publicationOutput = resolve(
+    values.get("publication-output") ?? DEFAULT_REPORT_OUTPUT,
   );
   return {
     authFile: resolve(values.get("auth-file") ?? join(homedir(), ".codex", "auth.json")),
@@ -182,17 +185,12 @@ export function parseC4BaselineOptions(
     datasetRoot: resolve(values.get("dataset-root") ?? DEFAULT_DATASET_ROOT),
     model: values.get("model") ?? "gpt-5.6-sol",
     outputDirectory: join(outputRoot, runId),
+    publicationOutput,
     reasoningEffort: values.get("reasoning-effort") ?? "xhigh",
     replace,
-    reportOutput,
+    reportOutput: join(publicationOutput, "report.json"),
     runId,
-    stageEvidenceOutput: resolve(
-      values.get("stage-evidence-output") ??
-        join(
-          dirname(reportOutput),
-          `${basename(reportOutput, ".json")}-stages`,
-        ),
-    ),
+    stageEvidenceOutput: join(publicationOutput, "stages"),
     stageTimeoutMs: positiveInteger(
       values.get("stage-timeout-ms") ?? "900000",
       "stage-timeout-ms",
@@ -211,6 +209,7 @@ export function assertC4BaselinePathIsolation(
     | "authFile"
     | "datasetRoot"
     | "outputDirectory"
+    | "publicationOutput"
     | "reportOutput"
     | "stageEvidenceOutput"
     | "workRoot"
@@ -218,15 +217,19 @@ export function assertC4BaselinePathIsolation(
 ): void {
   const datasetRoot = resolvePhysicalPath(options.datasetRoot);
   const outputDirectory = resolvePhysicalPath(options.outputDirectory);
+  const publicationOutput = resolvePhysicalPath(options.publicationOutput);
   const reportOutput = resolvePhysicalPath(options.reportOutput);
   const stageEvidenceOutput = resolvePhysicalPath(options.stageEvidenceOutput);
   const workRoot = resolvePhysicalPath(options.workRoot);
   const authFile = resolvePhysicalPath(options.authFile);
+  if (pathsOverlap(datasetRoot, publicationOutput)) {
+    throw new Error("C4 baseline publication overlaps the frozen dataset");
+  }
   if (
-    pathInsideOrEqual(datasetRoot, reportOutput) ||
-    pathsOverlap(datasetRoot, stageEvidenceOutput)
+    reportOutput !== join(publicationOutput, "report.json") ||
+    stageEvidenceOutput !== join(publicationOutput, "stages")
   ) {
-    throw new Error("C4 baseline canonical output overlaps the frozen dataset");
+    throw new Error("C4 baseline publication paths are inconsistent");
   }
   const roots = [
     ["frozen dataset", datasetRoot],
@@ -243,23 +246,15 @@ export function assertC4BaselinePathIsolation(
     }
   }
   if (
-    pathInsideOrEqual(outputDirectory, reportOutput) ||
-    pathInsideOrEqual(workRoot, reportOutput) ||
-    pathsOverlap(outputDirectory, stageEvidenceOutput) ||
-    pathsOverlap(workRoot, stageEvidenceOutput)
+    pathsOverlap(outputDirectory, publicationOutput) ||
+    pathsOverlap(workRoot, publicationOutput)
   ) {
     throw new Error("C4 baseline canonical output overlaps disposable output");
-  }
-  if (pathsOverlap(reportOutput, stageEvidenceOutput)) {
-    throw new Error(
-      "C4 baseline report and stage evidence outputs must be distinct",
-    );
   }
   if (
     pathInsideOrEqual(outputDirectory, authFile) ||
     pathInsideOrEqual(workRoot, authFile) ||
-    reportOutput === authFile ||
-    pathsOverlap(stageEvidenceOutput, authFile)
+    pathsOverlap(publicationOutput, authFile)
   ) {
     throw new Error("C4 baseline output overlaps the Codex auth input");
   }
@@ -285,42 +280,33 @@ function required(values: ReadonlyMap<string, string>, name: string): string {
   return value;
 }
 
-async function persistCanonicalReport(input: {
-  bytes: string;
-  path: string;
-  replace: boolean;
-}): Promise<void> {
-  if (!input.replace) {
-    await writeFile(input.path, input.bytes, {
-      encoding: "utf8",
-      flag: "wx",
-    });
-    return;
-  }
-  const temporaryPath = `${input.path}.tmp-${process.pid}-${Date.now()}`;
-  try {
-    await writeFile(temporaryPath, input.bytes, {
-      encoding: "utf8",
-      flag: "wx",
-    });
-    await rename(temporaryPath, input.path);
-  } finally {
-    await rm(temporaryPath, { force: true });
-  }
-}
-
-async function persistCanonicalStageEvidence(input: {
+export async function persistC4BaselinePublication(input: {
   files: readonly C4BaselineStageEvidenceFile[];
   path: string;
+  reportBytes: string;
   replace: boolean;
 }): Promise<void> {
   const temporaryPath = `${input.path}.tmp-${process.pid}-${Date.now()}`;
   const backupPath = `${input.path}.old-${process.pid}-${Date.now()}`;
   let movedExisting = false;
   try {
-    await mkdir(temporaryPath, { recursive: true });
+    await mkdir(dirname(input.path), { recursive: true });
+    await mkdir(join(temporaryPath, "stages"), { recursive: true });
+    await writeFile(join(temporaryPath, "report.json"), input.reportBytes, {
+      encoding: "utf8",
+      flag: "wx",
+    });
     for (const file of input.files) {
-      const destination = join(temporaryPath, file.path);
+      if (
+        isAbsolute(file.path) ||
+        file.path.includes("\\") ||
+        file.path.split("/").some((segment) =>
+          segment.length === 0 || segment === "." || segment === ".."
+        )
+      ) {
+        throw new Error("C4 baseline stage evidence path must be relative");
+      }
+      const destination = join(temporaryPath, "stages", file.path);
       await mkdir(dirname(destination), { recursive: true });
       await writeFile(destination, file.bytes, {
         encoding: "utf8",

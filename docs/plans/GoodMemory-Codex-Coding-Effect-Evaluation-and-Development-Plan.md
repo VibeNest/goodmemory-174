@@ -1678,9 +1678,12 @@ artifacts contain only status sizes/digests and untracked path/size/digest
 metadata, never the tracked diff or untracked file contents. These sanitized
 audit artifacts are explicitly trackable despite the raw report ignore rule.
 Unmatched host `PATH` entries are projected as `<host-path>`, while controlled
-runtime prefixes retain stable placeholders. After writeback, export, and
-recall preflight, the runner repeats the config-hash and permission-isolation
-audit immediately before launching the installed Codex process.
+runtime prefixes retain stable placeholders only on complete path-prefix
+boundaries. Both arms repeat the config-hash and permission-isolation audit
+immediately before launching Codex. The trackable projection verifier proves
+internal consistency and clean-clone patch replay only; it records
+`externalAuthenticityVerified: false` and does not authenticate the package,
+raw run, or canary without an external CI artifact/signature root.
 Run provenance, hidden evaluation, finalization, recall preflight, and
 permission isolation now live behind separate modules instead of being
 implemented inside the orchestration/runtime entrypoints. C3 remains open until
@@ -1742,15 +1745,19 @@ failure fingerprint, and semantic fingerprint across its three repetitions;
 all 18 gold patches changed only the declared file and passed visible,
 fail-to-pass, and pass-to-pass tests. License and author-attestation audits were
 accepted. The leakage audit was reopened after reproduced false negatives
-showed that numeric, boolean, short-string, and other scalar evaluator values
-were filtered by a length threshold. The repaired audit derives typed scalar
-leaves from both fail-to-pass and pass-to-pass cases, excludes values already
-public in repository files or fixed projection scaffolding, and rejects the
-reproduced `docs/setup guide#intro`, `2.5 -> 2500`, and short pass-to-pass
-prompt leaks. Gold replay now stages every schema-declared path in its isolated
-clone before capturing the canonical diff, covering added, modified, and
-deleted files. The frozen asset lock and deterministic core were regenerated,
-with 126 audited surface/artifact cells and zero detected overlap.
+showed that scalar evaluator values and input-output relationships could escape
+the audit. The repaired audit derives typed scalar leaves and per-case
+argument/expected-value relations from both fail-to-pass and pass-to-pass
+cases. Projection envelope metadata is excluded only from the semantic
+hidden-value view of that surface, not from the episode globally. It rejects
+the reproduced `docs/setup guide#intro`, `2.5 -> 2_500`, hidden value `1`
+beside `schemaVersion: 1`, short pass-to-pass leaks,
+`INFO -> invalid-level/false`, and numeric equivalents such as `3,000`, `3e3`,
+and `62.50`. Gold replay stages every schema-declared path in its isolated
+clone before capturing the canonical diff, covering added, modified, deleted,
+and binary files. The frozen asset lock and deterministic core were regenerated
+with 486 per-stage audited surface/artifact cells and 1458 mutation cells across
+fragment, typed-value, and typed-relation injection channels.
 
 The historical independent review found one real fairness defect: the evaluator
 required exact parse error codes that were not discoverable from the visible
@@ -1764,9 +1771,17 @@ because the typed-value and replay repairs changed the frozen core it bound.
 Current tracked evidence is the deterministic core at
 `reports/quality-gates/phase-73/c4-controlled-pilot-core.json` plus
 `review/dispatch.json`, `review/input-bundle.json`, and `review/request.md`
-under the dataset root. A new independent review, provenance record, and final
-readiness report are intentionally absent. Until a separate reviewer binds
-those artifacts to the current core, C4 remains open. The current core made no
+under the dataset root. The only retained baseline report is the historical v1
+redesign result; the current v2 baseline path is intentionally absent. Future
+baseline execution copies and revalidates the asset-locked dataset before any
+stage reads, binds each result to a dataset-derived stage input hash, and
+projects evaluator observations plus patch bytes rather than trusting opaque
+stage-evidence hashes. Its canonical report and stage evidence publish as one
+atomic bundle. Baseline identity binds stage/test timeouts, formal Codex
+non-zero exits are infrastructure failures, and the final gate requires every
+hashed physical stage-evidence file. A new v2 baseline, independent review,
+provenance record, and final readiness report are absent. Until those artifacts
+bind the current core, C4 remains open. The current core made no
 live Codex calls and performed no no-memory versus GoodMemory comparison; it
 cannot support a coding-effect claim. C3 and C5-C7 remain open.
 
