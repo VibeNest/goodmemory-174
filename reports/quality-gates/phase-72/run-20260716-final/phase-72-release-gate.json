@@ -222,7 +222,7 @@
     "implicitMemBench": "The 0.6923666667 result is a disclosed retry-merged internal release check, not a replacement monolithic Full-300 public claim.",
     "minteval": "Smoke-only and unscored for this release."
   },
-  "generatedAt": "2026-07-16T12:34:19.122Z",
+  "generatedAt": "2026-07-16T13:02:43.749Z",
   "generatedBy": "scripts/run-phase-72-release-gate.ts",
   "metrics": {
     "beam": {
@@ -286,7 +286,7 @@
       "scored": false
     }
   },
-  "packageVersion": "0.5.1",
+  "packageVersion": "0.6.0",
   "phase": "phase-72",
   "sources": {
     "beamAudit": {

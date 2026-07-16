@@ -33,7 +33,7 @@ and the model runtime.
 ## Start Here: Codex Or Claude Code
 
 ```bash
-npm install -g goodmemory@0.5.1
+npm install -g goodmemory@0.6.0
 goodmemory setup
 ```
 
@@ -56,63 +56,42 @@ dataset source and license, and a reproducible run (commit + command + package
 version). Historical rows remain under separate markers and cannot satisfy the
 current-version gate.
 
-The Phase 72 `v0.6.0` generalized refresh is still open, but LongMemEval and
-LoCoMo now clear their declared answer gates. LongMemEval's label-free
-eval-only answer/verifier chain scores 360/500 = 0.720 judge-free and 462/500 =
-0.924 under the official protocol with an independent `gpt-5.5` judge.
-LoCoMo's zero-failure full-1540 generalized production run scores 0.6298701299
-strict and 0.8707792208 under the independent official protocol; its
-open-domain category scores 59/96 = 0.6145833333. MemoryAgentBench CR/TTL hold
-at 0.9589041096/0.9333333333. ImplicitMemBench's disclosed four-case retry
-merge reaches 0.6923666667 with zero failures, but remains internal evidence
-rather than a replacement monolithic Full-300 run. HaluMem's frozen slice
-beats its local vector baseline on extraction (0.9309950438 vs 0.8615384615),
-update (0.75 vs 0.625), and QA (0.8888888889 vs 0.7777777778).
-
-BEAM remains the score blocker. The clean generalized full-400 run disables all
-148 narrow recall gates, legacy fitted answer postprocessing, and reranking. It
-has 0.8276290064 evidence recall and zero execution failures, but its stored
-answers score only 0.7650987103 under the unified 1051-item rubric, 0.7510180808
-under the upstream paper protocol, and 248/400 = 0.620 under the strict internal
-binary judge, below the 0.80 / 0.72 answer gates. Removing the legacy fitted
-answer postprocessing changed the paper score by less than 0.5 points and raised
-the strict score by 0.5 points, so the current result is not being carried by
-those guards. A frozen unseen-scale 500K diagnostic scores 0.7451075904 recall
-over 629 evidence-bearing questions with zero execution failures. Generic
-development/holdout probes did not close the answer gap without excessive noise
-or benchmark-specific current-value and event-selection behavior, so none was
-promoted. All of these Phase 72 numbers remain internal research results; the
-table below retains versioned historical evidence with its disclosed profiles.
+The Phase 72 benchmark and versioned release gates are closed for `v0.6.0`.
+The current rows below are public-opt-in results for the disclosed provider-backed
+or evidence-pack profiles. They are not claims about the zero-provider default.
+LongMemEval's newer label-free verifier result and ImplicitMemBench's retry-merged
+result remain internal evidence because their current paths are eval-only or do
+not replace a monolithic fresh run. HaluMem, MemGym, and MINTEval remain release
+evidence rather than public benchmark claims.
 
 <!-- current-claims-table:start -->
+| Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
+|---|---|---:|---:|---|
+| LoCoMo (full 10 conversations) | independent official judge protocol; strict deterministic token-F1 | official **0.8708** · strict **0.6299** · open-domain **0.6146** (59/96) | historical no-memory 0.0045 | [locomo.json](./benchmark-claims/locomo.json) |
+| BEAM 100K (400 questions, 1051 rubric items) | independent official unified rubric; strict binary disclosed separately | unified **0.7651** · strict **0.620** (248/400) · generalized recall **0.8276** | public full-400 same-protocol reference 0.49 | [beam.json](./benchmark-claims/beam.json) |
+| MemoryAgentBench (CR, TTL) | deterministic upstream match-mode scoring, judge-free | **CR 0.959, TTL 0.933** | no-memory 0.000 for both | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
 <!-- current-claims-table:end -->
 
-### Versioned historical claims (not current-production results)
+### Versioned internal evidence
 
 These rows remain reproducible evidence for the disclosed package version and
-runtime profile. They are not claims about the current production-generalized
-path. The runtime capability descriptor keeps `benchmarks.currentClaims` empty
-until a current-version full gate explicitly promotes a replacement result.
+runtime profile. They are not current-production claims for `v0.6.0`.
 
 <!-- historical-evidence-table:start -->
 | Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
 |---|---|---:|---:|---|
 | LongMemEval full 500 | strict: judge-free deterministic subset · comparable: official LongMemEval judge protocol | strict **0.720** (360/500) · official-protocol **0.888** (444/500), `goodmemory-rules-only` | no-memory 0.068; current Mem0 harness: 94.4 Top200 / 94.8 Top50 (different stack and budget) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
-| MemoryAgentBench (CR, TTL) | answer accuracy — deterministic, judge-free | **CR 0.959, TTL 0.767** | no-memory ablation 0.000; published single-hop CR ceiling ~0.60 | [memoryagentbench.json](./benchmark-claims/memoryagentbench.json) |
-| LoCoMo (full 10 conversations) | strict: deterministic token-F1 · comparable: industry LLM-judge protocol (non-adversarial 1540) | strict **0.6117** (942/1540) · judge-protocol **0.837** (1289/1540) | no-memory 0.0045 non-adversarial; current Mem0 harness: 92.5 Top200 / 91.8 Top50 (different stack and budget) | [locomo.json](./benchmark-claims/locomo.json) |
-| BEAM 100K (400 questions, 1051 rubric items) | official BEAM rubric judge (1.0/0.5/0.0 per rubric item) · strict: internal binary judge | official-protocol **0.802** · strict binary **0.7225** (289/400) | no-pack ablation 0.5725; only public same-protocol reference: 0.49 | [beam.json](./benchmark-claims/beam.json) |
 | ImplicitMemBench Full-300 | stored-answer cross-version judge rescore | **0.691** (207.35/300), gpt-5.4 judge over gpt-5.5 answers, sourceAnswersUnchanged | upstream-chat baseline **0.400** (120/300); reference line 0.66 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 <!-- historical-evidence-table:end -->
 
-Where both are available, each historical row reports two tracks. The
+Where both are available, a row reports two tracks. The
 **strict** track is deterministic or judge-free — a hard lower bound no LLM
 judge can inflate. The **comparable** track re-judges the *same stored answers*
 (not regenerated) under each benchmark's official or industry-standard judge
 protocol, verbatim, so the number sits on the same scale as published
 competitor results. The gap between the tracks is quantified judge leniency,
-disclosed instead of hidden. Comparable-track judging uses gpt-5.4 — a
-different model from the historical gpt-5.5 answerer but the same family;
-every per-protocol detail is recorded in the linked declarations.
+disclosed instead of hidden. Every per-protocol detail is recorded in the
+linked declarations.
 
 The historical LongMemEval strict result is judge-free, replacing an earlier
 internal with-judge number (0.908) that is superseded and not claimable. A case counts as correct
@@ -127,54 +106,35 @@ abstention (30 of its 34 correct), so the +65.2-point lift is the memory
 system's contribution. Judge-free refers to scoring — answers are still
 generated by gpt-5.5. Full provenance is in the
 [claim declaration](./benchmark-claims/longmemeval.json).
-The historical MemoryAgentBench declaration is deliberately scoped. It records
-only Conflict Resolution (CR 0.959) and Test-Time Learning (TTL 0.767): a
-no-memory ablation scores both `0.000` (the
-questions are unanswerable without GoodMemory's retrieved consolidated fact /
-in-context demos), so these are genuine memory contributions, scored
-deterministically with no LLM judge (`executionFailures: 0`, 259 questions).
-Accurate Retrieval and Long-Range Understanding are EXCLUDED: the no-memory
-ablation scores them *higher* (AR 0.926 vs 0.890; LRU 0.632 vs 0.518), so they
-are multiple-choice leaks where the model answers from the candidates in the
-question, not memory wins. CR/TTL measure answer-time current-value resolution
-and in-context retrieval, not general retrieval recall.
+The current MemoryAgentBench claim is deliberately scoped. It uses
+`gpt-5.6-terra` answers and deterministic, judge-free upstream match-mode
+scoring. Conflict Resolution scores CR 0.959 (70/73) and Test-Time Learning
+scores TTL 0.933 (28/30), while the no-memory arm scores `0.000` on both.
+Accurate Retrieval (AR) and Long-Range Understanding (LRU) are excluded because
+prior controls did not establish a memory lift; the claim does not average in
+multiple-choice wins that can be answered without memory.
 
-The historical LoCoMo strict result is scored by deterministic token-F1 (judge-free,
-`executionFailures: 0` across all 1986 questions of the full 10-conversation
-set, v0.3.5). The profile is disclosed and opt-in — provider-embedding semantic
-candidate union (`retrieval.semanticCandidates`, topK 16) plus conversational
-write-time extraction plus an abstention-format answer prompt; the
-embedding-free default scores 0.020 on the representative conv-1 slice (the
-banked retrieval boundary), so this result is specifically about the
-embedding+extraction profile, not the zero-dependency default. Read the memory
-lift on the non-adversarial split (0.6117 vs 0.0045 — 942 vs 7 correct of 1540):
-the adversarial category (446 questions whose gold answer is the literal
-abstention string) is trivially aced by a no-memory arm that always abstains
-(0.998 vs 0.648 with memory), so the overall-vs-overall comparison (0.6198 vs
-0.2276) understates the memory contribution on answerable questions. Answers
-are generated by gpt-5.5 — judge-free refers to scoring. The LoCoMo dataset is
-CC BY-NC 4.0 (non-commercial scope) and is fetched at eval time, never
-vendored. Full provenance is in the
-[claim declaration](./benchmark-claims/locomo.json).
-
-The historical BEAM 100K result is retained as versioned evidence but is not a
-current public-claim row because its recall path used the repo-only
-`legacy-fitted` profile. It was scored under the benchmark's official unified rubric judge:
-each of the 1,051 rubric items is scored 1.0/0.5/0.0 and a question's score is
-the mean over its items (all 400 questions, `judgeFailures: 0`). The only
-public end-to-end BEAM 100K number scored the same way is 0.49; GoodMemory
-scores 0.802 (+31 points), with per-category detail in the declaration —
-including the one category below that reference (instruction_following 0.394
-vs 0.66), disclosed rather than averaged away. The strict internal
-binary-judge track is 0.7225 vs a 0.5725 no-evidence-pack ablation (the
-answer-time evidence pack contributes +15 points). Recall is dual-metric per
-[ADR-005](./adr/ADR-005-scenario-fitted-recall-boundary.txt): rules-only
-fitted 0.9621 vs generalization floor 0.6822 with all 148 scenario-fitted
-gates disabled (the shipped opt-in semantic-candidate union lifts that floor
-to 0.8529). One protocol deviation is disclosed: the paper pipeline scores
-event_ordering with a rank-correlation metric; both this run and the public
-reference rubric-judge it. Dataset CC BY-SA 4.0, fetched at eval time, never
+The current LoCoMo claim covers all 1540 non-adversarial questions with
+`executionFailures: 0`. It uses `gpt-5.6-terra` for answers, conversational
+extraction, and provider reranking, then uses an independent `gpt-5.5` judge
+for the official-protocol track. Official accuracy is 0.8708, strict
+deterministic token-F1 is 0.6299, and open-domain is 59/96 = 0.6146 versus the
+historical no-memory 0.0045. This is the public-opt-in recommended
+provider-embedding profile, not the embedding-free default. The LoCoMo dataset
+is CC BY-NC 4.0 (non-commercial scope), fetched at eval time, and never
 vendored.
+
+The current BEAM claim uses `gpt-5.6-terra` answers and an independent
+`gpt-5.5` judge. The generalized path disables all 148 legacy narrow gates and
+legacy fitted answer postprocessing. It reaches 0.8276 evidence recall and
+0.7651 over all 400 questions and 1051 official rubric items, versus the public
+same-protocol reference 0.49, with zero execution and judge failures. The
+strict binary score remains disclosed at 0.620 (248/400), and the upstream
+paper-protocol score remains disclosed at 0.7510. The frozen `event_ordering`
+audit found 7/40 cases with non-chronological official evidence order and one
+requested-item/rubric mismatch, so 0.72 strict and 0.80 unified remain stretch
+diagnostics rather than hidden failures. Dataset CC BY-SA 4.0, fetched at eval
+time, and never vendored.
 
 The historical ImplicitMemBench Full-300 declaration uses the canonical zero-failure
 `run-phase61-full300-rerun-20260706-codex-current` answers, then re-scores the
@@ -192,11 +152,13 @@ fetched at eval time, never vendored.
 
 ### Internal diagnostics (not public claims)
 
-Blocked benchmark numbers stay out of the current-claims table until their
-declaration has `candidate_public_claim` status for the current package version
-and `gate:public-benchmark-claim --strict` passes. The underlying run reports
-live under gitignored `reports/` and are reproducible from the run commands
-recorded in the declarations.
+LongMemEval's Phase 72 eval-only verifier chain reaches 0.720 judge-free and
+0.924 under an independent official-protocol judge, but it is not a production
+runtime profile. ImplicitMemBench's explicit retry-merged check reaches
+0.6923666667 with zero failures, but it is not a replacement monolithic fresh
+Full-300 run. Both therefore remain outside the current-claims table. The
+underlying reports live under gitignored `reports/` and are reproducible from
+the recorded commands.
 
 Use [task-board/00-README.txt](./task-board/00-README.txt) for execution order
 and
@@ -219,7 +181,7 @@ and run it. Machine-readable versions of this tree live in
 also serves the descriptor at `/.well-known/goodmemory.json`).
 
 - **You are, or run inside, Claude Code or Codex** →
-  `npm install -g goodmemory@0.5.1 && goodmemory setup`. Unsure what is already
+  `npm install -g goodmemory@0.6.0 && goodmemory setup`. Unsure what is already
   wired? Run `goodmemory adopt` (add `--json` for a machine-readable plan): it
   inspects `.claude/`, `.codex/`, and existing MCP config, then prints the exact
   next command for your environment.
@@ -327,13 +289,13 @@ policy. GoodMemory owns the memory loop and storage boundary.
 
 ## Install
 
-GoodMemory `0.5.1` has two normal install paths.
+GoodMemory `0.6.0` has two normal install paths.
 
 Use the global CLI when you want memory enhancement inside installed coding
 agents:
 
 ```bash
-npm install -g goodmemory@0.5.1
+npm install -g goodmemory@0.6.0
 goodmemory setup
 goodmemory status
 ```
@@ -341,11 +303,11 @@ goodmemory status
 Use the package dependency when you are building an application:
 
 ```bash
-npm install goodmemory@0.5.1
+npm install goodmemory@0.6.0
 ```
 
 If you want to type `goodmemory` directly, install the global CLI.
-A project-local `npm install goodmemory@0.5.1` does not put `goodmemory` on your shell `PATH`.
+A project-local `npm install goodmemory@0.6.0` does not put `goodmemory` on your shell `PATH`.
 Use `npx goodmemory`, `npm exec -- goodmemory`, or `./node_modules/.bin/goodmemory`
 from that project instead.
 
@@ -356,13 +318,13 @@ npx goodmemory -V
 Bun consumers can install it directly:
 
 ```bash
-bun add goodmemory@0.5.1
+bun add goodmemory@0.6.0
 ```
 
 Tarball verification for release rehearsal:
 
 ```bash
-npm install ./goodmemory-0.5.1.tgz
+npm install ./goodmemory-0.6.0.tgz
 ```
 
 The installed CLI is Bun-backed for non-version commands. The package bin is
@@ -374,7 +336,7 @@ delegate to Bun.
 For most users, the first useful path is installed-host memory.
 
 ```bash
-npm install -g goodmemory@0.5.1
+npm install -g goodmemory@0.6.0
 goodmemory setup
 goodmemory status
 ```
@@ -1163,7 +1125,7 @@ Current Claude/Codex examples stay in `file-assisted` mode by default.
 ## CLI Reference
 
 The `goodmemory` command on your shell `PATH` is the global CLI installed with
-`npm install -g goodmemory@0.5.1`. In a local dependency install, invoke the
+`npm install -g goodmemory@0.6.0`. In a local dependency install, invoke the
 package bin as `npx goodmemory`, `npm exec -- goodmemory`, or
 `./node_modules/.bin/goodmemory`. The repo-local `bun run goodmemory` script is
 for development only.

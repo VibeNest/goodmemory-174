@@ -53,17 +53,30 @@ describe("GoodMemory capability descriptor", () => {
     ]);
   });
 
-  it("does not present historical benchmark evidence as current runtime claims", () => {
+  it("presents only the current v0.6 benchmark claims", () => {
+    const { version } = readPackageJson();
     const descriptor = buildGoodMemoryCapabilityDescriptor();
-    expect(descriptor.benchmarks.currentClaims).toEqual([]);
+    expect(descriptor.benchmarks.currentClaims.map((claim) => claim.name)).toEqual([
+      "LoCoMo",
+      "BEAM",
+      "MemoryAgentBench",
+    ]);
+    expect(
+      descriptor.benchmarks.currentClaims.every(
+        (claim) => claim.measuredPackageVersion === version,
+      ),
+    ).toBe(true);
+    expect(descriptor.benchmarks.currentClaims[0]?.result).toContain("0.8708");
+    expect(descriptor.benchmarks.currentClaims[1]?.result).toContain("0.7651");
+    expect(descriptor.benchmarks.currentClaims[2]?.result).toContain("TTL 0.933");
     expect(descriptor.benchmarks.historicalEvidence.url).toBe(
       "https://github.com/hjqcan/GoodMemory/tree/main/benchmark-claims",
     );
     expect(descriptor.benchmarks.historicalEvidence.note).toContain(
-      "not current-production claims",
+      "LongMemEval and ImplicitMemBench",
     );
     const surfaced = JSON.stringify(descriptor.benchmarks);
-    for (const staleHeadline of ["0.888", "0.837", "0.802", "0.691"]) {
+    for (const staleHeadline of ["0.837", "0.802", "TTL 0.767"]) {
       expect(surfaced).not.toContain(staleHeadline);
     }
   });

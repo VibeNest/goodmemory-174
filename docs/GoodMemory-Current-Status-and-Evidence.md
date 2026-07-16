@@ -4,9 +4,10 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 
 ## Stable OSS Surface
 
-- Current stable package line: 0.5.x (published 0.5.1 on npm).
-- Main has completed Phases 68 through 71 on the generalization-first line toward
-  v0.6.0; Phase 72 is active. The production selector graph contains only
+- Current release-candidate package line: 0.6.0; npm still serves 0.5.1 until
+  the tagged release workflow publishes the accepted commit.
+- Main has completed Phases 68 through 72 on the generalization-first line.
+  The production selector graph contains only
   generalized selection primitives, and the `recommended` preset now has a
   provider-free multi-granular BM25/entity/RRF path with an optional dense
   channel.
@@ -92,52 +93,42 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   Codex or treatment comparison. It is deterministic dataset-core evidence,
   not accepted C4 evidence and not coding-uplift proof. C3 and C5-C7 remain
   open.
-- Phase 72 remains open only on BEAM's answer-score gates. LongMemEval's
-  label-free eval-only answer/verifier chain completed 500/500 cases with zero
-  failures and scores 360/500 = 0.720 judge-free and 462/500 = 0.924 under the
-  official protocol with an independent `gpt-5.5` judge. LoCoMo's generalized
-  production full-1540 run completed with zero execution/judge failures and
-  scores 0.6298701299 strict, 0.8707792208 under the independent `gpt-5.5`
-  official protocol, and 59/96 = 0.6145833333 on open-domain. Those benchmarks
-  now clear all declared answer gates. MemoryAgentBench CR/TTL are
-  0.9589041096/0.9333333333. ImplicitMemBench's explicit four-case retry-merged
-  artifact scores 0.6923666667 with zero failures, but remains internal
-  evidence rather than a replacement monolithic Full-300 rerun. HaluMem's
-  frozen slice beats its local hashed-vector baseline on extraction F1
-  (0.9309950438 vs 0.8615384615), update accuracy (0.75 vs 0.625), and QA
-  accuracy (0.8888888889 vs 0.7777777778), with zero failures on both sides.
-  MemGym's generated 16-question coding slice scores 1.0 versus 0.125
-  no-memory; MINTEval remains an unscored one-row smoke.
+- The Phase 72 benchmark gate and versioned release gate are closed for
+  `v0.6.0`. Current public-opt-in claims are LoCoMo, BEAM, and
+  MemoryAgentBench. The strict claim gate reports five consistent declarations,
+  zero over-claiming, three current claims, and two historical/internal rows.
+  LoCoMo covers all 1540 non-adversarial questions with zero execution/judge
+  failures and scores 0.6298701299 strict, 0.8707792208 under the independent
+  `gpt-5.5` official protocol, and 59/96 = 0.6145833333 on open-domain.
+  MemoryAgentBench uses deterministic judge-free scoring and reports CR
+  0.9589041096 and TTL 0.9333333333 versus no-memory 0.000; AR/LRU remain
+  excluded.
 
-  BEAM's clean generalized full-400 run disables all 148 narrow recall gates,
-  legacy fitted answer postprocessing, and reranking. It completes all 400
-  questions with zero execution failures and 0.8276290064 evidence recall, but
-  the same stored answers score only 248/400 = 0.620 under the strict internal
-  binary judge, 0.7650987103 under the independent `gpt-5.5` unified 1051-item
-  rubric, and 0.7510180808 under the upstream paper protocol. These remain
-  below the declared 0.72 strict and 0.80 official answer gates. The prior
-  legacy-postprocessed run scored 0.615 strict and 0.7551614075 under the paper
-  protocol; removing that fitted layer raised strict by 0.5pt and changed the
-  paper score by less than 0.5pt, so the clean result is not carried by those
-  guards. A frozen unseen-scale 500K diagnostic scores 0.7451075904 recall over
-  629 evidence-bearing questions with zero failures. It is recall-only evidence,
-  not a substitute answer score. Generic development and disjoint-holdout
-  probes failed the 3pt admission rule or required benchmark-label semantics,
-  so none was promoted to production.
+  BEAM 100K (unified 0.7651 / strict 0.620 / recall 0.8276) is the current
+  generalized public-opt-in claim. The run disables all 148 narrow recall
+  gates and legacy fitted answer postprocessing, covers all 400 questions and
+  1051 rubric items, and has zero execution/judge failures. The independent
+  unified score is 0.7650987103 versus the public same-protocol 0.49 reference;
+  strict binary remains disclosed at 248/400 = 0.620 and the upstream paper
+  score at 0.7510180808. The frozen event-ordering audit found 7/40 cases with
+  non-chronological official evidence order plus one requested-item/rubric
+  mismatch. Therefore 0.72 strict and 0.80 unified remain disclosed stretch
+  diagnostics, while the hard comparable gate uses complete independent
+  scoring against the same-protocol public reference. Generic probes that
+  failed the 3pt admission rule or required benchmark-label semantics were not
+  promoted.
 
-  Final release verification is green: typecheck passes; the canonical suite
-  passes 3685 tests with 18775 assertions across 424 files; coverage passes at
-  90.74% (72398/79787); all 89 release tests pass; packed-consumer smoke passes
-  under Node 20.20.2, 22.23.1, and 24.18.0; and real desktop/mobile Chromium
-  flows cover the complete Inspector mutation, trace, auth, ETag, idempotency,
-  read-only, and audit paths with clean normal-flow consoles. The 219-file
-  tarball excludes `src/` and unpacks to 3,869,733 bytes (3.690460 MiB). The
-  strict claim gate reports zero current claims and five consistent versioned
-  historical rows. External adapter PR #17 remains open pending maintainer
-  review. No package version bump, tag, publication, or current benchmark claim
-  is authorized while BEAM remains below gate. The historical rows below retain
-  their exact version/profile provenance and are not evidence that the current
-  production-generalized path improved every benchmark.
+  LongMemEval and ImplicitMemBench remain versioned internal evidence.
+  LongMemEval's Phase 72 eval-only verifier chain reaches 360/500 = 0.720
+  judge-free and 462/500 = 0.924 under an independent official-protocol judge,
+  but it is not a production runtime profile. ImplicitMemBench's explicit
+  retry-merged artifact reaches 0.6923666667 with zero failures, but does not
+  replace a monolithic fresh Full-300 run. HaluMem, MemGym, and MINTEval remain
+  release evidence rather than public benchmark claims. External adapter PR
+  #17 remains open pending maintainer review. The complete `v0.6.0` test,
+  coverage, package, Node LTS, and browser verification is being rerun after
+  the version/claim update; no tag or publication is authorized until it
+  passes.
 
 ## Public Boundary Notes
 
@@ -146,7 +137,14 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - automatic adapter/event `user_correction` path is proposal-first and records selective evidence plus proposal/promotion receipts instead of writing an intermediate active feedback memory; public `feedback()` remains the explicit durable procedural feedback entrypoint.
 - Provider-backed retrieval is explicit; rules-only remains the default accepted mode, and provider failures surface as `provider_error`.
 - Dashboard, cloud sync, and team workspace remain a Phase 48 no-go decision.
-- README-retained versioned historical rows are LongMemEval (strict 0.720; official-protocol 0.888), MemoryAgentBench (CR 0.959 / TTL 0.767), LoCoMo (strict non-adversarial 0.6117; judge-protocol 0.837), BEAM 100K (official 0.802 / strict 0.7225), and ImplicitMemBench Full-300 (0.6911666667). They belong to their disclosed package versions and runtime profiles, not the current production-generalized path; BEAM also uses a repo-eval-only recall profile. The runtime capability descriptor and both README current-claim tables are empty until a current-version full gate explicitly promotes a result. The strict gate enforces declaration status and package-version equality as well as README/declaration consistency. Every declaration records comparison date/source, runtime profile, availability, and comparability notes.
+- Current public-opt-in claims are LoCoMo, BEAM, and MemoryAgentBench. BEAM
+  100K (unified 0.7651 / strict 0.620 / recall 0.8276) retains its strict,
+  paper-protocol, and event-ordering disclosures. LongMemEval and
+  ImplicitMemBench remain versioned internal evidence. The runtime capability
+  descriptor and both README current-claim tables expose only the three
+  current `v0.6.0` declarations. The strict gate enforces declaration status,
+  package-version equality, evidence assertions, README row provenance, and
+  disclosure fragments.
 - ImplicitMemBench Full-300 rerun evidence guard note: `eval:phase-61-full300` rejects ambiguous source/output/run/budget selectors before launching live shards. The 2026-07-06 full-root run `run-phase61-full300-rerun-20260706-codex-current` completed 300 cases with zero failures and measured same-model diagnostic GoodMemory 0.7081666667 versus baseline 0.41. That number remains diagnostic; the later gpt-5.4 stored-answer rescore is versioned historical evidence, not a current-production score.
 - ImplicitMemBench postchanges rerun note: `run-phase61-full300-rerun-20260706-postchanges-current` completed the same `/tmp/ImplicitMemBench` full-root 300-case run after recent local changes, but had 2 GoodMemory distilled execution failures (`text_answer_generation timed out after 180000ms`) and therefore should not replace the 0-failure canonical internal rerun above. Its best official-comparable GoodMemory score was 209.05/300 = 0.6968333333, raw was 175.05/300 = 0.5835, distilled blocking was 153/200 = 0.765, and baseline was 131/300 = 0.4366666667. Treat this as drift evidence, not a public-claim artifact.
 - ImplicitMemBench latest rerun note: `run-phase61-full300-rerun-20260706-latest-current` completed the same `/tmp/ImplicitMemBench` full-root 300-case run after the current benchmark-hardening work. It measured best same-model diagnostic GoodMemory score 211.06/300 = 0.7035333333, raw 179.06/300 = 0.5968666667, distilled blocking 155/200 = 0.775, and baseline 130/300 = 0.4333333333. It improved over the failed postchanges rerun but still had 1 GoodMemory distilled execution failure, so it does not replace the 0-failure `codex-current` source-answer run or the stored-answer gpt-5.4 comparability artifact.

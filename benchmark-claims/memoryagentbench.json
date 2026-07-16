@@ -20,7 +20,7 @@
   "run": {
     "commit": "d639fbd1996d61136e89137d378e4948c10b326f",
     "packageVersion": "0.6.0",
-    "command": "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MemoryAgentBench --live --evidence-pack --competency CR --resume --run-id run-phase72-mab-generalized-cr-terra; GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MemoryAgentBench --live --evidence-pack --competency TTL --resume --run-id run-phase72-mab-generalized-ttl-terra; bun run scripts/run-phase-72-release-gate.ts",
+    "command": "GOODMEMORY_EVAL_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MAB --live --evidence-pack --competency CR --output-dir reports/eval/research/phase-72/mab --resume --run-id run-phase72-mab-generalized-cr-terra; GOODMEMORY_EVAL_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MAB --live --evidence-pack --competency TTL --output-dir reports/eval/research/phase-72/mab --resume --run-id run-phase72-mab-generalized-ttl-terra; bun run scripts/run-phase-72-release-gate.ts",
     "executionFailures": 0
   },
   "model": {

@@ -53,6 +53,7 @@ describe("Codex coding-effect evaluator sandbox", () => {
       "codex-home",
       "config.toml",
     );
+    const evaluatorExecutables: string[] = [];
     let mutateConfigDuringEvaluator = false;
     const runBoundary = async (
       request: BoundaryProcessRequest,
@@ -85,6 +86,9 @@ describe("Codex coding-effect evaluator sandbox", () => {
         return result(1);
       }
       if (command[0] === "/bin/sh") {
+        if (command[5] !== undefined) {
+          evaluatorExecutables.push(command[5]);
+        }
         if (mutateConfigDuringEvaluator) {
           await writeFile(configPath, "default_permissions = \"danger\"\n");
         }
@@ -120,6 +124,15 @@ describe("Codex coding-effect evaluator sandbox", () => {
       "utf8",
     )).toBe("export {};\n");
     await mkdir(fixture.evaluationWorkspace, { recursive: true });
+    await sandbox.runProcess({
+      args: ["test.ts"],
+      cwd: fixture.evaluationWorkspace,
+      env: { PATH: "/usr/bin:/bin" },
+      executable: "bun",
+      timeoutMs: 30_000,
+    });
+    expect(evaluatorExecutables).toEqual([fixture.bunExecutable]);
+
     mutateConfigDuringEvaluator = true;
 
     await expect(sandbox.runProcess({

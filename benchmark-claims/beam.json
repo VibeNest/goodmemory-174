@@ -20,7 +20,7 @@
   "run": {
     "commit": "d639fbd1996d61136e89137d378e4948c10b326f",
     "packageVersion": "0.6.0",
-    "command": "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra GOODMEMORY_JUDGE_MODEL=gpt-5.5 bun run eval:phase-63-live-slice -- --benchmark-root ~/.cache/goodmemory-benchmarks/beam-100k --recall-report <generalized-recall-report> --profile goodmemory-hybrid --all-cases --evidence-pack --resume --run-id run-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1; bun run scripts/audit-phase-72-beam-event-ordering-integrity.ts --benchmark-root ~/.cache/goodmemory-benchmarks/beam-100k --rubrics ~/.goodmemory-beam/rubrics-by-question-id.json; bun run scripts/run-phase-72-release-gate.ts",
+    "command": "GOODMEMORY_EVAL_MODEL=gpt-5.6-terra GOODMEMORY_JUDGE_MODEL=gpt-5.5 bun run eval:phase-72-beam-generalization-live -- --benchmark-root ~/.cache/goodmemory-benchmarks/beam-100k --case-selection all-cases --concurrency 40 --semantic-topk 96 --output-dir reports/eval/research/phase-72/beam --resume --run-id run-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1; GOODMEMORY_JUDGE_MODEL=gpt-5.5 bun run eval:official-rescore -- --benchmark beam --report reports/eval/research/phase-72/beam/run-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1/live-slice-report.json --rubrics ~/.goodmemory-beam/rubrics-by-question-id.json --concurrency 40 --run-id rescore-phase72-beam-generalized-answer-clean-full400-terra-gpt55-c40-v1; bun run scripts/audit-phase-72-beam-event-ordering-integrity.ts --benchmark-root ~/.cache/goodmemory-benchmarks/beam-100k --rubrics ~/.goodmemory-beam/rubrics-by-question-id.json; bun run scripts/run-phase-72-release-gate.ts",
     "executionFailures": 0
   },
   "model": {

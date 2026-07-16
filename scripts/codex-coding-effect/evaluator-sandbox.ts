@@ -333,6 +333,12 @@ export async function prepareCodexEvaluatorSandbox(input: {
       if (!pathInsideOrEqual(evaluationWorkspace, request.cwd)) {
         throw new Error("evaluator process escaped its evaluation workspace");
       }
+      const evaluatorExecutable = request.executable === "bun"
+        ? bunExecutable
+        : resolve(request.executable);
+      if (evaluatorExecutable !== bunExecutable) {
+        throw new Error("evaluator process must use the pinned Bun executable");
+      }
       await assertCanonicalConfig(configPath, configSha256);
       const result = await runBoundary({
         args: [
@@ -347,7 +353,7 @@ export async function prepareCodexEvaluatorSandbox(input: {
           'cd "$1" && shift && exec "$@"',
           "evaluator-sandbox",
           request.cwd,
-          request.executable,
+          evaluatorExecutable,
           ...request.args,
         ],
         cwd: sandboxRoot,

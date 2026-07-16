@@ -739,7 +739,7 @@ describe("release metadata and docs", () => {
     };
 
     expect(pkg.version).toBe(CURRENT_PACKAGE_VERSION);
-    expect(pkg.version).toBe("0.5.1");
+    expect(pkg.version).toBe("0.6.0");
     expect(pkg.private).toBeUndefined();
     expect(pkg.description).toBe(
       "Memory layer for chat, copilot, and agent applications.",
@@ -1376,14 +1376,16 @@ describe("release metadata and docs", () => {
     expect(readme).toContain("goodmemory inspect");
     expect(readme).toContain("goodmemory setup");
     expect(readme).toContain("goodmemory status");
-    expect(readme).toContain(
-      "| LoCoMo (full 10 conversations) | strict: deterministic token-F1",
-    );
-    expect(readme).toContain("strict **0.6117** (942/1540)");
-    expect(readme).toContain("judge-protocol **0.837** (1289/1540)");
-    expect(readme).toContain(
-      "The historical LoCoMo strict result is scored by deterministic token-F1",
-    );
+    expect(readme).toContain("| LoCoMo (full 10 conversations) |");
+    expect(readme).toContain("official **0.8708**");
+    expect(readme).toContain("strict **0.6299**");
+    expect(readme).toContain("open-domain **0.6146** (59/96)");
+    expect(readme).toContain("| BEAM 100K (400 questions, 1051 rubric items) |");
+    expect(readme).toContain("unified **0.7651**");
+    expect(readme).toContain("strict **0.620** (248/400)");
+    expect(readme).toContain("| MemoryAgentBench (CR, TTL) |");
+    expect(readme).toContain("**CR 0.959, TTL 0.933**");
+    expect(readme).toContain("provider reranking");
     expect(readme).toContain("CC BY-NC 4.0 (non-commercial scope)");
     expect(readme).not.toContain("| LoCoMo | representative conv-1 live run 0.020");
     expect(readme).toContain("## Choose Your Integration Path");
@@ -1506,9 +1508,9 @@ describe("release metadata and docs", () => {
     expect(guide).not.toContain("query-resolved");
   });
 
-  it("v0.5 package metadata and public release docs agree on the current stable release", async () => {
-    expect(CURRENT_PACKAGE_VERSION).toBe("0.5.1");
-    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.5.1.tgz");
+  it("v0.6 package metadata and public release docs agree on the current stable release", async () => {
+    expect(CURRENT_PACKAGE_VERSION).toBe("0.6.0");
+    expect(CURRENT_TARBALL_NAME).toBe("goodmemory-0.6.0.tgz");
 
     const releaseDocPaths = [
       "README.md",
@@ -1645,10 +1647,16 @@ describe("release metadata and docs", () => {
     expect(zhReadme).toContain(`npm install ./${CURRENT_TARBALL_NAME}`);
     expect(zhReadme).toContain("goodmemory setup");
     expect(zhReadme).toContain("goodmemory status");
-    expect(zhReadme).toContain("| LoCoMo（完整 10 会话） | 严格轨：确定性 token-F1");
-    expect(zhReadme).toContain("严格 **0.6117**（942/1540）");
-    expect(zhReadme).toContain("判官协议 **0.837**（1289/1540）");
-    expect(zhReadme).toContain("历史 LoCoMo 严格结果以确定性 token-F1 评分");
+    expect(zhReadme).toContain("| LoCoMo（完整 10 会话） |");
+    expect(zhReadme).toContain("official **0.8708**");
+    expect(zhReadme).toContain("strict **0.6299**");
+    expect(zhReadme).toContain("open-domain **0.6146**（59/96）");
+    expect(zhReadme).toContain("| BEAM 100K（400 题、1051 条 rubric） |");
+    expect(zhReadme).toContain("unified **0.7651**");
+    expect(zhReadme).toContain("strict **0.620**（248/400）");
+    expect(zhReadme).toContain("| MemoryAgentBench (CR, TTL) |");
+    expect(zhReadme).toContain("**CR 0.959, TTL 0.933**");
+    expect(zhReadme).toContain("provider reranking");
     expect(zhReadme).toContain("CC BY-NC 4.0（非商用范围）");
     expect(zhReadme).not.toContain("| LoCoMo | 代表性 conv-1 live 运行 0.020");
     expect(zhReadme).toContain("## 选择你的接入路径");
@@ -2774,16 +2782,16 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain("task-board/00-README.txt");
     expect(currentStatus).toContain("docs/archive/quality-gates/README.md");
     expect(currentStatus).toContain(
-      "README-retained versioned historical rows are LongMemEval",
+      "Current public-opt-in claims are LoCoMo, BEAM, and MemoryAgentBench",
     );
     expect(currentStatus).toContain(
-      "BEAM 100K (official 0.802 / strict 0.7225)",
+      "BEAM 100K (unified 0.7651 / strict 0.620 / recall 0.8276)",
     );
     expect(currentStatus).toContain(
+      "LongMemEval and ImplicitMemBench remain versioned internal evidence",
+    );
+    expect(currentStatus).not.toContain(
       "runtime capability descriptor and both README current-claim tables are empty",
-    );
-    expect(currentStatus).toContain(
-      "LoCoMo (strict non-adversarial 0.6117; judge-protocol 0.837)",
     );
     expect(currentStatus).not.toContain(
       "Full ImplicitMemBench and BEAM reports are internal research evidence until explicitly promoted.",
@@ -2794,8 +2802,8 @@ describe("release metadata and docs", () => {
     expect(currentStatus).toContain(
       "Phase 65 case-level hardening is paused; Phase 69 owns generalized candidate admission and noise control.",
     );
-    expect(currentStatus).not.toContain(
-      "Phase 63 BEAM has a README-promoted P67 official-protocol public claim",
+    expect(currentStatus).toContain(
+      "The Phase 72 benchmark gate and versioned release gate are closed",
     );
     expect(currentStatus).not.toContain("it is not yet promoted to README");
     expect(currentStatus).toContain(
@@ -3188,12 +3196,16 @@ describe("release metadata and docs", () => {
     expect(taskBoard).toContain("128 / 300 = 42.67%");
     expect(taskBoard).toContain("internal research evidence, not a release");
     expect(taskBoard).toContain("LongMemEval -> BEAM -> MemoryAgentBench -> LoCoMo");
-    expect(taskBoard).toContain("Phase 64 / P67-C MemoryAgentBench has an accepted internal AR/CR zero-failure live closure and versioned historical evidence scoped only to CR 0.959 and TTL 0.767");
-    expect(taskBoard).toContain("It is not a current-version public claim");
-    expect(taskBoard).toContain("Its versioned historical declaration reports strict non-adversarial token-F1 0.6117");
+    expect(taskBoard).toContain("Phase 72 is complete");
+    expect(taskBoard).toContain(
+      "Current public-opt-in claims are LoCoMo, BEAM, and MemoryAgentBench",
+    );
+    expect(taskBoard).toContain(
+      "LongMemEval and ImplicitMemBench remain versioned internal evidence",
+    );
     expect(taskBoard).toContain("Phase 69 owns generalized candidate admission and noise control");
     expect(taskBoard).toContain(
-      "Historical Phase 63 / P67-D BEAM evidence includes an official-protocol 0.802 score",
+      "BEAM 100K closes at 0.7651 unified, 0.620 strict, and 0.8276 recall",
     );
     expect(taskBoard).toContain(
       "the answer-rule workstream is paused",
