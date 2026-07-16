@@ -150,6 +150,7 @@ function buildLiveReport(
   selection?: Phase63BeamLiveSliceReport["selection"],
 ): Phase63BeamLiveSliceReport {
   return {
+    answerPostprocessing: "legacy-fitted",
     benchmarkRoot: "/tmp/BEAM",
     cases: buildLiveCases(totalCases),
     generatedAt: "2026-06-15T20:30:00.000Z",

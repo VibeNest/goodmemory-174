@@ -65,71 +65,52 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   active; it does not prove coding uplift or authorize a public coding-effect
   claim. C4-C7 remain open. Evidence is under
   `reports/eval/research/codex-coding-effect/c3-controlled-20260715-1747z/`.
-- Phase 72 remains open. Current generalized end-to-end evidence does not yet
-  support a `v0.6.0` performance claim: MemoryAgentBench CR/TTL are
-  0.9589041096/0.9333333333. ImplicitMemBench Full-300 with `gpt-5.6-terra`
-  answers and independent `gpt-5.4` judging scored 0.6683666667; rejudging the
-  same answers produced 0.6790333333, quantifying judge variance. A generic
-  LogiQL filter-rebinding fix changed four audited failures to passes; the
-  explicit retry-merged Full-300 artifact scores 0.6923666667 with zero
-  failures, but is internal evidence rather than a monolithic fresh rerun.
-  BEAM full-400 generalized recall is 0.8273942646. A generic subject-date
-  guardrail changed one stored-retrieval answer, and the independent official
-  rescore raised the 20-case slice from 0.7766666667 to 0.8266666667 with all
-  59 rubric items covered and zero judge failures; this is not a full-400
-  answer score. HaluMem's frozen generated slice passes its three-part gate:
-  extraction F1 0.9309950438 vs 0.8615384615, update accuracy 0.75 vs 0.625,
-  and QA accuracy 0.8888888889 vs 0.7777777778, with zero failures on both
-  sides. LongMemEval's provider-free and provider-embedding full-500 sources
-  completed with zero failures. The stronger provider-embedding source has
-  0.9234666667 evidence-session recall, 381/500 = 0.762 under independent
-  `gpt-5.4`, and a 297/500 = 0.594 judge-free floor. Frozen reranking,
-  conversational-extraction, wider-evidence, and sentence-projection arms all
-  failed their admission gates and were not promoted. A dense within-retrieved-
-  session arm passed a 64-case slice but its interrupted 70/500 run is invalid
-  as a benchmark score. The later label-free answer/verifier chain completed
-  all 500 cases with zero failures and reached the required judge-free floor
-  exactly: 360/500 = 0.720. Its best accepted independent `gpt-5.4` full
-  rescore is 459/500 = 0.918, one case below the 0.920 gate. Repeated judge runs
-  flipped unchanged answers, and a 461/500 = 0.922 diagnostic also mixed update
-  and timeline stages that failed their own admission gates, so it is not
-  accepted closure. The verifier CLI now requires an explicit source report
-  instead of defaulting to the temporary research artifact used by those runs.
-  The retained stages are eval-only and do not alter production recall or
-  grounded abstention. LongMemEval therefore remains a release blocker despite
-  meeting its strict floor. LoCoMo's
-  current production-profile
-  full-1540 result used `goodmemory-recommended` with
-  conversational extraction and zero failures. Its generic answer profile
-  scored 0.5896103896 strict and 0.8344155844 under the independent official
-  protocol; the temporal-bounded profile scored 0.6012987013 strict and
-  0.8298701299 official. Both remain below the 0.61 / 0.87 gates. The older
-  repo-eval-only semantic-union diagnostic reached 0.6019480519 strict and
-  0.8493506494 official, but is not the production `recommended` path. A
-  gold-evidence oracle and outcome-selected bounded-context diagnostics located
-  answer-noise headroom, but the best query-only pointwise top-3 conversion was
-  only 24/44 under the independent judge, below the roughly 32 recoveries needed
-  to cross 0.87. A disjoint holdout exposed the selection bias: all 17
-  first-pass abstentions inside that oracle-derived development set had full
-  evidence, while the remaining 92 abstentions contained only 17 full-evidence
-  rows, 16 partial rows, and 59 zero-evidence rows. On a hash-frozen 32-row
-  holdout, same-session radius-2 candidate expansion plus pointwise top-3
-  reranking scored only 5/32 strict and 7/32 = 0.21875 under the independent
-  judge, with zero execution failures. The official conversion is below the
-  roughly 11/32 required for a plausible 0.87 crossing, so the arm was stopped
-  without a broader run or production promotion. These are retrieval or
-  diagnostic findings, not replacement public claims. Failed LoCoMo recovery,
-  pairwise-selection, extractive-reanswer, compression, and answer-support
-  runners were removed after their gates failed. The converged diff passes
-  3483 tests across 387 files with zero failures and 18080 assertions. Coverage
-  is 90.71% overall with every group above threshold; typecheck, build, all 88
-  release tests, and Node 20.20.2 / 22.14.0 / 24.18.0 package-boundary smokes
-  are green. The 219-file tarball excludes `src/` and unpacks to 3,854,586
-  bytes (3.676020 MiB). The strict claim gate reports zero current claims and
-  five versioned historical rows. Benchmark score gates keep Phase 72 open.
-  The historical rows below
-  retain their exact version/profile provenance and are not evidence that the
-  current production-generalized path improved every benchmark.
+- Phase 72 remains open only on BEAM's answer-score gates. LongMemEval's
+  label-free eval-only answer/verifier chain completed 500/500 cases with zero
+  failures and scores 360/500 = 0.720 judge-free and 462/500 = 0.924 under the
+  official protocol with an independent `gpt-5.5` judge. LoCoMo's generalized
+  production full-1540 run completed with zero execution/judge failures and
+  scores 0.6298701299 strict, 0.8707792208 under the independent `gpt-5.5`
+  official protocol, and 59/96 = 0.6145833333 on open-domain. Those benchmarks
+  now clear all declared answer gates. MemoryAgentBench CR/TTL are
+  0.9589041096/0.9333333333. ImplicitMemBench's explicit four-case retry-merged
+  artifact scores 0.6923666667 with zero failures, but remains internal
+  evidence rather than a replacement monolithic Full-300 rerun. HaluMem's
+  frozen slice beats its local hashed-vector baseline on extraction F1
+  (0.9309950438 vs 0.8615384615), update accuracy (0.75 vs 0.625), and QA
+  accuracy (0.8888888889 vs 0.7777777778), with zero failures on both sides.
+  MemGym's generated 16-question coding slice scores 1.0 versus 0.125
+  no-memory; MINTEval remains an unscored one-row smoke.
+
+  BEAM's clean generalized full-400 run disables all 148 narrow recall gates,
+  legacy fitted answer postprocessing, and reranking. It completes all 400
+  questions with zero execution failures and 0.8276290064 evidence recall, but
+  the same stored answers score only 248/400 = 0.620 under the strict internal
+  binary judge, 0.7650987103 under the independent `gpt-5.5` unified 1051-item
+  rubric, and 0.7510180808 under the upstream paper protocol. These remain
+  below the declared 0.72 strict and 0.80 official answer gates. The prior
+  legacy-postprocessed run scored 0.615 strict and 0.7551614075 under the paper
+  protocol; removing that fitted layer raised strict by 0.5pt and changed the
+  paper score by less than 0.5pt, so the clean result is not carried by those
+  guards. A frozen unseen-scale 500K diagnostic scores 0.7451075904 recall over
+  629 evidence-bearing questions with zero failures. It is recall-only evidence,
+  not a substitute answer score. Generic development and disjoint-holdout
+  probes failed the 3pt admission rule or required benchmark-label semantics,
+  so none was promoted to production.
+
+  Final release verification is green: typecheck passes; the canonical suite
+  passes 3685 tests with 18775 assertions across 424 files; coverage passes at
+  90.74% (72398/79787); all 89 release tests pass; packed-consumer smoke passes
+  under Node 20.20.2, 22.23.1, and 24.18.0; and real desktop/mobile Chromium
+  flows cover the complete Inspector mutation, trace, auth, ETag, idempotency,
+  read-only, and audit paths with clean normal-flow consoles. The 219-file
+  tarball excludes `src/` and unpacks to 3,869,733 bytes (3.690460 MiB). The
+  strict claim gate reports zero current claims and five consistent versioned
+  historical rows. External adapter PR #17 remains open pending maintainer
+  review. No package version bump, tag, publication, or current benchmark claim
+  is authorized while BEAM remains below gate. The historical rows below retain
+  their exact version/profile provenance and are not evidence that the current
+  production-generalized path improved every benchmark.
 
 ## Public Boundary Notes
 
@@ -195,7 +176,7 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Public-claim gate note: `gate:public-benchmark-claim` validates declaration filenames and shapes, local evidence artifacts and asserted fields, source/license/coverage/model/scorer boundaries, and README row provenance/disclosures. A current claim must now have `candidate_public_claim` status and a `run.packageVersion` equal to the current package version. Historical rows live under separate markers and remain consistency-checked without becoming current claims. All five declarations are currently `internal_evidence`; strict mode reports zero current claims and five historical rows.
 - Phase 67 official-protocol rescore evidence note: `eval:official-rescore` rejects duplicate scalar benchmark/source/run/judge selectors before loading stored LongMemEval, LoCoMo, or BEAM answer reports, requires `--run-id` to be a single path segment, requires canonical positive integer `--concurrency` / `--limit` values, and rejects benchmark-incompatible source selectors (`--reference` only for LongMemEval, `--root` only for LoCoMo, `--rubrics` only for BEAM). Each run directory now persists `run-identity.json`, rejects malformed or unknown-field existing identity files, rejects non-SHA-256 source fingerprints, and refuses to reuse an existing `progress.jsonl` cache if the benchmark, run id, source input paths, source input SHA-256 fingerprints, judge model, slice limit, or stored-answer boundary changes. Resumable progress rows now reject malformed or unknown-field cached verdicts/scores, malformed BEAM rubric keys whose `<questionId>#<itemIndex>` prefix disagrees with row `questionId`, duplicate cached question/rubric keys, and cached rows outside the selected case/rubric scope instead of silently counting non-boolean correctness, invalid BEAM rubric scores, last-write-wins duplicates, or stale out-of-scope slice rows. Its generated `rescore-summary.json` persists `generatedAt`, `outputPath`, `sourceInputs`, `sourceInputFingerprints` (bytes + SHA-256), `judgeModel`, `limit` (number for a sliced rescore, `null` for full scope), `limitUnit` (`cases` for LongMemEval/LoCoMo, `rubric-items` for BEAM), `sourceAnswersUnchanged`, source-vs-selected scope counts (`sourceCases`/`selectedCases`, or BEAM `sourceQuestions`/`selectedQuestions` plus `sourceRubricItems`/`selectedRubricItems`), and a claim boundary that keeps official-protocol comparability evidence separate from answer regeneration and public claim promotion. Source inputs are rejected if they resolve inside the official-rescore output run directory, keeping stored-answer reports, benchmark references, roots, and rubrics separate from derived `run-identity.json`, `progress.jsonl`, and `rescore-summary.json` artifacts. Judge gateway env (`GOODMEMORY_JUDGE_BASE_URL`, `GOODMEMORY_JUDGE_API_KEY`, `GOODMEMORY_JUDGE_MODEL`) is preflighted before output-directory creation or `run-identity.json` writes, and must be present, non-empty, and free of leading/trailing whitespace. Final `rescore-summary.json` writes are also refused when any judge call fails; `progress.jsonl` remains resumable until the run completes without judge failures.
 - Phase 67 official-rescore cache writer / summary validation note: `eval:official-rescore` serializes progress through the same strict shapes accepted by resume parsing and validates final summaries, scope counts, fingerprints, category aggregates, and stored-answer boundaries before write. Existing LongMemEval, LoCoMo, and BEAM artifacts were refreshed from complete cached progress with `0 to judge`, preserving their versioned historical scores while adding auditable identity and comparability metadata; this does not make them current-production claims.
-- Phase 72 LongMemEval rescore profile / timeout note: `eval:official-rescore --benchmark longmemeval` now accepts an explicit `--profile`, records `sourceProfile` in run identity and final summary, and treats profile drift as resume-identity drift. LoCoMo and BEAM reject that selector. Judge requests use `GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS` (180000 ms by default) so a stalled gateway cannot leave the process waiting indefinitely. The provider-free full-500 rescore `rescore-phase72-longmemeval-recommended-terra-gpt54-tail-monotonic-v3` remains 340/500 = 0.680, while the direct provider-embedding source rescore `rescore-phase72-longmemeval-semantic-live-full500-c40-v4` is 381/500 = 0.762. The retained verifier chain reaches the strict judge-free floor at 360/500 = 0.720; its accepted independent `gpt-5.4` rescore `rescore-phase72-longmemeval-promoted-verifier-final500-terra-gpt54-v1` is 459/500 = 0.918 with 500/500 judged and zero judge failures. This misses the 0.920 release gate by one case and is not promotable. A 0.922 diagnostic that mixed update/timeline stages was rejected because those stages failed their own gates and unchanged answers showed repeated-judge variance; it is not claim evidence. The verifier CLI requires an explicit `--source-report` and has no implicit local-report fallback. Its resumable checkpoint now truncates a torn final JSONL write and rejects duplicate completed rows, malformed nested state, and internally inconsistent outcomes before reuse.
+- Phase 72 LongMemEval rescore profile / timeout note: `eval:official-rescore --benchmark longmemeval` accepts an explicit `--profile`, records `sourceProfile` in run identity and final summary, and treats profile drift as resume-identity drift. LoCoMo and BEAM reject that selector. Judge requests use `GOODMEMORY_OFFICIAL_RESCORE_REQUEST_TIMEOUT_MS` (180000 ms by default) so a stalled gateway cannot leave the process waiting indefinitely. The provider-free full-500 rescore `rescore-phase72-longmemeval-recommended-terra-gpt54-tail-monotonic-v3` remains 340/500 = 0.680, while the direct provider-embedding source rescore `rescore-phase72-longmemeval-semantic-live-full500-c40-v4` is 381/500 = 0.762. The retained label-free verifier chain reaches the strict judge-free floor at 360/500 = 0.720; its accepted independent `gpt-5.5` full-500 rescore reaches 462/500 = 0.924 with zero judge failures and closes both LongMemEval answer gates. Earlier 0.918 and 0.922 judge diagnostics are retained only as variance/admission evidence and are not the accepted final score. The verifier CLI requires an explicit `--source-report` and has no implicit local-report fallback. Its resumable checkpoint truncates a torn final JSONL write and rejects duplicate completed rows, malformed nested state, and internally inconsistent outcomes before reuse.
 - Accepted BEAM smoke: `run-phase63-beam-smoke-current` and gate `run-20260518003000`.
 - Latest accepted BEAM retained diagnostic: `run-phase63-beam-100k-recall-diagnostic-rules-project-card-total-count-current-20260615T200000Z`, evidence-chat recall 0.9620612564274538, missed 20/355, wrong-recall/noise 167/400, zero-recall 0, and hit/missing/noise ids 1022/72/810 -> 1023/71/807 (3:multi_session_reasoning:1 recovered from recall 0.5 to 1 — fourth multi_session_reasoning recovery via the multi-facet contradiction route, exhausting the confirmed-reachable msr cases; a ground-truth-misaligned [16,116] pair where the narrowed gate avoids the sibling knowledge_update 3:ku:2; returns exactly [16,116], recovering the contact-form turn 16 and shedding noise 60/88/36; cleanest single delta, a recall gain plus a noise reduction, zero ripples). The multi-facet contradiction route now serves contradiction, knowledge_update, and multi_session_reasoning (both "how much" comparisons and "how many" aggregates). Remaining partial-recall families: instruction_following (6 — via the instructionRules companionPattern recipe, NOT multiFacetGroups), multi_session_reasoning (the remaining cases have a genuine upstream candidate-pool gap, needing candidate-generation work).
 - Phase 63 general-lever recall remeasure note: `eval:phase-63-general-levers` keeps non-provider `floor` / `bm25` arms embedding-free even when provider embedding env is present, preserves provider semantic-union behavior for union arms, includes non-default `--semantic-topk` values in default union run ids, and requires output `--run-id` values to be a single path segment before invoking the recall diagnostic. This is BEAM recall/routing evidence-input and output-directory hardening only; it does not change answer score, closure, or public-claim boundaries.

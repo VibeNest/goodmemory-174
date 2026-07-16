@@ -164,6 +164,7 @@ const beamLiveJudgeSchema = z.object({
 });
 
 export interface Phase63BeamLiveSliceCliOptions {
+  answerPostprocessing?: Phase63BeamAnswerPostprocessing;
   answerGapBuckets?: readonly string[];
   answerGapReportPath?: string;
   answerGapSourceCoverageStatuses?: readonly string[];
@@ -181,6 +182,8 @@ export interface Phase63BeamLiveSliceCliOptions {
   runId?: string;
   scale?: BeamCase["scale"];
 }
+
+export type Phase63BeamAnswerPostprocessing = "legacy-fitted" | "none";
 
 export interface Phase63BeamLiveAnswerGeneratorInput {
   memoryContext: string;
@@ -231,6 +234,7 @@ export interface Phase63BeamLiveSliceCaseResult extends BeamCaseResult {
 }
 
 export interface Phase63BeamLiveSliceReport {
+  answerPostprocessing: Phase63BeamAnswerPostprocessing;
   benchmarkRoot: string;
   cases: Phase63BeamLiveSliceCaseResult[];
   generatedAt: string;
@@ -1489,6 +1493,18 @@ export function applyPhase63BeamAnswerOperationGuardrails(input: {
   return input.hypothesis;
 }
 
+export function applyPhase63BeamAnswerPostprocessing(input: {
+  hypothesis: string;
+  memoryContext: string;
+  mode: Phase63BeamAnswerPostprocessing;
+  testCase: BeamCase;
+}): string {
+  if (input.mode === "none") {
+    return input.hypothesis;
+  }
+  return applyPhase63BeamAnswerOperationGuardrails(input);
+}
+
 function isPhase63BeamCurrentValueQuestionType(questionType: string): boolean {
   const normalized = questionType.toLowerCase();
   return (
@@ -2656,6 +2672,7 @@ function buildExecutionFailure(input: {
 }
 
 async function scoreLiveCase(input: {
+  answerPostprocessing: Phase63BeamAnswerPostprocessing;
   answerGenerator: Phase63BeamLiveAnswerGenerator;
   answerJudge: Phase63BeamLiveAnswerJudge;
   evidencePack: boolean;
@@ -2708,9 +2725,10 @@ async function scoreLiveCase(input: {
       retrievedChatIds: answerContextChatIds,
       testCase: input.testCase,
     });
-    hypothesis = applyPhase63BeamAnswerOperationGuardrails({
+    hypothesis = applyPhase63BeamAnswerPostprocessing({
       hypothesis,
       memoryContext,
+      mode: input.answerPostprocessing,
       testCase: input.testCase,
     });
   } catch (error) {
@@ -2992,6 +3010,8 @@ export async function runPhase63BeamLiveSlice(
         );
       }
       const result = await scoreLiveCase({
+        answerPostprocessing:
+          options.answerPostprocessing ?? "legacy-fitted",
         answerGenerator,
         answerJudge,
         evidencePack: options.evidencePack ?? false,
@@ -3014,6 +3034,8 @@ export async function runPhase63BeamLiveSlice(
   });
 
   const report: Phase63BeamLiveSliceReport = {
+    answerPostprocessing:
+      options.answerPostprocessing ?? "legacy-fitted",
     benchmarkRoot,
     cases,
     generatedAt: now().toISOString(),

@@ -2566,6 +2566,7 @@ export function createLocomoSmokeMemory(
     providerEmbeddingConfig?: GoodMemoryEmbeddingProviderConfig;
     providerEmbeddingTimeoutMs?: number;
     providerRerankingConfig?: GoodMemoryRerankingProviderConfig;
+    providerRerankingStrategy?: "listwise" | "pointwise";
     rerank?: boolean;
     semanticCandidates?: boolean;
     semanticCandidateMaxAdditions?: number;
@@ -2680,6 +2681,9 @@ export function createLocomoSmokeMemory(
       environment: options.providerEmbedding ? process.env : {},
       projectionBulkBackfill: true,
       projectionWriteThrough: false,
+      ...(options.providerRerankingStrategy
+        ? { providerRerankingStrategy: options.providerRerankingStrategy }
+        : {}),
     },
   );
   if (

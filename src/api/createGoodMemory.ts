@@ -159,6 +159,7 @@ export interface InternalGoodMemoryOptions {
   environment?: Record<string, string | undefined>;
   projectionBulkBackfill?: boolean;
   projectionWriteThrough?: boolean;
+  providerRerankingStrategy?: "listwise" | "pointwise";
   retrievalStrategyRollout?: RetrievalStrategyRolloutConfig;
 }
 
@@ -733,10 +734,17 @@ class GoodMemoryImpl implements GoodMemory {
     private readonly config: GoodMemoryConfig,
     internal?: InternalGoodMemoryOptions,
   ) {
-    const runtimeResolution = resolveGoodMemoryRuntimeResolution({
+    const resolvedRuntime = resolveGoodMemoryRuntimeResolution({
       config,
       env: internal?.environment,
     });
+    const runtimeResolution =
+      internal?.providerRerankingStrategy && resolvedRuntime.rerankerModelConfig
+        ? {
+            ...resolvedRuntime,
+            providerRerankingStrategy: internal.providerRerankingStrategy,
+          }
+        : resolvedRuntime;
     this.runtimeResolution = runtimeResolution;
     const storagePlan = runtimeResolution.storagePlan;
     const explicitStorage = storagePlan.mode === "explicit" ? storagePlan.storage : null;

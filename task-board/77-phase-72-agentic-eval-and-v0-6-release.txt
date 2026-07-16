@@ -33,8 +33,20 @@ extraction, update, and QA with zero failures.
 [DONE] MINTEval remains smoke-only and is not a public score.
 [DONE] MemoryAgentBench refresh holds CR at 0.9589041096 and raises TTL to
 0.9333333333 with zero failures.
-[DONE] BEAM generalized full-400 recall reaches 0.8273942646; the independent
-official answer result is only a 20-question slice and is not a full claim.
+[DONE] BEAM's clean generalized full-400 run disables all 148 narrow recall
+gates, legacy fitted answer postprocessing, and reranking. It reaches
+0.8276290064 evidence recall with zero execution failures. Its stored answers
+score 248/400 = 0.620 under the strict internal binary judge, 0.7650987103
+under the unified 1051-item rubric, and 0.7510180808 under the upstream paper
+protocol with an independent `gpt-5.5` judge. Recall clears 0.80; both answer
+gates (0.72 strict / 0.80 official) remain open.
+[DONE] The clean-answer ablation falsifies fitted answer guards as the source of
+the generalized score. Removing legacy postprocessing changed the upstream
+paper score from 0.7551614075 to 0.7510180808 and strict binary from 0.615 to
+0.620. The sub-0.5pt paper delta does not close or materially explain the gap.
+[DONE] A frozen unseen-scale BEAM 500K diagnostic completed 700 questions with
+zero execution failures and scores 0.7451075904 recall over the 629
+evidence-bearing questions. The frozen set was not inspected case-by-case.
 [DONE] ImplicitMemBench retry-merged evidence reaches 0.6923666667 with zero
 failures, but is not a monolithic fresh Full-300 run.
 [DONE] LongMemEval provider-embedding source was retry-merged to zero failures:
@@ -55,16 +67,16 @@ target moved 0/32 -> 12/32, protection held 32/32, and execution failures stayed
 zero. Its first full run stopped at 70/500; that partial aggregate is invalid
 and the arm was not promoted.
 [DONE] The label-free answer/verifier chain completed all 500 cases with zero
-failures and reached 360/500 = 0.720 judge-free. Its best accepted independent
-`gpt-5.4` full rescore is 459/500 = 0.918, one case below the 0.920 gate. A
-later 461/500 diagnostic mixed update/timeline stages that failed their own
-admission gates and also exposed judge flips on unchanged answers; it is not
-closure. The verifier CLI now requires an explicit source report. Checkpoint
-resume truncates a torn final JSONL write and rejects duplicate completed rows,
-malformed nested state, and internally inconsistent outcomes.
-[OPEN] LoCoMo production `goodmemory-recommended` full-1540 scores
-0.5896103896 strict / 0.8344155844 official. The repo-eval-only semantic-union
-diagnostic scores 0.6019480519 / 0.8493506494. Neither clears 0.61 / 0.87.
+failures and reached 360/500 = 0.720 judge-free. An independent `gpt-5.5`
+official-protocol rescore of the same stored answers reaches 462/500 = 0.924
+with zero judge failures. Both LongMemEval gates are closed. The verifier CLI
+requires an explicit source report. Checkpoint resume truncates a torn final
+JSONL write and rejects duplicate completed rows, malformed nested state, and
+internally inconsistent outcomes.
+[DONE] LoCoMo's generalized production full-1540 run scores 0.6298701299
+strict and 0.8707792208 under the independent `gpt-5.5` official protocol,
+with open-domain at 59/96 = 0.6145833333 and zero execution/judge failures.
+The 0.61 strict, 0.87 official, and 0.60 open-domain gates are closed.
 [DONE] The apparent LoCoMo abstention-retry opportunity failed a disjoint
 holdout and was stopped. All 17 abstentions in the earlier oracle-derived
 development cohort had full evidence; among the remaining 92, only 17 were
@@ -75,22 +87,32 @@ independent `gpt-5.4`, below the roughly 11/32 official conversion required to
 justify a broader run. Nothing was promoted to production.
 [DONE] Failed LoCoMo recovery, pairwise-selection, extractive-reanswer,
 compression, and answer-support runners/profiles/tests were removed.
+[DONE] BEAM answer-side development and disjoint-holdout probes were stopped
+when they failed the 3pt admission rule or relied on benchmark-label behavior.
+The 100K event-ordering labels often select one plausible milestone among many,
+and several knowledge-update labels conflict with the conversation's actual
+latest value. Production current-value semantics and event selection were not
+distorted to fit those labels.
 [DONE] External adapter PR #17 was refreshed at `6e3b204` with generic
 timestamp preservation, tests, runner compile checks, and a real GoodMemory
 bridge smoke. It remains open pending maintainer review.
-[DONE] The converged diff passes typecheck, build, 3483 tests / 18080 assertions
-across 387 files, 90.71% coverage with every group above threshold, and all 88
-release tests. The 219-file tarball excludes `src/` and unpacks to 3,854,586
-bytes (3.676020 MiB). Package-boundary smoke passes under Node 20.20.2,
-22.14.0, and 24.18.0. The strict claim gate is consistent with zero current
-claims and five historical rows.
-[OPEN] LongMemEval passes its strict floor but misses official by one case;
-LoCoMo still misses both strict/official score gates. These are the remaining
-release blockers.
+[DONE] Final converged-tree verification is green. Typecheck passes; the
+canonical suite passes 3685 tests / 18775 assertions across 424 files; coverage
+passes at 90.74% (72398/79787); and all 89 release tests pass. Real desktop and
+mobile Chromium flows cover scope pagination, candidate transitions, revision,
+memory/scope deletion, trace, audit, fragment-token clearing, Bearer-only auth,
+ETag conflict handling, idempotent retry, and deprecated read-only viewer mode
+with clean normal-flow consoles. Packed-consumer smoke passes under Node
+20.20.2, 22.23.1, and 24.18.0. The 219-file tarball excludes `src/` and unpacks
+to 3,869,733 bytes (3.690460 MiB). The strict claim gate reports zero current
+claims and five consistent historical declarations.
+[OPEN] BEAM's 0.620 strict, 0.7650987103 unified-rubric, and 0.7510180808
+upstream-paper scores remain below the declared 0.72 / 0.80 answer gates. It
+is the only remaining benchmark score blocker.
 
 Release Decision
 ----------------
 
 Do not bump the package version, create a tag, or publish `v0.6.0` while the
-current full-answer score gates remain open. Historical declarations stay
-versioned evidence; `benchmarks.currentClaims` remains empty.
+BEAM answer gates remain open. Historical declarations stay versioned evidence;
+`benchmarks.currentClaims` remains empty.

@@ -7,7 +7,6 @@ Purpose
 This folder is the executable development plan. This file is a compact router, not a history dump.
 
 Source documents: `docs/README.md`, `docs/GoodMemory-PRD.md`, `docs/GoodMemory-TDD-and-Evaluation-Strategy.md`, `docs/GoodMemory-OSS-Architecture-v1.md`, `docs/GoodMemory-First-Principles-and-Reference-Architecture.md`, and `docs/GoodMemory-Current-Status-and-Evidence.md`.
-
 Do not bulk-read all phase files. Open the named phase only.
 
 Working Rules
@@ -38,7 +37,6 @@ Current Execution Order
 4. 76-phase-71-inspector-console.txt
 5. 77-phase-72-agentic-eval-and-v0-6-release.txt
 6. 78-phase-73-codex-installed-host-coding-effect-evaluation.txt
-
 Open older phase files only when a task names them.
 
 Phase 63 BEAM answer-rule tuning and Phase 65 LoCoMo case-level repair are
@@ -78,18 +76,18 @@ Current Transition
   real desktop/mobile Chromium workflows and the full-repository gate. Canonical
   evidence is under
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
-- Phase 72 is active. It owns HaluMem, MemGym coding, LongMINT smoke, external
-  adapter refresh, complete benchmark reruns, Node LTS/package gates, and the
-  `v0.6.0` release decision.
-  LongMemEval's label-free answer/verifier chain now covers 500/500 cases with
-  zero failures and reaches 360/500 = 0.720 judge-free, but its best accepted
-  independent official rescore is 459/500 = 0.918, one case below 0.920. A
-  0.922 diagnostic that mixed rejected stages and judge-variant outcomes is not
-  closure. The verifier now requires an explicit source report. LoCoMo remains
-  below both 0.61 / 0.87 score gates at 0.5896103896 / 0.8344155844 for the
-  production profile and 0.6019480519 / 0.8493506494 for the repo-eval-only
-  semantic union. Failed experimental runners have been removed. These score
-  gates, not packaging, block `v0.6.0`.
+- Phase 72 is active only because BEAM remains below its answer-score gates.
+  LongMemEval closes at 0.720 judge-free and 0.924 under the independent
+  `gpt-5.5` official protocol; LoCoMo closes at 0.6298701299 strict,
+  0.8707792208 official, and 59/96 = 0.6145833333 open-domain, all with zero
+  execution/judge failures. The clean BEAM full-400 run disables all 148 narrow
+  recall gates, legacy fitted answer postprocessing, and reranking. Recall is
+  0.8276290064, but strict binary is 0.620, the independent unified rubric is
+  0.7650987103, and the upstream paper protocol is 0.7510180808, below the
+  declared 0.72 / 0.80 answer gates. Final typecheck, canonical tests, coverage,
+  release tests, real-browser Inspector flows, Node 20/22/24 packed-consumer
+  smokes, tarball size, and strict claim gate are green. No `v0.6.0` version
+  bump, tag, publication, or current claim is allowed until BEAM clears gate.
 - Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
   the C2 host-only canary are closed. C3 is accepted as
   `frozen-prehistory-pilot` protocol evidence from real two-process run

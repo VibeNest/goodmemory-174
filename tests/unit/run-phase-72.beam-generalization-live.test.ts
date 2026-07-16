@@ -7,6 +7,7 @@ import {
 
 function buildReport(): Phase63BeamLiveSliceReport {
   return {
+    answerPostprocessing: "none",
     benchmarkRoot: "/tmp/BEAM",
     cases: [],
     generatedAt: "2026-07-12T00:00:00.000Z",
@@ -51,6 +52,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
         "run-beam-generalization",
       ]),
     ).toMatchObject({
+      answerPostprocessing: "none",
       benchmarkRoot: "/tmp/BEAM",
       evidencePack: true,
       packetEvidence: false,
@@ -100,6 +102,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
     const resets: string[] = [];
     const writes = new Map<string, string>();
     let receivedDisabledGates: string | undefined;
+    let receivedAnswerPostprocessing: string | undefined;
     let receivedEvidencePack: boolean | undefined;
     let receivedProfile: string | undefined;
     let receivedMemoryFactory = false;
@@ -108,6 +111,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
     const result = await runPhase72BeamGeneralizationLive(
       {
         benchmarkRoot: "/tmp/BEAM",
+        answerPostprocessing: "none",
         evidencePack: true,
         packetEvidence: false,
         profile: "goodmemory-hybrid",
@@ -120,6 +124,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
         resetNarrowGateDisables: () => resets.push("reset"),
         runLiveSlice: async (options, dependencies) => {
           receivedDisabledGates = env.GOODMEMORY_DISABLED_NARROW_GATES;
+          receivedAnswerPostprocessing = options.answerPostprocessing;
           receivedEvidencePack = options.evidencePack;
           receivedPacketEvidence = options.packetEvidence;
           receivedProfile = options.profile;
@@ -133,6 +138,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
     );
 
     expect(receivedDisabledGates).toBe("gate-a,gate-b");
+    expect(receivedAnswerPostprocessing).toBe("none");
     expect(receivedEvidencePack).toBe(true);
     expect(receivedPacketEvidence).toBe(false);
     expect(receivedProfile).toBe("goodmemory-hybrid");
@@ -151,6 +157,7 @@ describe("Phase 72 BEAM generalization live runner", () => {
       )!,
     );
     expect(manifest.evidenceContext).toBe("full-recall-evidence-pack");
+    expect(manifest.answerPostprocessing).toBe("none");
     expect(manifest.reranking).toEqual({
       answerContextConsumesRank: false,
       enabled: false,

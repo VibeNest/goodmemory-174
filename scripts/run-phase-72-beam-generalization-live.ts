@@ -30,8 +30,9 @@ export const PHASE72_BEAM_GENERALIZATION_MANIFEST_FILE_NAME =
 
 export type Phase72BeamGeneralizationLiveCliOptions = Omit<
   Phase63BeamLiveSliceCliOptions,
-  "evidencePack" | "packetEvidence" | "profile"
+  "answerPostprocessing" | "evidencePack" | "packetEvidence" | "profile"
 > & {
+  answerPostprocessing: "none";
   evidencePack: true;
   packetEvidence: false;
   profile: "goodmemory-hybrid";
@@ -39,6 +40,7 @@ export type Phase72BeamGeneralizationLiveCliOptions = Omit<
 };
 
 export interface Phase72BeamGeneralizationManifest {
+  answerPostprocessing: "none";
   answerModel: {
     baseURL: string;
     model: string;
@@ -155,6 +157,7 @@ export function parsePhase72BeamGeneralizationLiveCliOptions(
   }
   return {
     ...base,
+    answerPostprocessing: "none",
     evidencePack: true,
     packetEvidence: false,
     profile: "goodmemory-hybrid",
@@ -203,6 +206,7 @@ export async function runPhase72BeamGeneralizationLive(
       PHASE72_BEAM_GENERALIZATION_MANIFEST_FILE_NAME,
     );
     const manifest: Phase72BeamGeneralizationManifest = {
+      answerPostprocessing: "none",
       answerModel: {
         baseURL: requiredEnv(env, "GOODMEMORY_EVAL_BASE_URL"),
         model: requiredEnv(env, "GOODMEMORY_EVAL_MODEL"),

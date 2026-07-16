@@ -56,29 +56,33 @@ dataset source and license, and a reproducible run (commit + command + package
 version). Historical rows remain under separate markers and cannot satisfy the
 current-version gate.
 
-The Phase 72 `v0.6.0` generalized refresh is still open. Current reruns do not
-show a uniform score increase: MemoryAgentBench CR/TTL are
-0.9589041096/0.9333333333. ImplicitMemBench Full-300 scored 0.6683666667 and
-0.6790333333 on two independent `gpt-5.4` judging passes; an explicitly
-disclosed four-case LogiQL retry merge reached 0.6923666667 with zero failures,
-but remains internal evidence rather than a replacement full-run claim. BEAM's
-generalized full-400 evidence recall is 0.8273942646; a stored-retrieval retry
-after a generic subject-date guardrail raised the 20-case official-protocol
-slice from 0.7766666667 to 0.8266666667 (59/59 rubric items, zero judge
-failures). HaluMem's frozen slice now beats its local vector baseline on all
-three official metrics: extraction 0.9309950438 vs 0.8615384615, update 0.75 vs
-0.625, and QA 0.8888888889 vs 0.7777777778. LongMemEval's zero-failure
-provider-embedding source scores 381/500 = 0.762 under the independent
-`gpt-5.4` protocol. A label-free eval-only answer/verifier chain over the full
-500 raises the judge-free track to 360/500 = 0.720 and one complete independent
-rescore to 459/500 = 0.918. The strict gate is met, but the 0.920 official gate
-is still missed by one case. A later 0.922 diagnostic mixed stages that failed
-their own admission gates and showed repeat-judge flips on unchanged answers;
-it is not accepted closure. LoCoMo's zero-failure full-1540 production run is
-0.5896103896 strict / 0.8344155844 official, while its repo-eval-only semantic
-union is 0.6019480519 / 0.8493506494. Both remain below 0.61 / 0.87. These are
-internal research results, so the table below retains versioned historical
-evidence with its disclosed profiles.
+The Phase 72 `v0.6.0` generalized refresh is still open, but LongMemEval and
+LoCoMo now clear their declared answer gates. LongMemEval's label-free
+eval-only answer/verifier chain scores 360/500 = 0.720 judge-free and 462/500 =
+0.924 under the official protocol with an independent `gpt-5.5` judge.
+LoCoMo's zero-failure full-1540 generalized production run scores 0.6298701299
+strict and 0.8707792208 under the independent official protocol; its
+open-domain category scores 59/96 = 0.6145833333. MemoryAgentBench CR/TTL hold
+at 0.9589041096/0.9333333333. ImplicitMemBench's disclosed four-case retry
+merge reaches 0.6923666667 with zero failures, but remains internal evidence
+rather than a replacement monolithic Full-300 run. HaluMem's frozen slice
+beats its local vector baseline on extraction (0.9309950438 vs 0.8615384615),
+update (0.75 vs 0.625), and QA (0.8888888889 vs 0.7777777778).
+
+BEAM remains the score blocker. The clean generalized full-400 run disables all
+148 narrow recall gates, legacy fitted answer postprocessing, and reranking. It
+has 0.8276290064 evidence recall and zero execution failures, but its stored
+answers score only 0.7650987103 under the unified 1051-item rubric, 0.7510180808
+under the upstream paper protocol, and 248/400 = 0.620 under the strict internal
+binary judge, below the 0.80 / 0.72 answer gates. Removing the legacy fitted
+answer postprocessing changed the paper score by less than 0.5 points and raised
+the strict score by 0.5 points, so the current result is not being carried by
+those guards. A frozen unseen-scale 500K diagnostic scores 0.7451075904 recall
+over 629 evidence-bearing questions with zero execution failures. Generic
+development/holdout probes did not close the answer gap without excessive noise
+or benchmark-specific current-value and event-selection behavior, so none was
+promoted. All of these Phase 72 numbers remain internal research results; the
+table below retains versioned historical evidence with its disclosed profiles.
 
 <!-- current-claims-table:start -->
 <!-- current-claims-table:end -->

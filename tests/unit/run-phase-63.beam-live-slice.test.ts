@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
+  applyPhase63BeamAnswerPostprocessing,
   applyPhase63BeamAnswerOperationGuardrails,
   buildPhase63BeamAnswerMemoryContext,
   buildPhase63BeamPrompt,
@@ -120,6 +121,38 @@ function buildRecallReport(): string {
 }
 
 describe("phase-63 BEAM live slice runner", () => {
+  it("can disable legacy fitted answer postprocessing for generalized runs", () => {
+    const testCase = buildGuardrailCase({
+      question:
+        "How many different user roles and security features am I trying to implement across my sessions?",
+      questionType: "multi_session_reasoning",
+    });
+    const hypothesis =
+      "Five, including admin roles, user roles, password hashing, role-based access control, and account lockout.";
+    const memoryContext = [
+      "password hashing",
+      "role-based access control",
+      "account lockout",
+    ].join("\n");
+
+    expect(
+      applyPhase63BeamAnswerPostprocessing({
+        hypothesis,
+        memoryContext,
+        mode: "none",
+        testCase,
+      }),
+    ).toBe(hypothesis);
+    expect(
+      applyPhase63BeamAnswerPostprocessing({
+        hypothesis,
+        memoryContext,
+        mode: "legacy-fitted",
+        testCase,
+      }),
+    ).not.toBe(hypothesis);
+  });
+
   it("parses live slice cli flags", () => {
     expect(
       parsePhase63BeamLiveSliceCliOptions([

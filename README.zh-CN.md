@@ -38,15 +38,28 @@ GoodMemory 把「当前生产声明」「带版本的历史证据」和「内部
 来源与 license 已核实、运行可复现（commit + 命令 + 包版本）。历史行使用独立 marker，
 不能满足当前版本 gate。
 
-Phase 72 的当前生产泛化刷新仍未完成。LongMemEval 已完成当前
-`goodmemory-recommended` full-500 零失败运行，并使用有界、单调的查询相关尾段证据扩展：
-`gpt-5.6-terra` 答案经独立 `gpt-5.4` 官方协议重评为 340/500 = 0.680，
-judge-free 确定性下限为 269/500 = 0.538。assistant 类别从 39/56 提升到
-46/56，其余类别均保持在 1pt 保护线内，但两条总分仍未达到 0.92 / 0.72 gate；
-LoCoMo 当前 full-1540
-生产运行也未达到 strict / official gate。下表保留已披露包版本和 runtime profile
-对应的历史证据，不代表当前 production-generalized 路径的成绩；运行时 capability
-descriptor 的 `benchmarks.currentClaims` 在当前版本保持为空，直到完整 gate 明确晋升新结果。
+Phase 72 的当前生产泛化刷新仍未完成，但 LongMemEval 和 LoCoMo 已达到各自的回答
+门槛。LongMemEval 的 label-free、仅评测使用的 answer/verifier chain 在 full-500 上
+取得 judge-free 360/500 = 0.720，并由独立 `gpt-5.5` 判官按官方协议重评为
+462/500 = 0.924。LoCoMo 的零失败 full-1540 泛化生产运行取得 strict
+0.6298701299、独立官方协议 0.8707792208，open-domain 为 59/96 =
+0.6145833333。MemoryAgentBench CR/TTL 保持 0.9589041096/0.9333333333；
+ImplicitMemBench 明确披露的四题 retry merge 为 0.6923666667，但仍是内部证据，
+不能替代一次全新的单体 Full-300 运行。HaluMem 冻结切片的 extraction、update、QA
+三项均优于本地简单向量基线。
+
+当前分数阻塞只剩 BEAM。干净的 full-400 泛化运行关闭了全部 148 个 narrow recall
+gate、legacy fitted answer 后处理和 reranker，evidence recall 为 0.8276290064，且
+`executionFailures: 0`；但同一批 stored answers 按 1051 条统一 rubric 只有
+0.7650987103，按上游 paper 协议为 0.7510180808，内部 strict binary 为
+248/400 = 0.620，未达到 0.80 / 0.72。移除 legacy fitted answer 后处理后，paper
+分数变化不到 0.5pt，strict 反而提高 0.5pt，因此当前结果并不是由这些 guardrail
+托起来的。冻结的未见 500K 规模诊断在 629 道有 evidence 的题上 recall 为
+0.7451075904，执行失败为零。通用 development/holdout 探针无法在不显著增噪或引入
+基准特化 current-value / event-selection 行为的前提下补齐回答差距，因此没有任何探针
+进入生产。下表仍只保留已披露包版本和 runtime profile 对应的历史证据，不代表当前
+production-generalized 路径；运行时 capability descriptor 的
+`benchmarks.currentClaims` 保持为空，直到完整 gate 明确晋升新结果。
 
 <!-- current-claims-table:start -->
 <!-- current-claims-table:end -->

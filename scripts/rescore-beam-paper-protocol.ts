@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { appendFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 
 import {
   parseCliPositiveIntegerFlagStrict,
@@ -43,8 +51,31 @@ export type BeamAbility = (typeof BEAM_ABILITIES)[number];
 const EXPLICIT_BEAM_ABILITIES: ReadonlySet<string> = new Set(
   BEAM_ABILITIES.filter((ability) => ability !== "information_extraction"),
 );
+const BEAM_INFORMATION_EXTRACTION_TYPES: ReadonlySet<string> = new Set([
+  "Context-Based Recall",
+  "Comparison Questions",
+  "Discovery and Learning Process",
+  "Problem-Solution Context",
+  "Relationship and Connection Context",
+  "Timeline Integration",
+  "context_based_recall",
+  "context_date/time",
+  "context_detail",
+  "date_recall",
+  "distance_recall",
+  "duration_recall",
+  "information_extraction",
+  "location_and_distance_recall",
+  "named_entity",
+  "name_recognition",
+  "number_recall",
+  "numerical_precision",
+  "preference_recall",
+  "temporal_and_location_recall",
+  "temporal_discrimination",
+]);
 
-interface BeamPaperProtocolCliOptions {
+export interface BeamPaperProtocolCliOptions {
   concurrency: number;
   outputDir?: string;
   reportPath?: string;
@@ -120,7 +151,10 @@ export function canonicalizeBeamAbility(questionType: string): BeamAbility {
   if (EXPLICIT_BEAM_ABILITIES.has(questionType)) {
     return questionType as BeamAbility;
   }
-  return "information_extraction";
+  if (BEAM_INFORMATION_EXTRACTION_TYPES.has(questionType)) {
+    return "information_extraction";
+  }
+  throw new Error(`unknown BEAM question type: ${questionType}`);
 }
 
 export function buildBeamPaperCategorySummary(
@@ -264,6 +298,118 @@ function requiredPath(value: string | undefined, flag: string): string {
     throw new Error(`${flag} is required.`);
   }
   return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseBeamReport(value: unknown, path: string): { cases: BeamReportCase[] } {
+  if (!isRecord(value) || !Array.isArray(value.cases) || value.cases.length === 0) {
+    throw new Error(`malformed BEAM report at ${path}: cases must be non-empty`);
+  }
+  const cases = value.cases.map((entry, index): BeamReportCase => {
+    if (
+      !isRecord(entry) ||
+      typeof entry.questionId !== "string" ||
+      entry.questionId.length === 0 ||
+      typeof entry.questionType !== "string" ||
+      entry.questionType.length === 0 ||
+      (entry.hypothesis !== undefined && typeof entry.hypothesis !== "string")
+    ) {
+      throw new Error(`malformed BEAM report case at ${path}:${index + 1}`);
+    }
+    canonicalizeBeamAbility(entry.questionType);
+    return {
+      ...(entry.hypothesis === undefined ? {} : { hypothesis: entry.hypothesis }),
+      questionId: entry.questionId,
+      questionType: entry.questionType,
+    };
+  });
+  return { cases };
+}
+
+function parseBeamRubrics(
+  value: unknown,
+  path: string,
+): Record<string, BeamRubricEntry> {
+  if (!isRecord(value)) {
+    throw new Error(`malformed BEAM rubrics at ${path}: expected an object`);
+  }
+  const rubrics: Record<string, BeamRubricEntry> = {};
+  for (const [questionId, entry] of Object.entries(value)) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.question !== "string" ||
+      entry.question.length === 0 ||
+      !Array.isArray(entry.rubric) ||
+      entry.rubric.length === 0 ||
+      !entry.rubric.every((item) => typeof item === "string" && item.length > 0)
+    ) {
+      throw new Error(`malformed BEAM rubric at ${path}:${questionId}`);
+    }
+    rubrics[questionId] = {
+      question: entry.question,
+      rubric: entry.rubric,
+    };
+  }
+  return rubrics;
+}
+
+function pathInsideOrEqual(parentPath: string, candidatePath: string): boolean {
+  const child = relative(parentPath, candidatePath);
+  return child.length === 0 ||
+    (child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child));
+}
+
+async function resolvePhysicalPath(path: string): Promise<string> {
+  let ancestor = resolve(path);
+  const missingSegments: string[] = [];
+  while (true) {
+    try {
+      return resolve(await realpath(ancestor), ...missingSegments);
+    } catch (error) {
+      if (!hasErrorCode(error, "ENOENT")) {
+        throw error;
+      }
+      const parent = dirname(ancestor);
+      if (parent === ancestor) {
+        throw error;
+      }
+      missingSegments.unshift(basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null &&
+    "code" in error && error.code === code;
+}
+
+async function assertOutputSourcesDisjoint(input: {
+  reportPath: string;
+  rubricRescoreDir: string;
+  rubricsPath: string;
+  runDirectory: string;
+}): Promise<void> {
+  const [reportPath, rubricRescoreDir, rubricsPath, runDirectory] =
+    await Promise.all([
+      resolvePhysicalPath(input.reportPath),
+      resolvePhysicalPath(input.rubricRescoreDir),
+      resolvePhysicalPath(input.rubricsPath),
+      resolvePhysicalPath(input.runDirectory),
+    ]);
+  const sourceFiles = [reportPath, rubricsPath];
+  if (
+    sourceFiles.some((path) => pathInsideOrEqual(runDirectory, path)) ||
+    pathInsideOrEqual(runDirectory, rubricRescoreDir) ||
+    pathInsideOrEqual(rubricRescoreDir, runDirectory)
+  ) {
+    throw new Error(
+      `BEAM paper rescore output ${input.runDirectory} overlaps source input`,
+    );
+  }
 }
 
 export function parseBeamPaperProtocolCliOptions(
@@ -449,14 +595,21 @@ export async function runBeamPaperProtocolRescore(
   const rubricRescoreIdentityPath = join(rubricRescoreDir, "run-identity.json");
   const rubricRescoreProgressPath = join(rubricRescoreDir, "progress.jsonl");
 
+  await assertOutputSourcesDisjoint({
+    reportPath,
+    rubricRescoreDir,
+    rubricsPath,
+    runDirectory,
+  });
+  const report = parseBeamReport(
+    JSON.parse(await readFile(reportPath, "utf8")) as unknown,
+    reportPath,
+  );
+  const rubrics = parseBeamRubrics(
+    JSON.parse(await readFile(rubricsPath, "utf8")) as unknown,
+    rubricsPath,
+  );
   resolveOfficialRescoreJudgeEnvironment(process.env);
-  const report = JSON.parse(await readFile(reportPath, "utf8")) as {
-    cases: BeamReportCase[];
-  };
-  const rubrics = JSON.parse(await readFile(rubricsPath, "utf8")) as Record<
-    string,
-    BeamRubricEntry
-  >;
   const rubricRescoreIdentity = JSON.parse(
     await readFile(rubricRescoreIdentityPath, "utf8"),
   ) as {

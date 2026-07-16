@@ -273,6 +273,7 @@ export async function runPhase70RerankerEval(
       createLocomoSmokeMemory({
         generalizedFusion: true,
         providerRerankingConfig: input.providerRerankingConfig,
+        providerRerankingStrategy: "pointwise",
       }));
   const targetIds = new Set(manifest.targetQuestionIds);
   const rows: Phase70RerankerRow[] = [];
