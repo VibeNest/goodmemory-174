@@ -252,6 +252,23 @@ describe("Codex coding-effect deterministic stage score", () => {
     });
   });
 
+  it("classifies a formal Codex non-zero exit as infrastructure failure", () => {
+    expect(scoreCodexStage({
+      codex: {
+        ...codex("non-zero-exit"),
+        stderr: "401 authentication expired",
+      },
+      failToPass: testResult("fail-to-pass"),
+      passToPass: testResult("pass-to-pass"),
+      patch: patch(),
+    })).toEqual({
+      disposition: "infrastructure-failure",
+      executionFailureStage: "codex-execution",
+      resolved: false,
+      taskFailureReasons: [],
+    });
+  });
+
   it("counts a running hidden test timeout as a finalized task failure", () => {
     expect(scoreCodexStage({
       codex: codex(),

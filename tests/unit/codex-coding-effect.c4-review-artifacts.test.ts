@@ -37,6 +37,20 @@ describe("Codex coding-effect C4 review artifacts", () => {
       "c4-paired-results",
       "c5-paired-results",
     ]);
+    expect(bundle.datasetId).toBe("codex-c4-controlled-pilot-v2");
+  });
+
+  it("instructs the reviewer to apply the mutually exclusive memory check for each episode mode", () => {
+    const request = buildC4ReviewRequest({
+      inputBundleSha256: SHA256,
+    });
+
+    expect(request).toContain("`memoryExpectationMode`");
+    expect(request).toContain("`required`");
+    expect(request).toContain("`memoryUsefulNotAnswer`");
+    expect(request).toContain("`irrelevant-control`");
+    expect(request).toContain("`memoryIrrelevantAndNonMisleading`");
+    expect(request).toContain("mutually exclusive");
   });
 
   it("hash-binds the exact request, input bundle, and reviewer response", () => {
@@ -76,6 +90,7 @@ describe("Codex coding-effect C4 review artifacts", () => {
     expect(provenance.inputBundle.sha256).toBe(sha256(inputBundleBytes));
     expect(provenance.response.sha256).toBe(sha256(responseBytes));
     expect(requestBytes).toContain(sha256(inputBundleBytes));
+    expect(provenance.datasetId).toBe("codex-c4-controlled-pilot-v2");
   });
 
   it("rejects self-consistent but non-canonical review instructions", () => {

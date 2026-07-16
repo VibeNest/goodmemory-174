@@ -1172,7 +1172,7 @@ function assertPairedHostSemantics(
       hostConfigurations.arms.noMemory.codexConfig.sourceSha256,
     evidence: noMemory.armEvidence.permissionIsolation,
     expectedLabels: C3_BASE_DENIED_READ_LABELS,
-    phase: "preflight",
+    phase: "pre-launch",
   });
   verifyPermissionIsolation({
     configSha256:
@@ -1182,8 +1182,8 @@ function assertPairedHostSemantics(
     phase: "pre-launch",
   });
   if (
-    JSON.stringify(noMemory.armEvidence.permissionIsolation) !==
-      JSON.stringify(identity.arms.noMemory.permissionIsolation) ||
+    noMemory.armEvidence.permissionIsolation.audit.configSha256 !==
+      identity.arms.noMemory.permissionIsolation.audit.configSha256 ||
     installed.armEvidence.package.sha256 !==
       identity.arms.goodmemoryInstalled.package.sha256 ||
     installed.armEvidence.package.version !==

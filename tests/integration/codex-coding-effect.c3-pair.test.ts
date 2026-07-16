@@ -985,6 +985,19 @@ describe("Codex coding-effect C3 paired runner", () => {
     });
   });
 
+  it("revalidates permission isolation immediately before no-memory Codex launch", async () => {
+    await withPairFixture(async (fixture) => {
+      const sequence: string[] = [];
+
+      await expect(runPair(fixture, "paired-no-memory-pre-launch-drift", {
+        preLaunchPermissionFailureArm: "no-memory",
+        sequence,
+      })).rejects.toThrow("injected pre-launch permission drift");
+
+      expect(sequence).toEqual(["base-health"]);
+    });
+  });
+
   it("persists an incomparable pair when a Codex process cannot start", async () => {
     await withPairFixture(async (fixture) => {
       const result = await runPair(fixture, "paired-codex-failure", {
@@ -1193,6 +1206,7 @@ async function runPair(
     onSeed?: (outputDirectory: string) => Promise<void>;
     outputDirectory?: string;
     preLaunchPermissionFailure?: boolean;
+    preLaunchPermissionFailureArm?: "goodmemory-installed" | "no-memory";
     recallPreflightFailure?: boolean;
     recallPreflightThrow?: boolean;
     sandboxConfigDriftArm?: "goodmemory-installed" | "no-memory";
@@ -1279,7 +1293,14 @@ async function runPair(
     workspaceRoot: join(fixture.root, `${suffix}-workspaces`),
     dependencies: {
       auditPermissionIsolation: async ({ phase, runtime }) => {
-        if (phase === "pre-launch" && options.preLaunchPermissionFailure) {
+        const failureArm = options.preLaunchPermissionFailureArm ??
+          (options.preLaunchPermissionFailure
+            ? "goodmemory-installed"
+            : undefined);
+        if (
+          phase === "pre-launch" &&
+          runtime.plan.arm === failureArm
+        ) {
           throw new Error("injected pre-launch permission drift");
         }
         return permissionIsolation(

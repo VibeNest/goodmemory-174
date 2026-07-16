@@ -10,6 +10,10 @@ import {
 const DEFAULT_OUTPUT = resolve(
   "fixtures/codex-coding-effect/c4-controlled-pilot",
 );
+const REPLACEABLE_C4_DATASET_IDS = new Set<string>([
+  "codex-c4-controlled-pilot-v1",
+  "codex-c4-controlled-pilot-v2",
+]);
 
 export async function freezeC4ControlledPilotDataset(input: {
   outputRoot: string;
@@ -30,7 +34,10 @@ export async function freezeC4ControlledPilotDataset(input: {
       const existing = JSON.parse(
         await readFile(join(outputRoot, "manifest.json"), "utf8"),
       ) as { datasetId?: unknown };
-      if (existing.datasetId !== "codex-c4-controlled-pilot-v1") {
+      if (
+        typeof existing.datasetId !== "string" ||
+        !REPLACEABLE_C4_DATASET_IDS.has(existing.datasetId)
+      ) {
         throw new Error("refusing to replace a non-C4 dataset directory");
       }
       await rm(outputRoot, { recursive: true });

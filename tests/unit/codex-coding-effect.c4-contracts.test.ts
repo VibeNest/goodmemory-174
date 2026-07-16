@@ -128,7 +128,7 @@ describe("Codex coding-effect C4 contracts", () => {
     const review = validReview();
     expect(parseC4IndependentDatasetReview(review)).toMatchObject({
       assetLockSha256: SHA256,
-      datasetId: "codex-c4-controlled-pilot-v1",
+      datasetId: "codex-c4-controlled-pilot-v2",
       inputBundleSha256: SHA256,
       leakageAuditSha256: SHA256,
       publicCodingEffectProof: false,
@@ -169,6 +169,72 @@ describe("Codex coding-effect C4 contracts", () => {
       ...review,
       c4AbResultsInspected: true,
     })).toThrow("C4 reviewer must not inspect C4/C5 A/B results");
+  });
+
+  it("uses mutually exclusive memory checks for required and irrelevant-control episodes", () => {
+    const review = validReview();
+    expect(review.episodeReviews[0]).toMatchObject({
+      checks: {
+        memoryUsefulNotAnswer: true,
+      },
+      memoryExpectationMode: "required",
+    });
+    expect(review.episodeReviews[5]).toMatchObject({
+      checks: {
+        memoryIrrelevantAndNonMisleading: true,
+      },
+      memoryExpectationMode: "irrelevant-control",
+    });
+    expect(parseC4IndependentDatasetReview(review)).toMatchObject({
+      status: "accepted",
+    });
+
+    const irrelevantEpisode = review.episodeReviews[5]!;
+    expect(() => parseC4IndependentDatasetReview({
+      ...review,
+      episodeReviews: review.episodeReviews.map((episodeReview, index) =>
+        index === 5
+          ? {
+              ...irrelevantEpisode,
+              checks: {
+                ...irrelevantEpisode.checks,
+                memoryUsefulNotAnswer: true,
+              },
+            }
+          : episodeReview
+      ),
+    })).toThrow();
+
+    expect(() => parseC4IndependentDatasetReview({
+      ...review,
+      episodeReviews: review.episodeReviews.map((episodeReview, index) =>
+        index === 5
+          ? {
+              ...irrelevantEpisode,
+              checks: {
+                ...irrelevantEpisode.checks,
+                memoryIrrelevantAndNonMisleading: false,
+              },
+            }
+          : episodeReview
+      ),
+    })).toThrow("accepted C4 review contains a failed check");
+
+    expect(parseC4IndependentDatasetReview({
+      ...review,
+      episodeReviews: review.episodeReviews.map((episodeReview, index) =>
+        index === 5
+          ? {
+              ...irrelevantEpisode,
+              checks: {
+                ...irrelevantEpisode.checks,
+                memoryIrrelevantAndNonMisleading: false,
+              },
+            }
+          : episodeReview
+      ),
+      status: "changes-requested",
+    })).toMatchObject({ status: "changes-requested" });
   });
 
   it("binds exact review inputs and rejects non-independent reviewer provenance", () => {
@@ -246,7 +312,7 @@ function validDataset() {
     ["irrelevant-memory-negative-control"],
   ] as const;
   return {
-    datasetId: "codex-c4-controlled-pilot-v1",
+    datasetId: "codex-c4-controlled-pilot-v2",
     episodes: strata.map((episodeStrata, index) => ({
       author: "GoodMemory C4 task author",
       claimEligibility: "pilot-only" as const,
@@ -334,10 +400,16 @@ function validReview() {
     assetRootSha256: SHA256,
     c4AbResultsInspected: false,
     codingOutcomeArtifactsInspected: false,
-    datasetId: "codex-c4-controlled-pilot-v1",
+    datasetId: "codex-c4-controlled-pilot-v2",
     episodeReviews: Array.from({ length: 6 }, (_, index) => ({
       author: "GoodMemory C4 task author",
-      checks: {
+      checks: index === 5 ? {
+        codingNotTrivia: true,
+        hiddenTestsFair: true,
+        memoryIrrelevantAndNonMisleading: true,
+        negativeControlCredible: true,
+        noRepositorySpecificRunnerException: true,
+      } : {
         codingNotTrivia: true,
         hiddenTestsFair: true,
         memoryUsefulNotAnswer: true,
@@ -345,6 +417,9 @@ function validReview() {
         noRepositorySpecificRunnerException: true,
       },
       episodeId: `episode-${index + 1}`,
+      memoryExpectationMode: index === 5
+        ? "irrelevant-control" as const
+        : "required" as const,
       rationale: "The task and hidden-test boundary are independently reviewable.",
     })),
     inputBundleSha256: SHA256,
@@ -371,7 +446,7 @@ function validInputBundle() {
     assetRootSha256: SHA256,
     createdAt: "2026-07-16T10:00:00.000Z",
     datasetRootPath: "fixtures/codex-coding-effect/c4-controlled-pilot",
-    datasetId: "codex-c4-controlled-pilot-v1",
+    datasetId: "codex-c4-controlled-pilot-v2",
     excludedOutcomeArtifacts: [
       "c4-baseline-results",
       "c4-paired-results",
@@ -390,7 +465,7 @@ function validInputBundle() {
 function validProvenance() {
   return {
     authorTaskName: "/root",
-    datasetId: "codex-c4-controlled-pilot-v1",
+    datasetId: "codex-c4-controlled-pilot-v2",
     dispatch: {
       path: "review/dispatch.json",
       sha256: SHA256,

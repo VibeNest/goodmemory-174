@@ -22,12 +22,21 @@ export const C4_REQUIRED_MEMORY_STRATA = [
   "no-history-negative-control",
 ] as const;
 
-const reviewCheckSchema = z.object({
+const sharedReviewCheckShape = {
   codingNotTrivia: z.boolean(),
   hiddenTestsFair: z.boolean(),
-  memoryUsefulNotAnswer: z.boolean(),
   negativeControlCredible: z.boolean(),
   noRepositorySpecificRunnerException: z.boolean(),
+};
+
+const requiredMemoryReviewCheckSchema = z.object({
+  ...sharedReviewCheckShape,
+  memoryUsefulNotAnswer: z.boolean(),
+}).strict();
+
+const irrelevantMemoryReviewCheckSchema = z.object({
+  ...sharedReviewCheckShape,
+  memoryIrrelevantAndNonMisleading: z.boolean(),
 }).strict();
 
 const reviewInputBundleSchema = z.object({
@@ -41,7 +50,7 @@ const reviewInputBundleSchema = z.object({
   datasetRootPath: z.literal(
     "fixtures/codex-coding-effect/c4-controlled-pilot",
   ),
-  datasetId: z.literal("codex-c4-controlled-pilot-v1"),
+  datasetId: z.literal("codex-c4-controlled-pilot-v2"),
   excludedOutcomeArtifacts: z.tuple([
     z.literal("c4-baseline-results"),
     z.literal("c4-paired-results"),
@@ -69,18 +78,33 @@ const reviewInputBundleSchema = z.object({
   }
 });
 
+const episodeReviewSchema = z.discriminatedUnion(
+  "memoryExpectationMode",
+  [
+    z.object({
+      author: trimmedStringSchema,
+      checks: requiredMemoryReviewCheckSchema,
+      episodeId: trimmedStringSchema,
+      memoryExpectationMode: z.literal("required"),
+      rationale: trimmedStringSchema,
+    }).strict(),
+    z.object({
+      author: trimmedStringSchema,
+      checks: irrelevantMemoryReviewCheckSchema,
+      episodeId: trimmedStringSchema,
+      memoryExpectationMode: z.literal("irrelevant-control"),
+      rationale: trimmedStringSchema,
+    }).strict(),
+  ],
+);
+
 const independentDatasetReviewSchema = z.object({
   assetLockSha256: sha256Schema,
   assetRootSha256: sha256Schema,
   c4AbResultsInspected: z.boolean(),
   codingOutcomeArtifactsInspected: z.boolean(),
-  datasetId: z.literal("codex-c4-controlled-pilot-v1"),
-  episodeReviews: z.array(z.object({
-    author: trimmedStringSchema,
-    checks: reviewCheckSchema,
-    episodeId: trimmedStringSchema,
-    rationale: trimmedStringSchema,
-  }).strict()).length(6),
+  datasetId: z.literal("codex-c4-controlled-pilot-v2"),
+  episodeReviews: z.array(episodeReviewSchema).length(6),
   inputBundleSha256: sha256Schema,
   manifestSha256: sha256Schema,
   leakageAuditSha256: sha256Schema,
@@ -111,9 +135,7 @@ const independentDatasetReviewSchema = z.object({
       });
     }
     episodeIds.add(episode.episodeId);
-    failedCheckCount += Object.values(episode.checks).filter((passed) =>
-      !passed
-    ).length;
+    failedCheckCount += countFailedEpisodeReviewChecks(episode);
   }
   if (review.status === "accepted" && failedCheckCount > 0) {
     context.addIssue({
@@ -162,7 +184,7 @@ const independentReviewDispatchSchema = z.object({
 
 const independentReviewProvenanceSchema = z.object({
   authorTaskName: trimmedStringSchema,
-  datasetId: z.literal("codex-c4-controlled-pilot-v1"),
+  datasetId: z.literal("codex-c4-controlled-pilot-v2"),
   dispatch: reviewArtifactReferenceSchema.extend({
     path: z.literal("review/dispatch.json"),
   }).strict(),
@@ -221,14 +243,29 @@ export type C4IndependentReviewProvenance = z.infer<
 >;
 export type C4ReviewInputBundle = z.infer<typeof reviewInputBundleSchema>;
 
+function countFailedEpisodeReviewChecks(
+  episode: z.infer<typeof episodeReviewSchema>,
+): number {
+  const sharedChecks = [
+    episode.checks.codingNotTrivia,
+    episode.checks.hiddenTestsFair,
+    episode.checks.negativeControlCredible,
+    episode.checks.noRepositorySpecificRunnerException,
+  ];
+  const memoryCheck = episode.memoryExpectationMode === "required"
+    ? episode.checks.memoryUsefulNotAnswer
+    : episode.checks.memoryIrrelevantAndNonMisleading;
+  return [...sharedChecks, memoryCheck].filter((passed) => !passed).length;
+}
+
 export function validateC4ControlledPilotDataset(
   dataset: CodexCodingEffectDataset,
 ): CodexCodingEffectDatasetV2 {
   if (dataset.schemaVersion !== 2) {
     throw new Error("C4 requires Codex coding-effect dataset schema version 2");
   }
-  if (dataset.datasetId !== "codex-c4-controlled-pilot-v1") {
-    throw new Error("C4 dataset id must be codex-c4-controlled-pilot-v1");
+  if (dataset.datasetId !== "codex-c4-controlled-pilot-v2") {
+    throw new Error("C4 dataset id must be codex-c4-controlled-pilot-v2");
   }
   if (dataset.episodes.length !== 6) {
     throw new Error(

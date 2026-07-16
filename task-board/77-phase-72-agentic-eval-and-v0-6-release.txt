@@ -4,7 +4,7 @@ Phase 72: Agentic Eval and v0.6 Release
 Status
 ------
 
-[BENCHMARK GATE PASSED - RELEASE METADATA PENDING]
+[IMPLEMENTATION COMPLETE - FINAL VERSIONED VERIFICATION IN PROGRESS]
 
 Goal
 ----
@@ -119,8 +119,9 @@ memory/scope deletion, trace, audit, fragment-token clearing, Bearer-only auth,
 ETag conflict handling, idempotent retry, and deprecated read-only viewer mode
 with clean normal-flow consoles. Packed-consumer smoke passes under Node
 20.20.2, 22.23.1, and 24.18.0. The 219-file tarball excludes `src/` and unpacks
-to 3,869,733 bytes (3.690460 MiB). The strict claim gate reports zero current
-claims and five consistent historical declarations.
+to 3,869,733 bytes (3.690460 MiB). After the `0.6.0` metadata update, the strict
+claim gate reports five consistent declarations with zero over-claiming: three
+current claims and two historical/internal declarations.
 [DONE] The Phase 72 benchmark release gate reads and fingerprints all accepted
 source reports. Every unchanged threshold passes. BEAM passes the revised
 comparable gate with 0.8276290064 generalized recall, complete 400-question /
@@ -132,6 +133,6 @@ the public 0.49 reference. The 0.620 strict, 0.7650987103 unified stretch, and
 Release Decision
 ----------------
 
-The benchmark gate is closed. Proceed with the `0.6.0` metadata/claim update
-and rerun the complete versioned release verification. Do not create a tag or
-publish until those final checks pass.
+The benchmark gate and `0.6.0` metadata/claim update are closed. Rerun the
+complete versioned release verification. Do not create a tag or publish until
+those final checks pass.

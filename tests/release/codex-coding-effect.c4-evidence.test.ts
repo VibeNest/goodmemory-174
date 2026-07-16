@@ -27,12 +27,18 @@ const DATASET_ROOT = join(
   "fixtures/codex-coding-effect/c4-controlled-pilot",
 );
 const REPORT_ROOT = join(REPOSITORY_ROOT, "reports/quality-gates/phase-73");
+const HISTORICAL_BASELINE_PATH = join(
+  REPORT_ROOT,
+  "c4-baseline-ceiling-pilot-v1.json",
+);
 
 describe("Codex coding-effect C4 tracked evidence", () => {
   it("binds the frozen dataset and current core while independent review remains open", async () => {
     const [
+      baselineBytes,
       coreBytes,
       dispatchBytes,
+      historicalBaselineBytes,
       inputBundleBytes,
       manifestBytes,
       requestBytes,
@@ -40,8 +46,10 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       taskBoard,
       plan,
     ] = await Promise.all([
+      readFile(join(REPORT_ROOT, "c4-baseline-ceiling-pilot.json"), "utf8"),
       readFile(join(REPORT_ROOT, "c4-controlled-pilot-core.json"), "utf8"),
       readFile(join(DATASET_ROOT, "review/dispatch.json"), "utf8"),
+      readFile(HISTORICAL_BASELINE_PATH, "utf8"),
       readFile(join(DATASET_ROOT, "review/input-bundle.json"), "utf8"),
       readFile(join(DATASET_ROOT, "manifest.json"), "utf8"),
       readFile(join(DATASET_ROOT, "review/request.md"), "utf8"),
@@ -67,15 +75,42 @@ describe("Codex coding-effect C4 tracked evidence", () => {
         "utf8",
       ),
     ]);
+    const baseline = JSON.parse(baselineBytes) as {
+      claimBoundary: string;
+      datasetId: string;
+      publicClaimEligible: boolean;
+    };
     const core = JSON.parse(coreBytes) as C4DatasetCoreReadiness;
     const dispatch = parseC4IndependentReviewDispatch(
       JSON.parse(dispatchBytes) as unknown,
     );
+    const historicalBaseline = JSON.parse(historicalBaselineBytes) as {
+      attemptedCount: number;
+      claimBoundary: string;
+      datasetId: string;
+      decision: string;
+      publicClaimEligible: boolean;
+      resolvedCount: number;
+    };
     const inputBundle = parseC4ReviewInputBundle(
       JSON.parse(inputBundleBytes) as unknown,
     );
+    const manifest = JSON.parse(manifestBytes) as { datasetId: string };
     const { assetLock, assetLockSha256 } = await loadC4AssetLock(DATASET_ROOT);
 
+    expect(historicalBaseline).toMatchObject({
+      attemptedCount: 6,
+      claimBoundary: "diagnostic-no-memory-ceiling-only",
+      datasetId: "codex-c4-controlled-pilot-v1",
+      decision: "redesign-episodes-before-c5",
+      publicClaimEligible: false,
+      resolvedCount: 6,
+    });
+    expect(baseline).toMatchObject({
+      claimBoundary: "diagnostic-no-memory-ceiling-only",
+      datasetId: "codex-c4-controlled-pilot-v2",
+      publicClaimEligible: false,
+    });
     expect(await buildC4AssetLock(DATASET_ROOT)).toEqual(assetLock);
     expect(core).toMatchObject({
       assetLockSha256,
@@ -93,11 +128,14 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       },
       excludedHosts: ["claude-code"],
       host: "codex",
+      datasetId: "codex-c4-controlled-pilot-v2",
       publicClaimEligible: false,
       publicCodingEffectProof: false,
       readmeRowAllowed: false,
       status: "accepted",
     });
+    expect(manifest.datasetId).toBe("codex-c4-controlled-pilot-v2");
+    expect(inputBundle.datasetId).toBe("codex-c4-controlled-pilot-v2");
     expect(sha256(manifestBytes)).toBe(core.manifestSha256);
     expect(inputBundle.assetLockSha256).toBe(core.assetLockSha256);
     expect(inputBundle.assetFiles).toEqual(assetLock.files.map((file) => ({

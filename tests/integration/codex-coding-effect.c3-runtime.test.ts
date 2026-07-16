@@ -271,6 +271,53 @@ describe("Codex coding-effect C3 installed runtime", () => {
     });
   });
 
+  it("fails permission isolation when a probe mutates the active config", async () => {
+    await withRuntimeFixture(async (fixture) => {
+      const runtime = await prepareC3NoMemoryArm({
+        authFile: fixture.authFile,
+        bunExecutable: process.execPath,
+        codexExecutable: fixture.codexExecutable,
+        plan: fixture.plans[0],
+        runProcess: createFakeBoundary(fixture, []),
+      });
+      const sensitivePath = join(fixture.root, "config-drift-secret.ts");
+      await writeFile(sensitivePath, "hidden evaluator bytes\n", "utf8");
+
+      await expect(auditC3PermissionIsolation({
+        deniedReadPaths: [{ label: "evaluator", path: sensitivePath }],
+        networkProbe: async () => ({
+          networkDenied: true,
+          networkPositiveControl: true,
+        }),
+        phase: "pre-launch",
+        runProcess: async (request) => {
+          const commandIndex = request.args.indexOf("--") + 1;
+          const command = request.args[commandIndex];
+          const path = request.args[commandIndex + 1]!;
+          if (command === "/usr/bin/touch") {
+            await writeFile(path, "", "utf8");
+            return processResult();
+          }
+          if (path === sensitivePath) {
+            await writeFile(
+              join(runtime.plan.paths.codexHome, "config.toml"),
+              "model = \"drifted\"\n",
+              "utf8",
+            );
+            return processResult({
+              exitCode: 77,
+              stderr: "Operation not permitted",
+            });
+          }
+          return processResult({ stdout: await readFile(path, "utf8") });
+        },
+        runtime,
+      })).rejects.toThrow(
+        "permission profile config changed during isolation audit",
+      );
+    });
+  });
+
   it("seeds through explicit rollout writeback, exports the store, and persists a receipt", async () => {
     await withRuntimeFixture(async (fixture) => {
       const calls: string[][] = [];

@@ -31,9 +31,11 @@ import { prepareC3IsolatedClone } from "./c3-workspace";
 import {
   buildC4BaselineCeilingTargets,
   buildC4BaselinePrompt,
+  loadC4BaselineStageEvidenceFiles,
   runC4AdaptiveBaselineCeiling,
   serializeC4BaselineCeilingReport,
   serializeC4BaselineRunIdentity,
+  verifyC4BaselineStageEvidenceFiles,
 } from "./c4-baseline-ceiling";
 import type {
   C4BaselineCeilingReport,
@@ -164,7 +166,9 @@ export async function runC4NoMemoryCeilingPilot(
       reasoningEffort: input.reasoningEffort,
       runId: input.runId,
       schemaVersion: 1,
+      stageTimeoutMs: input.stageTimeoutMs,
       strategy: "stage-3-first-then-stage-2-if-needed",
+      testTimeoutMs: input.testTimeoutMs,
     };
     const runIdentityBytes = serializeC4BaselineRunIdentity(runIdentity);
     await writeFile(
@@ -193,6 +197,13 @@ export async function runC4NoMemoryCeilingPilot(
       runIdentity,
       targets: buildC4BaselineCeilingTargets(controlledDataset),
     });
+    verifyC4BaselineStageEvidenceFiles(
+      report,
+      await loadC4BaselineStageEvidenceFiles(
+        join(outputDirectory, "stages"),
+        report,
+      ),
+    );
     const reportBytes = serializeC4BaselineCeilingReport(report);
     const reportSha256 = sha256(reportBytes);
     await writeFile(join(outputDirectory, "report.json"), reportBytes, {

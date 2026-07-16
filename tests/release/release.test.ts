@@ -2797,7 +2797,7 @@ describe("release metadata and docs", () => {
       "Full ImplicitMemBench and BEAM reports are internal research evidence until explicitly promoted.",
     );
     expect(currentStatus).toContain(
-      "LoCoMo's versioned historical declaration reports strict non-adversarial token-F1 0.6117",
+      "LoCoMo's current `v0.6.0` public-opt-in declaration covers all 1540 non-adversarial questions",
     );
     expect(currentStatus).toContain(
       "Phase 65 case-level hardening is paused; Phase 69 owns generalized candidate admission and noise control.",

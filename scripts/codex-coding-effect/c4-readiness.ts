@@ -14,9 +14,11 @@ import { z } from "zod";
 import {
   assertC4BaselineCeilingReportBindings,
   serializeC4BaselineCeilingReport,
+  verifyC4BaselineStageEvidenceFiles,
 } from "./c4-baseline-ceiling";
 import type {
   C4BaselineCeilingReport,
+  C4BaselineStageEvidenceFile,
 } from "./c4-baseline-ceiling";
 import {
   buildC4AssetLock,
@@ -64,6 +66,7 @@ import {
 import type { EvaluatorTestResult } from "./test-scoring";
 import { prepareC3IsolatedClone } from "./c3-workspace";
 
+const C4_DATASET_ID = "codex-c4-controlled-pilot-v2";
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/u);
 const licenseReceiptSchema = z.object({
   datasetLicense: z.literal("MIT"),
@@ -87,11 +90,28 @@ const authorAttestationSchema = z.object({
   author: z.string().min(1),
   authorTaskName: z.string().min(1),
   authoredBeforePairedExecution: z.literal(true),
-  c4AbResultsInspectedBeforeFreeze: z.literal(false),
-  datasetId: z.literal("codex-c4-controlled-pilot-v1"),
+  c4PairedOutcomesInspectedBeforeFreeze: z.literal(false),
+  c5PairedOutcomesInspectedBeforeFreeze: z.literal(false),
+  datasetId: z.literal(C4_DATASET_ID),
   frozenAt: z.string().min(1),
-  schemaVersion: z.literal(2),
-  scope: z.literal("dataset-authoring-only-no-c4-ab-results"),
+  priorV1BaselineCeiling: z.object({
+    attemptedStages: z.literal(6),
+    decision: z.literal("redesign-episodes-before-c5"),
+    evidenceScope: z.literal("aggregate-ceiling-decision-only"),
+    patchesInspected: z.literal(false),
+    reportPath: z.literal(
+      "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot-v1.json",
+    ),
+    reportSha256: z.literal(
+      "28d3bc535cd1c26ed7e30fc7b541f66e16548ff4219d870050adbd823c71a952",
+    ),
+    resolvedStages: z.literal(6),
+    transcriptsInspected: z.literal(false),
+  }).strict(),
+  schemaVersion: z.literal(3),
+  scope: z.literal(
+    "v2-redesign-from-aggregate-v1-ceiling-no-paired-outcomes",
+  ),
 }).strict();
 const evaluatorCasesSchema = z.object({
   cases: z.array(z.object({
@@ -141,7 +161,7 @@ const baselineCeilingReportSchema = z.object({
   claimBoundary: z.literal("diagnostic-no-memory-ceiling-only"),
   codexExecutableSha256: sha256Schema,
   codexVersion: z.string().min(1),
-  datasetId: z.literal("codex-c4-controlled-pilot-v1"),
+  datasetId: z.literal(C4_DATASET_ID),
   decision: z.enum([
     "inconclusive",
     "proceed-to-c5-pilot",
@@ -161,6 +181,7 @@ const baselineCeilingReportSchema = z.object({
   runId: z.string().min(1),
   schemaVersion: z.literal(1),
   stageEvidenceAggregateSha256: sha256Schema,
+  stageTimeoutMs: z.number().int().positive(),
   strategy: z.object({
     earlyCeilingThreshold: z.literal(5),
     finalCeilingThreshold: z.literal(10),
@@ -168,6 +189,7 @@ const baselineCeilingReportSchema = z.object({
     secondRound: z.literal("stage-2-all-episodes-if-needed"),
     stage1Excluded: z.literal(true),
   }).strict(),
+  testTimeoutMs: z.number().int().positive(),
 }).strict();
 
 export const C4_BASELINE_CEILING_REPORT_PATH =
@@ -231,8 +253,12 @@ export interface C4DatasetCoreReadiness {
     repositories: number;
     stages: number;
   };
-  datasetId: "codex-c4-controlled-pilot-v1";
-  episodes: Array<{ author: string; id: string }>;
+  datasetId: typeof C4_DATASET_ID;
+  episodes: Array<{
+    author: string;
+    id: string;
+    memoryExpectationMode: "irrelevant-control" | "required";
+  }>;
   excludedHosts: ["claude-code"];
   host: "codex";
   leakage: C4LeakageReadiness;
@@ -281,7 +307,7 @@ export interface C4DatasetReadinessReport {
   claimBoundary: "dataset-readiness-only-no-coding-uplift";
   coreSha256: string;
   counts: C4DatasetCoreReadiness["counts"];
-  datasetId: "codex-c4-controlled-pilot-v1";
+  datasetId: typeof C4_DATASET_ID;
   excludedHosts: ["claude-code"];
   host: "codex";
   leakageAuditSha256: string;
@@ -354,7 +380,7 @@ export async function runC4DatasetCoreReadiness(input: {
   try {
     await logEvent(logPath, "readiness_started", {
       assetRootSha256: assetLock.assetRootSha256,
-      datasetId: "codex-c4-controlled-pilot-v1",
+      datasetId: C4_DATASET_ID,
       manifestSha256: loaded.manifestSha256,
     });
     const sources = await materializeSources(datasetRoot, workspaceRoot, dataset);
@@ -413,10 +439,11 @@ export async function runC4DatasetCoreReadiness(input: {
         repositories: repositories.length,
         stages: stages.length,
       },
-      datasetId: "codex-c4-controlled-pilot-v1",
+      datasetId: C4_DATASET_ID,
       episodes: dataset.episodes.map((episode) => ({
         author: episode.author,
         id: episode.id,
+        memoryExpectationMode: c4EpisodeMemoryExpectationMode(episode),
       })),
       excludedHosts: ["claude-code"],
       host: "codex",
@@ -465,6 +492,7 @@ export async function runC4DatasetCoreReadiness(input: {
 
 export function validateC4BaselineCeilingEvidence(
   baselineBytes: string,
+  stageEvidenceFiles: readonly C4BaselineStageEvidenceFile[],
 ): {
   report: C4BaselineCeilingReport;
   reportSha256: string;
@@ -483,6 +511,7 @@ export function validateC4BaselineCeilingEvidence(
     throw new Error("C4 baseline ceiling report is not canonically serialized");
   }
   assertC4BaselineCeilingReportBindings(report);
+  verifyC4BaselineStageEvidenceFiles(report, stageEvidenceFiles);
   if (report.decision === "redesign-episodes-before-c5") {
     throw new Error(
       "C4 baseline ceiling report requires episode redesign before C5",
@@ -505,6 +534,7 @@ export function validateC4BaselineCeilingEvidence(
 
 export function finalizeC4DatasetReadiness(input: {
   baselineBytes: string;
+  baselineStageEvidenceFiles: readonly C4BaselineStageEvidenceFile[];
   dispatchBytes: string;
   inputBundleBytes: string;
   provenanceBytes: string;
@@ -512,7 +542,10 @@ export function finalizeC4DatasetReadiness(input: {
   result: C4DatasetCoreReadinessResult;
   reviewBytes: string;
 }): C4DatasetReadinessResult {
-  const baseline = validateC4BaselineCeilingEvidence(input.baselineBytes);
+  const baseline = validateC4BaselineCeilingEvidence(
+    input.baselineBytes,
+    input.baselineStageEvidenceFiles,
+  );
   assertC4CanonicalIndependentReviewInstructions({
     dispatchBytes: input.dispatchBytes,
     inputBundleBytes: input.inputBundleBytes,
@@ -628,10 +661,10 @@ export function finalizeC4DatasetReadiness(input: {
     }
   }
   const expectedEpisodes = input.result.core.episodes.map((episode) =>
-    `${episode.id}\0${episode.author}`
+    `${episode.id}\0${episode.author}\0${episode.memoryExpectationMode}`
   ).sort();
   const reviewedEpisodes = review.episodeReviews.map((episode) =>
-    `${episode.episodeId}\0${episode.author}`
+    `${episode.episodeId}\0${episode.author}\0${episode.memoryExpectationMode}`
   ).sort();
   if (JSON.stringify(expectedEpisodes) !== JSON.stringify(reviewedEpisodes)) {
     throw new Error("C4 independent review episode coverage mismatch");
@@ -962,16 +995,9 @@ async function auditC4Leakage(
       ...repositoryInstructions,
       ...visibleRepositoryFiles,
     ].join("\n");
-    const publicProjectionScaffold = JSON.stringify({
-      durable: {
-        episodes: artifact.records.map((record) => ({
-          content: "<memory-content>",
-          role: record.role,
-          sourceId: record.id,
-        })),
-      },
-      schemaVersion: 1,
-    });
+    const prehistoryMessages = artifact.records.map((record) =>
+      record.message
+    ).join("\n");
     const episodeCases = evaluatorCases.data.cases
       .filter((testCase) => testCase.episodeId === episode.id);
     if (episodeCases.length !== episode.stages.length) {
@@ -1009,6 +1035,7 @@ async function auditC4Leakage(
       },
       {
         content: artifact.sourceBytes,
+        hiddenValueContent: prehistoryMessages,
         id: "frozen-prehistory",
       },
       {
@@ -1022,6 +1049,7 @@ async function auditC4Leakage(
           },
           schemaVersion: 1,
         }),
+        hiddenValueContent: prehistoryMessages,
         id: "goodmemory-export-after-seeding",
       },
       {
@@ -1070,8 +1098,7 @@ async function auditC4Leakage(
       declaredAllowedValues.map(hiddenValueKey),
     );
     const hiddenValues = allHiddenValues.filter((value) =>
-      !declaredAllowedValueKeys.has(hiddenValueKey(value)) &&
-      !c4HiddenValueAppearsInSurface(publicProjectionScaffold, value)
+      !declaredAllowedValueKeys.has(hiddenValueKey(value))
     );
     const goldCandidateLines = [...new Set([
       ...goldPatches.flatMap((patch) => meaningfulAddedLines(patch.bytes)),
@@ -1420,6 +1447,22 @@ function containsNormalized(surface: string, fragment: string): boolean {
   const normalized = normalizeLeakageText(fragment);
   return normalized.length > 0 &&
     normalizeLeakageText(surface).includes(normalized);
+}
+
+function c4EpisodeMemoryExpectationMode(
+  episode: CodexCodingEffectDatasetV2["episodes"][number],
+): "irrelevant-control" | "required" {
+  const modes = new Set(episode.stages
+    .filter((stage) => stage.position > 1)
+    .map((stage) => stage.memoryExpectation.mode));
+  if (modes.size !== 1) {
+    throw new Error(`C4 episode ${episode.id} has inconsistent memory modes`);
+  }
+  const [mode] = modes;
+  if (mode !== "required" && mode !== "irrelevant-control") {
+    throw new Error(`C4 episode ${episode.id} has no later-stage memory mode`);
+  }
+  return mode;
 }
 
 function expectedFailureFingerprint(episodeId: string, stageId: string): string {

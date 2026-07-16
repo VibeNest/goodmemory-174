@@ -94,6 +94,11 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       expect(result.core.readmeRowAllowed).toBe(false);
       expect(result.core.publicClaimEligible).toBe(false);
       expect(result.core.publicCodingEffectProof).toBe(false);
+      expect(result.core.episodes).toContainEqual({
+        author: "GoodMemory C4 dataset author",
+        id: "irrelevant-history-control",
+        memoryExpectationMode: "irrelevant-control",
+      });
 
       const repeated = await runC4DatasetCoreReadiness({
         datasetRoot: fixture.root,
@@ -139,6 +144,39 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         sha256(baselineBytes),
       );
       expect(final.report.reviewSha256).toHaveLength(64);
+      const mismatchedModeReview = JSON.parse(
+        review.reviewBytes,
+      ) as C4IndependentDatasetReview;
+      mismatchedModeReview.episodeReviews =
+        mismatchedModeReview.episodeReviews.map((episode) =>
+          episode.episodeId === "irrelevant-history-control"
+            ? {
+                author: episode.author,
+                checks: {
+                  codingNotTrivia: true,
+                  hiddenTestsFair: true,
+                  memoryUsefulNotAnswer: true,
+                  negativeControlCredible: true,
+                  noRepositorySpecificRunnerException: true,
+                },
+                episodeId: episode.episodeId,
+                memoryExpectationMode: "required",
+                rationale: episode.rationale,
+              }
+            : episode
+        );
+      const mismatchedModeReviewBytes =
+        `${JSON.stringify(mismatchedModeReview, null, 2)}\n`;
+      expect(() => finalizeC4DatasetReadiness({
+        baselineBytes,
+        result,
+        ...review,
+        provenanceBytes: review.provenanceBytes.replace(
+          sha256(review.reviewBytes),
+          sha256(mismatchedModeReviewBytes),
+        ),
+        reviewBytes: mismatchedModeReviewBytes,
+      })).toThrow("C4 independent review episode coverage mismatch");
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes,
         result,
@@ -332,7 +370,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       const promptPath = join(fixture.root, episode.stages[0]!.promptPath);
       await writeFile(
         promptPath,
-        `${await readFile(promptPath, "utf8")}The hidden values are left and right.\n`,
+        `${await readFile(promptPath, "utf8")}The hidden input is left=right.\n`,
         "utf8",
       );
       const assetLock = await buildC4AssetLock(fixture.root);
@@ -515,18 +553,37 @@ function independentReviewArtifacts(
     c4AbResultsInspected: false,
     codingOutcomeArtifactsInspected: false,
     datasetId: result.core.datasetId,
-    episodeReviews: episodes.map((episode) => ({
-      author: episode.author,
-      checks: {
-        codingNotTrivia: true,
-        hiddenTestsFair: true,
-        memoryUsefulNotAnswer: true,
-        negativeControlCredible: true,
-        noRepositorySpecificRunnerException: true,
-      },
-      episodeId: episode.id,
-      rationale: "Independent dataset review accepted the task and evaluator boundary.",
-    })),
+    episodeReviews: episodes.map((episode) =>
+      episode.id === "irrelevant-history-control"
+        ? {
+            author: episode.author,
+            checks: {
+              codingNotTrivia: true,
+              hiddenTestsFair: true,
+              memoryIrrelevantAndNonMisleading: true,
+              negativeControlCredible: true,
+              noRepositorySpecificRunnerException: true,
+            },
+            episodeId: episode.id,
+            memoryExpectationMode: "irrelevant-control" as const,
+            rationale:
+              "Independent review confirmed the unrelated memory is non-misleading.",
+          }
+        : {
+            author: episode.author,
+            checks: {
+              codingNotTrivia: true,
+              hiddenTestsFair: true,
+              memoryUsefulNotAnswer: true,
+              negativeControlCredible: true,
+              noRepositorySpecificRunnerException: true,
+            },
+            episodeId: episode.id,
+            memoryExpectationMode: "required" as const,
+            rationale:
+              "Independent review accepted the task and evaluator boundary.",
+          }
+    ),
     inputBundleSha256: sha256(inputBundleBytes),
     leakageAuditSha256: result.core.leakage.auditSha256,
     manifestSha256: result.core.manifestSha256,

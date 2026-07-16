@@ -247,7 +247,7 @@ function identity(runId: string) {
     claimBoundary: "diagnostic-no-memory-ceiling-only" as const,
     codexExecutableSha256: "d".repeat(64),
     codexVersion: "codex-cli 0.144.5",
-    datasetId: "codex-c4-controlled-pilot-v1",
+    datasetId: "codex-c4-controlled-pilot-v2",
     generatedAt: "2026-07-16T08:00:00.000Z",
     host: "codex" as const,
     manifestSha256: "c".repeat(64),

@@ -23,6 +23,7 @@ export type C4HiddenArtifactId =
 
 export interface C4LeakageSurface {
   content: string;
+  hiddenValueContent?: string;
   id: C4LeakageSurfaceId;
 }
 
@@ -46,6 +47,7 @@ export interface C4LeakageMatrixCell {
   exactOverlapCount: number;
   hiddenValueCount: number;
   hiddenValueSetSha256: string;
+  hiddenValueSurfaceSha256: string;
   matchedFragmentSha256: string[];
   normalizedOverlapCount: number;
   status: "accepted" | "rejected";
@@ -57,9 +59,9 @@ export interface C4LeakageMatrixAudit {
   artifactIds: readonly C4HiddenArtifactId[];
   auditSha256: string;
   candidateBindingVersion: 1;
-  candidateExtractionVersion: "semantic-lines-plus-typed-values-v2";
+  candidateExtractionVersion: "semantic-lines-plus-typed-values-v3";
   cells: C4LeakageMatrixCell[];
-  normalizationVersion: "nfkc-lowercase-whitespace-v1";
+  normalizationVersion: "nfkc-lowercase-whitespace-numeric-separators-v2";
   overlapCount: number;
   schemaVersion: 1;
   status: "accepted" | "rejected";
@@ -96,9 +98,9 @@ export function auditC4SurfaceHiddenArtifactMatrix(input: {
   const basis = {
     artifactIds: [...C4_HIDDEN_ARTIFACT_IDS],
     candidateBindingVersion: 1,
-    candidateExtractionVersion: "semantic-lines-plus-typed-values-v2",
+    candidateExtractionVersion: "semantic-lines-plus-typed-values-v3",
     cells,
-    normalizationVersion: "nfkc-lowercase-whitespace-v1",
+    normalizationVersion: "nfkc-lowercase-whitespace-numeric-separators-v2",
     overlapCount,
     schemaVersion: 1,
     status: overlapCount === 0 ? "accepted" : "rejected",
@@ -115,6 +117,7 @@ function auditCell(
   artifact: C4HiddenArtifact,
 ): C4LeakageMatrixCell {
   const normalizedSurface = normalizeLeakageText(surface.content);
+  const hiddenValueSurface = surface.hiddenValueContent ?? surface.content;
   const fragments = [...new Set([
     artifact.content,
     ...artifact.fragments,
@@ -146,7 +149,7 @@ function auditCell(
     }
   }
   for (const value of hiddenValues) {
-    const match = matchHiddenValue(surface.content, value);
+    const match = matchHiddenValue(hiddenValueSurface, value);
     if (match === null) {
       continue;
     }
@@ -169,6 +172,7 @@ function auditCell(
     hiddenValueSetSha256: sha256(JSON.stringify(hiddenValues.map(
       canonicalHiddenValue,
     ))),
+    hiddenValueSurfaceSha256: sha256(hiddenValueSurface),
     matchedFragmentSha256,
     normalizedOverlapCount: normalized.size,
     status: matchedFragmentSha256.length === 0 ? "accepted" : "rejected",
@@ -220,12 +224,21 @@ function matchHiddenValue(
   if (containsDelimited(surface, fragment)) {
     return "exact";
   }
+  const normalizedSurface = normalizeLeakageText(
+    typeof value === "number"
+      ? removeNumericSeparators(surface)
+      : surface,
+  );
   return containsDelimited(
-      normalizeLeakageText(surface),
+      normalizedSurface,
       normalizeLeakageText(fragment),
     )
     ? "normalized"
     : null;
+}
+
+function removeNumericSeparators(value: string): string {
+  return value.replace(/(?<=\p{N})_(?=\p{N})/gu, "");
 }
 
 function containsDelimited(surface: string, fragment: string): boolean {

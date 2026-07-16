@@ -96,7 +96,7 @@ export async function auditC3PermissionIsolation(input: {
   }
   const profile = input.runtime.permissionProfile;
   const configPath = join(input.runtime.plan.paths.codexHome, "config.toml");
-  const actualConfigSha256 = await sha256File(configPath);
+  const initialConfigSha256 = await sha256File(configPath);
   const workspace = input.runtime.plan.paths.workspace;
   const readProbePath = join(workspace, ".c3-permission-read-probe");
   const writeProbePath = join(workspace, ".c3-permission-write-probe");
@@ -173,11 +173,15 @@ export async function auditC3PermissionIsolation(input: {
       rm(writeProbePath, { force: true }),
     ]);
   }
-  if (actualConfigSha256 !== profile.configSha256) {
+  const finalConfigSha256 = await sha256File(configPath);
+  if (initialConfigSha256 !== profile.configSha256) {
     reasons.push("permission profile config changed after runtime preparation");
   }
+  if (finalConfigSha256 !== initialConfigSha256) {
+    reasons.push("permission profile config changed during isolation audit");
+  }
   const audit: C3PermissionIsolationAudit = {
-    configSha256: actualConfigSha256,
+    configSha256: finalConfigSha256,
     deniedReads,
     networkAccess: false,
     networkDenied,

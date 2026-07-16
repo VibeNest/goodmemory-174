@@ -22,4 +22,15 @@ describe("Codex coding-effect C3 host configuration", () => {
       [["/private/c3/package", "<package-prefix>"]],
     )).toBe("<package-prefix>/bin:<host-path>");
   });
+
+  it("does not replace a host path that only shares a configured prefix", () => {
+    const normalized = normalizeC3PathForEvidence(
+      "/workspace-backup/bin:/workspace/bin",
+      [["/workspace", "<workspace>"]],
+    );
+
+    expect(normalized).toBe("<host-path>:<workspace>/bin");
+    expect(normalized).not.toContain("<workspace>-backup");
+    expect(normalized).not.toContain("/workspace-backup");
+  });
 });

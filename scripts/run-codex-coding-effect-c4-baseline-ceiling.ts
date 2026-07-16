@@ -19,6 +19,13 @@ import {
 } from "node:fs/promises";
 
 import {
+  loadC4BaselineStageEvidenceFiles,
+  verifyC4BaselineStageEvidenceFiles,
+} from "./codex-coding-effect/c4-baseline-ceiling";
+import type {
+  C4BaselineStageEvidenceFile,
+} from "./codex-coding-effect/c4-baseline-ceiling";
+import {
   runC4NoMemoryCeilingPilot,
 } from "./codex-coding-effect/c4-baseline-live";
 
@@ -35,6 +42,7 @@ export interface C4BaselineOptions {
   replace: boolean;
   reportOutput: string;
   runId: string;
+  stageEvidenceOutput: string;
   stageTimeoutMs: number;
   testTimeoutMs: number;
   workRoot: string;
@@ -57,6 +65,7 @@ export async function runC4BaselineCeilingCommand(
   outputDirectory: string;
   reportOutput: string;
   reportSha256: string;
+  stageEvidenceOutput: string;
 }> {
   assertC4BaselinePathIsolation(options);
   const result = await runC4NoMemoryCeilingPilot({
@@ -84,11 +93,22 @@ export async function runC4BaselineCeilingCommand(
     path: options.reportOutput,
     replace: options.replace,
   });
+  const stageEvidenceFiles = await loadC4BaselineStageEvidenceFiles(
+    join(options.outputDirectory, "stages"),
+    result.report,
+  );
+  verifyC4BaselineStageEvidenceFiles(result.report, stageEvidenceFiles);
+  await persistCanonicalStageEvidence({
+    files: stageEvidenceFiles,
+    path: options.stageEvidenceOutput,
+    replace: options.replace,
+  });
   return {
     decision: result.report.decision,
     outputDirectory: options.outputDirectory,
     reportOutput: options.reportOutput,
     reportSha256: result.reportSha256,
+    stageEvidenceOutput: options.stageEvidenceOutput,
   };
 }
 
@@ -142,6 +162,7 @@ export function parseC4BaselineOptions(
     "reasoning-effort",
     "report-output",
     "run-id",
+    "stage-evidence-output",
     "stage-timeout-ms",
     "test-timeout-ms",
     "work-root",
@@ -151,6 +172,9 @@ export function parseC4BaselineOptions(
       throw new Error(`unknown C4 baseline option --${name}`);
     }
   }
+  const reportOutput = resolve(
+    values.get("report-output") ?? DEFAULT_REPORT_OUTPUT,
+  );
   return {
     authFile: resolve(values.get("auth-file") ?? join(homedir(), ".codex", "auth.json")),
     bunExecutable: executable(values.get("bun-binary") ?? process.execPath),
@@ -160,8 +184,15 @@ export function parseC4BaselineOptions(
     outputDirectory: join(outputRoot, runId),
     reasoningEffort: values.get("reasoning-effort") ?? "xhigh",
     replace,
-    reportOutput: resolve(values.get("report-output") ?? DEFAULT_REPORT_OUTPUT),
+    reportOutput,
     runId,
+    stageEvidenceOutput: resolve(
+      values.get("stage-evidence-output") ??
+        join(
+          dirname(reportOutput),
+          `${basename(reportOutput, ".json")}-stages`,
+        ),
+    ),
     stageTimeoutMs: positiveInteger(
       values.get("stage-timeout-ms") ?? "900000",
       "stage-timeout-ms",
@@ -181,16 +212,21 @@ export function assertC4BaselinePathIsolation(
     | "datasetRoot"
     | "outputDirectory"
     | "reportOutput"
+    | "stageEvidenceOutput"
     | "workRoot"
   >,
 ): void {
   const datasetRoot = resolvePhysicalPath(options.datasetRoot);
   const outputDirectory = resolvePhysicalPath(options.outputDirectory);
   const reportOutput = resolvePhysicalPath(options.reportOutput);
+  const stageEvidenceOutput = resolvePhysicalPath(options.stageEvidenceOutput);
   const workRoot = resolvePhysicalPath(options.workRoot);
   const authFile = resolvePhysicalPath(options.authFile);
-  if (pathInsideOrEqual(datasetRoot, reportOutput)) {
-    throw new Error("C4 baseline report output overlaps the frozen dataset");
+  if (
+    pathInsideOrEqual(datasetRoot, reportOutput) ||
+    pathsOverlap(datasetRoot, stageEvidenceOutput)
+  ) {
+    throw new Error("C4 baseline canonical output overlaps the frozen dataset");
   }
   const roots = [
     ["frozen dataset", datasetRoot],
@@ -208,14 +244,22 @@ export function assertC4BaselinePathIsolation(
   }
   if (
     pathInsideOrEqual(outputDirectory, reportOutput) ||
-    pathInsideOrEqual(workRoot, reportOutput)
+    pathInsideOrEqual(workRoot, reportOutput) ||
+    pathsOverlap(outputDirectory, stageEvidenceOutput) ||
+    pathsOverlap(workRoot, stageEvidenceOutput)
   ) {
-    throw new Error("C4 baseline canonical report overlaps disposable output");
+    throw new Error("C4 baseline canonical output overlaps disposable output");
+  }
+  if (pathsOverlap(reportOutput, stageEvidenceOutput)) {
+    throw new Error(
+      "C4 baseline report and stage evidence outputs must be distinct",
+    );
   }
   if (
     pathInsideOrEqual(outputDirectory, authFile) ||
     pathInsideOrEqual(workRoot, authFile) ||
-    reportOutput === authFile
+    reportOutput === authFile ||
+    pathsOverlap(stageEvidenceOutput, authFile)
   ) {
     throw new Error("C4 baseline output overlaps the Codex auth input");
   }
@@ -262,6 +306,60 @@ async function persistCanonicalReport(input: {
     await rename(temporaryPath, input.path);
   } finally {
     await rm(temporaryPath, { force: true });
+  }
+}
+
+async function persistCanonicalStageEvidence(input: {
+  files: readonly C4BaselineStageEvidenceFile[];
+  path: string;
+  replace: boolean;
+}): Promise<void> {
+  const temporaryPath = `${input.path}.tmp-${process.pid}-${Date.now()}`;
+  const backupPath = `${input.path}.old-${process.pid}-${Date.now()}`;
+  let movedExisting = false;
+  try {
+    await mkdir(temporaryPath, { recursive: true });
+    for (const file of input.files) {
+      const destination = join(temporaryPath, file.path);
+      await mkdir(dirname(destination), { recursive: true });
+      await writeFile(destination, file.bytes, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+    }
+    if (input.replace) {
+      try {
+        await rename(input.path, backupPath);
+        movedExisting = true;
+      } catch (error) {
+        if (
+          typeof error !== "object" ||
+          error === null ||
+          !("code" in error) ||
+          error.code !== "ENOENT"
+        ) {
+          throw error;
+        }
+      }
+    }
+    await rename(temporaryPath, input.path);
+    if (movedExisting) {
+      await rm(backupPath, { force: true, recursive: true });
+      movedExisting = false;
+    }
+  } catch (error) {
+    if (movedExisting) {
+      await rename(backupPath, input.path);
+      movedExisting = false;
+    }
+    throw error;
+  } finally {
+    await Promise.all([
+      rm(temporaryPath, { force: true, recursive: true }),
+      movedExisting
+        ? Promise.resolve()
+        : rm(backupPath, { force: true, recursive: true }),
+    ]);
   }
 }
 

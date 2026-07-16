@@ -27,15 +27,16 @@ describe("Codex coding-effect C4 leakage matrix", () => {
     )).size).toBe(audit.cells.length);
     expect(audit.candidateBindingVersion).toBe(1);
     expect(audit.candidateExtractionVersion).toBe(
-      "semantic-lines-plus-typed-values-v2",
+      "semantic-lines-plus-typed-values-v3",
     );
     expect(audit.normalizationVersion).toBe(
-      "nfkc-lowercase-whitespace-v1",
+      "nfkc-lowercase-whitespace-numeric-separators-v2",
     );
     expect(audit.cells.every((cell) =>
       cell.candidateFragmentCount > 0 &&
       cell.candidateFragmentSetSha256.length === 64 &&
-      cell.hiddenValueSetSha256.length === 64
+      cell.hiddenValueSetSha256.length === 64 &&
+      cell.hiddenValueSurfaceSha256.length === 64
     )).toBe(true);
   });
 
@@ -124,7 +125,7 @@ describe("Codex coding-effect C4 leakage matrix", () => {
       surface.id === "stage-prompts"
         ? {
             ...surface,
-            content: `${surface.content}\n2.5 -> 2500; false; ok\n`,
+            content: `${surface.content}\n2.5 -> 2_500; false; ok\n`,
           }
         : surface
     );
@@ -140,6 +141,44 @@ describe("Codex coding-effect C4 leakage matrix", () => {
 
     expect(cell.status).toBe("rejected");
     expect(cell.matchedFragmentSha256).toHaveLength(4);
+  });
+
+  it("audits semantic hidden values without treating projection metadata as leakage", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "hidden-test-source"
+        ? { ...artifact, hiddenValues: [1] }
+        : artifact
+    );
+    const clean = surfaces().map((surface) =>
+      surface.id === "goodmemory-export-after-seeding"
+        ? {
+            ...surface,
+            content: JSON.stringify({
+              durable: { episodes: [{ content: "public memory" }] },
+              schemaVersion: 1,
+            }),
+            hiddenValueContent: "public memory",
+          }
+        : surface
+    );
+
+    expect(auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: clean,
+    }).status).toBe("accepted");
+
+    const leaked = clean.map((surface) =>
+      surface.id === "stage-prompts"
+        ? {
+            ...surface,
+            content: `${surface.content}\nhidden expected value = 1\n`,
+          }
+        : surface
+    );
+    expect(auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: leaked,
+    }).status).toBe("rejected");
   });
 });
 

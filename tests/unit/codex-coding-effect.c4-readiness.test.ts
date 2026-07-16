@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   mkdir,
   mkdtemp,
+  readFile,
   rm,
   symlink,
   writeFile,
@@ -10,9 +11,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+  runC4AdaptiveBaselineCeiling,
+  serializeC4BaselineCeilingReport,
+} from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
+import type {
+  C4BaselineCeilingTarget,
+} from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
+import {
   captureC4ChangedFiles,
   captureC4GoldReplay,
+  validateC4BaselineCeilingEvidence,
 } from "../../scripts/codex-coding-effect/c4-readiness";
+import {
+  freezeC4ControlledPilotDataset,
+} from "../../scripts/freeze-codex-coding-effect-c4-dataset";
 import { runC4ReadinessGate } from "../../scripts/run-codex-coding-effect-c4-readiness";
 
 describe("Codex coding-effect C4 readiness", () => {
@@ -162,7 +174,102 @@ describe("Codex coding-effect C4 readiness", () => {
       await rm(sandbox, { force: true, recursive: true });
     }
   });
+
+  it("accepts only the current v2 dataset in canonical baseline evidence", async () => {
+    const v1Bytes = await baselineBytes("codex-c4-controlled-pilot-v1");
+    const v2Bytes = await baselineBytes("codex-c4-controlled-pilot-v2");
+
+    expect(() => validateC4BaselineCeilingEvidence(v1Bytes)).toThrow();
+    expect(validateC4BaselineCeilingEvidence(v2Bytes).report.datasetId).toBe(
+      "codex-c4-controlled-pilot-v2",
+    );
+  });
+
+  it("replaces only known v1 or v2 C4 dataset directories", async () => {
+    const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-replace-"));
+    try {
+      for (const datasetId of [
+        "codex-c4-controlled-pilot-v1",
+        "codex-c4-controlled-pilot-v2",
+      ]) {
+        const outputRoot = join(sandbox, datasetId);
+        await mkdir(outputRoot);
+        await writeFile(
+          join(outputRoot, "manifest.json"),
+          `${JSON.stringify({ datasetId })}\n`,
+        );
+
+        await expect(freezeC4ControlledPilotDataset({
+          outputRoot,
+          replace: true,
+        })).resolves.toMatchObject({ outputRoot });
+      }
+
+      const unrelatedRoot = join(sandbox, "unrelated");
+      await mkdir(unrelatedRoot);
+      await writeFile(
+        join(unrelatedRoot, "manifest.json"),
+        `${JSON.stringify({ datasetId: "unrelated-dataset" })}\n`,
+      );
+      await expect(freezeC4ControlledPilotDataset({
+        outputRoot: unrelatedRoot,
+        replace: true,
+      })).rejects.toThrow("refusing to replace a non-C4 dataset directory");
+      expect(JSON.parse(
+        await readFile(join(unrelatedRoot, "manifest.json"), "utf8"),
+      )).toEqual({ datasetId: "unrelated-dataset" });
+    } finally {
+      await rm(sandbox, { force: true, recursive: true });
+    }
+  }, 120_000);
 });
+
+async function baselineBytes(datasetId: string): Promise<string> {
+  const targets = Array.from({ length: 6 }, (_, index) => {
+    const episodeId = `episode-${index + 1}`;
+    return [
+      { episodeId, position: 2, stageId: "stage-2" },
+      { episodeId, position: 3, stageId: "stage-3" },
+    ] satisfies C4BaselineCeilingTarget[];
+  }).flat();
+  const report = await runC4AdaptiveBaselineCeiling({
+    executeStage: async (target) => ({
+      changedFiles: [],
+      codexStatus: "completed",
+      disposition: "finalized",
+      episodeId: target.episodeId,
+      executionFailureStage: null,
+      failToPassStatus: "failed",
+      passToPassStatus: "passed",
+      patchSha256: null,
+      resolved: false,
+      stageEvidenceSha256: "a".repeat(64),
+      stageId: target.stageId,
+      taskFailureReasons: ["unresolved"],
+      threadId: `${target.episodeId}-${target.stageId}`,
+    }),
+    runIdentity: {
+      assetLockSha256: "a".repeat(64),
+      assetRootSha256: "b".repeat(64),
+      claimBoundary: "diagnostic-no-memory-ceiling-only",
+      codexExecutableSha256: "c".repeat(64),
+      codexVersion: "codex-cli test",
+      datasetId,
+      generatedAt: "2026-07-16T13:00:00.000Z",
+      host: "codex",
+      manifestSha256: "d".repeat(64),
+      model: "gpt-5.6-sol",
+      networkAccess: false,
+      publicClaimEligible: false,
+      reasoningEffort: "xhigh",
+      runId: `baseline-${datasetId}`,
+      schemaVersion: 1,
+      strategy: "stage-3-first-then-stage-2-if-needed",
+    },
+    targets,
+  });
+  return serializeC4BaselineCeilingReport(report);
+}
 
 async function runGit(cwd: string, args: readonly string[]): Promise<string> {
   const child = Bun.spawn({

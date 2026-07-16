@@ -113,7 +113,12 @@ export function scoreCodexStage(input: {
     return finalizedFailure("codex-timeout");
   }
   if (input.codex.status === "non-zero-exit") {
-    return finalizedFailure("codex-non-zero-exit");
+    return {
+      disposition: "infrastructure-failure",
+      executionFailureStage: "codex-execution",
+      resolved: false,
+      taskFailureReasons: [],
+    };
   }
   if (
     input.failToPass.status === "infrastructure-failure" ||

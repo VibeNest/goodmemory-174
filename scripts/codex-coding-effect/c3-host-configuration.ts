@@ -163,8 +163,15 @@ export function normalizeC3PathForEvidence(
   replacements: ReadonlyArray<readonly [string, string]>,
 ): string {
   return [...new Set(value.split(delimiter).map((entry) => {
-    const normalized = normalizeText(entry, replacements);
-    return normalized === entry ? "<host-path>" : normalized;
+    for (const [source, replacement] of replacements) {
+      if (entry === source) {
+        return replacement;
+      }
+      if (entry.startsWith(`${source}/`)) {
+        return `${replacement}${entry.slice(source.length)}`;
+      }
+    }
+    return "<host-path>";
   }))].join(delimiter);
 }
 

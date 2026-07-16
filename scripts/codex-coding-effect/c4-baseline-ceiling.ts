@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { validateC4ControlledPilotDataset } from "./c4-contracts";
 import type { CodexCodingEffectDataset } from "./dataset";
@@ -61,6 +63,7 @@ export interface C4BaselineCeilingReport {
   runId: string;
   schemaVersion: 1;
   stageEvidenceAggregateSha256: string;
+  stageTimeoutMs: number;
   strategy: {
     earlyCeilingThreshold: 5;
     finalCeilingThreshold: 10;
@@ -68,6 +71,7 @@ export interface C4BaselineCeilingReport {
     secondRound: "stage-2-all-episodes-if-needed";
     stage1Excluded: true;
   };
+  testTimeoutMs: number;
 }
 
 export interface C4BaselineRunIdentity {
@@ -86,7 +90,14 @@ export interface C4BaselineRunIdentity {
   reasoningEffort: string;
   runId: string;
   schemaVersion: 1;
+  stageTimeoutMs: number;
   strategy: "stage-3-first-then-stage-2-if-needed";
+  testTimeoutMs: number;
+}
+
+export interface C4BaselineStageEvidenceFile {
+  bytes: string;
+  path: string;
 }
 
 export function buildC4BaselineCeilingTargets(
@@ -181,7 +192,10 @@ export async function runC4AdaptiveBaselineCeiling(input: {
     runIdentitySha256: sha256(runIdentityBytes),
     runId: input.runIdentity.runId,
     schemaVersion: 1,
-    stageEvidenceAggregateSha256: sha256(JSON.stringify(results)),
+    stageEvidenceAggregateSha256: sha256(JSON.stringify(
+      stageEvidenceReferences(results),
+    )),
+    stageTimeoutMs: input.runIdentity.stageTimeoutMs,
     strategy: {
       earlyCeilingThreshold: 5,
       finalCeilingThreshold: 10,
@@ -189,6 +203,7 @@ export async function runC4AdaptiveBaselineCeiling(input: {
       secondRound: "stage-2-all-episodes-if-needed",
       stage1Excluded: true,
     },
+    testTimeoutMs: input.runIdentity.testTimeoutMs,
   };
   assertC4BaselineCeilingReportBindings(report);
   return report;
@@ -213,7 +228,9 @@ export function assertC4BaselineCeilingReportBindings(
     reasoningEffort: report.reasoningEffort,
     runId: report.runId,
     schemaVersion: 1,
+    stageTimeoutMs: report.stageTimeoutMs,
     strategy: "stage-3-first-then-stage-2-if-needed",
+    testTimeoutMs: report.testTimeoutMs,
   };
   if (
     report.runIdentitySha256 !==
@@ -223,7 +240,7 @@ export function assertC4BaselineCeilingReportBindings(
   }
   if (
     report.stageEvidenceAggregateSha256 !==
-      sha256(JSON.stringify(report.results))
+      sha256(JSON.stringify(stageEvidenceReferences(report.results)))
   ) {
     throw new Error("C4 baseline stage evidence aggregate is inconsistent");
   }
@@ -281,6 +298,46 @@ export function assertC4BaselineCeilingReportBindings(
     report.decision !== expectedDecision
   ) {
     throw new Error("C4 baseline ceiling decision is inconsistent");
+  }
+}
+
+export async function loadC4BaselineStageEvidenceFiles(
+  stageEvidenceRoot: string,
+  report: C4BaselineCeilingReport,
+): Promise<C4BaselineStageEvidenceFile[]> {
+  return Promise.all(report.results.map(async (result) => {
+    const path = stageEvidenceRelativePath(result);
+    return {
+      bytes: await readFile(join(stageEvidenceRoot, path), "utf8"),
+      path,
+    };
+  }));
+}
+
+export function verifyC4BaselineStageEvidenceFiles(
+  report: C4BaselineCeilingReport,
+  files: readonly C4BaselineStageEvidenceFile[],
+): void {
+  const expectedPaths = report.results.map(stageEvidenceRelativePath).sort();
+  const actualPaths = files.map((file) => file.path).sort();
+  if (
+    new Set(actualPaths).size !== actualPaths.length ||
+    JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)
+  ) {
+    throw new Error("C4 baseline stage evidence file set is inconsistent");
+  }
+  const byPath = new Map(files.map((file) => [file.path, file.bytes]));
+  for (const result of report.results) {
+    const path = stageEvidenceRelativePath(result);
+    const bytes = byPath.get(path);
+    if (bytes === undefined || sha256(bytes) !== result.stageEvidenceSha256) {
+      throw new Error(`C4 baseline stage evidence hash mismatch for ${path}`);
+    }
+    const parsed = parseStageEvidence(bytes, path);
+    const expectedResult = stageEvidenceResult(result);
+    if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
+      throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
+    }
   }
 }
 
@@ -377,6 +434,62 @@ function infrastructureFailureCount(
 
 function resolvedCount(results: readonly C4BaselineStageResult[]): number {
   return results.filter((result) => result.resolved).length;
+}
+
+function stageEvidenceReferences(
+  results: readonly C4BaselineStageResult[],
+): Array<{ path: string; sha256: string }> {
+  return results.map((result) => ({
+    path: stageEvidenceRelativePath(result),
+    sha256: result.stageEvidenceSha256,
+  }));
+}
+
+function stageEvidenceRelativePath(result: C4BaselineStageResult): string {
+  return `${result.episodeId}-${result.stageId}/stage-evidence.json`;
+}
+
+function stageEvidenceResult(
+  result: C4BaselineStageResult,
+): Omit<C4BaselineStageResult, "stageEvidenceSha256"> {
+  const { stageEvidenceSha256: _, ...evidenceResult } = result;
+  return evidenceResult;
+}
+
+function parseStageEvidence(
+  bytes: string,
+  path: string,
+): { result: unknown } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(bytes) as unknown;
+  } catch {
+    throw new Error(`invalid C4 baseline stage evidence JSON for ${path}`);
+  }
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("result" in parsed)
+  ) {
+    throw new Error(`C4 baseline stage evidence lacks result for ${path}`);
+  }
+  return parsed as { result: unknown };
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalValue(value));
+}
+
+function canonicalValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalValue);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, canonicalValue(nested)]));
+  }
+  return value;
 }
 
 function sha256(value: string): string {

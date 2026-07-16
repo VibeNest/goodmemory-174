@@ -425,17 +425,18 @@ export async function runC3FrozenPrehistoryPair(input: {
       encoding: "utf8",
       flag: "wx",
     });
+    const noMemoryDeniedReadPaths = permissionDeniedReadPaths({
+      authFile: input.authFile,
+      goodMemorySourceRoot,
+      otherRuntime: installedRuntime,
+      packageTarball: input.packageTarball,
+      permissionSentinelPath,
+      runtime: noMemoryRuntime,
+      sourceRepository,
+    });
     const noMemoryPermissionIsolation = await dependencies
       .auditPermissionIsolation({
-        deniedReadPaths: permissionDeniedReadPaths({
-          authFile: input.authFile,
-          goodMemorySourceRoot,
-          otherRuntime: installedRuntime,
-          packageTarball: input.packageTarball,
-          permissionSentinelPath,
-          runtime: noMemoryRuntime,
-          sourceRepository,
-        }),
+        deniedReadPaths: noMemoryDeniedReadPaths,
         phase: "preflight",
         runtime: noMemoryRuntime,
       });
@@ -591,6 +592,12 @@ export async function runC3FrozenPrehistoryPair(input: {
       ledger.nextAttemptId(workKeys[1]!),
       "goodmemory-installed",
     );
+    const noMemoryLaunchPermissionIsolation = await dependencies
+      .auditPermissionIsolation({
+        deniedReadPaths: noMemoryDeniedReadPaths,
+        phase: "pre-launch",
+        runtime: noMemoryRuntime,
+      });
     const noMemoryExecution = await runAgentArm({
       args: noMemoryArgs,
       forbiddenPaths: input.forbiddenPaths,
@@ -870,7 +877,7 @@ export async function runC3FrozenPrehistoryPair(input: {
         historyExposure: "none",
         historySourceSha256: sealedArtifact.sourceSha256,
         instructionSha256: noMemoryRuntime.instructionSha256,
-        permissionIsolation: noMemoryPermissionIsolation,
+        permissionIsolation: noMemoryLaunchPermissionIsolation,
         schemaVersion: 1,
         threadId: noMemoryThreadId,
       },

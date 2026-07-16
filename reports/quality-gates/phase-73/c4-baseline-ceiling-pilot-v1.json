@@ -1,0 +1,144 @@
+{
+  "assetLockSha256": "5089494f735c30ecb6fa80d2b76f2a51598d0acecfc2852413c7821eb5c5f1d7",
+  "assetRootSha256": "900c7388b22579aecb672b0b962bd3c14f6bafed285cacad95364318710c9187",
+  "attemptedCount": 6,
+  "ceilingRisk": true,
+  "claimBoundary": "diagnostic-no-memory-ceiling-only",
+  "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+  "codexVersion": "codex-cli 0.144.5",
+  "datasetId": "codex-c4-controlled-pilot-v1",
+  "decision": "redesign-episodes-before-c5",
+  "generatedAt": "2026-07-16T12:52:48.995Z",
+  "infrastructureFailureCount": 0,
+  "manifestSha256": "751ffa5d592559928cc9924fe84e779da8bd2f2446cbbd2de19ab755c5fc7390",
+  "model": "gpt-5.6-sol",
+  "networkAccess": false,
+  "publicClaimEligible": false,
+  "reasoningEffort": "xhigh",
+  "resolvedCount": 6,
+  "results": [
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "avoid-naive-split",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "ffd81465696d9cc5fd6d03a9d37a163ea5b23fe340e598077e955c582949d84f",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6afc-b1ff-7800-9b00-d775f8ed6d3b",
+      "stageEvidenceSha256": "45837c3f8a8e628238f5fd4a1ffeaa1c055cf3073f1f4ed92649f5d251e2a197"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "endpoint-open-loop",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "36a47d1390f74d9882a393d54ad37070fe865fd9a5899321155e1f86cfd58303",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6aff-4be5-7741-8366-3e0b69e30554",
+      "stageEvidenceSha256": "3513c48b559e73a936be38639cb0e4873953d70f0fb6abcef5815dcd86b3e72d"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "irrelevant-history-control",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6b00-4ce8-7262-a979-f83bd0a7f857",
+      "stageEvidenceSha256": "e5a5b70d4cebbec2f99f63e41681f1b8a68def71359b1553edd84a73f95b1261"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "parse-result-correction",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "dce170bb28d7213dcb75d08c59167b24cdab26b728cd4224a3ec0d98554765f8",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6b05-cd49-7c01-9c8d-aeb5e87fd0bc",
+      "stageEvidenceSha256": "633169f2e56516a25e3095f4e4df07061c2f28f3096a03a8d032bfbc28e426d5"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "stale-time-unit-update",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6b06-ced4-7243-8c1d-3eac2c2096fa",
+      "stageEvidenceSha256": "883f05c8cf47fb8864cd32e0b99f8a76f1d2e423f057827d461ae25d7b34d55b"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "validated-first-delimiter",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f",
+      "resolved": true,
+      "stageId": "stage-3",
+      "taskFailureReasons": [],
+      "threadId": "019f6b07-ca84-7441-83a5-80cf4708bdb6",
+      "stageEvidenceSha256": "ce03e9f82dfbe970ca59b7c356fd7c93674d41a3f29e57099f7ad59cd4578bfa"
+    }
+  ],
+  "rounds": [
+    {
+      "attemptedCount": 6,
+      "ceilingThreshold": 5,
+      "infrastructureFailureCount": 0,
+      "position": 3,
+      "resolvedCount": 6,
+      "stageId": "stage-3"
+    }
+  ],
+  "runIdentitySha256": "152344b70c5b218947a9ebfe4376d512d299d08ba6719294c18a68d6cd6435be",
+  "runId": "run-c4-baseline-ceiling-20260716-125211Z",
+  "schemaVersion": 1,
+  "stageEvidenceAggregateSha256": "b7d2812011325dd63529aeb5acc1ff5c76ccc1b050067cf5f0b8c58cafcc621c",
+  "strategy": {
+    "earlyCeilingThreshold": 5,
+    "finalCeilingThreshold": 10,
+    "firstRound": "stage-3-all-episodes",
+    "secondRound": "stage-2-all-episodes-if-needed",
+    "stage1Excluded": true
+  }
+}

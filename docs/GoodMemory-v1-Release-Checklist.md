@@ -2,8 +2,10 @@
 
 > **Historical baseline.** This checklist was authored for the v0.2 → v1 release,
 > so its gate/eval sections point at the accepted **Phase 40** release-candidate
-> gate. The shipped line is now **0.6.0** on npm; current releases follow the
-> documented 0.5.x version-bump recipe plus `gate:public-benchmark-claim` and the
+> gate. The current release-candidate line is **0.6.0**; npm remains on 0.5.1
+> until the accepted commit is tagged and the stable release workflow publishes
+> it. Current releases follow the documented 0.6.x version-bump recipe plus
+> `gate:public-benchmark-claim` and the
 > release-readiness gate rather than the Phase 40 gate. Treat the Phase 40
 > references below as the historical release baseline, and note that later
 > capabilities (host-memory experience, standalone MCP, agent onboarding, the
@@ -23,7 +25,7 @@
   - `goodmemory/runtime-kit`
 - package-boundary CI covers Node 20, Node 22, and Node 24
 - the installed CLI and `goodmemory-http-bridge` server remain Bun-backed runtime add-ons
-- no new memory capability, no dashboard/admin UI, and no new public `goodmemory/evolution` module in this slice
+- the original Phase 40 slice added no dashboard/admin UI or public `goodmemory/evolution` module; the later Phase 71 Inspector is part of the current package
 
 ## CLI
 
