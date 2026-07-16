@@ -1,0 +1,16 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..cc24d74b83a45938cc827738298743669966bffb 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -27,7 +27,10 @@ export function timeoutToMs(seconds: number): number {
+ }
+ 
+ export function scheduleToMs(input: { initialSeconds: number; maxSeconds: number }): { initialMs: number; maxMs: number } {
+-  return { initialMs: input.initialSeconds, maxMs: input.maxSeconds };
++  return {
++    initialMs: input.initialSeconds * 1_000,
++    maxMs: input.maxSeconds * 1_000,
++  };
+ }
+ 
+ export function deadlineFromConfig(startMs: number, timeoutSeconds: number): number {

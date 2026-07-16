@@ -1,0 +1,11 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..bce18fda6ba91ff45f59e6ef96ead3b2b188ab31 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -1,5 +1,5 @@
+ export function normalizeHost(value: string): string {
+-  return value;
++  return value.trim();
+ }
+ 
+ export function parsePort(value: string): number | null {

@@ -1,44 +1,45 @@
 {
   "benchmark": "LoCoMo",
   "comparison": {
-    "asOf": "2026-07-09",
-    "availability": "historical",
+    "asOf": "2026-07-16",
+    "availability": "public-opt-in",
     "notes": [
-      "GoodMemory's strict token-F1 and official judge-protocol numbers must be shown separately.",
-      "Current external systems report different model stacks and Top-K settings, so their headline values are references rather than controlled head-to-head results."
+      "The strict token-F1 and independent official judge-protocol numbers are reported separately.",
+      "The result uses the recommended provider-backed retrieval and first-party reranking path.",
+      "External headline scores use different model stacks and retrieval budgets and are references, not controlled head-to-head measurements."
     ],
-    "runtimeProfile": "recommended-semantic-union+conversational-extraction",
+    "runtimeProfile": "recommended+provider-embedding+provider-reranking@0.6.0",
     "source": "https://github.com/mem0ai/memory-benchmarks"
   },
-  "status": "internal_evidence",
+  "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/snap-research/locomo",
     "license": "CC BY-NC 4.0",
     "vendored": false
   },
   "run": {
-    "commit": "799952f",
-    "packageVersion": "0.3.5",
-    "command": "bun run scripts/measure-locomo-union-live.ts --benchmark-root <root> --union-topk 16 --with-extraction --concurrency 6 --run-id run-p4-full10-union16-ext-live --resume (root: bun run scripts/prepare-phase-65-locomo-data.ts -- --output-root <root> --max-conversations 10 --max-questions-per-case 0; baseline: same script with --no-memory, run-id run-p4-full10-no-memory-baseline)",
+    "commit": "d639fbd1996d61136e89137d378e4948c10b326f",
+    "packageVersion": "0.6.0",
+    "command": "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra GOODMEMORY_RERANKER_MODEL=gpt-5.6-terra bun run scripts/measure-locomo-union-live.ts --benchmark-root ~/.cache/goodmemory-benchmarks/LoCoMo-captioned-full10-v1 --profile goodmemory-recommended --with-extraction --provider-reranking --concurrency 40 --run-id run-phase72-locomo-production-listwise-full1540-terra-v1 --resume; bun run scripts/reanswer-phase-65-locomo-report.ts --source-report <previous-report> --run-id run-phase72-locomo-production-listwise-temporal-bounded-full1540-terra-v2; GOODMEMORY_JUDGE_MODEL=gpt-5.5 bun run eval:official-rescore -- --benchmark locomo --report <final-report> --root ~/.cache/goodmemory-benchmarks/LoCoMo-captioned-full10-v1/cases.json --concurrency 40 --run-id phase72-locomo-production-listwise-temporal-bounded-full1540-terra-v2-gpt55; bun run scripts/run-phase-72-release-gate.ts",
     "executionFailures": 0
   },
   "model": {
-    "answerModel": "gpt-5.5",
-    "judgeModel": null,
+    "answerModel": "gpt-5.6-terra",
+    "judgeModel": "gpt-5.5",
     "sameModelJudge": false
   },
   "publicClaim": {
     "readmeDisclosureFragments": [
+      "gpt-5.6-terra",
+      "gpt-5.5",
       "CC BY-NC 4.0",
-      "0.020",
-      "0.998",
-      "0.648"
+      "provider reranking"
     ],
     "readmeRequiredFragments": [
-      "0.6117",
-      "942/1540",
-      "0.837",
-      "1289/1540",
+      "0.6299",
+      "0.8708",
+      "0.6146",
+      "59/96",
       "0.0045"
     ]
   },
@@ -47,106 +48,50 @@
       {
         "assertions": [
           {
-            "path": ["runId"],
-            "equals": "run-p4-full10-union16-ext-live"
+            "path": ["status"],
+            "equals": "passed"
           },
           {
-            "path": ["executionFailures"],
+            "path": ["packageVersion"],
+            "equals": "0.6.0"
+          },
+          {
+            "path": ["metrics", "locomo", "executionFailures"],
             "equals": 0
           },
           {
-            "path": ["questionCount"],
-            "equals": 1986
-          },
-          {
-            "path": ["answerAccuracyOverall"],
-            "equals": 0.6198388721047331
-          },
-          {
-            "path": ["noMemory"],
-            "equals": false
-          }
-        ],
-        "description": "Full public LoCoMo-10 opt-in union/extraction live report for the judge-free token-F1 claim",
-        "path": "reports/eval/research/phase-65/locomo/run-p4-full10-union16-ext-live/union-live-report.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["runId"],
-            "equals": "run-p4-full10-no-memory-baseline"
-          },
-          {
-            "path": ["executionFailures"],
+            "path": ["metrics", "locomo", "officialJudgeFailures"],
             "equals": 0
           },
           {
-            "path": ["questionCount"],
-            "equals": 1986
+            "path": ["metrics", "locomo", "strictScore"],
+            "equals": 0.6298701298701299
           },
           {
-            "path": ["answerAccuracyOverall"],
-            "equals": 0.22759315206445116
+            "path": ["metrics", "locomo", "officialScore"],
+            "equals": 0.8707792207792208
           },
           {
-            "path": ["noMemory"],
-            "equals": true
+            "path": ["metrics", "locomo", "openDomainScore"],
+            "equals": 0.6145833333333334
           }
         ],
-        "description": "No-memory baseline live report on the same LoCoMo root and scorer",
-        "path": "reports/eval/research/phase-65/locomo/run-p4-full10-no-memory-baseline/union-live-report.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["runId"],
-            "equals": "rescore-locomo-official-judge"
-          },
-          {
-            "path": ["benchmark"],
-            "equals": "locomo"
-          },
-          {
-            "path": ["judgedCases"],
-            "equals": 1540
-          },
-          {
-            "path": ["selectedCases"],
-            "equals": 1540
-          },
-          {
-            "path": ["sourceCases"],
-            "equals": 1540
-          },
-          {
-            "path": ["judgeFailures"],
-            "equals": 0
-          },
-          {
-            "path": ["sourceAnswersUnchanged"],
-            "equals": true
-          },
-          {
-            "path": ["overallAccuracy"],
-            "equals": 0.837012987012987
-          }
-        ],
-        "description": "Official-protocol comparable rescore of the same stored non-adversarial LoCoMo answers",
-        "path": "reports/eval/research/official-rescore/rescore-locomo-official-judge/rescore-summary.json"
+        "description": "Phase 72 generalized benchmark release gate with source-report fingerprints",
+        "path": "reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json"
       }
     ]
   },
   "metrics": {
-    "primary": "answer accuracy, deterministic token-F1 scoring (judge-free), full 10-conversation LoCoMo set (1986 questions)",
-    "score": 0.6198,
-    "baseline": 0.2276
+    "primary": "Independent industry-comparable LoCoMo judge-protocol accuracy over the full 1540-question non-adversarial convention.",
+    "score": 0.8707792207792208,
+    "baseline": 0.6247
   },
   "coverage": {
     "complete": true,
-    "note": "full public LoCoMo-10: 10 conversations, 1986 questions (single_hop 841, multi_hop 282, temporal 321, open_domain 96, adversarial 446); per-category token-F1 accuracy 0.683/0.436/0.679/0.281/0.648, evidence recall overall 0.769. COMPARABLE-PROTOCOL TRACK 2026-07-05 (rescore of the SAME stored answers, no regeneration; scripts/rescore-official-protocols.ts, run rescore-locomo-official-judge): under the industry-comparable LLM-judge protocol (mem0ai/memory-benchmarks LoCoMo judge, no-evidence variant, categories 1-4 = the 1540-question non-adversarial convention), judged by gpt-5.4 (cross-version, same family as the gpt-5.5 answerer), J-accuracy 0.837 (1289/1540, judgeFailures 0); per category: temporal 0.882, single_hop 0.863, multi_hop 0.840, open_domain 0.448. Published references on that same judge-protocol scale: Memori 81.95, Zep 79.09, LangMem 78.05, Mem0 62.47. The deterministic token-F1 0.6117 (non-adversarial) remains the strict lower bound; the +22.5pt gap between the tracks is judge leniency (partial credit, paraphrase families, 14-day date tolerance), not answer changes."
+    "note": "Full 10 conversations and 1540 non-adversarial questions, executionFailures 0 and judgeFailures 0. Independent gpt-5.5 official-protocol score is 0.8707792208; strict deterministic token-F1 is 0.6298701299. Open-domain is 59/96 = 0.6145833333. The same scorer's historical no-memory non-adversarial baseline is 0.0045. The dataset is CC BY-NC 4.0, so the non-commercial scope is mandatory disclosure."
   },
   "claimBoundary": {
-    "publicClaimAllowed": false,
-    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. Judge-free deterministic token-F1 scoring, executionFailures 0 over all 1986 questions, resumable per-question checkpointing. Profile disclosed: opt-in retrieval.semanticCandidates union (topK 16, provider embedding text-embedding-3-small) + conversational write-time extraction + abstention-format answer prompt (answerSystem union-live-abstention-format-v1). No-memory ablation on the identical scorer/root: overall 0.2276 and non-adversarial 0.0045 (7/1540) vs with-memory non-adversarial 0.6117 (942/1540) - the non-adversarial set is unanswerable without memory. Disclosure: the adversarial category (446 questions, gold = abstain) is trivially aced by the no-memory arm (0.998 vs with-memory 0.648), so the headline memory lift must cite the non-adversarial split, not the adversarial one. Dataset is CC BY-NC 4.0: any public claim must disclose the non-commercial scope. Embedding-free boundary stands separately: rules-only lexical retrieval scored 0.020 on conv-1 (banked P65-R003); this claim is for the embedding+extraction profile. README promoted 2026-07-04 with user sign-off: public-claims row + disclosure paragraph added to README.md and README.zh-CN.md in the same change; the internal-diagnostics conv-1 boundary row was removed as superseded by this full-run claim (the 0.020 rules-only boundary remains disclosed here and in the public paragraph)."
+    "publicClaimAllowed": true,
+    "reason": "Current v0.6.0 public-opt-in recommended path with complete coverage, zero execution/judge failures, independent judge, verified non-vendored dataset/license, reproducible command/source commit, and separate strict and comparable tracks. The non-commercial dataset license and provider-backed profile are explicitly disclosed."
   }
 }

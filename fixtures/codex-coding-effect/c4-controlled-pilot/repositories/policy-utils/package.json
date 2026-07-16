@@ -1,0 +1,8 @@
+{
+  "name": "goodmemory-c4-policy-utils",
+  "private": true,
+  "scripts": {
+    "test": "bun test"
+  },
+  "type": "module"
+}

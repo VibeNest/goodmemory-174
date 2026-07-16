@@ -23,6 +23,7 @@ describe("Codex coding-effect C3 stage evidence", () => {
           reasons: [],
         },
         arm: "no-memory",
+        evaluatorSecuritySha256: SHA256,
         historyExposure: "none",
         historySourceSha256: SHA256,
         instructionSha256: SHA256,
@@ -227,6 +228,7 @@ function baseEvidence(arm: "goodmemory-installed" | "no-memory") {
 function installedArmEvidence() {
   return {
     arm: "goodmemory-installed" as const,
+    evaluatorSecuritySha256: SHA256,
     historyExposure: "goodmemory-installed" as const,
     historySourceSha256: SHA256,
     hostCanary: {
@@ -288,10 +290,14 @@ function permissionIsolation() {
         denied: true,
         exitCode: 1,
         label: "runner-source",
+        path: "/fake/runner-source",
         pathSha256: SHA256,
       }],
       networkAccess: false as const,
+      networkDenied: true as const,
+      networkPositiveControl: true as const,
       passed: true,
+      phase: "preflight" as const,
       profileName: "c3-task" as const,
       reasons: [],
       schemaVersion: 1 as const,

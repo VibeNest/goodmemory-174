@@ -1,0 +1,503 @@
+{
+  "cases": [
+    {
+      "episodeId": "endpoint-open-loop",
+      "failToPass": [
+        {
+          "args": [
+            " \tapi.internal\n"
+          ],
+          "expected": "api.internal"
+        }
+      ],
+      "functionName": "normalizeHost",
+      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            "localhost"
+          ],
+          "expected": "localhost"
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "endpoint-open-loop",
+      "failToPass": [
+        {
+          "args": [
+            "+443"
+          ],
+          "expected": null
+        },
+        {
+          "args": [
+            " 443"
+          ],
+          "expected": null
+        }
+      ],
+      "functionName": "parsePort",
+      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "443"
+          ],
+          "expected": 443
+        },
+        {
+          "args": [
+            "0"
+          ],
+          "expected": null
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "endpoint-open-loop",
+      "failToPass": [
+        {
+          "args": [
+            "2001:db8::1",
+            443
+          ],
+          "expected": "[2001:db8::1]:443"
+        }
+      ],
+      "functionName": "formatEndpoint",
+      "hiddenSentinel": "C4_HIDDEN|endpoint-open-loop|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "api.internal",
+            443
+          ],
+          "expected": "api.internal:443"
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "validated-first-delimiter",
+      "failToPass": [
+        {
+          "args": [
+            "token=a=b"
+          ],
+          "expected": [
+            "token",
+            "a=b"
+          ]
+        }
+      ],
+      "functionName": "splitAssignment",
+      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            "left=right"
+          ],
+          "expected": [
+            "left",
+            "right"
+          ]
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "validated-first-delimiter",
+      "failToPass": [
+        {
+          "args": [
+            "x-trace:a:b"
+          ],
+          "expected": [
+            "x-trace",
+            "a:b"
+          ]
+        }
+      ],
+      "functionName": "splitHeader",
+      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "left:right"
+          ],
+          "expected": [
+            "left",
+            "right"
+          ]
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "validated-first-delimiter",
+      "failToPass": [
+        {
+          "args": [
+            "api->worker->store"
+          ],
+          "expected": [
+            "api",
+            "worker->store"
+          ]
+        }
+      ],
+      "functionName": "splitRoute",
+      "hiddenSentinel": "C4_HIDDEN|validated-first-delimiter|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "left->right"
+          ],
+          "expected": [
+            "left",
+            "right"
+          ]
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "avoid-naive-split",
+      "failToPass": [
+        {
+          "args": [
+            "name=\"blue#green\" # note"
+          ],
+          "expected": "name=\"blue#green\""
+        }
+      ],
+      "functionName": "stripConfigComment",
+      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            "name=blue # note"
+          ],
+          "expected": "name=blue"
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "avoid-naive-split",
+      "failToPass": [
+        {
+          "args": [
+            "deploy --label \"blue green\""
+          ],
+          "expected": [
+            "deploy",
+            "--label",
+            "blue green"
+          ]
+        }
+      ],
+      "functionName": "tokenizeCommand",
+      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "deploy --dry-run"
+          ],
+          "expected": [
+            "deploy",
+            "--dry-run"
+          ]
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "avoid-naive-split",
+      "failToPass": [
+        {
+          "args": [
+            "alpha,\"beta,gamma\",delta"
+          ],
+          "expected": [
+            "alpha",
+            "beta,gamma",
+            "delta"
+          ]
+        }
+      ],
+      "functionName": "parseCsvFields",
+      "hiddenSentinel": "C4_HIDDEN|avoid-naive-split|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "alpha,beta"
+          ],
+          "expected": [
+            "alpha",
+            "beta"
+          ]
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "parse-result-correction",
+      "failToPass": [
+        {
+          "args": [
+            "yes"
+          ],
+          "expected": {
+            "error": "invalid-boolean",
+            "ok": false
+          }
+        }
+      ],
+      "functionName": "parseBooleanSetting",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            "true"
+          ],
+          "expected": {
+            "ok": true,
+            "value": true
+          }
+        },
+        {
+          "args": [
+            "false"
+          ],
+          "expected": {
+            "ok": true,
+            "value": false
+          }
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "parse-result-correction",
+      "failToPass": [
+        {
+          "args": [
+            "4.2"
+          ],
+          "expected": {
+            "error": "invalid-integer",
+            "ok": false
+          }
+        },
+        {
+          "args": [
+            "12x"
+          ],
+          "expected": {
+            "error": "invalid-integer",
+            "ok": false
+          }
+        }
+      ],
+      "functionName": "parseIntegerSetting",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "12"
+          ],
+          "expected": {
+            "ok": true,
+            "value": 12
+          }
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "parse-result-correction",
+      "failToPass": [
+        {
+          "args": [
+            "turbo"
+          ],
+          "expected": {
+            "error": "invalid-mode",
+            "ok": false
+          }
+        }
+      ],
+      "functionName": "parseModeSetting",
+      "hiddenSentinel": "C4_HIDDEN|parse-result-correction|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "direct"
+          ],
+          "expected": {
+            "ok": true,
+            "value": "direct"
+          }
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "stale-time-unit-update",
+      "failToPass": [
+        {
+          "args": [
+            2.5
+          ],
+          "expected": 2500
+        }
+      ],
+      "functionName": "timeoutToMs",
+      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            0
+          ],
+          "expected": 0
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "stale-time-unit-update",
+      "failToPass": [
+        {
+          "args": [
+            {
+              "initialSeconds": 1,
+              "maxSeconds": 8
+            }
+          ],
+          "expected": {
+            "initialMs": 1000,
+            "maxMs": 8000
+          }
+        }
+      ],
+      "functionName": "scheduleToMs",
+      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            {
+              "initialSeconds": 0,
+              "maxSeconds": 0
+            }
+          ],
+          "expected": {
+            "initialMs": 0,
+            "maxMs": 0
+          }
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "stale-time-unit-update",
+      "failToPass": [
+        {
+          "args": [
+            1000,
+            2
+          ],
+          "expected": 3000
+        }
+      ],
+      "functionName": "deadlineFromConfig",
+      "hiddenSentinel": "C4_HIDDEN|stale-time-unit-update|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            1000,
+            0
+          ],
+          "expected": 1000
+        }
+      ],
+      "stageId": "stage-3"
+    },
+    {
+      "episodeId": "irrelevant-history-control",
+      "failToPass": [
+        {
+          "args": [
+            "  Blue__Green  "
+          ],
+          "expected": "blue-green"
+        }
+      ],
+      "functionName": "slugify",
+      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-1",
+      "passToPass": [
+        {
+          "args": [
+            "Hello World"
+          ],
+          "expected": "hello-world"
+        }
+      ],
+      "stageId": "stage-1"
+    },
+    {
+      "episodeId": "irrelevant-history-control",
+      "failToPass": [
+        {
+          "args": [
+            "alpha, beta,alpha"
+          ],
+          "expected": [
+            "alpha",
+            "beta"
+          ]
+        }
+      ],
+      "functionName": "parseCsvUnique",
+      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-2",
+      "passToPass": [
+        {
+          "args": [
+            "alpha,beta"
+          ],
+          "expected": [
+            "alpha",
+            "beta"
+          ]
+        }
+      ],
+      "stageId": "stage-2"
+    },
+    {
+      "episodeId": "irrelevant-history-control",
+      "failToPass": [
+        {
+          "args": [
+            "docs/setup guide#intro"
+          ],
+          "expected": "docs%2Fsetup%20guide%23intro"
+        }
+      ],
+      "functionName": "encodePathSegment",
+      "hiddenSentinel": "C4_HIDDEN|irrelevant-history-control|stage-3",
+      "passToPass": [
+        {
+          "args": [
+            "read me"
+          ],
+          "expected": "read%20me"
+        }
+      ],
+      "stageId": "stage-3"
+    }
+  ],
+  "schemaVersion": 1
+}

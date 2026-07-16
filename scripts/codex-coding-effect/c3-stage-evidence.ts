@@ -35,10 +35,14 @@ const permissionIsolationSchema = z.object({
       denied: z.literal(true),
       exitCode: z.number().int().nullable(),
       label: z.string().min(1),
+      path: z.string().min(1),
       pathSha256: sha256Schema,
     }).strict()).min(1),
     networkAccess: z.literal(false),
+    networkDenied: z.literal(true),
+    networkPositiveControl: z.literal(true),
     passed: z.literal(true),
+    phase: z.enum(["pre-launch", "pre-seed", "preflight"]),
     profileName: z.literal("c3-task"),
     reasons: z.array(z.string()).length(0),
     schemaVersion: z.literal(1),
@@ -103,6 +107,7 @@ const hostCanarySchema = z.object({
 const noMemoryArmEvidenceSchema = z.object({
   absenceAudit: absenceAuditSchema,
   arm: z.literal("no-memory"),
+  evaluatorSecuritySha256: sha256Schema.nullable(),
   historyExposure: z.literal("none"),
   historySourceSha256: sha256Schema,
   instructionSha256: sha256Schema,
@@ -113,6 +118,7 @@ const noMemoryArmEvidenceSchema = z.object({
 
 const installedArmEvidenceSchema = z.object({
   arm: z.literal("goodmemory-installed"),
+  evaluatorSecuritySha256: sha256Schema.nullable(),
   historyExposure: z.literal("goodmemory-installed"),
   historySourceSha256: sha256Schema,
   hostCanary: hostCanarySchema.nullable(),

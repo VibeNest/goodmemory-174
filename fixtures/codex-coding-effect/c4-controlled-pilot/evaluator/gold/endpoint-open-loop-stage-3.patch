@@ -1,0 +1,16 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..71a767da0d1459e1da322a80554ddb6b5e843461 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -10,7 +10,10 @@ export function parsePort(value: string): number | null {
+ }
+ 
+ export function formatEndpoint(host: string, port: number): string {
+-  return `${host}:${port}`;
++  const renderedHost = host.includes(":") && !host.startsWith("[")
++    ? `[${host}]`
++    : host;
++  return `${renderedHost}:${port}`;
+ }
+ 
+ export function splitAssignment(input: string): [string, string] | null {

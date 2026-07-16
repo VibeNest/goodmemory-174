@@ -1,0 +1,11 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..b037eecd68ab8f53816e32b845f95230d493d537 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -43,5 +43,5 @@ export function parseCsvUnique(input: string): string[] {
+ }
+ 
+ export function encodePathSegment(value: string): string {
+-  return encodeURI(value);
++  return encodeURIComponent(value);
+ }

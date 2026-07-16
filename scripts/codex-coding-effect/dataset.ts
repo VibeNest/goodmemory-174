@@ -40,9 +40,8 @@ const expectedMemoryDependencySchema = z.object({
   description: trimmedStringSchema,
 }).strict();
 
-const stageSchema = z.object({
+const stageBaseShape = {
   allowedFeedback: z.array(trimmedStringSchema),
-  expectedMemoryDependencies: z.array(expectedMemoryDependencySchema),
   hiddenFailToPass: commandSchema,
   hiddenPassToPass: commandSchema,
   id: identifierSchema,
@@ -51,7 +50,62 @@ const stageSchema = z.object({
   snapshot: gitCommitSchema,
   timeoutMs: z.number().int().positive(),
   visibleTest: commandSchema.optional(),
+};
+
+const stageV1Schema = z.object({
+  ...stageBaseShape,
+  expectedMemoryDependencies: z.array(expectedMemoryDependencySchema),
 }).strict();
+
+const goldPatchSchema = z.object({
+  path: relativeManifestPathSchema.refine(
+    (value) => value.startsWith("evaluator/"),
+    "stage gold patch must be under evaluator/",
+  ),
+  sha256: sha256Schema,
+}).strict();
+
+const memoryExpectationSchema = z.object({
+  dependencies: z.array(expectedMemoryDependencySchema),
+  mode: z.enum(["none", "required", "irrelevant-control"]),
+}).strict().superRefine((expectation, context) => {
+  if (expectation.mode === "none" && expectation.dependencies.length > 0) {
+    context.addIssue({
+      code: "custom",
+      message: "memory expectation mode none cannot declare dependencies",
+      path: ["dependencies"],
+    });
+  }
+  if (expectation.mode !== "none" && expectation.dependencies.length === 0) {
+    context.addIssue({
+      code: "custom",
+      message: `memory expectation mode ${expectation.mode} requires dependencies`,
+      path: ["dependencies"],
+    });
+  }
+});
+
+const stageV2Schema = z.object({
+  ...stageBaseShape,
+  expectedChangedFiles: z.array(relativeManifestPathSchema.refine(
+    (value) => !value.startsWith("evaluator/"),
+    "expected changed files must stay in the agent workspace",
+  )).min(1),
+  goldPatch: goldPatchSchema,
+  memoryExpectation: memoryExpectationSchema,
+}).strict().superRefine((stage, context) => {
+  const files = new Set<string>();
+  for (const [index, file] of stage.expectedChangedFiles.entries()) {
+    if (files.has(file)) {
+      context.addIssue({
+        code: "custom",
+        message: `stage ${stage.id} repeats expected changed file ${file}`,
+        path: ["expectedChangedFiles", index],
+      });
+    }
+    files.add(file);
+  }
+});
 
 const prehistorySchema = z.discriminatedUnion("source", [
   z.object({
@@ -68,7 +122,15 @@ const prehistorySchema = z.discriminatedUnion("source", [
   }).strict(),
 ]);
 
-const episodeSchema = z.object({
+const leakageScalarSchema = z.union([
+  z.string(),
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+]);
+
+const episodeBaseShape = {
+  allowedPublicLeakageValues: z.array(leakageScalarSchema).optional(),
   author: trimmedStringSchema,
   claimEligibility: z.enum(["pilot-only", "claim-eligible"]),
   ecosystem: trimmedStringSchema,
@@ -76,10 +138,6 @@ const episodeSchema = z.object({
     fileSha256: z.array(sha256Schema),
     strings: z.array(trimmedStringSchema),
   }).strict(),
-  goldPatchPath: relativeManifestPathSchema.refine(
-    (value) => value.startsWith("evaluator/"),
-    "goldPatchPath must be under evaluator/",
-  ),
   id: identifierSchema,
   language: trimmedStringSchema,
   preparation: z.object({
@@ -105,72 +163,75 @@ const episodeSchema = z.object({
     "real-history",
     "external-benchmark",
   ]),
-  stages: z.array(stageSchema).min(1),
   stateMode: z.enum(["canonical-snapshot", "persistent-branch"]),
   strata: z.array(memoryStratumSchema).min(1),
+};
+
+const episodeV1Schema = z.object({
+  ...episodeBaseShape,
+  goldPatchPath: relativeManifestPathSchema.refine(
+    (value) => value.startsWith("evaluator/"),
+    "goldPatchPath must be under evaluator/",
+  ),
+  stages: z.array(stageV1Schema).min(1),
 }).strict().superRefine((episode, context) => {
-  const strata = new Set<string>();
-  for (const stratum of episode.strata) {
-    if (strata.has(stratum)) {
-      context.addIssue({
-        code: "custom",
-        message: `episode ${episode.id} contains duplicate stratum ${stratum}`,
-        path: ["strata"],
-      });
-    }
-    strata.add(stratum);
-  }
-
-  const stageIds = new Set<string>();
-  for (const [index, stage] of episode.stages.entries()) {
-    if (stageIds.has(stage.id)) {
-      context.addIssue({
-        code: "custom",
-        message: `episode ${episode.id} contains duplicate stage id ${stage.id}`,
-        path: ["stages", index, "id"],
-      });
-    }
-    stageIds.add(stage.id);
-
-    if (stage.position !== index + 1) {
-      context.addIssue({
-        code: "custom",
-        message: `episode ${episode.id} stage positions must be contiguous from 1`,
-        path: ["stages", index, "position"],
-      });
-    }
-
-    for (const dependency of stage.expectedMemoryDependencies) {
-      if (!strata.has(dependency.category)) {
-        context.addIssue({
-          code: "custom",
-          message:
-            `stage ${stage.id} uses undeclared memory stratum ${dependency.category}`,
-          path: ["stages", index, "expectedMemoryDependencies"],
-        });
-      }
-    }
-  }
+  validateEpisodeStructure(
+    episode.id,
+    episode.strata,
+    episode.stages.map((stage) => ({
+      dependencies: stage.expectedMemoryDependencies,
+      id: stage.id,
+      position: stage.position,
+    })),
+    (message, path) => context.addIssue({ code: "custom", message, path }),
+  );
 });
 
-const datasetSchema = z.object({
+const episodeV2Schema = z.object({
+  ...episodeBaseShape,
+  stages: z.array(stageV2Schema).min(1),
+}).strict().superRefine((episode, context) => {
+  validateEpisodeStructure(
+    episode.id,
+    episode.strata,
+    episode.stages.map((stage) => ({
+      dependencies: stage.memoryExpectation.dependencies,
+      id: stage.id,
+      position: stage.position,
+    })),
+    (message, path) => context.addIssue({ code: "custom", message, path }),
+  );
+});
+
+const datasetV1Schema = z.object({
   datasetId: identifierSchema,
-  episodes: z.array(episodeSchema).min(1),
+  episodes: z.array(episodeV1Schema).min(1),
   schemaVersion: z.literal(1),
 }).strict().superRefine((dataset, context) => {
-  const episodeIds = new Set<string>();
-  for (const [index, episode] of dataset.episodes.entries()) {
-    if (episodeIds.has(episode.id)) {
-      context.addIssue({
-        code: "custom",
-        message: `dataset contains duplicate episode id ${episode.id}`,
-        path: ["episodes", index, "id"],
-      });
-    }
-    episodeIds.add(episode.id);
-  }
+  validateDatasetEpisodeIds(
+    dataset.episodes,
+    (message, path) => context.addIssue({ code: "custom", message, path }),
+  );
 });
 
+const datasetV2Schema = z.object({
+  datasetId: identifierSchema,
+  episodes: z.array(episodeV2Schema).min(1),
+  schemaVersion: z.literal(2),
+}).strict().superRefine((dataset, context) => {
+  validateDatasetEpisodeIds(
+    dataset.episodes,
+    (message, path) => context.addIssue({ code: "custom", message, path }),
+  );
+});
+
+const datasetSchema = z.discriminatedUnion("schemaVersion", [
+  datasetV1Schema,
+  datasetV2Schema,
+]);
+
+export type CodexCodingEffectDatasetV1 = z.infer<typeof datasetV1Schema>;
+export type CodexCodingEffectDatasetV2 = z.infer<typeof datasetV2Schema>;
 export type CodexCodingEffectDataset = z.infer<typeof datasetSchema>;
 export type CodexCodingEffectEpisode = CodexCodingEffectDataset["episodes"][number];
 
@@ -240,6 +301,71 @@ export async function loadCodexCodingEffectDataset(
     manifestPath,
     manifestSha256: createHash("sha256").update(raw).digest("hex"),
   };
+}
+
+function validateEpisodeStructure(
+  episodeId: string,
+  declaredStrata: readonly string[],
+  stages: readonly {
+    dependencies: readonly { category: string }[];
+    id: string;
+    position: number;
+  }[],
+  addIssue: (message: string, path: (string | number)[]) => void,
+): void {
+  const strata = new Set<string>();
+  for (const stratum of declaredStrata) {
+    if (strata.has(stratum)) {
+      addIssue(
+        `episode ${episodeId} contains duplicate stratum ${stratum}`,
+        ["strata"],
+      );
+    }
+    strata.add(stratum);
+  }
+
+  const stageIds = new Set<string>();
+  for (const [index, stage] of stages.entries()) {
+    if (stageIds.has(stage.id)) {
+      addIssue(
+        `episode ${episodeId} contains duplicate stage id ${stage.id}`,
+        ["stages", index, "id"],
+      );
+    }
+    stageIds.add(stage.id);
+
+    if (stage.position !== index + 1) {
+      addIssue(
+        `episode ${episodeId} stage positions must be contiguous from 1`,
+        ["stages", index, "position"],
+      );
+    }
+
+    for (const dependency of stage.dependencies) {
+      if (!strata.has(dependency.category)) {
+        addIssue(
+          `stage ${stage.id} uses undeclared memory stratum ${dependency.category}`,
+          ["stages", index, "memoryDependencies"],
+        );
+      }
+    }
+  }
+}
+
+function validateDatasetEpisodeIds(
+  episodes: readonly { id: string }[],
+  addIssue: (message: string, path: (string | number)[]) => void,
+): void {
+  const episodeIds = new Set<string>();
+  for (const [index, episode] of episodes.entries()) {
+    if (episodeIds.has(episode.id)) {
+      addIssue(
+        `dataset contains duplicate episode id ${episode.id}`,
+        ["episodes", index, "id"],
+      );
+    }
+    episodeIds.add(episode.id);
+  }
 }
 
 function isPortableRelativePath(value: string): boolean {

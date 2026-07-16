@@ -22,11 +22,15 @@ async function main(): Promise<void> {
       evaluatorFiles: fixture.evaluatorFiles,
       evaluatorRoot: fixture.evaluatorRoot,
       expectedCommit: fixture.expectedCommit,
+      expectedFailToPassOutputFragments:
+        fixture.expectedFailToPassOutputFragments,
+      failToPassSource: fixture.failToPassSource,
       failToPassCommand: fixture.failToPassCommand,
       forbiddenPaths: [".goodmemory", "evaluator"],
       forbiddenSources: fixture.forbiddenSources,
       forbiddenStrings: fixture.forbiddenStrings,
       generatedAt,
+      goodMemorySourceRoot: options.goodMemorySourceRoot,
       historySourcePath: fixture.historySourcePath,
       historySourceSha256: fixture.historySourceSha256,
       materializeEvaluator: fixture.materializeEvaluator,
@@ -38,6 +42,7 @@ async function main(): Promise<void> {
       },
       outputDirectory: options.runOutputDir,
       packageTarball: options.packageTarball,
+      passToPassSource: fixture.passToPassSource,
       passToPassCommand: fixture.passToPassCommand,
       prompt: fixture.prompt,
       reasoningEffort: options.reasoningEffort,
@@ -49,6 +54,7 @@ async function main(): Promise<void> {
       stageId: "stage-1",
       stageTimeoutMs: options.stageTimeoutMs,
       testTimeoutMs: options.testTimeoutMs,
+      visibleBaseHealthCommand: fixture.baseHealthCommand,
       workspaceRoot: options.workspaceRoot,
     });
     process.stdout.write(result.summaryBytes);

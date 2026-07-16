@@ -89,11 +89,15 @@ Current Transition
   smokes, tarball size, and strict claim gate are green. No `v0.6.0` version
   bump, tag, publication, or current claim is allowed until BEAM clears gate.
 - Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
-  the C2 host-only canary are closed. C3 is accepted as
-  `frozen-prehistory-pilot` protocol evidence from real two-process run
-  `c3-controlled-20260715-1747z`; both arms passed (`tie-both-pass`), so it
-  proves the paired protocol and real installed treatment path, not coding
-  uplift. Phase 73 remains active with C4-C7 open. See
+  the C2 host-only canary are closed. C3 implementation is complete, but its
+  acceptance is reopened: real two-process run
+  `c3-controlled-20260715-1747z` observed `tie-both-pass` and an active installed
+  treatment, but omitted runner-source provenance and the normalized arm config
+  diff from its gitignored evidence. A new auditable pair is required. C4 is
+  accepted only as offline dataset-readiness evidence: 6 episodes / 18 stages /
+  54 stable base probes / 18 passing gold replays, with independent review and
+  tracked deterministic evidence. It made no live Codex comparison and proves
+  no coding uplift. Phase 73 remains active with C3 and C5-C7 open. See
   `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
   and the strict boundary against coding-effect claims.
 

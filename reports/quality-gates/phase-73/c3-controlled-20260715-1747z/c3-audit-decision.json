@@ -1,0 +1,25 @@
+{
+  "decision": "rejected-pending-rerun",
+  "evidenceClass": "frozen-prehistory-pilot",
+  "generatedAt": "2026-07-16T02:04:54.000Z",
+  "observedArtifacts": {
+    "casesSha256": "76b16bfc9e9c852b23a059d2cc330f0f2843e5042e485f709cbf381e16236923",
+    "runIdentitySha256": "956074c029dfc811a02499d702b03f74a349b1e5e33bae02ca4fd65237d687f6",
+    "summarySha256": "3b9f3f284749b96417a44619132ea97d4c61ce3bd02abd80470c7c4751374628"
+  },
+  "observedOutcome": "tie-both-pass",
+  "publicClaimEligible": false,
+  "reasons": [
+    "run identity omits the runner-time GoodMemory source commit, tree, and dirty-state artifact",
+    "run identity omits both normalized arm host configurations and their normalized diff",
+    "the raw evidence directory is gitignored and the historical run has no tracked sanitized projection"
+  ],
+  "requiredForClosure": [
+    "new real two-process pair",
+    "pre-call source provenance and dirty-state artifact",
+    "pre-call normalized arm host configurations and diff",
+    "tracked audit-evidence.sanitized.json, host-configurations.sanitized.json, goodmemory-source-state.json, and goodmemory-source-state-post-run.json"
+  ],
+  "runId": "c3-controlled-20260715-1747z",
+  "schemaVersion": 1
+}

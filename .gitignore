@@ -97,6 +97,12 @@ reports/eval/dogfood/**
 reports/eval/adoption/**
 reports/eval/product/**
 reports/eval/research/**
+!reports/eval/research/codex-coding-effect/
+!reports/eval/research/codex-coding-effect/*/
+!reports/eval/research/codex-coding-effect/*/audit-evidence.sanitized.json
+!reports/eval/research/codex-coding-effect/*/goodmemory-source-state.json
+!reports/eval/research/codex-coding-effect/*/goodmemory-source-state-post-run.json
+!reports/eval/research/codex-coding-effect/*/host-configurations.sanitized.json
 !reports/eval/dogfood/phase-37-1/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/
 !reports/eval/dogfood/phase-37-1/run-phase37-1-dogfood-current/report.json
@@ -203,6 +209,12 @@ reports/quality-gates/**
 !reports/quality-gates/*/run-*/
 # Keep only accepted gate artifacts explicitly cited by docs/status.
 # Fresh local reruns under run-* stay ignored unless intentionally promoted here.
+!reports/quality-gates/phase-73/
+!reports/quality-gates/phase-73/c3-controlled-20260715-1747z/
+!reports/quality-gates/phase-73/c3-controlled-20260715-1747z/c3-audit-decision.json
+!reports/quality-gates/phase-73/c4-controlled-pilot-core.json
+!reports/quality-gates/phase-73/c4-baseline-ceiling-pilot.json
+!reports/quality-gates/phase-73/c4-controlled-pilot-readiness.json
 !reports/quality-gates/phase-18/run-20260419031141/phase-18-quality-gate.json
 !reports/quality-gates/phase-19-maintenance/run-20260419101816/phase-19-maintenance-quality-gate.json
 !reports/quality-gates/phase-19-maintenance/run-20260419162236/phase-19-maintenance-quality-gate.json

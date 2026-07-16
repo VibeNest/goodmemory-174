@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..d859f7bc437c6d7d4511ba910816e67df4529d01 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -14,8 +14,10 @@ export function formatEndpoint(host: string, port: number): string {
+ }
+ 
+ export function splitAssignment(input: string): [string, string] | null {
+-  const [head, tail] = input.split("=");
+-  return head !== undefined && tail !== undefined ? [head, tail] : null;
++  const delimiterIndex = input.indexOf("=");
++  return delimiterIndex === -1
++    ? null
++    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 1)];
+ }
+ 
+ export function splitHeader(input: string): [string, string] | null {

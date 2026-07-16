@@ -1,0 +1,10 @@
+{
+  "author": "GoodMemory C4 dataset author",
+  "authorTaskName": "/root",
+  "authoredBeforePairedExecution": true,
+  "c4AbResultsInspectedBeforeFreeze": false,
+  "datasetId": "codex-c4-controlled-pilot-v1",
+  "frozenAt": "2026-07-15T20:00:00.000Z",
+  "schemaVersion": 2,
+  "scope": "dataset-authoring-only-no-c4-ab-results"
+}

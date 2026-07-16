@@ -3,7 +3,6 @@ import {
   lstat,
   mkdir,
   readFile,
-  readdir,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -21,24 +20,50 @@ import { fileURLToPath } from "node:url";
 import {
   openCodexCodingEffectAttemptLedger,
 } from "./attempts";
-import type {
-  CodexCodingEffectAttemptLedger,
-  CodexCodingEffectAttemptRow,
-} from "./attempts";
 import {
   buildC3CodexArgs,
   buildFrozenPrehistoryArmPlans,
   normalizeC3CodexTreatmentArgs,
 } from "./c3-arms";
+import {
+  assertC3BaseHealthPassed,
+  runC3BaseHealthProbe,
+  serializeC3BaseHealthEvidence,
+} from "./c3-base-health";
+import {
+  assertC3WorkspaceClean,
+  c3EvaluatorInfrastructureFailure,
+  createC3EvaluatorEnvironment,
+  evaluateC3ArmSafely,
+  validateC3EvaluatorCommitments,
+  verifyC3EvaluatorFiles,
+} from "./c3-evaluator";
 import type {
-  NoMemoryRuntimeAudit,
-} from "./c3-arms";
+  C3AgentArmExecution,
+  C3EvaluateArmInput,
+} from "./c3-evaluator";
+import {
+  finalizeC3Arm,
+  requireStrictNoMemoryAbsenceAudit,
+} from "./c3-finalization";
 import {
   collectC3InstalledHostCanary,
 } from "./c3-host-canary";
 import type {
   C3InstalledHostCanary,
 } from "./c3-host-canary";
+import {
+  collectC3HostConfigurationEvidence,
+  serializeC3HostConfigurationEvidence,
+} from "./c3-host-configuration";
+import {
+  collectC3HostPreflightEvidence,
+  serializeC3HostPreflightEvidence,
+} from "./c3-host-preflight";
+import {
+  C3_BASE_DENIED_READ_LABELS,
+  C3_INSTALLED_DENIED_READ_LABELS,
+} from "./c3-permission-isolation";
 import {
   buildC3FrozenPrehistoryPilotSummary,
   serializeC3FrozenPrehistoryPilotSummary,
@@ -47,26 +72,34 @@ import type {
   C3FrozenPrehistoryPilotSummary,
 } from "./c3-reporting";
 import {
+  buildC3AuditEvidence,
+  buildC3RunIdentity,
+} from "./c3-run-provenance";
+import {
+  assertC3ArmModelCredentialRemoved,
   auditC3PermissionIsolation,
+  buildC3EvaluatorSecurityContract,
+  buildC3EvaluatorSecurityEvidence,
   cleanupC3ArmRuntime,
   preflightC3InstalledRecall,
   prepareC3InstalledArm,
   prepareC3NoMemoryArm,
+  removeC3ArmModelCredential,
   seedC3InstalledArm,
 } from "./c3-runtime";
 import type {
   C3InstalledArmRuntime,
   C3NoMemoryArmRuntime,
-  C3PermissionIsolationEvidence,
   C3RecallPreflightEvidence,
   C3SeedResult,
 } from "./c3-runtime";
 import {
-  persistC3PilotStageEvidence,
-} from "./c3-stage-evidence";
-import type {
-  C3ArmStageEvidence,
-} from "./c3-stage-evidence";
+  prepareCodexEvaluatorSandbox,
+} from "./evaluator-sandbox";
+import {
+  assertC3GoodMemorySourceClean,
+  collectC3GoodMemorySourceProvenance,
+} from "./c3-source-provenance";
 import {
   runCodexProcess,
 } from "./codex-runner";
@@ -87,13 +120,7 @@ import type {
   CodexCodingEffectLogEvent,
   CodexCodingEffectLogger,
 } from "./logging";
-import {
-  applyWorkspacePatch,
-  captureWorkspacePatch,
-} from "./patch";
-import type {
-  WorkspacePatch,
-} from "./patch";
+import { captureWorkspacePatch } from "./patch";
 import {
   serializeCodexCodingEffectCases,
 } from "./reporting";
@@ -101,20 +128,10 @@ import type {
   CodexCodingEffectCaseResult,
 } from "./reporting";
 import {
-  runEvaluatorTest,
-  scoreCodexStage,
-} from "./test-scoring";
-import type {
-  CodexStageScore,
-  EvaluatorTestResult,
-} from "./test-scoring";
-import {
   prepareC3IsolatedClone,
 } from "./c3-workspace";
 import {
   assertUniqueWorkspacePaths,
-  prepareIsolatedWorkspace,
-  releaseIsolatedWorkspace,
 } from "./workspace";
 
 const OWNERSHIP_MARKER = ".goodmemory-c3-pair-owned";
@@ -129,35 +146,17 @@ interface C3PairDependencies {
     runtime: C3InstalledArmRuntime;
     seed: C3SeedResult;
   }) => Promise<C3InstalledHostCanary>;
+  collectBaseHealth: typeof runC3BaseHealthProbe;
+  collectHostConfigurations: typeof collectC3HostConfigurationEvidence;
+  collectHostPreflight: typeof collectC3HostPreflightEvidence;
+  collectSourceProvenance: typeof collectC3GoodMemorySourceProvenance;
   prepareInstalled: typeof prepareC3InstalledArm;
   prepareNoMemory: typeof prepareC3NoMemoryArm;
+  prepareEvaluatorSandbox: typeof prepareCodexEvaluatorSandbox;
   preflightInstalledRecall: typeof preflightC3InstalledRecall;
+  removeModelCredential: typeof removeC3ArmModelCredential;
   runCodex: (request: CodexRunRequest) => Promise<CodexRunResult>;
   seedInstalled: typeof seedC3InstalledArm;
-}
-
-interface AgentArmExecution {
-  codex: CodexRunResult;
-  patch: WorkspacePatch;
-}
-
-interface EvaluatedArmExecution extends AgentArmExecution {
-  failToPass: EvaluatorTestResult;
-  passToPass: EvaluatorTestResult;
-  score: CodexStageScore;
-}
-
-interface EvaluateArmInput {
-  agent: AgentArmExecution;
-  evaluationWorkspace: string;
-  evaluatorEnv: Record<string, string>;
-  evaluatorRoot: string;
-  expectedCommit: string;
-  failToPassCommand: readonly string[];
-  logger: CodexCodingEffectLogger;
-  passToPassCommand: readonly string[];
-  sourceRepository: string;
-  testTimeoutMs: number;
 }
 
 export interface C3FrozenPrehistoryPairResult {
@@ -177,11 +176,14 @@ export async function runC3FrozenPrehistoryPair(input: {
   evaluatorRoot: string;
   evaluatorFiles: ReadonlyArray<{ relativePath: string; sha256: string }>;
   expectedCommit: string;
+  expectedFailToPassOutputFragments: readonly string[];
+  failToPassSource: string;
   failToPassCommand: readonly string[];
   forbiddenPaths?: readonly string[];
   forbiddenSources: ReadonlyArray<{ content: string; label: string }>;
   forbiddenStrings: readonly string[];
   generatedAt: string;
+  goodMemorySourceRoot?: string;
   historySourcePath: string;
   historySourceSha256: string;
   materializeEvaluator: () => Promise<void>;
@@ -191,6 +193,7 @@ export async function runC3FrozenPrehistoryPair(input: {
   onLog?: (event: CodexCodingEffectLogEvent) => void;
   outputDirectory: string;
   packageTarball: string;
+  passToPassSource: string;
   passToPassCommand: readonly string[];
   prompt: string;
   reasoningEffort: string;
@@ -202,17 +205,35 @@ export async function runC3FrozenPrehistoryPair(input: {
   stageId: string;
   stageTimeoutMs: number;
   testTimeoutMs: number;
+  visibleBaseHealthCommand: readonly string[];
   workspaceRoot: string;
 }): Promise<C3FrozenPrehistoryPairResult> {
   const outputDirectory = resolve(input.outputDirectory);
   const runtimeRoot = resolve(input.runtimeRoot);
   const workspaceRoot = resolve(input.workspaceRoot);
   const evaluatorRoot = resolve(input.evaluatorRoot);
+  const runnerSourceRoot = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../..",
+  );
+  const goodMemorySourceRoot = resolve(
+    input.goodMemorySourceRoot ?? runnerSourceRoot,
+  );
   const sourceRepository = resolve(input.sourceRepository);
-  validateEvaluatorCommitments(input.evaluatorFiles);
+  validateC3EvaluatorCommitments(input.evaluatorFiles);
+  assertC3BaseHealthSourcesCommitted(input);
   assertFreshDisjointRoots({
     evaluatorRoot,
     outputDirectory,
+    runtimeRoot,
+    sourceRepository,
+    workspaceRoot,
+  });
+  assertMutableRootsOutsideRunnerSource({
+    evaluatorRoot,
+    historySourcePath: resolve(input.historySourcePath),
+    outputDirectory,
+    runnerSourceRoot,
     runtimeRoot,
     sourceRepository,
     workspaceRoot,
@@ -253,11 +274,25 @@ export async function runC3FrozenPrehistoryPair(input: {
     stageId: input.stageId,
     workspaceRoot,
   });
+  const evaluatorSandboxRoots = {
+    goodmemoryInstalled: join(
+      runtimeRoot,
+      "evaluator-sandboxes",
+      "goodmemory-installed",
+    ),
+    noMemory: join(
+      runtimeRoot,
+      "evaluator-sandboxes",
+      "no-memory",
+    ),
+  } as const;
   const evaluationPaths = [
-    `${noMemoryPlan.paths.workspace}-evaluation`,
-    `${installedPlan.paths.workspace}-evaluation`,
+    join(evaluatorSandboxRoots.noMemory, "workspace"),
+    join(evaluatorSandboxRoots.goodmemoryInstalled, "workspace"),
   ] as const;
+  const baseHealthWorkspace = join(workspaceRoot, "base-health");
   assertUniqueWorkspacePaths([
+    baseHealthWorkspace,
     noMemoryPlan.paths.workspace,
     installedPlan.paths.workspace,
     ...evaluationPaths,
@@ -266,10 +301,16 @@ export async function runC3FrozenPrehistoryPair(input: {
   const dependencies: C3PairDependencies = {
     auditPermissionIsolation: auditC3PermissionIsolation,
     cleanupRuntime: cleanupC3ArmRuntime,
+    collectBaseHealth: runC3BaseHealthProbe,
+    collectHostConfigurations: collectC3HostConfigurationEvidence,
+    collectHostPreflight: collectC3HostPreflightEvidence,
     collectInstalledCanary: collectC3InstalledHostCanary,
+    collectSourceProvenance: collectC3GoodMemorySourceProvenance,
     prepareInstalled: prepareC3InstalledArm,
     prepareNoMemory: prepareC3NoMemoryArm,
+    prepareEvaluatorSandbox: prepareCodexEvaluatorSandbox,
     preflightInstalledRecall: preflightC3InstalledRecall,
+    removeModelCredential: removeC3ArmModelCredential,
     runCodex: runCodexProcess,
     seedInstalled: seedC3InstalledArm,
     ...input.dependencies,
@@ -301,6 +342,29 @@ export async function runC3FrozenPrehistoryPair(input: {
       expectedCommit: input.expectedCommit,
       sourceRepository,
     });
+    await prepareC3IsolatedClone({
+      destination: baseHealthWorkspace,
+      expectedCommit: input.expectedCommit,
+      sourceRepository,
+    });
+    const collectedBaseHealth = await dependencies.collectBaseHealth({
+      bunExecutable: input.bunExecutable,
+      expectedCommit: input.expectedCommit,
+      expectedFailToPassOutputFragments:
+        input.expectedFailToPassOutputFragments,
+      failToPassSource: input.failToPassSource,
+      passToPassSource: input.passToPassSource,
+      visibleCommand: input.visibleBaseHealthCommand,
+      workspace: baseHealthWorkspace,
+    });
+    const baseHealthBytes = serializeC3BaseHealthEvidence(collectedBaseHealth);
+    await writeFile(
+      join(outputDirectory, "base-health.json"),
+      baseHealthBytes,
+      { encoding: "utf8", flag: "wx" },
+    );
+    const baseHealth = assertC3BaseHealthPassed(collectedBaseHealth);
+    await rm(baseHealthWorkspace, { recursive: true });
 
     noMemoryRuntime = await dependencies.prepareNoMemory({
       authFile: input.authFile,
@@ -328,8 +392,8 @@ export async function runC3FrozenPrehistoryPair(input: {
     });
     assertRuntimeInvariants(noMemoryRuntime, installedRuntime);
     await Promise.all([
-      assertWorkspaceClean(noMemoryPlan.paths.workspace),
-      assertWorkspaceClean(installedPlan.paths.workspace),
+      assertC3WorkspaceClean(noMemoryPlan.paths.workspace),
+      assertC3WorkspaceClean(installedPlan.paths.workspace),
     ]);
 
     const noMemoryArgs = buildC3CodexArgs({
@@ -365,6 +429,7 @@ export async function runC3FrozenPrehistoryPair(input: {
       .auditPermissionIsolation({
         deniedReadPaths: permissionDeniedReadPaths({
           authFile: input.authFile,
+          goodMemorySourceRoot,
           otherRuntime: installedRuntime,
           packageTarball: input.packageTarball,
           permissionSentinelPath,
@@ -378,6 +443,7 @@ export async function runC3FrozenPrehistoryPair(input: {
       .auditPermissionIsolation({
         deniedReadPaths: permissionDeniedReadPaths({
           authFile: input.authFile,
+          goodMemorySourceRoot,
           otherRuntime: noMemoryRuntime,
           packageTarball: input.packageTarball,
           permissionSentinelPath,
@@ -388,7 +454,111 @@ export async function runC3FrozenPrehistoryPair(input: {
         runtime: installedRuntime,
       });
 
-    const identity = await buildRunIdentity({
+    const [
+      hostConfigurations,
+      runnerSourceProvenance,
+      sourceProvenance,
+    ] = await Promise.all([
+      dependencies.collectHostConfigurations({
+        installedRuntime,
+        noMemoryRuntime,
+      }),
+      dependencies.collectSourceProvenance(),
+      dependencies.collectSourceProvenance({
+        repositoryRoot: goodMemorySourceRoot,
+      }),
+    ]);
+    const hostConfigurationsBytes = serializeC3HostConfigurationEvidence(
+      hostConfigurations,
+    );
+    assertC3GoodMemorySourceClean(runnerSourceProvenance.provenance);
+    assertC3GoodMemorySourceClean(sourceProvenance.provenance);
+    let hostPreflight;
+    try {
+      hostPreflight = await dependencies.collectHostPreflight({
+        baseHealth: {
+          goodmemoryInstalled: baseHealth,
+          noMemory: baseHealth,
+        },
+        bunExecutable: input.bunExecutable,
+        hostConfigurations,
+        hostConfigurationsBytes,
+        installedRuntime,
+        model: input.model,
+        noMemoryRuntime,
+        npmExecutable: input.npmExecutable,
+        reasoningEffort: input.reasoningEffort,
+      });
+    } catch (error) {
+      const reason = sanitizeFailureReason(errorMessage(error));
+      await writeFile(
+        join(outputDirectory, "host-preflight-failure.sanitized.json"),
+        `${JSON.stringify({
+          errorSha256: sha256(reason),
+          passed: false,
+          reason,
+          schemaVersion: 1,
+        }, null, 2)}\n`,
+        { encoding: "utf8", flag: "wx" },
+      );
+      throw error;
+    }
+    const hostPreflightBytes = serializeC3HostPreflightEvidence(hostPreflight);
+    const evaluatorSecurityContract = buildC3EvaluatorSecurityContract({
+      authFile: input.authFile,
+      deniedPaths: evaluatorDeniedPaths({
+        authFile: input.authFile,
+        goodMemorySourceRoot,
+        historySourcePath: input.historySourcePath,
+        installedRuntime,
+        noMemoryRuntime,
+        outputDirectory,
+        packageTarball: input.packageTarball,
+        runnerSourceRoot,
+        sourceRepository,
+      }),
+      evaluatorRoot,
+      goodmemoryInstalled: {
+        evaluationWorkspace: evaluationPaths[1],
+        runtime: installedRuntime,
+        sandboxRoot: evaluatorSandboxRoots.goodmemoryInstalled,
+      },
+      noMemory: {
+        evaluationWorkspace: evaluationPaths[0],
+        runtime: noMemoryRuntime,
+        sandboxRoot: evaluatorSandboxRoots.noMemory,
+      },
+    });
+    await Promise.all([
+      writeFile(
+        join(outputDirectory, "host-preflight.sanitized.json"),
+        hostPreflightBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+      writeFile(
+        join(outputDirectory, "host-configurations.sanitized.json"),
+        hostConfigurationsBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+      writeFile(
+        join(outputDirectory, "goodmemory-source-state.json"),
+        sourceProvenance.sourceStateArtifactBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+      writeFile(
+        join(outputDirectory, "runner-source-state.json"),
+        runnerSourceProvenance.sourceStateArtifactBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+    ]);
+    const identity = await buildC3RunIdentity({
+      baseHealthBytes,
+      evaluatorSecurity: evaluatorSecurityContract,
+      goodMemorySource: sourceProvenance.provenance,
+      hostConfigurations,
+      hostConfigurationsBytes,
+      hostPreflight,
+      hostPreflightBytes,
       input,
       installedArgs,
       installedPermissionIsolation: installedPreflightPermissionIsolation,
@@ -397,6 +567,7 @@ export async function runC3FrozenPrehistoryPair(input: {
       noMemoryPermissionIsolation,
       noMemoryRuntime,
       promptLeakageAudit,
+      runnerSource: runnerSourceProvenance.provenance,
     });
     const ledger = await openCodexCodingEffectAttemptLedger({
       directory: outputDirectory,
@@ -459,20 +630,26 @@ export async function runC3FrozenPrehistoryPair(input: {
         basename(input.historySourcePath),
       ),
     });
-    const installedPermissionIsolation = await dependencies
+    const installedDeniedReadPaths = [
+      ...permissionDeniedReadPaths({
+        authFile: input.authFile,
+        goodMemorySourceRoot,
+        otherRuntime: noMemoryRuntime,
+        packageTarball: input.packageTarball,
+        permissionSentinelPath,
+        runtime: installedRuntime,
+        sourceRepository,
+      }),
+      { label: "raw-prehistory", path: input.historySourcePath },
+      { label: "sealed-prehistory", path: sealedArtifact.path },
+    ];
+    assertDeniedReadLabels(
+      installedDeniedReadPaths,
+      C3_INSTALLED_DENIED_READ_LABELS,
+    );
+    const preSeedInstalledPermissionIsolation = await dependencies
       .auditPermissionIsolation({
-        deniedReadPaths: [
-          ...permissionDeniedReadPaths({
-            authFile: input.authFile,
-            otherRuntime: noMemoryRuntime,
-            packageTarball: input.packageTarball,
-            permissionSentinelPath,
-            runtime: installedRuntime,
-            sourceRepository,
-          }),
-          { label: "raw-prehistory", path: input.historySourcePath },
-          { label: "sealed-prehistory", path: sealedArtifact.path },
-        ],
+        deniedReadPaths: installedDeniedReadPaths,
         phase: "pre-seed",
         runtime: installedRuntime,
       });
@@ -491,13 +668,20 @@ export async function runC3FrozenPrehistoryPair(input: {
         runtime: installedRuntime,
         seed,
       });
-      await assertWorkspaceClean(installedPlan.paths.workspace);
+      await assertC3WorkspaceClean(installedPlan.paths.workspace);
     } catch (error) {
       recallPreflight = failedRecallPreflight(seed, error);
     }
     const installedPreflightFailureStage = recallPreflight.passed
       ? undefined
       : "goodmemory-recall-preflight";
+    const installedPermissionIsolation = recallPreflight.passed
+      ? await dependencies.auditPermissionIsolation({
+          deniedReadPaths: installedDeniedReadPaths,
+          phase: "pre-launch",
+          runtime: installedRuntime,
+        })
+      : preSeedInstalledPermissionIsolation;
     const installedExecution = recallPreflight.passed
       ? await runAgentArm({
           args: installedArgs,
@@ -536,61 +720,153 @@ export async function runC3FrozenPrehistoryPair(input: {
       ? "codex-session-isolation"
       : undefined;
 
+    const noMemoryCredentialRevocation =
+      await dependencies.removeModelCredential(noMemoryRuntime);
+    await assertC3ArmModelCredentialRemoved(noMemoryRuntime);
+    const installedCredentialRevocation =
+      await dependencies.removeModelCredential(installedRuntime);
+    await assertC3ArmModelCredentialRemoved(installedRuntime);
+
     let evaluatorSetupFailure: string | undefined;
     let evaluatorEnv: Record<string, string> = {};
+    let evaluatorSecuritySha256: string | null = null;
+    let noMemoryEvaluatorRunProcess: C3EvaluateArmInput["runProcess"];
+    let installedEvaluatorRunProcess: C3EvaluateArmInput["runProcess"];
+    let noMemoryEvaluatorRoot =
+      evaluatorSecurityContract.arms.noMemory.evaluatorRoot.path;
+    let installedEvaluatorRoot =
+      evaluatorSecurityContract.arms.goodmemoryInstalled.evaluatorRoot.path;
     try {
+      await Promise.all([
+        assertC3ArmModelCredentialRemoved(noMemoryRuntime),
+        assertC3ArmModelCredentialRemoved(installedRuntime),
+      ]);
       await input.materializeEvaluator();
-      await verifyEvaluatorFiles(evaluatorRoot, input.evaluatorFiles);
-      await assertWorkspaceClean(sourceRepository);
-      evaluatorEnv = await createEvaluatorEnvironment({
+      await verifyC3EvaluatorFiles(evaluatorRoot, input.evaluatorFiles);
+      await assertC3WorkspaceClean(sourceRepository);
+      evaluatorEnv = await createC3EvaluatorEnvironment({
         bunExecutable: input.bunExecutable,
         outputDirectory,
       });
+      const evaluatorReadProbePath = join(
+        evaluatorRoot,
+        input.evaluatorFiles[0]!.relativePath,
+      );
+      const noMemoryEvaluatorSandbox =
+        await dependencies.prepareEvaluatorSandbox({
+          authFile: input.authFile,
+          baseEnv: evaluatorEnv,
+          bunExecutable: input.bunExecutable,
+          codexExecutable: noMemoryRuntime.codex.executable,
+          copiedAuthRemovedBeforeEvaluator: true,
+          evaluationWorkspace: evaluationPaths[0],
+          evaluatorReadProbePath,
+          evaluatorRoot,
+          profileName: "c3-evaluator",
+          sandboxRoot: evaluatorSandboxRoots.noMemory,
+        });
+      const installedEvaluatorSandbox =
+        await dependencies.prepareEvaluatorSandbox({
+          authFile: input.authFile,
+          baseEnv: evaluatorEnv,
+          bunExecutable: input.bunExecutable,
+          codexExecutable: installedRuntime.codex.executable,
+          copiedAuthRemovedBeforeEvaluator: true,
+          evaluationWorkspace: evaluationPaths[1],
+          evaluatorReadProbePath,
+          evaluatorRoot,
+          profileName: "c3-evaluator",
+          sandboxRoot: evaluatorSandboxRoots.goodmemoryInstalled,
+        });
+      await Promise.all([
+        verifyC3EvaluatorFiles(
+          noMemoryEvaluatorSandbox.evaluatorRoot,
+          input.evaluatorFiles,
+        ),
+        verifyC3EvaluatorFiles(
+          installedEvaluatorSandbox.evaluatorRoot,
+          input.evaluatorFiles,
+        ),
+      ]);
+      const evaluatorSecurityBytes = `${JSON.stringify(
+        buildC3EvaluatorSecurityEvidence({
+          contract: evaluatorSecurityContract,
+          credentialRevocations: {
+            goodmemoryInstalled: installedCredentialRevocation,
+            noMemory: noMemoryCredentialRevocation,
+          },
+          sandboxes: {
+            goodmemoryInstalled: {
+              evidence: installedEvaluatorSandbox.evidence,
+              evaluatorRoot: installedEvaluatorSandbox.evaluatorRoot,
+            },
+            noMemory: {
+              evidence: noMemoryEvaluatorSandbox.evidence,
+              evaluatorRoot: noMemoryEvaluatorSandbox.evaluatorRoot,
+            },
+          },
+        }),
+        null,
+        2,
+      )}\n`;
+      evaluatorSecuritySha256 = sha256(evaluatorSecurityBytes);
+      await writeFile(
+        join(outputDirectory, "evaluator-security.sanitized.json"),
+        evaluatorSecurityBytes,
+        { encoding: "utf8", flag: "wx" },
+      );
+      noMemoryEvaluatorRunProcess = noMemoryEvaluatorSandbox.runProcess;
+      installedEvaluatorRunProcess = installedEvaluatorSandbox.runProcess;
+      noMemoryEvaluatorRoot = noMemoryEvaluatorSandbox.evaluatorRoot;
+      installedEvaluatorRoot = installedEvaluatorSandbox.evaluatorRoot;
     } catch (error) {
       evaluatorSetupFailure = errorMessage(error);
     }
-    const noMemoryEvaluationInput: EvaluateArmInput = {
+    const noMemoryEvaluationInput: C3EvaluateArmInput = {
       agent: noMemoryExecution,
       evaluationWorkspace: evaluationPaths[0],
       evaluatorEnv,
-      evaluatorRoot,
+      evaluatorRoot: noMemoryEvaluatorRoot,
       expectedCommit: input.expectedCommit,
       failToPassCommand: input.failToPassCommand,
       logger: noMemoryLogger,
       passToPassCommand: input.passToPassCommand,
+      runProcess: noMemoryEvaluatorRunProcess,
       sourceRepository,
       testTimeoutMs: input.testTimeoutMs,
     };
-    const installedEvaluationInput: EvaluateArmInput = {
+    const installedEvaluationInput: C3EvaluateArmInput = {
       agent: installedExecution,
       evaluationWorkspace: evaluationPaths[1],
       evaluatorEnv,
-      evaluatorRoot,
+      evaluatorRoot: installedEvaluatorRoot,
       expectedCommit: input.expectedCommit,
       failToPassCommand: input.failToPassCommand,
       logger: installedLogger,
       passToPassCommand: input.passToPassCommand,
+      runProcess: installedEvaluatorRunProcess,
       sourceRepository,
       testTimeoutMs: input.testTimeoutMs,
     };
     const noMemoryEvaluated = evaluatorSetupFailure === undefined
-      ? await evaluateArmSafely(noMemoryEvaluationInput)
-      : evaluatorInfrastructureFailure(
+      ? await evaluateC3ArmSafely(noMemoryEvaluationInput)
+      : c3EvaluatorInfrastructureFailure(
         noMemoryEvaluationInput,
         evaluatorSetupFailure,
       );
     const installedEvaluated = evaluatorSetupFailure === undefined
-      ? await evaluateArmSafely(installedEvaluationInput)
-      : evaluatorInfrastructureFailure(
+      ? await evaluateC3ArmSafely(installedEvaluationInput)
+      : c3EvaluatorInfrastructureFailure(
         installedEvaluationInput,
         evaluatorSetupFailure,
       );
 
     const cases: CodexCodingEffectCaseResult[] = [];
-    await finalizeArm({
+    await finalizeC3Arm({
       armEvidence: {
-        absenceAudit: strictNoMemoryAbsenceAudit(noMemoryRuntime.isolation),
+        absenceAudit: requireStrictNoMemoryAbsenceAudit(noMemoryRuntime.isolation),
         arm: "no-memory",
+        evaluatorSecuritySha256,
         historyExposure: "none",
         historySourceSha256: sealedArtifact.sourceSha256,
         instructionSha256: noMemoryRuntime.instructionSha256,
@@ -612,9 +888,10 @@ export async function runC3FrozenPrehistoryPair(input: {
       stageId: input.stageId,
       workKey: workKeys[0]!,
     });
-    await finalizeArm({
+    await finalizeC3Arm({
       armEvidence: {
         arm: "goodmemory-installed",
+        evaluatorSecuritySha256,
         historyExposure: "goodmemory-installed",
         historySourceSha256: sealedArtifact.sourceSha256,
         hostCanary: installedCanary,
@@ -650,7 +927,61 @@ export async function runC3FrozenPrehistoryPair(input: {
       runId: input.runId,
     });
     const summaryBytes = serializeC3FrozenPrehistoryPilotSummary(summary);
+    const [postRunRunnerSourceProvenance, postRunSourceProvenance] =
+      await Promise.all([
+        dependencies.collectSourceProvenance(),
+        dependencies.collectSourceProvenance({
+          repositoryRoot: goodMemorySourceRoot,
+        }),
+      ]);
+    assertC3GoodMemorySourceClean(postRunRunnerSourceProvenance.provenance);
+    assertC3GoodMemorySourceClean(postRunSourceProvenance.provenance);
+    if (
+      postRunSourceProvenance.provenance.sourceStateSha256 !==
+        sourceProvenance.provenance.sourceStateSha256 ||
+      postRunSourceProvenance.provenance.commit !==
+        sourceProvenance.provenance.commit ||
+      postRunSourceProvenance.provenance.tree !==
+        sourceProvenance.provenance.tree
+    ) {
+      throw new Error("GoodMemory source changed during the C3 live pair");
+    }
+    if (
+      postRunRunnerSourceProvenance.provenance.sourceStateSha256 !==
+        runnerSourceProvenance.provenance.sourceStateSha256 ||
+      postRunRunnerSourceProvenance.provenance.commit !==
+        runnerSourceProvenance.provenance.commit ||
+      postRunRunnerSourceProvenance.provenance.tree !==
+        runnerSourceProvenance.provenance.tree
+    ) {
+      throw new Error("C3 runner source changed during the live pair");
+    }
     await Promise.all([
+      writeFile(
+        join(outputDirectory, "goodmemory-source-state-post-run.json"),
+        postRunSourceProvenance.sourceStateArtifactBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+      writeFile(
+        join(outputDirectory, "runner-source-state-post-run.json"),
+        postRunRunnerSourceProvenance.sourceStateArtifactBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
+    ]);
+    const auditEvidenceBytes = `${JSON.stringify(buildC3AuditEvidence({
+      evaluatorSecuritySha256,
+      identity,
+      postRunSource: postRunSourceProvenance.provenance,
+      postRunRunnerSource: postRunRunnerSourceProvenance.provenance,
+      summary,
+      summaryBytes,
+    }), null, 2)}\n`;
+    await Promise.all([
+      writeFile(
+        join(outputDirectory, "audit-evidence.sanitized.json"),
+        auditEvidenceBytes,
+        { encoding: "utf8", flag: "wx" },
+      ),
       writeFile(join(outputDirectory, "cases.jsonl"), casesBytes, {
         encoding: "utf8",
         flag: "wx",
@@ -690,7 +1021,7 @@ async function runAgentArm(input: {
   runCodex: (request: CodexRunRequest) => Promise<CodexRunResult>;
   runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime;
   stageTimeoutMs: number;
-}): Promise<AgentArmExecution> {
+}): Promise<C3AgentArmExecution> {
   const codex = await input.runCodex({
     args: input.args,
     cwd: input.runtime.plan.paths.workspace,
@@ -712,7 +1043,7 @@ async function skippedAgentArm(input: {
   forbiddenPaths?: readonly string[];
   reason: string;
   runtime: C3InstalledArmRuntime;
-}): Promise<AgentArmExecution> {
+}): Promise<C3AgentArmExecution> {
   const patch = await captureWorkspacePatch({
     baseCommit: await workspaceCommit(input.runtime.plan.paths.workspace),
     forbiddenPaths: input.forbiddenPaths ?? [".goodmemory", "evaluator"],
@@ -745,230 +1076,6 @@ function failedRecallPreflight(
     reason: errorMessage(error),
     schemaVersion: 1,
     stateSha256: null,
-  };
-}
-
-async function evaluateArm(
-  input: EvaluateArmInput,
-): Promise<EvaluatedArmExecution> {
-  await prepareIsolatedWorkspace({
-    destination: input.evaluationWorkspace,
-    expectedCommit: input.expectedCommit,
-    logger: input.logger,
-    sourceRepository: input.sourceRepository,
-  });
-  try {
-    await applyWorkspacePatch({
-      logger: input.logger,
-      patch: input.agent.patch,
-      workspace: input.evaluationWorkspace,
-    });
-    const failToPass = await runEvaluatorTest({
-      command: input.failToPassCommand,
-      cwd: input.evaluationWorkspace,
-      env: input.evaluatorEnv,
-      evaluatorRoot: input.evaluatorRoot,
-      kind: "fail-to-pass",
-      logger: input.logger,
-      timeoutMs: input.testTimeoutMs,
-    });
-    const passToPass = await runEvaluatorTest({
-      command: input.passToPassCommand,
-      cwd: input.evaluationWorkspace,
-      env: input.evaluatorEnv,
-      evaluatorRoot: input.evaluatorRoot,
-      kind: "pass-to-pass",
-      logger: input.logger,
-      timeoutMs: input.testTimeoutMs,
-    });
-    return {
-      ...input.agent,
-      failToPass,
-      passToPass,
-      score: scoreCodexStage({
-        codex: input.agent.codex,
-        failToPass,
-        passToPass,
-        patch: input.agent.patch,
-      }),
-    };
-  } finally {
-    await releaseIsolatedWorkspace({
-      path: input.evaluationWorkspace,
-      sourceRepository: input.sourceRepository,
-    });
-  }
-}
-
-async function evaluateArmSafely(
-  input: EvaluateArmInput,
-): Promise<EvaluatedArmExecution> {
-  try {
-    return await evaluateArm(input);
-  } catch (error) {
-    return evaluatorInfrastructureFailure(input, errorMessage(error));
-  }
-}
-
-function evaluatorInfrastructureFailure(
-  input: EvaluateArmInput,
-  reason: string,
-): EvaluatedArmExecution {
-  const failure = (
-    kind: "fail-to-pass" | "pass-to-pass",
-    command: readonly string[],
-  ): EvaluatorTestResult => ({
-    command: [...command],
-    durationMs: 0,
-    exitCode: null,
-    kind,
-    status: "infrastructure-failure",
-    stderr: `C3 evaluator infrastructure failed: ${reason}`,
-    stdout: "",
-  });
-  const failToPass = failure("fail-to-pass", input.failToPassCommand);
-  const passToPass = failure("pass-to-pass", input.passToPassCommand);
-  return {
-    ...input.agent,
-    failToPass,
-    passToPass,
-    score: scoreCodexStage({
-      codex: input.agent.codex,
-      failToPass,
-      passToPass,
-      patch: input.agent.patch,
-    }),
-  };
-}
-
-async function finalizeArm(input: {
-  arm: "goodmemory-installed" | "no-memory";
-  armEvidence: C3ArmStageEvidence;
-  canary?: C3InstalledHostCanary;
-  caseResults: CodexCodingEffectCaseResult[];
-  episodeId: string;
-  evaluated: EvaluatedArmExecution;
-  forcedFailureStage?: string;
-  ledger: CodexCodingEffectAttemptLedger;
-  logger: CodexCodingEffectLogger;
-  outputDirectory: string;
-  pairKey: string;
-  repetition: number;
-  seed: number;
-  stageId: string;
-  workKey: string;
-}): Promise<void> {
-  const score = input.forcedFailureStage !== undefined
-    ? infrastructureFailureScore(input.forcedFailureStage)
-    : input.canary !== undefined && !input.canary.passed
-    ? failedCanaryScore(input.canary)
-    : input.evaluated.score;
-  const attemptId = input.ledger.nextAttemptId(input.workKey);
-  const attempt: CodexCodingEffectAttemptRow = {
-    attemptId,
-    disposition: score.disposition,
-    result: {
-      executionFailureStage: score.executionFailureStage,
-      resolved: score.resolved,
-      taskFailureReasons: score.taskFailureReasons,
-    },
-    schemaVersion: 1,
-    workKey: input.workKey,
-  };
-  const caseResult: CodexCodingEffectCaseResult = {
-    arm: input.arm,
-    attemptId,
-    changedFiles: input.evaluated.patch.changedFiles,
-    codexStatus: input.evaluated.codex.status,
-    disposition: score.disposition,
-    episodeId: input.episodeId,
-    executionFailureStage: score.executionFailureStage,
-    failToPassStatus: input.evaluated.failToPass.status,
-    forbiddenFiles: input.evaluated.patch.forbiddenFiles,
-    pairKey: input.pairKey,
-    passToPassStatus: input.evaluated.passToPass.status,
-    patchSha256: input.evaluated.patch.sha256,
-    repetition: input.repetition,
-    resolved: score.resolved,
-    schemaVersion: 1,
-    seed: input.seed,
-    stageId: input.stageId,
-    taskFailureReasons: score.taskFailureReasons,
-    workKey: input.workKey,
-  };
-  await persistC3PilotStageEvidence(
-    join(input.outputDirectory, "stage-evidence"),
-    {
-      armEvidence: input.armEvidence,
-      attempt,
-      caseResult,
-      codexStderr: input.evaluated.codex.stderr,
-      codexStdout: "",
-      failToPassStderr: input.evaluated.failToPass.stderr,
-      failToPassStdout: input.evaluated.failToPass.stdout,
-      passToPassStderr: input.evaluated.passToPass.stderr,
-      passToPassStdout: input.evaluated.passToPass.stdout,
-      patchDiff: input.evaluated.patch.diff,
-      schemaVersion: 1,
-    },
-  );
-  await input.ledger.appendAttempt(attempt);
-  input.caseResults.push(caseResult);
-  if (score.disposition === "infrastructure-failure") {
-    input.logger("attempt_failed", {
-      attemptId,
-      executionFailureStage: score.executionFailureStage,
-      workKey: input.workKey,
-    });
-  } else {
-    input.logger("stage_finalized", {
-      attemptId,
-      resolved: score.resolved,
-      workKey: input.workKey,
-    });
-  }
-}
-
-function failedCanaryScore(canary: C3InstalledHostCanary): CodexStageScore {
-  if (canary.failureStage === null) {
-    throw new Error("failed installed canary must identify its failure stage");
-  }
-  return infrastructureFailureScore(canary.failureStage);
-}
-
-function infrastructureFailureScore(failureStage: string): CodexStageScore {
-  return {
-    disposition: "infrastructure-failure",
-    executionFailureStage: failureStage,
-    resolved: false,
-    taskFailureReasons: [],
-  };
-}
-
-function strictNoMemoryAbsenceAudit(
-  audit: NoMemoryRuntimeAudit,
-): Extract<
-  C3ArmStageEvidence,
-  { arm: "no-memory" }
->["absenceAudit"] {
-  if (
-    audit.goodMemoryFileCount !== 0 ||
-    audit.hookConfigPresent ||
-    audit.mcpConfigPresent ||
-    !audit.passed ||
-    audit.preexistingSessionCount !== 0 ||
-    audit.reasons.length > 0
-  ) {
-    throw new Error("no-memory runtime does not satisfy the strict absence audit");
-  }
-  return {
-    codexHomeEntryNames: audit.codexHomeEntryNames,
-    goodMemoryFileCount: 0,
-    hookConfigPresent: false,
-    mcpConfigPresent: false,
-    passed: true,
-    preexistingSessionCount: 0,
-    reasons: [],
   };
 }
 
@@ -1006,93 +1113,6 @@ async function persistLeakageAudit(
   });
 }
 
-async function buildRunIdentity(input: {
-  input: {
-    authFile: string;
-    episodeId: string;
-    evaluatorFiles: ReadonlyArray<{ relativePath: string; sha256: string }>;
-    expectedCommit: string;
-    failToPassCommand: readonly string[];
-    generatedAt: string;
-    historySourceSha256: string;
-    model: string;
-    passToPassCommand: readonly string[];
-    prompt: string;
-    reasoningEffort: string;
-    repetition: number;
-    runId: string;
-    seed: number;
-    stageId: string;
-    stageTimeoutMs: number;
-    testTimeoutMs: number;
-  };
-  installedArgs: readonly string[];
-  installedPermissionIsolation: C3PermissionIsolationEvidence;
-  installedRuntime: C3InstalledArmRuntime;
-  noMemoryArgs: readonly string[];
-  noMemoryPermissionIsolation: C3PermissionIsolationEvidence;
-  noMemoryRuntime: C3NoMemoryArmRuntime;
-  promptLeakageAudit: FrozenPrehistoryLeakageAudit;
-}): Promise<Record<string, unknown>> {
-  return {
-    armOrder: ["no-memory", "goodmemory-installed"],
-    arms: {
-      goodmemoryInstalled: {
-        argsSha256: sha256(JSON.stringify(input.installedArgs)),
-        package: input.installedRuntime.package,
-        paths: input.installedRuntime.plan.paths,
-        permissionIsolation: input.installedPermissionIsolation,
-        permissionProfile: input.installedRuntime.permissionProfile,
-        profile: input.installedRuntime.profile,
-        scopes: input.installedRuntime.plan.scopes,
-      },
-      noMemory: {
-        absenceAudit: input.noMemoryRuntime.isolation,
-        argsSha256: sha256(JSON.stringify(input.noMemoryArgs)),
-        paths: input.noMemoryRuntime.plan.paths,
-        permissionIsolation: input.noMemoryPermissionIsolation,
-        permissionProfile: input.noMemoryRuntime.permissionProfile,
-        scopes: input.noMemoryRuntime.plan.scopes,
-      },
-    },
-    authSha256: await sha256File(input.input.authFile),
-    codex: {
-      executableSha256: input.noMemoryRuntime.codex.executableSha256,
-      model: input.input.model,
-      permissionProfile: "c3-task",
-      reasoningEffort: input.input.reasoningEffort,
-      version: input.noMemoryRuntime.codex.version,
-    },
-    episodeId: input.input.episodeId,
-    evaluator: {
-      failToPassCommand: input.input.failToPassCommand,
-      files: [...input.input.evaluatorFiles].sort((first, second) =>
-        first.relativePath.localeCompare(second.relativePath)
-      ),
-      materialization: "after-both-codex-processes",
-      passToPassCommand: input.input.passToPassCommand,
-    },
-    evidenceClass: "frozen-prehistory-pilot",
-    expectedCommit: input.input.expectedCommit,
-    generatedAt: input.input.generatedAt,
-    historyMaterialization: "after-no-memory-process",
-    historySourceSha256: input.input.historySourceSha256,
-    instructionSha256: input.noMemoryRuntime.instructionSha256,
-    leakageAudit: {
-      algorithmVersion: 1,
-      promptSourceSha256: input.promptLeakageAudit.sourceSha256,
-    },
-    promptSha256: sha256(input.input.prompt),
-    repetition: input.input.repetition,
-    runId: input.input.runId,
-    schemaVersion: 1,
-    seed: input.input.seed,
-    stageId: input.input.stageId,
-    stageTimeoutMs: input.input.stageTimeoutMs,
-    testTimeoutMs: input.input.testTimeoutMs,
-  };
-}
-
 function assertRuntimeInvariants(
   noMemory: C3NoMemoryArmRuntime,
   installed: C3InstalledArmRuntime,
@@ -1106,6 +1126,39 @@ function assertRuntimeInvariants(
   if (noMemory.instructionSha256 !== installed.instructionSha256) {
     throw new Error("C3 arms do not share identical repository instructions");
   }
+}
+
+function assertC3BaseHealthSourcesCommitted(input: {
+  evaluatorFiles: ReadonlyArray<{ relativePath: string; sha256: string }>;
+  expectedFailToPassOutputFragments: readonly string[];
+  failToPassSource: string;
+  passToPassSource: string;
+  visibleBaseHealthCommand: readonly string[];
+}): void {
+  const committedHashes = new Set(input.evaluatorFiles.map((file) => file.sha256));
+  const failToPassSha256 = sha256(input.failToPassSource);
+  const passToPassSha256 = sha256(input.passToPassSource);
+  if (
+    failToPassSha256 === passToPassSha256 ||
+    !committedHashes.has(failToPassSha256) ||
+    !committedHashes.has(passToPassSha256) ||
+    input.expectedFailToPassOutputFragments.length === 0 ||
+    input.expectedFailToPassOutputFragments.some((fragment) =>
+      fragment.trim().length === 0
+    ) ||
+    input.visibleBaseHealthCommand.length === 0
+  ) {
+    throw new Error(
+      "C3 live base-health sources do not match the frozen evaluator commitments",
+    );
+  }
+}
+
+function sanitizeFailureReason(reason: string): string {
+  return reason.replace(
+    /\/(?:Users|home|private|tmp|var\/folders)\/[^\s"'`,;()]+/gu,
+    "<host-path>",
+  );
 }
 
 function assertCodexArgsComparable(
@@ -1185,6 +1238,7 @@ function createPairLogger(
 
 function permissionDeniedReadPaths(input: {
   authFile: string;
+  goodMemorySourceRoot: string;
   otherRuntime: C3InstalledArmRuntime | C3NoMemoryArmRuntime;
   packageTarball: string;
   permissionSentinelPath: string;
@@ -1192,8 +1246,12 @@ function permissionDeniedReadPaths(input: {
   sourceRepository: string;
 }): Array<{ label: string; path: string }> {
   const runnerDirectory = dirname(fileURLToPath(import.meta.url));
-  return [
+  const paths = [
     { label: "codex-auth-source", path: input.authFile },
+    {
+      label: "goodmemory-source-package",
+      path: join(input.goodMemorySourceRoot, "package.json"),
+    },
     {
       label: "controlled-evaluator-source",
       path: join(runnerDirectory, "c3-controlled-pilot.ts"),
@@ -1218,125 +1276,58 @@ function permissionDeniedReadPaths(input: {
       path: join(input.sourceRepository, ".git", "HEAD"),
     },
   ];
+  assertDeniedReadLabels(paths, C3_BASE_DENIED_READ_LABELS);
+  return paths;
 }
 
-async function verifyEvaluatorFiles(
-  evaluatorRoot: string,
-  commitments: ReadonlyArray<{ relativePath: string; sha256: string }>,
-): Promise<void> {
-  validateEvaluatorCommitments(commitments);
-  const rootInfo = await lstat(evaluatorRoot);
-  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) {
-    throw new Error("C3 evaluator root must be a real directory");
-  }
-  const actualFiles = await collectEvaluatorFiles(evaluatorRoot, evaluatorRoot);
-  const expected = [...commitments].sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath)
-  );
-  if (
-    actualFiles.length !== expected.length ||
-    actualFiles.some((file, index) => file.relativePath !== expected[index]?.relativePath)
-  ) {
-    throw new Error("C3 evaluator files do not match the committed manifest");
-  }
-  for (const [index, file] of actualFiles.entries()) {
-    if (await sha256File(file.path) !== expected[index]?.sha256) {
-      throw new Error(`C3 evaluator hash mismatch: ${file.relativePath}`);
-    }
-  }
-}
-
-function validateEvaluatorCommitments(
-  commitments: ReadonlyArray<{ relativePath: string; sha256: string }>,
-): void {
-  if (commitments.length === 0) {
-    throw new Error("C3 evaluator manifest must not be empty");
-  }
-  const paths = new Set<string>();
-  for (const commitment of commitments) {
-    const normalized = commitment.relativePath.replaceAll("\\", "/");
-    if (
-      normalized !== commitment.relativePath ||
-      normalized.length === 0 ||
-      isAbsolute(normalized) ||
-      normalized.split("/").some((segment) => segment === "" || segment === "..") ||
-      !/^[a-f0-9]{64}$/u.test(commitment.sha256) ||
-      paths.has(normalized)
-    ) {
-      throw new Error("invalid C3 evaluator file commitment");
-    }
-    paths.add(normalized);
-  }
-}
-
-async function collectEvaluatorFiles(
-  root: string,
-  directory: string,
-): Promise<Array<{ path: string; relativePath: string }>> {
-  const files: Array<{ path: string; relativePath: string }> = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isSymbolicLink()) {
-      throw new Error("C3 evaluator tree must not contain symbolic links");
-    }
-    if (entry.isDirectory()) {
-      files.push(...await collectEvaluatorFiles(root, path));
-    } else if (entry.isFile()) {
-      files.push({
-        path,
-        relativePath: relative(root, path).split(sep).join("/"),
-      });
-    } else {
-      throw new Error("C3 evaluator tree contains an unsupported entry");
-    }
-  }
-  return files.sort((first, second) =>
-    first.relativePath.localeCompare(second.relativePath)
-  );
-}
-
-async function assertWorkspaceClean(workspace: string): Promise<void> {
-  const child = Bun.spawn({
-    cmd: ["git", "status", "--porcelain=v1", "--untracked-files=all"],
-    cwd: workspace,
-    stderr: "pipe",
-    stdout: "pipe",
-  });
-  const [exitCode, stderr, stdout] = await Promise.all([
-    child.exited,
-    new Response(child.stderr).text(),
-    new Response(child.stdout).text(),
-  ]);
-  if (exitCode !== 0) {
-    throw new Error(`failed to audit C3 workspace status: ${stderr.trim()}`);
-  }
-  if (stdout.trim().length > 0) {
-    throw new Error(`C3 workspace changed before Codex execution: ${stdout.trim()}`);
-  }
-}
-
-async function createEvaluatorEnvironment(input: {
-  bunExecutable: string;
+function evaluatorDeniedPaths(input: {
+  authFile: string;
+  goodMemorySourceRoot: string;
+  historySourcePath: string;
+  installedRuntime: C3InstalledArmRuntime;
+  noMemoryRuntime: C3NoMemoryArmRuntime;
   outputDirectory: string;
-}): Promise<Record<string, string>> {
-  const home = join(input.outputDirectory, "evaluator-home");
-  const temp = join(input.outputDirectory, "evaluator-tmp");
-  await Promise.all([
-    mkdir(home, { recursive: true }),
-    mkdir(temp, { recursive: true }),
-  ]);
-  return {
-    CI: "1",
-    HOME: home,
-    LANG: process.env.LANG ?? "en_US.UTF-8",
-    NO_COLOR: "1",
-    PATH: [...new Set([
-      dirname(resolve(input.bunExecutable)),
-      "/usr/bin",
-      "/bin",
-    ])].join(":"),
-    TMPDIR: temp,
-  };
+  packageTarball: string;
+  runnerSourceRoot: string;
+  sourceRepository: string;
+}): Array<{ label: string; path: string }> {
+  return [
+    { label: "codex-auth-source", path: input.authFile },
+    {
+      label: "goodmemory-installed-runtime",
+      path: input.installedRuntime.plan.paths.armRoot,
+    },
+    {
+      label: "goodmemory-source",
+      path: join(input.goodMemorySourceRoot, "package.json"),
+    },
+    {
+      label: "no-memory-runtime",
+      path: input.noMemoryRuntime.plan.paths.armRoot,
+    },
+    { label: "output-root", path: input.outputDirectory },
+    { label: "package-tarball", path: input.packageTarball },
+    { label: "raw-prehistory", path: input.historySourcePath },
+    {
+      label: "runner-source",
+      path: join(input.runnerSourceRoot, "scripts", "codex-coding-effect"),
+    },
+    { label: "source-repository", path: input.sourceRepository },
+  ];
+}
+
+function assertDeniedReadLabels(
+  paths: ReadonlyArray<{ label: string }>,
+  expectedLabels: readonly string[],
+): void {
+  const labels = paths.map((entry) => entry.label).sort();
+  const expected = [...expectedLabels].sort();
+  if (
+    new Set(labels).size !== labels.length ||
+    JSON.stringify(labels) !== JSON.stringify(expected)
+  ) {
+    throw new Error("C3 permission deny labels do not match the frozen protocol");
+  }
 }
 
 async function cleanupPair(input: {
@@ -1380,6 +1371,27 @@ function assertFreshDisjointRoots(input: {
       if (pathsOverlap(firstPath, secondPath)) {
         throw new Error(`${firstLabel} and ${secondLabel} must be disjoint`);
       }
+    }
+  }
+}
+
+function assertMutableRootsOutsideRunnerSource(input: {
+  evaluatorRoot: string;
+  historySourcePath: string;
+  outputDirectory: string;
+  runnerSourceRoot: string;
+  runtimeRoot: string;
+  sourceRepository: string;
+  workspaceRoot: string;
+}): void {
+  for (const [label, path] of Object.entries(input)) {
+    if (label === "runnerSourceRoot") {
+      continue;
+    }
+    if (pathsOverlap(input.runnerSourceRoot, path)) {
+      throw new Error(
+        `${label} must not overlap the C3 runner source checkout`,
+      );
     }
   }
 }

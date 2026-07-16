@@ -88,6 +88,31 @@ describe("Codex coding-effect evaluator tests", () => {
     }
   });
 
+  it("routes hidden tests through the supplied process boundary", async () => {
+    let requestSeen = false;
+    const result = await runEvaluatorTest({
+      command: [process.execPath, "-e", "process.exit(0)"],
+      cwd: "/tmp/codex-evaluator-workspace",
+      evaluatorRoot: "/tmp/codex-evaluator-root",
+      kind: "fail-to-pass",
+      runProcess: async (request) => {
+        requestSeen = true;
+        expect(request.executable).toBe(process.execPath);
+        return {
+          durationMs: 1,
+          exitCode: 0,
+          stderr: "",
+          stdout: "",
+          timedOut: false,
+        };
+      },
+      timeoutMs: 2_000,
+    });
+
+    expect(requestSeen).toBe(true);
+    expect(result.status).toBe("passed");
+  });
+
   it("classifies test failure, timeout, and harness startup separately", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "goodmemory-evaluator-status-"));
     try {

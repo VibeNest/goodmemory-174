@@ -190,6 +190,52 @@ describe("Codex coding-effect dataset", () => {
     })).toThrow("goldPatchPath must be under evaluator/");
   });
 
+  it("parses schema v2 with stage-owned gold and memory truth", () => {
+    const dataset = validDatasetV2();
+    const parsed = parseCodexCodingEffectDataset(dataset);
+
+    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.episodes[0]?.stages[1]).toMatchObject({
+      goldPatch: {
+        path: "evaluator/gold/episode-001-stage-2.patch",
+        sha256: SHA256,
+      },
+      memoryExpectation: {
+        mode: "required",
+      },
+    });
+    expect(() => parseCodexCodingEffectDataset({
+      ...dataset,
+      episodes: [{
+        ...dataset.episodes[0],
+        stages: [{
+          ...dataset.episodes[0].stages[0],
+          goldPatch: {
+            path: "workspace/stage-1.patch",
+            sha256: SHA256,
+          },
+        }, dataset.episodes[0].stages[1]],
+      }],
+    })).toThrow("stage gold patch must be under evaluator/");
+    expect(() => parseCodexCodingEffectDataset({
+      ...dataset,
+      episodes: [{
+        ...dataset.episodes[0],
+        stages: [{
+          ...dataset.episodes[0].stages[0],
+          expectedChangedFiles: ["src/../evaluator/hidden.ts"],
+        }, dataset.episodes[0].stages[1]],
+      }],
+    })).toThrow("expectedChangedFiles");
+    expect(() => parseCodexCodingEffectDataset({
+      ...dataset,
+      episodes: [{
+        ...dataset.episodes[0],
+        goldPatchPath: "evaluator/gold/legacy.patch",
+      }],
+    })).toThrow("goldPatchPath");
+  });
+
   it("rejects unknown, duplicate, or undeclared memory strata", () => {
     const dataset = validDataset();
     expect(() => parseCodexCodingEffectDataset({
@@ -241,3 +287,36 @@ describe("Codex coding-effect dataset", () => {
     })).toThrow("episode episode-001 stage positions must be contiguous from 1");
   });
 });
+
+function validDatasetV2() {
+  const legacy = validDataset();
+  const episode = legacy.episodes[0];
+  const { goldPatchPath: _goldPatchPath, ...episodeWithoutGold } = episode;
+  return {
+    ...legacy,
+    episodes: [{
+      ...episodeWithoutGold,
+      stages: episode.stages.map((stage, index) => {
+        const { expectedMemoryDependencies: _dependencies, ...stageBase } = stage;
+        return {
+          ...stageBase,
+          expectedChangedFiles: ["src/parser.ts"],
+          goldPatch: {
+            path: `evaluator/gold/episode-001-stage-${index + 1}.patch`,
+            sha256: SHA256,
+          },
+          memoryExpectation: {
+            dependencies: index === 0
+              ? []
+              : [{
+                  category: "failure-avoidance" as const,
+                  description: "Do not repeat the disproved parser shortcut.",
+                }],
+            mode: index === 0 ? "none" as const : "required" as const,
+          },
+        };
+      }),
+    }],
+    schemaVersion: 2 as const,
+  };
+}

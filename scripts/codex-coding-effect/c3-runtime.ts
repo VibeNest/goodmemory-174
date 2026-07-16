@@ -33,7 +33,6 @@ import type {
   FrozenPrehistorySeedReceipt,
 } from "./frozen-prehistory";
 import {
-  buildNativeCanarySessionDigest,
   parseCodexFeatureList,
 } from "./native-canary-contracts";
 import { assertCanaryExecutableInsidePrefix } from "./native-canary-runtime";
@@ -42,8 +41,13 @@ import {
 } from "./native-canary";
 import {
   parseNativeCanaryWritebackInspection,
-  parseNativeCanaryInjectionState,
 } from "./native-canary-state";
+import {
+  buildCodexEvaluatorSandboxConfigSha256,
+} from "./evaluator-sandbox";
+import type {
+  CodexEvaluatorSandboxEvidence,
+} from "./evaluator-sandbox";
 import { runBoundaryProcess } from "./process";
 import type {
   BoundaryProcessRequest,
@@ -52,6 +56,18 @@ import type {
 
 const RUNTIME_MARKER = ".goodmemory-c3-runner-owned";
 const C3_PERMISSION_PROFILE_NAME = "c3-task";
+
+export const C3_EVALUATOR_DENIED_PATH_LABELS = [
+  "codex-auth-source",
+  "goodmemory-installed-runtime",
+  "goodmemory-source",
+  "no-memory-runtime",
+  "output-root",
+  "package-tarball",
+  "raw-prehistory",
+  "runner-source",
+  "source-repository",
+] as const;
 
 const statusSchema = z.object({
   hosts: z.array(z.object({
@@ -89,13 +105,6 @@ const writebackResultSchema = z.object({
     transcriptSessionDigest: z.string().min(1),
   }).passthrough(),
   wrote: z.boolean(),
-}).passthrough();
-
-const hookOutputSchema = z.object({
-  hookSpecificOutput: z.object({
-    additionalContext: z.string().trim().min(1),
-    hookEventName: z.literal("UserPromptSubmit"),
-  }).passthrough(),
 }).passthrough();
 
 export type C3BoundaryRunner = (
@@ -158,301 +167,317 @@ export interface C3SeedResult {
   receipt: FrozenPrehistorySeedReceipt;
 }
 
-interface C3RecallPreflightEvidenceBase {
-  expectedMemoryIds: string[];
-  injectedMemoryIds: string[];
-  schemaVersion: 1;
-  sourceProjectionSha256?: string;
+export interface C3EvaluatorSecurityPathCommitment {
+  label: string;
+  path: string;
+  pathSha256: string;
 }
 
-export type C3RecallPreflightEvidence =
-  | C3RecallPreflightEvidenceBase & {
-      outputSha256: string;
-      passed: true;
-      stateSha256: string;
-    }
-  | C3RecallPreflightEvidenceBase & {
-      outputSha256: string | null;
-      passed: false;
-      reason: string;
-      stateSha256: string | null;
-    };
+export interface C3CredentialRevocationEvidence {
+  arm: "goodmemory-installed" | "no-memory";
+  auth: C3EvaluatorSecurityPathCommitment;
+  copiedAuthRemovedBeforeEvaluator: true;
+  phase: "after-both-codex-before-evaluator-materialization";
+  schemaVersion: 1;
+}
 
-export async function preflightC3InstalledRecall(input: {
-  prompt: string;
-  runProcess?: C3BoundaryRunner;
-  runtime: C3InstalledArmRuntime;
-  seed: C3SeedResult;
-}): Promise<C3RecallPreflightEvidence> {
-  const expectedMemoryIds = [...new Set(
-    input.seed.receipt.writtenMemoryIds,
-  )].sort();
-  const run = input.runProcess ?? runBoundaryProcess;
-  const sessionId = `${input.runtime.plan.scopes.sessionId}-recall-preflight`;
-  const sessionDigest = buildNativeCanarySessionDigest(sessionId);
-  let output: string | null = null;
-  let stateRaw: string | null = null;
-  let injectedMemoryIds: string[] = [];
-  let hookOutput: z.infer<typeof hookOutputSchema>["hookSpecificOutput"] | null =
-    null;
-  let injectionEvents: ReturnType<typeof parseNativeCanaryInjectionState> = [];
-  let evidence: C3RecallPreflightEvidence;
-  try {
-    output = (await runRequired(run, {
-      args: ["codex", "hook", "user-prompt-submit"],
-      cwd: input.runtime.plan.paths.workspace,
-      env: input.runtime.env,
-      executable: input.runtime.goodmemoryExecutable,
-      label: "frozen-prehistory-recall-preflight",
-      stdin: JSON.stringify({
-        cwd: input.runtime.plan.paths.workspace,
-        hook_event_name: "UserPromptSubmit",
-        prompt: input.prompt,
-        session_id: sessionId,
-        turn_id: `${sessionId}-turn`,
-      }),
-    })).stdout;
-    hookOutput = parseExternalJson(
-      output,
-      hookOutputSchema,
-      "C3 recall preflight output",
-    ).hookSpecificOutput;
-    stateRaw = await readFile(
-      join(
-        input.runtime.plan.paths.home,
-        ".goodmemory",
-        "codex-injection-state.json",
-      ),
-      "utf8",
-    );
-    injectionEvents = parseNativeCanaryInjectionState(stateRaw).filter(
-      (event) => event.sessionDigest === sessionDigest,
-    );
-    injectedMemoryIds = [...new Set(
-      injectionEvents
-        .filter((event) =>
-          event.command === "user-prompt-submit" &&
-          event.decision === "injected"
-        )
-        .flatMap((event) => event.recordIds)
-        .filter((memoryId) => expectedMemoryIds.includes(memoryId)),
-    )].sort();
-    if (
-      expectedMemoryIds.length === 0 ||
-      injectedMemoryIds.length !== expectedMemoryIds.length
-    ) {
-      throw new Error("frozen prehistory is not retrievable before Codex execution");
-    }
-    evidence = {
-      expectedMemoryIds,
-      injectedMemoryIds,
-      outputSha256: sha256(output),
-      passed: true,
-      schemaVersion: 1,
-      stateSha256: sha256(stateRaw),
+export interface C3EvaluatorSecurityContract {
+  arms: {
+    goodmemoryInstalled: {
+      copiedAuth: C3EvaluatorSecurityPathCommitment;
+      evaluationWorkspace: C3EvaluatorSecurityPathCommitment;
+      evaluatorRoot: C3EvaluatorSecurityPathCommitment;
+      expectedConfigSha256: string;
+      sandboxRoot: C3EvaluatorSecurityPathCommitment;
     };
-  } catch (error) {
-    evidence = {
-      expectedMemoryIds,
-      injectedMemoryIds,
-      outputSha256: output === null ? null : sha256(output),
-      passed: false,
-      reason: error instanceof Error ? error.message : String(error),
-      schemaVersion: 1,
-      stateSha256: stateRaw === null ? null : sha256(stateRaw),
+    noMemory: {
+      copiedAuth: C3EvaluatorSecurityPathCommitment;
+      evaluationWorkspace: C3EvaluatorSecurityPathCommitment;
+      evaluatorRoot: C3EvaluatorSecurityPathCommitment;
+      expectedConfigSha256: string;
+      sandboxRoot: C3EvaluatorSecurityPathCommitment;
     };
-  }
-  const sourceProjectionBytes = `${JSON.stringify({
-    hookOutput: hookOutput === null
-      ? null
-      : {
-          additionalContextLength: hookOutput.additionalContext.length,
-          additionalContextSha256: sha256(hookOutput.additionalContext),
-          hookEventName: hookOutput.hookEventName,
-        },
-    injectionEvents: injectionEvents.map((event) => ({
-      command: event.command,
-      decision: event.decision,
-      recordIds: event.recordIds,
-      sessionDigest: event.sessionDigest,
-    })),
-    schemaVersion: 1,
-    sessionDigest,
-  }, null, 2)}\n`;
-  await writeFile(
-    join(
-      input.runtime.plan.paths.result,
-      "recall-preflight-source.sanitized.json",
-    ),
-    sourceProjectionBytes,
-    { encoding: "utf8", flag: "wx" },
-  );
-  evidence = {
-    ...evidence,
-    sourceProjectionSha256: sha256(sourceProjectionBytes),
   };
-  await writeFile(
-    join(input.runtime.plan.paths.result, "recall-preflight.json"),
-    `${JSON.stringify(evidence, null, 2)}\n`,
-    { encoding: "utf8", flag: "wx" },
-  );
-  return evidence;
-}
-
-export interface C3PermissionIsolationAudit {
-  configSha256: string;
-  deniedReads: Array<{
-    denied: boolean;
-    exitCode: number | null;
-    label: string;
-    pathSha256: string;
-  }>;
-  networkAccess: false;
-  passed: boolean;
-  profileName: "c3-task";
-  reasons: string[];
-  schemaVersion: 1;
-  workspaceRead: boolean;
-  workspaceWrite: boolean;
-}
-
-export interface C3PermissionIsolationEvidence {
-  audit: C3PermissionIsolationAudit & {
-    deniedReads: Array<C3PermissionIsolationAudit["deniedReads"][number] & {
-      denied: true;
-    }>;
-    passed: true;
+  credentialRemoval:
+    "after-both-codex-before-evaluator-materialization";
+  deniedPaths: C3EvaluatorSecurityPathCommitment[];
+  evidencePath: "evaluator-security.sanitized.json";
+  profileName: "c3-evaluator";
+  requirements: {
+    configWriteDenied: true;
+    copiedAuthRemovedBeforeEvaluator: true;
+    evaluatorRead: true;
+    evaluatorWriteDenied: true;
+    networkAccess: false;
+    networkDenied: true;
+    networkPositiveControl: true;
+    originalAuthAliasDenied: true;
+    originalAuthDenied: true;
     workspaceRead: true;
     workspaceWrite: true;
   };
-  evidenceSha256: string;
+  schemaVersion: 1;
+  sourceEvaluatorRoot: C3EvaluatorSecurityPathCommitment;
 }
 
-export async function auditC3PermissionIsolation(input: {
-  deniedReadPaths: ReadonlyArray<{ label: string; path: string }>;
-  phase: "pre-seed" | "preflight";
-  runProcess?: C3BoundaryRunner;
-  runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime;
-}): Promise<C3PermissionIsolationEvidence> {
-  if (input.deniedReadPaths.length === 0) {
-    throw new Error("C3 permission audit requires at least one denied read path");
-  }
-  const profile = input.runtime.permissionProfile;
-  const configPath = join(input.runtime.plan.paths.codexHome, "config.toml");
-  const actualConfigSha256 = await sha256File(configPath);
-  const workspace = input.runtime.plan.paths.workspace;
-  const readProbePath = join(workspace, ".c3-permission-read-probe");
-  const writeProbePath = join(workspace, ".c3-permission-write-probe");
-  await Promise.all([
-    assertAbsentPath(readProbePath, "C3 permission read probe"),
-    assertAbsentPath(writeProbePath, "C3 permission write probe"),
-  ]);
-  const readSentinel = "c3-workspace-read-allowed\n";
-  await writeFile(readProbePath, readSentinel, { encoding: "utf8", flag: "wx" });
-  const run = input.runProcess ?? runBoundaryProcess;
-  let workspaceRead = false;
-  let workspaceWrite = false;
-  const deniedReads: C3PermissionIsolationAudit["deniedReads"] = [];
-  const reasons: string[] = [];
-  try {
-    const read = await runPermissionProbe(run, input.runtime, [
-      "/bin/cat",
-      readProbePath,
-    ]);
-    workspaceRead = probeSucceeded(read) && read.stdout === readSentinel;
-    if (!workspaceRead) {
-      reasons.push("permission profile did not allow the current workspace read");
-    }
-
-    const write = await runPermissionProbe(run, input.runtime, [
-      "/usr/bin/touch",
-      writeProbePath,
-    ]);
-    workspaceWrite = probeSucceeded(write) && await pathExists(writeProbePath);
-    if (!workspaceWrite) {
-      reasons.push("permission profile did not allow the current workspace write");
-    }
-
-    for (const deniedPath of [...input.deniedReadPaths].sort((first, second) =>
-      first.label.localeCompare(second.label)
-    )) {
-      await assertRegularFile(deniedPath.path, `denied read probe ${deniedPath.label}`);
-      const result = await runPermissionProbe(run, input.runtime, [
-        "/bin/cat",
-        resolve(deniedPath.path),
-      ]);
-      const denied = result.spawnError === undefined &&
-        !result.timedOut &&
-        result.exitCode !== null &&
-        result.exitCode !== 0;
-      deniedReads.push({
-        denied,
-        exitCode: result.exitCode,
-        label: deniedPath.label,
-        pathSha256: sha256(resolve(deniedPath.path)),
-      });
-      if (!denied) {
-        reasons.push(`permission profile exposed denied path ${deniedPath.label}`);
-      }
-    }
-  } finally {
-    await Promise.all([
-      rm(readProbePath, { force: true }),
-      rm(writeProbePath, { force: true }),
-    ]);
-  }
-  if (actualConfigSha256 !== profile.configSha256) {
-    reasons.push("permission profile config changed after runtime preparation");
-  }
-  const audit: C3PermissionIsolationAudit = {
-    configSha256: actualConfigSha256,
-    deniedReads,
-    networkAccess: false,
-    passed: reasons.length === 0,
-    profileName: C3_PERMISSION_PROFILE_NAME,
-    reasons,
-    schemaVersion: 1,
-    workspaceRead,
-    workspaceWrite,
+export interface C3EvaluatorSecurityEvidence {
+  contract: C3EvaluatorSecurityContract;
+  credentialRevocations: {
+    goodmemoryInstalled: C3CredentialRevocationEvidence & {
+      arm: "goodmemory-installed";
+    };
+    noMemory: C3CredentialRevocationEvidence & {
+      arm: "no-memory";
+    };
   };
-  const bytes = `${JSON.stringify(audit, null, 2)}\n`;
-  await writeFile(
-    join(
-      input.runtime.plan.paths.result,
-      `permission-isolation-${input.phase}.json`,
-    ),
-    bytes,
-    { encoding: "utf8", flag: "wx" },
+  sandboxes: {
+    goodmemoryInstalled: CodexEvaluatorSandboxEvidence & {
+      evaluatorRoot: C3EvaluatorSecurityPathCommitment;
+      profileName: "c3-evaluator";
+    };
+    noMemory: CodexEvaluatorSandboxEvidence & {
+      evaluatorRoot: C3EvaluatorSecurityPathCommitment;
+      profileName: "c3-evaluator";
+    };
+  };
+  schemaVersion: 1;
+}
+
+export { preflightC3InstalledRecall } from "./c3-recall-preflight";
+export type { C3RecallPreflightEvidence } from "./c3-recall-preflight";
+
+export { auditC3PermissionIsolation } from "./c3-permission-isolation";
+export type {
+  C3PermissionIsolationAudit,
+  C3PermissionIsolationEvidence,
+} from "./c3-permission-isolation";
+
+export function buildC3EvaluatorSecurityContract(input: {
+  authFile: string;
+  deniedPaths: ReadonlyArray<{ label: string; path: string }>;
+  evaluatorRoot: string;
+  goodmemoryInstalled: {
+    evaluationWorkspace: string;
+    runtime: C3InstalledArmRuntime;
+    sandboxRoot: string;
+  };
+  noMemory: {
+    evaluationWorkspace: string;
+    runtime: C3NoMemoryArmRuntime;
+    sandboxRoot: string;
+  };
+}): C3EvaluatorSecurityContract {
+  const deniedPaths = input.deniedPaths.map(({ label, path }) =>
+    pathCommitment(label, path)
+  ).sort((first, second) => first.label.localeCompare(second.label));
+  assertC3EvaluatorDeniedPathLabels(deniedPaths);
+  const sourceEvaluatorRoot = pathCommitment(
+    "source-evaluator-root",
+    input.evaluatorRoot,
   );
-  if (!audit.passed) {
-    throw new Error(`C3 permission isolation failed: ${reasons.join("; ")}`);
-  }
+  const armContract = (
+    arm: "goodmemory-installed" | "no-memory",
+    runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime,
+    evaluationWorkspace: string,
+    sandboxRoot: string,
+  ) => {
+    const resolvedEvaluationWorkspace = resolve(evaluationWorkspace);
+    const resolvedSandboxRoot = resolve(sandboxRoot);
+    const expectedEvaluationWorkspace = resolve(
+      resolvedSandboxRoot,
+      "workspace",
+    );
+    if (resolvedEvaluationWorkspace !== expectedEvaluationWorkspace) {
+      throw new Error(
+        `C3 ${arm} evaluator workspace must stay at sandboxRoot/workspace`,
+      );
+    }
+    const evaluatorRoot = resolve(resolvedSandboxRoot, "evaluator");
+    return {
+      copiedAuth: pathCommitment(
+        `${arm}-copied-auth`,
+        join(runtime.plan.paths.codexHome, "auth.json"),
+      ),
+      evaluationWorkspace: pathCommitment(
+        `${arm}-evaluation-workspace`,
+        resolvedEvaluationWorkspace,
+      ),
+      evaluatorRoot: pathCommitment(
+        `${arm}-evaluator-root`,
+        evaluatorRoot,
+      ),
+      expectedConfigSha256: buildCodexEvaluatorSandboxConfigSha256({
+        evaluationWorkspace: resolvedEvaluationWorkspace,
+        evaluatorRoot,
+        profileName: "c3-evaluator",
+        sandboxRoot: resolvedSandboxRoot,
+      }),
+      sandboxRoot: pathCommitment(
+        `${arm}-sandbox-root`,
+        resolvedSandboxRoot,
+      ),
+    };
+  };
   return {
-    audit: requirePassedPermissionIsolationAudit(audit),
-    evidenceSha256: sha256(bytes),
+    arms: {
+      goodmemoryInstalled: armContract(
+        "goodmemory-installed",
+        input.goodmemoryInstalled.runtime,
+        input.goodmemoryInstalled.evaluationWorkspace,
+        input.goodmemoryInstalled.sandboxRoot,
+      ),
+      noMemory: armContract(
+        "no-memory",
+        input.noMemory.runtime,
+        input.noMemory.evaluationWorkspace,
+        input.noMemory.sandboxRoot,
+      ),
+    },
+    credentialRemoval:
+      "after-both-codex-before-evaluator-materialization",
+    deniedPaths,
+    evidencePath: "evaluator-security.sanitized.json",
+    profileName: "c3-evaluator",
+    requirements: {
+      configWriteDenied: true,
+      copiedAuthRemovedBeforeEvaluator: true,
+      evaluatorRead: true,
+      evaluatorWriteDenied: true,
+      networkAccess: false,
+      networkDenied: true,
+      networkPositiveControl: true,
+      originalAuthAliasDenied: true,
+      originalAuthDenied: true,
+      workspaceRead: true,
+      workspaceWrite: true,
+    },
+    schemaVersion: 1,
+    sourceEvaluatorRoot,
   };
 }
 
-function requirePassedPermissionIsolationAudit(
-  audit: C3PermissionIsolationAudit,
-): C3PermissionIsolationEvidence["audit"] {
-  if (
-    !audit.passed ||
-    !audit.workspaceRead ||
-    !audit.workspaceWrite ||
-    audit.deniedReads.some((probe) => !probe.denied)
-  ) {
-    throw new Error("C3 permission isolation evidence is not passing");
-  }
+export async function removeC3ArmModelCredential(
+  runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime,
+): Promise<C3CredentialRevocationEvidence> {
+  const authPath = join(runtime.plan.paths.codexHome, "auth.json");
+  await assertRegularFile(
+    authPath,
+    `${runtime.plan.arm} copied Codex auth`,
+  );
+  await rm(authPath);
+  await assertC3ArmModelCredentialRemoved(runtime);
   return {
-    ...audit,
-    deniedReads: audit.deniedReads.map((probe) => ({
-      ...probe,
-      denied: true,
-    })),
-    passed: true,
-    workspaceRead: true,
-    workspaceWrite: true,
+    arm: runtime.plan.arm,
+    auth: pathCommitment(`${runtime.plan.arm}-copied-auth`, authPath),
+    copiedAuthRemovedBeforeEvaluator: true,
+    phase: "after-both-codex-before-evaluator-materialization",
+    schemaVersion: 1,
+  };
+}
+
+export async function assertC3ArmModelCredentialRemoved(
+  runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime,
+): Promise<void> {
+  if (await pathExists(join(runtime.plan.paths.codexHome, "auth.json"))) {
+    throw new Error(
+      `C3 ${runtime.plan.arm} copied model credential remained before evaluator materialization`,
+    );
+  }
+}
+
+export function buildC3EvaluatorSecurityEvidence(input: {
+  contract: C3EvaluatorSecurityContract;
+  credentialRevocations: {
+    goodmemoryInstalled: C3CredentialRevocationEvidence;
+    noMemory: C3CredentialRevocationEvidence;
+  };
+  sandboxes: {
+    goodmemoryInstalled: {
+      evidence: CodexEvaluatorSandboxEvidence;
+      evaluatorRoot: string;
+    };
+    noMemory: {
+      evidence: CodexEvaluatorSandboxEvidence;
+      evaluatorRoot: string;
+    };
+  };
+}): C3EvaluatorSecurityEvidence {
+  const validateArm = (
+    arm: "goodmemory-installed" | "no-memory",
+    contractArm:
+      C3EvaluatorSecurityContract["arms"]["goodmemoryInstalled"],
+    revocation: C3CredentialRevocationEvidence,
+    sandbox: {
+      evidence: CodexEvaluatorSandboxEvidence;
+      evaluatorRoot: string;
+    },
+  ): void => {
+    const evaluatorRoot = pathCommitment(
+      `${arm}-evaluator-root`,
+      sandbox.evaluatorRoot,
+    );
+    if (
+      revocation.arm !== arm ||
+      revocation.phase !== input.contract.credentialRemoval ||
+      JSON.stringify(revocation.auth) !==
+        JSON.stringify(contractArm.copiedAuth) ||
+      JSON.stringify(evaluatorRoot) !==
+        JSON.stringify(contractArm.evaluatorRoot) ||
+      sandbox.evidence.profileName !== input.contract.profileName ||
+      sandbox.evidence.configSha256 !== contractArm.expectedConfigSha256 ||
+      !sandbox.evidence.configWriteDenied ||
+      !sandbox.evidence.copiedAuthRemovedBeforeEvaluator ||
+      !sandbox.evidence.evaluatorRead ||
+      !sandbox.evidence.evaluatorWriteDenied ||
+      sandbox.evidence.networkAccess !== false ||
+      !sandbox.evidence.networkDenied ||
+      !sandbox.evidence.networkPositiveControl ||
+      !sandbox.evidence.originalAuthAliasDenied ||
+      !sandbox.evidence.originalAuthDenied ||
+      !sandbox.evidence.workspaceRead ||
+      !sandbox.evidence.workspaceWrite
+    ) {
+      throw new Error(`C3 ${arm} evaluator security evidence drifted`);
+    }
+  };
+  validateArm(
+    "goodmemory-installed",
+    input.contract.arms.goodmemoryInstalled,
+    input.credentialRevocations.goodmemoryInstalled,
+    input.sandboxes.goodmemoryInstalled,
+  );
+  validateArm(
+    "no-memory",
+    input.contract.arms.noMemory,
+    input.credentialRevocations.noMemory,
+    input.sandboxes.noMemory,
+  );
+  return {
+    contract: input.contract,
+    credentialRevocations: {
+      goodmemoryInstalled: {
+        ...input.credentialRevocations.goodmemoryInstalled,
+        arm: "goodmemory-installed",
+      },
+      noMemory: {
+        ...input.credentialRevocations.noMemory,
+        arm: "no-memory",
+      },
+    },
+    sandboxes: {
+      goodmemoryInstalled: {
+        ...input.sandboxes.goodmemoryInstalled.evidence,
+        evaluatorRoot:
+          input.contract.arms.goodmemoryInstalled.evaluatorRoot,
+        profileName: "c3-evaluator",
+      },
+      noMemory: {
+        ...input.sandboxes.noMemory.evidence,
+        evaluatorRoot: input.contract.arms.noMemory.evaluatorRoot,
+        profileName: "c3-evaluator",
+      },
+    },
+    schemaVersion: 1,
   };
 }
 
@@ -670,15 +695,21 @@ export async function prepareC3InstalledArm(input: {
     label: "codex-version-installed",
   })).stdout.trim();
   const featureRaw = (await runRequired(run, {
-    args: ["features", "list"],
+    args: ["--disable", "memories", "features", "list"],
     cwd: input.plan.paths.workspace,
     env,
     executable: codexExecutable,
     label: "codex-features-installed",
   })).stdout;
   const hooks = parseCodexFeatureList(featureRaw);
-  if (!hooks.enabled || hooks.maturity !== "stable") {
-    throw new Error("installed Codex does not expose stable enabled hooks");
+  if (
+    !hooks.enabled ||
+    hooks.maturity !== "stable" ||
+    readFeatureEnabled(featureRaw, "memories") !== false
+  ) {
+    throw new Error(
+      "installed Codex does not expose stable hooks with memories disabled",
+    );
   }
   const preexistingSessionCount = await countSessionFiles(
     input.plan.paths.codexHome,
@@ -715,6 +746,22 @@ export async function prepareC3InstalledArm(input: {
     },
     storagePath: globalConfig.storage.path,
   };
+}
+
+function readFeatureEnabled(
+  rawOutput: string,
+  name: string,
+): boolean | null {
+  for (const line of rawOutput.split(/\r?\n/u)) {
+    const fields = line.trim().split(/\s+/u);
+    if (
+      fields[0] === name &&
+      (fields[2] === "true" || fields[2] === "false")
+    ) {
+      return fields[2] === "true";
+    }
+  }
+  return null;
 }
 
 export async function seedC3InstalledArm(input: {
@@ -1021,34 +1068,6 @@ async function runRequired(
   return result;
 }
 
-async function runPermissionProbe(
-  run: C3BoundaryRunner,
-  runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime,
-  command: readonly string[],
-): Promise<BoundaryProcessResult> {
-  return run({
-    args: [
-      "sandbox",
-      "-P",
-      runtime.permissionProfile.name,
-      "-C",
-      runtime.plan.paths.workspace,
-      "--",
-      ...command,
-    ],
-    cwd: runtime.plan.paths.workspace,
-    env: runtime.env,
-    executable: runtime.codex.executable,
-    timeoutMs: 30_000,
-  });
-}
-
-function probeSucceeded(result: BoundaryProcessResult): boolean {
-  return result.spawnError === undefined &&
-    !result.timedOut &&
-    result.exitCode === 0;
-}
-
 async function captureInstructionSha256(workspace: string): Promise<string> {
   const entries = await collectInstructionFiles(workspace, workspace);
   const hash = createHash("sha256");
@@ -1150,6 +1169,33 @@ async function sha256File(path: string): Promise<string> {
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function pathCommitment(
+  label: string,
+  path: string,
+): C3EvaluatorSecurityPathCommitment {
+  const resolvedPath = resolve(path);
+  return {
+    label,
+    path: resolvedPath,
+    pathSha256: sha256(resolvedPath),
+  };
+}
+
+function assertC3EvaluatorDeniedPathLabels(
+  paths: readonly C3EvaluatorSecurityPathCommitment[],
+): void {
+  const labels = paths.map((path) => path.label);
+  const expected = [...C3_EVALUATOR_DENIED_PATH_LABELS].sort();
+  if (
+    new Set(labels).size !== labels.length ||
+    JSON.stringify(labels) !== JSON.stringify(expected)
+  ) {
+    throw new Error(
+      "C3 evaluator denied path labels do not match the frozen protocol",
+    );
+  }
 }
 
 function parseExternalJson<T>(

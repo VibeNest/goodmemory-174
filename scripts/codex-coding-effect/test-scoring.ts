@@ -4,6 +4,10 @@ import type { CodexRunResult } from "./codex-runner";
 import type { CodexCodingEffectLogger } from "./logging";
 import type { WorkspacePatch } from "./patch";
 import { runBoundaryProcess } from "./process";
+import type {
+  BoundaryProcessRequest,
+  BoundaryProcessResult,
+} from "./process";
 
 export type EvaluatorTestKind = "fail-to-pass" | "pass-to-pass" | "visible";
 export type EvaluatorTestStatus =
@@ -36,6 +40,9 @@ export async function runEvaluatorTest(input: {
   evaluatorRoot: string;
   kind: EvaluatorTestKind;
   logger?: CodexCodingEffectLogger;
+  runProcess?: (
+    request: BoundaryProcessRequest,
+  ) => Promise<BoundaryProcessResult>;
   timeoutMs: number;
 }): Promise<EvaluatorTestResult> {
   if (pathsOverlap(input.cwd, input.evaluatorRoot)) {
@@ -48,7 +55,7 @@ export async function runEvaluatorTest(input: {
   }
 
   input.logger?.("hidden_tests_started", { kind: input.kind });
-  const result = await runBoundaryProcess({
+  const result = await (input.runProcess ?? runBoundaryProcess)({
     args: command.slice(1),
     cwd: input.cwd,
     env: input.env,

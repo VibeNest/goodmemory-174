@@ -1,0 +1,25 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..57ccf8ec87aa17a52fa40bca5b78169ed579c398 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -37,5 +37,19 @@ export function tokenizeCommand(input: string): string[] {
+ }
+ 
+ export function parseCsvFields(input: string): string[] {
+-  return input.split(",").map((field) => field.trim());
++  const fields: string[] = [];
++  let current = "";
++  let quoted = false;
++  for (const character of input) {
++    if (character === "\"") {
++      quoted = !quoted;
++    } else if (character === "," && !quoted) {
++      fields.push(current.trim());
++      current = "";
++    } else {
++      current += character;
++    }
++  }
++  fields.push(current.trim());
++  return fields;
+ }

@@ -1,0 +1,3141 @@
+{
+  "assetFiles": [
+    {
+      "path": "evaluator/cases.json",
+      "sha256": "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+    },
+    {
+      "path": "evaluator/gold/avoid-naive-split-stage-1.patch",
+      "sha256": "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191"
+    },
+    {
+      "path": "evaluator/gold/avoid-naive-split-stage-2.patch",
+      "sha256": "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa"
+    },
+    {
+      "path": "evaluator/gold/avoid-naive-split-stage-3.patch",
+      "sha256": "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5"
+    },
+    {
+      "path": "evaluator/gold/endpoint-open-loop-stage-1.patch",
+      "sha256": "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a"
+    },
+    {
+      "path": "evaluator/gold/endpoint-open-loop-stage-2.patch",
+      "sha256": "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104"
+    },
+    {
+      "path": "evaluator/gold/endpoint-open-loop-stage-3.patch",
+      "sha256": "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8"
+    },
+    {
+      "path": "evaluator/gold/irrelevant-history-control-stage-1.patch",
+      "sha256": "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f"
+    },
+    {
+      "path": "evaluator/gold/irrelevant-history-control-stage-2.patch",
+      "sha256": "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623"
+    },
+    {
+      "path": "evaluator/gold/irrelevant-history-control-stage-3.patch",
+      "sha256": "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85"
+    },
+    {
+      "path": "evaluator/gold/parse-result-correction-stage-1.patch",
+      "sha256": "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d"
+    },
+    {
+      "path": "evaluator/gold/parse-result-correction-stage-2.patch",
+      "sha256": "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349"
+    },
+    {
+      "path": "evaluator/gold/parse-result-correction-stage-3.patch",
+      "sha256": "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1"
+    },
+    {
+      "path": "evaluator/gold/stale-time-unit-update-stage-1.patch",
+      "sha256": "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc"
+    },
+    {
+      "path": "evaluator/gold/stale-time-unit-update-stage-2.patch",
+      "sha256": "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b"
+    },
+    {
+      "path": "evaluator/gold/stale-time-unit-update-stage-3.patch",
+      "sha256": "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da"
+    },
+    {
+      "path": "evaluator/gold/validated-first-delimiter-stage-1.patch",
+      "sha256": "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6"
+    },
+    {
+      "path": "evaluator/gold/validated-first-delimiter-stage-2.patch",
+      "sha256": "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9"
+    },
+    {
+      "path": "evaluator/gold/validated-first-delimiter-stage-3.patch",
+      "sha256": "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f"
+    },
+    {
+      "path": "evaluator/runner.ts",
+      "sha256": "e1617c0820949074739f9370b60e261f9a5005c957a5145b2fb1a3684f014712"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168"
+    },
+    {
+      "path": "licenses/receipt.json",
+      "sha256": "9426c2544406ccb3513a39a8a62b97e510d3cd333c5e8f8610b2c8a39233c079"
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "751ffa5d592559928cc9924fe84e779da8bd2f2446cbbd2de19ab755c5fc7390"
+    },
+    {
+      "path": "prehistory/avoid-naive-split.jsonl",
+      "sha256": "0587078b87a43687effb3b829d3029deafdff1bc259eaed81051472f72fe3c21"
+    },
+    {
+      "path": "prehistory/endpoint-open-loop.jsonl",
+      "sha256": "67afb9900645e99d00ad815fee7b40ba3ffc51cbfcb7f1cc9489b031ec9154ab"
+    },
+    {
+      "path": "prehistory/irrelevant-history-control.jsonl",
+      "sha256": "650f3da5e121a0cd47867c01d73009075a648e4cef5461f10b0f69721117e6c1"
+    },
+    {
+      "path": "prehistory/parse-result-correction.jsonl",
+      "sha256": "14a7871351bb06acd7bfcf5e5234d8d8af913c0236dade6f7ccfe51c3b82aea1"
+    },
+    {
+      "path": "prehistory/stale-time-unit-update.jsonl",
+      "sha256": "12e81ec8909e268e25f60ae4df887710af27335c2031ebd0d30c52a6cf5943cf"
+    },
+    {
+      "path": "prehistory/validated-first-delimiter.jsonl",
+      "sha256": "aec03aa98aec31523dc2a557663fe204337803359b555d70a4a2e9d0e05c1484"
+    },
+    {
+      "path": "prompts/avoid-naive-split-parse-quoted-csv.md",
+      "sha256": "44befac42e0987e9143b0dd35f435a5a81952a23b87d33a6c933ce24b27f411d"
+    },
+    {
+      "path": "prompts/avoid-naive-split-strip-quoted-comment.md",
+      "sha256": "6b85d88d83e9755de1f14ef98a0349c6fbbbc343766a7ead936ead46951aa6ec"
+    },
+    {
+      "path": "prompts/avoid-naive-split-tokenize-quoted-command.md",
+      "sha256": "c0bbe83c407a861c9337a46b473db8f40840703883d1b6d1a86437940b0e9b5a"
+    },
+    {
+      "path": "prompts/endpoint-open-loop-format-ipv6-endpoint.md",
+      "sha256": "46023cc704bcfd2dffd212f4372c603675bf7f0e6ce0b88cacf76daba4dc5b65"
+    },
+    {
+      "path": "prompts/endpoint-open-loop-normalize-host-boundary.md",
+      "sha256": "37d21b1b16e0fac4e640e3e78692c6f774c56672ac44713d19f9db8cfe92110b"
+    },
+    {
+      "path": "prompts/endpoint-open-loop-parse-strict-port.md",
+      "sha256": "7e545c54f6793685bf33edb4ededc23ae9553524fadaa57d69553bc4b920b3cf"
+    },
+    {
+      "path": "prompts/irrelevant-history-control-dedupe-csv-values.md",
+      "sha256": "8ffede833b21478e987b25cf28eebf0c3c0575a7bf2bf24de57d0f41738ca620"
+    },
+    {
+      "path": "prompts/irrelevant-history-control-encode-path-segment.md",
+      "sha256": "0043119428981f27a4630f362771adecdf33771527f29a6854c7df1846c2c15e"
+    },
+    {
+      "path": "prompts/irrelevant-history-control-normalize-slug.md",
+      "sha256": "5ca01534fd9bc7591f14bb7007f861f83b048a0c7f02e5e00cbd32c60f4c7d6f"
+    },
+    {
+      "path": "prompts/parse-result-correction-parse-boolean-result.md",
+      "sha256": "c14950f3573009fad3ff3570f2c365e77423fce7f7c1e5c2ee6ec45d2bc24bd8"
+    },
+    {
+      "path": "prompts/parse-result-correction-parse-integer-result.md",
+      "sha256": "14bcded3cbfba713fdc7cb97e93e7f4e096e148be5ebbdd96b730b262e2a70e6"
+    },
+    {
+      "path": "prompts/parse-result-correction-parse-mode-result.md",
+      "sha256": "a1ce88f2b9f3e7827ff6fc3457b986be7f7dec67b27fafc053d3a1ea95d8f9e9"
+    },
+    {
+      "path": "prompts/stale-time-unit-update-compute-deadline-seconds.md",
+      "sha256": "bf1f64e14eeb933735ebe2e3209f90f6a6f760de6a99abffcf96a57fc6dabe9a"
+    },
+    {
+      "path": "prompts/stale-time-unit-update-convert-schedule-seconds.md",
+      "sha256": "9d2b62066c5ad104df8fc24dfc6ffde073518a790ba1468e980d083f3eb100d8"
+    },
+    {
+      "path": "prompts/stale-time-unit-update-convert-timeout-seconds.md",
+      "sha256": "0b4e802359ea3722290bbeca7a8cac149efd5d263d79c094f485c56b1955e8be"
+    },
+    {
+      "path": "prompts/validated-first-delimiter-split-assignment-tail.md",
+      "sha256": "6f0b8c4e0c93455d5dd259be42dd7b8f9ccccfdeb539dcc1b52bb477bc4e17ff"
+    },
+    {
+      "path": "prompts/validated-first-delimiter-split-header-tail.md",
+      "sha256": "c2e776b582e123ad2f66122d5bdb49b4d9ce44d8e4f25178a4d02a3b86166e2d"
+    },
+    {
+      "path": "prompts/validated-first-delimiter-split-route-tail.md",
+      "sha256": "4c97d2410f6e02211b6e6d4defc810ab385a03b1c68aaec910ec1d14c8624810"
+    },
+    {
+      "path": "provenance/author-attestation.json",
+      "sha256": "550e8d8df30f473323e88a00e20665ad99915293079ccc743872bcd83f6f5759"
+    },
+    {
+      "path": "repositories/continuity-utils/AGENTS.md",
+      "sha256": "3d8e99a38de9596fb4de302c3b3209b306dd5bd3c8082a1edb26623f63e6beaf"
+    },
+    {
+      "path": "repositories/continuity-utils/LICENSE",
+      "sha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168"
+    },
+    {
+      "path": "repositories/continuity-utils/package.json",
+      "sha256": "a82437e84a79a4f3fcd0b1a9432c52da1328618a2a0b51a45bdba94a09915a01"
+    },
+    {
+      "path": "repositories/continuity-utils/README.md",
+      "sha256": "f0a0df5400e16f2f30d016fa4ec26198b86b1cbad9faa4a1c76ed10b88770101"
+    },
+    {
+      "path": "repositories/continuity-utils/src/tasks.ts",
+      "sha256": "995c029acf78169ec8ea610a258685720326b45a29606e64899cc4bbf821705c"
+    },
+    {
+      "path": "repositories/continuity-utils/tests/base-health.test.ts",
+      "sha256": "9af9d2e8ea8affdcc28ede09093be08676c7af1bf4e83c69d6fb8523fdd6c39c"
+    },
+    {
+      "path": "repositories/policy-utils/AGENTS.md",
+      "sha256": "3d8e99a38de9596fb4de302c3b3209b306dd5bd3c8082a1edb26623f63e6beaf"
+    },
+    {
+      "path": "repositories/policy-utils/LICENSE",
+      "sha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168"
+    },
+    {
+      "path": "repositories/policy-utils/package.json",
+      "sha256": "728bd13e2bc474e8fce019725a469bfa5e573f496746a2b431335c2dae84427a"
+    },
+    {
+      "path": "repositories/policy-utils/README.md",
+      "sha256": "2a72eb1ad6f05c2420e8a50ec76b0d94a9e4f21a255a5f4d56d04b3921162fe2"
+    },
+    {
+      "path": "repositories/policy-utils/src/tasks.ts",
+      "sha256": "ba27ba31fd31b8494df78ba81598a79790c6effb98019f70d08473ac18ac386f"
+    },
+    {
+      "path": "repositories/policy-utils/tests/base-health.test.ts",
+      "sha256": "5fb89bbedf3019e63804dd9a08a5603b1fde10d0a4b3cd63087edaf07b224d12"
+    }
+  ],
+  "assetLockSha256": "5089494f735c30ecb6fa80d2b76f2a51598d0acecfc2852413c7821eb5c5f1d7",
+  "assetRootSha256": "900c7388b22579aecb672b0b962bd3c14f6bafed285cacad95364318710c9187",
+  "authorAttestation": {
+    "authorTaskName": "/root",
+    "sha256": "550e8d8df30f473323e88a00e20665ad99915293079ccc743872bcd83f6f5759",
+    "status": "accepted"
+  },
+  "claimBoundary": "dataset-readiness-only-no-coding-uplift",
+  "counts": {
+    "baseProbes": 54,
+    "episodes": 6,
+    "repositories": 2,
+    "stages": 18
+  },
+  "datasetId": "codex-c4-controlled-pilot-v1",
+  "episodes": [
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "endpoint-open-loop"
+    },
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "validated-first-delimiter"
+    },
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "avoid-naive-split"
+    },
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "parse-result-correction"
+    },
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "stale-time-unit-update"
+    },
+    {
+      "author": "GoodMemory C4 dataset author",
+      "id": "irrelevant-history-control"
+    }
+  ],
+  "excludedHosts": [
+    "claude-code"
+  ],
+  "host": "codex",
+  "leakage": {
+    "auditSha256": "65c4e91da2579071df7f23eb280a06ba79ff624fdd9b9d821a3c7eb475159a42",
+    "auditedHiddenArtifacts": [
+      "expected-changed-files",
+      "gold-patches",
+      "hidden-test-source"
+    ],
+    "auditedSurfaces": [
+      "allowed-feedback",
+      "flat-summary-after-seeding",
+      "frozen-prehistory",
+      "goodmemory-export-after-seeding",
+      "repository-instructions",
+      "stage-prompts",
+      "visible-repository-files"
+    ],
+    "deferredC5Surfaces": [],
+    "episodeCount": 6,
+    "episodeMatrices": [
+      {
+        "auditSha256": "79ed813faae413074e135fecb2c66ab9b4db202416cb7fde451579c7239cfb20",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5fdd095e848b073cf798f370ada613a4881825712eb668a0c2f14a964832225e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5fdd095e848b073cf798f370ada613a4881825712eb668a0c2f14a964832225e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5fdd095e848b073cf798f370ada613a4881825712eb668a0c2f14a964832225e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "edbf57cfd460805ca43677338735b4c1da11dba5a94f809297fd036b774dc69e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "edbf57cfd460805ca43677338735b4c1da11dba5a94f809297fd036b774dc69e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "edbf57cfd460805ca43677338735b4c1da11dba5a94f809297fd036b774dc69e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "67afb9900645e99d00ad815fee7b40ba3ffc51cbfcb7f1cc9489b031ec9154ab"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "67afb9900645e99d00ad815fee7b40ba3ffc51cbfcb7f1cc9489b031ec9154ab"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "67afb9900645e99d00ad815fee7b40ba3ffc51cbfcb7f1cc9489b031ec9154ab"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "0fcab113f9d86f83b0419111f00c8d4748c137e14c03cb3b5c05672a0d1f9a1d"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "0fcab113f9d86f83b0419111f00c8d4748c137e14c03cb3b5c05672a0d1f9a1d"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "0fcab113f9d86f83b0419111f00c8d4748c137e14c03cb3b5c05672a0d1f9a1d"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "adb41dc548bab3c979fd9a51e9cf47aa324e2bd70262e4e93f9f536ee487dcdc"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "adb41dc548bab3c979fd9a51e9cf47aa324e2bd70262e4e93f9f536ee487dcdc"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "adb41dc548bab3c979fd9a51e9cf47aa324e2bd70262e4e93f9f536ee487dcdc"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "65fbd873a8ec553c358188d9cc30fff67a928bbd8d72a8caac2cb723d7f19930",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 13,
+            "candidateFragmentSetSha256": "b4a225874c3b530aa32dcfe30c21d7f03595f9e9b274f62d07b89a821b13c830",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "6697ce58e422bd975b46048ef7cd7f4ff0d5687b5b5854e83fb9a89fd40e33e1",
+            "allowedPublicContractCount": 6,
+            "allowedPublicFragmentSha256": [
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b",
+              "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763",
+              "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+              "6cbbade4f8e4b609bdbd20a4ec2fdff2c38c701ad528d45a5a49ccc1ab271ea6",
+              "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+              "b681853ed1b3cae66da672a5886baf47c45c8b5378fdd4eecec58190a4524444"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "705a49e066e3af2a923b03ce508b3b4dfc2f2bf3e6b9b85917cd9237764d1a9d",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 7,
+            "hiddenValueSetSha256": "61de865d82595b4e52f6d7dc18bcf5cdf66ff1c4a267701a1ffcd4a73bab5019",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          }
+        ],
+        "episodeId": "endpoint-open-loop"
+      },
+      {
+        "auditSha256": "c1151fe578d8e4ea0df58a434671b5666ebe1bc39621a2c93a7e68ac6b637bab",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "e910be54191c006d926827b6b51fdcefba4b0fa81215bf5d608855289e35fd3e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "e910be54191c006d926827b6b51fdcefba4b0fa81215bf5d608855289e35fd3e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "e910be54191c006d926827b6b51fdcefba4b0fa81215bf5d608855289e35fd3e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "6900a14173fc9a666f72532a79af13812cce932757f77cb37a43ef943da40dea"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "6900a14173fc9a666f72532a79af13812cce932757f77cb37a43ef943da40dea"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "6900a14173fc9a666f72532a79af13812cce932757f77cb37a43ef943da40dea"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "aec03aa98aec31523dc2a557663fe204337803359b555d70a4a2e9d0e05c1484"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "aec03aa98aec31523dc2a557663fe204337803359b555d70a4a2e9d0e05c1484"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "aec03aa98aec31523dc2a557663fe204337803359b555d70a4a2e9d0e05c1484"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "cf4d48204e19ecd4f6516ae6640272bb939b170f913f40400c5f54ec61e0ba43"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "cf4d48204e19ecd4f6516ae6640272bb939b170f913f40400c5f54ec61e0ba43"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "cf4d48204e19ecd4f6516ae6640272bb939b170f913f40400c5f54ec61e0ba43"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "53ae2d5d1d119b6bf01fd08bafb75b2622de7b65552a71def3cc5fdb084b33cd"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "53ae2d5d1d119b6bf01fd08bafb75b2622de7b65552a71def3cc5fdb084b33cd"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "53ae2d5d1d119b6bf01fd08bafb75b2622de7b65552a71def3cc5fdb084b33cd"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "fb62b096258a87971aa28154e788eb7e14c731757dbf84aa91af9281779fcfb3",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 11,
+            "candidateFragmentSetSha256": "cf4a49e601a73955aaa5c9f6ad62a12eb47662d87e37beed7cad8ff4e3d4c05a",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8eee1bd06f41b333e3151e5aa9e3b60eef63a3be18bdaa316cd377254dd0c5e8",
+            "allowedPublicContractCount": 2,
+            "allowedPublicFragmentSha256": [
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b",
+              "14c2529eb4498c5d1ffd6915d05bf58a91bdda796af59f41d480d11c099d0479"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "9c6b5829ecce386c29c55cbb09e84e16aba0b2c4bee49a788784fbeee1ce6085",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 13,
+            "hiddenValueSetSha256": "69a2ccc82457fa84f7bcf3a1af6d66d572278385316c3b922d07a9485a8d23c1",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          }
+        ],
+        "episodeId": "validated-first-delimiter"
+      },
+      {
+        "auditSha256": "3eb29da24901f319124a3c5c637ccaab87e983fbfe6df29b8d9c270e88cabd25",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "248aceeb0639351ad8ababb7843e53adcb441077e5dd78001066d518405f183e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "248aceeb0639351ad8ababb7843e53adcb441077e5dd78001066d518405f183e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "248aceeb0639351ad8ababb7843e53adcb441077e5dd78001066d518405f183e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "33a9eec8c57363fad797d5128df431d2ae5869e567e54bf6e6adfa09670b19c9"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "33a9eec8c57363fad797d5128df431d2ae5869e567e54bf6e6adfa09670b19c9"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "33a9eec8c57363fad797d5128df431d2ae5869e567e54bf6e6adfa09670b19c9"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "0587078b87a43687effb3b829d3029deafdff1bc259eaed81051472f72fe3c21"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "0587078b87a43687effb3b829d3029deafdff1bc259eaed81051472f72fe3c21"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "0587078b87a43687effb3b829d3029deafdff1bc259eaed81051472f72fe3c21"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "73d2fa1bd1681ffce7a1c6c2bc67d87da22b9bd0341c5fd36bc4238b1cd1e95e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "73d2fa1bd1681ffce7a1c6c2bc67d87da22b9bd0341c5fd36bc4238b1cd1e95e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "73d2fa1bd1681ffce7a1c6c2bc67d87da22b9bd0341c5fd36bc4238b1cd1e95e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "690b656082d6e19b36e731a5bb5e609ed93fd748ff31282b74af1d07019d4077"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "690b656082d6e19b36e731a5bb5e609ed93fd748ff31282b74af1d07019d4077"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "690b656082d6e19b36e731a5bb5e609ed93fd748ff31282b74af1d07019d4077"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "34c99eb3e00aff01c2299d95d097e9a27a02de09daecc990bf5a98e2020cff48",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 28,
+            "candidateFragmentSetSha256": "9ff01e47009714f12631086d2fce5d6aea5a4e98273dfe74a5a3841f8f9a07f8",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "8d5b270d71fbf45547adcdd433950c83a135759621c602b69feaae332fbad411",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "31e180c67903b33705529ca808548dd27207b4078f475ef0dec983c179be78a4",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 16,
+            "hiddenValueSetSha256": "fcc56654ca83044b4ef2c123bba350a333847c0e477a1f34d63da18b0740d2b4",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "1d4f23d684f9f60d4f56e82e7e05c1a4bd863ff0d7f920eec0d14acce5a70b03"
+          }
+        ],
+        "episodeId": "avoid-naive-split"
+      },
+      {
+        "auditSha256": "37df8c8f42041f75e2e17dc5ee218611cf4de99b14aa67feb73ac3e2efcd274c",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "621043064ae0c9c00f5d95dc75dc8ce9f763956b787748170e40059197d9f710"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "621043064ae0c9c00f5d95dc75dc8ce9f763956b787748170e40059197d9f710"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "059e6d6a07e8660ba7873c2eaaf3e8048823102f538ccbe9bc414a4eed3cc93d"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "621043064ae0c9c00f5d95dc75dc8ce9f763956b787748170e40059197d9f710"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "f3919ee7440d5fab04ca648ecec95db9d1efa3d6c5b30df450b53ab1328d7f5e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "f3919ee7440d5fab04ca648ecec95db9d1efa3d6c5b30df450b53ab1328d7f5e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "f3919ee7440d5fab04ca648ecec95db9d1efa3d6c5b30df450b53ab1328d7f5e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "14a7871351bb06acd7bfcf5e5234d8d8af913c0236dade6f7ccfe51c3b82aea1"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "14a7871351bb06acd7bfcf5e5234d8d8af913c0236dade6f7ccfe51c3b82aea1"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "14a7871351bb06acd7bfcf5e5234d8d8af913c0236dade6f7ccfe51c3b82aea1"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "6123b23633e82e9e945a56a35d4c97c0a8808ee72f782f5399dc44400f1215dc"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "6123b23633e82e9e945a56a35d4c97c0a8808ee72f782f5399dc44400f1215dc"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "6123b23633e82e9e945a56a35d4c97c0a8808ee72f782f5399dc44400f1215dc"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "0be2e919b51f50a0831a556c6b83b9d612799509617c0f9c458247140728cb96"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "0be2e919b51f50a0831a556c6b83b9d612799509617c0f9c458247140728cb96"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 2,
+            "allowedPublicFragmentSha256": [
+              "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+              "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "0be2e919b51f50a0831a556c6b83b9d612799509617c0f9c458247140728cb96"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edcb71dfdccb31c285f5942b3fd3d6259a18aebae0e9e37e257dfc5f317fbe80",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 16,
+            "candidateFragmentSetSha256": "afb0230f7d7a40fc9cd6727904313d2a9a88499ad2886765ccde2e0eec1fba8c",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "9ec7548183360933cba85a4eef8ddf2c1b370c6a135eff898274f6022838bad0",
+            "allowedPublicContractCount": 7,
+            "allowedPublicFragmentSha256": [
+              "059e6d6a07e8660ba7873c2eaaf3e8048823102f538ccbe9bc414a4eed3cc93d",
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b",
+              "16dbc521d60b5d180032fa79783e8f912cb146474032833895aa9d6923de1248",
+              "a7bd2d746a66a898d21212ec01a7eed7718f90b77458089eb64d9cd591855763",
+              "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+              "d15690f08a575024650b01ffac892cfd2b93e6c57c140f1b6d9e47753cabd579",
+              "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "1617f69292eda6666692a81201f34162c10ef93c327275ab75f2ce8cb7e95ef0",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "ea385b1c9fa89d205f4fce73bc7a39c100daa49abd07553827851312c46c3738",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          }
+        ],
+        "episodeId": "parse-result-correction"
+      },
+      {
+        "auditSha256": "12327499118c7260f0eb0b28ea3586abce0e6d61916c2389decdbe64dc2ca356",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5b1d1911bcaf5c9aca380af48a60a4c7970f65491f8732cb295e1d7d2c7d4b20"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5b1d1911bcaf5c9aca380af48a60a4c7970f65491f8732cb295e1d7d2c7d4b20"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "5b1d1911bcaf5c9aca380af48a60a4c7970f65491f8732cb295e1d7d2c7d4b20"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "24a1ce1fca5c606e28accdc21b9a7c8e6ce4e5e5a2c04436a5c8c55dc0fe6d51"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "24a1ce1fca5c606e28accdc21b9a7c8e6ce4e5e5a2c04436a5c8c55dc0fe6d51"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "24a1ce1fca5c606e28accdc21b9a7c8e6ce4e5e5a2c04436a5c8c55dc0fe6d51"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "12e81ec8909e268e25f60ae4df887710af27335c2031ebd0d30c52a6cf5943cf"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "12e81ec8909e268e25f60ae4df887710af27335c2031ebd0d30c52a6cf5943cf"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "12e81ec8909e268e25f60ae4df887710af27335c2031ebd0d30c52a6cf5943cf"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "313f7d40cf03581059ac7f73ecb2148802308c46eaf3ad5dd2835052c2e99104"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "313f7d40cf03581059ac7f73ecb2148802308c46eaf3ad5dd2835052c2e99104"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "313f7d40cf03581059ac7f73ecb2148802308c46eaf3ad5dd2835052c2e99104"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "896006adb04f6950b796329859bb92896bbb066f7598319aa41dadf79af8b657"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "896006adb04f6950b796329859bb92896bbb066f7598319aa41dadf79af8b657"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "896006adb04f6950b796329859bb92896bbb066f7598319aa41dadf79af8b657"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "c21399b9c1e06b8f995fd5df2e664213f755982dee3844ec7e0e405da223c2ea",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "dde44124f1ee421cb37f993f47fb3c8a6396ccdce7fec3810a6af2a519ccefde"
+            ],
+            "candidateFragmentCount": 7,
+            "candidateFragmentSetSha256": "0e0f43dc21c69463ae245b16fdd1d3d3cc47ad1a23808372b0b1cdf62da0b922",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "4e0d214e20bfd6faaef71fc3c6a48a2689d192d2f8f49e4b14c6df290e244d41",
+            "allowedPublicContractCount": 2,
+            "allowedPublicFragmentSha256": [
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b",
+              "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "f7fcd8215a2e6dfcc27207f98886f54f9ebc3127a3e23bcea5ae52d7dad38cd2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 6,
+            "hiddenValueSetSha256": "3e41ad8cdca9e2e987c2a4288db23db75689b7e52b79684f8bcee2da57752d2f",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          }
+        ],
+        "episodeId": "stale-time-unit-update"
+      },
+      {
+        "auditSha256": "4a65b67fca3382c94668c47404330562f46be5070861e0bafe66fcc848178af7",
+        "cells": [
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "67c49a2ac6cb6e1217d32628e0a613d41e0db289583e7a7cfdee4556e535a96d"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "67c49a2ac6cb6e1217d32628e0a613d41e0db289583e7a7cfdee4556e535a96d"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "allowed-feedback",
+            "surfaceSha256": "67c49a2ac6cb6e1217d32628e0a613d41e0db289583e7a7cfdee4556e535a96d"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "d6630a9bd86dac55db2910e7d85cdae093b2bb81fce7f47e70e3d700e0312234"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "d6630a9bd86dac55db2910e7d85cdae093b2bb81fce7f47e70e3d700e0312234"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "flat-summary-after-seeding",
+            "surfaceSha256": "d6630a9bd86dac55db2910e7d85cdae093b2bb81fce7f47e70e3d700e0312234"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "650f3da5e121a0cd47867c01d73009075a648e4cef5461f10b0f69721117e6c1"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "650f3da5e121a0cd47867c01d73009075a648e4cef5461f10b0f69721117e6c1"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "frozen-prehistory",
+            "surfaceSha256": "650f3da5e121a0cd47867c01d73009075a648e4cef5461f10b0f69721117e6c1"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "b492a21693c1a1b03cc1dcc0db00a1802a3b8bfed6aff72bbf997a7699e46dd1"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "b492a21693c1a1b03cc1dcc0db00a1802a3b8bfed6aff72bbf997a7699e46dd1"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "goodmemory-export-after-seeding",
+            "surfaceSha256": "b492a21693c1a1b03cc1dcc0db00a1802a3b8bfed6aff72bbf997a7699e46dd1"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "repository-instructions",
+            "surfaceSha256": "e32f7944700cd1be49018e1ef456c437af2d9e2bc5be2b588bb6ee2a74cc125c"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "2ffffda54937add32f9693740f2c8117f39538bd81aaa87c1758c88934992f4e"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "2ffffda54937add32f9693740f2c8117f39538bd81aaa87c1758c88934992f4e"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 0,
+            "allowedPublicFragmentSha256": [],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "stage-prompts",
+            "surfaceSha256": "2ffffda54937add32f9693740f2c8117f39538bd81aaa87c1758c88934992f4e"
+          },
+          {
+            "artifactId": "expected-changed-files",
+            "artifactSha256": "aae9d514de2e2bec956fd2e9f3c3dee83ee35dcfb0b2cedec79fcacfab9b3329",
+            "allowedPublicContractCount": 1,
+            "allowedPublicFragmentSha256": [
+              "71e9e49a932e147acff95aff89c77ca062c43cc47e4c8374976535f33b802633"
+            ],
+            "candidateFragmentCount": 1,
+            "candidateFragmentSetSha256": "2763d56c2b49f3e5f264bce24af3158a7c7e11746418c6524d1f2272d0283677",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "gold-patches",
+            "artifactSha256": "edfef44d03aedbbcedf1d999b7cef760c019c3d9d2b41a37fc5ec9f7b84bc07a",
+            "allowedPublicContractCount": 2,
+            "allowedPublicFragmentSha256": [
+              "9d96e172832dcb7198b029ec07a771b40eecf1c51bc7afeabe8926e6928c626d",
+              "debeb9e53d2f3b9093ae6a79cfac4ccf00ab380ec72a5b192bad61c88a41ae3d"
+            ],
+            "candidateFragmentCount": 12,
+            "candidateFragmentSetSha256": "564e20604f86677243126d440594ec5a5bb1319af7843b1fd440d1d904f69dc5",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 0,
+            "hiddenValueSetSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          },
+          {
+            "artifactId": "hidden-test-source",
+            "artifactSha256": "d323650ce9ad915f2d6241daf1fbea006e7bf1e7617bc1193889a255dbac4691",
+            "allowedPublicContractCount": 5,
+            "allowedPublicFragmentSha256": [
+              "0ec811221b478f78b34293d06d3c7197b521bd6d795f61a9bf59395426b7095b",
+              "3f22095641508576e91dc7c6c7f7e08a093985d53ea998043c6619ad240dc92c",
+              "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
+              "afa27b44d43b02a9fea41d13cedc2e4016cfcf87c5dbf990e593669aa8ce286d",
+              "f432f0c12e71d467fb8ed772692c9fbdca05d55a756abb4e07afb1f754ba3690"
+            ],
+            "candidateFragmentCount": 34,
+            "candidateFragmentSetSha256": "7c6596aad2e1692dc66adbc6693ddcda13a74bf2db32802d3f4652eba05481b2",
+            "exactOverlapCount": 0,
+            "hiddenValueCount": 8,
+            "hiddenValueSetSha256": "b9082daa2bf58dff147c99347973308cb57acbeb461ac9f44b690ef8cf8061ae",
+            "matchedFragmentSha256": [],
+            "normalizedOverlapCount": 0,
+            "status": "accepted",
+            "surfaceId": "visible-repository-files",
+            "surfaceSha256": "662fa22ab58c8fc7d061556791da1477bfdaaa722152355d08e5ecd259f53f63"
+          }
+        ],
+        "episodeId": "irrelevant-history-control"
+      }
+    ],
+    "matrixCellCount": 126,
+    "overlapCount": 0,
+    "runtimeSurfacePolicy": "content-preserving-projection-plus-C5-live-reaudit",
+    "status": "accepted"
+  },
+  "licenses": {
+    "receiptSha256": "9426c2544406ccb3513a39a8a62b97e510d3cd333c5e8f8610b2c8a39233c079",
+    "repositoryLicenseCount": 2,
+    "status": "accepted"
+  },
+  "manifestSha256": "751ffa5d592559928cc9924fe84e779da8bd2f2446cbbd2de19ab755c5fc7390",
+  "nextEvidencePhase": "C4-no-memory-baseline-ceiling-pilot",
+  "publicClaimEligible": false,
+  "publicCodingEffectProof": false,
+  "readmeRowAllowed": false,
+  "repositories": [
+    {
+      "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+      "id": "continuity-utils",
+      "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3",
+      "url": "https://example.invalid/goodmemory-c4/continuity-utils.git"
+    },
+    {
+      "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+      "id": "policy-utils",
+      "tree": "db0bd70d015f472b256b69235643cac7a7b8741d",
+      "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
+    }
+  ],
+  "schemaVersion": 1,
+  "stages": [
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f7b0bab3dc2b55d82e6e14118860c6dc89945e1d24b9b6c1707284d10fe3a803",
+          "repetition": 1,
+          "semanticFingerprintSha256": "25d465e427e17bd70b02266272a763b860e727eabcc8f78ab4ee3acece3d555c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f7b0bab3dc2b55d82e6e14118860c6dc89945e1d24b9b6c1707284d10fe3a803",
+          "repetition": 2,
+          "semanticFingerprintSha256": "25d465e427e17bd70b02266272a763b860e727eabcc8f78ab4ee3acece3d555c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f7b0bab3dc2b55d82e6e14118860c6dc89945e1d24b9b6c1707284d10fe3a803",
+          "repetition": 3,
+          "semanticFingerprintSha256": "25d465e427e17bd70b02266272a763b860e727eabcc8f78ab4ee3acece3d555c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "endpoint-open-loop",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a",
+      "goldReplaySha256": "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9f24a01f07bc598fe5d950918d675212a5be513a85b12bcfb10fbac23b079968",
+          "repetition": 1,
+          "semanticFingerprintSha256": "8fc7ebff04bf5d601234728b5c5492ef3f17111ada3157deb71147010c5004d6",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9f24a01f07bc598fe5d950918d675212a5be513a85b12bcfb10fbac23b079968",
+          "repetition": 2,
+          "semanticFingerprintSha256": "8fc7ebff04bf5d601234728b5c5492ef3f17111ada3157deb71147010c5004d6",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9f24a01f07bc598fe5d950918d675212a5be513a85b12bcfb10fbac23b079968",
+          "repetition": 3,
+          "semanticFingerprintSha256": "8fc7ebff04bf5d601234728b5c5492ef3f17111ada3157deb71147010c5004d6",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "endpoint-open-loop",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104",
+      "goldReplaySha256": "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104",
+      "memoryExpectation": "required",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "1011c0691343e290e2c7fe9549b0f2ce9ca46c7ca2a9c6b0f90603374e652065",
+          "repetition": 1,
+          "semanticFingerprintSha256": "c014421242335e179b8abb2981add5f95b182f0f80c72f49922b2d5bf49b664a",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "1011c0691343e290e2c7fe9549b0f2ce9ca46c7ca2a9c6b0f90603374e652065",
+          "repetition": 2,
+          "semanticFingerprintSha256": "c014421242335e179b8abb2981add5f95b182f0f80c72f49922b2d5bf49b664a",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "1011c0691343e290e2c7fe9549b0f2ce9ca46c7ca2a9c6b0f90603374e652065",
+          "repetition": 3,
+          "semanticFingerprintSha256": "c014421242335e179b8abb2981add5f95b182f0f80c72f49922b2d5bf49b664a",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "endpoint-open-loop",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8",
+      "goldReplaySha256": "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8",
+      "memoryExpectation": "required",
+      "stageId": "stage-3"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "4bc6d0ef71252ce96ea93e2c1040dd03383a5ded5856b7a4d5308208a8b0536a",
+          "repetition": 1,
+          "semanticFingerprintSha256": "539722306425eb2cc75021f4de743e8e7cd68ac83791332038fef0cf444bad40",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "4bc6d0ef71252ce96ea93e2c1040dd03383a5ded5856b7a4d5308208a8b0536a",
+          "repetition": 2,
+          "semanticFingerprintSha256": "539722306425eb2cc75021f4de743e8e7cd68ac83791332038fef0cf444bad40",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "4bc6d0ef71252ce96ea93e2c1040dd03383a5ded5856b7a4d5308208a8b0536a",
+          "repetition": 3,
+          "semanticFingerprintSha256": "539722306425eb2cc75021f4de743e8e7cd68ac83791332038fef0cf444bad40",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "validated-first-delimiter",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6",
+      "goldReplaySha256": "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d318b02b3d3dfaac551f8aaba945d95c2a2d3ef11ed87e9945747d90b480c146",
+          "repetition": 1,
+          "semanticFingerprintSha256": "b507b3824f17fc03604259fc606a294646d8258f848cc43ae15e901d8c31ec9f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d318b02b3d3dfaac551f8aaba945d95c2a2d3ef11ed87e9945747d90b480c146",
+          "repetition": 2,
+          "semanticFingerprintSha256": "b507b3824f17fc03604259fc606a294646d8258f848cc43ae15e901d8c31ec9f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d318b02b3d3dfaac551f8aaba945d95c2a2d3ef11ed87e9945747d90b480c146",
+          "repetition": 3,
+          "semanticFingerprintSha256": "b507b3824f17fc03604259fc606a294646d8258f848cc43ae15e901d8c31ec9f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "validated-first-delimiter",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9",
+      "goldReplaySha256": "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9",
+      "memoryExpectation": "required",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "39122164bb16d94a15bae3fa5b402795b63d9fa36732c455f35e80345761e3e5",
+          "repetition": 1,
+          "semanticFingerprintSha256": "31b9c1f539d6e20e615afd4d36993759ecacfb3d3f14083e045f47bc573c97ff",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "39122164bb16d94a15bae3fa5b402795b63d9fa36732c455f35e80345761e3e5",
+          "repetition": 2,
+          "semanticFingerprintSha256": "31b9c1f539d6e20e615afd4d36993759ecacfb3d3f14083e045f47bc573c97ff",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "39122164bb16d94a15bae3fa5b402795b63d9fa36732c455f35e80345761e3e5",
+          "repetition": 3,
+          "semanticFingerprintSha256": "31b9c1f539d6e20e615afd4d36993759ecacfb3d3f14083e045f47bc573c97ff",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "validated-first-delimiter",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f",
+      "goldReplaySha256": "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f",
+      "memoryExpectation": "required",
+      "stageId": "stage-3"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "c2136b4f83f04d4e6fdbb9ae6d012fce3979e9931eadc7230b341cf80d767fb6",
+          "repetition": 1,
+          "semanticFingerprintSha256": "06a98354e681d091cf132b285e0814419693307b0ca1cd92e62b6eab55aec5b7",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "c2136b4f83f04d4e6fdbb9ae6d012fce3979e9931eadc7230b341cf80d767fb6",
+          "repetition": 2,
+          "semanticFingerprintSha256": "06a98354e681d091cf132b285e0814419693307b0ca1cd92e62b6eab55aec5b7",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "c2136b4f83f04d4e6fdbb9ae6d012fce3979e9931eadc7230b341cf80d767fb6",
+          "repetition": 3,
+          "semanticFingerprintSha256": "06a98354e681d091cf132b285e0814419693307b0ca1cd92e62b6eab55aec5b7",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "avoid-naive-split",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191",
+      "goldReplaySha256": "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f8419162aa94edc3c3e52a5db64d43969a5aaa09d4d7cc378c1109b735097b01",
+          "repetition": 1,
+          "semanticFingerprintSha256": "92de4fe70c3be0bd6d2a5bf900edaccf58764233196e98689693156142dc2e9c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f8419162aa94edc3c3e52a5db64d43969a5aaa09d4d7cc378c1109b735097b01",
+          "repetition": 2,
+          "semanticFingerprintSha256": "92de4fe70c3be0bd6d2a5bf900edaccf58764233196e98689693156142dc2e9c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "f8419162aa94edc3c3e52a5db64d43969a5aaa09d4d7cc378c1109b735097b01",
+          "repetition": 3,
+          "semanticFingerprintSha256": "92de4fe70c3be0bd6d2a5bf900edaccf58764233196e98689693156142dc2e9c",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "avoid-naive-split",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa",
+      "goldReplaySha256": "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa",
+      "memoryExpectation": "required",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "604f5f080ce25f54c68ae28b155010fac57f8df010489037a18382501989d499",
+          "repetition": 1,
+          "semanticFingerprintSha256": "70797f0cb1408507a3ee982eb522c1bb09ee1d64be7eedebafe8d31a8eda778f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "604f5f080ce25f54c68ae28b155010fac57f8df010489037a18382501989d499",
+          "repetition": 2,
+          "semanticFingerprintSha256": "70797f0cb1408507a3ee982eb522c1bb09ee1d64be7eedebafe8d31a8eda778f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        },
+        {
+          "commit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "604f5f080ce25f54c68ae28b155010fac57f8df010489037a18382501989d499",
+          "repetition": 3,
+          "semanticFingerprintSha256": "70797f0cb1408507a3ee982eb522c1bb09ee1d64be7eedebafe8d31a8eda778f",
+          "tree": "d0db35da6abc7e26dcfcd65443baf716631575d3"
+        }
+      ],
+      "episodeId": "avoid-naive-split",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5",
+      "goldReplaySha256": "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5",
+      "memoryExpectation": "required",
+      "stageId": "stage-3"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9c99e3a6202a084122e1bbdfcb9fbb9272640d1694f00e5ed81ffeda2709a9aa",
+          "repetition": 1,
+          "semanticFingerprintSha256": "a60a2c4b567938fb0745843dbb0d8bf4946e18a38067d87783bd82c2ba3b0943",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9c99e3a6202a084122e1bbdfcb9fbb9272640d1694f00e5ed81ffeda2709a9aa",
+          "repetition": 2,
+          "semanticFingerprintSha256": "a60a2c4b567938fb0745843dbb0d8bf4946e18a38067d87783bd82c2ba3b0943",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "9c99e3a6202a084122e1bbdfcb9fbb9272640d1694f00e5ed81ffeda2709a9aa",
+          "repetition": 3,
+          "semanticFingerprintSha256": "a60a2c4b567938fb0745843dbb0d8bf4946e18a38067d87783bd82c2ba3b0943",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "parse-result-correction",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d",
+      "goldReplaySha256": "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "193727ec6911f6f1f5c254e0fa0bd2d5315c08af53931d743c05d9873248876d",
+          "repetition": 1,
+          "semanticFingerprintSha256": "2348b087d149d9378d917b34793600b33f53df7e5db40e5992260eac8e432f7d",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "193727ec6911f6f1f5c254e0fa0bd2d5315c08af53931d743c05d9873248876d",
+          "repetition": 2,
+          "semanticFingerprintSha256": "2348b087d149d9378d917b34793600b33f53df7e5db40e5992260eac8e432f7d",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "193727ec6911f6f1f5c254e0fa0bd2d5315c08af53931d743c05d9873248876d",
+          "repetition": 3,
+          "semanticFingerprintSha256": "2348b087d149d9378d917b34793600b33f53df7e5db40e5992260eac8e432f7d",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "parse-result-correction",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349",
+      "goldReplaySha256": "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349",
+      "memoryExpectation": "required",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "492b8714a5c69295334f435aa38f2715fb4226f7d01c65ef507e5b71d4d1d7b4",
+          "repetition": 1,
+          "semanticFingerprintSha256": "e73d74865425d3207714c66f8388a9904459a30c09eaa1e65e2e3924cd76d59e",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "492b8714a5c69295334f435aa38f2715fb4226f7d01c65ef507e5b71d4d1d7b4",
+          "repetition": 2,
+          "semanticFingerprintSha256": "e73d74865425d3207714c66f8388a9904459a30c09eaa1e65e2e3924cd76d59e",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "492b8714a5c69295334f435aa38f2715fb4226f7d01c65ef507e5b71d4d1d7b4",
+          "repetition": 3,
+          "semanticFingerprintSha256": "e73d74865425d3207714c66f8388a9904459a30c09eaa1e65e2e3924cd76d59e",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "parse-result-correction",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1",
+      "goldReplaySha256": "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1",
+      "memoryExpectation": "required",
+      "stageId": "stage-3"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "b458753c0e823e7d3af4311fe749d7d9992d1e8bcc75e387028e8acadc911f14",
+          "repetition": 1,
+          "semanticFingerprintSha256": "a5451ca6871e74bb8b97ff2cb928a0d7d11658d1960072c1219d3ed2acc87ec0",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "b458753c0e823e7d3af4311fe749d7d9992d1e8bcc75e387028e8acadc911f14",
+          "repetition": 2,
+          "semanticFingerprintSha256": "a5451ca6871e74bb8b97ff2cb928a0d7d11658d1960072c1219d3ed2acc87ec0",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "b458753c0e823e7d3af4311fe749d7d9992d1e8bcc75e387028e8acadc911f14",
+          "repetition": 3,
+          "semanticFingerprintSha256": "a5451ca6871e74bb8b97ff2cb928a0d7d11658d1960072c1219d3ed2acc87ec0",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "stale-time-unit-update",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc",
+      "goldReplaySha256": "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "ad6cc475c3ed172e994c94fc8a4139f654dd5765d8bb92e363baf6478ed0ec8b",
+          "repetition": 1,
+          "semanticFingerprintSha256": "5473043f84e398deb3e8052861fe8a9cdb629adae024f2286e6c8f626fa19f5b",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "ad6cc475c3ed172e994c94fc8a4139f654dd5765d8bb92e363baf6478ed0ec8b",
+          "repetition": 2,
+          "semanticFingerprintSha256": "5473043f84e398deb3e8052861fe8a9cdb629adae024f2286e6c8f626fa19f5b",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "ad6cc475c3ed172e994c94fc8a4139f654dd5765d8bb92e363baf6478ed0ec8b",
+          "repetition": 3,
+          "semanticFingerprintSha256": "5473043f84e398deb3e8052861fe8a9cdb629adae024f2286e6c8f626fa19f5b",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "stale-time-unit-update",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b",
+      "goldReplaySha256": "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b",
+      "memoryExpectation": "required",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d0ebf0d5c6130e629df3362ad2b6e3909e3ad3f07e72f2804644901d996b474d",
+          "repetition": 1,
+          "semanticFingerprintSha256": "ae4f993f39a0e2fbff0a832d35e1f44cc5ed4b412c4258bc5af70e11f36f01b2",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d0ebf0d5c6130e629df3362ad2b6e3909e3ad3f07e72f2804644901d996b474d",
+          "repetition": 2,
+          "semanticFingerprintSha256": "ae4f993f39a0e2fbff0a832d35e1f44cc5ed4b412c4258bc5af70e11f36f01b2",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d0ebf0d5c6130e629df3362ad2b6e3909e3ad3f07e72f2804644901d996b474d",
+          "repetition": 3,
+          "semanticFingerprintSha256": "ae4f993f39a0e2fbff0a832d35e1f44cc5ed4b412c4258bc5af70e11f36f01b2",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "stale-time-unit-update",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da",
+      "goldReplaySha256": "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da",
+      "memoryExpectation": "required",
+      "stageId": "stage-3"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "91ced0c263e6467c4646fd733c422e478073bf6abd5203e7d0c92c7e8ca98667",
+          "repetition": 1,
+          "semanticFingerprintSha256": "44c0fe1841361ef2002bf6e0e15cac5035dd021c5d4f0914b28c820513634cdb",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "91ced0c263e6467c4646fd733c422e478073bf6abd5203e7d0c92c7e8ca98667",
+          "repetition": 2,
+          "semanticFingerprintSha256": "44c0fe1841361ef2002bf6e0e15cac5035dd021c5d4f0914b28c820513634cdb",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "91ced0c263e6467c4646fd733c422e478073bf6abd5203e7d0c92c7e8ca98667",
+          "repetition": 3,
+          "semanticFingerprintSha256": "44c0fe1841361ef2002bf6e0e15cac5035dd021c5d4f0914b28c820513634cdb",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "irrelevant-history-control",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f",
+      "goldReplaySha256": "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f",
+      "memoryExpectation": "none",
+      "stageId": "stage-1"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "708c6d0dc877a590ee4de2af493029c8952e03418dd26256f045b112056c7543",
+          "repetition": 1,
+          "semanticFingerprintSha256": "8623bfe64a99e26dddd7aab75b7361ddb247f3418b91a48ccc309729d995685c",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "708c6d0dc877a590ee4de2af493029c8952e03418dd26256f045b112056c7543",
+          "repetition": 2,
+          "semanticFingerprintSha256": "8623bfe64a99e26dddd7aab75b7361ddb247f3418b91a48ccc309729d995685c",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "708c6d0dc877a590ee4de2af493029c8952e03418dd26256f045b112056c7543",
+          "repetition": 3,
+          "semanticFingerprintSha256": "8623bfe64a99e26dddd7aab75b7361ddb247f3418b91a48ccc309729d995685c",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "irrelevant-history-control",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623",
+      "goldReplaySha256": "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623",
+      "memoryExpectation": "irrelevant-control",
+      "stageId": "stage-2"
+    },
+    {
+      "baseProbeStable": true,
+      "baseProbes": [
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d08ab9efc1e592ca0430b9797a995ebe80d87a5695a379eb0535d0f4ba0172bd",
+          "repetition": 1,
+          "semanticFingerprintSha256": "6d2a634bcece72af623c7ce230cdaf2755b341b777db8ac98e4685da1bc74874",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d08ab9efc1e592ca0430b9797a995ebe80d87a5695a379eb0535d0f4ba0172bd",
+          "repetition": 2,
+          "semanticFingerprintSha256": "6d2a634bcece72af623c7ce230cdaf2755b341b777db8ac98e4685da1bc74874",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        },
+        {
+          "commit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "dependencyLock": "not-required-no-dependencies",
+          "failureFingerprintSha256": "d08ab9efc1e592ca0430b9797a995ebe80d87a5695a379eb0535d0f4ba0172bd",
+          "repetition": 3,
+          "semanticFingerprintSha256": "6d2a634bcece72af623c7ce230cdaf2755b341b777db8ac98e4685da1bc74874",
+          "tree": "db0bd70d015f472b256b69235643cac7a7b8741d"
+        }
+      ],
+      "episodeId": "irrelevant-history-control",
+      "goldChangedFiles": [
+        "src/tasks.ts"
+      ],
+      "goldPassed": true,
+      "goldPatchSha256": "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85",
+      "goldReplaySha256": "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85",
+      "memoryExpectation": "irrelevant-control",
+      "stageId": "stage-3"
+    }
+  ],
+  "status": "accepted",
+  "strataCounts": {
+    "open-loop-handoff": 1,
+    "validated-approach": 1,
+    "failure-avoidance": 1,
+    "user-correction": 1,
+    "project-convention": 1,
+    "stale-update": 1,
+    "irrelevant-memory-negative-control": 1,
+    "no-history-negative-control": 1
+  }
+}

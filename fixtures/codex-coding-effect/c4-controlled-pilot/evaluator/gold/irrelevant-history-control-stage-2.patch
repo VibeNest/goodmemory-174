@@ -1,0 +1,16 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..8e2ee721ca98a38edff7f0ea7f165fe1584d0f7c 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -39,7 +39,10 @@ export function slugify(value: string): string {
+ }
+ 
+ export function parseCsvUnique(input: string): string[] {
+-  return input.split(",");
++  const values = input.split(",")
++    .map((value) => value.trim())
++    .filter((value) => value.length > 0);
++  return [...new Set(values)];
+ }
+ 
+ export function encodePathSegment(value: string): string {

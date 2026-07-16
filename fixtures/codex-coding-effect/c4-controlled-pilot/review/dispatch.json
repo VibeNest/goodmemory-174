@@ -1,0 +1,13 @@
+{
+  "authorTaskName": "/root",
+  "contextPolicy": "fork-turns-none",
+  "datasetRootPath": "fixtures/codex-coding-effect/c4-controlled-pilot",
+  "inputBundlePath": "fixtures/codex-coding-effect/c4-controlled-pilot/review/input-bundle.json",
+  "readinessCorePath": "reports/quality-gates/phase-73/c4-controlled-pilot-core.json",
+  "requestPath": "fixtures/codex-coding-effect/c4-controlled-pilot/review/request.md",
+  "requestedTaskName": "c4_final_independent_review",
+  "responsePath": "fixtures/codex-coding-effect/c4-controlled-pilot/review/independent-review.json",
+  "reviewerAgentName": "/root/c4_final_independent_review",
+  "schemaVersion": 1,
+  "spawnMessage": "Read and follow fixtures/codex-coding-effect/c4-controlled-pilot/review/request.md exactly. Use only fixtures/codex-coding-effect/c4-controlled-pilot/review/input-bundle.json, reports/quality-gates/phase-73/c4-controlled-pilot-core.json, and the frozen asset paths listed by the input bundle. Do not inspect baseline, C4 paired, or C5 outcome files. Write only fixtures/codex-coding-effect/c4-controlled-pilot/review/independent-review.json."
+}

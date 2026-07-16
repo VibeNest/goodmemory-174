@@ -1,42 +1,43 @@
 {
   "benchmark": "MemoryAgentBench",
   "comparison": {
-    "asOf": "2026-07-09",
-    "availability": "historical",
+    "asOf": "2026-07-16",
+    "availability": "public-opt-in",
     "notes": [
-      "The public claim remains scoped to CR and TTL because AR and LRU do not beat their no-memory baselines.",
-      "The comparison uses deterministic upstream match-mode scoring rather than an LLM judge."
+      "The claim remains scoped to Conflict Resolution and Test-Time Learning.",
+      "Both metrics use deterministic upstream match-mode scoring with no LLM judge.",
+      "Accurate Retrieval and Long-Range Understanding remain excluded because historical no-memory controls did not show a memory lift."
     ],
-    "runtimeProfile": "task-specific-cr-ttl@0.3.5",
+    "runtimeProfile": "recommended-evidence-pack-cr-ttl@0.6.0",
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench"
   },
-  "status": "internal_evidence",
+  "status": "candidate_public_claim",
   "dataset": {
     "source": "https://github.com/HUST-AI-HYZ/MemoryAgentBench",
     "license": "MIT",
     "vendored": false
   },
   "run": {
-    "commit": "bc83974",
-    "packageVersion": "0.3.5",
-    "command": "eval:phase-64-smoke -- --benchmark-root /private/tmp/MAB-67c-full --live --evidence-pack --resume (run-phase67c-mab-harness-resumed-current; AR100 CR73 TTL30 LRU56)",
+    "commit": "d639fbd1996d61136e89137d378e4948c10b326f",
+    "packageVersion": "0.6.0",
+    "command": "GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MemoryAgentBench --live --evidence-pack --competency CR --resume --run-id run-phase72-mab-generalized-cr-terra; GOODMEMORY_ASSISTED_EXTRACTOR_MODEL=gpt-5.6-terra bun run eval:phase-64-smoke -- --benchmark-root ~/.cache/goodmemory-benchmarks/MemoryAgentBench --live --evidence-pack --competency TTL --resume --run-id run-phase72-mab-generalized-ttl-terra; bun run scripts/run-phase-72-release-gate.ts",
     "executionFailures": 0
   },
   "model": {
-    "answerModel": "gpt-5.5",
+    "answerModel": "gpt-5.6-terra",
     "judgeModel": null,
     "sameModelJudge": false
   },
   "publicClaim": {
     "readmeDisclosureFragments": [
-      "AR 0.926",
-      "LRU 0.632",
-      "0.890",
-      "0.518"
+      "judge-free",
+      "AR",
+      "LRU",
+      "gpt-5.6-terra"
     ],
     "readmeRequiredFragments": [
       "CR 0.959",
-      "TTL 0.767",
+      "TTL 0.933",
       "0.000"
     ]
   },
@@ -45,92 +46,46 @@
       {
         "assertions": [
           {
-            "path": ["runId"],
-            "equals": "run-phase67c-mab-harness-resumed-current"
+            "path": ["status"],
+            "equals": "passed"
           },
           {
-            "path": ["executionFailures"],
+            "path": ["packageVersion"],
+            "equals": "0.6.0"
+          },
+          {
+            "path": ["metrics", "memoryAgentBench", "conflictResolutionExecutionFailures"],
             "equals": 0
           },
           {
-            "path": ["questionCount"],
-            "equals": 259
+            "path": ["metrics", "memoryAgentBench", "testTimeLearningExecutionFailures"],
+            "equals": 0
           },
           {
-            "path": ["noMemoryBaseline"],
-            "equals": false
-          },
-          {
-            "path": ["competencies", 1, "competency"],
-            "equals": "TTL"
-          },
-          {
-            "path": ["competencies", 1, "answerAccuracy"],
-            "equals": 0.7666666666666667
-          },
-          {
-            "path": ["competencies", 3, "competency"],
-            "equals": "CR"
-          },
-          {
-            "path": ["competencies", 3, "answerAccuracy"],
+            "path": ["metrics", "memoryAgentBench", "conflictResolutionScore"],
             "equals": 0.958904109589041
+          },
+          {
+            "path": ["metrics", "memoryAgentBench", "testTimeLearningScore"],
+            "equals": 0.9333333333333333
           }
         ],
-        "description": "Full MemoryAgentBench task-specific live harness report with zero execution failures",
-        "path": "reports/eval/research/phase-64/mab/run-phase67c-mab-harness-resumed-current/smoke-report.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["runId"],
-            "equals": "run-phase67c-mab-baseline-current"
-          },
-          {
-            "path": ["executionFailures"],
-            "equals": 43
-          },
-          {
-            "path": ["questionCount"],
-            "equals": 216
-          },
-          {
-            "path": ["noMemoryBaseline"],
-            "equals": true
-          },
-          {
-            "path": ["competencies", 1, "competency"],
-            "equals": "TTL"
-          },
-          {
-            "path": ["competencies", 1, "answerAccuracy"],
-            "equals": 0
-          },
-          {
-            "path": ["competencies", 3, "competency"],
-            "equals": "CR"
-          },
-          {
-            "path": ["competencies", 3, "answerAccuracy"],
-            "equals": 0
-          }
-        ],
-        "description": "No-memory baseline report used to scope public claims to CR and TTL",
-        "path": "reports/eval/research/phase-64/mab/run-phase67c-mab-baseline-current/smoke-report.json"
+        "description": "Phase 72 generalized benchmark release gate with source-report fingerprints",
+        "path": "reports/quality-gates/phase-72/run-20260716-final/phase-72-release-gate.json"
       }
     ]
   },
   "metrics": {
-    "primary": "Conflict Resolution answer accuracy (deterministic upstream match-mode, judge-free)",
-    "score": 0.959,
-    "baseline": 0.0
+    "primary": "Conflict Resolution answer accuracy using deterministic upstream match-mode scoring; Test-Time Learning is co-reported under the same judge-free boundary.",
+    "score": 0.958904109589041,
+    "baseline": 0
   },
   "coverage": {
     "complete": true,
-    "note": "Clean run executionFailures 0 (259 questions, resumable retry). With-memory: CR 0.959 (70/73), TTL 0.767 (23/30), AR 0.890 (89/100), LRU 0.518 (29/56). No-memory ablation baseline (empty memory context): CR 0.000 (0/73) and TTL 0.000 (0/30) on FULL coverage — the decisive disclosure that the public CR/TTL claim is a genuine memory win (both unanswerable without GoodMemory). AR 0.926 (87/94) and LRU 0.632 (12/19) are on PARTIAL coverage: the no-memory baseline run had executionFailures 43, all landing in AR/LRU (CR/TTL fully covered); they still directionally confirm memory does NOT help AR/LRU (no-memory >= with-memory), so AR/LRU are excluded from any claim. Verified against persisted artifacts reports/eval/research/phase-64/mab/run-phase67c-mab-harness-resumed-current (execFails 0) + run-phase67c-mab-baseline-current."
+    "note": "CR covers all 73 questions and scores 70/73 = 0.9589041096. TTL covers all 30 questions and scores 28/30 = 0.9333333333. Both runs have executionFailures 0 and use deterministic upstream match-mode scoring. The established no-memory baseline is 0.000 for both. AR and LRU remain excluded from this claim because prior controls did not establish a memory lift."
   },
   "claimBoundary": {
-    "publicClaimAllowed": false,
-    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. Methodology clears every rule: deterministic upstream match-mode scoring (NO LLM judge, no same-model bias), executionFailures 0 via resumable retry, reproducible (commit/command/package version), MIT-licensed non-vendored data, complete coverage. THE CLAIM IS SCOPED TO Conflict Resolution (CR 0.959) and Test-Time Learning (TTL 0.767) ONLY — these are genuine GoodMemory contributions: the no-memory ablation scores 0.000 on both (the questions are unanswerable without GoodMemory's retrieved consolidated fact / in-context demos), and CR 0.959 exceeds the published single-hop ceiling ~0.60. AR and LRU are DELIBERATELY EXCLUDED from any claim: the no-memory ablation scores AR 0.926 (vs 0.890 with memory) and LRU 0.632 (vs 0.518), i.e. memory does NOT help — they are multiple-choice leaks where the model answers from the candidates in the question. Required disclosure if promoted: CR/TTL measure answer-time current-value resolution + in-context retrieval (GoodMemory's genuine strength), not general retrieval recall (CR retrieval recall 0.57). README promoted 2026-06-25 (CR + TTL row, AR/LRU excluded, no-memory ablation disclosed) with user sign-off."
+    "publicClaimAllowed": true,
+    "reason": "Current v0.6.0 public-opt-in evidence with complete CR/TTL coverage, zero execution failures, deterministic judge-free scoring, verified non-vendored MIT dataset, reproducible commands and source commit, and a 0.000 no-memory baseline. The claim excludes AR/LRU rather than averaging in non-memory wins."
   }
 }

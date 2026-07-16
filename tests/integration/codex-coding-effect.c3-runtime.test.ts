@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { buildFrozenPrehistoryArmPlans } from "../../scripts/codex-coding-effect/c3-arms";
+import { collectC3HostConfigurationEvidence } from "../../scripts/codex-coding-effect/c3-host-configuration";
 import {
   auditC3PermissionIsolation,
   preflightC3InstalledRecall,
@@ -38,6 +39,13 @@ describe("Codex coding-effect C3 installed runtime", () => {
         npmExecutable: fixture.npmExecutable,
         packageTarball: fixture.packageTarball,
         plan: fixture.plans[1],
+        runProcess,
+      });
+      const noMemory = await prepareC3NoMemoryArm({
+        authFile: fixture.authFile,
+        bunExecutable: process.execPath,
+        codexExecutable: fixture.codexExecutable,
+        plan: fixture.plans[0],
         runProcess,
       });
 
@@ -94,6 +102,38 @@ describe("Codex coding-effect C3 installed runtime", () => {
         "--json",
       ]);
       expect(calls.some((args) => args.includes("enable"))).toBe(false);
+      expect(calls).toContainEqual([
+        "--disable",
+        "memories",
+        "features",
+        "list",
+      ]);
+      const hostConfigurations = await collectC3HostConfigurationEvidence({
+        installedRuntime: installed,
+        noMemoryRuntime: noMemory,
+      });
+      expect(hostConfigurations.normalizedDiff.map((entry) => entry.path)).toEqual(
+        expect.arrayContaining([
+          "codexConfig.normalizedText",
+          "goodmemoryConfig.normalizedText",
+          "hooksConfig.normalizedText",
+        ]),
+      );
+      expect(
+        hostConfigurations.arms.goodmemoryInstalled.goodmemoryConfig?.normalizedText,
+      ).toContain('"userId": "<user-id>"');
+      expect(
+        hostConfigurations.arms.goodmemoryInstalled.goodmemoryConfig?.normalizedText,
+      ).not.toContain(fixture.root);
+      expect(
+        hostConfigurations.arms.goodmemoryInstalled.environment.PATH,
+      ).toContain("<package-prefix>/bin");
+      expect(
+        hostConfigurations.arms.goodmemoryInstalled.environment.PATH,
+      ).toContain("<host-path>");
+      expect(
+        hostConfigurations.arms.goodmemoryInstalled.environment.PATH,
+      ).not.toContain("/Users/");
     });
   });
 
@@ -149,6 +189,10 @@ describe("Codex coding-effect C3 installed runtime", () => {
       await writeFile(sensitivePath, "hidden evaluator bytes\n", "utf8");
       const evidence = await auditC3PermissionIsolation({
         deniedReadPaths: [{ label: "evaluator", path: sensitivePath }],
+        networkProbe: async () => ({
+          networkDenied: true,
+          networkPositiveControl: true,
+        }),
         phase: "preflight",
         runProcess: async (request) => {
           const commandIndex = request.args.indexOf("--") + 1;
@@ -169,7 +213,10 @@ describe("Codex coding-effect C3 installed runtime", () => {
       expect(evidence.audit).toMatchObject({
         deniedReads: [{ denied: true, label: "evaluator" }],
         networkAccess: false,
+        networkDenied: true,
+        networkPositiveControl: true,
         passed: true,
+        phase: "preflight",
         profileName: "c3-task",
         workspaceRead: true,
         workspaceWrite: true,
@@ -179,6 +226,48 @@ describe("Codex coding-effect C3 installed runtime", () => {
         join(runtime.plan.paths.result, "permission-isolation-preflight.json"),
         "utf8",
       )) as unknown).toEqual(evidence.audit);
+    });
+  });
+
+  it("fails permission isolation when the active task profile reaches loopback", async () => {
+    await withRuntimeFixture(async (fixture) => {
+      const runtime = await prepareC3NoMemoryArm({
+        authFile: fixture.authFile,
+        bunExecutable: process.execPath,
+        codexExecutable: fixture.codexExecutable,
+        plan: fixture.plans[0],
+        runProcess: createFakeBoundary(fixture, []),
+      });
+      const sensitivePath = join(fixture.root, "network-probe-secret.ts");
+      await writeFile(sensitivePath, "hidden evaluator bytes\n", "utf8");
+
+      await expect(auditC3PermissionIsolation({
+        deniedReadPaths: [{ label: "evaluator", path: sensitivePath }],
+        networkProbe: async () => ({
+          networkDenied: false,
+          networkPositiveControl: true,
+        }),
+        phase: "preflight",
+        runProcess: async (request) => {
+          const commandIndex = request.args.indexOf("--") + 1;
+          const command = request.args[commandIndex];
+          const path = request.args[commandIndex + 1]!;
+          if (command === "/usr/bin/touch") {
+            await writeFile(path, "", "utf8");
+            return processResult();
+          }
+          if (path === sensitivePath) {
+            return processResult({
+              exitCode: 77,
+              stderr: "Operation not permitted",
+            });
+          }
+          return processResult({ stdout: await readFile(path, "utf8") });
+        },
+        runtime,
+      })).rejects.toThrow(
+        "permission profile allowed loopback network access",
+      );
     });
   });
 
@@ -526,8 +615,13 @@ function createFakeBoundary(
       if (request.args[0] === "--version") {
         return processResult({ stdout: "codex-cli 0.144.3\n" });
       }
-      if (request.args[0] === "features") {
-        return processResult({ stdout: "hooks stable true\n" });
+      if (
+        request.args.includes("features") &&
+        request.args.includes("list")
+      ) {
+        return processResult({
+          stdout: "hooks stable true\nmemories experimental false\n",
+        });
       }
     }
     if (request.args[0] === "--version") {

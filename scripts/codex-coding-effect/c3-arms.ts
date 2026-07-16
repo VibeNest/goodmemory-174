@@ -159,6 +159,8 @@ export function buildC3CodexArgs(input: {
     : ["--disable", "hooks"];
   return [
     ...treatmentArgs,
+    "--disable",
+    "memories",
     "--ask-for-approval",
     "never",
     "exec",
@@ -172,6 +174,22 @@ export function buildC3CodexArgs(input: {
     input.workspaceRoot,
     input.prompt,
   ];
+}
+
+export function normalizeC3CodexArgvForEvidence(
+  args: readonly string[],
+  input: {
+    prompt: string;
+    workspaceRoot: string;
+  },
+): string[] {
+  return args.map((value) =>
+    value === input.workspaceRoot
+      ? "<workspace>"
+      : value === input.prompt
+      ? "<prompt>"
+      : value
+  );
 }
 
 export function normalizeC3CodexTreatmentArgs(

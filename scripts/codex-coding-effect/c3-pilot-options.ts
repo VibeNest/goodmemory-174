@@ -13,6 +13,7 @@ const VALUE_FLAGS = new Set([
   "--codex-binary",
   "--codex-model",
   "--fixture-root",
+  "--goodmemory-source-root",
   "--npm-binary",
   "--output-dir",
   "--package-tarball",
@@ -30,6 +31,7 @@ export interface CodexC3PilotOptions {
   codexBinary: string;
   codexModel: string;
   fixtureRoot: string;
+  goodMemorySourceRoot: string;
   npmBinary: string;
   outputDir: string;
   packageTarball: string;
@@ -74,16 +76,19 @@ export function parseCodexC3PilotOptions(
     resolveCliFlagValueStrict(argv, "--reasoning-effort"),
     "--reasoning-effort",
   );
-  const outputDir = resolve(
-    cwd,
-    resolveCliFlagValueStrict(argv, "--output-dir") ??
-      join("reports", "eval", "research", "codex-coding-effect"),
-  );
-  const runOutputDir = join(outputDir, runId);
-  const defaultRoot = join(
+  const evaluationRoot = join(
     homeDir,
     ".goodmemory-eval",
     "codex-coding-effect",
+  );
+  const outputDir = resolve(
+    cwd,
+    resolveCliFlagValueStrict(argv, "--output-dir") ??
+      join(evaluationRoot, "raw"),
+  );
+  const runOutputDir = join(outputDir, runId);
+  const defaultRoot = join(
+    evaluationRoot,
     runId,
     "c3-pilot",
   );
@@ -122,6 +127,7 @@ export function parseCodexC3PilotOptions(
   assertDisjoint("--auth-file", authFile, "--workspace-root", workspaceRoot);
   assertDisjoint("--auth-file", authFile, "--fixture-root", fixtureRoot);
   assertDisjoint("--auth-file", authFile, "--output-dir", runOutputDir);
+  assertDisjoint("--output-dir", runOutputDir, "--runner-checkout", cwd);
 
   return {
     authFile,
@@ -136,6 +142,10 @@ export function parseCodexC3PilotOptions(
     ),
     codexModel,
     fixtureRoot,
+    goodMemorySourceRoot: resolve(
+      cwd,
+      resolveCliFlagValueStrict(argv, "--goodmemory-source-root") ?? cwd,
+    ),
     npmBinary: resolveExecutableValue(
       resolveCliFlagValueStrict(argv, "--npm-binary") ?? "npm",
       cwd,

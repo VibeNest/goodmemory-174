@@ -1,0 +1,19 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..a01c82083139b4ecae4d0abab0c585a7b8a2a8a8 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -15,7 +15,13 @@ export function parseBooleanSetting(input: string): ParseResult<boolean> {
+ }
+ 
+ export function parseIntegerSetting(input: string): ParseResult<number> {
+-  return { ok: true, value: Number(input) };
++  if (!/^-?(?:0|[1-9][0-9]*)$/u.test(input)) {
++    return { error: SETTING_ERROR_CODES.integer, ok: false };
++  }
++  const value = Number(input);
++  return Number.isSafeInteger(value)
++    ? { ok: true, value }
++    : { error: SETTING_ERROR_CODES.integer, ok: false };
+ }
+ 
+ export function parseModeSetting(input: string): ParseResult<TransportMode> {

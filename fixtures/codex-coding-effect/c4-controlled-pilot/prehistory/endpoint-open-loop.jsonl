@@ -1,0 +1,2 @@
+{"payload":{"content":[{"text":"Continue the endpoint parser cleanup in the next session. The remaining work is boundary normalization, strict port syntax, and IPv6-safe rendering; preserve the existing public signatures.","type":"input_text"}],"role":"user","type":"message"},"type":"response_item"}
+{"payload":{"content":[{"text":"Recorded the open endpoint-parser follow-up and the requirement to keep the public surface stable.","type":"output_text"}],"role":"assistant","type":"message"},"type":"response_item"}

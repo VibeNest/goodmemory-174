@@ -1566,15 +1566,16 @@ retains all ten attempts, binds the runner-time source commit/dirty diff and
 safety-state artifact hashes, and explicitly discloses the BM25 prompt
 calibration that preceded acceptance. This closes host correctness only. It is
 not evidence that GoodMemory improves coding outcomes; that claim remains
-blocked on C4-C7 after the separate C3 protocol closure below.
+blocked on C3 and C5-C7.
 
 ### Phase C3: arms and frozen-prehistory protocol
 
-Status: **DONE — accepted as `frozen-prehistory-pilot` protocol evidence**.
+Status: **IMPLEMENTED, ACCEPTANCE REOPENED**.
 The arm planning, packaged runtime preflight, frozen-prehistory
 validation/sealing, strict seed receipt, stage evidence, reporting, and
 current-stage canary contracts are implemented under unit and integration
-tests, and one real two-process pair now closes the C3 protocol gate.
+tests. A prior real two-process pair remains observed local evidence, but does
+not close the C3 protocol gate because its audit identity was incomplete.
 
 #### C3-T001: no-memory isolation
 
@@ -1624,6 +1625,9 @@ C3 acceptance:
 - both arms bind the same snapshot, prompt/prompt hash, Codex executable
   hash/version, model, reasoning effort, sandbox, budget, and
   repository-instruction hashes;
+- the runner-time GoodMemory source commit and tree are frozen before the first
+  live call, the source tree must be clean, and the sanitized source-state
+  digest is rechecked after the pair;
 - the intentional arm-specific host-configuration diff is frozen and persisted;
 - the installed current-stage canary is valid for the exact thread, injected
   seed IDs, sanitized transcript hash, cursor, and committed Stop event;
@@ -1632,13 +1636,16 @@ C3 acceptance:
   correctness; memory diagnostics explain but never override the score;
 - a canary/infrastructure failure has no fallback and makes the pair
   incomparable.
+- the sanitized audit/config projections and pre/post source-state metadata are
+  tracked so a clean clone can verify the accepted decision without committing
+  raw diffs or untracked file contents.
 
 Tie, rescue, and regression are all valid protocol outcomes. Completing this
 pilot establishes only `frozen-prehistory-pilot` evidence: it is not proof of
 uplift, is not eligible for a public coding-effect claim, and does not close the
 later candidate/statistical gates.
 
-C3 implementation result (2026-07-15): **accepted as protocol evidence**. Run
+C3 historical run result (2026-07-15): **observed, not accepted**. Run
 `c3-controlled-20260715-1747z` installed GoodMemory 0.5.1 from tarball SHA-256
 `341a9c82a26f8e231202bc57fd80af2545d32c11b9dbdbec8146d244bf4fda4d`
 and executed two real, distinct Codex CLI 0.144.3 threads with
@@ -1656,10 +1663,29 @@ turn-end writeback, and confirmed raw-transcript persistence remained false.
 Both arms passed deterministic hidden fail-to-pass and pass-to-pass tests; the
 two attempts were finalized and resolved with zero infrastructure failures.
 The comparable result is `tie-both-pass`, and the summary records
-`publicClaimEligible: false`. This proves the real C3 protocol and that the
-GoodMemory treatment was active in the installed arm. Because the no-memory arm
-also solved the task, it does not establish coding uplift or support a public
-coding-effect claim. Phase 73 remains active with C4-C7 open.
+`publicClaimEligible: false`. The local artifacts show that the treatment was
+active, but the run identity did not record the runner-time GoodMemory source
+commit/tree/dirty state or the required normalized host-configuration diff.
+The raw report directory is also gitignored and has no tracked sanitized
+projection. Those omissions make the run non-reproducible from a clean clone,
+so it cannot satisfy C3 acceptance.
+
+The hardened runner now rejects a dirty GoodMemory source tree and persists
+`goodmemory-source-state.json`, `goodmemory-source-state-post-run.json`,
+`host-configurations.sanitized.json`, their hashes in `run-identity.json`, and
+`audit-evidence.sanitized.json` at the appropriate lifecycle points. The source
+artifacts contain only status sizes/digests and untracked path/size/digest
+metadata, never the tracked diff or untracked file contents. These sanitized
+audit artifacts are explicitly trackable despite the raw report ignore rule.
+Unmatched host `PATH` entries are projected as `<host-path>`, while controlled
+runtime prefixes retain stable placeholders. After writeback, export, and
+recall preflight, the runner repeats the config-hash and permission-isolation
+audit immediately before launching the installed Codex process.
+Run provenance, hidden evaluation, finalization, recall preflight, and
+permission isolation now live behind separate modules instead of being
+implemented inside the orchestration/runtime entrypoints. C3 remains open until
+a new real pair produces and tracks the complete artifacts. Phase 73 remains
+active with C3 and C5-C7 open.
 
 ### Phase C4: controlled pilot dataset
 
@@ -1699,6 +1725,50 @@ C4 acceptance:
 - dataset manifest frozen and hashed;
 - all episodes pass deterministic readiness;
 - raw source licenses recorded.
+
+C4 implementation status (2026-07-16): **reopened pending independent review**.
+The schema-v2 fixture at
+`fixtures/codex-coding-effect/c4-controlled-pilot/` freezes six independently
+designed three-stage episodes across two dependency-free TypeScript
+repositories. Its eight required memory strata cover open-loop handoff,
+validated approach, failure avoidance, user correction, project convention,
+stale update, irrelevant-memory control, and no-history control. The asset lock
+closes 60 task, evaluator, repository, license, provenance, and manifest files.
+
+The deterministic readiness gate ran three fresh base clones per stage (54
+base probes total) and one fresh gold replay for each of the 18 stages. Every
+base snapshot retained the same commit, tree, dependency state, expected
+failure fingerprint, and semantic fingerprint across its three repetitions;
+all 18 gold patches changed only the declared file and passed visible,
+fail-to-pass, and pass-to-pass tests. License and author-attestation audits were
+accepted. The leakage audit was reopened after reproduced false negatives
+showed that numeric, boolean, short-string, and other scalar evaluator values
+were filtered by a length threshold. The repaired audit derives typed scalar
+leaves from both fail-to-pass and pass-to-pass cases, excludes values already
+public in repository files or fixed projection scaffolding, and rejects the
+reproduced `docs/setup guide#intro`, `2.5 -> 2500`, and short pass-to-pass
+prompt leaks. Gold replay now stages every schema-declared path in its isolated
+clone before capturing the canonical diff, covering added, modified, and
+deleted files. The frozen asset lock and deterministic core were regenerated,
+with 126 audited surface/artifact cells and zero detected overlap.
+
+The historical independent review found one real fairness defect: the evaluator
+required exact parse error codes that were not discoverable from the visible
+repository. The visible source now publishes the error-code catalog and the
+gold implementation consumes that same contract; hidden expected values were
+not weakened. A separate determinism regression then caught an absolute
+temporary path in the readiness core, which was removed by projecting only
+`commit`, `id`, `tree`, and `url`. That review is no longer acceptance evidence
+because the typed-value and replay repairs changed the frozen core it bound.
+
+Current tracked evidence is the deterministic core at
+`reports/quality-gates/phase-73/c4-controlled-pilot-core.json` plus
+`review/dispatch.json`, `review/input-bundle.json`, and `review/request.md`
+under the dataset root. A new independent review, provenance record, and final
+readiness report are intentionally absent. Until a separate reviewer binds
+those artifacts to the current core, C4 remains open. The current core made no
+live Codex calls and performed no no-memory versus GoodMemory comparison; it
+cannot support a coding-effect claim. C3 and C5-C7 remain open.
 
 ### Phase C5: live pilot
 

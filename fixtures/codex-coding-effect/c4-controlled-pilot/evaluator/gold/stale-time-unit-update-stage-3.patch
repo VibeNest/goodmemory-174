@@ -1,0 +1,13 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..47ae8bcca7b528e7c94849a60dcf424f50a5070d 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -31,7 +31,7 @@ export function scheduleToMs(input: { initialSeconds: number; maxSeconds: number
+ }
+ 
+ export function deadlineFromConfig(startMs: number, timeoutSeconds: number): number {
+-  return startMs + timeoutSeconds;
++  return startMs + timeoutSeconds * 1_000;
+ }
+ 
+ export function slugify(value: string): string {

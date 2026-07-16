@@ -90,6 +90,8 @@ describe("Codex coding-effect C3 arm protocol", () => {
     expect(noMemory).toContain("--disable");
     expect(goodMemory).toContain("--enable");
     expect(goodMemory).toContain("--dangerously-bypass-hook-trust");
+    expect(featureOverride(noMemory, "memories")).toBe("disable");
+    expect(featureOverride(goodMemory, "memories")).toBe("disable");
     expect(noMemory).not.toContain("--sandbox");
     expect(goodMemory).not.toContain("--sandbox");
     expect(noMemory).not.toContain("-P");
@@ -216,3 +218,19 @@ describe("Codex coding-effect C3 arm protocol", () => {
     });
   });
 });
+
+function featureOverride(
+  args: readonly string[],
+  feature: string,
+): "disable" | "enable" | null {
+  for (let index = 0; index < args.length - 1; index += 1) {
+    const operation = args[index];
+    if (
+      (operation === "--disable" || operation === "--enable") &&
+      args[index + 1] === feature
+    ) {
+      return operation.slice(2) as "disable" | "enable";
+    }
+  }
+  return null;
+}

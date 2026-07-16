@@ -1,0 +1,2 @@
+{"payload":{"content":[{"text":"Correction: configuration parsers must never throw or silently invent a value. Follow the repository convention by returning the ParseResult discriminated union with stable error codes for invalid input.","type":"input_text"}],"role":"user","type":"message"},"type":"response_item"}
+{"payload":{"content":[{"text":"Recorded the user correction and the ParseResult project convention for all remaining setting parsers.","type":"output_text"}],"role":"assistant","type":"message"},"type":"response_item"}

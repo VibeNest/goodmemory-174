@@ -15,6 +15,10 @@ import {
   prepareC3ControlledPilotFixture,
 } from "../../scripts/codex-coding-effect/c3-controlled-pilot";
 import {
+  assertC3BaseHealthPassed,
+  runC3BaseHealthProbe,
+} from "../../scripts/codex-coding-effect/c3-base-health";
+import {
   auditFrozenPrehistoryLeakage,
   loadFrozenPrehistory,
 } from "../../scripts/codex-coding-effect/frozen-prehistory";
@@ -74,6 +78,26 @@ describe("Codex coding-effect C3 controlled pilot fixture", () => {
           sha256: sha256(fixture.forbiddenSources[2]!.content),
         },
       ]);
+
+      const liveBaseHealth = assertC3BaseHealthPassed(
+        await runC3BaseHealthProbe({
+          bunExecutable: process.execPath,
+          expectedCommit: fixture.expectedCommit,
+          expectedFailToPassOutputFragments:
+            fixture.expectedFailToPassOutputFragments,
+          failToPassSource: fixture.failToPassSource,
+          passToPassSource: fixture.passToPassSource,
+          visibleCommand: fixture.baseHealthCommand,
+          workspace: fixture.sourceRepository,
+        }),
+      );
+      expect(liveBaseHealth.probes.failToPass.sourceSha256).toBe(
+        fixture.evaluatorFiles[0]?.sha256,
+      );
+      expect(liveBaseHealth.probes.passToPass.sourceSha256).toBe(
+        fixture.evaluatorFiles[1]?.sha256,
+      );
+      await expect(access(fixture.evaluatorRoot)).rejects.toThrow();
 
       const history = await loadFrozenPrehistory({
         expectedSha256: fixture.historySourceSha256,

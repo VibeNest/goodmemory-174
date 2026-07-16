@@ -28,13 +28,14 @@ describe("Codex coding-effect C3 pilot CLI", () => {
       codexModel: "gpt-5.6-sol",
       fixtureRoot:
         "/home/tester/.goodmemory-eval/codex-coding-effect/c3-pilot-001/c3-pilot/fixture",
+      goodMemorySourceRoot: "/repo",
       npmBinary: "npm",
-      outputDir: "/repo/reports/eval/research/codex-coding-effect",
+      outputDir: "/home/tester/.goodmemory-eval/codex-coding-effect/raw",
       packageTarball: "/repo/artifacts/goodmemory.tgz",
       reasoningEffort: "xhigh",
       runId: "c3-pilot-001",
       runOutputDir:
-        "/repo/reports/eval/research/codex-coding-effect/c3-pilot-001",
+        "/home/tester/.goodmemory-eval/codex-coding-effect/raw/c3-pilot-001",
       runtimeRoot:
         "/home/tester/.goodmemory-eval/codex-coding-effect/c3-pilot-001/c3-pilot/runtime",
       stageTimeoutMs: 900_000,
@@ -91,6 +92,13 @@ describe("Codex coding-effect C3 pilot CLI", () => {
       "/repo",
     ], defaults)).toThrow(
       "--runtime-root must not overlap --package-tarball",
+    );
+    expect(() => parseCodexC3PilotOptions([
+      ...required,
+      "--output-dir",
+      "/repo/reports/c3",
+    ], defaults)).toThrow(
+      "--output-dir must not overlap --runner-checkout",
     );
   });
 });

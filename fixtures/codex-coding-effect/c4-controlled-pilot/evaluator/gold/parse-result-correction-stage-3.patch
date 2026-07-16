@@ -1,0 +1,16 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index f7232073bb3438ffc04a735714da65a0ff51c842..2fd590ecd216c1f61c1ba893a312f3c8170ee646 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -19,7 +19,10 @@ export function parseIntegerSetting(input: string): ParseResult<number> {
+ }
+ 
+ export function parseModeSetting(input: string): ParseResult<TransportMode> {
+-  return { ok: true, value: input as TransportMode };
++  if (input === "direct" || input === "relay") {
++    return { ok: true, value: input };
++  }
++  return { error: SETTING_ERROR_CODES.mode, ok: false };
+ }
+ 
+ export function timeoutToMs(seconds: number): number {

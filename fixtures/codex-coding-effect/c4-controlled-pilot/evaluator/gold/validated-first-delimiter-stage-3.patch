@@ -1,0 +1,17 @@
+diff --git a/src/tasks.ts b/src/tasks.ts
+index 10dcd2304122fb6f8f3faef1c52edd6a657b2d08..14416a6707ec0351b15c72158beaa55a44529332 100644
+--- a/src/tasks.ts
++++ b/src/tasks.ts
+@@ -24,8 +24,10 @@ export function splitHeader(input: string): [string, string] | null {
+ }
+ 
+ export function splitRoute(input: string): [string, string] | null {
+-  const [head, tail] = input.split("->");
+-  return head !== undefined && tail !== undefined ? [head, tail] : null;
++  const delimiterIndex = input.indexOf("->");
++  return delimiterIndex === -1
++    ? null
++    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 2)];
+ }
+ 
+ export function stripConfigComment(input: string): string {

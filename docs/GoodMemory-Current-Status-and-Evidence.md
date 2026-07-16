@@ -45,9 +45,9 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   the same server in exact-scope read-only mode. See
   `docs/GoodMemory-Inspector-and-Admin-API.md` and
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
-- Phase 73 remains active as a separate Codex-only product-effect lane, but C3
-  is now closed as accepted `frozen-prehistory-pilot` protocol evidence. Real
-  run `c3-controlled-20260715-1747z` used GoodMemory 0.5.1 tarball SHA-256
+- Phase 73 remains active as a separate Codex-only product-effect lane. C3
+  implementation is complete, but C3 acceptance is reopened: real run
+  `c3-controlled-20260715-1747z` used GoodMemory 0.5.1 tarball SHA-256
   `341a9c82a26f8e231202bc57fd80af2545d32c11b9dbdbec8146d244bf4fda4d`,
   Codex CLI 0.144.3, and `gpt-5.6-sol` / `xhigh` across two distinct threads.
   Both arms ran from an independent controlled clone under root-deny,
@@ -61,10 +61,37 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   fail-to-pass and pass-to-pass tests passed in both arms: 2/2 attempts were
   finalized and resolved, with zero infrastructure failures and outcome
   `tie-both-pass`. The summary explicitly records `publicClaimEligible: false`.
-  This proves the paired protocol and that the real GoodMemory treatment was
-  active; it does not prove coding uplift or authorize a public coding-effect
-  claim. C4-C7 remain open. Evidence is under
-  `reports/eval/research/codex-coding-effect/c3-controlled-20260715-1747z/`.
+  This is observed local evidence that the paired protocol executed and that
+  the real GoodMemory treatment was active; it does not prove coding uplift or
+  authorize a public coding-effect claim. The run cannot close C3 because its
+  identity omitted the runner-time GoodMemory source commit/tree/dirty state and
+  the normalized two-arm host-configuration diff, while its raw directory is
+  gitignored. The hardened runner now writes those artifacts before the first
+  Codex call and emits trackable sanitized projections, but a new real pair must
+  produce them before C3 can be accepted. The tracked rejection decision is
+  `reports/quality-gates/phase-73/c3-controlled-20260715-1747z/c3-audit-decision.json`.
+  The hardened C3 runner also re-runs the config-hash and permission probes
+  immediately before the installed Codex launch, and projects unmatched host
+  `PATH` entries as `<host-path>` instead of persisting machine paths. C4 was
+  reopened again after the hidden-value audit was shown to miss numeric,
+  boolean, short-string, and other scalar leaves because of its length
+  threshold. The repaired audit derives typed scalar values from both
+  fail-to-pass and pass-to-pass cases, excludes values already public in
+  repository or fixed projection scaffolding, and rejects the reproduced
+  `docs/setup guide#intro`, `2.5 -> 2500`, and short pass-to-pass leaks. Gold
+  replay now stages the schema-declared paths in the isolated clone, so new,
+  modified, and deleted files are included. The frozen dataset and deterministic
+  core were regenerated against those stronger checks, and a new independent
+  review dispatch/input/request bundle is tracked. The previous independent
+  review and final readiness report are obsolete because they bind an older
+  core. C4 therefore remains open until a separate reviewer produces a review
+  and provenance bound to the current core and the final gate regenerates the
+  readiness report. The current core still records 6 episodes, 18 stages, 2
+  controlled repositories, all 8 required memory strata, 54 stable fresh-base
+  probes, 18 passing fresh gold replays, 126 leakage matrix cells, and no live
+  Codex or treatment comparison. It is deterministic dataset-core evidence,
+  not accepted C4 evidence and not coding-uplift proof. C3 and C5-C7 remain
+  open.
 - Phase 72 remains open only on BEAM's answer-score gates. LongMemEval's
   label-free eval-only answer/verifier chain completed 500/500 cases with zero
   failures and scores 360/500 = 0.720 judge-free and 462/500 = 0.924 under the

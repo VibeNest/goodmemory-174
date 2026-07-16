@@ -1,0 +1,1144 @@
+{
+  "datasetId": "codex-c4-controlled-pilot-v1",
+  "episodes": [
+    {
+      "allowedPublicLeakageValues": [
+        null,
+        " \tapi.internal\n",
+        "0",
+        "api.internal",
+        "localhost"
+      ],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104",
+          "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a",
+          "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "strings": [
+          "return value.trim();",
+          "C4_HIDDEN|endpoint-open-loop|stage-1",
+          "if (!/^[1-9][0-9]*$/u.test(value))",
+          "C4_HIDDEN|endpoint-open-loop|stage-2",
+          "host.includes(\":\") && !host.startsWith(\"[\")",
+          "C4_HIDDEN|endpoint-open-loop|stage-3"
+        ]
+      },
+      "id": "endpoint-open-loop",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104",
+          "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a",
+          "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "path": "prehistory/endpoint-open-loop.jsonl",
+        "sha256": "67afb9900645e99d00ad815fee7b40ba3ffc51cbfcb7f1cc9489b031ec9154ab",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/continuity-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "open-loop-handoff",
+        "no-history-negative-control"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "endpoint-open-loop",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "endpoint-open-loop",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/endpoint-open-loop-normalize-host-boundary.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/endpoint-open-loop-stage-1.patch",
+            "sha256": "65c468885259f1022537637d0d85526b6a09ab808e445c330c697e898abac18a"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Keep the port grammar strict; numeric coercion previously accepted syntax outside the configuration contract."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "endpoint-open-loop",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "endpoint-open-loop",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/endpoint-open-loop-parse-strict-port.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/endpoint-open-loop-stage-2.patch",
+            "sha256": "4a8bcb4f91710af0919fe825c8a0923405943f71fccbefbdcb4e640aed6e1104"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "open-loop-handoff",
+                "description": "Continue the concrete endpoint-parser follow-up across stages."
+              }
+            ],
+            "mode": "required"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "The last endpoint task is rendering: preserve hostname output and make literal IPv6 hosts unambiguous."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "endpoint-open-loop",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "endpoint-open-loop",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/endpoint-open-loop-format-ipv6-endpoint.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/endpoint-open-loop-stage-3.patch",
+            "sha256": "a9e1da1bb2c099f057843789894432ff2628ed50464e682ffeff79644d4ac0f8"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "open-loop-handoff",
+                "description": "Continue the concrete endpoint-parser follow-up across stages."
+              }
+            ],
+            "mode": "required"
+          }
+        }
+      ]
+    },
+    {
+      "allowedPublicLeakageValues": [
+        "api"
+      ],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f",
+          "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6"
+        ],
+        "strings": [
+          "const delimiterIndex = input.indexOf(\"=\");",
+          "C4_HIDDEN|validated-first-delimiter|stage-1",
+          "const delimiterIndex = input.indexOf(\":\");",
+          "C4_HIDDEN|validated-first-delimiter|stage-2",
+          "const delimiterIndex = input.indexOf(\"->\");",
+          "C4_HIDDEN|validated-first-delimiter|stage-3"
+        ]
+      },
+      "id": "validated-first-delimiter",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f",
+          "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6"
+        ],
+        "path": "prehistory/validated-first-delimiter.jsonl",
+        "sha256": "aec03aa98aec31523dc2a557663fe204337803359b555d70a4a2e9d0e05c1484",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/continuity-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "validated-approach"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "validated-first-delimiter",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "validated-first-delimiter",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/validated-first-delimiter-split-assignment-tail.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/validated-first-delimiter-stage-1.patch",
+            "sha256": "ddf91574814adab2cb0d5b19745736fd2e6faef2f29e7315126da41176555ae6"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Reuse the validated first-header-delimiter pattern and preserve the complete tail."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "validated-first-delimiter",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "validated-first-delimiter",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/validated-first-delimiter-split-header-tail.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/validated-first-delimiter-stage-2.patch",
+            "sha256": "7ea803fd42d81c06270041ed8cb25d4c7959036143e1baa6e62637775e2cd3a9"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "validated-approach",
+                "description": "Reuse the validated first-delimiter implementation pattern."
+              }
+            ],
+            "mode": "required"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Reuse the validated first-route-delimiter pattern and preserve the complete tail."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "validated-first-delimiter",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "validated-first-delimiter",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/validated-first-delimiter-split-route-tail.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/validated-first-delimiter-stage-3.patch",
+            "sha256": "498218708c19ef9cd6b51ce5ee1807d4cbd29d5b50dfe8297f5170098d2f0d1f"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "validated-approach",
+                "description": "Reuse the validated first-delimiter implementation pattern."
+              }
+            ],
+            "mode": "required"
+          }
+        }
+      ]
+    },
+    {
+      "allowedPublicLeakageValues": [],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5",
+          "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa",
+          "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "strings": [
+          "let quote: string | null = null;",
+          "C4_HIDDEN|avoid-naive-split|stage-1",
+          "const tokens: string[] = [];",
+          "C4_HIDDEN|avoid-naive-split|stage-2",
+          "if (character === \",\" && !quoted)",
+          "C4_HIDDEN|avoid-naive-split|stage-3"
+        ]
+      },
+      "id": "avoid-naive-split",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5",
+          "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa",
+          "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "path": "prehistory/avoid-naive-split.jsonl",
+        "sha256": "0587078b87a43687effb3b829d3029deafdff1bc259eaed81051472f72fe3c21",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/continuity-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "failure-avoidance"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "avoid-naive-split",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "avoid-naive-split",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/avoid-naive-split-strip-quoted-comment.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/avoid-naive-split-stage-1.patch",
+            "sha256": "9c0b7cb6e77721556c2e74640cf922e50f8289b3e7372bab10c0757cac4bd191"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Whitespace splitting was also disproved for quoted command arguments; keep quoted spans together."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "avoid-naive-split",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "avoid-naive-split",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/avoid-naive-split-tokenize-quoted-command.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/avoid-naive-split-stage-2.patch",
+            "sha256": "3141db7055cc3d14ef2f95a688cf6242c1743b7a6e612ff6c9ab8ddbbb7f7cfa"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "failure-avoidance",
+                "description": "Avoid the previously disproved parsing shortcut."
+              }
+            ],
+            "mode": "required"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "The CSV follow-up has the same failure class: commas inside quoted fields are data, not separators."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "avoid-naive-split",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "avoid-naive-split",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/avoid-naive-split-parse-quoted-csv.md",
+          "snapshot": "f7cf342394500f900af84dc5f5c33e6731344a5d",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/avoid-naive-split-stage-3.patch",
+            "sha256": "0a3371eebd0d69c87c01d9170e3ee877a57d175ea9276611187302039c8e92b5"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "failure-avoidance",
+                "description": "Avoid the previously disproved parsing shortcut."
+              }
+            ],
+            "mode": "required"
+          }
+        }
+      ]
+    },
+    {
+      "allowedPublicLeakageValues": [
+        false,
+        true,
+        "direct",
+        "false",
+        "invalid-boolean",
+        "invalid-integer",
+        "invalid-mode",
+        "true"
+      ],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349",
+          "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d"
+        ],
+        "strings": [
+          "return { error: SETTING_ERROR_CODES.boolean, ok: false };",
+          "C4_HIDDEN|parse-result-correction|stage-1",
+          "error: SETTING_ERROR_CODES.integer",
+          "C4_HIDDEN|parse-result-correction|stage-2",
+          "return { error: SETTING_ERROR_CODES.mode, ok: false };",
+          "C4_HIDDEN|parse-result-correction|stage-3"
+        ]
+      },
+      "id": "parse-result-correction",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349",
+          "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d"
+        ],
+        "path": "prehistory/parse-result-correction.jsonl",
+        "sha256": "14a7871351bb06acd7bfcf5e5234d8d8af913c0236dade6f7ccfe51c3b82aea1",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "user-correction",
+        "project-convention"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "parse-result-correction",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "parse-result-correction",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/parse-result-correction-parse-boolean-result.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/parse-result-correction-stage-1.patch",
+            "sha256": "cdccd7fa4f777b00ea3ab3d1789ece5ef5d6d0e745e55a7c33925f19a3fdb82d"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "The integer parser must reject non-integer syntax through the same stable result contract."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "parse-result-correction",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "parse-result-correction",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/parse-result-correction-parse-integer-result.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/parse-result-correction-stage-2.patch",
+            "sha256": "1e19d5488d33e4aa708321562f002711513681995ad4544d2a8bb8bdf6b89349"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "user-correction",
+                "description": "Honor the user's correction against coercion and unchecked values."
+              },
+              {
+                "category": "project-convention",
+                "description": "Apply the repository ParseResult convention."
+              }
+            ],
+            "mode": "required"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "The transport mode parser must use the shared invalid-mode error branch, not an unchecked cast."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "parse-result-correction",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "parse-result-correction",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/parse-result-correction-parse-mode-result.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/parse-result-correction-stage-3.patch",
+            "sha256": "91c4d3fb6d3cf1adf518d92517cfc8c18752606b352248942b3481cae5044be1"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "user-correction",
+                "description": "Honor the user's correction against coercion and unchecked values."
+              },
+              {
+                "category": "project-convention",
+                "description": "Apply the repository ParseResult convention."
+              }
+            ],
+            "mode": "required"
+          }
+        }
+      ]
+    },
+    {
+      "allowedPublicLeakageValues": [
+        0
+      ],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da",
+          "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b"
+        ],
+        "strings": [
+          "return seconds * 1_000;",
+          "C4_HIDDEN|stale-time-unit-update|stage-1",
+          "initialMs: input.initialSeconds * 1_000",
+          "C4_HIDDEN|stale-time-unit-update|stage-2",
+          "timeoutSeconds * 1_000",
+          "C4_HIDDEN|stale-time-unit-update|stage-3"
+        ]
+      },
+      "id": "stale-time-unit-update",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da",
+          "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1",
+          "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b"
+        ],
+        "path": "prehistory/stale-time-unit-update.jsonl",
+        "sha256": "12e81ec8909e268e25f60ae4df887710af27335c2031ebd0d30c52a6cf5943cf",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "stale-update"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "stale-time-unit-update",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "stale-time-unit-update",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/stale-time-unit-update-convert-timeout-seconds.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/stale-time-unit-update-stage-1.patch",
+            "sha256": "4f5f11c92fbb9c3d36b8fa6396a13e48326cf1dc5365a86498225a831f11b4dc"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Both schedule fields cross the same seconds-to-milliseconds boundary."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "stale-time-unit-update",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "stale-time-unit-update",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/stale-time-unit-update-convert-schedule-seconds.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/stale-time-unit-update-stage-2.patch",
+            "sha256": "f871ba78dd5c62abc3ca9efaf8cc9abf2e6d06bedb4c3077405a83f0c64b965b"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "stale-update",
+                "description": "Use the newer seconds input contract instead of the superseded unit."
+              }
+            ],
+            "mode": "required"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Deadline arithmetic also receives a timeout in configuration seconds and returns an epoch in milliseconds."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "stale-time-unit-update",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "stale-time-unit-update",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/stale-time-unit-update-compute-deadline-seconds.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/stale-time-unit-update-stage-3.patch",
+            "sha256": "25c3bcdce307ff43ebfc5012480032d512dfc5ab1abf76dd030750c436ec55da"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "stale-update",
+                "description": "Use the newer seconds input contract instead of the superseded unit."
+              }
+            ],
+            "mode": "required"
+          }
+        }
+      ]
+    },
+    {
+      "allowedPublicLeakageValues": [
+        "Hello World",
+        "hello-world",
+        "read me",
+        "read%20me"
+      ],
+      "author": "GoodMemory C4 dataset author",
+      "claimEligibility": "pilot-only",
+      "ecosystem": "bun",
+      "forbiddenLeakage": {
+        "fileSha256": [
+          "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623",
+          "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f",
+          "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "strings": [
+          "replace(/[^a-z0-9]+/gu, \"-\")",
+          "C4_HIDDEN|irrelevant-history-control|stage-1",
+          "return [...new Set(values)];",
+          "C4_HIDDEN|irrelevant-history-control|stage-2",
+          "return encodeURIComponent(value);",
+          "C4_HIDDEN|irrelevant-history-control|stage-3"
+        ]
+      },
+      "id": "irrelevant-history-control",
+      "language": "typescript",
+      "preparation": {
+        "command": [
+          "bun",
+          "test",
+          "tests/base-health.test.ts"
+        ],
+        "networkMode": "disabled"
+      },
+      "prehistory": {
+        "forbiddenLeakageSha256": [
+          "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623",
+          "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f",
+          "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85",
+          "bfcc9f795444e98783df8cbcddcf936a7c5796e361b7788a9ec7fbedac76a5d1"
+        ],
+        "path": "prehistory/irrelevant-history-control.jsonl",
+        "sha256": "650f3da5e121a0cd47867c01d73009075a648e4cef5461f10b0f69721117e6c1",
+        "source": "frozen-artifact"
+      },
+      "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
+      "repository": {
+        "baseCommit": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+        "license": "MIT",
+        "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
+      },
+      "sourceType": "controlled-mutation",
+      "stateMode": "canonical-snapshot",
+      "strata": [
+        "irrelevant-memory-negative-control"
+      ],
+      "stages": [
+        {
+          "allowedFeedback": [],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "irrelevant-history-control",
+            "stage-1"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "irrelevant-history-control",
+            "stage-1"
+          ],
+          "id": "stage-1",
+          "position": 1,
+          "promptPath": "prompts/irrelevant-history-control-normalize-slug.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/irrelevant-history-control-stage-1.patch",
+            "sha256": "4da9671838fac0f83da6b7ab57bff9d31688e606da52d0063baf6f5b1620512f"
+          },
+          "memoryExpectation": {
+            "dependencies": [],
+            "mode": "none"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "The remembered documentation preferences remain irrelevant; implement only the CSV utility contract."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "irrelevant-history-control",
+            "stage-2"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "irrelevant-history-control",
+            "stage-2"
+          ],
+          "id": "stage-2",
+          "position": 2,
+          "promptPath": "prompts/irrelevant-history-control-dedupe-csv-values.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/irrelevant-history-control-stage-2.patch",
+            "sha256": "2fba6bc83b700a776d1d366a358f2ec00e39d7dbbb48ef55c051644a479e2623"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "irrelevant-memory-negative-control",
+                "description": "Recognize that the frozen history is unrelated to the coding task."
+              }
+            ],
+            "mode": "irrelevant-control"
+          }
+        },
+        {
+          "allowedFeedback": [
+            "Ignore the unrelated visual-design memory and preserve the path-segment utility boundary."
+          ],
+          "hiddenFailToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "fail-to-pass",
+            "irrelevant-history-control",
+            "stage-3"
+          ],
+          "hiddenPassToPass": [
+            "bun",
+            "{evaluatorRoot}/runner.ts",
+            "pass-to-pass",
+            "irrelevant-history-control",
+            "stage-3"
+          ],
+          "id": "stage-3",
+          "position": 3,
+          "promptPath": "prompts/irrelevant-history-control-encode-path-segment.md",
+          "snapshot": "d3060c8ad1479b092b7ba3e7e77b6449a1681685",
+          "timeoutMs": 30000,
+          "visibleTest": [
+            "bun",
+            "test",
+            "tests/base-health.test.ts"
+          ],
+          "expectedChangedFiles": [
+            "src/tasks.ts"
+          ],
+          "goldPatch": {
+            "path": "evaluator/gold/irrelevant-history-control-stage-3.patch",
+            "sha256": "8b37c98f826e2328ac60031b94960174f55bec5a97a8f8f16a34620aec098f85"
+          },
+          "memoryExpectation": {
+            "dependencies": [
+              {
+                "category": "irrelevant-memory-negative-control",
+                "description": "Recognize that the frozen history is unrelated to the coding task."
+              }
+            ],
+            "mode": "irrelevant-control"
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 2
+}

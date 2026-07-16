@@ -1,0 +1,28 @@
+{
+  "datasetLicense": "MIT",
+  "datasetLicensePath": "LICENSE",
+  "datasetLicenseSha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168",
+  "patchRedistribution": "permitted-under-source-mit-license",
+  "rawLogs": "internal-only-not-part-of-dataset",
+  "repositories": [
+    {
+      "dependencyLock": "not-required-no-dependencies",
+      "licensePath": "repositories/continuity-utils/LICENSE",
+      "licenseSha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168",
+      "repositoryId": "continuity-utils",
+      "sourceLicense": "MIT",
+      "sourceUrl": "https://example.invalid/goodmemory-c4/continuity-utils.git"
+    },
+    {
+      "dependencyLock": "not-required-no-dependencies",
+      "licensePath": "repositories/policy-utils/LICENSE",
+      "licenseSha256": "28788d8863354935f546f1ec292283c5a61cdb9ef2c7080790edd460cd583168",
+      "repositoryId": "policy-utils",
+      "sourceLicense": "MIT",
+      "sourceUrl": "https://example.invalid/goodmemory-c4/policy-utils.git"
+    }
+  ],
+  "sanitizedReadinessReportRedistribution": "permitted",
+  "schemaVersion": 1,
+  "taskMaterialLicense": "MIT"
+}
