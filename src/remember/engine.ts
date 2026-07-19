@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 import { buildEpisodeEmbeddingWrite } from "../embedding/vectorWrites";
 import { createLanguageService } from "../language";
 import type { PolicyContext } from "../policy/hooks";
@@ -276,7 +278,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
   ): MemoryExtractionResult => {
     const blockedIndexes = getNeverAnnotatedMessageIndexes(input);
     const candidates = extraction.candidates
-      .filter((candidate) => !blockedIndexes.has(candidate.sourceMessageIndex))
+      .filter((candidate) =>
+        ![
+          candidate.sourceMessageIndex,
+          ...(candidate.sourceMessageIndexes ?? []),
+        ].some((messageIndex) => blockedIndexes.has(messageIndex))
+      )
       .map((candidate) => {
         const annotation = findAnnotation(input, candidate.sourceMessageIndex);
         if (!annotation) {
@@ -622,6 +629,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
         rejected: 0,
         events: [],
         pendingEmbeddingWrites: [],
+        pendingClaimProjections: [],
         pendingVectorDeletes: [],
       };
       const episodeCandidates: MemoryCandidate[] = [];
@@ -637,15 +645,19 @@ export function createRememberEngine(config: RememberEngineConfig) {
         document: TDocument,
       ): Promise<void> => {
         const previous = await config.documentStore.get<object>(collection, id);
-        await config.documentStore.set(collection, id, document);
         rollbackActions.push(async () => {
+          const current = await config.documentStore.get<object>(collection, id);
           if (previous) {
-            await config.documentStore.set(collection, id, previous);
+            if (!isDeepStrictEqual(current, previous)) {
+              await config.documentStore.set(collection, id, previous);
+            }
             return;
           }
-
-          await config.documentStore.delete(collection, id);
+          if (current) {
+            await config.documentStore.delete(collection, id);
+          }
         });
+        await config.documentStore.set(collection, id, document);
       };
       const deleteDocumentWithRollback = async (
         collection: string,
@@ -794,6 +806,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
           state,
           vectorIndex,
         });
+
+        if (config.claimProjection) {
+          for (const claim of state.pendingClaimProjections) {
+            await config.claimProjection.appendClaim(claim);
+          }
+        }
 
         const warnings: string[] = [];
         if (extractionWarning) {

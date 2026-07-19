@@ -143,7 +143,9 @@ const FEEDBACK_PATTERN =
 const OPEN_LOOP_PATTERN =
   /\b(next step|todo|blocked|blocker|blocking|unresolved|follow up|still need|need to add|卡住|卡点|下一步|待办|阻塞)\b/iu;
 const DECISION_PATTERN =
-  /\b(we decided|decision|canonical|source of truth|accepted|must remain|我们决定|以.+为准|稳定面)\b/iu;
+  /\b(?:we decided|canonical source of truth|must remain|我们决定|以.+为准|稳定面)\b/iu;
+const POLICY_DECISION_PATTERN =
+  /\b(?:the\s+)?(?:project|repository|repo)\s+policy\s*(?:(?::|=)\s*(?=\S)(?=[^\n]*(?:must|shall|uses?|forbids?|allows?|defaults?|represents?|wraps?|leaves?|keeps?|routes?|rejects?|stores?|retains?|removes?|runs?|writes?|reads?|treats?|maps?|converts?|passes?\s+through)\b)|mandates?\s+that\b|is\s+that\b|is\s+to\s+(?!be\b)\S)/iu;
 const REFERENCE_PATTERN =
   /(~\/\.goodmemory|\.goodmemory\/|docs\/|task-board\/|reports\/|scripts\/|src\/|tests\/|README\.md|AGENTS\.md|CLAUDE\.md)/u;
 
@@ -1015,6 +1017,7 @@ function buildMessageCandidate(
         role: messageRole,
       },
       messageAnnotation: {
+        ...(source === "user" && durable ? { confirmed: true } : {}),
         ...(source === "assistant" && message.annotation?.confirmed === true
           ? { confirmed: true }
           : {}),
@@ -1073,7 +1076,7 @@ function classifyDurableSignal(
       reason: "open_loop",
     };
   }
-  if (DECISION_PATTERN.test(content)) {
+  if (DECISION_PATTERN.test(content) || POLICY_DECISION_PATTERN.test(content)) {
     return {
       confidence: 0.82,
       kind: "fact",

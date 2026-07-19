@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 
 import {
   auditC4SurfaceHiddenArtifactMatrix,
+  c4HiddenValueRelationAppearsInSurface,
+  c4HiddenValueRelationAppearsInSurfaces,
   C4_HIDDEN_ARTIFACT_IDS,
   C4_LEAKAGE_SURFACE_IDS,
   mutationTestC4SurfaceHiddenArtifactMatrix,
@@ -28,10 +30,10 @@ describe("Codex coding-effect C4 leakage matrix", () => {
     )).size).toBe(audit.cells.length);
     expect(audit.candidateBindingVersion).toBe(1);
     expect(audit.candidateExtractionVersion).toBe(
-      "semantic-lines-complete-cases-plus-typed-relations-v5",
+      "semantic-documents-exact-relations-corpus-wide-v9",
     );
     expect(audit.normalizationVersion).toBe(
-      "nfkc-lowercase-whitespace-numeric-equivalence-v3",
+      "nfkc-lowercase-whitespace-numeric-equivalence-v4",
     );
     expect(audit.cells.every((cell) =>
       cell.candidateFragmentCount > 0 &&
@@ -255,7 +257,74 @@ describe("Codex coding-effect C4 leakage matrix", () => {
     }).status).toBe("rejected");
   });
 
-  it("detects a hidden input-output relation across a short structured block", () => {
+  it("audits relations across ordinary layout changes", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "hidden-test-source"
+        ? {
+            ...artifact,
+            hiddenValueRelations: [["INFO", "invalid-level"]],
+            hiddenValues: [],
+          }
+        : artifact
+    );
+    for (const content of [
+      "input: INFO\n\nexpected: invalid-level",
+      [
+        "input: INFO",
+        "metadata: one",
+        "metadata: two",
+        "metadata: three",
+        "expected: invalid-level",
+      ].join("\n"),
+      `INFO ${"x".repeat(600)} invalid-level`,
+    ]) {
+      const mutated = surfaces().map((surface) =>
+        surface.id === "stage-prompts"
+          ? { ...surface, hiddenValueContent: content }
+          : surface
+      );
+      expect(auditC4SurfaceHiddenArtifactMatrix({
+        artifacts: hiddenArtifacts,
+        surfaces: mutated,
+      }).status).toBe("rejected");
+    }
+  });
+
+  it("preserves exact trim relations and audits them document-wide", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "hidden-test-source"
+        ? {
+            ...artifact,
+            hiddenValueRelations: [[" info ", "info"]],
+            hiddenValues: [],
+          }
+        : artifact
+    );
+    const mutated = surfaces().map((surface) =>
+      surface.id === "visible-repository-files"
+        ? {
+            ...surface,
+            content: surface.content,
+            hiddenValueContent: 'input: " info " => expected: "info"',
+          }
+        : surface
+    );
+    const audit = auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: mutated,
+    });
+
+    expect(audit.status).toBe("rejected");
+    expect(audit.cells.find((cell) =>
+      cell.artifactId === "hidden-test-source" &&
+      cell.surfaceId === "visible-repository-files"
+    )).toMatchObject({
+      hiddenValueRelationCount: 1,
+      status: "rejected",
+    });
+  });
+
+  it("audits a repository relation across sentence boundaries", () => {
     const hiddenArtifacts = artifacts().map((artifact) =>
       artifact.id === "hidden-test-source"
         ? {
@@ -266,14 +335,10 @@ describe("Codex coding-effect C4 leakage matrix", () => {
         : artifact
     );
     const mutated = surfaces().map((surface) =>
-      surface.id === "stage-prompts"
+      surface.id === "visible-repository-files"
         ? {
             ...surface,
-            hiddenValueContent: [
-              "input: INFO",
-              "metadata: public",
-              "expected: invalid-level",
-            ].join("\n"),
+            hiddenValueContent: "Call with INFO. It returns invalid-level.",
           }
         : surface
     );
@@ -282,6 +347,113 @@ describe("Codex coding-effect C4 leakage matrix", () => {
       artifacts: hiddenArtifacts,
       surfaces: mutated,
     }).status).toBe("rejected");
+  });
+
+  it("audits repository paths and path-content relations without synthetic wrappers", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "hidden-test-source"
+        ? {
+            ...artifact,
+            hiddenValueRelations: [[2500, "secret-output"]],
+            hiddenValues: [2500],
+          }
+        : artifact
+    );
+    const mutated = surfaces().map((surface) =>
+      surface.id === "visible-repository-files"
+        ? {
+            ...surface,
+            content: JSON.stringify([{ content: "returns secret-output", path: "src/2500.ts" }]),
+            fragmentContents: ["src/2500.ts", "returns secret-output"],
+            hiddenValueContents: ["src/2500.ts", "returns secret-output"],
+          }
+        : surface
+    );
+    const audit = auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: mutated,
+    });
+
+    expect(audit.status).toBe("rejected");
+    expect(audit.cells.find((cell) =>
+      cell.artifactId === "hidden-test-source" &&
+      cell.surfaceId === "visible-repository-files"
+    )).toMatchObject({
+      hiddenValueRelationCount: 1,
+      status: "rejected",
+    });
+  });
+
+  it("does not treat an invented FILE wrapper as agent-visible repository text", () => {
+    const hiddenArtifacts = artifacts().map((artifact) =>
+      artifact.id === "expected-changed-files"
+        ? {
+            ...artifact,
+            content: "FILE src/clean.ts",
+            fragments: ["FILE src/clean.ts"],
+          }
+        : artifact
+    );
+    const clean = surfaces().map((surface) =>
+      surface.id === "visible-repository-files"
+        ? {
+            ...surface,
+            content: JSON.stringify([{ content: "clean", path: "src/clean.ts" }]),
+            fragmentContents: ["src/clean.ts", "clean"],
+            hiddenValueContents: ["src/clean.ts", "clean"],
+          }
+        : surface
+    );
+
+    expect(auditC4SurfaceHiddenArtifactMatrix({
+      artifacts: hiddenArtifacts,
+      surfaces: clean,
+    }).status).toBe("accepted");
+  });
+
+  it("does not erase exact trim semantics through normalized endpoint matches", () => {
+    expect(c4HiddenValueRelationAppearsInSurface(
+      "info",
+      [" info ", "info"],
+    )).toBe(false);
+    expect(c4HiddenValueRelationAppearsInSurface(
+      "info then info",
+      [" info ", "info"],
+    )).toBe(false);
+    expect(c4HiddenValueRelationAppearsInSurface(
+      "direct and true",
+      [" direct ", true],
+    )).toBe(false);
+  });
+
+  it("detects relations independently of whitespace, line count, and length", () => {
+    for (const surface of [
+      "input: INFO\n\nexpected: invalid-level",
+      [
+        "input: INFO",
+        "metadata: one",
+        "metadata: two",
+        "metadata: three",
+        "expected: invalid-level",
+      ].join("\n"),
+      `INFO ${"x".repeat(600)} invalid-level`,
+    ]) {
+      expect(c4HiddenValueRelationAppearsInSurface(
+        surface,
+        ["INFO", "invalid-level"],
+      )).toBe(true);
+    }
+  });
+
+  it("detects a relation split across agent-visible file boundaries", () => {
+    expect(c4HiddenValueRelationAppearsInSurfaces(
+      ["input: INFO", "expected: invalid-level"],
+      ["INFO", "invalid-level"],
+    )).toBe(true);
+    expect(c4HiddenValueRelationAppearsInSurfaces(
+      ["input: INFO\nexpected: invalid-level"],
+      ["INFO", "invalid-level"],
+    )).toBe(true);
   });
 
   it("audits semantic hidden values without treating projection metadata as leakage", () => {

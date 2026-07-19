@@ -1,0 +1,12 @@
+{
+  "historySourceSha256": "83ef75c4c9a0bb0d706151797f40d3b0e0abb63edb8abaf1407629fba48032d0",
+  "memoryExportSha256": "399de180b60e6fc068048ad5a0895839d5f96d7eeddeeabc1b6639defc9f6f2b",
+  "rawTranscriptPersisted": false,
+  "schemaVersion": 1,
+  "seedSurface": "codex-writeback-from-rollout",
+  "sourceSessionDigest": "session:f95ae0923499b2108093bdd9",
+  "writebackOutcome": "written",
+  "writtenMemoryIds": [
+    "fb1347ea-0640-4e28-80a2-9dab41739559"
+  ]
+}

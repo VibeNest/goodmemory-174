@@ -11,6 +11,8 @@ import type {
   RememberVectorPort,
 } from "../storage/ports";
 import type {
+  AppendClaimProjectionInput,
+  ClaimProjectionWritePort,
   MemoryCandidate,
   MemoryCandidateAnnotationTrace,
   MemoryCandidateKindHint,
@@ -80,6 +82,7 @@ export interface RememberResult {
 
 export interface RememberEngineConfig {
   assistedExtractor?: MemoryExtractor;
+  claimProjection?: ClaimProjectionWritePort;
   documentStore: DocumentStore;
   embedding?: EmbeddingAdapter;
   extractor?: MemoryExtractor;
@@ -109,6 +112,7 @@ export interface RememberWriteState {
   rejected: number;
   events: RememberEvent[];
   pendingEmbeddingWrites: MemoryEmbeddingWrite[];
+  pendingClaimProjections: AppendClaimProjectionInput[];
   pendingVectorDeletes: PendingVectorDelete[];
 }
 
@@ -121,7 +125,7 @@ export interface RememberWriteContext {
   vectorIndex: RememberVectorPort | null;
   createId: () => string;
   now: () => string;
-  policy?: Pick<GoodMemoryPolicyHooks, "resolveConflict">;
+  policy?: Pick<GoodMemoryPolicyHooks, "redact" | "resolveConflict">;
   setDocumentWithRollback: <TDocument extends object>(
     collection: string,
     id: string,

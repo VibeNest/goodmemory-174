@@ -17,6 +17,9 @@ import {
   runC3FrozenPrehistoryPair,
 } from "../../scripts/codex-coding-effect/c3-pair-runner";
 import {
+  buildFrozenPrehistoryArmPlans,
+} from "../../scripts/codex-coding-effect/c3-arms";
+import {
   projectC3RunEvidence,
 } from "../../scripts/codex-coding-effect/c3-projection";
 import {
@@ -57,7 +60,17 @@ describe("Codex coding-effect C3 paired runner", () => {
       const sourceProvenanceRoots: Array<string | undefined> = [];
       const evaluatorProcessCount = { value: 0 };
       const evaluatorRootsUsed: string[] = [];
+      const preparedDeniedReadPaths = new Map<
+        "goodmemory-installed" | "no-memory",
+        readonly string[]
+      >();
+      const auditedDeniedReadPaths: Array<{
+        arm: "goodmemory-installed" | "no-memory";
+        paths: ReadonlyArray<{ label: string; path: string }>;
+        phase: "pre-launch" | "pre-seed" | "preflight";
+      }> = [];
       const result = await runPair(fixture, "paired-success", {
+        auditedDeniedReadPaths,
         evaluatorProcessCount,
         evaluatorRootsUsed,
         onSeed: async (outputDirectory) => {
@@ -65,6 +78,7 @@ describe("Codex coding-effect C3 paired runner", () => {
             join(outputDirectory, "run-identity.json"),
           ).exists();
         },
+        preparedDeniedReadPaths,
         sequence,
         sourceProvenanceRoots,
       });
@@ -120,6 +134,56 @@ describe("Codex coding-effect C3 paired runner", () => {
         undefined,
         fixture.sourceRepository,
       ]);
+      for (const arm of ["no-memory", "goodmemory-installed"] as const) {
+        expect(preparedDeniedReadPaths.get(arm)).toEqual(expect.arrayContaining([
+          fixture.authFile,
+          fixture.evaluatorRoot,
+          fixture.packageTarball,
+          fixture.prehistoryPath,
+          fixture.sourceRepository,
+        ]));
+      }
+      const [noMemoryPlan, installedPlan] = buildFrozenPrehistoryArmPlans({
+        episodeId: "episode-001",
+        repetition: 1,
+        resultRoot: join(fixture.root, "paired-success-output", "arms"),
+        runId: "paired-success",
+        runtimeRoot: join(fixture.root, "paired-success-runtime"),
+        seed: 1,
+        stageId: "stage-2",
+        workspaceRoot: join(fixture.root, "paired-success-workspaces"),
+      });
+      expect(preparedDeniedReadPaths.get("no-memory")).toContain(
+        noMemoryPlan.paths.armRoot,
+      );
+      expect(preparedDeniedReadPaths.get("goodmemory-installed")).toContain(
+        installedPlan.paths.armRoot,
+      );
+      for (const arm of ["no-memory", "goodmemory-installed"] as const) {
+        const audit = auditedDeniedReadPaths.find((entry) =>
+          entry.arm === arm && entry.phase === "preflight"
+        );
+        expect(audit?.paths).toEqual(expect.arrayContaining([
+          {
+            label: "current-runtime-auth",
+            path: join(
+              arm === "no-memory"
+                ? noMemoryPlan.paths.codexHome
+                : installedPlan.paths.codexHome,
+              "auth.json",
+            ),
+          },
+          {
+            label: "other-arm-runtime-auth",
+            path: join(
+              arm === "no-memory"
+                ? installedPlan.paths.codexHome
+                : noMemoryPlan.paths.codexHome,
+              "auth.json",
+            ),
+          },
+        ]));
+      }
       expect(result.cases.map((row) => ({
         arm: row.arm,
         disposition: row.disposition,
@@ -1196,6 +1260,11 @@ async function runPair(
   fixture: PairFixture,
   suffix: string,
   options: {
+    auditedDeniedReadPaths?: Array<{
+      arm: "goodmemory-installed" | "no-memory";
+      paths: ReadonlyArray<{ label: string; path: string }>;
+      phase: "pre-launch" | "pre-seed" | "preflight";
+    }>;
     baseHealthFailure?: boolean;
     canaryFailure?: boolean;
     corruptEvaluator?: boolean;
@@ -1210,6 +1279,10 @@ async function runPair(
     outputDirectory?: string;
     preLaunchPermissionFailure?: boolean;
     preLaunchPermissionFailureArm?: "goodmemory-installed" | "no-memory";
+    preparedDeniedReadPaths?: Map<
+      "goodmemory-installed" | "no-memory",
+      readonly string[]
+    >;
     recallPreflightFailure?: boolean;
     recallPreflightThrow?: boolean;
     sandboxConfigDriftArm?: "goodmemory-installed" | "no-memory";
@@ -1295,7 +1368,12 @@ async function runPair(
     visibleBaseHealthCommand: [process.execPath, "-e", "process.exit(0)"],
     workspaceRoot: join(fixture.root, `${suffix}-workspaces`),
     dependencies: {
-      auditPermissionIsolation: async ({ phase, runtime }) => {
+      auditPermissionIsolation: async ({ deniedReadPaths, phase, runtime }) => {
+        options.auditedDeniedReadPaths?.push({
+          arm: runtime.plan.arm,
+          paths: deniedReadPaths,
+          phase,
+        });
         const failureArm = options.preLaunchPermissionFailureArm ??
           (options.preLaunchPermissionFailure
             ? "goodmemory-installed"
@@ -1461,6 +1539,11 @@ async function runPair(
           );
         }
         const configSha256 = buildCodexEvaluatorSandboxConfigSha256({
+          deniedReadPaths: [
+            input.authFile,
+            input.evaluatorRoot,
+            ...(input.deniedReadPaths ?? []),
+          ],
           evaluationWorkspace: input.evaluationWorkspace,
           evaluatorRoot,
           profileName: "c3-evaluator",
@@ -1503,7 +1586,11 @@ async function runPair(
           },
         };
       },
-      prepareInstalled: async ({ plan }) => {
+      prepareInstalled: async ({ permissionDeniedReadPaths, plan }) => {
+        options.preparedDeniedReadPaths?.set(
+          "goodmemory-installed",
+          permissionDeniedReadPaths ?? [],
+        );
         const authPath = join(plan.paths.codexHome, "auth.json");
         await mkdir(plan.paths.codexHome, { recursive: true });
         await writeFile(authPath, "{}\n", "utf8");
@@ -1534,7 +1621,11 @@ async function runPair(
           storagePath: "/fake/memory.sqlite",
         } satisfies C3InstalledArmRuntime;
       },
-      prepareNoMemory: async ({ plan }) => {
+      prepareNoMemory: async ({ permissionDeniedReadPaths, plan }) => {
+        options.preparedDeniedReadPaths?.set(
+          "no-memory",
+          permissionDeniedReadPaths ?? [],
+        );
         const authPath = join(plan.paths.codexHome, "auth.json");
         await mkdir(plan.paths.codexHome, { recursive: true });
         await writeFile(authPath, "{}\n", "utf8");

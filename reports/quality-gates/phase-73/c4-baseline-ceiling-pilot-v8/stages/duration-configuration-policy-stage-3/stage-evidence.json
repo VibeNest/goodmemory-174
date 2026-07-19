@@ -1,0 +1,126 @@
+{
+  "evidence": {
+    "arm": {
+      "absenceAuditPassed": true,
+      "absenceAuditSha256": "36debb972d7d2de5093292cd4ac20f802a6a34c1976de2dcf01c398a3c5e8d52",
+      "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+      "codexVersion": "codex-cli 0.144.5",
+      "instructionSha256": "8ed077f1a12979e23e9f9498e7ec6388a393d483f5bbdd34ead1d5f00eeea72e",
+      "networkAccess": false,
+      "permissionIsolationEvidenceSha256": "971098a13a244188d8e9045672d79c301280f53157312c8c7b67740323dd9c0b",
+      "permissionIsolationPassed": true
+    },
+    "codex": {
+      "durationMs": 114402.41574999999,
+      "eventCount": 19,
+      "exitCode": 0,
+      "failureEventCount": 0,
+      "failureEventsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": "completed",
+      "stderrSha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "timedOut": false,
+      "usage": {
+        "cachedInputTokens": 72960,
+        "inputTokens": 99539,
+        "outputTokens": 3322
+      }
+    },
+    "dataset": {
+      "episodeId": "duration-configuration-policy",
+      "promptSha256": "f49e4f91c715ecb73eaaf6d883ad5f70ecb87872352f01ca9df0daa403b99ba9",
+      "repositoryCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+      "repositoryTree": "1965dd790ca336abbc9192d29bbbda4fa4fcad99",
+      "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+      "stageId": "stage-3",
+      "stageInputSha256": "04aea94d1db03dfd08fac75670391a2df32dac85aa8ec948b93b17a5211ee899"
+    },
+    "evaluator": {
+      "commitments": [
+        {
+          "relativePath": "cases.json",
+          "sha256": "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
+        },
+        {
+          "relativePath": "runner.ts",
+          "sha256": "e1617c0820949074739f9370b60e261f9a5005c957a5145b2fb1a3684f014712"
+        }
+      ],
+      "credentialsRemovedBeforeMaterialization": true,
+      "failToPass": {
+        "durationMs": 86.69012499996461,
+        "exitCode": 1,
+        "kind": "fail-to-pass",
+        "status": "failed",
+        "stderrSha256": "f72be0e2c613543cb6dfd576e0b046bc54264093c89abedc352fdccbe386ec34",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "materializedAfterCodexExit": true,
+      "passToPass": {
+        "durationMs": 83.22808400000213,
+        "exitCode": 0,
+        "kind": "pass-to-pass",
+        "status": "passed",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sandbox": {
+        "configSha256": "2d7ea0abe2764befc6b8c6e4f499db9b2420176b2cc870bcb7d2f1d29f6ce154",
+        "configWriteDenied": true,
+        "copiedAuthRemovedBeforeEvaluator": true,
+        "evaluatorRead": true,
+        "evaluatorWriteDenied": true,
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "originalAuthAliasDenied": true,
+        "originalAuthDenied": true,
+        "profileName": "c4-evaluator",
+        "schemaVersion": 1,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "sandboxEvidenceSha256": "3105493c6ba006275e035825218cb3544bef4cd4336910b64c39d82b7e4dd369"
+    },
+    "failure": null,
+    "patch": {
+      "baseCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "diff": "diff --git a/src/tasks.ts b/src/tasks.ts\nindex 248330e0f0e46970b52f56af725edac918e5beee..5b8142cdf44a4a22559a5ba6cd8736ff44a638dd 100644\n--- a/src/tasks.ts\n+++ b/src/tasks.ts\n@@ -27,7 +27,7 @@ export function resolveRetryConfig(input: { capMs: number; initial: number }): {\n }\n \n export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {\n-  return input.startMs + input.timeout + input.skewMs;\n+  return input.startMs + Math.max(0, input.timeout) + input.skewMs;\n }\n \n export function slugify(value: string): string {\n",
+      "forbiddenFiles": [],
+      "hasPatch": true,
+      "sha256": "b6a2803aef1a8de9d542bbd225dd061e3183756e68bd8ee7719e368b77f7e772",
+      "untrackedFiles": []
+    },
+    "visibleBaseHealth": {
+      "durationMs": 9.421290999976918,
+      "exitCode": 0,
+      "passed": true,
+      "status": "passed",
+      "stderrSha256": "3e90d95f371516b204eb6fd6c68283a2f574ba69877eaf8bd00162d413539b1f",
+      "stdoutSha256": "72af121bdc4cbb1d32d4d3454fb83f73b6700b1a1e939b5ec41ab8d6819f89b2"
+    }
+  },
+  "rawStageEvidenceSha256": "abffb164b08784c8cd7dc01a798a66c3377909bca376ad045f8977b3b33e909f",
+  "result": {
+    "changedFiles": [
+      "src/tasks.ts"
+    ],
+    "codexStatus": "completed",
+    "disposition": "finalized",
+    "episodeId": "duration-configuration-policy",
+    "executionFailureStage": null,
+    "failToPassStatus": "failed",
+    "passToPassStatus": "passed",
+    "patchSha256": "b6a2803aef1a8de9d542bbd225dd061e3183756e68bd8ee7719e368b77f7e772",
+    "resolved": false,
+    "stageId": "stage-3",
+    "stageInputSha256": "04aea94d1db03dfd08fac75670391a2df32dac85aa8ec948b93b17a5211ee899",
+    "taskFailureReasons": [
+      "hidden-fail-to-pass-failed"
+    ],
+    "threadId": "019f6e21-beeb-79a0-96ab-a4c2f5a69b72"
+  },
+  "schemaVersion": 2
+}

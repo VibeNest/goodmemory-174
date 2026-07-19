@@ -250,21 +250,21 @@ describe("Codex coding-effect C4 contracts", () => {
     expect(parseC4IndependentReviewProvenance(validProvenance())).toMatchObject({
       authorTaskName: "/root",
       reviewer: {
-        agentName: "/root/c4_final_independent_review_v3",
+        agentName: "/root/c4_final_independent_review_v5",
         contextPolicy: "fork-turns-none",
         orchestratorAttestation: {
           attestedByTaskName: "/root",
           basis: "dispatch-plus-recorder-cli-no-cryptographic-receipt",
-          canonicalTaskName: "/root/c4_final_independent_review_v3",
+          canonicalTaskName: "/root/c4_final_independent_review_v5",
         },
-        requestedTaskName: "c4_final_independent_review_v3",
+        requestedTaskName: "c4_final_independent_review_v5",
         type: "independent-ai-agent",
       },
     });
     expect(parseC4IndependentReviewDispatch(validDispatch())).toMatchObject({
       contextPolicy: "fork-turns-none",
-      requestedTaskName: "c4_final_independent_review_v3",
-      reviewerAgentName: "/root/c4_final_independent_review_v3",
+      requestedTaskName: "c4_final_independent_review_v5",
+      reviewerAgentName: "/root/c4_final_independent_review_v5",
     });
     expect(() => parseC4IndependentReviewProvenance({
       ...validProvenance(),
@@ -287,7 +287,7 @@ describe("Codex coding-effect C4 contracts", () => {
       reviewer: {
         ...reviewer,
         spawnReceipt: {
-          canonicalTaskName: "/root/c4_final_independent_review_v3",
+          canonicalTaskName: "/root/c4_final_independent_review_v5",
         },
       },
       schemaVersion: 1,
@@ -429,7 +429,7 @@ function validReview() {
     readinessCoreSha256: SHA256,
     reviewedAt: "2026-07-15T20:00:00.000Z",
     reviewer: "Codex C4 independent reviewer",
-    reviewerTaskName: "/root/c4_final_independent_review_v3",
+    reviewerTaskName: "/root/c4_final_independent_review_v5",
     schemaVersion: 2,
     scope: "dataset-only-no-coding-outcomes",
     status: "accepted",
@@ -484,14 +484,14 @@ function validProvenance() {
       sha256: SHA256,
     },
     reviewer: {
-      agentName: "/root/c4_final_independent_review_v3",
+      agentName: "/root/c4_final_independent_review_v5",
       contextPolicy: "fork-turns-none",
       orchestratorAttestation: {
         attestedByTaskName: "/root",
         basis: "dispatch-plus-recorder-cli-no-cryptographic-receipt",
-        canonicalTaskName: "/root/c4_final_independent_review_v3",
+        canonicalTaskName: "/root/c4_final_independent_review_v5",
       },
-      requestedTaskName: "c4_final_independent_review_v3",
+      requestedTaskName: "c4_final_independent_review_v5",
       type: "independent-ai-agent",
     },
     schemaVersion: 2,
@@ -509,10 +509,10 @@ function validDispatch() {
       "reports/quality-gates/phase-73/c4-controlled-pilot-core.json",
     requestPath:
       "fixtures/codex-coding-effect/c4-controlled-pilot/review/request.md",
-    requestedTaskName: "c4_final_independent_review_v3",
+    requestedTaskName: "c4_final_independent_review_v5",
     responsePath:
       "fixtures/codex-coding-effect/c4-controlled-pilot/review/independent-review.json",
-    reviewerAgentName: "/root/c4_final_independent_review_v3",
+    reviewerAgentName: "/root/c4_final_independent_review_v5",
     schemaVersion: 1,
     spawnMessage: "Read only the frozen review inputs and write the response.",
   };

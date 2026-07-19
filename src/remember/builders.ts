@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   createFactMemory,
   createFeedbackMemory,
@@ -11,13 +13,16 @@ import type {
   FeedbackMemory,
   PreferenceMemory,
   ReferenceMemory,
+  SessionMessage,
   UserProfile,
 } from "../domain/records";
 import { createMemorySource } from "../domain/provenance";
-import {
-  createEvidenceRecord,
+import { scopeToKey } from "../domain/scope";
+import { createEvidenceRecord } from "../evidence/contracts";
+import type {
+  EvidenceRecord,
+  SourceMessageRecord,
 } from "../evidence/contracts";
-import type { EvidenceRecord } from "../evidence/contracts";
 import type { MemorySourceMethod } from "../domain/provenance";
 import type { ClassifiedCandidate, ScopedIdentity } from "./contracts";
 import { extractCanonicalReferencePointer } from "./normalization";
@@ -204,6 +209,8 @@ export function buildFact(
     factKind: candidate.metadata?.factKind,
     scopeKind: candidate.metadata?.scopeKind,
     subject: candidate.metadata?.subject ?? "unknown",
+    validFrom: candidate.metadata?.claim?.validFrom,
+    validUntil: candidate.metadata?.claim?.validUntil,
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -391,6 +398,8 @@ export function enrichDuplicateFact(
   ) as FactMemory["source"];
   const tags = mergeTags(fact.tags, candidate.metadata?.tags);
   const attributes = mergeAttributes(fact.attributes, candidate.metadata?.attributes);
+  const validFrom = fact.validFrom ?? candidate.metadata?.claim?.validFrom;
+  const validUntil = fact.validUntil ?? candidate.metadata?.claim?.validUntil;
 
   if (
     category === fact.category &&
@@ -399,7 +408,9 @@ export function enrichDuplicateFact(
     subject === fact.subject &&
     sameTags(tags, fact.tags) &&
     sameAttributes(attributes, fact.attributes) &&
-    source.method === fact.source.method
+    source.method === fact.source.method &&
+    validFrom === fact.validFrom &&
+    validUntil === fact.validUntil
   ) {
     return null;
   }
@@ -413,6 +424,8 @@ export function enrichDuplicateFact(
     tags,
     attributes,
     source,
+    validFrom,
+    validUntil,
     updatedAt: timestamp,
   });
 }
@@ -570,15 +583,61 @@ export function enrichDuplicateFeedback(
 
 function buildEvidenceExcerpt(
   candidate: ClassifiedCandidate,
-  sourceMessageContent?: string,
+  sourceMessages: readonly SourceMessageRecord[],
 ): string {
-  const excerpt = (sourceMessageContent ?? candidate.content).trim();
+  const excerpt = (sourceMessages[0]?.content ?? candidate.content).trim();
 
   if (excerpt.length <= EVIDENCE_MAX_EXCERPT_CHARS) {
     return excerpt;
   }
 
   return `${excerpt.slice(0, EVIDENCE_MAX_EXCERPT_CHARS - 3)}...`;
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export function buildSourceMessageRecords(
+  scope: ScopedIdentity,
+  candidate: ClassifiedCandidate,
+  messages: readonly SessionMessage[],
+  ingestedAt: string,
+): SourceMessageRecord[] {
+  const indexes = [
+    ...new Set(candidate.sourceMessageIndexes ?? [candidate.sourceMessageIndex]),
+  ];
+
+  return indexes.flatMap((messageIndex) => {
+    const message = messages[messageIndex];
+    if (!message) {
+      return [];
+    }
+    const contentSha256 = sha256(message.content);
+    const id = `source-message:${sha256([
+      scopeToKey(scope),
+      message.id ?? `index:${messageIndex}`,
+      message.role,
+      message.observedAt ?? "",
+      contentSha256,
+    ].join("\u0000"))}`;
+
+    return [{
+      id,
+      schemaVersion: 1 as const,
+      ...scope,
+      sourceMessageId: message.id,
+      role: message.role,
+      content: message.content,
+      observedAt: message.observedAt,
+      ingestedAt,
+      contentSha256,
+    }];
+  });
+}
+
+export function sourceMessageRecordUri(record: SourceMessageRecord): string {
+  return `goodmemory://source-messages/${encodeURIComponent(record.id)}`;
 }
 
 export function buildCandidateEvidence(
@@ -588,7 +647,7 @@ export function buildCandidateEvidence(
   evidenceId: string,
   timestamp: string,
   locale: string,
-  sourceMessageContent?: string,
+  sourceMessages: readonly SourceMessageRecord[] = [],
 ): EvidenceRecord {
   return createEvidenceRecord({
     id: evidenceId,
@@ -598,13 +657,20 @@ export function buildCandidateEvidence(
     agentId: scope.agentId,
     sessionId: scope.sessionId,
     kind: "conversation_excerpt",
-    excerpt: buildEvidenceExcerpt(candidate, sourceMessageContent),
+    excerpt: buildEvidenceExcerpt(candidate, sourceMessages),
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
       sessionId: scope.sessionId,
       locale,
     }),
+    sourceUri: sourceMessages[0]
+      ? sourceMessageRecordUri(sourceMessages[0])
+      : undefined,
+    sourceMessageIds: sourceMessages.map(
+      (message) => message.sourceMessageId ?? message.id,
+    ),
+    sourceRecordIds: sourceMessages.map((message) => message.id),
     linkedMemoryIds: [memoryId],
   });
 }

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { join } from "node:path";
 
 import {
   parseCodexC3PilotOptions,
@@ -59,16 +61,7 @@ describe("Codex coding-effect C3 pilot CLI", () => {
   });
 
   it("rejects duplicate, unknown, traversing, and overlapping values", () => {
-    const required = [
-      "--package-tarball",
-      "goodmemory.tgz",
-      "--run-id",
-      "c3",
-      "--codex-model",
-      "gpt-5.6-sol",
-      "--reasoning-effort",
-      "xhigh",
-    ];
+    const required = requiredArgs();
     expect(() => parseCodexC3PilotOptions([
       ...required,
       "--reasoning-effort",
@@ -101,4 +94,118 @@ describe("Codex coding-effect C3 pilot CLI", () => {
       "--output-dir must not overlap --runner-checkout",
     );
   });
+
+  it("rejects every fixed platform temporary root for sensitive paths", () => {
+    for (const root of [
+      "/tmp",
+      "/private/tmp",
+      "/var/tmp",
+      "/private/var/tmp",
+    ]) {
+      expect(() => parseCodexC3PilotOptions([
+        ...requiredArgs(),
+        "--runtime-root",
+        `${root}/c3-runtime`,
+      ], defaults)).toThrow(
+        "--runtime-root must not resolve under a fixed temporary root",
+      );
+    }
+  });
+
+  it("fails closed when any sensitive C3 input or output uses temporary storage", () => {
+    for (const [flag, path] of [
+      ["--workspace-root", "/tmp/c3-workspaces"],
+      ["--fixture-root", "/tmp/c3-fixture"],
+      ["--output-dir", "/tmp/c3-output"],
+      ["--auth-file", "/tmp/codex-auth.json"],
+      ["--goodmemory-source-root", "/tmp/goodmemory-source"],
+    ] as const) {
+      expect(() => parseCodexC3PilotOptions([
+        ...requiredArgs(),
+        flag,
+        path,
+      ], defaults)).toThrow(
+        `${flag} must not resolve under a fixed temporary root`,
+      );
+    }
+    expect(() => parseCodexC3PilotOptions(
+      requiredArgs("/tmp/goodmemory.tgz"),
+      defaults,
+    )).toThrow(
+      "--package-tarball must not resolve under a fixed temporary root",
+    );
+
+    expect(() => parseCodexC3PilotOptions([
+      "--package-tarball",
+      "/repo/goodmemory.tgz",
+      "--run-id",
+      "c3",
+      "--codex-model",
+      "gpt-5.6-sol",
+      "--reasoning-effort",
+      "xhigh",
+      "--goodmemory-source-root",
+      "/repo",
+    ], {
+      ...defaults,
+      cwd: "/tmp/c3-runner",
+    })).toThrow(
+      "--runner-checkout must not resolve under a fixed temporary root",
+    );
+  });
+
+  it("resolves the nearest existing ancestor before accepting a missing path", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".c3-path-test-"));
+    const alias = join(root, "temp-alias");
+    try {
+      await symlink("/tmp", alias);
+      expect(() => parseCodexC3PilotOptions([
+        ...requiredArgs(),
+        "--runtime-root",
+        join(alias, "nonexistent-runtime"),
+      ], {
+        ...defaults,
+        cwd: process.cwd(),
+      })).toThrow(
+        "--runtime-root must not resolve under a fixed temporary root",
+      );
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("uses physical paths when checking overlap below symlink ancestors", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".c3-overlap-test-"));
+    const physical = join(root, "physical");
+    const alias = join(root, "alias");
+    try {
+      await mkdir(physical);
+      await symlink(physical, alias);
+      expect(() => parseCodexC3PilotOptions([
+        ...requiredArgs(),
+        "--runtime-root",
+        join(alias, "runtime"),
+        "--workspace-root",
+        join(physical, "runtime/workspaces"),
+      ], {
+        ...defaults,
+        cwd: process.cwd(),
+      })).toThrow("--runtime-root must not overlap --workspace-root");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
 });
+
+function requiredArgs(packageTarball = "goodmemory.tgz"): string[] {
+  return [
+    "--package-tarball",
+    packageTarball,
+    "--run-id",
+    "c3",
+    "--codex-model",
+    "gpt-5.6-sol",
+    "--reasoning-effort",
+    "xhigh",
+  ];
+}

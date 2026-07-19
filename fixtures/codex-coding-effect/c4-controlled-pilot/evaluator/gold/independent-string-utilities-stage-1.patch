@@ -1,8 +1,8 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..a24d6e69eea5c4d64cc4a8fccaf96fb405bc9b29 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..9e63073bbcd9601869d781e7d4cbbc48a8cc0d46 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -39,7 +39,11 @@ export function deadlineFromConfig(input: { skewMs: number; startMs: number; tim
+@@ -31,7 +31,11 @@ export function deadlineFromConfig(input: { skewMs: number; startMs: number; tim
  }
  
  export function slugify(value: string): string {

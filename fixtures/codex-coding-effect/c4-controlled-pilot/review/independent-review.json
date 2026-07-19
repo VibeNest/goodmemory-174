@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "assetLockSha256": "795473a2916e441ff9cc39ac92578565a84405ffd45589d90943ad31b81d1195",
+  "assetRootSha256": "721927b1b8a2477f59797402a21ac981a404be72beb28cabe41272f9cfb8440a",
+  "manifestSha256": "c246d3c7fd7106e115f7cb1006791db0a91359203d27dab702ae89a6c077f6db",
+  "leakageAuditSha256": "b18e482107fd8c644745f1f9e704697cc5ffbb1077db42b0703cb78bdf3a63ef",
+  "readinessCoreSha256": "420f5c11b1a8aa344714a950b154477449856aed130be37abfe2cdf474eff544",
+  "inputBundleSha256": "f7430cd7cf2b66d08ed15513bbf3b108359d6f611bda48e236cd0d334bc7a823",
+  "scope": "dataset-only-no-coding-outcomes",
+  "reviewerTaskName": "/root/c4_final_independent_review_v5",
+  "reviewer": "Codex independent C4 dataset reviewer v9",
+  "reviewedAt": "2026-07-18T18:01:38Z",
+  "c4AbResultsInspected": false,
+  "codingOutcomeArtifactsInspected": false,
+  "publicCodingEffectProof": false,
+  "status": "accepted",
+  "episodeReviews": [
+    {
+      "episodeId": "endpoint-open-loop",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "The episode requires a concrete endpoint-normalization change across related utilities, and its IPv6, plain-host, and already-wrapped cases follow directly from the prompt and visible source contract. The no-history and prior-stage controls are credible, the shared runner contains no episode- or repository-specific exception, and the memory supplies a reusable boundary policy without disclosing the implementation or hidden assertions.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "delimiter-boundary-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Changing three parsers to honor the last delimiter is genuine maintenance work, while repeated, empty-suffix, and absent-delimiter cases are direct consequences of the stated rule. The first-stage and no-memory controls isolate continuity credibly, the evaluator uses the same generic dispatch path as every episode, and the memory states the policy but neither the patch nor the hidden examples.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "field-boundary-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Implementing quote-aware field-boundary parsing in multiple functions is substantive coding work, and the quoted, unquoted, and boundary cases are discoverable from the prompt and repository types. The failed prior approach and stage-one comparison form credible controls, the runner has no repository-specific branch, and the remembered parsing principle is useful context without containing executable answer material.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "parse-result-correction",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Correcting parse-result behavior across shared error, result, and union contracts is real repository work. The U+0020-only trimming, case preservation, tab handling, accepted values, and shared-error cases follow from the prompt and visible repository contract; the explicitly allowed public relations merely acknowledge discoverable contract values rather than reveal hidden answers. The staged prehistory is a credible negative control, the runner remains generic, and the memory communicates invariants without a patch or test vectors.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "duration-configuration-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Applying a duration-unit correction consistently across three configuration helpers is a concrete implementation task, and fractional, zero, and millisecond-pass-through cases are natural checks of the published contract. The stale prehistory, first-stage, and no-memory variants are credible controls, evaluation uses only the shared runner, and the memory records the unit policy without giving the code change or hidden assertions.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "independent-string-utilities",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "irrelevant-control",
+      "rationale": "The slug, CSV-deduplication, and path-segment helpers require independent, testable string-processing changes, with edge cases derivable from the self-contained prompt. The unrelated documentation-style memory about violet and sentence case is a credible irrelevant control and does not suggest a competing implementation rule. The shared runner dispatches these functions without a repository-specific exception.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryIrrelevantAndNonMisleading": true
+      }
+    }
+  ]
+}

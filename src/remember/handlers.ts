@@ -19,6 +19,7 @@ import {
   buildPreference,
   buildProfile,
   buildReference,
+  buildSourceMessageRecords,
   enrichDuplicateFact,
   enrichDuplicateFeedback,
   enrichDuplicatePreference,
@@ -26,6 +27,8 @@ import {
   getProfileWriteReason,
   resolveReferenceSubject,
 } from "./builders";
+import { EVIDENCE_COLLECTION, SOURCE_MESSAGES_COLLECTION } from "../evidence/contracts";
+import type { SourceMessageRecord } from "../evidence/contracts";
 import type {
   ClassifiedCandidate,
   RememberWriteContext,
@@ -39,6 +42,102 @@ function pushAcceptedEvent(
 ): void {
   state.accepted += 1;
   state.events.push(event);
+}
+
+async function persistCandidateEvidence(input: {
+  candidate: ClassifiedCandidate;
+  context: RememberWriteContext;
+  evidenceId: string;
+  memoryId: string;
+  timestamp: string;
+}): Promise<SourceMessageRecord[]> {
+  const messages = [...input.context.input.messages];
+  const sourceIndexes = [
+    ...new Set(
+      input.candidate.sourceMessageIndexes ?? [input.candidate.sourceMessageIndex],
+    ),
+  ];
+  if (input.context.policy?.redact) {
+    for (const messageIndex of sourceIndexes) {
+      const message = messages[messageIndex];
+      if (!message) {
+        continue;
+      }
+      const redacted = await input.context.policy.redact(
+        {
+          ...input.candidate,
+          content: message.content,
+          sourceMessageIndex: messageIndex,
+          sourceRole: message.role,
+        },
+        input.context.policyContext,
+      );
+      messages[messageIndex] = { ...message, content: redacted.content };
+    }
+  }
+  const sourceMessages = buildSourceMessageRecords(
+    input.context.input.scope,
+    input.candidate,
+    messages,
+    input.timestamp,
+  );
+  for (const sourceMessage of sourceMessages) {
+    await input.context.setDocumentWithRollback(
+      SOURCE_MESSAGES_COLLECTION,
+      sourceMessage.id,
+      sourceMessage,
+    );
+  }
+  await input.context.setDocumentWithRollback(
+    EVIDENCE_COLLECTION,
+    input.evidenceId,
+    buildCandidateEvidence(
+      input.context.input.scope,
+      input.candidate,
+      input.memoryId,
+      input.evidenceId,
+      input.timestamp,
+      input.context.resolvedLanguage.locale,
+      sourceMessages,
+    ),
+  );
+  return sourceMessages;
+}
+
+function queueClaimProjection(input: {
+  candidate: ClassifiedCandidate;
+  evidenceId: string;
+  memoryId: string;
+  sourceMessages: readonly SourceMessageRecord[];
+  state: RememberWriteState;
+  timestamp: string;
+  context: RememberWriteContext;
+}): void {
+  const claim = input.candidate.metadata?.claim;
+  if (!claim) {
+    return;
+  }
+  const observedAt = input.sourceMessages
+    .map(({ observedAt }) => observedAt)
+    .filter((value): value is string => value !== undefined)
+    .sort()[0] ?? claim.validFrom ?? input.timestamp;
+  input.state.pendingClaimProjections.push({
+    ...input.context.input.scope,
+    sourceMemoryId: input.memoryId,
+    subject: input.candidate.metadata?.subject ?? input.context.input.scope.userId,
+    claim,
+    contextualDescriptor: input.candidate.metadata?.contextualDescriptor,
+    observedAt,
+    ingestedAt: input.timestamp,
+    evidenceIds: [input.evidenceId],
+    sourceMessageIds: input.sourceMessages.map(
+      (message) => message.sourceMessageId ?? message.id,
+    ),
+    extractorVersion:
+      input.candidate.extractorIds?.join("+") ??
+      input.candidate.extractionSources?.join("+") ??
+      "remember-candidate-v1",
+  });
 }
 
 export async function writeRememberCandidate(input: {
@@ -235,19 +334,13 @@ export async function writeRememberCandidate(input: {
         );
       }
       const evidenceId = context.createId();
-      await context.setDocumentWithRollback(
-        "evidence",
+      await persistCandidateEvidence({
+        candidate: referenceCandidate,
+        context,
         evidenceId,
-        buildCandidateEvidence(
-          context.input.scope,
-          referenceCandidate,
-          duplicate.id,
-          evidenceId,
-          timestamp,
-          context.resolvedLanguage.locale,
-          context.input.messages[referenceCandidate.sourceMessageIndex]?.content,
-        ),
-      );
+        memoryId: duplicate.id,
+        timestamp,
+      });
       pushAcceptedEvent(state, {
         candidateId,
         outcome: "merged",
@@ -328,19 +421,13 @@ export async function writeRememberCandidate(input: {
     await context.setDocumentWithRollback("references", reference.id, reference);
     state.pendingEmbeddingWrites.push(referenceEmbeddingWrite);
     const evidenceId = context.createId();
-    await context.setDocumentWithRollback(
-      "evidence",
+    await persistCandidateEvidence({
+      candidate: referenceCandidate,
+      context,
       evidenceId,
-      buildCandidateEvidence(
-        context.input.scope,
-        referenceCandidate,
-        reference.id,
-        evidenceId,
-        timestamp,
-        context.resolvedLanguage.locale,
-        context.input.messages[referenceCandidate.sourceMessageIndex]?.content,
-      ),
-    );
+      memoryId: reference.id,
+      timestamp,
+    });
     pushAcceptedEvent(state, {
       candidateId,
       outcome: superseded ? "superseded" : "written",
@@ -373,23 +460,28 @@ export async function writeRememberCandidate(input: {
         timestamp,
         context.resolvedLanguage.locale,
       );
-      if (enrichedDuplicate) {
-        await context.setDocumentWithRollback("facts", duplicate.id, enrichedDuplicate);
-      }
       const evidenceId = context.createId();
-      await context.setDocumentWithRollback(
-        "evidence",
+      const sourceMessages = await persistCandidateEvidence({
+        candidate,
+        context,
         evidenceId,
-        buildCandidateEvidence(
-          context.input.scope,
-          candidate,
-          duplicate.id,
-          evidenceId,
-          timestamp,
-          context.resolvedLanguage.locale,
-          context.input.messages[candidate.sourceMessageIndex]?.content,
-        ),
+        memoryId: duplicate.id,
+        timestamp,
+      });
+      await context.setDocumentWithRollback(
+        "facts",
+        duplicate.id,
+        enrichedDuplicate ?? duplicate,
       );
+      queueClaimProjection({
+        candidate,
+        context,
+        evidenceId,
+        memoryId: duplicate.id,
+        sourceMessages,
+        state,
+        timestamp,
+      });
       pushAcceptedEvent(state, {
         candidateId,
         outcome: "merged",
@@ -472,22 +564,25 @@ export async function writeRememberCandidate(input: {
       });
     }
 
+    const evidenceId = context.createId();
+    const sourceMessages = await persistCandidateEvidence({
+      candidate,
+      context,
+      evidenceId,
+      memoryId: fact.id,
+      timestamp,
+    });
     await context.setDocumentWithRollback("facts", fact.id, fact);
     state.pendingEmbeddingWrites.push(factEmbeddingWrite);
-    const evidenceId = context.createId();
-    await context.setDocumentWithRollback(
-      "evidence",
+    queueClaimProjection({
+      candidate,
+      context,
       evidenceId,
-      buildCandidateEvidence(
-        context.input.scope,
-        candidate,
-        fact.id,
-        evidenceId,
-        timestamp,
-        context.resolvedLanguage.locale,
-        context.input.messages[candidate.sourceMessageIndex]?.content,
-      ),
-    );
+      memoryId: fact.id,
+      sourceMessages,
+      state,
+      timestamp,
+    });
     pushAcceptedEvent(state, {
       candidateId,
       outcome: superseded ? "superseded" : "written",

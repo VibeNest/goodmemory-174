@@ -100,16 +100,20 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
       )).toBe(true);
       expect(new Set(result.report.results.map((stage) => stage.threadId)).size)
         .toBe(12);
+      const rawStageEvidence = await loadC4BaselineStageEvidenceFiles(
+        join(outputDirectory, "stages"),
+        result.report,
+      );
       const trackedStageEvidence = buildC4BaselineStageEvidenceBindings(
         result.report,
-        await loadC4BaselineStageEvidenceFiles(
-          join(outputDirectory, "stages"),
-          result.report,
-        ),
+        rawStageEvidence,
+        result.frozenStageBindings,
       );
       expect(() => verifyC4BaselineStageEvidenceFiles(
         result.report,
         trackedStageEvidence,
+        result.frozenStageBindings,
+        rawStageEvidence,
       )).not.toThrow();
       expect(trackedStageEvidence.every((file) =>
         !file.bytes.includes(root) &&
@@ -218,7 +222,7 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
     }
   }, 30_000);
 
-  it("treats formal Codex authentication failures as inconclusive infrastructure", async () => {
+  it("retains formal Codex failure events as inconclusive infrastructure", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-c4-baseline-auth-"));
     const outputDirectory = join(root, "output");
     const sourceRoot = join(root, "sources");
@@ -229,7 +233,7 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
         writeFile(authFile, "{}\n", "utf8"),
         writeFile(
           codexExecutable,
-          fakeCodexSource("authentication-failure"),
+          fakeCodexSource("structured-failure"),
           "utf8",
         ),
       ]);
@@ -268,6 +272,46 @@ describe("Codex coding-effect C4 no-memory ceiling pilot", () => {
         stage.disposition === "infrastructure-failure" &&
         stage.executionFailureStage === "codex-execution"
       )).toBe(true);
+      const rawStageEvidence = await loadC4BaselineStageEvidenceFiles(
+        join(outputDirectory, "stages"),
+        result.report,
+      );
+      expect(rawStageEvidence.every((file) => {
+        const evidence = JSON.parse(file.bytes) as {
+          codex: { failureEvents: Array<{ message: string; type: string }> };
+        };
+        return evidence.codex.failureEvents.length === 2 &&
+          evidence.codex.failureEvents.every((event) =>
+            event.message === "synthetic upstream usage limit" &&
+            (event.type === "error" || event.type === "turn.failed")
+          );
+      })).toBe(true);
+      const trackedStageEvidence = buildC4BaselineStageEvidenceBindings(
+        result.report,
+        rawStageEvidence,
+        result.frozenStageBindings,
+      );
+      expect(() => verifyC4BaselineStageEvidenceFiles(
+        result.report,
+        trackedStageEvidence,
+        result.frozenStageBindings,
+        rawStageEvidence,
+      )).not.toThrow();
+      expect(trackedStageEvidence.every((file) => {
+        const binding = JSON.parse(file.bytes) as {
+          evidence: {
+            codex: {
+              failureEventCount: number;
+              failureEventsSha256: string;
+            };
+          };
+        };
+        return binding.evidence.codex.failureEventCount === 2 &&
+          /^[a-f0-9]{64}$/u.test(
+            binding.evidence.codex.failureEventsSha256,
+          ) &&
+          !file.bytes.includes("synthetic upstream usage limit");
+      })).toBe(true);
     } finally {
       await rm(root, { force: true, recursive: true });
     }
@@ -373,7 +417,7 @@ function sha256(value: string): string {
 }
 
 function fakeCodexSource(
-  mode: "authentication-failure" | "success" = "success",
+  mode: "structured-failure" | "success" = "success",
 ): string {
   return `#!/usr/bin/env bun
 import { randomUUID } from "node:crypto";
@@ -433,8 +477,15 @@ if (args[0] === "sandbox") {
   process.stderr.write(child.stderr);
   process.exit(child.exitCode);
 }
-if (mode === "authentication-failure") {
-  console.error("401 authentication expired");
+if (mode === "structured-failure") {
+  console.log(JSON.stringify({
+    type: "error",
+    error: { message: "synthetic upstream usage limit" },
+  }));
+  console.log(JSON.stringify({
+    type: "turn.failed",
+    error: { message: "synthetic upstream usage limit" },
+  }));
   process.exit(1);
 }
 const threadId = \`fake-\${randomUUID()}\`;

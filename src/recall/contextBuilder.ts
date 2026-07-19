@@ -31,6 +31,9 @@ export interface MemoryPacket {
   workingMemorySummary?: string;
   journalSummary?: string;
   renderingProfile?: RetrievalProfile;
+  renderBudget?: {
+    maxTokens: number;
+  };
   debug?: {
     omittedSections: string[];
     estimatedTokens: number;
@@ -49,6 +52,7 @@ export interface MemoryPacketInput {
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
   durableCandidateOrder?: string[];
+  maxRenderedTokens?: number;
   locale?: string;
   routingDecision?: RoutingDecision;
 }
@@ -57,6 +61,23 @@ const EVIDENCE_EXCERPT_SUMMARY_LENGTH = 120;
 
 function estimateTokens(value: string): number {
   return Math.ceil(value.length / 4);
+}
+
+function tokenCountUpperBound(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function clipToTokenUpperBound(value: string, maxTokens: number): string {
+  if (tokenCountUpperBound(value) <= maxTokens) return value;
+  const characters: string[] = [];
+  let bytes = 0;
+  for (const character of value) {
+    const nextBytes = new TextEncoder().encode(character).byteLength;
+    if (bytes + nextBytes > maxTokens) break;
+    characters.push(character);
+    bytes += nextBytes;
+  }
+  return characters.join("");
 }
 
 function summarizeProfile(profile: UserProfile | null): string | undefined {
@@ -445,6 +466,9 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
     workingMemorySummary: summarizeWorkingMemory(input.workingMemory),
     journalSummary: summarizeJournal(input.journal),
     renderingProfile: input.routingDecision?.retrievalProfile,
+    ...(input.maxRenderedTokens !== undefined
+      ? { renderBudget: { maxTokens: input.maxRenderedTokens } }
+      : {}),
   };
 
   packet.debug = {
@@ -453,6 +477,16 @@ export function buildMemoryPacket(input: MemoryPacketInput): MemoryPacket {
   };
 
   return packet;
+}
+
+export function rebuildMemoryPacket(
+  source: MemoryPacket,
+  input: Omit<MemoryPacketInput, "maxRenderedTokens">,
+): MemoryPacket {
+  return buildMemoryPacket({
+    ...input,
+    maxRenderedTokens: source.renderBudget?.maxTokens,
+  });
 }
 
 function trimSections(
@@ -474,7 +508,18 @@ function trimSections(
     const sectionText = `## ${section.title}\n${section.body}`;
     const nextTokens = tokens + estimateTokens(sectionText);
 
-    if (kept.length > 0 && nextTokens > maxTokens) {
+    if (nextTokens > maxTokens) {
+      if (kept.length === 0) {
+        const prefix = `## ${section.title}\n`;
+        const bodyChars = Math.max(0, maxTokens * 4 - prefix.length);
+        if (bodyChars > 0) {
+          kept.push({ ...section, body: section.body.slice(0, bodyChars) });
+        } else {
+          omittedSections.push(section.title);
+        }
+        tokens = maxTokens;
+        continue;
+      }
       omittedSections.push(section.title);
       continue;
     }
@@ -686,6 +731,27 @@ export function renderMemoryPacket(
   renderingProfileOverride?: RetrievalProfile,
   options?: { suppressDuplicateEvidence?: boolean },
 ): { content: string; estimatedTokens: number; omittedSections: string[] } {
+  const packetMaxTokens = packet.renderBudget?.maxTokens;
+  const effectiveMaxTokens = packetMaxTokens && maxTokens
+    ? Math.min(packetMaxTokens, maxTokens)
+    : packetMaxTokens ?? maxTokens;
+  const hardByteLimit = packetMaxTokens === undefined
+    ? undefined
+    : maxTokens === undefined
+    ? packetMaxTokens
+    : Math.min(packetMaxTokens, maxTokens * 4);
+  const exceedsBudget = (content: string): boolean =>
+    effectiveMaxTokens !== undefined && (
+      hardByteLimit !== undefined
+        ? tokenCountUpperBound(content) > hardByteLimit
+        : estimateTokens(content) > effectiveMaxTokens
+    );
+  const enforceTextBudget = (content: string): string =>
+    effectiveMaxTokens && exceedsBudget(content)
+      ? hardByteLimit !== undefined
+        ? clipToTokenUpperBound(content, hardByteLimit)
+        : content.slice(0, effectiveMaxTokens * 4)
+      : content;
   const sections = options?.suppressDuplicateEvidence
     ? suppressEvidenceDuplicatingFacts(
         buildRenderableSections(packet, renderingProfileOverride),
@@ -693,13 +759,14 @@ export function renderMemoryPacket(
     : buildRenderableSections(packet, renderingProfileOverride);
   const { sections: kept, omittedSections } = trimSections(
     sections.map(({ title, body }) => ({ title, body })),
-    maxTokens,
+    effectiveMaxTokens,
   );
 
   if (output === "json") {
     const keptTitles = new Set(kept.map((section) => section.title));
     const trimmedPacket: MemoryPacket = {
       renderingProfile: renderingProfileOverride ?? packet.renderingProfile,
+      ...(packet.renderBudget ? { renderBudget: packet.renderBudget } : {}),
       debug: {
         omittedSections,
         estimatedTokens: 0,
@@ -714,16 +781,69 @@ export function renderMemoryPacket(
       trimmedPacket[section.key] = section.body;
     }
 
-    const content = JSON.stringify(trimmedPacket);
-    trimmedPacket.debug = {
-      omittedSections,
-      estimatedTokens: estimateTokens(content),
+    if (packetMaxTokens === undefined) {
+      const content = JSON.stringify(trimmedPacket);
+      trimmedPacket.debug = {
+        omittedSections,
+        estimatedTokens: estimateTokens(content),
+      };
+      return {
+        content: JSON.stringify(trimmedPacket),
+        estimatedTokens: trimmedPacket.debug.estimatedTokens,
+        omittedSections,
+      };
+    }
+
+    const serialize = (): string => {
+      trimmedPacket.debug = {
+        omittedSections: [...new Set(omittedSections)],
+        estimatedTokens: 0,
+      };
+      const draft = JSON.stringify(trimmedPacket);
+      trimmedPacket.debug.estimatedTokens = estimateTokens(draft);
+      return JSON.stringify(trimmedPacket);
     };
+    let content = serialize();
+    const keptEntries = sections.filter((section) =>
+      keptTitles.has(section.title)
+    );
+    while (
+      effectiveMaxTokens &&
+      exceedsBudget(content) &&
+      keptEntries.length > 0
+    ) {
+      const entry = keptEntries.at(-1)!;
+      const body = trimmedPacket[entry.key];
+      const excessChars = effectiveMaxTokens === undefined
+        ? 0
+        : content.length - (hardByteLimit ?? effectiveMaxTokens * 4);
+      if (
+        typeof body === "string" &&
+        (packetMaxTokens !== undefined
+          ? body.length > 1
+          : body.length > excessChars + 4)
+      ) {
+        trimmedPacket[entry.key] = packetMaxTokens !== undefined
+          ? body.slice(0, Math.floor(body.length / 2))
+          : body.slice(0, Math.max(0, body.length - excessChars - 4));
+      } else {
+        delete trimmedPacket[entry.key];
+        keptEntries.pop();
+        omittedSections.push(entry.title);
+      }
+      content = serialize();
+    }
+    if (
+      effectiveMaxTokens &&
+      exceedsBudget(content)
+    ) {
+      content = "{}";
+    }
 
     return {
-      content: JSON.stringify(trimmedPacket),
-      estimatedTokens: trimmedPacket.debug.estimatedTokens,
-      omittedSections,
+      content,
+      estimatedTokens: estimateTokens(content),
+      omittedSections: [...new Set(omittedSections)],
     };
   }
 
@@ -732,18 +852,19 @@ export function renderMemoryPacket(
     .join("\n\n");
 
   if (output === "markdown") {
+    const content = enforceTextBudget(markdownContent);
     return {
-      content: markdownContent,
-      estimatedTokens: estimateTokens(markdownContent),
+      content,
+      estimatedTokens: estimateTokens(content),
       omittedSections,
     };
   }
 
   if (output === "system_prompt_fragment") {
-    const content = [
+    const content = enforceTextBudget([
       "User memory context:",
       ...kept.map((section) => `${section.title}: ${section.body.replace(/\n/g, " ")}`),
-    ].join("\n");
+    ].join("\n"));
 
     return {
       content,
@@ -752,7 +873,7 @@ export function renderMemoryPacket(
     };
   }
 
-  const content = [
+  const content = enforceTextBudget([
     "Developer memory notes:",
     ...kept.map((section) => `${section.title}: ${section.body.replace(/\n/g, " ")}`),
     omittedSections.length > 0
@@ -760,7 +881,7 @@ export function renderMemoryPacket(
       : undefined,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n"));
 
   return {
     content,

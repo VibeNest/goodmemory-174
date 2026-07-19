@@ -1,5 +1,14 @@
+import { existsSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 
 import {
   parseCliPositiveIntegerFlagStrict,
@@ -24,6 +33,12 @@ const VALUE_FLAGS = new Set([
   "--test-timeout-ms",
   "--workspace-root",
 ]);
+const FIXED_PLATFORM_TEMP_ROOTS = [
+  "/tmp",
+  "/private/tmp",
+  "/var/tmp",
+  "/private/var/tmp",
+] as const;
 
 export interface CodexC3PilotOptions {
   authFile: string;
@@ -112,6 +127,24 @@ export function parseCodexC3PilotOptions(
     resolveCliFlagValueStrict(argv, "--auth-file") ??
       join(homeDir, ".codex", "auth.json"),
   );
+  const goodMemorySourceRoot = resolve(
+    cwd,
+    resolveCliFlagValueStrict(argv, "--goodmemory-source-root") ?? cwd,
+  );
+
+  for (const [flag, path] of [
+    ["--runtime-root", runtimeRoot],
+    ["--workspace-root", workspaceRoot],
+    ["--fixture-root", fixtureRoot],
+    ["--output-dir", outputDir],
+    ["--output-dir", runOutputDir],
+    ["--auth-file", authFile],
+    ["--package-tarball", packageTarball],
+    ["--goodmemory-source-root", goodMemorySourceRoot],
+    ["--runner-checkout", cwd],
+  ] as const) {
+    assertOutsideFixedPlatformTempRoots(flag, path);
+  }
 
   assertDisjoint("--runtime-root", runtimeRoot, "--package-tarball", packageTarball);
   assertDisjoint("--workspace-root", workspaceRoot, "--package-tarball", packageTarball);
@@ -142,10 +175,7 @@ export function parseCodexC3PilotOptions(
     ),
     codexModel,
     fixtureRoot,
-    goodMemorySourceRoot: resolve(
-      cwd,
-      resolveCliFlagValueStrict(argv, "--goodmemory-source-root") ?? cwd,
-    ),
+    goodMemorySourceRoot,
     npmBinary: resolveExecutableValue(
       resolveCliFlagValueStrict(argv, "--npm-binary") ?? "npm",
       cwd,
@@ -206,9 +236,42 @@ function assertDisjoint(
   throw new Error(`${firstFlag} must not overlap ${secondFlag}`);
 }
 
+function assertOutsideFixedPlatformTempRoots(
+  flag: string,
+  path: string,
+): void {
+  const lexicalPath = resolve(path);
+  const resolvedPaths = [lexicalPath, resolvePhysicalPath(lexicalPath)];
+  if (resolvedPaths.some((candidate) =>
+    FIXED_PLATFORM_TEMP_ROOTS.some((root) =>
+      pathInsideOrEqual(root, candidate)
+    )
+  )) {
+    throw new Error(
+      `${flag} must not resolve under a fixed temporary root`,
+    );
+  }
+}
+
 function pathsOverlap(firstPath: string, secondPath: string): boolean {
-  return pathInsideOrEqual(firstPath, secondPath) ||
-    pathInsideOrEqual(secondPath, firstPath);
+  const physicalFirst = resolvePhysicalPath(firstPath);
+  const physicalSecond = resolvePhysicalPath(secondPath);
+  return pathInsideOrEqual(physicalFirst, physicalSecond) ||
+    pathInsideOrEqual(physicalSecond, physicalFirst);
+}
+
+function resolvePhysicalPath(path: string): string {
+  let ancestor = resolve(path);
+  const missingSegments: string[] = [];
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+    if (parent === ancestor) {
+      return resolve(path);
+    }
+    missingSegments.unshift(basename(ancestor));
+    ancestor = parent;
+  }
+  return resolve(realpathSync(ancestor), ...missingSegments);
 }
 
 function pathInsideOrEqual(parentPath: string, candidatePath: string): boolean {

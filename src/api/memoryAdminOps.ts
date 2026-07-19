@@ -5,7 +5,14 @@
 // to them. Keeps the composition root focused on wiring rather than
 // per-operation orchestration.
 import type { ArtifactSpillRecord } from "../domain/records";
-import { EVIDENCE_COLLECTION } from "../evidence/contracts";
+import {
+  EVIDENCE_COLLECTION,
+  SOURCE_MESSAGES_COLLECTION,
+} from "../evidence/contracts";
+import type {
+  EvidenceRecord,
+  SourceMessageRecord,
+} from "../evidence/contracts";
 import {
   EXPERIENCES_COLLECTION,
   LEARNING_PROPOSALS_COLLECTION,
@@ -14,8 +21,24 @@ import {
 } from "../evolution/contracts";
 import { buildMarkdownArtifacts } from "../governance/markdownArtifacts";
 import type { GoodMemoryTracer } from "../observability/tracer";
-import { ARTIFACT_SPILL_COLLECTION } from "../runtime/spillover";
-import type { DocumentStore, SessionStore } from "../storage/contracts";
+import {
+  CLAIM_PROJECTIONS_COLLECTION,
+  CLAIM_PROJECTION_STATUS_COLLECTION,
+  ENTITIES_COLLECTION,
+  PROJECTION_REPAIRS_COLLECTION,
+  RECALL_DOCUMENTS_COLLECTION,
+  SCOPE_CATALOG_COLLECTION,
+} from "../recall/projections/contracts";
+import {
+  ARTIFACT_SPILL_COLLECTION,
+  ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+} from "../runtime/spillover";
+import type { ArtifactSpillPayloadRecord } from "../runtime/spillover";
+import type {
+  DocumentStore,
+  SessionStore,
+  StorageFilter,
+} from "../storage/contracts";
 import type {
   GovernanceRepositoryPort,
   GovernanceVectorPort,
@@ -30,6 +53,7 @@ import type {
 } from "./contracts";
 
 export type ScopeBoundRecord = {
+  id?: string;
   userId: string;
   tenantId?: string;
   workspaceId?: string;
@@ -79,6 +103,106 @@ export function isPureUserScope(scope: ForgetInput["scope"]): boolean {
   );
 }
 
+async function deleteDocuments(
+  store: DocumentStore,
+  collection: string,
+  documents: readonly { id: string }[],
+): Promise<void> {
+  for (const document of documents) {
+    await store.delete(collection, document.id);
+  }
+}
+
+function scopeFilter(scope: ForgetInput["scope"]): StorageFilter {
+  return { ...scope };
+}
+
+export async function deleteMemorySupportingState(
+  deps: Pick<MemoryAdminDeps, "documentStore">,
+  input: {
+    collection: string;
+    memoryId: string;
+    scope: ForgetInput["scope"];
+  },
+): Promise<void> {
+  const evidenceInScope = (
+    await deps.documentStore.query<EvidenceRecord>(
+      EVIDENCE_COLLECTION,
+      scopeFilter(input.scope),
+    )
+  ).filter((record) => recordMatchesScope(record, input.scope));
+  const affectedEvidence = evidenceInScope.filter(
+    (record) =>
+      (input.collection === EVIDENCE_COLLECTION && record.id === input.memoryId) ||
+      record.linkedMemoryIds.includes(input.memoryId),
+  );
+  const sourceRecordIds = new Set(
+    affectedEvidence.flatMap((record) => record.sourceRecordIds ?? []),
+  );
+  const legacySourceMessageIds = new Set(
+    affectedEvidence.flatMap((record) =>
+      (record.sourceRecordIds?.length ?? 0) === 0 ? record.sourceMessageIds : []
+    ),
+  );
+
+  for (const evidence of affectedEvidence) {
+    if (input.collection === EVIDENCE_COLLECTION && evidence.id === input.memoryId) {
+      continue;
+    }
+    const linkedMemoryIds = evidence.linkedMemoryIds.filter(
+      (memoryId) => memoryId !== input.memoryId,
+    );
+    if (
+      linkedMemoryIds.length === 0 && evidence.linkedArchiveIds.length === 0
+    ) {
+      await deps.documentStore.delete(EVIDENCE_COLLECTION, evidence.id);
+    } else {
+      await deps.documentStore.set(EVIDENCE_COLLECTION, evidence.id, {
+        ...evidence,
+        linkedMemoryIds,
+      });
+    }
+  }
+
+  if (sourceRecordIds.size > 0 || legacySourceMessageIds.size > 0) {
+    const remainingEvidence = (
+      await deps.documentStore.query<EvidenceRecord>(
+        EVIDENCE_COLLECTION,
+        scopeFilter(input.scope),
+      )
+    ).filter((record) =>
+      recordMatchesScope(record, input.scope) &&
+      !(input.collection === EVIDENCE_COLLECTION && record.id === input.memoryId)
+    );
+    const retainedSourceRecordIds = new Set(
+      remainingEvidence.flatMap((record) => record.sourceRecordIds ?? []),
+    );
+    const retainedLegacySourceMessageIds = new Set(
+      remainingEvidence.flatMap((record) =>
+        (record.sourceRecordIds?.length ?? 0) === 0 ? record.sourceMessageIds : []
+      ),
+    );
+    const rawMessages = (
+      await deps.documentStore.query<SourceMessageRecord>(
+        SOURCE_MESSAGES_COLLECTION,
+        scopeFilter(input.scope),
+      )
+    ).filter((record) => recordMatchesScope(record, input.scope));
+    await deleteDocuments(
+      deps.documentStore,
+      SOURCE_MESSAGES_COLLECTION,
+      rawMessages.filter((record) => {
+        const sourceId = record.sourceMessageId ?? record.id;
+        const affected = sourceRecordIds.has(record.id) ||
+          legacySourceMessageIds.has(sourceId);
+        const retained = retainedSourceRecordIds.has(record.id) ||
+          retainedLegacySourceMessageIds.has(sourceId);
+        return affected && !retained;
+      }),
+    );
+  }
+}
+
 export async function exportMemoryOperation(
   deps: MemoryAdminDeps,
   input: ExportMemoryInput,
@@ -101,6 +225,7 @@ export async function exportMemoryOperation(
       episodes,
       archives,
       evidence,
+      sourceMessages,
       experiences,
       proposals,
       promotions,
@@ -116,6 +241,10 @@ export async function exportMemoryOperation(
       deps.governanceRepositories.episodes.listByScope(input.scope),
       deps.governanceRepositories.archives.listByScope(input.scope),
       deps.governanceRepositories.evidence.listByScope(input.scope),
+      deps.documentStore.query<SourceMessageRecord>(
+        SOURCE_MESSAGES_COLLECTION,
+        scopeFilter(input.scope),
+      ),
       deps.governanceRepositories.experiences.listByScope(input.scope),
       deps.governanceRepositories.proposals.listByScope(input.scope),
       deps.governanceRepositories.promotions.listByScope(input.scope),
@@ -143,6 +272,9 @@ export async function exportMemoryOperation(
       episodes: episodes.filter((record) => recordMatchesScope(record, input.scope)),
       archives: archives.filter((record) => recordMatchesScope(record, input.scope)),
       evidence: evidence.filter((record) => recordMatchesScope(record, input.scope)),
+      sourceMessages: sourceMessages.filter((record) =>
+        recordMatchesScope(record, input.scope)
+      ),
       experiences: experiences.filter((record) => recordMatchesScope(record, input.scope)),
       proposals: proposals.filter((record) => recordMatchesScope(record, input.scope)),
       promotions: promotions.filter((record) => recordMatchesScope(record, input.scope)),
@@ -220,6 +352,7 @@ export async function deleteAllMemoryOperation(
       allEpisodes,
       allArchives,
       allEvidence,
+      allSourceMessages,
       allExperiences,
       allProposals,
       allPromotions,
@@ -232,6 +365,10 @@ export async function deleteAllMemoryOperation(
       deps.governanceRepositories.episodes.listByScope(input.scope),
       deps.governanceRepositories.archives.listByScope(input.scope),
       deps.governanceRepositories.evidence.listByScope(input.scope),
+      deps.documentStore.query<SourceMessageRecord>(
+        SOURCE_MESSAGES_COLLECTION,
+        scopeFilter(input.scope),
+      ),
       deps.governanceRepositories.experiences.listByScope(input.scope),
       deps.governanceRepositories.proposals.listByScope(input.scope),
       deps.governanceRepositories.promotions.listByScope(input.scope),
@@ -254,6 +391,9 @@ export async function deleteAllMemoryOperation(
       recordMatchesScope(record, input.scope),
     );
     const evidence = allEvidence.filter((record) =>
+      recordMatchesScope(record, input.scope),
+    );
+    const sourceMessages = allSourceMessages.filter((record) =>
       recordMatchesScope(record, input.scope),
     );
     const experiences = allExperiences.filter((record) =>
@@ -302,6 +442,11 @@ export async function deleteAllMemoryOperation(
       await deps.documentStore.delete(EVIDENCE_COLLECTION, evidenceRecord.id);
       deleted.evidence += 1;
     }
+    await deleteDocuments(
+      deps.documentStore,
+      SOURCE_MESSAGES_COLLECTION,
+      sourceMessages,
+    );
     for (const experience of experiences) {
       await deps.documentStore.delete(EXPERIENCES_COLLECTION, experience.id);
       deleted.experiences += 1;
@@ -315,11 +460,36 @@ export async function deleteAllMemoryOperation(
       deleted.promotions += 1;
     }
 
+    for (const collection of [
+      RECALL_DOCUMENTS_COLLECTION,
+      ENTITIES_COLLECTION,
+      SCOPE_CATALOG_COLLECTION,
+      PROJECTION_REPAIRS_COLLECTION,
+      CLAIM_PROJECTIONS_COLLECTION,
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+    ]) {
+      const records = await deps.documentStore.query<ScopeBoundRecord & { id: string }>(
+        collection,
+        scopeFilter(input.scope),
+      );
+      await deleteDocuments(
+        deps.documentStore,
+        collection,
+        records.filter((record) => recordMatchesScope(record, input.scope)),
+      );
+    }
+
     if (input.includeRuntime !== false) {
       const allSpills = await deps.documentStore.query<ArtifactSpillRecord>(
         ARTIFACT_SPILL_COLLECTION,
       );
+      const allSpillPayloads = await deps.documentStore.query<ArtifactSpillPayloadRecord>(
+        ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+      );
       const spills = allSpills.filter((record) =>
+        recordMatchesScope(record.scope, input.scope),
+      );
+      const spillPayloads = allSpillPayloads.filter((record) =>
         recordMatchesScope(record.scope, input.scope),
       );
 
@@ -331,6 +501,12 @@ export async function deleteAllMemoryOperation(
       for (const spill of spills) {
         await deps.documentStore.delete(ARTIFACT_SPILL_COLLECTION, spill.id);
         deleted.artifactSpills += 1;
+      }
+      for (const payload of spillPayloads) {
+        await deps.documentStore.delete(
+          ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+          payload.id,
+        );
       }
     }
 

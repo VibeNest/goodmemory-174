@@ -41,6 +41,18 @@ describe("splitQueryIntoSubQueries", () => {
     );
   });
 
+  it("splits Chinese multi-facet queries without relying on spaces", () => {
+    expect(
+      splitQueryIntoSubQueries("我用什么数据库以及后来换成了哪个编辑器？"),
+    ).toEqual(["我用什么数据库", "后来换成了哪个编辑器"]);
+  });
+
+  it("does not reinterpret a commercial partner term as a relationship facet", () => {
+    expect(splitQueryIntoSubQueries("Which partner API did Acme use?")).toEqual(
+      [],
+    );
+  });
+
   it("dedupes and caps to maxSubQueries", () => {
     const result = splitQueryIntoSubQueries(
       "alpha topic and beta topic and alpha topic and gamma topic and delta topic",

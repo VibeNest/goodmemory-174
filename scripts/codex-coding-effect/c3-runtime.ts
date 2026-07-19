@@ -275,6 +275,11 @@ export function buildC3EvaluatorSecurityContract(input: {
     "source-evaluator-root",
     input.evaluatorRoot,
   );
+  const sandboxDeniedReadPaths = [
+    input.authFile,
+    input.evaluatorRoot,
+    ...input.deniedPaths.map(({ path }) => path),
+  ];
   const armContract = (
     arm: "goodmemory-installed" | "no-memory",
     runtime: C3InstalledArmRuntime | C3NoMemoryArmRuntime,
@@ -307,6 +312,7 @@ export function buildC3EvaluatorSecurityContract(input: {
         evaluatorRoot,
       ),
       expectedConfigSha256: buildCodexEvaluatorSandboxConfigSha256({
+        deniedReadPaths: sandboxDeniedReadPaths,
         evaluationWorkspace: resolvedEvaluationWorkspace,
         evaluatorRoot,
         profileName: "c3-evaluator",
@@ -485,6 +491,7 @@ export async function prepareC3NoMemoryArm(input: {
   authFile: string;
   bunExecutable: string;
   codexExecutable: string;
+  permissionDeniedReadPaths?: readonly string[];
   plan: C3ArmPlan & { arm: "no-memory" };
   runProcess?: C3BoundaryRunner;
 }): Promise<C3NoMemoryArmRuntime> {
@@ -496,6 +503,7 @@ export async function prepareC3NoMemoryArm(input: {
   await installAuthFile(input.authFile, input.plan.paths.codexHome);
   const permissionProfile = await installC3PermissionProfile(
     input.plan.paths.codexHome,
+    input.permissionDeniedReadPaths,
   );
   const env = buildIsolatedEnvironment({
     bunExecutable,
@@ -540,6 +548,7 @@ export async function prepareC3InstalledArm(input: {
   codexExecutable: string;
   npmExecutable: string;
   packageTarball: string;
+  permissionDeniedReadPaths?: readonly string[];
   plan: C3ArmPlan & { arm: "goodmemory-installed" };
   runProcess?: C3BoundaryRunner;
 }): Promise<C3InstalledArmRuntime> {
@@ -686,6 +695,7 @@ export async function prepareC3InstalledArm(input: {
   }
   const permissionProfile = await installC3PermissionProfile(
     input.plan.paths.codexHome,
+    input.permissionDeniedReadPaths,
   );
   const codexVersion = (await runRequired(run, {
     args: ["--version"],
@@ -943,6 +953,7 @@ async function installAuthFile(
 
 async function installC3PermissionProfile(
   codexHome: string,
+  permissionDeniedReadPaths: readonly string[] = [],
 ): Promise<C3PermissionProfile> {
   const configPath = join(codexHome, "config.toml");
   const existing = await readOptionalText(configPath) ?? "";
@@ -952,6 +963,17 @@ async function installC3PermissionProfile(
   ) {
     throw new Error("isolated Codex config already defines a permission profile");
   }
+  if (
+    /^\s*sandbox_mode\s*=/mu.test(existing) ||
+    /^\s*\[sandbox_workspace_write(?:\.|\])/mu.test(existing)
+  ) {
+    throw new Error(
+      "isolated Codex config contains legacy sandbox settings that disable permission profiles",
+    );
+  }
+  const deniedPaths = [...new Set(
+    permissionDeniedReadPaths.map((path) => resolve(path)),
+  )].sort();
   const config = [
     `default_permissions = "${C3_PERMISSION_PROFILE_NAME}"`,
     'web_search = "disabled"',
@@ -961,6 +983,7 @@ async function installC3PermissionProfile(
     `[permissions.${C3_PERMISSION_PROFILE_NAME}.filesystem]`,
     '":root" = "deny"',
     '":minimal" = "read"',
+    ...deniedPaths.map((path) => `${JSON.stringify(path)} = "deny"`),
     "",
     `[permissions.${C3_PERMISSION_PROFILE_NAME}.filesystem.":workspace_roots"]`,
     '"." = "write"',

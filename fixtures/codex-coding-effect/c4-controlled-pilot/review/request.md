@@ -6,7 +6,7 @@ dataset root is `fixtures/codex-coding-effect/c4-controlled-pilot` and the readi
 `reports/quality-gates/phase-73/c4-controlled-pilot-core.json`. Do not inspect baseline results, C4
 paired A/B results, C5 results, or any other coding outcome artifact.
 
-Required input-bundle SHA-256: `7085659b4914399f99a0f55ce2c1ad19655ba1c03c542e7072d6408bf1074bf1`.
+Required input-bundle SHA-256: `f7430cd7cf2b66d08ed15513bbf3b108359d6f611bda48e236cd0d334bc7a823`.
 
 For every one of the six episodes, independently decide whether:
 
@@ -34,9 +34,9 @@ It must contain exactly these top-level fields:
 - `datasetId`, `assetLockSha256`, `assetRootSha256`, `manifestSha256`,
   `leakageAuditSha256`, and `readinessCoreSha256`: copy the exact values
   from the input bundle;
-- `inputBundleSha256`: `7085659b4914399f99a0f55ce2c1ad19655ba1c03c542e7072d6408bf1074bf1`;
+- `inputBundleSha256`: `f7430cd7cf2b66d08ed15513bbf3b108359d6f611bda48e236cd0d334bc7a823`;
 - `scope`: `dataset-only-no-coding-outcomes`;
-- `reviewerTaskName`: `/root/c4_final_independent_review_v3`;
+- `reviewerTaskName`: `/root/c4_final_independent_review_v5`;
 - `reviewer`: a non-empty reviewer label;
 - `reviewedAt`: the review completion timestamp;
 - `c4AbResultsInspected`: false;

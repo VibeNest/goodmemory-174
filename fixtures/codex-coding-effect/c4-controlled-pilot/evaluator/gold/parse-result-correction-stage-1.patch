@@ -1,12 +1,12 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..5caf78f2c48ac78ba0b21290cca5369cf9b244f2 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..740071c83ada6a05a230185725b41285ac3e9737 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -15,7 +15,11 @@ export const SETTING_ERROR_CODES = {
- } as const;
+@@ -7,7 +7,11 @@ export type { ParseResult } from "./parse-result";
+ export type { LogLevel, OutputFormat, TransportMode } from "./setting-types";
  
  export function parseModeSetting(input: string): ParseResult<TransportMode> {
--  return { ok: true, value: input as TransportMode };
+-  return acceptUnchecked(input as TransportMode);
 +  const normalized = input.replace(/^ +| +$/gu, "");
 +  if (normalized === "buffered" || normalized === "direct" || normalized === "relay") {
 +    return { ok: true, value: normalized };

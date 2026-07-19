@@ -1,7 +1,16 @@
 import { describe, expect, it } from "bun:test";
+import { Database } from "bun:sqlite";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createGoodMemory } from "../../src";
+import {
+  CLAIM_PROJECTIONS_COLLECTION,
+  CLAIM_PROJECTION_STATUS_COLLECTION,
+  PROJECTION_REPAIRS_COLLECTION,
+} from "../../src/recall/projections/contracts";
+import type { DocumentStore } from "../../src/storage/contracts";
+import { createInMemorySessionStore } from "../../src/storage/memory";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
@@ -80,6 +89,106 @@ describe("sqlite vector store read-only mode", () => {
         id: "vector-1",
       });
     } finally {
+      await rm(path, { force: true });
+    }
+  });
+});
+
+describe("sqlite document conditional batches", () => {
+  it("surfaces write contention instead of reporting a CAS mismatch", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-contention-${Date.now()}-${Math.random()}.db`,
+    );
+    let blocker: Database | undefined;
+    try {
+      const store = createSQLiteDocumentStore(path);
+      const expected = { id: "fact-1", content: "before" };
+      await store.set("facts", expected.id, expected);
+      blocker = new Database(path, { strict: true });
+      blocker.exec("BEGIN IMMEDIATE");
+
+      await expect(store.writeBatchIfUnchanged({
+        expected: {
+          collection: "facts",
+          document: expected,
+          id: expected.id,
+        },
+        set: [{
+          collection: "facts",
+          document: { ...expected, content: "after" },
+          id: expected.id,
+        }],
+      })).rejects.toThrow();
+      expect(await store.get("facts", expected.id)).toEqual(expected);
+    } finally {
+      try {
+        blocker?.exec("ROLLBACK");
+      } finally {
+        blocker?.close();
+      }
+      await rm(path, { force: true });
+    }
+  });
+
+  it("rejects remember and rolls back canonical data when busy blocks projection repair", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-projection-contention-${Date.now()}-${Math.random()}.db`,
+    );
+    let blocker: Database | undefined;
+    try {
+      const inner = createSQLiteDocumentStore(path);
+      const store: DocumentStore = {
+        set: async (collection, id, document) => {
+          await inner.set(collection, id, document);
+          if (collection === "facts" && !blocker) {
+            blocker = new Database(path, { strict: true });
+            blocker.exec("BEGIN IMMEDIATE");
+          }
+        },
+        get: (collection, id) => inner.get(collection, id),
+        update: (collection, id, patch) => inner.update(collection, id, patch),
+        query: (collection, filter) => inner.query(collection, filter),
+        delete: (collection, id) => inner.delete(collection, id),
+        writeBatchIfUnchanged: async (input) => {
+          try {
+            return await inner.writeBatchIfUnchanged(input);
+          } catch (error) {
+            blocker?.exec("ROLLBACK");
+            blocker?.close();
+            blocker = undefined;
+            throw error;
+          }
+        },
+      };
+      const memory = createGoodMemory({
+        adapters: {
+          documentStore: store,
+          sessionStore: createInMemorySessionStore(),
+        },
+        retrieval: { preset: "recommended" },
+        storage: { provider: "memory" },
+      });
+
+      await expect(memory.remember({
+        scope: { userId: "busy-user", sessionId: "busy-session" },
+        messages: [{
+          role: "user",
+          content: "Remember that Atlas status is blocked.",
+        }],
+      })).rejects.toThrow();
+
+      expect(await inner.query("facts")).toEqual([]);
+      expect(await inner.query(CLAIM_PROJECTIONS_COLLECTION)).toEqual([]);
+      expect(await inner.query(CLAIM_PROJECTION_STATUS_COLLECTION)).toEqual([]);
+      expect(await inner.query(PROJECTION_REPAIRS_COLLECTION)).toEqual([]);
+    } finally {
+      try {
+        blocker?.exec("ROLLBACK");
+      } finally {
+        blocker?.close();
+      }
       await rm(path, { force: true });
     }
   });

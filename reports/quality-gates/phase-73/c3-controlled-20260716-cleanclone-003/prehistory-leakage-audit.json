@@ -1,0 +1,13 @@
+{
+  "algorithmVersion": 1,
+  "audit": {
+    "declaredForbiddenSourceSha256": [
+      "441d5e34e82bf38c5db588286dd4d7c4f3af29bc76c0a7dab07ac45e64695df9",
+      "6892212618f03fe24a7db993073423ce3b917393b1a23ba30e209f7a068323a4",
+      "7e2cebc64a5878c7ca650ae344794560acfd1b47893c642cfa50cf8e4d442418"
+    ],
+    "overlaps": [],
+    "passed": true,
+    "sourceSha256": "83ef75c4c9a0bb0d706151797f40d3b0e0abb63edb8abaf1407629fba48032d0"
+  }
+}

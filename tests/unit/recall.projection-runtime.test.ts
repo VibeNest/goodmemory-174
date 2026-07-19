@@ -75,9 +75,7 @@ function createOneShotProjectionFailureStore(
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -106,9 +104,7 @@ function createCountedProjectionFailureStore(
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -138,9 +134,7 @@ function createContentTriggeredProjectionFailureStore(
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -159,9 +153,7 @@ function createPostCommitReadFailureStore(inner: DocumentStore): DocumentStore {
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -182,9 +174,7 @@ function createOneShotProjectionDeleteFailureStore(
       }
       await inner.delete(collection, id);
     },
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -231,9 +221,7 @@ function createDelayedOldProjectionStore(inner: DocumentStore): {
       update: (collection, id, patch) => inner.update(collection, id, patch),
       query: (collection, filter) => inner.query(collection, filter),
       delete: (collection, id) => inner.delete(collection, id),
-      writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-        ? (input) => inner.writeBatchIfUnchanged!(input)
-        : undefined,
+      writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
     },
     oldProjectionStarted,
     releaseOldProjection,
@@ -463,7 +451,7 @@ describe("recall projection runtime", () => {
     ).toEqual([]);
   });
 
-  it("keeps separate repair markers for consecutive failures on one source", async () => {
+  it("coalesces consecutive source failures into one current repair", async () => {
     const rawStore = createInMemoryDocumentStore();
     const runtime = createRecallProjectionRuntime({
       documentStore: createCountedProjectionFailureStore(rawStore, 2),
@@ -479,8 +467,8 @@ describe("recall projection runtime", () => {
     await runtime.documentStore.set("facts", first.id, first);
     await runtime.documentStore.set("facts", second.id, second);
 
-    expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION)).toHaveLength(2);
-    expect(await runtime.repairPending(scope)).toBe(2);
+    expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION)).toHaveLength(1);
+    expect(await runtime.repairPending(scope)).toBe(1);
     expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION)).toEqual([]);
   });
 
@@ -720,9 +708,7 @@ describe("recall projection runtime", () => {
         return rawStore.query(collection, filter);
       },
       delete: (collection, id) => rawStore.delete(collection, id),
-      writeBatchIfUnchanged: rawStore.writeBatchIfUnchanged
-        ? (input) => rawStore.writeBatchIfUnchanged!(input)
-        : undefined,
+      writeBatchIfUnchanged: (input) => rawStore.writeBatchIfUnchanged(input),
     };
     const runtime = createRecallProjectionRuntime({
       bulkBackfill: true,
@@ -855,9 +841,7 @@ describe("recall projection runtime", () => {
         return rawStore.query(collection, filter);
       },
       delete: (collection, id) => rawStore.delete(collection, id),
-      writeBatchIfUnchanged: rawStore.writeBatchIfUnchanged
-        ? (input) => rawStore.writeBatchIfUnchanged!(input)
-        : undefined,
+      writeBatchIfUnchanged: (input) => rawStore.writeBatchIfUnchanged(input),
     };
     const runtime = createRecallProjectionRuntime({
       documentStore: countingStore,

@@ -157,7 +157,7 @@ describe("runtime context service", () => {
     ]);
   });
 
-  it("keeps compaction on the core append path when pre-compact salvage fails", async () => {
+  it("enforces the buffer limit even when pre-compact salvage fails", async () => {
     const errors: unknown[][] = [];
     const originalConsoleError = console.error;
     console.error = (...args) => {
@@ -181,11 +181,47 @@ describe("runtime context service", () => {
       clock.advanceMs(1000);
       await service.appendToSession(scope, { role: "user", content: "m3" });
 
-      expect((await service.getRuntimeState(scope)).buffer.messages.map((message) => message.content))
-        .toEqual(["m2", "m3"]);
+      let buffer = (await service.getRuntimeState(scope)).buffer;
+      expect(buffer.messages.map((message) => message.content)).toEqual(["m2", "m3"]);
 
       expect(errors).toHaveLength(1);
       expect(String(errors[0]?.[0])).toContain("Runtime salvage hook failed");
+
+      clock.advanceMs(1000);
+      await service.appendToSession(scope, { role: "assistant", content: "m4" });
+
+      buffer = (await service.getRuntimeState(scope)).buffer;
+      expect(buffer.messages.map((message) => message.content)).toEqual(["m3", "m4"]);
+      expect(errors).toHaveLength(2);
+    } finally {
+      console.error = originalConsoleError;
+    }
+  });
+
+  it("does not reconstruct evicted raw messages in the session archive", async () => {
+    const { repositories, service } = createService(2, {
+      salvageHooks: {
+        async onPreCompact() {
+          throw new Error("salvage unavailable");
+        },
+      },
+    });
+    const scope = { userId: "u-archive", sessionId: "s-archive" };
+    const originalConsoleError = console.error;
+    console.error = () => undefined;
+    try {
+      await service.startSession(scope);
+      for (let index = 1; index <= 6; index += 1) {
+        await service.appendToSession(scope, {
+          role: index % 2 === 0 ? "assistant" : "user",
+          content: `m${index}`,
+        });
+      }
+      expect((await service.getRuntimeState(scope)).buffer.messages).toHaveLength(2);
+
+      await service.endSession(scope);
+      const archives = await repositories.archives.listByScope(scope);
+      expect(archives[0]?.normalizedTranscript).toBe("user: m5\nassistant: m6");
     } finally {
       console.error = originalConsoleError;
     }

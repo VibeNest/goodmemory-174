@@ -21,6 +21,21 @@ export interface DocumentQueryPage<
   nextCursor?: string;
 }
 
+export interface DocumentTextSearchInput {
+  field: string;
+  filter?: StorageFilter;
+  limit: number;
+  query: string;
+}
+
+export interface DocumentTextSearchResult<
+  TDocument extends StorageDocument = StorageDocument,
+> {
+  document: TDocument;
+  id: string;
+  score: number;
+}
+
 export interface DocumentWriteOperation<
   TDocument extends StorageDocument = StorageDocument,
 > {
@@ -30,8 +45,17 @@ export interface DocumentWriteOperation<
 }
 
 export interface ConditionalDocumentWriteBatch {
+  delete?: Array<{
+    collection: string;
+    id: string;
+  }>;
   expected: DocumentWriteOperation;
   set: DocumentWriteOperation[];
+  unchanged?: Array<{
+    collection: string;
+    document: StorageDocument | null;
+    id: string;
+  }>;
 }
 
 export interface DocumentStore {
@@ -57,8 +81,22 @@ export interface DocumentStore {
     collection: string,
     input: DocumentQueryPageInput,
   ): Promise<DocumentQueryPage<TDocument>>;
+  searchText?<TDocument extends StorageDocument>(
+    collection: string,
+    input: DocumentTextSearchInput,
+  ): Promise<DocumentTextSearchResult<TDocument>[]>;
   writeBatchIfUnchanged?(input: ConditionalDocumentWriteBatch): Promise<boolean>;
   delete(collection: string, id: string): Promise<void>;
+}
+
+export interface ProjectionCapableDocumentStore extends DocumentStore {
+  writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch): Promise<boolean>;
+}
+
+export function isProjectionCapableDocumentStore(
+  store: DocumentStore,
+): store is ProjectionCapableDocumentStore {
+  return typeof store.writeBatchIfUnchanged === "function";
 }
 
 export function assertDocumentQueryPageInput(
@@ -66,6 +104,17 @@ export function assertDocumentQueryPageInput(
 ): void {
   if (!Number.isSafeInteger(input.limit) || input.limit <= 0) {
     throw new Error("Document query page limit must be a positive integer.");
+  }
+}
+
+export function assertDocumentTextSearchInput(
+  input: DocumentTextSearchInput,
+): void {
+  if (input.field.trim().length === 0) {
+    throw new Error("Document text search field must be non-empty.");
+  }
+  if (!Number.isSafeInteger(input.limit) || input.limit <= 0) {
+    throw new Error("Document text search limit must be a positive integer.");
   }
 }
 

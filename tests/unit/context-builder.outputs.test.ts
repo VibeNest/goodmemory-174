@@ -2,11 +2,141 @@ import { describe, expect, it } from "bun:test";
 import { attachBehavioralPolicyAttributes } from "../../src/evolution/behavioralPolicy";
 import {
   buildMemoryPacket,
+  rebuildMemoryPacket,
   renderMemoryPacket,
 } from "../../src/recall/contextBuilder";
 import { planRecall } from "../../src/recall/router";
 
 describe("context builder output modes", () => {
+  it("enforces the packet maxRenderedTokens limit even for one oversized section", () => {
+    const packet = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [{
+        id: "fact-large",
+        userId: "u-1",
+        category: "project",
+        content: "x".repeat(30_000),
+        confidence: 1,
+        importance: 1,
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+        },
+        accessCount: 0,
+        lifecycle: "active",
+        isActive: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      maxRenderedTokens: 6_000,
+    });
+
+    const rendered = renderMemoryPacket(packet, "developer_prompt_fragment");
+
+    expect(rendered.estimatedTokens).toBeLessThanOrEqual(6_000);
+    expect(Buffer.byteLength(rendered.content, "utf8")).toBeLessThanOrEqual(6_000);
+    expect(rendered.content).not.toContain("x".repeat(30_000));
+    const json = renderMemoryPacket(packet, "json");
+    expect(json.estimatedTokens).toBeLessThanOrEqual(6_000);
+    expect(Buffer.byteLength(json.content, "utf8")).toBeLessThanOrEqual(6_000);
+    expect(() => JSON.parse(json.content)).not.toThrow();
+  });
+
+  it("preserves the hard render budget when a recall stage rebuilds the packet", () => {
+    const original = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      maxRenderedTokens: 6_000,
+    });
+    const rebuilt = rebuildMemoryPacket(original, {
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [{
+        id: "fact-large",
+        userId: "u-1",
+        category: "project",
+        content: "x".repeat(60_000),
+        confidence: 1,
+        importance: 1,
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+        },
+        accessCount: 0,
+        lifecycle: "active",
+        isActive: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+    });
+
+    expect(rebuilt.renderBudget).toEqual({ maxTokens: 6_000 });
+    const rendered = renderMemoryPacket(rebuilt, "developer_prompt_fragment");
+    expect(Buffer.byteLength(rendered.content, "utf8")).toBeLessThanOrEqual(6_000);
+  });
+
+  it("keeps per-call maxTokens in token units when a packet also has a hard cap", () => {
+    const packet = buildMemoryPacket({
+      profile: {
+        userId: "u-1",
+        identity: {
+          name: "Lin",
+          role: "release quality engineer coordinating vendor approval",
+        },
+        expertise: { primarySkills: [], domains: [] },
+        activeContext: {
+          goals: [],
+          currentProjects: ["release quality program"],
+        },
+        version: 1,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      maxRenderedTokens: 6_000,
+    });
+
+    const rendered = renderMemoryPacket(
+      packet,
+      "developer_prompt_fragment",
+      96,
+    );
+    expect(Buffer.byteLength(rendered.content, "utf8")).toBeGreaterThan(96);
+    expect(Buffer.byteLength(rendered.content, "utf8")).toBeLessThanOrEqual(384);
+    expect(rendered.content).toContain("release quality program");
+  });
+
   it("renders different non-json output modes differently", () => {
     const packet = buildMemoryPacket({
       profile: {

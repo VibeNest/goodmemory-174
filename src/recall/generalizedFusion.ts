@@ -4,12 +4,19 @@ import {
   isRecallProjectionSourceCollection,
 } from "./projections/contracts";
 import type {
+  ClaimProjection,
   EntityProjection,
   RecallIndexDocument,
   RecallProjectionSourceCollection,
 } from "./projections/contracts";
+import type { RecallPlan } from "./recallPlan";
 
-export type GeneralizedFusionChannel = "lexical" | "dense" | "entity";
+export type GeneralizedFusionChannel =
+  | "lexical"
+  | "dense"
+  | "entity"
+  | "temporal"
+  | "relation";
 export type GeneralizedFusionSourceCollection =
   | "facts"
   | "references"
@@ -46,13 +53,16 @@ export interface GeneralizedFusionResult {
 }
 
 export interface GeneralizedFusionInput {
+  claims?: readonly ClaimProjection[];
   query: string;
   documents: readonly RecallIndexDocument[];
+  documentSetComplete?: boolean;
   entities: readonly EntityProjection[];
   denseCandidates?: readonly DenseFusionCandidate[];
   maxCandidates?: number;
   maxEntityMemoryFrequency?: number;
   minRelativeStrength?: number;
+  plan?: RecallPlan;
   referenceTime?: string;
   rrfK?: number;
   tokenize?: (text: string) => string[];
@@ -127,6 +137,11 @@ function isDocumentTemporallyVisible(
 
 function hasTemporalConstraint(referenceTime: string | undefined): boolean {
   return referenceTime !== undefined && Number.isFinite(Date.parse(referenceTime));
+}
+
+function enforceDocumentVisibility(input: GeneralizedFusionInput): boolean {
+  return input.documentSetComplete !== false &&
+    hasTemporalConstraint(input.referenceTime);
 }
 
 function buildVisibleSourceKeys(input: GeneralizedFusionInput): Set<string> {
@@ -222,7 +237,7 @@ function buildDenseChannel(
       continue;
     }
     const key = sourceKey(candidate);
-    if (hasTemporalConstraint(input.referenceTime) && !visibleSourceKeys.has(key)) {
+    if (enforceDocumentVisibility(input) && !visibleSourceKeys.has(key)) {
       continue;
     }
     const existing = grouped.get(key);
@@ -273,10 +288,10 @@ function buildEntityChannel(
 ): RankedChannelCandidate[] {
   const normalizedQuery = normalizeEntityValue(input.query);
   const queryEntityKeys = extractEntityKeys(input.query);
-  const temporalConstraint = hasTemporalConstraint(input.referenceTime);
+  const temporalConstraint = enforceDocumentVisibility(input);
   const sourceMemoryCount = temporalConstraint
     ? visibleSourceKeys.size
-    : new Set(input.documents.map(sourceKey)).size;
+    : new Set(input.entities.flatMap(({ memoryIds }) => memoryIds)).size;
   const maxEntityMemoryFrequency = Math.max(
     1,
     Math.floor(
@@ -345,6 +360,270 @@ function buildEntityChannel(
   );
 }
 
+function claimText(claim: ClaimProjection): string {
+  return [
+    claim.predicateKey.replace(/[._:-]+/gu, " "),
+    claim.objectText,
+    claim.contextualDescriptor ?? "",
+  ].join(" ");
+}
+
+function buildClaimRelevance(
+  input: GeneralizedFusionInput,
+): Map<string, number> {
+  const claims = input.claims ?? [];
+  return computeBm25Scores(
+    input.query,
+    claims.map((claim) => ({ id: claim.id, text: claimText(claim) })),
+    input.tokenize ? { tokenize: input.tokenize } : undefined,
+  );
+}
+
+function matchedQueryEntityIds(input: GeneralizedFusionInput): Set<string> {
+  const normalizedQuery = normalizeEntityValue(input.query);
+  const queryEntityKeys = extractEntityKeys(input.query);
+  return new Set(
+    input.entities
+      .filter(
+        (entity) =>
+          queryEntityKeys.has(entity.canonicalKey) ||
+          queryContainsAlias(normalizedQuery, entity.canonicalKey) ||
+          entity.aliases.some((alias) =>
+            queryContainsAlias(normalizedQuery, alias),
+          ),
+      )
+      .map((entity) => entity.id),
+  );
+}
+
+function claimTime(claim: ClaimProjection): number {
+  for (const value of [claim.validFrom, claim.observedAt, claim.ingestedAt]) {
+    if (!value) {
+      continue;
+    }
+    const timestamp = Date.parse(value);
+    if (Number.isFinite(timestamp)) {
+      return timestamp;
+    }
+  }
+  return 0;
+}
+
+function isClaimCurrent(
+  claim: ClaimProjection,
+  referenceTime: string | undefined,
+): boolean {
+  const reference = referenceTime ? Date.parse(referenceTime) : Number.NaN;
+  if (!Number.isFinite(reference)) {
+    return !claim.validUntil;
+  }
+  const validFrom = claim.validFrom ? Date.parse(claim.validFrom) : Number.NaN;
+  if (Number.isFinite(validFrom) && validFrom > reference) {
+    return false;
+  }
+  const validUntil = claim.validUntil
+    ? Date.parse(claim.validUntil)
+    : Number.NaN;
+  return !Number.isFinite(validUntil) || validUntil > reference;
+}
+
+function groupClaimsBySubjectPredicate(
+  claims: readonly ClaimProjection[],
+): Map<string, ClaimProjection[]> {
+  const grouped = new Map<string, ClaimProjection[]>();
+  for (const claim of claims) {
+    const key = `${claim.scopeKey}\u0000${claim.subjectEntityId}\u0000${claim.predicateKey}`;
+    const group = grouped.get(key) ?? [];
+    group.push(claim);
+    grouped.set(key, group);
+  }
+  return grouped;
+}
+
+function selectTemporalClaims(input: {
+  claims: readonly ClaimProjection[];
+  plan: RecallPlan;
+  referenceTime: string | undefined;
+}): ClaimProjection[] {
+  const selected: ClaimProjection[] = [];
+  const groups = groupClaimsBySubjectPredicate(input.claims);
+  const historyRequested =
+    input.plan.aggregation === "history" ||
+    input.plan.temporalConstraints.some(({ kind }) => kind === "history");
+  const changeRequested = input.plan.aggregation === "change";
+  const countRequested = input.plan.aggregation === "count";
+  const boundaries = input.plan.temporalConstraints.filter(
+    ({ kind }) => kind === "before" || kind === "after",
+  );
+
+  for (const group of groups.values()) {
+    const ordered = [...group].sort(
+      (left, right) =>
+        claimTime(left) - claimTime(right) || left.id.localeCompare(right.id),
+    );
+    const bounded = ordered.filter((claim) => boundaries.every((constraint) => {
+      const boundary = Date.parse(constraint.referenceTime);
+      if (!Number.isFinite(boundary)) {
+        return true;
+      }
+      return constraint.kind === "before"
+        ? claimTime(claim) < boundary
+        : claimTime(claim) >= boundary;
+    }));
+    if (changeRequested) {
+      const distinctValues = new Set(
+        bounded.map(
+          (claim) =>
+            `${claim.polarity}\u0000${claim.modality}\u0000${claim.objectText}`,
+        ),
+      );
+      if (distinctValues.size > 1) {
+        selected.push(...bounded);
+      }
+      continue;
+    }
+    if (historyRequested) {
+      selected.push(...bounded);
+      continue;
+    }
+
+    if (boundaries.length > 0) {
+      if (countRequested) {
+        selected.push(...bounded);
+      } else {
+        const latest = bounded.at(-1);
+        if (latest) {
+          selected.push(latest);
+        }
+      }
+      continue;
+    }
+
+    const current = bounded.filter((claim) =>
+      isClaimCurrent(claim, input.referenceTime),
+    );
+    if (countRequested) {
+      selected.push(...current);
+      continue;
+    }
+    const latest = current.at(-1);
+    if (latest) {
+      selected.push(latest);
+    }
+  }
+  const sourcesWithStructuredClaims = new Set(
+    selected
+      .filter(({ extractorVersion }) => extractorVersion !== "deterministic-fact-v1")
+      .map(({ sourceMemoryId }) => sourceMemoryId),
+  );
+  return selected.filter(
+    (claim) =>
+      claim.extractorVersion !== "deterministic-fact-v1" ||
+      !sourcesWithStructuredClaims.has(claim.sourceMemoryId),
+  );
+}
+
+function filterChannelsToTemporalClaimBoundary(
+  input: GeneralizedFusionInput,
+  channels: Array<{
+    name: GeneralizedFusionChannel;
+    candidates: RankedChannelCandidate[];
+  }>,
+): void {
+  const bounded = input.plan?.temporalConstraints.some(
+    ({ kind }) => kind === "before" || kind === "after",
+  );
+  if (!bounded || !input.plan || !input.claims) {
+    return;
+  }
+  const claimSourceIds = new Set(input.claims.map(({ sourceMemoryId }) => sourceMemoryId));
+  const selectedSourceIds = new Set(selectTemporalClaims({
+    claims: input.claims,
+    plan: input.plan,
+    referenceTime: input.referenceTime,
+  }).map(({ sourceMemoryId }) => sourceMemoryId));
+  for (const channel of channels) {
+    channel.candidates = channel.candidates.filter((candidate) =>
+      candidate.sourceCollection !== "facts" ||
+      !claimSourceIds.has(candidate.sourceMemoryId) ||
+      selectedSourceIds.has(candidate.sourceMemoryId)
+    );
+  }
+}
+
+function buildTemporalChannel(
+  input: GeneralizedFusionInput,
+  relevance: ReadonlyMap<string, number>,
+): RankedChannelCandidate[] {
+  if (
+    !input.plan ||
+    !input.claims ||
+    (!input.plan.evidenceNeeds.includes("temporal") &&
+      input.plan.temporalConstraints.length === 0 &&
+      input.plan.aggregation === undefined)
+  ) {
+    return [];
+  }
+  const claims = selectTemporalClaims({
+    claims: input.claims,
+    plan: input.plan,
+    referenceTime: input.referenceTime,
+  });
+  const bySource = new Map<string, RawChannelCandidate>();
+  for (const claim of claims) {
+    const rawScore = relevance.get(claim.id) ?? 0;
+    const existing = bySource.get(claim.sourceMemoryId);
+    if (existing) {
+      existing.evidenceDocumentIds.push(claim.id);
+      existing.rawScore = Math.max(existing.rawScore, rawScore);
+    } else {
+      bySource.set(claim.sourceMemoryId, {
+        evidenceDocumentIds: [claim.id],
+        rawScore,
+        sourceCollection: "facts",
+        sourceMemoryId: claim.sourceMemoryId,
+      });
+    }
+  }
+  return rankChannel([...bySource.values()]);
+}
+
+function buildRelationChannel(
+  input: GeneralizedFusionInput,
+  relevance: ReadonlyMap<string, number>,
+): RankedChannelCandidate[] {
+  if (
+    !input.plan?.evidenceNeeds.includes("relation") ||
+    !input.claims
+  ) {
+    return [];
+  }
+  const matchedEntityIds = matchedQueryEntityIds(input);
+  return rankChannel(
+    input.claims
+      .filter((claim) => isClaimCurrent(claim, input.referenceTime))
+      .map((claim) => {
+        const endpointMatches = Number(matchedEntityIds.has(claim.subjectEntityId)) +
+          Number(
+            claim.objectEntityId !== undefined &&
+              matchedEntityIds.has(claim.objectEntityId),
+          );
+        const lexicalRelevance = relevance.get(claim.id) ?? 0;
+        return {
+          evidenceDocumentIds: [claim.id],
+          rawScore:
+            lexicalRelevance > 0 &&
+            (matchedEntityIds.size === 0 || endpointMatches > 0)
+              ? lexicalRelevance + endpointMatches
+              : 0,
+          sourceCollection: "facts" as const,
+          sourceMemoryId: claim.sourceMemoryId,
+        };
+      })
+      .filter(({ rawScore }) => rawScore > 0),
+  );
+}
+
 function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -405,6 +684,7 @@ export function fuseGeneralizedRecallCandidates(
 ): GeneralizedFusionResult {
   const rrfK = Math.max(1, input.rrfK ?? DEFAULT_GENERALIZED_FUSION_RRF_K);
   const visibleSourceKeys = buildVisibleSourceKeys(input);
+  const claimRelevance = buildClaimRelevance(input);
   const channels: Array<{
     name: GeneralizedFusionChannel;
     candidates: RankedChannelCandidate[];
@@ -412,7 +692,10 @@ export function fuseGeneralizedRecallCandidates(
     { name: "lexical", candidates: buildLexicalChannel(input) },
     { name: "dense", candidates: buildDenseChannel(input, visibleSourceKeys) },
     { name: "entity", candidates: buildEntityChannel(input, visibleSourceKeys) },
+    { name: "temporal", candidates: buildTemporalChannel(input, claimRelevance) },
+    { name: "relation", candidates: buildRelationChannel(input, claimRelevance) },
   ];
+  filterChannelsToTemporalClaimBoundary(input, channels);
   const fused = new Map<string, GeneralizedFusionCandidate>();
   for (const channel of channels) {
     for (const candidate of channel.candidates) {

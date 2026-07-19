@@ -5061,7 +5061,7 @@ describe("release metadata and docs", () => {
 
   it("keeps only the canonical C3 projection bundle trackable", async () => {
     const root =
-      "reports/quality-gates/phase-73/c3-controlled-20260716-cleanclone-001";
+      "reports/quality-gates/phase-73/c3-controlled-20260716-cleanclone-003";
     const projectedFiles = [
       "audit-evidence.sanitized.json",
       "base-health.json",

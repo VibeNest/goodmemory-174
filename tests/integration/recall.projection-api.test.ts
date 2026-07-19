@@ -34,9 +34,7 @@ function createOneShotProjectionFailureStore(inner: DocumentStore): DocumentStor
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 
@@ -56,9 +54,7 @@ function createOneShotProjectionDeleteFailureStore(
       }
       await inner.delete(collection, id);
     },
-    writeBatchIfUnchanged: inner.writeBatchIfUnchanged
-      ? (input) => inner.writeBatchIfUnchanged!(input)
-      : undefined,
+    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
   };
 }
 

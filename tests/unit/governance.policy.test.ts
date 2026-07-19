@@ -1,14 +1,26 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
 import {
+  EVIDENCE_COLLECTION,
+  SOURCE_MESSAGES_COLLECTION,
+} from "../../src/evidence/contracts";
+import type {
+  EvidenceRecord,
+  SourceMessageRecord,
+} from "../../src/evidence/contracts";
+import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
 } from "../../src/storage/memory";
 
 describe("governance policy hooks", () => {
   it("blocks writes with shouldRemember and redacts candidate content before persist", async () => {
+    const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
-      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
       policy: {
         shouldRemember(candidate) {
           return candidate.kindHint !== "preference";
@@ -47,6 +59,18 @@ describe("governance policy hooks", () => {
     expect(result.events.some((event) => event.reason === "policy_blocked")).toBe(true);
     expect(recall.preferences).toHaveLength(0);
     expect(recall.facts[0]?.content).toContain("[REDACTED]");
+    const evidence = await documentStore.query<EvidenceRecord>(
+      EVIDENCE_COLLECTION,
+      { userId: "u-1", workspaceId: "workspace-a" },
+    );
+    const sourceMessages = await documentStore.query<SourceMessageRecord>(
+      SOURCE_MESSAGES_COLLECTION,
+      { userId: "u-1", workspaceId: "workspace-a" },
+    );
+    expect(evidence[0]?.excerpt).toContain("[REDACTED]");
+    expect(evidence[0]?.excerpt).not.toContain("prod");
+    expect(sourceMessages[0]?.content).toContain("[REDACTED]");
+    expect(sourceMessages[0]?.content).not.toContain("prod");
   });
 
   it("does not synthesize an episode when governance blocks every candidate", async () => {

@@ -1,0 +1,538 @@
+{
+  "armOrder": [
+    "no-memory",
+    "goodmemory-installed"
+  ],
+  "arms": {
+    "goodmemoryInstalled": {
+      "normalizedArgv": [
+        "--enable",
+        "hooks",
+        "--dangerously-bypass-hook-trust",
+        "--disable",
+        "memories",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "--strict-config",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=\"xhigh\"",
+        "--cd",
+        "<workspace>",
+        "<prompt>"
+      ],
+      "normalizedArgvSha256": "2d9f5642c0c36cdc716683ecc2e708aed346d488ec194d27b7c4873ff67d68e4",
+      "package": {
+        "sha256": "4526fc05ee1fadf05ff80e555827af67477724bf5e0d4cd3613452b899a647c3",
+        "version": "goodmemory 0.5.1"
+      },
+      "paths": {
+        "armRoot": "<host-path-040>",
+        "cache": "<host-path-028>",
+        "codexHome": "<host-path-021>",
+        "home": "<host-path-031>",
+        "packagePrefix": "<host-path-026>",
+        "result": "<host-path-005>",
+        "temp": "<host-path-033>",
+        "workspace": "<host-path-042>"
+      },
+      "permissionIsolation": {
+        "audit": {
+          "configSha256": "9a7c38f976706eae565e675e4cabd1a07b4153267ad51b30567b87479c51a645",
+          "deniedReads": [
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "codex-auth-source",
+              "path": "<host-path-058>",
+              "pathSha256": "ceae8ea1156fbe2296878fbef966d25efa5dec998b99ee47b9816f65fe72a5e0"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "controlled-evaluator-source",
+              "path": "<host-path-009>",
+              "pathSha256": "aea0c266e0bb4126388c523f6e03ff84c0296f389dba66c45457b8fe5987bfb6"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "current-runtime-auth",
+              "path": "<host-path-014>",
+              "pathSha256": "48569691ef9f9cbf007be33111d4b40e45ae9dcd19c502160ad8fb817be243a3"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "current-runtime-config",
+              "path": "<host-path-012>",
+              "pathSha256": "0c5d432a9959dbaa9a5d85fec931c851021050173350300b17f6dcd8f1207fb1"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "goodmemory-source-package",
+              "path": "<host-path-043>",
+              "pathSha256": "d502c33d30250706b5afd1670ca45810a11cad132d59ab80bbe920503a2fc70c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-runtime-auth",
+              "path": "<host-path-013>",
+              "pathSha256": "ab6bb422045a16890a3897cd51f8875894a1c16714129c5cbcda5f6d2c02ef8c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-runtime-config",
+              "path": "<host-path-011>",
+              "pathSha256": "7e3d955e6007ae78b87500338895cbca80bec3e2f8adab597149c4092078812c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-workspace",
+              "path": "<host-path-023>",
+              "pathSha256": "aeeab643a8782da8eda7c8d3e7329e26e77b1760ca7e72a72dce00fa891bdf72"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "output-root",
+              "path": "<host-path-004>",
+              "pathSha256": "8e0498bdab593f0a9fbef2ae9164ea44c76bb3d3056139528759b5b4dd4fb5bf"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "package-tarball",
+              "path": "<host-path-045>",
+              "pathSha256": "8fae3d7527365401d839be682676870c7a129f8a7e7dd332557f2af70b9d726d"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "runner-source",
+              "path": "<host-path-016>",
+              "pathSha256": "15f4f91d5f16ac3996bcd0d1b5e2eb25430f2f79106a1f03af0d16ebbb06893c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "source-repository",
+              "path": "<host-path-046>",
+              "pathSha256": "58bb4a82a94be970d7cabf806415f90feb97374879712fa9ca3d4194513f265d"
+            }
+          ],
+          "networkAccess": false,
+          "networkDenied": true,
+          "networkPositiveControl": true,
+          "passed": true,
+          "phase": "preflight",
+          "profileName": "c3-task",
+          "reasons": [],
+          "schemaVersion": 1,
+          "workspaceRead": true,
+          "workspaceWrite": true
+        },
+        "evidenceSha256": "e53a518766b7b8cf78ba96f27bc555d598d2c5ac3c45c74d5514d896693f038c"
+      },
+      "permissionProfile": {
+        "configSha256": "9a7c38f976706eae565e675e4cabd1a07b4153267ad51b30567b87479c51a645",
+        "filesystemDefault": "deny",
+        "minimalRead": true,
+        "name": "c3-task",
+        "networkAccess": false,
+        "workspaceWrite": true
+      },
+      "profile": {
+        "activationMode": "global",
+        "hookRegistered": true,
+        "mcpRegistered": true,
+        "persistRawTranscript": false,
+        "retrievalProfile": "coding_agent",
+        "workspaceStatus": "ok",
+        "writebackMode": "selective"
+      },
+      "scopes": {
+        "sessionId": "c3-session-b66c81ba289069b8",
+        "userId": "c3-user-b66c81ba289069b8",
+        "workspaceId": "task-b66c81ba289069b8"
+      }
+    },
+    "noMemory": {
+      "absenceAudit": {
+        "codexHomeEntryNames": [
+          "auth.json",
+          "config.toml"
+        ],
+        "goodMemoryFileCount": 0,
+        "hookConfigPresent": false,
+        "mcpConfigPresent": false,
+        "passed": true,
+        "preexistingSessionCount": 0,
+        "reasons": []
+      },
+      "normalizedArgv": [
+        "--disable",
+        "hooks",
+        "--disable",
+        "memories",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "--strict-config",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=\"xhigh\"",
+        "--cd",
+        "<workspace>",
+        "<prompt>"
+      ],
+      "normalizedArgvSha256": "c43f2231725ae7c450d041bd650748e9e0b7990102afce1bcbd3d2d735731d6a",
+      "paths": {
+        "armRoot": "<host-path-039>",
+        "cache": "<host-path-027>",
+        "codexHome": "<host-path-020>",
+        "home": "<host-path-030>",
+        "result": "<host-path-010>",
+        "temp": "<host-path-032>",
+        "workspace": "<host-path-041>"
+      },
+      "permissionIsolation": {
+        "audit": {
+          "configSha256": "966dbac5e2e1e95d7ff54f1c15747de993e71aadb4803c26f2556206d4398ae4",
+          "deniedReads": [
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "codex-auth-source",
+              "path": "<host-path-058>",
+              "pathSha256": "ceae8ea1156fbe2296878fbef966d25efa5dec998b99ee47b9816f65fe72a5e0"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "controlled-evaluator-source",
+              "path": "<host-path-009>",
+              "pathSha256": "aea0c266e0bb4126388c523f6e03ff84c0296f389dba66c45457b8fe5987bfb6"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "current-runtime-auth",
+              "path": "<host-path-013>",
+              "pathSha256": "ab6bb422045a16890a3897cd51f8875894a1c16714129c5cbcda5f6d2c02ef8c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "current-runtime-config",
+              "path": "<host-path-011>",
+              "pathSha256": "7e3d955e6007ae78b87500338895cbca80bec3e2f8adab597149c4092078812c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "goodmemory-source-package",
+              "path": "<host-path-043>",
+              "pathSha256": "d502c33d30250706b5afd1670ca45810a11cad132d59ab80bbe920503a2fc70c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-runtime-auth",
+              "path": "<host-path-014>",
+              "pathSha256": "48569691ef9f9cbf007be33111d4b40e45ae9dcd19c502160ad8fb817be243a3"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-runtime-config",
+              "path": "<host-path-012>",
+              "pathSha256": "0c5d432a9959dbaa9a5d85fec931c851021050173350300b17f6dcd8f1207fb1"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "other-arm-workspace",
+              "path": "<host-path-024>",
+              "pathSha256": "af8c5566b90ad94c97391ab426fa35296b88431a4eaa0c18a24dc4a6e72f8a5a"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "output-root",
+              "path": "<host-path-004>",
+              "pathSha256": "8e0498bdab593f0a9fbef2ae9164ea44c76bb3d3056139528759b5b4dd4fb5bf"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "package-tarball",
+              "path": "<host-path-045>",
+              "pathSha256": "8fae3d7527365401d839be682676870c7a129f8a7e7dd332557f2af70b9d726d"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "runner-source",
+              "path": "<host-path-016>",
+              "pathSha256": "15f4f91d5f16ac3996bcd0d1b5e2eb25430f2f79106a1f03af0d16ebbb06893c"
+            },
+            {
+              "denied": true,
+              "exitCode": 1,
+              "label": "source-repository",
+              "path": "<host-path-046>",
+              "pathSha256": "58bb4a82a94be970d7cabf806415f90feb97374879712fa9ca3d4194513f265d"
+            }
+          ],
+          "networkAccess": false,
+          "networkDenied": true,
+          "networkPositiveControl": true,
+          "passed": true,
+          "phase": "preflight",
+          "profileName": "c3-task",
+          "reasons": [],
+          "schemaVersion": 1,
+          "workspaceRead": true,
+          "workspaceWrite": true
+        },
+        "evidenceSha256": "8056faf31d523efa47d561c9523939afc26885e3dd3be9a6064429b28ad843ee"
+      },
+      "permissionProfile": {
+        "configSha256": "966dbac5e2e1e95d7ff54f1c15747de993e71aadb4803c26f2556206d4398ae4",
+        "filesystemDefault": "deny",
+        "minimalRead": true,
+        "name": "c3-task",
+        "networkAccess": false,
+        "workspaceWrite": true
+      },
+      "scopes": {
+        "sessionId": "c3-session-263451837302ef9c",
+        "userId": "c3-user-263451837302ef9c",
+        "workspaceId": "task-263451837302ef9c"
+      }
+    }
+  },
+  "authSha256": "3586e0bf022d8d1dcc542f8558da99cb849d6f8d1ae238bf6b28881d4823c7f2",
+  "baseHealthSha256": "dc2e4d1190afb48499e25da60e08c371b479ade7b1cc2c71766d285783815824",
+  "codex": {
+    "executableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+    "model": "gpt-5.6-sol",
+    "permissionProfile": "c3-task",
+    "reasoningEffort": "xhigh",
+    "version": "codex-cli 0.144.5"
+  },
+  "episodeId": "controlled-transport-mode",
+  "evaluator": {
+    "failToPassCommand": [
+      "<host-path-059>",
+      "{evaluatorRoot}/fail-to-pass.test.ts"
+    ],
+    "files": [
+      {
+        "relativePath": "fail-to-pass.test.ts",
+        "sha256": "6892212618f03fe24a7db993073423ce3b917393b1a23ba30e209f7a068323a4"
+      },
+      {
+        "relativePath": "pass-to-pass.test.ts",
+        "sha256": "7e2cebc64a5878c7ca650ae344794560acfd1b47893c642cfa50cf8e4d442418"
+      }
+    ],
+    "materialization": "after-both-codex-processes",
+    "passToPassCommand": [
+      "<host-path-059>",
+      "{evaluatorRoot}/pass-to-pass.test.ts"
+    ],
+    "security": {
+      "arms": {
+        "goodmemoryInstalled": {
+          "copiedAuth": {
+            "label": "goodmemory-installed-copied-auth",
+            "path": "<host-path-014>",
+            "pathSha256": "48569691ef9f9cbf007be33111d4b40e45ae9dcd19c502160ad8fb817be243a3"
+          },
+          "evaluationWorkspace": {
+            "label": "goodmemory-installed-evaluation-workspace",
+            "path": "<host-path-007>",
+            "pathSha256": "956a16f3f108c61217125a0117a4d912f63e9a59ce6d2376f348ffb0f026de25"
+          },
+          "evaluatorRoot": {
+            "label": "goodmemory-installed-evaluator-root",
+            "path": "<host-path-006>",
+            "pathSha256": "464b05b55d9b881ea1d32a68b21e6cdc55af535061bbc041807b23ef1de05e34"
+          },
+          "expectedConfigSha256": "19879ddebb9b25cae1f07c0976018383b414f05eb334b0cae79dc626da47c04f",
+          "sandboxRoot": {
+            "label": "goodmemory-installed-sandbox-root",
+            "path": "<host-path-017>",
+            "pathSha256": "37c0db32d8865820f4249df13d0aefad2917c7cc28f639bf10d9c4f08cbcc306"
+          }
+        },
+        "noMemory": {
+          "copiedAuth": {
+            "label": "no-memory-copied-auth",
+            "path": "<host-path-013>",
+            "pathSha256": "ab6bb422045a16890a3897cd51f8875894a1c16714129c5cbcda5f6d2c02ef8c"
+          },
+          "evaluationWorkspace": {
+            "label": "no-memory-evaluation-workspace",
+            "path": "<host-path-019>",
+            "pathSha256": "0998813e8ef7e073bcf049f042e1892e9b75d91f28f01e9d908eb62e18d77b2a"
+          },
+          "evaluatorRoot": {
+            "label": "no-memory-evaluator-root",
+            "path": "<host-path-018>",
+            "pathSha256": "580c9c53beb7ccbb6e30a356d81bfcbc592458a33860a9e9dc7e04ebe4b85ca6"
+          },
+          "expectedConfigSha256": "19879ddebb9b25cae1f07c0976018383b414f05eb334b0cae79dc626da47c04f",
+          "sandboxRoot": {
+            "label": "no-memory-sandbox-root",
+            "path": "<host-path-029>",
+            "pathSha256": "dede7dbc9a8df56d57b3521ed148a5b1ab6a3c54dc9c5b5f6a10258e95d2fa54"
+          }
+        }
+      },
+      "credentialRemoval": "after-both-codex-before-evaluator-materialization",
+      "deniedPaths": [
+        {
+          "label": "codex-auth-source",
+          "path": "<host-path-058>",
+          "pathSha256": "ceae8ea1156fbe2296878fbef966d25efa5dec998b99ee47b9816f65fe72a5e0"
+        },
+        {
+          "label": "goodmemory-installed-runtime",
+          "path": "<host-path-040>",
+          "pathSha256": "64a9c75b0fa1854fe699c09979729f59eb02dac275506439f9ff4e4f0225b869"
+        },
+        {
+          "label": "goodmemory-source",
+          "path": "<host-path-043>",
+          "pathSha256": "d502c33d30250706b5afd1670ca45810a11cad132d59ab80bbe920503a2fc70c"
+        },
+        {
+          "label": "no-memory-runtime",
+          "path": "<host-path-039>",
+          "pathSha256": "4a65381bf4d23c2f864ffc52d853555b9ec6a5769c6160efcca4738f097e8158"
+        },
+        {
+          "label": "output-root",
+          "path": "<host-path-025>",
+          "pathSha256": "087e0b3713c2fadd167fe1442c8bdbaf0a2b189dff7e42ae2bd43d59f4abd45a"
+        },
+        {
+          "label": "package-tarball",
+          "path": "<host-path-045>",
+          "pathSha256": "8fae3d7527365401d839be682676870c7a129f8a7e7dd332557f2af70b9d726d"
+        },
+        {
+          "label": "raw-prehistory",
+          "path": "<host-path-003>",
+          "pathSha256": "c813fa9cff07369156f7b1533c5d7f2edff22174692f9f8f6c4828bfe682882e"
+        },
+        {
+          "label": "runner-source",
+          "path": "<host-path-034>",
+          "pathSha256": "63861c65c73c756aeceb38ad1aeb053ea18578ff61862b14833200ee239581ea"
+        },
+        {
+          "label": "source-repository",
+          "path": "<host-path-052>",
+          "pathSha256": "ae95fce31fe0c12a86f0d35ef3a9842355d5c93458cfc1cc418d33c77f971a6b"
+        }
+      ],
+      "evidencePath": "evaluator-security.sanitized.json",
+      "profileName": "c3-evaluator",
+      "requirements": {
+        "configWriteDenied": true,
+        "copiedAuthRemovedBeforeEvaluator": true,
+        "evaluatorRead": true,
+        "evaluatorWriteDenied": true,
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "originalAuthAliasDenied": true,
+        "originalAuthDenied": true,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "schemaVersion": 1,
+      "sourceEvaluatorRoot": {
+        "label": "source-evaluator-root",
+        "path": "<host-path-049>",
+        "pathSha256": "af0337bdba13e94d69327772c7cd41a386381328a7c8480f445d67f77c4a6c30"
+      }
+    }
+  },
+  "evidenceClass": "frozen-prehistory-pilot",
+  "expectedCommit": "17bf7038216804c5fb86e787ad9449aa0bbfdffc",
+  "generatedAt": "2026-07-16T19:00:20.822Z",
+  "goodMemorySource": {
+    "commit": "594ee5406ff082f6210d4be4f763f529f13a1a9f",
+    "dirty": false,
+    "dirtyStateBytes": 289,
+    "dirtyStateSha256": "d5f014bd56a6be3c71ee1bf81b40ac2db8acbee727310ad24d763df9b8ba9c97",
+    "sourceStateBytes": 289,
+    "sourceStateSha256": "d5f014bd56a6be3c71ee1bf81b40ac2db8acbee727310ad24d763df9b8ba9c97",
+    "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tree": "af13dc2688a0e3636f2c2e40728a47eb52ce90eb",
+    "untrackedFiles": []
+  },
+  "historyMaterialization": "after-no-memory-process",
+  "historySourceSha256": "83ef75c4c9a0bb0d706151797f40d3b0e0abb63edb8abaf1407629fba48032d0",
+  "hostConfigurationDiffSha256": "4e88aabf556f6d13ca40f367454356a3734cf923f11df07e3b71254f208b7b4c",
+  "hostConfigurationsSha256": "9a7552e95fbb93d5e909724b0fe54b490bbc2b81b0532a4054149d743e77d1d2",
+  "hostPreflightSha256": "74fef81fa73440e451c1d2ab4650bbe69b6efd2694b3cb90aec5ad504de32126",
+  "instructionSha256": "c6fb7212c514a59d7665bef4013f605c37196ddc318091e0c79d35b0cc4b3318",
+  "invocation": {
+    "approval": "never",
+    "json": true,
+    "model": "gpt-5.6-sol",
+    "permissionProfile": "c3-task",
+    "promptSha256": "6e88e0335968058deb25ff20e4b256dd969f0fc73d8ddefce21bac7044e29948",
+    "reasoningEffort": "xhigh",
+    "strictConfig": true,
+    "treatment": {
+      "goodmemoryInstalled": [
+        "enable-hooks",
+        "bypass-hook-trust"
+      ],
+      "noMemory": [
+        "disable-hooks"
+      ]
+    }
+  },
+  "leakageAudit": {
+    "algorithmVersion": 1,
+    "promptSourceSha256": "6e88e0335968058deb25ff20e4b256dd969f0fc73d8ddefce21bac7044e29948"
+  },
+  "promptSha256": "6e88e0335968058deb25ff20e4b256dd969f0fc73d8ddefce21bac7044e29948",
+  "repetition": 1,
+  "runId": "c3-controlled-20260716-cleanclone-003",
+  "runnerSource": {
+    "commit": "fc31f4f96f3975daea361805da3fc4fc942c5aa4",
+    "dirty": false,
+    "dirtyStateBytes": 289,
+    "dirtyStateSha256": "d5f014bd56a6be3c71ee1bf81b40ac2db8acbee727310ad24d763df9b8ba9c97",
+    "sourceStateBytes": 289,
+    "sourceStateSha256": "d5f014bd56a6be3c71ee1bf81b40ac2db8acbee727310ad24d763df9b8ba9c97",
+    "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tree": "996b1c24bfb53a9d9c62eb109997576df7b512af",
+    "untrackedFiles": []
+  },
+  "schemaVersion": 1,
+  "seed": 1,
+  "stageId": "stage-1",
+  "stageTimeoutMs": 900000,
+  "testTimeoutMs": 300000
+}

@@ -9,6 +9,8 @@ import type {
   ConditionalDocumentWriteBatch,
   DocumentQueryPageInput,
   DocumentStore,
+  ProjectionCapableDocumentStore,
+  DocumentTextSearchInput,
   SessionStore,
   StorageDocument,
   VectorRecord,
@@ -17,9 +19,14 @@ import type {
 } from "./contracts";
 import {
   assertDocumentQueryPageInput,
+  assertDocumentTextSearchInput,
   matchesFilter,
   shallowMergeDocument,
 } from "./contracts";
+import {
+  readDocumentSearchText,
+  scoreDocumentSearch,
+} from "./textSearch";
 
 function clone<TValue>(value: TValue): TValue {
   return structuredClone(value);
@@ -29,7 +36,7 @@ function documentsEqual(left: StorageDocument, right: StorageDocument): boolean 
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function createInMemoryDocumentStore(): DocumentStore {
+export function createInMemoryDocumentStore(): ProjectionCapableDocumentStore {
   const collections = new Map<string, Map<string, StorageDocument>>();
 
   function getCollection(collection: string): Map<string, StorageDocument> {
@@ -102,10 +109,41 @@ export function createInMemoryDocumentStore(): DocumentStore {
       };
     },
 
+    async searchText<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentTextSearchInput,
+    ) {
+      assertDocumentTextSearchInput(input);
+      if (input.query.trim().length === 0) {
+        return [];
+      }
+      return [...getCollection(collection).entries()]
+        .filter(([, document]) => matchesFilter(document, input.filter))
+        .map(([id, document]) => ({
+          document,
+          id,
+          score: scoreDocumentSearch(
+            input.query,
+            readDocumentSearchText(document, input.field) ?? "",
+          ),
+        }))
+        .filter(({ score }) => score > 0)
+        .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
+        .slice(0, input.limit)
+        .map(({ document, ...result }) => ({
+          ...result,
+          document: clone(document) as TDocument,
+        }));
+    },
+
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
-      const expectedCollection = getCollection(input.expected.collection);
-      const current = expectedCollection.get(input.expected.id);
-      if (!current || !documentsEqual(current, input.expected.document)) {
+      const expectations = [input.expected, ...(input.unchanged ?? [])];
+      if (expectations.some((expected) => {
+        const current = getCollection(expected.collection).get(expected.id);
+        return expected.document === null
+          ? current !== undefined
+          : current === undefined || !documentsEqual(current, expected.document);
+      })) {
         return false;
       }
 
@@ -114,6 +152,10 @@ export function createInMemoryDocumentStore(): DocumentStore {
           operation.id,
           clone(operation.document),
         );
+      }
+
+      for (const operation of input.delete ?? []) {
+        getCollection(operation.collection).delete(operation.id);
       }
 
       return true;

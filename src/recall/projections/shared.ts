@@ -4,6 +4,7 @@ import {
 } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
 import type { StorageFilter } from "../../storage/contracts";
+import { passesRecallAgentScopeGuard } from "../../policy/hooks";
 import type { RecallProjectionSourceCollection } from "./contracts";
 
 export function errorMessage(error: unknown): string {
@@ -51,5 +52,5 @@ export function matchesScopeFilter(
   return record.userId === requested.userId &&
     record.tenantId === requested.tenantId &&
     record.workspaceId === requested.workspaceId &&
-    record.agentId === requested.agentId;
+    passesRecallAgentScopeGuard(requested, document);
 }

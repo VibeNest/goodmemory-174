@@ -96,10 +96,12 @@ export async function runC4BaselineCeilingCommand(
   verifyC4BaselineRawStageEvidenceFiles(
     result.report,
     rawStageEvidenceFiles,
+    result.frozenStageBindings,
   );
   const stageEvidenceFiles = buildC4BaselineStageEvidenceBindings(
     result.report,
     rawStageEvidenceFiles,
+    result.frozenStageBindings,
   );
   await persistC4BaselinePublication({
     files: stageEvidenceFiles,

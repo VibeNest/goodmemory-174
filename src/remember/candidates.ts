@@ -1,21 +1,32 @@
+import type { SessionMessage } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type {
+  AppendClaimProjectionInput,
+  ClaimProjectionWritePort,
+  MemoryCandidateClaimMetadata,
   MemoryCandidate,
   MemoryCandidateAnnotationTrace,
   MemoryCandidateExplicitness,
   MemoryCandidateKindHint,
   MemoryCandidateMetadata,
+  MemoryClaimModality,
+  MemoryClaimPolarity,
   MemoryExtractionStrategy,
   MessageAnnotationRememberMode,
   ProfileField,
 } from "../domain/memoryCandidate";
 
 export type {
+  AppendClaimProjectionInput,
+  ClaimProjectionWritePort,
+  MemoryCandidateClaimMetadata,
   MemoryCandidate,
   MemoryCandidateAnnotationTrace,
   MemoryCandidateExplicitness,
   MemoryCandidateKindHint,
   MemoryCandidateMetadata,
+  MemoryClaimModality,
+  MemoryClaimPolarity,
   MemoryExtractionStrategy,
   MessageAnnotationRememberMode,
   ProfileField,
@@ -33,7 +44,7 @@ export interface MessageAnnotation {
 
 export interface MemoryExtractionInput {
   scope: MemoryScope;
-  messages: Array<{ role: string; content: string }>;
+  messages: SessionMessage[];
   annotations?: MessageAnnotation[];
   extractionStrategy?: MemoryExtractionStrategy;
   locale?: string;

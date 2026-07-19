@@ -8,7 +8,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { z } from "zod";
 
@@ -20,8 +20,8 @@ import type {
 } from "./dataset";
 import { validateC4ControlledPilotDataset } from "./c4-contracts";
 import {
-  c4HiddenValueAppearsInSurface,
-  c4HiddenValueRelationAppearsInSurface,
+  c4HiddenValueAppearsInSurfaces,
+  c4HiddenValueRelationAppearsInSurfaces,
 } from "./c4-leakage";
 import { runBoundaryProcess } from "./process";
 
@@ -119,6 +119,7 @@ interface EpisodeSpec {
 interface RepositorySpec {
   id: "continuity-utils" | "policy-utils";
   preamble: string;
+  supportFiles?: readonly { content: string; path: string }[];
   title: string;
   url: string;
 }
@@ -137,23 +138,52 @@ const REPOSITORIES: readonly RepositorySpec[] = [
   {
     id: "policy-utils",
     preamble: [
-      "export type ParseResult<T> =",
-      "  | { ok: true; value: T }",
-      "  | { error: string; ok: false };",
-      "",
-      'export type LogLevel = "debug" | "info" | "warn";',
-      "",
-      'export type OutputFormat = "json" | "text" | "yaml";',
-      "",
-      'export type TransportMode = "buffered" | "direct" | "relay";',
-      "",
-      "export const SETTING_ERROR_CODES = {",
-      '  format: "invalid-format",',
-      '  level: "invalid-level",',
-      '  mode: "invalid-mode",',
-      "} as const;",
+      'import { acceptUnchecked } from "./parse-result";',
+      'import { SETTING_ERROR_CODES } from "./errors";',
+      'import type { ParseResult } from "./parse-result";',
+      'import type { LogLevel, OutputFormat, TransportMode } from "./setting-types";',
+      'export { SETTING_ERROR_CODES } from "./errors";',
+      'export type { ParseResult } from "./parse-result";',
+      'export type { LogLevel, OutputFormat, TransportMode } from "./setting-types";',
       "",
     ].join("\n"),
+    supportFiles: [
+      {
+        content: [
+          "export const SETTING_ERROR_CODES = {",
+          '  format: "invalid-format",',
+          '  level: "invalid-level",',
+          '  mode: "invalid-mode",',
+          "} as const;",
+          "",
+        ].join("\n"),
+        path: "src/errors.ts",
+      },
+      {
+        content: [
+          "export type ParseResult<T> =",
+          "  | { ok: true; value: T }",
+          "  | { error: string; ok: false };",
+          "",
+          "export function acceptUnchecked<T>(value: T): ParseResult<T> {",
+          "  return { ok: true, value };",
+          "}",
+          "",
+        ].join("\n"),
+        path: "src/parse-result.ts",
+      },
+      {
+        content: [
+          'export type LogLevel = "debug" | "info" | "notice" | "warn";',
+          "",
+          'export type OutputFormat = "json" | "text" | "yaml";',
+          "",
+          'export type TransportMode = "buffered" | "direct" | "relay";',
+          "",
+        ].join("\n"),
+        path: "src/setting-types.ts",
+      },
+    ],
     title: "Policy Utils",
     url: "https://example.invalid/goodmemory-c4/policy-utils.git",
   },
@@ -472,7 +502,7 @@ const EPISODES: readonly EpisodeSpec[] = [
         allowedFeedback: "Use the setting-input rule stated in this task.",
         baseImplementation: [
           "export function parseModeSetting(input: string): ParseResult<TransportMode> {",
-          "  return { ok: true, value: input as TransportMode };",
+          "  return acceptUnchecked(input as TransportMode);",
           "}",
         ],
         failToPass: [
@@ -522,7 +552,7 @@ const EPISODES: readonly EpisodeSpec[] = [
         allowedFeedback: "Use the accepted setting-input policy.",
         baseImplementation: [
           "export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {",
-          "  return { ok: true, value: input as LogLevel };",
+          "  return acceptUnchecked(input as LogLevel);",
           "}",
         ],
         failToPass: [
@@ -551,7 +581,7 @@ const EPISODES: readonly EpisodeSpec[] = [
         goldImplementation: [
           "export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {",
           '  const normalized = input.replace(/^ +| +$/gu, "");',
-          '  if (normalized === "debug" || normalized === "info" || normalized === "warn") {',
+          '  if (normalized === "debug" || normalized === "info" || normalized === "notice" || normalized === "warn") {',
           "    return { ok: true, value: normalized };",
           "  }",
           "  return { error: SETTING_ERROR_CODES.level, ok: false };",
@@ -563,13 +593,13 @@ const EPISODES: readonly EpisodeSpec[] = [
           { args: ["warn"], expected: { ok: true, value: "warn" } },
         ],
         prompt: "Apply the accepted setting-input policy to parseLogLevelSetting. Keep the exported signature unchanged.",
-        visible: [{ args: ["info"], expected: { ok: true, value: "info" } }],
+        visible: [{ args: ["notice"], expected: { ok: true, value: "notice" } }],
       }),
       task({
         allowedFeedback: "Use the accepted setting-input policy.",
         baseImplementation: [
           "export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {",
-          "  return { ok: true, value: input as OutputFormat };",
+          "  return acceptUnchecked(input as OutputFormat);",
           "}",
         ],
         failToPass: [
@@ -1072,6 +1102,9 @@ async function writeRepositories(root: string): Promise<void> {
         join(repositoryRoot, "tests", "base-health.test.ts"),
         renderVisibleTest(tasks),
       ),
+      ...(repository.supportFiles ?? []).map((file) =>
+        writeText(join(repositoryRoot, file.path), file.content)
+      ),
     ]);
   }
 }
@@ -1359,13 +1392,10 @@ async function allowedPublicLeakageValues(
       ...collectLeakageScalars(testCase.expected),
     ]).map((value) => [leakageScalarKey(value), value]),
   );
-  const publicSurface = (await Promise.all(
-    (await walk(join(root, "repositories", episode.repositoryId)))
-      .map((path) => readFile(path, "utf8")),
-  )).join("\n");
+  const publicSurfaces = await publicLeakageSurfaces(root, episode);
   return [...hidden.entries()]
     .filter(([, value]) =>
-      c4HiddenValueAppearsInSurface(publicSurface, value)
+      c4HiddenValueAppearsInSurfaces(publicSurfaces, value)
     )
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, value]) => value);
@@ -1374,43 +1404,47 @@ async function allowedPublicLeakageValues(
 async function allowedPublicLeakageRelations(
   root: string,
   episode: EpisodeSpec,
-): Promise<Array<[
-  string | number | boolean | null,
-  string | number | boolean | null,
-]>> {
-  const hidden = new Map<string, [
-    string | number | boolean | null,
-    string | number | boolean | null,
-  ]>();
-  for (const testCase of episode.stages.flatMap((stage) => [
-    ...stage.failToPass,
-    ...stage.passToPass,
-  ])) {
-    const arguments_ = collectLeakageScalars(testCase.args);
-    const expected = collectLeakageScalars(testCase.expected);
-    for (const argument of arguments_) {
-      for (const value of expected) {
-        if (leakageScalarKey(argument) === leakageScalarKey(value)) {
-          continue;
-        }
-        const relation: [
-          string | number | boolean | null,
-          string | number | boolean | null,
-        ] = [argument, value];
-        hidden.set(leakageRelationKey(relation), relation);
-      }
-    }
-  }
-  const publicSurface = (await Promise.all(
-    (await walk(join(root, "repositories", episode.repositoryId)))
-      .map((path) => readFile(path, "utf8")),
-  )).join("\n");
-  return [...hidden.entries()]
+): Promise<Array<Array<string | number | boolean | null>>> {
+  const relations = new Map(
+    episode.stages.flatMap((stage) => stage.passToPass)
+      .flatMap((testCase) => {
+        const arguments_ = collectLeakageScalars(testCase.args);
+        const expected = collectLeakageScalars(testCase.expected);
+        return arguments_.flatMap((argument) => expected
+          .filter((value) => leakageScalarKey(value) !== leakageScalarKey(argument))
+          .map((value) => [argument, value]));
+      })
+      .map((relation) => [
+        JSON.stringify(relation.map(leakageScalarKey)),
+        relation,
+      ]),
+  );
+  const publicSurfaces = await publicLeakageSurfaces(root, episode);
+  return [...relations.entries()]
     .filter(([, relation]) =>
-      c4HiddenValueRelationAppearsInSurface(publicSurface, relation)
+      c4HiddenValueRelationAppearsInSurfaces(publicSurfaces, relation)
     )
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, relation]) => relation);
+}
+
+async function publicLeakageSurfaces(
+  root: string,
+  episode: EpisodeSpec,
+): Promise<string[]> {
+  const repositoryRoot = join(root, "repositories", episode.repositoryId);
+  return loadC4VisibleRepositoryLeakageSurfaces(repositoryRoot);
+}
+
+export async function loadC4VisibleRepositoryLeakageSurfaces(
+  repositoryRoot: string,
+): Promise<string[]> {
+  return (await Promise.all(
+    (await walk(repositoryRoot)).map(async (path) => [
+      relative(repositoryRoot, path).split(sep).join("/"),
+      await readFile(path, "utf8"),
+    ] as const),
+  )).flat();
 }
 
 function collectLeakageScalars(
@@ -1438,12 +1472,6 @@ function leakageScalarKey(value: string | number | boolean | null): string {
     type: value === null ? "null" : typeof value,
     value,
   });
-}
-
-function leakageRelationKey(
-  relation: readonly (string | number | boolean | null)[],
-): string {
-  return JSON.stringify(relation.map((value) => leakageScalarKey(value)));
 }
 
 async function collectAssetFiles(root: string): Promise<C4AssetFile[]> {

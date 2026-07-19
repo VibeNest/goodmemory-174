@@ -8,7 +8,11 @@ import {
   withAISDKRetries,
 } from "./ai-sdk-runtime";
 import type { AISDKModelConfig, AISDKRetryOptions, FetchLike } from "./ai-sdk-runtime";
-import type { ProfileField } from "../domain/memoryCandidate";
+import type {
+  MemoryClaimModality,
+  MemoryClaimPolarity,
+  ProfileField,
+} from "../domain/memoryCandidate";
 import type {
   MemoryCandidateExplicitness,
   MemoryCandidateKindHint,
@@ -50,6 +54,19 @@ const MEMORY_CANDIDATE_PROFILE_FIELD_VALUES = [
   "languagePreference",
   "currentProject",
 ] as const satisfies [ProfileField, ...ProfileField[]];
+
+const MEMORY_CLAIM_POLARITY_VALUES = [
+  "positive",
+  "negative",
+] as const satisfies [MemoryClaimPolarity, ...MemoryClaimPolarity[]];
+
+const MEMORY_CLAIM_MODALITY_VALUES = [
+  "asserted",
+  "planned",
+  "attempted",
+  "completed",
+  "unknown",
+] as const satisfies [MemoryClaimModality, ...MemoryClaimModality[]];
 
 const MEMORY_EXTRACTION_SYSTEM_PROMPT = [
   "You extract durable memory candidates from a conversation.",
@@ -107,6 +124,7 @@ const memoryCandidateSchema = z.object({
   explicitness: z.enum(MEMORY_CANDIDATE_EXPLICITNESS_VALUES),
   content: z.string(),
   sourceMessageIndex: z.number().int().nonnegative(),
+  sourceMessageIndexes: z.array(z.number().int().nonnegative()).optional(),
   sourceRole: z.string(),
   metadata: z
     .object({
@@ -120,6 +138,19 @@ const memoryCandidateSchema = z.object({
       category: z
         .enum(["project", "technical", "personal", "relationship", "event"])
         .optional(),
+      claim: z
+        .object({
+          confidence: z.number().min(0).max(1).optional(),
+          modality: z.enum(MEMORY_CLAIM_MODALITY_VALUES).optional(),
+          objectEntity: z.string().optional(),
+          objectText: z.string(),
+          polarity: z.enum(MEMORY_CLAIM_POLARITY_VALUES).optional(),
+          predicateKey: z.string(),
+          validFrom: z.string().optional(),
+          validUntil: z.string().optional(),
+        })
+        .optional(),
+      contextualDescriptor: z.string().optional(),
       factKind: z
         .enum([
           "blocker",
@@ -283,9 +314,8 @@ export const CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT = [
 // neural embedding endpoint (the documented LoCoMo recall bottleneck). It is an
 // opt-in write-time pass; it does not change default extraction.
 export interface ConversationalExtractionOptions {
-  // When set, each fact is prefixed with a brief situating context drawn from the
-  // surrounding dialogue (the embedding-free Contextual Retrieval idea), so it is
-  // retrievable by vocabulary the bare claim would not contain. Off by default.
+  // When set, a retrieval-only descriptor is emitted beside canonical content.
+  // The descriptor never changes the durable atomic fact. Off by default.
   contextualDescriptor?: boolean;
   knownUserName?: string;
 }
@@ -310,13 +340,16 @@ export function buildConversationalMemoryExtractionPrompt(
     "- Keep the originating speaker as sourceRole and the originating message index as sourceMessageIndex.",
     '- Set explicitness to "explicit" when the fact is directly stated and "inferred" when you reasonably deduced it.',
     "- Put the primary entity the fact is about in metadata.subject.",
+    '- For every kindHint "fact", populate metadata.claim with predicateKey and objectText; also set polarity and modality, and set validFrom/validUntil only when grounded in the conversation.',
+    "- Use a stable domain description for metadata.claim.predicateKey (for example project.status or integration.partner_api), derived only from the conversation and never from external labels or answer hints.",
+    "- When one claim requires multiple originating messages, include all their indices in sourceMessageIndexes while retaining the primary sourceMessageIndex.",
     `- Use kindHint "profile" only when metadata.profileField is one of: ${MEMORY_CANDIDATE_PROFILE_FIELD_VALUES.join(", ")}; use kindHint "fact" for other durable personal attributes.`,
     "- Skip greetings, acknowledgements, and chit-chat; count those messages in ignoredMessageCount.",
     "- Before returning, perform a coverage audit: scan every substantive user message and ensure each durable explicit claim appears exactly once in candidates.",
   ];
   if (options?.contextualDescriptor) {
     rules.push(
-      "- Begin the content with a brief contextual descriptor (the topic, the entity it concerns, and the time or session when known), drawn ONLY from the conversation, then state the atomic claim, so the fact is retrievable by words from the surrounding dialogue it would not otherwise contain. Never invent descriptor details.",
+      "- Keep content as the canonical atomic claim. Put a brief retrieval-only contextual descriptor in metadata.contextualDescriptor (topic, entity, and time or session when known), drawn ONLY from the conversation. Never prepend it to content or invent descriptor details.",
     );
   }
   const knownUserName = options?.knownUserName?.trim();

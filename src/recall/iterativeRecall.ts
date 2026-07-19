@@ -127,6 +127,22 @@ export interface IterativeRecallOutcome<TResult> {
   expandedQuery: string;
   hops: number;
   result: TResult;
+  steps: IterativeRecallStep[];
+  stopReason: IterativeRecallStopReason;
+}
+
+export type IterativeRecallStopReason =
+  | "expander_stopped"
+  | "max_hops_reached"
+  | "no_bridge_entities"
+  | "no_new_evidence"
+  | "unchanged_query";
+
+export interface IterativeRecallStep {
+  bridgeEntities: string[];
+  factCount: number;
+  hop: number;
+  query: string;
 }
 
 export async function iterativeRecall<
@@ -151,6 +167,15 @@ export async function iterativeRecall<
   const bridgeEntities: string[] = [];
   const seenBridge = new Set<string>();
   const seenFactContent = new Set(result.facts.map((fact) => fact.content));
+  const steps: IterativeRecallStep[] = [
+    {
+      bridgeEntities: [],
+      factCount: result.facts.length,
+      hop: 1,
+      query: input.query,
+    },
+  ];
+  let stopReason: IterativeRecallStopReason = "max_hops_reached";
 
   while (hops < maxHops) {
     let nextQuery: string | null;
@@ -161,6 +186,10 @@ export async function iterativeRecall<
         facts: result.facts,
         hop: hops,
       });
+      if (!nextQuery?.trim()) {
+        stopReason = "expander_stopped";
+        break;
+      }
     } else {
       const hopBridges = extractBridgeEntities({
         facts: result.facts,
@@ -171,27 +200,38 @@ export async function iterativeRecall<
         (bridge) => !seenBridge.has(bridge.toLowerCase()),
       );
       if (freshBridges.length === 0) {
+        stopReason = "no_bridge_entities";
         break;
       }
+      steps[steps.length - 1]!.bridgeEntities = [...freshBridges];
       for (const bridge of freshBridges) {
         seenBridge.add(bridge.toLowerCase());
         bridgeEntities.push(bridge);
       }
       nextQuery = `${input.query} ${bridgeEntities.join(" ")}`;
     }
-    if (!nextQuery || nextQuery === activeQuery) {
+    const normalizedNextQuery = nextQuery.trim();
+    if (normalizedNextQuery === activeQuery.trim()) {
+      stopReason = "unchanged_query";
       break;
     }
-    result = await input.recall(nextQuery);
+    result = await input.recall(normalizedNextQuery);
     supplementaryResults.push(result);
-    activeQuery = nextQuery;
+    activeQuery = normalizedNextQuery;
     hops += 1;
+    steps.push({
+      bridgeEntities: [],
+      factCount: result.facts.length,
+      hop: hops,
+      query: activeQuery,
+    });
     // Stop early once a hop surfaces nothing new, so extra hops are not wasted.
     const sizeBefore = seenFactContent.size;
     for (const fact of result.facts) {
       seenFactContent.add(fact.content);
     }
     if (seenFactContent.size === sizeBefore) {
+      stopReason = "no_new_evidence";
       break;
     }
   }
@@ -203,5 +243,7 @@ export async function iterativeRecall<
     result: input.merge && supplementaryResults.length > 0
       ? input.merge(primaryResult, supplementaryResults)
       : result,
+    steps,
+    stopReason,
   };
 }

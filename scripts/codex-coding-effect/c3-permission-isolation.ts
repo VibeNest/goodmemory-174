@@ -22,8 +22,10 @@ const C3_PERMISSION_PROFILE_NAME = "c3-task";
 export const C3_BASE_DENIED_READ_LABELS = [
   "codex-auth-source",
   "controlled-evaluator-source",
+  "current-runtime-auth",
   "current-runtime-config",
   "goodmemory-source-package",
+  "other-arm-runtime-auth",
   "other-arm-runtime-config",
   "other-arm-workspace",
   "output-root",

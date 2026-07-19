@@ -178,6 +178,7 @@ export type {
   ConditionalDocumentWriteBatch,
   DocumentStore,
   DocumentWriteOperation,
+  ProjectionCapableDocumentStore,
   SessionStore,
   StorageDocument,
   StorageFilter,
@@ -187,6 +188,7 @@ export type {
   VectorStore,
 } from "./storage/contracts";
 export {
+  isProjectionCapableDocumentStore,
   matchesFilter,
   shallowMergeDocument,
 } from "./storage/contracts";

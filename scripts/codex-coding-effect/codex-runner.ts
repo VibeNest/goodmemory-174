@@ -1,9 +1,11 @@
 import {
+  extractCodexFailureEvents,
   normalizeCodexEvents,
   parseCodexJsonl,
 } from "./codex-events";
 import type {
   CodexEvent,
+  CodexFailureEvent,
   NormalizedCodexEvents,
 } from "./codex-events";
 import type { CodexCodingEffectLogger } from "./logging";
@@ -32,6 +34,7 @@ export interface CodexRunResult {
   eventParseError?: string;
   events: CodexEvent[];
   exitCode: number | null;
+  failureEvents?: CodexFailureEvent[];
   normalized: NormalizedCodexEvents | null;
   status: CodexRunStatus;
   stderr: string;
@@ -101,10 +104,15 @@ export async function runCodexProcess(
     : normalized.finalMessage === null
     ? "missing-final-message"
     : "completed";
+  const failureEvents = extractCodexFailureEvents(events);
+  if (processResult.exitCode !== 0) {
+    request.logger?.("codex_process_failure", { failureEvents });
+  }
   return {
     durationMs: processResult.durationMs,
     events,
     exitCode: processResult.exitCode,
+    failureEvents,
     normalized,
     status,
     stderr: processResult.stderr,

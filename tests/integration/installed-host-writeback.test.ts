@@ -19,6 +19,68 @@ async function createWorkspace(prefix: string): Promise<string> {
 }
 
 describe("installed host writeback integration", () => {
+  it("preserves a selected multi-clause project policy as durable memory", async () => {
+    const homeRoot = await createWorkspace("goodmemory-installed-policy-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-installed-policy-workspace-",
+    );
+    const policy =
+      "Project policy: each unqualified configuration duration value represents one 250 millisecond project quantum; multiply it by 250 exactly once; fields whose names end in Ms are already measured values and pass through unchanged.";
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "phase73-user",
+        writeback: {
+          allowAssistantOutput: "confirmed_or_verified",
+          dryRun: false,
+          maxChars: 12000,
+          maxMessages: 12,
+          minConfidence: 0.7,
+          mode: "selective",
+          persistRawTranscript: false,
+        },
+      });
+      await enableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceId: "phase73-workspace",
+        workspaceRoot,
+      });
+
+      const writeback = await executeInstalledHostWriteback({
+        command: "turn-end",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          messages: [{ content: policy, role: "user" }],
+          session_id: "phase73-session-1",
+        },
+      });
+      expect(writeback).toMatchObject({ reason: "written", wrote: true });
+
+      const resolved = await resolveInstalledHostContext({
+        cwd: workspaceRoot,
+        homeRoot,
+        host: "codex",
+        sessionId: "phase73-session-2",
+      });
+      expect(resolved.status).toBe("ok");
+      if (resolved.status !== "ok") return;
+      const { sessionId: _sessionId, ...durableScope } = resolved.context.scope;
+      const exported = await createInstalledHostMemory(resolved.context).exportMemory({
+        scope: durableScope,
+      });
+
+      expect(exported.durable.facts.map((fact) => fact.content)).toContain(policy);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("writes a selected Codex open loop and recalls it on the next prompt without manual seeding", async () => {
     const homeRoot = await createWorkspace("goodmemory-installed-writeback-home-");
     const workspaceRoot = await createWorkspace(

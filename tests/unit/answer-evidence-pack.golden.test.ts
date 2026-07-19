@@ -1,9 +1,9 @@
 /**
- * Golden-output gate for src/answer/evidencePack.ts.
+ * Golden-output gate for the eval-only protocol reader evidence pack.
  *
  * The pack's prompt strings ARE measured benchmark behavior (single guide
  * lines have moved BEAM families by +-10pt), so a STRUCTURAL refactor of the
- * module (e.g. splitting per-operation guides into src/answer/operations/*)
+ * module (e.g. splitting per-operation guides into protocol-reader operations)
  * must reproduce these snapshots byte-for-byte.
  *
  * Policy:
@@ -18,11 +18,11 @@ import { describe, expect, it } from "bun:test";
 import type {
   AnswerOperation,
   EvidenceTurn,
-} from "../../src/answer/evidencePack";
+} from "../../src/eval/protocol-reader/evidencePack";
 import {
   buildAnswerEvidencePack,
   inferAnswerOperation,
-} from "../../src/answer/evidencePack";
+} from "../../src/eval/protocol-reader/evidencePack";
 
 function turn(input: {
   content: string;

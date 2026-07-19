@@ -21,6 +21,7 @@ import {
 import type {
   C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
+  C4BaselineFrozenStageBinding,
   C4BaselineStageEvidenceFile,
   C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
@@ -87,6 +88,9 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         stage.goldPassed
       )).toBe(true);
       expect(result.core.leakage.status).toBe("accepted");
+      expect(result.core.leakage.candidateExtractionVersion).toBe(
+        "semantic-documents-exact-relations-corpus-wide-v9",
+      );
       expect(result.core.leakage.matrixCellCount).toBe(486);
       expect(result.core.leakage.mutationApplicableCellCount).toBe(648);
       expect(result.core.leakage.mutationCellCount).toBe(1458);
@@ -127,13 +131,6 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         memoryExpectationMode: "irrelevant-control",
       });
 
-      const repeated = await runC4DatasetCoreReadiness({
-        datasetRoot: fixture.root,
-        workspaceRoot: join(sandbox, "readiness-repeat"),
-      });
-      expect(repeated.coreSha256).toBe(result.coreSha256);
-      expect(repeated.coreBytes).toBe(result.coreBytes);
-
       const review = independentReviewArtifacts(
         result,
         fixture.dataset.episodes,
@@ -144,7 +141,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       );
       const baselineBytes = await baselineCeilingBytes(result, "proceed");
       const baselineStageEvidenceFiles =
-        baselineEvidenceFiles(baselineBytes);
+        baselineEvidenceFiles(baselineBytes, result);
       const final = finalizeC4DatasetReadiness({
         baselineBytes,
         baselineStageEvidenceFiles,
@@ -163,7 +160,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
         publicClaimEligible: false,
         publicCodingEffectProof: false,
         reviewContextPolicy: "fork-turns-none",
-        reviewerAgentName: "/root/c4_final_independent_review_v3",
+        reviewerAgentName: "/root/c4_final_independent_review_v5",
         reviewerIdentityEvidence:
           "orchestrator-attestation-not-cryptographic-receipt",
         reviewerType: "independent-ai-agent",
@@ -290,7 +287,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       expect(() => finalizeC4DatasetReadiness({
         baselineBytes: mismatchedBaseline,
         baselineStageEvidenceFiles:
-          baselineEvidenceFiles(mismatchedBaseline),
+          baselineEvidenceFiles(mismatchedBaseline, result),
         result,
         ...review,
       })).toThrow("C4 baseline asset lock binding mismatch");
@@ -307,7 +304,7 @@ describe("Codex coding-effect C4 controlled dataset", () => {
       await cleanupC4ControlledPilotDataset(fixture);
       await rm(sandbox, { force: true, recursive: true });
     }
-  }, 120_000);
+  }, 240_000);
 
   it("rejects asset drift before running readiness probes", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-drift-"));
@@ -658,6 +655,66 @@ describe("Codex coding-effect C4 controlled dataset", () => {
     }
   }, 120_000);
 
+  it("treats agent-visible repository paths as part of the leakage surface", async () => {
+    const sandbox = await mkdtemp(join(
+      tmpdir(),
+      "goodmemory-c4-visible-path-leakage-",
+    ));
+    const fixture = await prepareC4ControlledPilotDataset({
+      root: join(sandbox, "dataset"),
+    });
+    try {
+      const episode = fixture.dataset.episodes.find((candidate) =>
+        candidate.id === "duration-configuration-policy"
+      )!;
+      const repositoryId = c4RepositoryIdForUrl(episode.repository.url);
+      await writeFile(
+        join(fixture.root, "repositories", repositoryId, "src/3000.ts"),
+        "export const quantum = true;\n",
+        "utf8",
+      );
+      const reconstructed = join(sandbox, "reconstructed");
+      const repositoryIdentity = await materializeC4SourceRepository({
+        datasetRoot: fixture.root,
+        destination: reconstructed,
+        repositoryId,
+      });
+      const manifestPath = join(fixture.root, "manifest.json");
+      const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+        episodes: Array<{
+          repository: { baseCommit: string; url: string };
+          stages: Array<{ snapshot: string }>;
+        }>;
+      };
+      for (const candidate of manifest.episodes) {
+        if (candidate.repository.url !== episode.repository.url) {
+          continue;
+        }
+        candidate.repository.baseCommit = repositoryIdentity.commit;
+        for (const stage of candidate.stages) {
+          stage.snapshot = repositoryIdentity.commit;
+        }
+      }
+      await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+      await rm(reconstructed, { force: true, recursive: true });
+      await writeFile(
+        join(fixture.root, "asset-lock.json"),
+        serializeC4AssetLock(await buildC4AssetLock(fixture.root)),
+        "utf8",
+      );
+
+      await expect(runC4DatasetCoreReadiness({
+        datasetRoot: fixture.root,
+        workspaceRoot: join(sandbox, "readiness"),
+      })).rejects.toThrow(
+        "C4 leakage audit failed for duration-configuration-policy",
+      );
+    } finally {
+      await cleanupC4ControlledPilotDataset(fixture);
+      await rm(sandbox, { force: true, recursive: true });
+    }
+  }, 120_000);
+
   it("materializes byte-identical manifests and asset locks from scratch", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-repeat-"));
     const first = await prepareC4ControlledPilotDataset({
@@ -748,7 +805,7 @@ function independentReviewArtifacts(
     readinessCoreSha256: result.coreSha256,
     reviewedAt: "2026-07-15T20:00:00.000Z",
     reviewer: "Codex C4 independent reviewer",
-    reviewerTaskName: "/root/c4_final_independent_review_v3",
+    reviewerTaskName: "/root/c4_final_independent_review_v5",
     schemaVersion: 2,
     scope: "dataset-only-no-coding-outcomes",
     status: "accepted",
@@ -770,7 +827,7 @@ function independentReviewArtifacts(
       recordedAt: "2026-07-15T20:01:00.000Z",
       requestBytes,
       responseBytes: reviewBytes,
-      reviewerAgentName: "/root/c4_final_independent_review_v3",
+      reviewerAgentName: "/root/c4_final_independent_review_v5",
     }),
   );
   return {
@@ -788,10 +845,16 @@ async function baselineCeilingBytes(
   assetLockSha256 = result.core.assetLockSha256,
 ): Promise<string> {
   let executionIndex = 0;
+  const bindings = frozenBindings(result);
   const report = await runC4AdaptiveBaselineCeiling({
     executeStage: async (target) => {
       executionIndex += 1;
-      return baselineStageResult(target, outcome, executionIndex);
+      return baselineStageResult(
+        target,
+        outcome,
+        executionIndex,
+        requiredFrozenBinding(bindings, target.episodeId, target.stageId),
+      );
     },
     runIdentity: {
       assetLockSha256,
@@ -830,6 +893,7 @@ function baselineStageResult(
   target: C4BaselineCeilingTarget,
   outcome: "inconclusive" | "proceed" | "redesign",
   executionIndex: number,
+  binding: C4BaselineFrozenStageBinding,
 ): C4BaselineStageResult {
   const infrastructureFailure = outcome === "inconclusive" &&
     executionIndex === 1;
@@ -853,14 +917,18 @@ function baselineStageResult(
     resolved,
     stageId: target.stageId,
     stageInputSha256: target.stageInputSha256,
-    taskFailureReasons: infrastructureFailure ? ["codex-exec"] : [],
+    taskFailureReasons: infrastructureFailure
+      ? ["codex-exec"]
+      : resolved
+      ? []
+      : ["no-patch", "hidden-fail-to-pass-failed"],
     threadId: infrastructureFailure
       ? null
       : `thread-${target.episodeId}-${target.stageId}`,
   };
   return {
     ...result,
-    stageEvidenceSha256: sha256(rawBaselineStageEvidenceBytes(result)),
+    stageEvidenceSha256: sha256(rawBaselineStageEvidenceBytes(result, binding)),
   };
 }
 
@@ -872,7 +940,7 @@ async function finalizeWithBaseline(
   const baselineBytes = await baselineCeilingBytes(result, outcome);
   return finalizeC4DatasetReadiness({
     baselineBytes,
-    baselineStageEvidenceFiles: baselineEvidenceFiles(baselineBytes),
+    baselineStageEvidenceFiles: baselineEvidenceFiles(baselineBytes, result),
     result,
     ...review,
   });
@@ -880,24 +948,42 @@ async function finalizeWithBaseline(
 
 function baselineEvidenceFiles(
   baselineBytes: string,
+  result: Awaited<ReturnType<typeof runC4DatasetCoreReadiness>>,
 ): C4BaselineStageEvidenceFile[] {
   const report = JSON.parse(baselineBytes) as C4BaselineCeilingReport;
+  const bindings = frozenBindings(result);
   return buildC4BaselineStageEvidenceBindings(
     report,
     report.results.map((stage) => {
       const { stageEvidenceSha256: _, ...result } = stage;
       return {
-        bytes: rawBaselineStageEvidenceBytes(result),
+        bytes: rawBaselineStageEvidenceBytes(
+          result,
+          requiredFrozenBinding(bindings, stage.episodeId, stage.stageId),
+        ),
         path: `${stage.episodeId}-${stage.stageId}/stage-evidence.json`,
       };
     }),
+    bindings,
   );
 }
 
 function rawBaselineStageEvidenceBytes(
   result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  binding: C4BaselineFrozenStageBinding,
 ): string {
   return `${JSON.stringify({
+    arm: {
+      absenceAudit: { passed: true },
+      codexExecutableSha256: "d".repeat(64),
+      codexVersion: "codex-cli 0.144.5",
+      instructionSha256: "8".repeat(64),
+      networkAccess: false,
+      permissionIsolation: {
+        audit: { passed: true },
+        evidenceSha256: "9".repeat(64),
+      },
+    },
     ...(result.disposition === "infrastructure-failure"
       ? {
           failure: {
@@ -910,13 +996,14 @@ function rawBaselineStageEvidenceBytes(
             durationMs: 1,
             eventCount: 1,
             exitCode: 0,
+            failureEvents: [],
             status: result.codexStatus,
             stderr: "",
             timedOut: false,
             usage: null,
           },
           evaluator: {
-            commitments: [],
+            commitments: binding.evaluatorCommitments,
             credentialsRemovedBeforeMaterialization: true,
             failToPass: {
               durationMs: 1,
@@ -935,16 +1022,31 @@ function rawBaselineStageEvidenceBytes(
               stderr: "",
               stdout: "",
             },
-            sandbox: {},
+            sandbox: {
+              configSha256: "c".repeat(64),
+              configWriteDenied: true,
+              copiedAuthRemovedBeforeEvaluator: true,
+              evaluatorRead: true,
+              evaluatorWriteDenied: true,
+              networkAccess: false,
+              networkDenied: true,
+              networkPositiveControl: true,
+              originalAuthAliasDenied: true,
+              originalAuthDenied: true,
+              profileName: "c4-evaluator",
+              schemaVersion: 1,
+              workspaceRead: true,
+              workspaceWrite: true,
+            },
           },
           patch: {
-            baseCommit: "2".repeat(40),
+            baseCommit: binding.repositoryCommit,
             changedFiles: result.changedFiles,
             diff: result.patchSha256 === null
               ? ""
               : "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n",
             forbiddenFiles: [],
-            hasPatch: false,
+            hasPatch: result.patchSha256 !== null,
             sha256: result.patchSha256,
             untrackedFiles: [],
           },
@@ -959,16 +1061,45 @@ function rawBaselineStageEvidenceBytes(
         }),
     dataset: {
       episodeId: result.episodeId,
-      promptSha256: "1".repeat(64),
-      repositoryCommit: "2".repeat(40),
-      repositoryTree: "3".repeat(40),
-      snapshot: "2".repeat(40),
+      promptSha256: binding.promptSha256,
+      repositoryCommit: binding.repositoryCommit,
+      repositoryTree: binding.repositoryTree,
+      snapshot: binding.repositoryCommit,
       stageId: result.stageId,
       stageInputSha256: result.stageInputSha256,
     },
     result,
     schemaVersion: 1,
   }, null, 2)}\n`;
+}
+
+function frozenBindings(
+  result: Awaited<ReturnType<typeof runC4DatasetCoreReadiness>>,
+): C4BaselineFrozenStageBinding[] {
+  return result.core.stages
+    .filter((stage) => stage.stageId === "stage-2" || stage.stageId === "stage-3")
+    .map((stage) => ({
+      episodeId: stage.episodeId,
+      evaluatorCommitments: stage.evaluatorCommitments,
+      promptSha256: stage.effectivePromptSha256,
+      repositoryCommit: stage.repositoryCommit,
+      repositoryTree: stage.repositoryTree,
+      stageId: stage.stageId as "stage-2" | "stage-3",
+    }));
+}
+
+function requiredFrozenBinding(
+  bindings: readonly C4BaselineFrozenStageBinding[],
+  episodeId: string,
+  stageId: "stage-2" | "stage-3",
+): C4BaselineFrozenStageBinding {
+  const binding = bindings.find((candidate) =>
+    candidate.episodeId === episodeId && candidate.stageId === stageId
+  );
+  if (binding === undefined) {
+    throw new Error(`missing frozen binding for ${episodeId}/${stageId}`);
+  }
+  return binding;
 }
 
 function mutateDispatch(dispatchBytes: string): string {

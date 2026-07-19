@@ -12,9 +12,9 @@ import type {
 } from "./c4-contracts";
 
 export const C4_FINAL_REVIEWER_TASK_NAME =
-  "c4_final_independent_review_v3";
+  "c4_final_independent_review_v5";
 export const C4_FINAL_REVIEWER_AGENT_NAME =
-  "/root/c4_final_independent_review_v3";
+  "/root/c4_final_independent_review_v5";
 export const C4_DATASET_ROOT_PATH =
   "fixtures/codex-coding-effect/c4-controlled-pilot";
 export const C4_READINESS_CORE_PATH =

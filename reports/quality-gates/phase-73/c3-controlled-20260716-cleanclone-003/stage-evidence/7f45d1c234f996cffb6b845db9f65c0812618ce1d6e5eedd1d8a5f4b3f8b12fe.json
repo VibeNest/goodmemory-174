@@ -1,0 +1,168 @@
+{
+  "armEvidence": {
+    "absenceAudit": {
+      "codexHomeEntryNames": [
+        "auth.json",
+        "config.toml"
+      ],
+      "goodMemoryFileCount": 0,
+      "hookConfigPresent": false,
+      "mcpConfigPresent": false,
+      "passed": true,
+      "preexistingSessionCount": 0,
+      "reasons": []
+    },
+    "arm": "no-memory",
+    "evaluatorSecuritySha256": "d3a5a6c09cfbc1cf870fdac22a27f7a44157e3e628aae588030e78db30ee1bf8",
+    "historyExposure": "none",
+    "historySourceSha256": "83ef75c4c9a0bb0d706151797f40d3b0e0abb63edb8abaf1407629fba48032d0",
+    "instructionSha256": "c6fb7212c514a59d7665bef4013f605c37196ddc318091e0c79d35b0cc4b3318",
+    "permissionIsolation": {
+      "audit": {
+        "configSha256": "966dbac5e2e1e95d7ff54f1c15747de993e71aadb4803c26f2556206d4398ae4",
+        "deniedReads": [
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "codex-auth-source",
+            "path": "<host-path-058>",
+            "pathSha256": "ceae8ea1156fbe2296878fbef966d25efa5dec998b99ee47b9816f65fe72a5e0"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "controlled-evaluator-source",
+            "path": "<host-path-009>",
+            "pathSha256": "aea0c266e0bb4126388c523f6e03ff84c0296f389dba66c45457b8fe5987bfb6"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "current-runtime-auth",
+            "path": "<host-path-013>",
+            "pathSha256": "ab6bb422045a16890a3897cd51f8875894a1c16714129c5cbcda5f6d2c02ef8c"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "current-runtime-config",
+            "path": "<host-path-011>",
+            "pathSha256": "7e3d955e6007ae78b87500338895cbca80bec3e2f8adab597149c4092078812c"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "goodmemory-source-package",
+            "path": "<host-path-043>",
+            "pathSha256": "d502c33d30250706b5afd1670ca45810a11cad132d59ab80bbe920503a2fc70c"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "other-arm-runtime-auth",
+            "path": "<host-path-014>",
+            "pathSha256": "48569691ef9f9cbf007be33111d4b40e45ae9dcd19c502160ad8fb817be243a3"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "other-arm-runtime-config",
+            "path": "<host-path-012>",
+            "pathSha256": "0c5d432a9959dbaa9a5d85fec931c851021050173350300b17f6dcd8f1207fb1"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "other-arm-workspace",
+            "path": "<host-path-024>",
+            "pathSha256": "af8c5566b90ad94c97391ab426fa35296b88431a4eaa0c18a24dc4a6e72f8a5a"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "output-root",
+            "path": "<host-path-004>",
+            "pathSha256": "8e0498bdab593f0a9fbef2ae9164ea44c76bb3d3056139528759b5b4dd4fb5bf"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "package-tarball",
+            "path": "<host-path-045>",
+            "pathSha256": "8fae3d7527365401d839be682676870c7a129f8a7e7dd332557f2af70b9d726d"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "runner-source",
+            "path": "<host-path-016>",
+            "pathSha256": "15f4f91d5f16ac3996bcd0d1b5e2eb25430f2f79106a1f03af0d16ebbb06893c"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "source-repository",
+            "path": "<host-path-046>",
+            "pathSha256": "58bb4a82a94be970d7cabf806415f90feb97374879712fa9ca3d4194513f265d"
+          }
+        ],
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "passed": true,
+        "phase": "pre-launch",
+        "profileName": "c3-task",
+        "reasons": [],
+        "schemaVersion": 1,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "evidenceSha256": "935b2b585f217d4fa63c1daefcb0d67afb248bdfbe97e70143cc3d18c4d4319d"
+    },
+    "schemaVersion": 1,
+    "threadId": "019f6c4d-5211-7671-bca3-af3bba4bee0f"
+  },
+  "attempt": {
+    "attemptId": "controlled-transport-mode/stage-1/no-memory/1/1#attempt-1",
+    "disposition": "finalized",
+    "result": {
+      "executionFailureStage": null,
+      "resolved": true,
+      "taskFailureReasons": []
+    },
+    "schemaVersion": 1,
+    "workKey": "controlled-transport-mode/stage-1/no-memory/1/1"
+  },
+  "caseResult": {
+    "arm": "no-memory",
+    "attemptId": "controlled-transport-mode/stage-1/no-memory/1/1#attempt-1",
+    "changedFiles": [
+      "src/parse-transport-mode.ts",
+      "tests/parse-transport-mode.test.ts"
+    ],
+    "codexStatus": "completed",
+    "disposition": "finalized",
+    "episodeId": "controlled-transport-mode",
+    "executionFailureStage": null,
+    "failToPassStatus": "passed",
+    "forbiddenFiles": [],
+    "pairKey": "controlled-transport-mode/stage-1/1/1",
+    "passToPassStatus": "passed",
+    "patchSha256": "f2f9742aa41df641914c1eeecb87d548c440634e8c2234f4867f07768598c135",
+    "repetition": 1,
+    "resolved": true,
+    "schemaVersion": 1,
+    "seed": 1,
+    "stageId": "stage-1",
+    "taskFailureReasons": [],
+    "workKey": "controlled-transport-mode/stage-1/no-memory/1/1"
+  },
+  "codexStderr": "Reading additional input from stdin...\n",
+  "codexStdout": "",
+  "failToPassStderr": "",
+  "failToPassStdout": "",
+  "passToPassStderr": "",
+  "passToPassStdout": "",
+  "patchDiff": "diff --git a/src/parse-transport-mode.ts b/src/parse-transport-mode.ts\nindex cbbcd5f16b20e4460b8f942594fa1c0f12a68b3d..e36a569e92bba6f45d7b7b9358f8ec723ac6c116 100644\n--- a/src/parse-transport-mode.ts\n+++ b/src/parse-transport-mode.ts\n@@ -1,8 +1,37 @@\n export type TransportMode = \"direct\" | \"relay\";\n \n export function parseTransportMode(value: string): TransportMode | null {\n-  if (value === \"direct\" || value === \"relay\") {\n-    return value;\n+  const trimmed = value.trim();\n+  const quote = trimmed[0];\n+  let candidate: string;\n+\n+  if (quote === '\"' || quote === \"'\") {\n+    const closingQuote = trimmed.indexOf(quote, 1);\n+    if (closingQuote === -1) {\n+      return null;\n+    }\n+\n+    candidate = trimmed.slice(1, closingQuote);\n+    if (!isEmptyOrComment(trimmed.slice(closingQuote + 1))) {\n+      return null;\n+    }\n+  } else {\n+    const commentStart = trimmed.search(/[ \\t][#;]/);\n+    if (\n+      commentStart !== -1 &&\n+      !isEmptyOrComment(trimmed.slice(commentStart))\n+    ) {\n+      return null;\n+    }\n+    candidate = commentStart === -1 ? trimmed : trimmed.slice(0, commentStart);\n+  }\n+\n+  if (candidate === \"direct\" || candidate === \"relay\") {\n+    return candidate;\n   }\n   return null;\n }\n+\n+function isEmptyOrComment(value: string): boolean {\n+  return value === \"\" || /^[ \\t]+[#;][^\\r\\n]*$/.test(value);\n+}\ndiff --git a/tests/parse-transport-mode.test.ts b/tests/parse-transport-mode.test.ts\nindex 4acb9e544456420f68b09dc2dd268c0131e1bb18..31d496f81f8ec4ed09d516f523d705f78e5ac8d0 100644\n--- a/tests/parse-transport-mode.test.ts\n+++ b/tests/parse-transport-mode.test.ts\n@@ -7,8 +7,36 @@ describe(\"parseTransportMode\", () => {\n     expect(parseTransportMode(\"relay\")).toBe(\"relay\");\n   });\n \n+  it(\"accepts surrounding configuration whitespace\", () => {\n+    expect(parseTransportMode(\"  direct\\n\")).toBe(\"direct\");\n+    expect(parseTransportMode(\"\\trelay  \")).toBe(\"relay\");\n+  });\n+\n+  it(\"accepts quoted configuration values\", () => {\n+    expect(parseTransportMode(\"'direct'\")).toBe(\"direct\");\n+    expect(parseTransportMode('\"relay\"')).toBe(\"relay\");\n+  });\n+\n+  it(\"accepts trailing configuration comments\", () => {\n+    expect(parseTransportMode(\"direct # connect without a relay\")).toBe(\n+      \"direct\",\n+    );\n+    expect(parseTransportMode('\"relay\" ; use the configured relay')).toBe(\n+      \"relay\",\n+    );\n+  });\n+\n   it(\"rejects unsupported values\", () => {\n     expect(parseTransportMode(\"proxy\")).toBeNull();\n     expect(parseTransportMode(\"DIRECT\")).toBeNull();\n   });\n+\n+  it(\"rejects malformed configuration values\", () => {\n+    expect(parseTransportMode('\"direct')).toBeNull();\n+    expect(parseTransportMode(\"'relay\\\"\")).toBeNull();\n+    expect(parseTransportMode('\"direct\" extra')).toBeNull();\n+    expect(parseTransportMode(\"direct#not-a-comment\")).toBeNull();\n+    expect(parseTransportMode(\"' direct '\")).toBeNull();\n+    expect(parseTransportMode(\"direct # comment\\nrelay\")).toBeNull();\n+  });\n });\n",
+  "schemaVersion": 1
+}

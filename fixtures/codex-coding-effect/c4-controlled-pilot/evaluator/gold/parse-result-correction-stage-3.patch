@@ -1,12 +1,12 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..fadb4610f4858382aaf61ccb6bc680be5debaf8d 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..9ddd090b5a2fe8d604e418ca5f8985246e509edb 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -23,7 +23,11 @@ export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
+@@ -15,7 +15,11 @@ export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
  }
  
  export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {
--  return { ok: true, value: input as OutputFormat };
+-  return acceptUnchecked(input as OutputFormat);
 +  const normalized = input.replace(/^ +| +$/gu, "");
 +  if (normalized === "json" || normalized === "text" || normalized === "yaml") {
 +    return { ok: true, value: normalized };

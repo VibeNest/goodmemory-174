@@ -72,8 +72,8 @@ import {
   resolveLiveModelConfig,
   resolveProviderBackedModelConfig,
 } from "./run-eval";
-import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
-import type { EvidenceTurn } from "../src/answer/evidencePack";
+import { buildAnswerEvidencePack } from "../src/eval/protocol-reader/evidencePack";
+import type { EvidenceTurn } from "../src/eval/protocol-reader/evidencePack";
 import {
   createProviderConversationalMemoryExtractor,
   createProviderEmbeddingAdapter,

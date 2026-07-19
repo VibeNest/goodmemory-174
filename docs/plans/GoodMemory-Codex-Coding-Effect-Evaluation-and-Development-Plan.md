@@ -1566,16 +1566,17 @@ retains all ten attempts, binds the runner-time source commit/dirty diff and
 safety-state artifact hashes, and explicitly discloses the BM25 prompt
 calibration that preceded acceptance. This closes host correctness only. It is
 not evidence that GoodMemory improves coding outcomes; that claim remains
-blocked on C3 and C5-C7.
+blocked on C5-C7.
 
 ### Phase C3: arms and frozen-prehistory protocol
 
-Status: **IMPLEMENTED, ACCEPTANCE REOPENED**.
+Status: **ACCEPTED AS FROZEN-PREHISTORY PROTOCOL/HOST EVIDENCE**.
 The arm planning, packaged runtime preflight, frozen-prehistory
 validation/sealing, strict seed receipt, stage evidence, reporting, and
 current-stage canary contracts are implemented under unit and integration
-tests. A prior real two-process pair remains observed local evidence, but does
-not close the C3 protocol gate because its audit identity was incomplete.
+tests. Final clean-clone run `c3-controlled-20260716-cleanclone-003` closes the
+C3 protocol gate. Its `tie-both-pass` result is valid protocol evidence, not
+coding-uplift evidence.
 
 #### C3-T001: no-memory isolation
 
@@ -1670,25 +1671,47 @@ The raw report directory is also gitignored and has no tracked sanitized
 projection. Those omissions make the run non-reproducible from a clean clone,
 so it cannot satisfy C3 acceptance.
 
-The hardened runner now rejects a dirty GoodMemory source tree and persists
+The hardened runner rejects a dirty GoodMemory source tree and persists
 `goodmemory-source-state.json`, `goodmemory-source-state-post-run.json`,
 `host-configurations.sanitized.json`, their hashes in `run-identity.json`, and
 `audit-evidence.sanitized.json` at the appropriate lifecycle points. The source
 artifacts contain only status sizes/digests and untracked path/size/digest
-metadata, never the tracked diff or untracked file contents. These sanitized
-audit artifacts are explicitly trackable despite the raw report ignore rule.
-Unmatched host `PATH` entries are projected as `<host-path>`, while controlled
-runtime prefixes retain stable placeholders only on complete path-prefix
-boundaries. Both arms repeat the config-hash and permission-isolation audit
-immediately before launching Codex. The trackable projection verifier proves
-internal consistency and clean-clone patch replay only; it records
-`externalAuthenticityVerified: false` and does not authenticate the package,
-raw run, or canary without an external CI artifact/signature root.
-Run provenance, hidden evaluation, finalization, recall preflight, and
-permission isolation now live behind separate modules instead of being
-implemented inside the orchestration/runtime entrypoints. C3 remains open until
-a new real pair produces and tracks the complete artifacts. Phase 73 remains
-active with C3 and C5-C7 open.
+metadata, never the tracked diff or untracked file contents. Unmatched host
+`PATH` entries project as `<host-path>`, while controlled runtime prefixes keep
+stable placeholders only on complete path-prefix boundaries. The C3 CLI also
+fails closed when any sensitive path resolves under `/tmp`, `/private/tmp`,
+`/var/tmp`, or `/private/var/tmp`; Codex 0.144.5's macOS platform defaults
+allow those scratch roots even when the permission profile contains an exact
+deny. Both profiles exact-deny the current arm root and cross-arm state, and
+both arms directly probe current and other-arm copied auth, configs, source,
+evaluator, output, package, runner, workspace, and network boundaries
+immediately before model launch.
+
+C3 final result (2026-07-16): **internally accepted; source reproducibility
+reopened**. Run
+`c3-controlled-20260716-cleanclone-003` used a clean mechanical runner snapshot
+at commit `fc31f4f96f3975daea361805da3fc4fc942c5aa4` / tree
+`996b1c24bfb53a9d9c62eb109997576df7b512af`, clean GoodMemory source
+commit `594ee5406ff082f6210d4be4f763f529f13a1a9f` / tree
+`af13dc2688a0e3636f2c2e40728a47eb52ce90eb`, package SHA-256
+`4526fc05ee1fadf05ff80e555827af67477724bf5e0d4cd3613452b899a647c3`,
+Codex CLI 0.144.5, and `gpt-5.6-sol` / `xhigh`. No-memory completed before
+frozen-prehistory materialization, and both model calls completed before hidden
+evaluator materialization. Both arms passed deterministic fail-to-pass and
+pass-to-pass tests: 2 attempted, 2 finalized, 2 resolved, zero infrastructure
+failures, one comparable pair, and outcome `tie-both-pass`. The tracked
+projection under
+`reports/quality-gates/phase-73/c3-controlled-20260716-cleanclone-003/`
+contains 17 bound files. An independent verifier accepted internal consistency
+and two clean-clone patch replays with no reasons. It records
+`externalAuthenticityVerified: false`, so it does not authenticate the package,
+raw run, or canary without an external CI artifact, signature, or transparency
+root. The recorded GoodMemory commit/tree remain reachable, but runner commit
+`fc31f4f96f3975daea361805da3fc4fc942c5aa4` and tree
+`996b1c24bfb53a9d9c62eb109997576df7b512af` are not present in the current Git
+object database. C3 therefore remains internal protocol/host evidence but is
+not currently source-reproducible; it proves no coding uplift. Phase 73 remains
+active with C4-C7 open.
 
 ### Phase C4: controlled pilot dataset
 
@@ -1729,14 +1752,15 @@ C4 acceptance:
 - all episodes pass deterministic readiness;
 - raw source licenses recorded.
 
-C4 implementation status (2026-07-16): **reopened pending independent review**.
+C4 implementation status (2026-07-17): **V8 SUPERSEDED; V9 EVIDENCE
+REGENERATION AND REVIEW PENDING; C5 BLOCKED**.
 The schema-v2 fixture at
 `fixtures/codex-coding-effect/c4-controlled-pilot/` freezes six independently
 designed three-stage episodes across two dependency-free TypeScript
 repositories. Its eight required memory strata cover open-loop handoff,
 validated approach, failure avoidance, user correction, project convention,
 stale update, irrelevant-memory control, and no-history control. The asset lock
-closes 60 task, evaluator, repository, license, provenance, and manifest files.
+closes 63 task, evaluator, repository, license, provenance, and manifest files.
 
 The deterministic readiness gate ran three fresh base clones per stage (54
 base probes total) and one fresh gold replay for each of the 18 stages. Every
@@ -1744,22 +1768,29 @@ base snapshot retained the same commit, tree, dependency state, expected
 failure fingerprint, and semantic fingerprint across its three repetitions;
 all 18 gold patches changed only the declared file and passed visible,
 fail-to-pass, and pass-to-pass tests. License and author-attestation audits were
-accepted. The leakage audit was reopened after reproduced false negatives
-showed that scalar evaluator values and input-output relationships could escape
-the audit. The repaired audit derives typed scalar leaves and per-case
+accepted. The full leakage audit derives typed scalar leaves and per-case
 argument/expected-value relations from both fail-to-pass and pass-to-pass
-cases. Only frozen relationships already present in the natural public
-repository surface are exempt; synthetic file/path envelope metadata cannot
-create an exemption. Projection envelope metadata is excluded only from the
-semantic hidden-value view of that surface, not from the episode globally. It rejects
-the reproduced `docs/setup guide#intro`, `2.5 -> 2_500`, hidden value `1`
-beside `schemaVersion: 1`, short pass-to-pass leaks,
-`INFO -> invalid-level/false`, and numeric equivalents such as `3,000`, `3e3`,
-and `62.50`. Gold replay stages every schema-declared path in its isolated
-clone before capturing the canonical diff, covering added, modified, deleted,
-and binary files. The frozen asset lock and deterministic core were regenerated
-with 486 per-stage audited surface/artifact cells and 1458 mutation cells across
-fragment, typed-value, and typed-relation injection channels.
+cases, then evaluates every stage against the complete
+surface-by-hidden-artifact matrix. The v9 detector preserves exact trim/case
+endpoints and searches the full agent-visible corpus across whitespace,
+sentence, line-count, byte-length, and physical-file boundaries. The frozen
+manifest explicitly binds public pass-to-pass relations already present in
+visible source; undeclared relations cannot evade detection by being split
+across files. Projection envelope metadata is excluded
+only from that surface's semantic hidden-value view, never from the episode
+globally. The audit rejects the reproduced `docs/setup guide#intro`,
+`2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
+pass-to-pass leaks, `INFO -> invalid-level/false`, and numeric equivalents such
+as `3,000`, `3e3`, and `62.50`. Gold replay stages every schema-declared path in
+its isolated clone before capturing the canonical diff, covering added,
+modified, deleted, and binary files. The frozen asset lock and deterministic
+core contain 486 audited matrix cells and 1458 intentional mutation cells
+across fragment, typed-value, and typed-relation injection channels. Of those
+mutation cells, 648 are applicable and 810 are explicitly not applicable.
+Four content-preserving dynamic surfaces remain mandatory live C5 re-audits:
+`effective-codex-input-after-seeding`, `flat-summary-after-seeding`,
+`goodmemory-export-after-seeding`, and
+`goodmemory-hook-context-after-seeding`.
 
 The historical independent review found one real fairness defect: the evaluator
 required exact parse error codes that were not discoverable from the visible
@@ -1768,24 +1799,43 @@ gold implementation consumes that same contract; hidden expected values were
 not weakened. A separate determinism regression then caught an absolute
 temporary path in the readiness core, which was removed by projecting only
 `commit`, `id`, `tree`, and `url`. That review is no longer acceptance evidence
-because the typed-value and replay repairs changed the frozen core it bound.
+because subsequent leakage repairs changed the frozen core it bound.
 
-Current tracked evidence is the deterministic core at
-`reports/quality-gates/phase-73/c4-controlled-pilot-core.json` plus
-`review/dispatch.json`, `review/input-bundle.json`, and `review/request.md`
-under the dataset root. The only retained baseline report is the historical v1
-redesign result; the current v2 baseline path is intentionally absent. Future
-baseline execution copies and revalidates the asset-locked dataset before any
-stage reads, binds each result to a dataset-derived stage input hash, and
-projects evaluator observations plus patch bytes rather than trusting opaque
-stage-evidence hashes. Its canonical report and stage evidence publish as one
-atomic bundle. Baseline identity binds stage/test timeouts, formal Codex
-non-zero exits are infrastructure failures, and the final gate requires every
-hashed physical stage-evidence file. A new v2 baseline, independent review,
-provenance record, and final readiness report are absent. Until those artifacts
-bind the current core, C4 remains open. The current core made no
-live Codex calls and performed no no-memory versus GoodMemory comparison; it
-cannot support a coding-effect claim. C3 and C5-C7 remain open.
+The historical v1 no-memory ceiling pilot attempted and resolved 6/6 stage-3
+tasks, correctly deciding `redesign-episodes-before-c5`. The later v7
+schema-v2 baseline is also historical: it attempted 12 stages but had six
+formal infrastructure failures, was `inconclusive`, and binds the replaced
+asset lock. The current gate rejects its stage targets and asset identity.
+
+The regenerated v8 dataset-only core remains deterministic at SHA-256
+`6ec596c99891376842e612520ae00b00f627e99ba63f48b9a690f02c06c72d3a`
+and binds asset lock
+`a4db88c4dc9ebea7fc464ba104f34c3a0852e2743a798694723d9ae9614606c4`.
+A new `fork-turns-none` reviewer inspected only the 63 frozen assets and
+deterministic core, accepted all six episodes, and declared both coding outcome
+flags false. Provenance SHA-256
+`1eee28b3fb8f08b5f57dcfb74db62632682145f062d32cad93341c227f54c4dc`
+binds dispatch, input bundle, request, and review response SHA-256
+`cfa5b75dc8ad7bc30fc287f05dae113a6af3720e5b3ca806ba1487e38acbf44e`
+while explicitly describing the orchestrator attestation as non-cryptographic.
+The review completed before the current live outcome existed. The baseline projected
+evidence verifier rejects finalized records whose process/test exit codes,
+failure-event count/hash, timeouts, arm/permission evidence, evaluator timing,
+forbidden/untracked files, base health, patch observations, or derived task
+result disagree with the execution contract. Non-zero formal Codex errors are
+retained as infrastructure evidence rather than converted into task failures.
+
+C4 historical baseline `run-c4-baseline-v8-20260717T032532Z` completed all 12
+planned no-memory stages with 2 resolved, 10 unresolved, zero infrastructure
+failures, and no ceiling risk. Report SHA-256
+`145075fe1db774e14fbce1ba6df6b6170c64cd87a9c81c89a7abb39aefcfb220`
+recorded `proceed-to-c5-pilot` under v8. Final readiness SHA-256
+`7cf3f8cb829472f34e475dddfe69911651887c2896559712988e1153b6ea0128`
+bound the v8 frozen core, live baseline, independent review, and provenance.
+Both artifacts are superseded: v9 requires exact frozen prompt,
+repository-commit/tree, and evaluator commitments plus regenerated independent
+review and readiness. C4 does not prove coding uplift, does not currently
+unblock C5, and authorizes no public coding-effect claim.
 
 ### Phase C5: live pilot
 
@@ -1824,6 +1874,89 @@ C5 acceptance:
 - no silent fallback;
 - failure taxonomy reviewed;
 - power analysis and full-set budget produced.
+
+C5 implementation status (2026-07-16): **CORE AND REAL LAUNCH HARNESS
+IMPLEMENTED; READY FOR ZERO-WRITE PREFLIGHT**. No C5 live pilot has run. The zero-write readiness
+command is:
+
+~~~bash
+bun run prepare:codex-coding-effect:c5-pilot \
+  --material-effect-pp=<predeclared-integer-1-to-50> \
+  --order-seed=<positive-integer>
+~~~
+
+After readiness succeeds, the real internal-only entrypoint is:
+
+~~~bash
+bun run eval:codex-coding-effect:c5-pilot -- \
+  --package-tarball <goodmemory-package.tgz> \
+  --run-id <fresh-run-id> \
+  --codex-model <frozen-model> \
+  --reasoning-effort <frozen-effort> \
+  --material-effect-pp <same-predeclared-integer> \
+  --order-seed <same-positive-integer>
+~~~
+
+The material-effect threshold is mandatory and becomes part of the frozen plan
+before any live result exists. The plan fixes 6 episodes, 2 arms, 2
+repetitions, all 3 canonical stages, balanced deterministic arm ordering, 24
+longitudinal trajectories, 72 fresh Codex processes, native Stop writeback
+only, and no frozen-prehistory seeding. A trajectory retains its isolated
+GoodMemory storage and scope across stages while the repository returns to the
+declared canonical snapshot and every stage gets a fresh Codex thread.
+
+The coordinator revokes both copied model credentials before materializing a
+stage evaluator, re-audits the four dynamic leakage surfaces, evaluates both
+patches, and restores the copied credentials only when another stage remains.
+Required-memory recall is bound to IDs committed by an earlier native Stop; a
+required stage must recover at least one bound earlier ID, but selective recall
+is not required to inject every prior record. A missing recall receipt or
+unrecoverable exact hook context makes the pair incomparable and cannot fall
+back to no-memory scoring. Raw hook context and
+memory export stay in process only. Persisted canary evidence contains redacted
+rollout messages, IDs, and hashes. Stage and pair rows append immediately to
+their JSONL ledgers. Every stage row binds its sanitized execution evidence by
+SHA-256, and every arm evaluation binds its sanitized evaluator evidence by
+SHA-256; a plausible-looking result without those digests is rejected.
+
+The real adapter copies and revalidates the asset-locked C4 dataset before
+exposing any trajectory callback, materializes the two controlled source
+repositories, installs one isolated runtime per longitudinal arm trajectory,
+and keeps that runtime and GoodMemory storage across stages. It resets the same
+trajectory workspace to each declared snapshot, starts a new non-resumed Codex
+process, captures the patch, and collects the exact installed-host canary. Both
+copied model credentials are removed before the live leakage audit and before
+the evaluator source is copied into isolated evaluator sandboxes. The adapter
+also freezes the Codex executable/version and packaged GoodMemory identity
+across clusters and persists per-cluster host preflight evidence before the
+first stage runs.
+Before creating output, both the programmatic runner and CLI reject any mutable
+output, runtime, source, or workspace root that overlaps the frozen dataset,
+C4 evidence, source credential, package artifact, or runner checkout.
+An append-only event stream records dataset validation, trajectory preparation,
+stage lifecycle, credential revocation/restoration, leakage audit, evaluation,
+cleanup, completion, and hashed failure diagnostics as the long chain runs.
+
+The internal report requires all 72 stage identities and all 36 pair identities,
+retains every infrastructure, memory-channel, task, and incomparability reason,
+and keeps `publicClaimEligible`, `publicCodingEffectProof`, and
+`readmeRowAllowed` false. Its planning calculation uses a conservative 0.5
+discordance rate, 5% two-sided alpha, 80% power, and the pilot-estimated
+within-episode correlation as a design effect. The report executes the
+predeclared 10,000-sample paired percentile bootstrap with episode as the
+resampling unit, aggregates Codex input/output/cached-token and duration usage,
+and reports native injection, required-recall, writeback, irrelevant-injection,
+and missing-observation counts. Dollar cost stays null until a model-price
+snapshot is frozen. The resulting C6 budget cannot
+fall below 30 episodes, 90 distinct scored stages, 6 repositories, 3 order
+seeds, or 540 Codex calls.
+
+The C5 harness currently has 37 focused tests with 508 assertions. No C5 live
+model call or paired coding result has been produced. The readiness command
+currently fails before model execution because
+`reports/quality-gates/phase-73/c4-controlled-pilot-readiness.json` is absent;
+the superseded v8 evidence is retained only at explicit `*-v8` historical
+paths. Therefore C5 is not accepted and no coding-uplift statement is eligible.
 
 ### Phase C6: expanded dataset and full run
 

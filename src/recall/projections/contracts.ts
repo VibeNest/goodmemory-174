@@ -1,10 +1,22 @@
 import type { MemoryScope } from "../../domain/scope";
 import type { MemorySourceMethod } from "../../domain/provenance";
+import type {
+  AppendClaimProjectionInput,
+  MemoryClaimModality,
+  MemoryClaimPolarity,
+} from "../../domain/memoryCandidate";
+
+export type {
+  AppendClaimProjectionInput,
+  ClaimProjectionWritePort,
+} from "../../domain/memoryCandidate";
 
 export const RECALL_DOCUMENTS_COLLECTION = "recall_documents_v2";
 export const ENTITIES_COLLECTION = "entities_v1";
 export const SCOPE_CATALOG_COLLECTION = "scope_catalog_v1";
 export const PROJECTION_REPAIRS_COLLECTION = "recall_projection_repairs_v1";
+export const CLAIM_PROJECTIONS_COLLECTION = "claim_projections_v1";
+export const CLAIM_PROJECTION_STATUS_COLLECTION = "claim_projection_status_v1";
 
 export const RECALL_PROJECTION_SOURCE_COLLECTIONS = [
   "profiles",
@@ -88,6 +100,43 @@ export interface ScopeCatalogProjection extends MemoryScope {
   lastSeenAt: string;
 }
 
+export interface ClaimProjection extends MemoryScope {
+  id: string;
+  schemaVersion: 1;
+  scopeKey: string;
+  sourceMemoryId: string;
+  subjectEntityId: string;
+  predicateKey: string;
+  objectText: string;
+  objectEntityId?: string;
+  polarity: MemoryClaimPolarity;
+  modality: MemoryClaimModality;
+  validFrom?: string;
+  validUntil?: string;
+  observedAt: string;
+  ingestedAt: string;
+  evidenceIds: string[];
+  sourceMessageIds: string[];
+  extractorVersion: string;
+  confidence?: number;
+  contextualDescriptor?: string;
+}
+
+export type ClaimProjectionState = "projected" | "unstructured" | "failed";
+
+export interface ClaimProjectionStatus extends MemoryScope {
+  id: string;
+  schemaVersion: 1;
+  scopeKey: string;
+  sourceMemoryId: string;
+  state: ClaimProjectionState;
+  claimIds: string[];
+  extractorVersion: string;
+  sourceUpdatedAt?: string;
+  lastError?: string;
+  updatedAt: string;
+}
+
 export interface ProjectionRepairRecord extends MemoryScope {
   id: string;
   schemaVersion: 1;
@@ -98,6 +147,8 @@ export interface ProjectionRepairRecord extends MemoryScope {
   firstFailedAt: string;
   lastFailedAt: string;
   lastError: string;
+  target?: "recall" | "claim";
+  claimInput?: AppendClaimProjectionInput;
 }
 
 export interface RecallProjectionSearchPort {
@@ -107,7 +158,14 @@ export interface RecallProjectionSearchPort {
     skipped: boolean;
   }>;
   queryDocuments(scope: MemoryScope): Promise<RecallIndexDocument[]>;
+  searchDocuments(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+  ): Promise<RecallIndexDocument[]>;
   queryEntities(scope: MemoryScope): Promise<EntityProjection[]>;
+  queryClaims(scope: MemoryScope): Promise<ClaimProjection[]>;
+  queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
 }
 
 export function isRecallProjectionSourceCollection(

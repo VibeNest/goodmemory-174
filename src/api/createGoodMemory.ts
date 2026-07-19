@@ -34,13 +34,27 @@ import {
   type GoodMemoryTracer,
 } from "../observability/tracer";
 import type { RecallRouterAssistant } from "../recall/assistant";
-import { buildMemoryPacket, renderMemoryPacket } from "../recall/contextBuilder";
+import {
+  rebuildMemoryPacket,
+  renderMemoryPacket,
+} from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
-import { iterativeRecall } from "../recall/iterativeRecall";
+import {
+  iterativeRecall,
+  type IterativeRecallStep,
+} from "../recall/iterativeRecall";
 import { createRecallProjectionRuntime } from "../recall/projections/runtime";
 import { decomposedRecall } from "../recall/queryDecomposition";
+import {
+  buildDeterministicRecallPlan,
+  type RecallPlan,
+} from "../recall/recallPlan";
 import type { Reranker } from "../recall/reranker";
-import type { RecallRetrievalTrace } from "../recall/retrievalTrace";
+import type {
+  RecallExecutionStopReason,
+  RecallQueryExecutionTrace,
+  RecallRetrievalTrace,
+} from "../recall/retrievalTrace";
 import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
@@ -56,7 +70,10 @@ import type {
   GovernanceVectorPort,
   RememberVectorPort,
 } from "../storage/ports";
-import type { DocumentStore } from "../storage/contracts";
+import {
+  isProjectionCapableDocumentStore,
+  type DocumentStore,
+} from "../storage/contracts";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
@@ -88,6 +105,7 @@ import { createAgentEventIngestor } from "./agentEventIngestion";
 import { createEvolutionRuntime } from "./evolutionRuntime";
 import { deleteVectorForCollection } from "./governance";
 import {
+  deleteMemorySupportingState,
   deleteAllMemoryOperation,
   exportMemoryOperation,
   isPureUserScope,
@@ -251,6 +269,73 @@ function mergeRetrievalTraces(
   };
 }
 
+interface RecallPassContext {
+  hop: number;
+  query: string;
+  role: "primary" | "subquery";
+  subQueryIndex?: number;
+}
+
+function annotateRecallPass(
+  result: RecallResult,
+  context: RecallPassContext,
+): RecallResult {
+  const retrievalTrace = result.metadata.retrievalTrace;
+  if (!retrievalTrace?.fusionRuns) {
+    return result;
+  }
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      retrievalTrace: {
+        ...retrievalTrace,
+        fusionRuns: retrievalTrace.fusionRuns.map((run) => ({
+          ...run,
+          hop: context.hop,
+          query: context.query,
+          queryRole: context.role,
+          ...(context.subQueryIndex !== undefined
+            ? { subQueryIndex: context.subQueryIndex }
+            : {}),
+          candidates: run.candidates.map((candidate) => ({
+            ...candidate,
+            ...(!candidate.selected
+              ? { eliminationReason: "not_selected" as const }
+              : {}),
+          })),
+        })),
+      },
+    },
+  };
+}
+
+function withRecallPlanTrace(input: {
+  executions: RecallQueryExecutionTrace[];
+  plan: RecallPlan;
+  result: RecallResult;
+  stopReason: RecallExecutionStopReason;
+  subQueries: string[];
+}): RecallResult {
+  const previous = input.result.metadata.retrievalTrace;
+  const retrievalTrace: RecallRetrievalTrace = {
+    ...(previous?.fusionRuns ? { fusionRuns: previous.fusionRuns } : {}),
+    ...(previous?.reranker ? { reranker: previous.reranker } : {}),
+    plan: input.plan,
+    queryExecutions: input.executions,
+    schemaVersion: 2,
+    stopReason: input.stopReason,
+    subQueries: input.subQueries,
+  };
+  return {
+    ...input.result,
+    metadata: {
+      ...input.result.metadata,
+      retrievalTrace,
+    },
+  };
+}
+
 // Union the retrieved records across the primary recall and each sub-query
 // recall (primary first, deduped by id), then re-render the packet over the
 // union so the merged RecallResult stays internally consistent. Session-scoped
@@ -258,6 +343,7 @@ function mergeRetrievalTraces(
 function mergeRecallResults(
   primary: RecallResult,
   supplementary: RecallResult[],
+  policyMarker = "decomposed_recall",
 ): RecallResult {
   if (supplementary.length === 0) {
     return primary;
@@ -270,7 +356,7 @@ function mergeRecallResults(
   const episodes = unionRecordsById(results, (result) => result.episodes);
   const archives = unionRecordsById(results, (result) => result.archives);
   const evidence = unionRecordsById(results, (result) => result.evidence);
-  const packet = buildMemoryPacket({
+  const packet = rebuildMemoryPacket(primary.packet, {
     profile: primary.profile,
     preferences,
     references,
@@ -312,7 +398,7 @@ function mergeRecallResults(
       policyApplied: [
         ...new Set([
           ...results.flatMap((result) => result.metadata.policyApplied),
-          "decomposed_recall",
+          policyMarker,
         ]),
       ],
       ...(retrievalTrace ? { retrievalTrace } : {}),
@@ -826,17 +912,27 @@ class GoodMemoryImpl implements GoodMemory {
               url: explicitStorage.url,
             })
           : createInMemoryDocumentStore());
-    const projectionRuntime = createRecallProjectionRuntime({
-      bulkBackfill: internal?.projectionBulkBackfill,
-      documentStore: rawDocumentStore,
-      now: config.testing?.now
-        ? () => config.testing!.now!().toISOString()
-        : undefined,
-      writeThrough:
-        runtimeResolution.retrieval.generalizedFusion !== undefined &&
-        internal?.projectionWriteThrough !== false,
-    });
-    const documentStore = projectionRuntime.documentStore;
+    if (
+      runtimeResolution.retrieval.generalizedFusion !== undefined &&
+      !isProjectionCapableDocumentStore(rawDocumentStore)
+    ) {
+      throw new Error(
+        "Generalized fusion requires a projection-capable document store with atomic conditional batches.",
+      );
+    }
+    const projectionRuntime = isProjectionCapableDocumentStore(rawDocumentStore)
+      ? createRecallProjectionRuntime({
+          bulkBackfill: internal?.projectionBulkBackfill,
+          documentStore: rawDocumentStore,
+          now: config.testing?.now
+            ? () => config.testing!.now!().toISOString()
+            : undefined,
+          writeThrough:
+            runtimeResolution.retrieval.generalizedFusion !== undefined &&
+            internal?.projectionWriteThrough !== false,
+        })
+      : undefined;
+    const documentStore = projectionRuntime?.documentStore ?? rawDocumentStore;
     const sessionStore =
       config.adapters?.sessionStore ??
       (autoStorageAdapters
@@ -907,6 +1003,7 @@ class GoodMemoryImpl implements GoodMemory {
       repositories,
       vectorIndex: repositories.vectorIndex,
       assistedExtractor,
+      claimProjection: projectionRuntime,
       documentStore,
       embedding: embeddingAdapter,
       extractor:
@@ -990,39 +1087,122 @@ class GoodMemoryImpl implements GoodMemory {
     });
 
     try {
-      const singlePassRecall = (query: string) =>
-        this.recallEngine.recall({ ...input, query });
+      const resolvedLanguage = this.language.resolveFromText({
+        locale: input.locale,
+        text: input.query,
+      });
+      const recallPlan = buildDeterministicRecallPlan({
+        language: this.language,
+        locale: resolvedLanguage.locale,
+        query: input.query,
+        referenceTime: this.now().toISOString(),
+        scope: input.scope,
+      });
       const multiHopMaxHops =
         typeof input.multiHop === "number" ? input.multiHop : undefined;
-      const perQueryRecall = input.multiHop
-        ? async (query: string) =>
-            (
-              await iterativeRecall({
-                query,
-                recall: singlePassRecall,
-                merge: mergeRecallResults,
-                options: { maxHops: multiHopMaxHops },
-              })
-            ).result
-        : singlePassRecall;
-      let result = input.decompose
-        ? (
-            await decomposedRecall({
-              query: input.query,
-              recall: perQueryRecall,
-              merge: mergeRecallResults,
-            })
-          ).result
-        : input.multiHop
-          ? (
-              await iterativeRecall({
-                query: input.query,
-                recall: singlePassRecall,
-                merge: mergeRecallResults,
-                options: { maxHops: multiHopMaxHops },
-              })
-            ).result
-          : await this.recallEngine.recall(input);
+      const multiHopEnabled = Boolean(input.multiHop);
+      const runQuery = async (context: {
+        query: string;
+        role: "primary" | "subquery";
+        subQueryIndex?: number;
+      }): Promise<{
+        execution: RecallQueryExecutionTrace;
+        result: RecallResult;
+      }> => {
+        let hop = 0;
+        const singlePassRecall = async (query: string) => {
+          hop += 1;
+          const result = await this.recallEngine.recall({
+            ...input,
+            query,
+            recallPlan,
+          });
+          return annotateRecallPass(result, {
+            hop,
+            query,
+            role: context.role,
+            ...(context.subQueryIndex !== undefined
+              ? { subQueryIndex: context.subQueryIndex }
+              : {}),
+          });
+        };
+
+        if (multiHopEnabled) {
+          const outcome = await iterativeRecall({
+            query: context.query,
+            recall: singlePassRecall,
+            merge: (primary, supplementary) =>
+              mergeRecallResults(primary, supplementary, "iterative_recall"),
+            options: { maxHops: multiHopMaxHops },
+          });
+          return {
+            execution: {
+              hops: outcome.steps,
+              query: context.query,
+              role: context.role,
+              stopReason: outcome.stopReason,
+              ...(context.subQueryIndex !== undefined
+                ? { subQueryIndex: context.subQueryIndex }
+                : {}),
+            },
+            result: outcome.result,
+          };
+        }
+
+        const result = await singlePassRecall(context.query);
+        const steps: IterativeRecallStep[] = [
+          {
+            bridgeEntities: [],
+            factCount: result.facts.length,
+            hop: 1,
+            query: context.query,
+          },
+        ];
+        return {
+          execution: {
+            hops: steps,
+            query: context.query,
+            role: context.role,
+            stopReason: "single_pass_complete",
+            ...(context.subQueryIndex !== undefined
+              ? { subQueryIndex: context.subQueryIndex }
+              : {}),
+          },
+          result,
+        };
+      };
+
+      let result: RecallResult;
+      let subQueries: string[] = [];
+      let executions: RecallQueryExecutionTrace[];
+      if (input.decompose) {
+        const executionsByQuery = new Map<string, RecallQueryExecutionTrace>();
+        const decomposed = await decomposedRecall({
+          query: input.query,
+          decompose: () => recallPlan.facets,
+          recall: async (query) => {
+            const subQueryIndex = recallPlan.facets.indexOf(query);
+            const recalled = await runQuery({
+              query,
+              role: subQueryIndex >= 0 ? "subquery" : "primary",
+              ...(subQueryIndex >= 0 ? { subQueryIndex } : {}),
+            });
+            executionsByQuery.set(query, recalled.execution);
+            return recalled.result;
+          },
+          merge: (primary, supplementary) =>
+            mergeRecallResults(primary, supplementary, "decomposed_recall"),
+        });
+        result = decomposed.result;
+        subQueries = decomposed.subQueries;
+        executions = [input.query, ...subQueries].map(
+          (query) => executionsByQuery.get(query)!,
+        );
+      } else {
+        const recalled = await runQuery({ query: input.query, role: "primary" });
+        result = recalled.result;
+        executions = [recalled.execution];
+      }
       if (this.reranker && this.rerankerTarget) {
         result = input.rerank === false
           ? withRerankerTrace(
@@ -1040,6 +1220,18 @@ class GoodMemoryImpl implements GoodMemory {
               target: this.rerankerTarget,
             });
       }
+      result = withRecallPlanTrace({
+        executions,
+        plan: recallPlan,
+        result,
+        stopReason:
+          subQueries.length > 0
+            ? "decomposition_complete"
+            : multiHopEnabled
+              ? "multi_hop_complete"
+              : "single_pass_complete",
+        subQueries,
+      });
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,
         result,
@@ -1221,6 +1413,14 @@ class GoodMemoryImpl implements GoodMemory {
             this.governanceVectors,
             collection,
             input.memoryId,
+          );
+          await deleteMemorySupportingState(
+            { documentStore: this.documentStore },
+            {
+              collection,
+              memoryId: input.memoryId,
+              scope: input.scope,
+            },
           );
           await this.documentStore.delete(collection, input.memoryId);
           await trace.succeeded({

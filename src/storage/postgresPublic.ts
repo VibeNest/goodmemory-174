@@ -1,5 +1,6 @@
 import type {
   DocumentStore,
+  ProjectionCapableDocumentStore,
   SessionStore,
   VectorStore,
 } from "./contracts";
@@ -72,7 +73,7 @@ export function setPostgresPublicModuleLoaderForTests(
 
 function createDeferredDocumentStore(
   resolveStore: () => Promise<DocumentStore>,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   return {
     async set(collection, id, document) {
       const store = await resolveStore();
@@ -99,13 +100,14 @@ function createDeferredDocumentStore(
       return store.queryPage!(collection, input);
     },
 
+    async searchText(collection, input) {
+      const store = await resolveStore();
+      return store.searchText!(collection, input);
+    },
+
     async writeBatchIfUnchanged(input) {
       const store = await resolveStore();
-      if (!store.writeBatchIfUnchanged) {
-        return false;
-      }
-
-      return store.writeBatchIfUnchanged(input);
+      return store.writeBatchIfUnchanged!(input);
     },
 
     async delete(collection, id) {
@@ -202,7 +204,7 @@ export async function canBootstrapPostgresStorageBackend(
 export function createPostgresDocumentStore(
   config: PostgresStorageConfig,
   options?: PostgresStoreOptions,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   let storePromise: Promise<DocumentStore> | null = null;
 
   return createDeferredDocumentStore(async () => {

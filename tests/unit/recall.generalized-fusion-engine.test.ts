@@ -10,6 +10,7 @@ import { createSessionArchive } from "../../src/evolution/contracts";
 import {
   createRecallEngine,
   resolveActiveGeneralizedFusionConfig,
+  resolveGeneralizedFusionBudget,
 } from "../../src/recall/engine";
 import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
 import {
@@ -57,6 +58,78 @@ describe("generalized fusion through the recall engine", () => {
         reranking,
       }),
     ).toBe(base);
+  });
+
+  it("keeps an explicit reranker candidate budget wider than the final selection default", () => {
+    expect(resolveGeneralizedFusionBudget({
+      base: { maxCandidates: 20, maxTotalFacts: 20 },
+      plan: {
+        entities: [],
+        facets: [],
+        temporalConstraints: [],
+        evidenceNeeds: ["direct"],
+        planes: ["semantic"],
+        maxHops: 1,
+        preRankLimit: 32,
+        selectedLimit: 12,
+        maxRenderedTokens: 1_200,
+        uncertainty: "low",
+      },
+    })).toMatchObject({
+      maxCandidates: 20,
+      maxTotalFacts: 20,
+    });
+  });
+
+  it("uses indexed text search instead of a full projection scan for ordinary recall", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionRuntime = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    let fullScans = 0;
+    let searches = 0;
+    const projectionIndex = {
+      ...projectionRuntime,
+      queryDocuments(scopeInput: typeof scope) {
+        fullScans += 1;
+        return projectionRuntime.queryDocuments(scopeInput);
+      },
+      searchDocuments(scopeInput: typeof scope, query: string, limit: number) {
+        searches += 1;
+        return projectionRuntime.searchDocuments(scopeInput, query, limit);
+      },
+    };
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionRuntime.documentStore,
+      sessionStore,
+    });
+    await repositories.facts.add(createFactMemory({
+      id: "fact-atlas",
+      ...scope,
+      category: "project",
+      content: "Atlas deployment uses PostgreSQL.",
+      source: { method: "explicit", extractedAt: "2026-07-09T00:00:00.000Z" },
+      createdAt: "2026-07-09T00:00:00.000Z",
+      updatedAt: "2026-07-09T00:00:00.000Z",
+    }));
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8 },
+      projectionIndex,
+    });
+
+    await engine.recall({
+      scope,
+      query: "Which database does Atlas deployment use?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(searches).toBe(1);
+    expect(fullScans).toBe(0);
   });
 
   it("admits a fused dense candidate with generalized attribution and no parallel semantic bypass", async () => {
@@ -230,6 +303,17 @@ describe("generalized fusion through the recall engine", () => {
         archivedAt: "2026-07-09T00:00:00.000Z",
       }),
     );
+    const query = "Where is the Nebula escalation checklist and what needs approval?";
+    expect(
+      new Set(
+        (await projectionIndex.searchDocuments(scope, query, 128))
+          .map(({ sourceMemoryId }) => sourceMemoryId),
+      ),
+    ).toEqual(new Set([
+      "reference-nebula",
+      "episode-nebula",
+      "archive-nebula",
+    ]));
     const engine = createRecallEngine({
       repositories,
       runtime: sessionStore,
@@ -240,7 +324,7 @@ describe("generalized fusion through the recall engine", () => {
 
     const result = await engine.recall({
       scope,
-      query: "Where is the Nebula escalation checklist and what needs approval?",
+      query,
       retrievalProfile: "general_chat",
     });
 
@@ -343,5 +427,191 @@ describe("generalized fusion through the recall engine", () => {
         ]),
       }),
     ]);
+  });
+
+  it("reaches structured claim temporal channels through the public recall engine", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    const sourceMemoryId = "fact-status";
+    await repositories.facts.add(createFactMemory({
+      id: sourceMemoryId,
+      ...scope,
+      category: "project",
+      content: "Opaque Atlas status record.",
+      source: { method: "explicit", extractedAt: "2026-07-08T00:00:00.000Z" },
+      createdAt: "2026-07-08T00:00:00.000Z",
+      updatedAt: "2026-07-08T00:00:00.000Z",
+    }));
+    for (const [objectText, updatedAt] of [
+      ["planned", "2026-07-08T00:00:00.000Z"],
+      ["completed", "2026-07-09T00:00:00.000Z"],
+    ] as const) {
+      await projectionIndex.appendClaim({
+        ...scope,
+        sourceMemoryId,
+        subject: "Atlas",
+        claim: {
+          predicateKey: "project.status",
+          objectText,
+        },
+        observedAt: updatedAt,
+        ingestedAt: updatedAt,
+        evidenceIds: [],
+        sourceMessageIds: [],
+        extractorVersion: "claim-test-v1",
+      });
+    }
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 8 },
+      projectionIndex,
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: "How did project status change from planned to completed?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts.map(({ content }) => content).sort()).toEqual([
+      "completed",
+      "planned",
+    ]);
+    expect(result.metadata.retrievalTrace?.fusionRuns?.[0]?.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          evidenceTypes: expect.arrayContaining(["temporal"]),
+        }),
+      ]),
+    );
+  });
+
+  it("queries claim history and selects the status before an explicit boundary", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    const fact = createFactMemory({
+      id: "fact-status",
+      ...scope,
+      category: "project",
+      content: "Opaque Atlas status.",
+      source: { method: "explicit", extractedAt: "2024-12-01T00:00:00.000Z" },
+      createdAt: "2024-12-01T00:00:00.000Z",
+      updatedAt: "2024-12-01T00:00:00.000Z",
+    });
+    await repositories.facts.add(fact);
+    for (const [objectText, ingestedAt] of [
+      ["old", "2024-12-01T00:00:00.000Z"],
+      ["new", "2025-02-01T00:00:00.000Z"],
+    ] as const) {
+      await projectionIndex.appendClaim({
+        ...scope,
+        sourceMemoryId: fact.id,
+        subject: "Atlas",
+        claim: { predicateKey: "project.status", objectText },
+        observedAt: ingestedAt,
+        ingestedAt,
+        evidenceIds: [],
+        sourceMessageIds: [],
+        extractorVersion: "claim-test-v1",
+      });
+    }
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 8 },
+      projectionIndex,
+      referenceTime: () => "2026-01-01T00:00:00.000Z",
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: "What was Atlas project status before 2025?",
+      retrievalProfile: "general_chat",
+    });
+    const temporal = result.metadata.retrievalTrace?.fusionRuns?.[0]?.candidates
+      .find(({ sourceMemoryId }) => sourceMemoryId === fact.id)?.channels.temporal;
+    const oldClaim = (await projectionIndex.queryClaimHistory(scope)).find(
+      ({ objectText }) => objectText === "old",
+    );
+
+    expect(oldClaim).toBeDefined();
+    expect(temporal?.evidenceDocumentIds).toEqual([oldClaim!.id]);
+    expect(temporal?.evidenceDocumentIds).not.toContain(
+      (await projectionIndex.queryClaims(scope))[0]?.id,
+    );
+    expect(result.facts.map(({ content }) => content)).toEqual(["old"]);
+  });
+
+  it("does not mix a post-boundary current fact into another source's historical answer", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    for (const [id, objectText, timestamp] of [
+      ["fact-old", "planned", "2024-12-01T00:00:00.000Z"],
+      ["fact-new", "completed", "2025-02-01T00:00:00.000Z"],
+    ] as const) {
+      await repositories.facts.add(createFactMemory({
+        id,
+        ...scope,
+        category: "project",
+        content: objectText,
+        source: { method: "explicit", extractedAt: timestamp },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
+      await projectionIndex.appendClaim({
+        ...scope,
+        sourceMemoryId: id,
+        subject: "Atlas",
+        claim: { predicateKey: "project.status", objectText },
+        observedAt: timestamp,
+        ingestedAt: timestamp,
+        evidenceIds: [],
+        sourceMessageIds: [],
+        extractorVersion: "claim-test-v1",
+      });
+    }
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 8 },
+      projectionIndex,
+      referenceTime: () => "2026-01-01T00:00:00.000Z",
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: "What was Atlas project status before 2025?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts.map(({ content }) => content)).toEqual(["planned"]);
   });
 });

@@ -86,20 +86,20 @@ Current Transition
   the frozen event-ordering integrity audit makes the strict gate ineligible
   for this dataset snapshot. The `v0.6.0` versioned release gate and strict
   claim gate pass; tag `v0.6.0` at `6fdd63ec` was published by workflow run `29522907352` to GitHub and npm `latest` as `goodmemory@0.6.0`.
-- Phase 73 is active as a separate Codex-only product-effect lane. C0-C1 and
-  the C2 host-only canary are closed. C3 implementation is complete, but its
-  acceptance is reopened: real two-process run
-  `c3-controlled-20260715-1747z` observed `tie-both-pass` and an active installed
-  treatment, but omitted runner-source provenance and the normalized arm config
-  diff from its gitignored evidence. A new auditable pair is required. Its
-  projection verifier proves internal consistency and clean-clone patch replay,
-  not external authenticity of the tarball, raw run, or canary. C4 is reopened:
-  its deterministic v2 core has 6 episodes / 18 stages / 54 stable base probes /
-  18 passing gold replays, but the current v2 no-memory baseline and its bound
-  per-stage evidence have not been generated, and a new independent review is
-  still required. It made no paired treatment comparison and proves no coding
-  uplift. Phase 73 remains active with C3-C7 open. See `78-phase-73-codex-installed-host-coding-effect-evaluation.txt` for evidence
-  and the strict boundary against coding-effect claims.
+- Phase 73 is active as a separate Codex-only product-effect lane; C0-C2 are
+  closed. C3 is accepted as frozen-prehistory protocol/host evidence from
+  `c3-controlled-20260716-cleanclone-003`: 2/2 arms resolved, zero infrastructure
+  failures, `tie-both-pass`; the independent verifier replayed both patches and
+  accepted 17 projected files with `externalAuthenticityVerified: false`.
+  C3 source reproducibility is reopened because the recorded runner commit and
+  tree are absent from the current Git object database; this is not a
+  recoverable verifier-source snapshot. C4's
+  v8 core, review, baseline, and readiness are superseded historical evidence.
+  The v9 corpus-wide leakage detector and exact frozen-input bindings are in
+  code, but canonical v9 core, independent review, baseline, and readiness
+  artifacts are pending. C5 remains blocked until that v9 chain is accepted.
+  No result proves coding uplift; C5-C7 remain open. See
+  `78-phase-73-codex-installed-host-coding-effect-evaluation.txt`.
 
 - Phase 62 LongMemEval is accepted as the first sequential external benchmark hardening slice.
 - Phase 64 / P67-C MemoryAgentBench retains historical AR/CR and four-competency evidence. The current `v0.6.0` judge-free claim is scoped to CR 0.9589041096 and TTL 0.9333333333 versus no-memory 0.000; AR/LRU remain excluded because no-memory baselines are higher or multiple-choice leakage dominates.

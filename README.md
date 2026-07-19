@@ -869,6 +869,14 @@ user's manager?" vs. "yeah my boss Dana signed off").
 - Supported local runtimes can use `sqlite-vss` for SQLite semantic indexing;
   unsupported runtimes keep durable non-accelerated fallback behavior.
 
+Custom `DocumentStore` adapters keep the original set/get/update/query/delete
+contract. Projection-backed features such as the `recommended` generalized
+fusion preset additionally require `ProjectionCapableDocumentStore`, whose
+`writeBatchIfUnchanged()` must atomically validate `expected`/`unchanged` rows
+and apply every `set` and `delete` in the batch. Existing adapters can continue
+to run without projections; add that capability before enabling generalized
+fusion. The built-in memory, SQLite, and Postgres stores already implement it.
+
 Inspect the resolved runtime instead of guessing:
 
 ```ts

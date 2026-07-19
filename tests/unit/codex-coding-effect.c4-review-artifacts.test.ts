@@ -106,7 +106,7 @@ describe("Codex coding-effect C4 review artifacts", () => {
       recordedAt: "2026-07-16T10:30:00.000Z",
       requestBytes,
       responseBytes,
-      reviewerAgentName: "/root/c4_final_independent_review_v3",
+      reviewerAgentName: "/root/c4_final_independent_review_v5",
     });
 
     expect(parseC4IndependentReviewProvenance(provenance)).toEqual(provenance);
@@ -143,7 +143,7 @@ describe("Codex coding-effect C4 review artifacts", () => {
       inputBundleBytes,
       recordedAt: "2026-07-16T10:30:00.000Z",
       responseBytes: '{"schemaVersion":2}\n',
-      reviewerAgentName: "/root/c4_final_independent_review_v3",
+      reviewerAgentName: "/root/c4_final_independent_review_v5",
     };
 
     expect(() => buildC4IndependentReviewProvenance({

@@ -1,16 +1,24 @@
 import { isDeepStrictEqual } from "node:util";
 import { normalizeScope, scopeToKey } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
+import type { EvidenceRecord } from "../../evidence/contracts";
 import type {
-  DocumentStore,
+  ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
+import { scoreDocumentSearch } from "../../storage/textSearch";
 import {
   ENTITIES_COLLECTION,
   RECALL_DOCUMENTS_COLLECTION,
   SCOPE_CATALOG_COLLECTION,
 } from "./contracts";
+import {
+  createClaimProjectionIndex,
+} from "./claims";
+import type { ClaimProjectionIndex } from "./claims";
 import type {
+  AppendClaimProjectionInput,
+  ClaimProjection,
   EntityAdjacencyProjection,
   EntityProjection,
   RecallIndexDocument,
@@ -32,7 +40,16 @@ import {
 const MAX_SOURCE_STABILIZATION_ATTEMPTS = 4;
 
 export interface RecallProjectionOperations {
+  appendClaimUnsafe(input: AppendClaimProjectionInput): Promise<void>;
+  markClaimFailed(input: AppendClaimProjectionInput, error: unknown): Promise<void>;
+  queryClaims(scope: MemoryScope): Promise<ClaimProjection[]>;
+  queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
   queryDocuments(scope: MemoryScope): Promise<RecallIndexDocument[]>;
+  searchDocuments(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+  ): Promise<RecallIndexDocument[]>;
   queryEntities(scope: MemoryScope): Promise<EntityProjection[]>;
   registerScope(
     scope: MemoryScope,
@@ -48,23 +65,28 @@ export interface RecallProjectionOperations {
     sourceMemoryId: string,
     fallbackScope?: MemoryScope,
     recoverStaleAdjacency?: boolean,
+    evidence?: readonly EvidenceRecord[],
   ): Promise<void>;
 }
 
 export interface RecallProjectionCanonicalSource {
   collection: RecallProjectionSourceCollection;
   document: StorageDocument;
+  evidence?: readonly EvidenceRecord[];
   id: string;
 }
 
 export function createRecallProjectionOperations(input: {
-  documentStore: DocumentStore;
+  documentStore: ProjectionCapableDocumentStore;
   now: () => string;
   entityIndex?: EntityProjectionIndex;
+  claimIndex?: ClaimProjectionIndex;
 }): RecallProjectionOperations {
   const { documentStore, now } = input;
   const entityIndex =
     input.entityIndex ?? createEntityProjectionIndex(documentStore);
+  const claimIndex =
+    input.claimIndex ?? createClaimProjectionIndex(documentStore);
 
   async function removeSourceDocuments(
     collection: RecallProjectionSourceCollection,
@@ -113,6 +135,7 @@ export function createRecallProjectionOperations(input: {
     collection: RecallProjectionSourceCollection;
     existing: RecallIndexDocument[];
     fallbackScope?: MemoryScope;
+    evidence?: readonly EvidenceRecord[];
     recoverStaleAdjacency: boolean;
     sourceMemoryId: string;
     timestamp: string;
@@ -143,6 +166,7 @@ export function createRecallProjectionOperations(input: {
   async function replaceSourceSnapshot(input: {
     collection: RecallProjectionSourceCollection;
     document: StorageDocument | null;
+    evidence?: readonly EvidenceRecord[];
     fallbackScope?: MemoryScope;
     recoverStaleAdjacency: boolean;
     sourceMemoryId: string;
@@ -164,6 +188,15 @@ export function createRecallProjectionOperations(input: {
         sourceMemoryId: input.sourceMemoryId,
         timestamp: input.timestamp,
       });
+      if (input.collection === "facts") {
+        await claimIndex.synchronizeFact({
+          document: input.document,
+          evidence: input.evidence,
+          fallbackScope: scope,
+          sourceMemoryId: input.sourceMemoryId,
+          timestamp: input.timestamp,
+        });
+      }
       return;
     }
 
@@ -190,15 +223,70 @@ export function createRecallProjectionOperations(input: {
       sourceMemoryId: input.sourceMemoryId,
       timestamp: input.timestamp,
     });
+    if (input.collection === "facts") {
+      await claimIndex.synchronizeFact({
+        document: input.document,
+        evidence: input.evidence,
+        fallbackScope: scope,
+        sourceMemoryId: input.sourceMemoryId,
+        timestamp: input.timestamp,
+      });
+    }
   }
 
   return {
+    async appendClaimUnsafe(claimInput) {
+      await claimIndex.append(claimInput);
+    },
+    markClaimFailed(claimInput, error) {
+      return claimIndex.markFailed(claimInput, error);
+    },
+    queryClaims(scope) {
+      return claimIndex.query(scope);
+    },
+    queryClaimHistory(scope) {
+      return claimIndex.queryHistory(scope);
+    },
     async queryDocuments(scope) {
       const documents = await documentStore.query<RecallIndexDocument>(
         RECALL_DOCUMENTS_COLLECTION,
         scopeFilter(scope),
       );
       return documents.filter((document) => matchesScopeFilter(document, scope));
+    },
+    async searchDocuments(scope, query, limit) {
+      if (documentStore.searchText) {
+        const results = await documentStore.searchText<RecallIndexDocument>(
+          RECALL_DOCUMENTS_COLLECTION,
+          {
+            field: "text",
+            filter: scopeFilter(scope),
+            limit,
+            query,
+          },
+        );
+        return results
+          .map(({ document }) => document)
+          .filter((document) => matchesScopeFilter(document, scope));
+      }
+      const queried = await documentStore.query<RecallIndexDocument>(
+        RECALL_DOCUMENTS_COLLECTION,
+        scopeFilter(scope),
+      );
+      const documents = queried.filter((document) =>
+        matchesScopeFilter(document, scope),
+      );
+      return documents
+        .map((document) => ({
+          document,
+          score: scoreDocumentSearch(query, document.text),
+        }))
+        .filter(({ score }) => score > 0)
+        .sort((left, right) =>
+          right.score - left.score || left.document.id.localeCompare(right.document.id)
+        )
+        .map(({ document }) => document)
+        .slice(0, limit);
     },
     queryEntities(scope) {
       return entityIndex.query(scope);
@@ -261,6 +349,11 @@ export function createRecallProjectionOperations(input: {
       for (const sourceScope of sourceScopes.values()) {
         await registerScope(sourceScope, timestamp);
       }
+      await claimIndex.rebuildScope({
+        scope,
+        sources,
+        timestamp,
+      });
       await registerScope(scope, timestamp, "complete");
       return sources.length;
     },
@@ -269,6 +362,7 @@ export function createRecallProjectionOperations(input: {
       sourceMemoryId,
       fallbackScope,
       recoverStaleAdjacency = false,
+      evidence = [],
     ) {
       let expected = await documentStore.get<StorageDocument>(
         collection,
@@ -283,6 +377,7 @@ export function createRecallProjectionOperations(input: {
           collection,
           document: expected,
           fallbackScope,
+          evidence,
           recoverStaleAdjacency: recoverStaleAdjacency || attempt > 0,
           sourceMemoryId,
           timestamp: now(),

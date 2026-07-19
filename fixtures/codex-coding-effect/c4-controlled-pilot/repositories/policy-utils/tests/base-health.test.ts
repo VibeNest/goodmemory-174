@@ -15,11 +15,11 @@ const cases = [
   },
   {
     "args": [
-      "info"
+      "notice"
     ],
     "expected": {
       "ok": true,
-      "value": "info"
+      "value": "notice"
     },
     "functionName": "parseLogLevelSetting",
     "taskId": "parse-log-level-setting"

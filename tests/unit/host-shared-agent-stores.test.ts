@@ -2,6 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { createInMemoryDocumentStore } from "../../src/storage/memory";
 import { wrapDocumentStoreForSharedAgents } from "../../src/install/hostSharedAgentStores";
 import { parseInstalledHostRuntimeConfig } from "../../src/install/hostConfigValidation";
+import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
+import { createFactMemory } from "../../src/domain/records";
 
 // Opt-in cross-host read union: a host may READ records tagged with the
 // agentIds it lists in sharedAgents; writes keep the writing host's agentId
@@ -13,11 +15,24 @@ import { parseInstalledHostRuntimeConfig } from "../../src/install/hostConfigVal
 async function seedStore() {
   const store = createInMemoryDocumentStore();
   const facts = [
-    { agentId: "claude", content: "claude fact", id: "f-claude", userId: "u1" },
-    { agentId: "codex", content: "codex fact", id: "f-codex", userId: "u1" },
-    { agentId: "cursor", content: "cursor fact", id: "f-cursor", userId: "u1" },
-    { content: "agentless fact", id: "f-agentless", userId: "u1" },
-  ];
+    ["f-claude", "claude fact", "claude"],
+    ["f-codex", "codex fact", "codex"],
+    ["f-cursor", "cursor fact", "cursor"],
+    ["f-agentless", "agentless fact", undefined],
+  ].map(([id, content, agentId]) => createFactMemory({
+    id: id!,
+    userId: "u1",
+    ...(agentId ? { agentId } : {}),
+    category: "project",
+    content: content!,
+    subject: "shared-agent-test",
+    source: {
+      extractedAt: "2026-07-18T00:00:00.000Z",
+      method: "explicit",
+    },
+    createdAt: "2026-07-18T00:00:00.000Z",
+    updatedAt: "2026-07-18T00:00:00.000Z",
+  }));
   for (const fact of facts) {
     await store.set("facts", fact.id, fact);
   }
@@ -90,6 +105,23 @@ describe("wrapDocumentStoreForSharedAgents", () => {
     expect(typeof wrapped.writeBatchIfUnchanged).toBe(
       typeof store.writeBatchIfUnchanged,
     );
+  });
+
+  it("preserves native search and authorizes shared projection results", async () => {
+    const store = await seedStore();
+    const wrapped = wrapDocumentStoreForSharedAgents(store, {
+      ownAgentId: "claude",
+      sharedAgentIds: ["codex"],
+    });
+    const runtime = createRecallProjectionRuntime({ documentStore: wrapped });
+    const scope = { agentId: "claude", userId: "u1" };
+
+    await runtime.ensureScopeIndexed(scope);
+    const results = await runtime.searchDocuments(scope, "codex fact", 10);
+
+    expect(typeof wrapped.searchText).toBe("function");
+    expect(results.some(({ sourceMemoryId }) => sourceMemoryId === "f-codex"))
+      .toBe(true);
   });
 });
 describe("sharedAgents config", () => {

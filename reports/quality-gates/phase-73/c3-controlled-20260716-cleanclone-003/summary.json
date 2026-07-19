@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "frozen-prehistory-pilot",
+  "runId": "c3-controlled-20260716-cleanclone-003",
+  "generatedAt": "2026-07-16T19:00:20.822Z",
+  "attemptedCount": 2,
+  "finalizedCount": 2,
+  "resolvedCount": 2,
+  "infrastructureFailureCount": 0,
+  "comparablePairs": 1,
+  "outcome": "tie-both-pass",
+  "taskScoringSource": "deterministic-hidden-tests",
+  "memoryDiagnosticsUsedForTaskScore": false,
+  "sourceCasesSha256": "24340cbd2519f2093b0bb991171644d57c02eaf6cb91a54458b6803470281455",
+  "publicClaimEligible": false
+}

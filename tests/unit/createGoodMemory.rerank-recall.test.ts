@@ -123,6 +123,7 @@ describe("GoodMemory.recall reranker adapter", () => {
         }),
       ]),
     );
+    expect(result.packet.renderBudget).toEqual({ maxTokens: 6_000 });
   });
 
   it("is a no-op when no reranker is configured", async () => {
@@ -134,7 +135,12 @@ describe("GoodMemory.recall reranker adapter", () => {
     // Baseline first-stage order keeps fact-a ahead of fact-b.
     expect(ids.indexOf("fact-a")).toBeLessThan(ids.indexOf("fact-b"));
     expect(result.metadata.policyApplied).not.toContain("reranked");
-    expect(result.metadata.retrievalTrace).toBeUndefined();
+    expect(result.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "single_pass_complete",
+      subQueries: [],
+    });
+    expect(result.metadata.retrievalTrace?.reranker).toBeUndefined();
   });
 
   it("can be disabled per call with rerank: false", async () => {

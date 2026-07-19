@@ -1,16 +1,13 @@
-// Answer-time evidence shaping. Retrieving the right evidence does not guarantee
+// Eval-only protocol-reader evidence shaping. Retrieving the right evidence does not guarantee
 // a correct answer: a model handed a raw, unordered context can still miscount,
 // mis-order, or report a superseded value as a conflict. This module turns
 // retrieved turns into a source-ordered, timestamped pack with an operation
 // framing inferred from the question, so the model can count, order, and resolve
 // updates reliably.
 //
-// It is general, not benchmark-fitted: the answer operation is inferred from the
-// question phrasing plus optional coarse question-type metadata, never from an
-// expected answer. The same shaping helps real product recall, not just a single
-// benchmark. Validated eval-side first (BEAM retrieved-context answer accuracy
-// 0.560 -> 0.662; MemoryAgentBench CR answers the current value with stale
-// history co-retrieved).
+// This module intentionally accepts optional benchmark question-type metadata.
+// It belongs to evaluation protocol compatibility, not the production memory or
+// answer path. Product answer shaping must derive behavior from product inputs.
 
 import type { AnswerOperation, EvidenceTurn } from "./evidenceShared";
 import { formatAbstentionEvidenceGuide } from "./operations/abstention";

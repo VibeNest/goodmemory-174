@@ -186,7 +186,7 @@ function createSharedRevisionCommitRaceController(base: DocumentStore): {
 }
 
 function createLegacyDocumentStore(base: DocumentStore): DocumentStore {
-  return {
+  const legacy: Omit<DocumentStore, "writeBatchIfUnchanged"> = {
     async set(collection, id, document) {
       await base.set(collection, id, document);
     },
@@ -203,6 +203,7 @@ function createLegacyDocumentStore(base: DocumentStore): DocumentStore {
       await base.delete(collection, id);
     },
   };
+  return legacy as DocumentStore;
 }
 
 function createDeleteFailingVectorStore(base: VectorStore): VectorStore {
@@ -1034,56 +1035,29 @@ describe("public reviseMemory API", () => {
     expect(activeSuccessors[0]?.id).toBe(acceptedNewMemoryId);
   });
 
-  it("returns unsupported instead of mutating when a custom document store lacks conditional batch writes", async () => {
+  it("keeps legacy custom document stores usable without projection features", () => {
     const baseDocumentStore = createInMemoryDocumentStore();
     const documentStore = createLegacyDocumentStore(baseDocumentStore);
-    const memory = createGoodMemory({
+    expect(createGoodMemory({
       storage: { provider: "memory" },
       adapters: {
         documentStore,
         sessionStore: createInMemorySessionStore(),
       },
-    });
-    const scope = {
-      userId: "revision-legacy-adapter-user",
-      workspaceId: "phase-38",
-    };
-    const remembered = await memory.remember({
-      scope,
-      messages: [
-        {
-          role: "user",
-          content: "Remember that the legacy adapter owner is Mira.",
-        },
-      ],
-    });
-    const targetMemoryId = remembered.events.find(
-      (event) => event.memoryType === "fact",
-    )?.memoryId;
+    })).toBeDefined();
+  });
 
-    expect(targetMemoryId).toBeString();
+  it("requires the explicit projection capability only when generalized fusion is enabled", () => {
+    const documentStore = createLegacyDocumentStore(createInMemoryDocumentStore());
 
-    const result = await memory.reviseMemory({
-      scope,
-      target: { memoryId: targetMemoryId! },
-      revision: { content: "The legacy adapter owner is Nora." },
-      reason: "user_correction",
-      idempotencyKey: "revision-legacy-adapter",
-    });
-    const exported = await memory.exportMemory({ scope });
-    const original = exported.durable.facts.find(
-      (fact) => fact.id === targetMemoryId,
-    );
-
-    expect(result).toMatchObject({
-      accepted: false,
-      outcome: "unsupported",
-      reason: "document_store_batch_unsupported",
-    });
-    expect(original?.lifecycle).toBe("active");
-    expect(
-      exported.durable.facts.some((fact) => fact.content.includes("Nora")),
-    ).toBe(false);
+    expect(() => createGoodMemory({
+      storage: { provider: "memory" },
+      retrieval: { preset: "recommended" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    })).toThrow("projection-capable document store");
   });
 
   it("keeps committed revision lineage when the secondary vector update fails", async () => {

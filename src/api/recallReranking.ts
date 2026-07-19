@@ -1,4 +1,4 @@
-import { buildMemoryPacket } from "../recall/contextBuilder";
+import { rebuildMemoryPacket } from "../recall/contextBuilder";
 import { applyRerankingWithScores } from "../recall/reranker";
 import type { Reranker } from "../recall/reranker";
 import type { RecallRerankerTrace } from "../recall/retrievalTrace";
@@ -147,7 +147,7 @@ export async function applyFactRerankingToResult(input: {
             result.metadata.assistantInfluence.rerankedCandidateIds,
         })
       : undefined;
-    const packet = buildMemoryPacket({
+    const packet = rebuildMemoryPacket(result.packet, {
       profile: result.profile,
       preferences: result.preferences,
       references: result.references,

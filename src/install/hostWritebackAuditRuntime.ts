@@ -220,6 +220,14 @@ export async function forgetInstalledHostWritebackAuditEvent(
         newlyForgottenLinkedRecordIds.push(record);
         continue;
       }
+      const remainingIds = collectExportedRecordIds(
+        await memory.exportMemory({ scope: durableScope }),
+      );
+      if (!remainingIds.has(record.id)) {
+        forgottenLinkedRecordIds.push(record);
+        newlyForgottenLinkedRecordIds.push(record);
+        continue;
+      }
       throw new Error(
         `Could not forget every linked writeback audit record for event ${input.eventId}.`,
       );

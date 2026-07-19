@@ -1,0 +1,69 @@
+{
+  "commit": "17bf7038216804c5fb86e787ad9449aa0bbfdffc",
+  "dependencyLocks": [],
+  "hiddenEvaluatorLifecycle": "stdin-data-url-no-file",
+  "passed": true,
+  "probes": {
+    "failToPass": {
+      "bootstrapSha256": "08dbd849e8897c9be3d2999980fab661c7b0b866bd8de4d6e81679459cdcafd8",
+      "command": [
+        "<host-path-059>",
+        "-e",
+        "const source = await new Response(Bun.stdin.stream()).text();\nconst encoded = Buffer.from(source).toString('base64');\nawait import(`data:text/javascript;base64,${encoded}`);"
+      ],
+      "durationMs": 44.289833000000044,
+      "executableSha256": "1d77af7bfd811aebb7d37bec496a5eed14fe227ded3ab7866d2f39786e8107b6",
+      "exitCode": 1,
+      "expectation": "fail-with-fingerprint",
+      "fingerprintMatched": true,
+      "fingerprintSha256": [
+        "c2e8c094d8b579f61164eace452882094e3a3e88915c84eeb669634504cc064e"
+      ],
+      "outputSha256": "9781b8ec7a4d09fd526d14ebdbbe1f7ddac681d5f010288ac94ebf0095a001f3",
+      "sourceSha256": "6892212618f03fe24a7db993073423ce3b917393b1a23ba30e209f7a068323a4",
+      "status": "failed-as-expected",
+      "timedOut": false
+    },
+    "passToPass": {
+      "bootstrapSha256": "08dbd849e8897c9be3d2999980fab661c7b0b866bd8de4d6e81679459cdcafd8",
+      "command": [
+        "<host-path-059>",
+        "-e",
+        "const source = await new Response(Bun.stdin.stream()).text();\nconst encoded = Buffer.from(source).toString('base64');\nawait import(`data:text/javascript;base64,${encoded}`);"
+      ],
+      "durationMs": 42.79329199999995,
+      "executableSha256": "1d77af7bfd811aebb7d37bec496a5eed14fe227ded3ab7866d2f39786e8107b6",
+      "exitCode": 0,
+      "expectation": "pass",
+      "fingerprintMatched": null,
+      "fingerprintSha256": [],
+      "outputSha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "sourceSha256": "7e2cebc64a5878c7ca650ae344794560acfd1b47893c642cfa50cf8e4d442418",
+      "status": "passed",
+      "timedOut": false
+    },
+    "visible": {
+      "bootstrapSha256": null,
+      "command": [
+        "<host-path-059>",
+        "test",
+        "tests/parse-transport-mode.test.ts"
+      ],
+      "durationMs": 14.52616599999999,
+      "executableSha256": "1d77af7bfd811aebb7d37bec496a5eed14fe227ded3ab7866d2f39786e8107b6",
+      "exitCode": 0,
+      "expectation": "pass",
+      "fingerprintMatched": null,
+      "fingerprintSha256": [],
+      "outputSha256": "f036ff9302f607b77882847123cd458ba07ff617256ec856e69bf3e332884b3e",
+      "sourceSha256": null,
+      "status": "passed",
+      "timedOut": false
+    }
+  },
+  "reasons": [],
+  "schemaVersion": 1,
+  "statusAfter": "",
+  "statusBefore": "",
+  "tree": "c5df2a092d6b95af4aa671ab3f0f24afaeed8d5c"
+}

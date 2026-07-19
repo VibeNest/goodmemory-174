@@ -3,7 +3,7 @@
 
 import type { EvidenceTurn } from "../evidenceShared";
 import { uniquePreservingOrder, currentValueTopicTokens } from "../evidenceShared";
-import { resolveCurrentValue } from "../currentValueResolution";
+import { resolveCurrentValue } from "../../../answer/currentValueResolution";
 import { COUNT_DATE_PATTERN, COUNT_QUANTITY_PATTERN } from "./count";
 
 const CURRENT_VALUE_TIME_PATTERN = /\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b/giu;

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "assetLockSha256": "a4db88c4dc9ebea7fc464ba104f34c3a0852e2743a798694723d9ae9614606c4",
+  "assetRootSha256": "0f1c6f2495c3fc57297f3f9595adb18c83fc0484db2753687453950f65b465fd",
+  "manifestSha256": "8841ac9138c028aa22dd423f7974a5079cda7f8d1055a1a2983dd298ecb2e733",
+  "leakageAuditSha256": "e5f4463fc0cabfa4942fa65214286ee9c5111babc583e8f0af4db07feea813da",
+  "readinessCoreSha256": "6ec596c99891376842e612520ae00b00f627e99ba63f48b9a690f02c06c72d3a",
+  "inputBundleSha256": "a727bb37ad31d5974417d3803d338097a94967900c3bd4c95c1aeaeffdb13c41",
+  "scope": "dataset-only-no-coding-outcomes",
+  "reviewerTaskName": "/root/c4_final_independent_review_v5",
+  "reviewer": "Codex independent C4 dataset reviewer v5",
+  "reviewedAt": "2026-07-17T03:23:00Z",
+  "c4AbResultsInspected": false,
+  "codingOutcomeArtifactsInspected": false,
+  "publicCodingEffectProof": false,
+  "status": "accepted",
+  "episodeReviews": [
+    {
+      "episodeId": "endpoint-open-loop",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "The episode requires three concrete TypeScript formatting changes rather than factual recall. Its hidden IPv6, ordinary-host, and already-wrapped cases follow directly from the first-stage presentation contract and visible signatures; the no-history first stage and pass-to-pass cases are credible controls. The shared registry runner contains no repository-specific branch, while later memory provides the accepted policy context without exposing the target patch or hidden cases.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "delimiter-boundary-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Implementing a last-delimiter policy across three exported parsers is real source maintenance. Repeated delimiters, empty tails, and delimiter absence are direct consequences of the explicit first-stage contract and existing return type; the initial no-memory stage and pass-to-pass cases give credible controls. Evaluation is uniformly registry-driven, and later memory carries the accepted boundary rule but not the function-specific implementation or hidden values.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "field-boundary-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Writing quote-aware parsing logic for three delimiters is substantive coding. Protected delimiters, doubled quotes, and ordinary single quotes are all specified by the first prompt and exercised without contradicting visible behavior; the frozen failed-approach history, no-memory first stage, and pass-to-pass cases form credible controls. The runner has no repository exception, and remembered policy guidance is useful without containing a parser patch or hidden test answer.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "parse-result-correction",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Correcting three typed parsers requires repository inspection across tasks, shared error codes, ParseResult, and setting unions, so it is genuine coding work. The hidden space, tab, case, and invalid-value checks derive exactly from the prompt and visible union declarations, including preservation of the visible notice member; the rejected-behavior history and no-memory first stage are credible controls. The shared runner is generic, and later memory communicates the accepted normalization policy without supplying the target patch or hidden cases.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "duration-configuration-policy",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "required",
+      "rationale": "Applying a project duration quantum across conversion and deadline functions is concrete TypeScript maintenance. Fractional, zero, and already-millisecond fields in the hidden cases follow directly from the multiply-once contract and visible field names; stale-policy prehistory, a no-memory first stage, and pass-to-pass cases provide credible controls. The evaluator has no repository-specific path, and later memory supplies only the updated unit policy rather than code or hidden values.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryUsefulNotAnswer": true
+      }
+    },
+    {
+      "episodeId": "independent-string-utilities",
+      "author": "GoodMemory C4 dataset author",
+      "memoryExpectationMode": "irrelevant-control",
+      "rationale": "Slug normalization, ordered CSV deduplication, and path-segment encoding each require an actual source correction, and their hidden cases are discoverable from the self-contained prompts plus visible base behavior. Pass-to-pass coverage and deliberately unrelated documentation-design prehistory make the negative control credible. The evaluator remains generic, and the violet-accent, sentence-case memory is genuinely irrelevant to these string contracts without suggesting a misleading implementation.",
+      "checks": {
+        "codingNotTrivia": true,
+        "hiddenTestsFair": true,
+        "negativeControlCredible": true,
+        "noRepositorySpecificRunnerException": true,
+        "memoryIrrelevantAndNonMisleading": true
+      }
+    }
+  ]
+}

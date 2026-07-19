@@ -1,10 +1,11 @@
 // Write-time provenance: an EvidenceRecord links a stored memory back to the
 // excerpt that justified writing it (citation/audit trail). Not to be confused
-// with src/answer/evidencePack.ts, which is the answer-time module that shapes
-// already-retrieved turns into an LLM-facing context pack.
+// with src/eval/protocol-reader, which owns benchmark-specific answer shaping.
 import type { MemorySource } from "../domain/provenance";
+import type { MemoryScope } from "../domain/scope";
 
 export const EVIDENCE_COLLECTION = "evidence";
+export const SOURCE_MESSAGES_COLLECTION = "source_messages_v1";
 
 export type EvidenceAttributeValue = string | number | boolean | null;
 
@@ -27,10 +28,22 @@ export interface EvidenceRecord {
   source: MemorySource;
   sourceUri?: string;
   sourceMessageIds: string[];
+  sourceRecordIds?: string[];
   attributes?: Record<string, EvidenceAttributeValue>;
   linkedMemoryIds: string[];
   linkedArchiveIds: string[];
   createdAt: string;
+}
+
+export interface SourceMessageRecord extends MemoryScope {
+  id: string;
+  schemaVersion: 1;
+  sourceMessageId?: string;
+  role: string;
+  content: string;
+  observedAt?: string;
+  ingestedAt: string;
+  contentSha256: string;
 }
 
 function resolveCreatedAt(
@@ -56,6 +69,7 @@ export function createEvidenceRecord(
     source: input.source,
     sourceUri: input.sourceUri,
     sourceMessageIds: input.sourceMessageIds ?? [],
+    sourceRecordIds: input.sourceRecordIds ?? [],
     attributes: input.attributes,
     linkedMemoryIds: input.linkedMemoryIds ?? [],
     linkedArchiveIds: input.linkedArchiveIds ?? [],

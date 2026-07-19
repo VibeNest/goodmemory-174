@@ -58,5 +58,23 @@ describe("GoodMemory.recall multiHop option", () => {
     });
     const multiIds = multi.facts.map((entry) => entry.id);
     expect(multiIds).toContain("attribute");
+    const retrievalTrace = multi.metadata.retrievalTrace;
+    const hopCount = retrievalTrace?.schemaVersion === 2
+      ? retrievalTrace.queryExecutions[0]?.hops.length
+      : undefined;
+    expect(hopCount).toBe(2);
+    expect(multi.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "multi_hop_complete",
+      subQueries: [],
+      queryExecutions: [
+        expect.objectContaining({
+          query,
+          role: "primary",
+          stopReason: "max_hops_reached",
+        }),
+      ],
+    });
+    expect(multi.packet.renderBudget).toEqual({ maxTokens: 6_000 });
   });
 });

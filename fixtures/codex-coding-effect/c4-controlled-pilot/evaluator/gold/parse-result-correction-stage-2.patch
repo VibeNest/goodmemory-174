@@ -1,14 +1,14 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..b5ab85566f91efa463c4a13946dd08c108223827 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..c89ebd5cf0ed5c98d3b4e295d9d8d4bd1dc2d219 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -19,7 +19,11 @@ export function parseModeSetting(input: string): ParseResult<TransportMode> {
+@@ -11,7 +11,11 @@ export function parseModeSetting(input: string): ParseResult<TransportMode> {
  }
  
  export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
--  return { ok: true, value: input as LogLevel };
+-  return acceptUnchecked(input as LogLevel);
 +  const normalized = input.replace(/^ +| +$/gu, "");
-+  if (normalized === "debug" || normalized === "info" || normalized === "warn") {
++  if (normalized === "debug" || normalized === "info" || normalized === "notice" || normalized === "warn") {
 +    return { ok: true, value: normalized };
 +  }
 +  return { error: SETTING_ERROR_CODES.level, ok: false };

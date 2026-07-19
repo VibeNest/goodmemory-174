@@ -25,7 +25,9 @@ export type C4HiddenArtifactId =
 
 export interface C4LeakageSurface {
   content: string;
+  fragmentContents?: readonly string[];
   hiddenValueContent?: string;
+  hiddenValueContents?: readonly string[];
   id: C4LeakageSurfaceId;
 }
 
@@ -65,9 +67,9 @@ export interface C4LeakageMatrixAudit {
   auditSha256: string;
   candidateBindingVersion: 1;
   candidateExtractionVersion:
-    "semantic-lines-complete-cases-plus-typed-relations-v5";
+    "semantic-documents-exact-relations-corpus-wide-v9";
   cells: C4LeakageMatrixCell[];
-  normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v3";
+  normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v4";
   overlapCount: number;
   schemaVersion: 1;
   status: "accepted" | "rejected";
@@ -125,9 +127,9 @@ export function auditC4SurfaceHiddenArtifactMatrix(input: {
     artifactIds: [...C4_HIDDEN_ARTIFACT_IDS],
     candidateBindingVersion: 1,
     candidateExtractionVersion:
-      "semantic-lines-complete-cases-plus-typed-relations-v5",
+      "semantic-documents-exact-relations-corpus-wide-v9",
     cells,
-    normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v3",
+    normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v4",
     overlapCount,
     schemaVersion: 1,
     status: overlapCount === 0 ? "accepted" : "rejected",
@@ -184,12 +186,24 @@ export function mutationTestC4SurfaceHiddenArtifactMatrix(input: {
           return {
             ...surface,
             content: `${surface.content}\n${injection}\n`,
+            ...(surface.fragmentContents
+              ? {
+                  fragmentContents: [
+                    ...surface.fragmentContents,
+                    injection,
+                  ],
+                }
+              : {}),
           };
         }
+        const { hiddenValueContent: _, hiddenValueContents: __, ...basis } =
+          surface;
         return {
-          ...surface,
-          hiddenValueContent:
-            `${surface.hiddenValueContent ?? surface.content}\n${injection}\n`,
+          ...basis,
+          hiddenValueContents: [
+            ...semanticHiddenValueSurfaces(surface),
+            injection,
+          ],
         };
       });
       const mutation = auditC4SurfaceHiddenArtifactMatrix({
@@ -240,8 +254,9 @@ function auditCell(
   surface: C4LeakageSurface,
   artifact: C4HiddenArtifact,
 ): C4LeakageMatrixCell {
-  const normalizedSurface = normalizeLeakageText(surface.content);
-  const hiddenValueSurface = surface.hiddenValueContent ?? surface.content;
+  const fragmentSurfaces = surface.fragmentContents ?? [surface.content];
+  const normalizedSurfaces = fragmentSurfaces.map(normalizeLeakageText);
+  const hiddenValueSurfaces = semanticHiddenValueSurfaces(surface);
   const fragments = [...new Set([
     artifact.content,
     ...artifact.fragments,
@@ -255,28 +270,30 @@ function auditCell(
   const allowedPublic = new Set<string>();
   for (const fragment of artifact.allowedPublicFragments ?? []) {
     if (
-      surface.content.includes(fragment) ||
-      normalizedSurface.includes(normalizeLeakageText(fragment))
+      fragmentSurfaces.some((candidate) => candidate.includes(fragment)) ||
+      normalizedSurfaces.some((candidate) =>
+        candidate.includes(normalizeLeakageText(fragment))
+      )
     ) {
       allowedPublic.add(sha256(fragment));
     }
   }
   for (const fragment of fragments) {
     const fragmentSha256 = sha256(fragment);
-    if (surface.content.includes(fragment)) {
+    if (fragmentSurfaces.some((candidate) => candidate.includes(fragment))) {
       exact.add(fragmentSha256);
       continue;
     }
     const normalizedFragment = normalizeLeakageText(fragment);
     if (
       normalizedFragment.length > 0 &&
-      normalizedSurface.includes(normalizedFragment)
+      normalizedSurfaces.some((candidate) => candidate.includes(normalizedFragment))
     ) {
       normalized.add(fragmentSha256);
     }
   }
   for (const value of hiddenValues) {
-    const match = matchHiddenValue(hiddenValueSurface, value);
+    const match = matchHiddenValueInSurfaces(hiddenValueSurfaces, value);
     if (match === null) {
       continue;
     }
@@ -287,7 +304,10 @@ function auditCell(
     (match === "exact" ? exact : normalized).add(valueSha256);
   }
   for (const relation of hiddenValueRelations) {
-    const match = matchHiddenValueRelation(hiddenValueSurface, relation);
+    const match = matchHiddenValueRelationInSurfaces(
+      hiddenValueSurfaces,
+      relation,
+    );
     if (match === null) {
       continue;
     }
@@ -316,7 +336,7 @@ function auditCell(
     hiddenValueSetSha256: sha256(JSON.stringify(hiddenValues.map(
       canonicalHiddenValue,
     ))),
-    hiddenValueSurfaceSha256: sha256(hiddenValueSurface),
+    hiddenValueSurfaceSha256: sha256(JSON.stringify(hiddenValueSurfaces)),
     matchedFragmentSha256,
     normalizedOverlapCount: normalized.size,
     status: matchedFragmentSha256.length === 0 ? "accepted" : "rejected",
@@ -341,13 +361,10 @@ function canonicalHiddenValueRelations(
 ): C4HiddenValue[][] {
   const canonical = new Map<string, C4HiddenValue[]>();
   for (const relation of relations) {
-    const values = [...new Map(relation.map((value) => [
-      relationValueKey(value),
-      value,
-    ])).values()];
-    if (values.length < 2) {
+    if (relation.length < 2) {
       continue;
     }
+    const values = [...relation];
     const key = JSON.stringify(values.map(canonicalHiddenValue));
     canonical.set(key, values);
   }
@@ -380,6 +397,13 @@ export function c4HiddenValueAppearsInSurface(
   return matchHiddenValue(surface, value) !== null;
 }
 
+export function c4HiddenValueAppearsInSurfaces(
+  surfaces: readonly string[],
+  value: C4HiddenValue,
+): boolean {
+  return matchHiddenValueInSurfaces(surfaces, value) !== null;
+}
+
 export function c4HiddenValueRelationAppearsInSurface(
   surface: string,
   relation: readonly C4HiddenValue[],
@@ -387,90 +411,162 @@ export function c4HiddenValueRelationAppearsInSurface(
   return matchHiddenValueRelation(surface, relation) !== null;
 }
 
+export function c4HiddenValueRelationAppearsInSurfaces(
+  surfaces: readonly string[],
+  relation: readonly C4HiddenValue[],
+): boolean {
+  return matchHiddenValueRelationInSurfaces(
+    surfaces,
+    relation,
+  ) !== null;
+}
+
+interface HiddenValueMatch {
+  end: number;
+  surfaceIndex?: number;
+  start: number;
+}
+
 function matchHiddenValue(
   surface: string,
   value: C4HiddenValue,
 ): "exact" | "normalized" | null {
-  const fragment = value === null ? "null" : String(value);
-  if (containsDelimited(surface, fragment)) {
+  if (exactHiddenValueMatches(surface, value).length > 0) {
     return "exact";
   }
-  if (typeof value === "number" && containsEquivalentNumber(surface, value)) {
-    return "normalized";
-  }
-  const normalizedSurface = normalizeLeakageText(surface);
-  return containsDelimited(
-      normalizedSurface,
-      normalizeLeakageText(fragment),
-    )
+  return normalizedHiddenValueMatches(surface, value).length > 0
     ? "normalized"
     : null;
+}
+
+function matchHiddenValueInSurfaces(
+  surfaces: readonly string[],
+  value: C4HiddenValue,
+): "exact" | "normalized" | null {
+  let normalized = false;
+  for (const surface of surfaces) {
+    const match = matchHiddenValue(surface, value);
+    if (match === "exact") {
+      return "exact";
+    }
+    normalized ||= match === "normalized";
+  }
+  return normalized ? "normalized" : null;
 }
 
 function matchHiddenValueRelation(
   surface: string,
   relation: readonly C4HiddenValue[],
 ): "exact" | "normalized" | null {
-  for (const segment of relationSegments(surface)) {
-    const matches = relation.map((value) => matchHiddenValue(segment, value));
-    if (matches.every((match) => match !== null)) {
-      return matches.every((match) => match === "exact")
-        ? "exact"
-        : "normalized";
-    }
+  if (hasDistinctMatches(
+    relation.map((value) => exactHiddenValueMatches(surface, value)),
+  )) {
+    return "exact";
   }
-  return null;
+  if (!relation.some((value) => typeof value === "number")) {
+    return null;
+  }
+  return hasDistinctMatches(
+      relation.map((value) =>
+        typeof value === "number"
+          ? normalizedHiddenValueMatches(surface, value)
+          : exactHiddenValueMatches(surface, value)
+      ),
+    )
+    ? "normalized"
+    : null;
 }
 
-function relationSegments(surface: string): string[] {
-  const segments = new Set<string>();
-  for (const paragraph of surface.split(/\r?\n\s*\r?\n/u)) {
-    const lines = paragraph.split(/\r?\n/u)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-    for (const [start] of lines.entries()) {
-      for (
-        let end = start + 1;
-        end <= Math.min(lines.length, start + 4);
-        end += 1
-      ) {
-        const segment = lines.slice(start, end).join("\n");
-        if (segment.length <= 512) {
-          segments.add(segment);
-        }
-      }
-    }
+function matchHiddenValueRelationInSurfaces(
+  surfaces: readonly string[],
+  relation: readonly C4HiddenValue[],
+): "exact" | "normalized" | null {
+  const matchesAcrossSurfaces = (
+    value: C4HiddenValue,
+    normalized: boolean,
+  ): HiddenValueMatch[] => surfaces.flatMap((surface, surfaceIndex) =>
+    (normalized
+      ? normalizedHiddenValueMatches(surface, value)
+      : exactHiddenValueMatches(surface, value)
+    ).map((match) => ({ ...match, surfaceIndex }))
+  );
+  if (hasDistinctMatches(
+    relation.map((value) => matchesAcrossSurfaces(value, false)),
+  )) {
+    return "exact";
   }
-  return [...segments];
+  if (!relation.some((value) => typeof value === "number")) {
+    return null;
+  }
+  return hasDistinctMatches(
+      relation.map((value) =>
+        matchesAcrossSurfaces(value, typeof value === "number")
+      ),
+    )
+    ? "normalized"
+    : null;
 }
 
-function containsEquivalentNumber(surface: string, value: number): boolean {
+function exactHiddenValueMatches(
+  surface: string,
+  value: C4HiddenValue,
+): HiddenValueMatch[] {
+  return delimitedMatches(surface, value === null ? "null" : String(value));
+}
+
+function normalizedHiddenValueMatches(
+  surface: string,
+  value: C4HiddenValue,
+): HiddenValueMatch[] {
+  const normalizedSurface = normalizeLeakageText(surface);
+  const fragment = normalizeLeakageText(
+    value === null ? "null" : String(value),
+  );
+  const matches = delimitedMatches(normalizedSurface, fragment);
+  if (typeof value === "number") {
+    matches.push(...equivalentNumberMatches(normalizedSurface, value));
+  }
+  return [...new Map(matches.map((match) => [
+    `${match.start}:${match.end}`,
+    match,
+  ])).values()];
+}
+
+function equivalentNumberMatches(
+  surface: string,
+  value: number,
+): HiddenValueMatch[] {
+  const matches: HiddenValueMatch[] = [];
   for (const match of surface.matchAll(
     /(?<![\p{L}\p{N}_])[-+]?(?:(?:\d{1,3}(?:,\d{3})+)|(?:\d(?:[\d_]*\d)?))(?:\.(?:\d(?:[\d_]*\d)?))?(?:[eE][-+]?\d(?:[\d_]*\d)?)?(?![\p{L}\p{N}_])/gu,
   )) {
     const candidate = Number(match[0].replaceAll(",", "").replaceAll("_", ""));
-    if (Number.isFinite(candidate) && candidate === value) {
-      return true;
+    if (
+      Number.isFinite(candidate) &&
+      candidate === value &&
+      match.index !== undefined
+    ) {
+      matches.push({
+        end: match.index + match[0].length,
+        start: match.index,
+      });
     }
   }
-  return false;
-}
-
-function relationValueKey(value: C4HiddenValue): string {
-  return JSON.stringify({
-    type: value === null ? "null" : typeof value,
-    value: typeof value === "string" ? normalizeLeakageText(value) : value,
-  });
+  return matches;
 }
 
 function renderHiddenValue(value: C4HiddenValue): string {
   return value === null ? "null" : String(value);
 }
 
-function containsDelimited(surface: string, fragment: string): boolean {
+function delimitedMatches(
+  surface: string,
+  fragment: string,
+): HiddenValueMatch[] {
   if (fragment.length === 0) {
-    return false;
+    return [];
   }
+  const matches: HiddenValueMatch[] = [];
   let offset = surface.indexOf(fragment);
   while (offset >= 0) {
     const before = offset === 0 ? undefined : surface[offset - 1];
@@ -482,11 +578,55 @@ function containsDelimited(surface: string, fragment: string): boolean {
       boundaryAllows(fragment[0], before) &&
       boundaryAllows(fragment[fragment.length - 1], after)
     ) {
-      return true;
+      matches.push({ end: afterIndex, start: offset });
     }
     offset = surface.indexOf(fragment, offset + 1);
   }
-  return false;
+  return matches;
+}
+
+function hasDistinctMatches(
+  groups: readonly (readonly HiddenValueMatch[])[],
+): boolean {
+  if (groups.length === 0 || groups.some((group) => group.length === 0)) {
+    return false;
+  }
+  const ordered = [...groups].sort((left, right) => left.length - right.length);
+  const selected: HiddenValueMatch[] = [];
+  const assign = (index: number): boolean => {
+    if (index === ordered.length) {
+      return true;
+    }
+    for (const candidate of ordered[index]!) {
+      if (selected.some((match) =>
+        (candidate.surfaceIndex ?? 0) === (match.surfaceIndex ?? 0) &&
+        candidate.start < match.end && match.start < candidate.end
+      )) {
+        continue;
+      }
+      selected.push(candidate);
+      if (assign(index + 1)) {
+        return true;
+      }
+      selected.pop();
+    }
+    return false;
+  };
+  return assign(0);
+}
+
+function semanticHiddenValueSurfaces(
+  surface: C4LeakageSurface,
+): readonly string[] {
+  if (
+    surface.hiddenValueContent !== undefined &&
+    surface.hiddenValueContents !== undefined
+  ) {
+    throw new Error("C4 leakage surface has conflicting hidden-value content");
+  }
+  return surface.hiddenValueContents ?? [
+    surface.hiddenValueContent ?? surface.content,
+  ];
 }
 
 function boundaryAllows(

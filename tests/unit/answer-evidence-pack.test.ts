@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildAnswerEvidencePack,
   inferAnswerOperation,
-} from "../../src/answer/evidencePack";
+} from "../../src/eval/protocol-reader/evidencePack";
 
 describe("answer evidence pack", () => {
   it("infers the answer operation from question phrasing only", () => {

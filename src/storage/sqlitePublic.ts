@@ -1,5 +1,6 @@
 import type {
   DocumentStore,
+  ProjectionCapableDocumentStore,
   SessionStore,
   StorageFilter,
   VectorSearchResult,
@@ -83,7 +84,7 @@ export function setSQLitePublicModuleLoaderForTests(
 
 function createDeferredDocumentStore(
   resolveStore: () => Promise<DocumentStore>,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   return {
     async set(collection, id, document) {
       const store = await resolveStore();
@@ -110,13 +111,14 @@ function createDeferredDocumentStore(
       return store.queryPage!(collection, input);
     },
 
+    async searchText(collection, input) {
+      const store = await resolveStore();
+      return store.searchText!(collection, input);
+    },
+
     async writeBatchIfUnchanged(input) {
       const store = await resolveStore();
-      if (!store.writeBatchIfUnchanged) {
-        return false;
-      }
-
-      return store.writeBatchIfUnchanged(input);
+      return store.writeBatchIfUnchanged!(input);
     },
 
     async delete(collection, id) {
@@ -206,7 +208,7 @@ function createDeferredVectorStore(
 export function createSQLiteDocumentStore(
   path: string,
   options?: SQLiteStoreOptions,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   let storePromise: Promise<DocumentStore> | null = null;
 
   return createDeferredDocumentStore(async () => {

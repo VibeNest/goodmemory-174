@@ -10,13 +10,22 @@ import type {
   ConditionalDocumentWriteBatch,
   DocumentQueryPageInput,
   DocumentStore,
+  DocumentTextSearchInput,
+  ProjectionCapableDocumentStore,
   SessionStore,
   StorageDocument,
   StorageFilter,
   VectorSearchResult,
   VectorStore,
 } from "./contracts";
-import { assertDocumentQueryPageInput } from "./contracts";
+import {
+  assertDocumentQueryPageInput,
+  assertDocumentTextSearchInput,
+} from "./contracts";
+import {
+  buildPostgresDocumentSearchTerms,
+  tokenizeDocumentSearch,
+} from "./textSearch";
 
 export interface PostgresStorageConfig {
   url: string;
@@ -60,6 +69,10 @@ interface DocumentRow {
 
 interface DocumentPageRow extends DocumentRow {
   id: string;
+}
+
+interface DocumentSearchRow extends DocumentPageRow {
+  score: number;
 }
 
 interface SessionRow {
@@ -272,6 +285,12 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
         CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_document_gin_idx")}
         ON ${documentTable} USING GIN (document)
       `);
+      await sql.unsafe(`
+        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_text_search_idx")}
+        ON ${documentTable} USING GIN (
+          to_tsvector('simple', COALESCE(document ->> 'text', ''))
+        )
+      `);
     }),
     ensureSessionStore: createInitializer(async () => {
       await ensureSchema();
@@ -408,7 +427,7 @@ function createPostgresSessionStateStore<TValue>(
 export function createPostgresDocumentStore(
   config: PostgresStorageConfig,
   options?: PostgresStoreOptions,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   const runtime = createRuntime(config);
 
   return {
@@ -561,6 +580,73 @@ export function createPostgresDocumentStore(
       };
     },
 
+    async searchText<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentTextSearchInput,
+    ) {
+      assertDocumentTextSearchInput(input);
+      if (tokenizeDocumentSearch(input.query).length === 0) {
+        return [];
+      }
+      if (options?.readOnly && !(await runtime.hasDocumentStore())) {
+        return [];
+      }
+      if (!options?.readOnly) {
+        await runtime.ensureDocumentStore();
+      }
+      const searchTerms = buildPostgresDocumentSearchTerms(input.query);
+      const values: unknown[] = [collection, input.field, searchTerms.tsQuery];
+      const filterClause = buildJsonbFilterClause(
+        "document",
+        input.filter,
+        values,
+      );
+      const substringParameters = searchTerms.substrings.map((substring) => {
+        values.push(substring);
+        return values.length;
+      });
+      const substringClause = substringParameters
+        .map((parameter) =>
+          `lower(COALESCE(document ->> $2, '')) LIKE $${parameter}`
+        )
+        .join(" OR ");
+      values.push(input.limit);
+      const limitParameter = values.length;
+      const rows = await runtime.sql.unsafe<DocumentSearchRow[]>(
+        `
+          SELECT
+            id,
+            document::text AS document_json,
+            GREATEST(
+              ts_rank(
+                to_tsvector('simple', COALESCE(document ->> $2, '')),
+                to_tsquery('simple', $3)
+              ),
+              CASE
+                WHEN ${substringClause}
+                  THEN 0.1
+                ELSE 0
+              END
+            ) AS score
+          FROM ${runtime.documentTable}
+          WHERE collection = $1${filterClause}
+            AND (
+              to_tsvector('simple', COALESCE(document ->> $2, ''))
+                @@ to_tsquery('simple', $3)
+              OR ${substringClause}
+            )
+          ORDER BY score DESC, id ASC
+          LIMIT $${limitParameter}
+        `,
+        values,
+      );
+      return rows.map((row) => ({
+        document: parseJson<TDocument>(row.document_json),
+        id: row.id,
+        score: Number(row.score),
+      }));
+    },
+
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
       if (options?.readOnly) {
         throw createReadOnlyMutationError("document");
@@ -569,24 +655,37 @@ export function createPostgresDocumentStore(
       await runtime.ensureDocumentStore();
 
       return runtime.sql.begin(async (tx) => {
-        const expectedRows = await tx.unsafe<Array<{ id: string }>>(
-          `
-            SELECT id
-            FROM ${runtime.documentTable}
-            WHERE collection = $1
-              AND id = $2
-              AND document = $3::text::jsonb
-            FOR UPDATE
-          `,
-          [
-            input.expected.collection,
-            input.expected.id,
-            bindJson(input.expected.document),
-          ],
-        );
-
-        if (expectedRows.length === 0) {
-          return false;
+        for (const expected of [input.expected, ...(input.unchanged ?? [])]) {
+          await tx.unsafe(
+            "SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))",
+            [expected.collection, expected.id],
+          );
+          const rows = expected.document === null
+            ? await tx.unsafe<Array<{ id: string }>>(
+                `
+                  SELECT id
+                  FROM ${runtime.documentTable}
+                  WHERE collection = $1 AND id = $2
+                  FOR UPDATE
+                `,
+                [expected.collection, expected.id],
+              )
+            : await tx.unsafe<Array<{ id: string }>>(
+                `
+                  SELECT id
+                  FROM ${runtime.documentTable}
+                  WHERE collection = $1 AND id = $2
+                    AND document = $3::text::jsonb
+                  FOR UPDATE
+                `,
+                [expected.collection, expected.id, bindJson(expected.document)],
+              );
+          const matches = expected.document === null
+            ? rows.length === 0
+            : rows.length === 1;
+          if (!matches) {
+            return false;
+          }
         }
 
         for (const operation of input.set) {
@@ -615,6 +714,17 @@ export function createPostgresDocumentStore(
               operation.id,
               bindJson(operation.document),
             ],
+          );
+        }
+
+
+        for (const operation of input.delete ?? []) {
+          await tx.unsafe(
+            `
+              DELETE FROM ${runtime.documentTable}
+              WHERE collection = $1 AND id = $2
+            `,
+            [operation.collection, operation.id],
           );
         }
 

@@ -8,7 +8,7 @@ if (mode === "timeout") {
   process.exit(0);
 }
 
-const events = [
+const events: Array<Record<string, unknown>> = [
   {
     thread_id: "fake-thread-001",
     type: "thread.started",
@@ -31,6 +31,15 @@ const events = [
     type: "item.completed",
   },
 ];
+
+if (mode === "non-zero-turn-failed") {
+  events.push({
+    error: {
+      message: "synthetic upstream capacity failure",
+    },
+    type: "turn.failed",
+  });
+}
 
 if (
   mode === "success" ||
@@ -58,7 +67,11 @@ if (
   });
 }
 
-if (mode === "non-zero" || mode === "non-zero-malformed") {
+if (
+  mode === "non-zero" ||
+  mode === "non-zero-malformed" ||
+  mode === "non-zero-turn-failed"
+) {
   process.stderr.write("fake Codex failed\n");
 }
 
@@ -71,6 +84,10 @@ if (mode === "malformed" || mode === "non-zero-malformed") {
   process.stdout.write(`${serialized}\n`);
 }
 
-if (mode === "non-zero" || mode === "non-zero-malformed") {
+if (
+  mode === "non-zero" ||
+  mode === "non-zero-malformed" ||
+  mode === "non-zero-turn-failed"
+) {
   process.exit(17);
 }

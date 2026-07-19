@@ -58,6 +58,7 @@ export async function prepareCodexEvaluatorSandbox(input: {
   bunExecutable: string;
   codexExecutable: string;
   copiedAuthRemovedBeforeEvaluator: boolean;
+  deniedReadPaths?: readonly string[];
   evaluationWorkspace: string;
   evaluatorReadProbePath: string;
   evaluatorRoot: string;
@@ -142,6 +143,11 @@ export async function prepareCodexEvaluatorSandbox(input: {
     mkdir(temp, { recursive: true }),
   ]);
   const config = buildCodexEvaluatorSandboxConfig({
+    deniedReadPaths: [
+      authFile,
+      ...(sourceEvaluatorRoot === evaluatorRoot ? [] : [sourceEvaluatorRoot]),
+      ...(input.deniedReadPaths ?? []),
+    ],
     evaluationWorkspace,
     evaluatorRoot,
     profileName: input.profileName,
@@ -377,6 +383,7 @@ export async function prepareCodexEvaluatorSandbox(input: {
 }
 
 export function buildCodexEvaluatorSandboxConfig(input: {
+  deniedReadPaths?: readonly string[];
   evaluationWorkspace: string;
   evaluatorRoot: string;
   profileName: "c3-evaluator" | "c4-evaluator";
@@ -393,6 +400,9 @@ export function buildCodexEvaluatorSandboxConfig(input: {
   );
   const home = sandboxRelativePath(sandboxRoot, resolve(sandboxRoot, "home"));
   const temp = sandboxRelativePath(sandboxRoot, resolve(sandboxRoot, "tmp"));
+  const deniedReadPaths = [...new Set(
+    (input.deniedReadPaths ?? []).map((path) => resolve(path)),
+  )].sort();
   return [
     `default_permissions = ${JSON.stringify(input.profileName)}`,
     'web_search = "disabled"',
@@ -400,6 +410,7 @@ export function buildCodexEvaluatorSandboxConfig(input: {
     `[permissions.${input.profileName}.filesystem]`,
     '":root" = "deny"',
     '":minimal" = "read"',
+    ...deniedReadPaths.map((path) => `${JSON.stringify(path)} = "deny"`),
     "",
     `[permissions.${input.profileName}.filesystem.":workspace_roots"]`,
     '"." = "read"',
@@ -415,6 +426,7 @@ export function buildCodexEvaluatorSandboxConfig(input: {
 }
 
 export function buildCodexEvaluatorSandboxConfigSha256(input: {
+  deniedReadPaths?: readonly string[];
   evaluationWorkspace: string;
   evaluatorRoot: string;
   profileName: "c3-evaluator" | "c4-evaluator";

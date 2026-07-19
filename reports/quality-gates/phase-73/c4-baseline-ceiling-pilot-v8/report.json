@@ -1,0 +1,290 @@
+{
+  "assetLockSha256": "a4db88c4dc9ebea7fc464ba104f34c3a0852e2743a798694723d9ae9614606c4",
+  "assetRootSha256": "0f1c6f2495c3fc57297f3f9595adb18c83fc0484db2753687453950f65b465fd",
+  "attemptedCount": 12,
+  "ceilingRisk": false,
+  "claimBoundary": "diagnostic-no-memory-ceiling-only",
+  "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+  "codexVersion": "codex-cli 0.144.5",
+  "datasetSnapshotMode": "asset-locked-copy",
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "decision": "proceed-to-c5-pilot",
+  "generatedAt": "2026-07-17T03:25:32.683Z",
+  "infrastructureFailureCount": 0,
+  "manifestSha256": "8841ac9138c028aa22dd423f7974a5079cda7f8d1055a1a2983dd298ecb2e733",
+  "model": "gpt-5.6-sol",
+  "networkAccess": false,
+  "publicClaimEligible": false,
+  "reasoningEffort": "xhigh",
+  "resolvedCount": 2,
+  "results": [
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "delimiter-boundary-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "2d98ec40c6c4b877adaa4287eebe37f05e66cd20318235f23f4d56a4602dabe8",
+      "resolved": false,
+      "stageId": "stage-3",
+      "stageInputSha256": "a5694409105c58b1917609b2a858133fa06b14b512ec9559885b1293469168bb",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e1b-b1a9-7d72-8d71-edc5562efa90",
+      "stageEvidenceSha256": "f017a1531dbd64899c90e96d86dae2f4b13cf1418c1a7e935e936980474f00da"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "duration-configuration-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "b6a2803aef1a8de9d542bbd225dd061e3183756e68bd8ee7719e368b77f7e772",
+      "resolved": false,
+      "stageId": "stage-3",
+      "stageInputSha256": "04aea94d1db03dfd08fac75670391a2df32dac85aa8ec948b93b17a5211ee899",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e21-beeb-79a0-96ab-a4c2f5a69b72",
+      "stageEvidenceSha256": "abffb164b08784c8cd7dc01a798a66c3377909bca376ad045f8977b3b33e909f"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "endpoint-open-loop",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "4cab9cda87ff57dbca96f50b29ae87a09e45ffed47ac4c5ba1b41fe6aa88904f",
+      "resolved": false,
+      "stageId": "stage-3",
+      "stageInputSha256": "d29e27e537921269c20eef0980ca0ae795d14475b4811d70d5ce722e56ac2699",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e23-8478-7580-949d-0149dd1ca5b5",
+      "stageEvidenceSha256": "603c2b08289d930fcaf86ade1409df11d554db734ec5affddbaad81951a3ae38"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "field-boundary-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "9fa03d0a17b4aeb735ec586cb53a32fc077ee8e55c3d7c84041884d5d781f3e7",
+      "resolved": false,
+      "stageId": "stage-3",
+      "stageInputSha256": "a685056347b4c8a8ecc0be9296e65fb63270307f6e365555f38aa887705030ea",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e25-962b-7511-a1a5-9b1a3535dc85",
+      "stageEvidenceSha256": "072dc695ccc342114081fb9382eee199190fa9a417a77577e81b63a16023fb95"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "independent-string-utilities",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "81626e010913035d54a9930d3e1752f3912488076b0471188d2272747f7f5262",
+      "resolved": true,
+      "stageId": "stage-3",
+      "stageInputSha256": "49e73c24979b4e912b2136561b191df922ae65971f8079cd0dc3e9f7d5f154bf",
+      "taskFailureReasons": [],
+      "threadId": "019f6e29-5301-7092-bf98-23fb43db8337",
+      "stageEvidenceSha256": "7008b98b996d72a1ee2f2b96b564e2834bf5e32493d13de8380687f6484078a9"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "parse-result-correction",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "aa14d2975211abb0ab3da53bf711129e2c5389938a6aaf6eccd77e0fe1043a01",
+      "resolved": false,
+      "stageId": "stage-3",
+      "stageInputSha256": "285b9470f389c7ebc18cb6dea8fbffb62a54440322a9f2b5c614842d09cee52c",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e2a-8754-7242-bef8-c0b35ac2cfdd",
+      "stageEvidenceSha256": "52269cd450d579985ffda2d4274a479e1e36dd3c858969af5c9654a23562ae29"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "delimiter-boundary-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "2472a86f936d170c6cda21b86f253749d2ac032a64fe8aef2486656bc59a46b0",
+      "resolved": false,
+      "stageId": "stage-2",
+      "stageInputSha256": "bd285ee1f36d3ae50b8b65c303bf17393294c0e8fec1e97854f5948667ecf930",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e2b-ea15-74c0-af85-41669a25cf63",
+      "stageEvidenceSha256": "b3532669daf8dee56aac3b4f3cd8d498d896a9e532ff83481c12d7fd793c463e"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "duration-configuration-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "80f12787357161b464bbb3633cae34ace0661dc00f9b8eafb4d993cf808257c0",
+      "resolved": false,
+      "stageId": "stage-2",
+      "stageInputSha256": "1b26747ffbd34fe482a45e81cc6f8a39944a6f7ccc0bb5b39d9c6d261c3d915f",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e2d-79b6-7b73-abe6-a8911766d5a5",
+      "stageEvidenceSha256": "d9281b11a0f079dd0f8f23055c99e4eabc77f2d733eef387853e43adb01c7eb2"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "endpoint-open-loop",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "failed",
+      "patchSha256": "fdad9507582d3a46d2187a46391714bcd4f3bb73f66fda4a8102d1599f5d6797",
+      "resolved": false,
+      "stageId": "stage-2",
+      "stageInputSha256": "f39b91da7ff4260f111b087cf7511a2fd5bd728f9402a88f7f05469116c6a65b",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed",
+        "pass-to-pass-regression"
+      ],
+      "threadId": "019f6e2f-8f97-78e2-be41-c34168a354c4",
+      "stageEvidenceSha256": "b2c7d2c28b72651327e1a5592a20c4fa0e52007f7855700914ff6e765bbafe6c"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "field-boundary-policy",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "f42bae3c3286dbb8c1b45ccc10072a1c7eace63efee4da35874ef2b6f216c1c3",
+      "resolved": false,
+      "stageId": "stage-2",
+      "stageInputSha256": "ad8f64ed5a5fa93f17e392609bf15e52307ad6a93d76f00055bae6fdced341e5",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e30-f783-7702-aff2-23a35186bd33",
+      "stageEvidenceSha256": "52fe0e67d9dfae05258c099e1bff400382a3e15a91e16380576fd03689a2fc30"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "independent-string-utilities",
+      "executionFailureStage": null,
+      "failToPassStatus": "passed",
+      "passToPassStatus": "passed",
+      "patchSha256": "0033132f92290fc8f17bb8983d0a186d81699b1291795b491032d5ce63c212f9",
+      "resolved": true,
+      "stageId": "stage-2",
+      "stageInputSha256": "50e13243c553a7722bcb1126f9361bba91b870b5976f0da808373b1a71afa0b0",
+      "taskFailureReasons": [],
+      "threadId": "019f6e33-86c6-77f0-ad43-fba2088330ee",
+      "stageEvidenceSha256": "e338fbe0f7bdd72f32858a5d2f0b445c4783529356b24313759eb1a4c2335960"
+    },
+    {
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "codexStatus": "completed",
+      "disposition": "finalized",
+      "episodeId": "parse-result-correction",
+      "executionFailureStage": null,
+      "failToPassStatus": "failed",
+      "passToPassStatus": "passed",
+      "patchSha256": "ec6c281404edb274b3f077f804a773e59a917f9bd54300d4eb46cb14c4b606dd",
+      "resolved": false,
+      "stageId": "stage-2",
+      "stageInputSha256": "bb2fe6cb811a781b036a48dd41f15fbf70f220b991ee73db5e8c2f97ee99ee1d",
+      "taskFailureReasons": [
+        "hidden-fail-to-pass-failed"
+      ],
+      "threadId": "019f6e34-7066-7520-a544-eb86c2db8b1e",
+      "stageEvidenceSha256": "dcc229975bf621bc438757c130faacb3360d75ad993c051bf72f919d472cc9f9"
+    }
+  ],
+  "rounds": [
+    {
+      "attemptedCount": 6,
+      "ceilingThreshold": 5,
+      "infrastructureFailureCount": 0,
+      "position": 3,
+      "resolvedCount": 1,
+      "stageId": "stage-3"
+    },
+    {
+      "attemptedCount": 6,
+      "ceilingThreshold": 10,
+      "infrastructureFailureCount": 0,
+      "position": 2,
+      "resolvedCount": 1,
+      "stageId": "stage-2"
+    }
+  ],
+  "runIdentitySha256": "4b51701d862aa3528f5c50054c04a7491b66940396a3080ac042de81aa95705f",
+  "runId": "run-c4-baseline-v8-20260717T032532Z",
+  "schemaVersion": 2,
+  "stageEvidenceAggregateSha256": "d7401e38321dc6a1055c44dd41f20cd9336b240f0ca3c916ca837560e55e00af",
+  "stageTimeoutMs": 900000,
+  "strategy": {
+    "earlyCeilingThreshold": 5,
+    "finalCeilingThreshold": 10,
+    "firstRound": "stage-3-all-episodes",
+    "secondRound": "stage-2-all-episodes-if-needed",
+    "stage1Excluded": true
+  },
+  "testTimeoutMs": 300000
+}

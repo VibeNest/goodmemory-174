@@ -13,6 +13,7 @@ export type CodexCodingEffectEventName =
   | "hook_registration_verified"
   | "codex_process_started"
   | "codex_process_exited"
+  | "codex_process_failure"
   | "codex_event_parse_failed"
   | "injection_audited"
   | "stop_writeback_audited"

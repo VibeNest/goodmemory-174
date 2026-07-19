@@ -1,8 +1,8 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..5a8e27c1a5a810420be0250939f42def590137d1 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..3717b9aeca3f8b593f86e986c6bfdea1004ea77d 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -43,7 +43,10 @@ export function slugify(value: string): string {
+@@ -35,7 +35,10 @@ export function slugify(value: string): string {
  }
  
  export function parseCsvUnique(input: string): string[] {

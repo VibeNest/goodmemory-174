@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
 import { createMemorySource } from "../../src/domain/provenance";
-import { createEvidenceRecord, EVIDENCE_COLLECTION } from "../../src/evidence/contracts";
+import {
+  createEvidenceRecord,
+  EVIDENCE_COLLECTION,
+  SOURCE_MESSAGES_COLLECTION,
+} from "../../src/evidence/contracts";
 import {
   createExperienceRecord,
   createLearningProposal,
@@ -19,6 +23,14 @@ import {
 } from "../../src/storage/memory";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 import { createArtifactSpilloverService } from "../../src/runtime/spillover";
+import {
+  CLAIM_PROJECTIONS_COLLECTION,
+  CLAIM_PROJECTION_STATUS_COLLECTION,
+  ENTITIES_COLLECTION,
+  PROJECTION_REPAIRS_COLLECTION,
+  RECALL_DOCUMENTS_COLLECTION,
+  SCOPE_CATALOG_COLLECTION,
+} from "../../src/recall/projections/contracts";
 
 describe("public governance API", () => {
   it("exports scoped durable memory and optional runtime memory", async () => {
@@ -214,6 +226,9 @@ describe("public governance API", () => {
     expect(durableOnly.durable.preferences).toHaveLength(1);
     expect(durableOnly.durable.archives).toHaveLength(1);
     expect(durableOnly.durable.evidence).toHaveLength(2);
+    expect(durableOnly.durable.sourceMessages?.some(({ content }) =>
+      content === "Remember that the migration rollout is blocked on prod verification."
+    )).toBe(true);
     expect(durableOnly.durable.experiences).toHaveLength(2);
     expect(
       durableOnly.durable.facts.every((fact) => fact.sessionId === "s-1"),
@@ -311,7 +326,7 @@ describe("public governance API", () => {
     const spillover = createArtifactSpilloverService({
       documentStore,
     });
-    await spillover.spill(
+    const spillA = await spillover.spill(
       { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
       {
         kind: "tool_result",
@@ -319,7 +334,7 @@ describe("public governance API", () => {
         content: "Session one spill payload",
       },
     );
-    await spillover.spill(
+    const spillB = await spillover.spill(
       { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-9" },
       {
         kind: "tool_result",
@@ -487,6 +502,18 @@ describe("public governance API", () => {
     expect(recallA.journal).toBeNull();
     expect(exportedA.runtime?.spills).toHaveLength(0);
     expect(exportedOtherSession.runtime?.spills).toHaveLength(1);
+    expect(
+      await spillover.resolve(
+        { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-1" },
+        spillA.storageUri,
+      ),
+    ).toBeNull();
+    expect(
+      await spillover.resolve(
+        { userId: "u-1", workspaceId: "workspace-a", sessionId: "s-9" },
+        spillB.storageUri,
+      ),
+    ).toBe("Session nine spill payload");
     expect(exportedA.artifacts.rootPath).toBe(
       ".goodmemory/users/u-1/workspaces/workspace-a/sessions/s-1",
     );
@@ -501,6 +528,113 @@ describe("public governance API", () => {
     expect(await documentStore.get(EXPERIENCES_COLLECTION, "experience-s9")).not.toBeNull();
     expect(await documentStore.get(LEARNING_PROPOSALS_COLLECTION, "proposal-s1")).toBeNull();
     expect(await documentStore.get(PROMOTION_RECORDS_COLLECTION, "promotion-s1")).toBeNull();
+  });
+
+  it("deletes scoped raw messages and claim projections without touching another session", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      testing: {
+        extractor: {
+          async extract(input) {
+            return {
+              candidates: [{
+                id: `candidate-${input.scope.sessionId}`,
+                kindHint: "fact" as const,
+                explicitness: "explicit" as const,
+                content: input.messages[0]!.content,
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                extractorIds: ["test-claim-v1"],
+                metadata: {
+                  subject: "Atlas",
+                  claim: {
+                    predicateKey: "project.status",
+                    objectText: input.messages[0]!.content,
+                  },
+                },
+              }],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+    });
+    const firstScope = {
+      userId: "u-claim-delete",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    };
+    const secondScope = { ...firstScope, sessionId: "s-2" };
+    await memory.remember({
+      scope: firstScope,
+      messages: [{
+        id: "message-s1",
+        role: "user",
+        content: "Atlas is blocked.",
+      }],
+    });
+    await memory.remember({
+      scope: secondScope,
+      messages: [{
+        id: "message-s2",
+        role: "user",
+        content: "Atlas is healthy.",
+      }],
+    });
+
+    await memory.deleteAllMemory({ scope: firstScope });
+
+    expect(await documentStore.query(SOURCE_MESSAGES_COLLECTION, firstScope)).toHaveLength(0);
+    expect(await documentStore.query(CLAIM_PROJECTIONS_COLLECTION, firstScope)).toHaveLength(0);
+    expect(await documentStore.query(CLAIM_PROJECTION_STATUS_COLLECTION, firstScope)).toHaveLength(0);
+    expect(await documentStore.query(SOURCE_MESSAGES_COLLECTION, secondScope)).toHaveLength(1);
+    expect(await documentStore.query(CLAIM_PROJECTIONS_COLLECTION, secondScope)).toHaveLength(1);
+    expect(await documentStore.query(CLAIM_PROJECTION_STATUS_COLLECTION, secondScope)).toHaveLength(1);
+  });
+
+  it("deletes orphaned projection state even when its canonical fact is already absent", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const scope = {
+      userId: "u-orphan-delete",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    };
+    const orphan = {
+      ...scope,
+      id: "orphan-sensitive",
+      sourceMemoryId: "missing-fact",
+      sensitive: "sensitive-object-text",
+    };
+    const projectionCollections = [
+      RECALL_DOCUMENTS_COLLECTION,
+      ENTITIES_COLLECTION,
+      SCOPE_CATALOG_COLLECTION,
+      PROJECTION_REPAIRS_COLLECTION,
+      CLAIM_PROJECTIONS_COLLECTION,
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+    ];
+    for (const collection of projectionCollections) {
+      await documentStore.set(collection, orphan.id, orphan);
+    }
+
+    await memory.deleteAllMemory({ scope });
+
+    for (const collection of projectionCollections) {
+      expect(await documentStore.query(collection, scope)).toEqual([]);
+    }
+    expect(JSON.stringify(await Promise.all(projectionCollections.map((collection) =>
+      documentStore.query(collection, {})
+    )))).not.toContain("sensitive-object-text");
   });
 
   it("keeps workspace-scoped proposals when deleting one contributing session", async () => {

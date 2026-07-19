@@ -1,7 +1,11 @@
 import type { MemoryScope } from "../../domain/scope";
+import {
+  EVIDENCE_COLLECTION,
+  type EvidenceRecord,
+} from "../../evidence/contracts";
 import type {
   ConditionalDocumentWriteBatch,
-  DocumentStore,
+  ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
 import {
@@ -12,17 +16,44 @@ import type { KeyedMutationLock } from "./mutationLock";
 import type { RecallProjectionOperations } from "./operations";
 import { resolveProjectionScope } from "./projector";
 import type { RecallProjectionRepairs } from "./repairs";
-import { errorMessage, sourceMutationKey } from "./shared";
+import {
+  errorMessage,
+  matchesScopeFilter,
+  scopeFilter,
+  sourceMutationKey,
+} from "./shared";
 
 export function createProjectionAwareDocumentStore(input: {
-  documentStore: DocumentStore;
+  documentStore: ProjectionCapableDocumentStore;
   mutationLock: KeyedMutationLock;
   now: () => string;
   operations: RecallProjectionOperations;
   repairs: RecallProjectionRepairs;
   writeThrough: boolean;
-}): DocumentStore {
+}): ProjectionCapableDocumentStore {
   const { documentStore, mutationLock, now, operations, repairs, writeThrough } = input;
+
+  async function evidenceForFact(
+    collection: string,
+    sourceMemoryId: string,
+    document?: StorageDocument,
+  ): Promise<EvidenceRecord[] | undefined> {
+    if (collection !== "facts" || !document) {
+      return undefined;
+    }
+    const scope = resolveProjectionScope(document);
+    if (!scope) {
+      return undefined;
+    }
+    const evidence = await documentStore.query<EvidenceRecord>(
+      EVIDENCE_COLLECTION,
+      scopeFilter(scope),
+    );
+    return evidence.filter((record) =>
+      matchesScopeFilter(record, scope) &&
+      record.linkedMemoryIds.includes(sourceMemoryId)
+    );
+  }
 
   async function registerScopeAfterCanonicalWrite(
     collection: RecallProjectionSourceCollection,
@@ -65,10 +96,17 @@ export function createProjectionAwareDocumentStore(input: {
       ? resolveProjectionScope(fallbackDocument) ?? undefined
       : undefined;
     try {
+      const evidence = await evidenceForFact(
+        collection,
+        sourceMemoryId,
+        fallbackDocument,
+      );
       await operations.synchronizeUnsafe(
         collection,
         sourceMemoryId,
         fallbackScope,
+        false,
+        evidence,
       );
     } catch (error) {
       console.error(
@@ -110,7 +148,53 @@ export function createProjectionAwareDocumentStore(input: {
     }
   }
 
-  const decorated: DocumentStore = {
+  async function writeConditionalBatch(
+    batch: ConditionalDocumentWriteBatch,
+  ): Promise<boolean> {
+    const sources = new Map<
+      string,
+      {
+        collection: RecallProjectionSourceCollection;
+        document: StorageDocument;
+        id: string;
+      }
+    >();
+    for (const operation of batch.set) {
+      if (!isRecallProjectionSourceCollection(operation.collection)) continue;
+      sources.set(sourceMutationKey(operation.collection, operation.id), {
+        collection: operation.collection,
+        document: operation.document,
+        id: operation.id,
+      });
+    }
+    if (!writeThrough) {
+      const committed = await documentStore.writeBatchIfUnchanged(batch);
+      if (committed) {
+        for (const source of sources.values()) {
+          await registerScopeAfterCanonicalWrite(
+            source.collection,
+            source.id,
+            source.document,
+          );
+        }
+      }
+      return committed;
+    }
+    return mutationLock.runExclusive([...sources.keys()], async () => {
+      const committed = await documentStore.writeBatchIfUnchanged(batch);
+      if (!committed) return false;
+      for (const source of sources.values()) {
+        await synchronizeAfterCanonicalWrite(
+          source.collection,
+          source.id,
+          source.document,
+        );
+      }
+      return true;
+    });
+  }
+
+  const decorated: ProjectionCapableDocumentStore = {
     async set(collection, id, document) {
       if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.set(collection, id, document);
@@ -169,8 +253,24 @@ export function createProjectionAwareDocumentStore(input: {
       await mutationLock.runExclusive(
         [sourceMutationKey(collection, id)],
         async () => {
-          const existing = await documentStore.get<StorageDocument>(collection, id);
-          await documentStore.delete(collection, id);
+          let existing = await documentStore.get<StorageDocument>(collection, id);
+          for (let attempt = 0; existing && attempt < 8; attempt += 1) {
+            const committed = await repairs.deleteCanonicalAndRepairs(
+              collection,
+              id,
+              existing,
+            );
+            if (committed) break;
+            existing = await documentStore.get<StorageDocument>(collection, id);
+          }
+          if (existing && await documentStore.get(collection, id)) {
+            throw new Error(
+              `Canonical memory changed repeatedly during deletion: ${collection}/${id}`,
+            );
+          }
+          if (!existing) {
+            await repairs.discardSource(collection, id);
+          }
           const scope = existing
             ? resolveProjectionScope(existing) ?? undefined
             : undefined;
@@ -195,60 +295,8 @@ export function createProjectionAwareDocumentStore(input: {
         },
       );
     },
+    writeBatchIfUnchanged: writeConditionalBatch,
   };
-
-  const writeBatchIfUnchanged = documentStore.writeBatchIfUnchanged;
-  if (writeBatchIfUnchanged) {
-    decorated.writeBatchIfUnchanged = async (
-      batch: ConditionalDocumentWriteBatch,
-    ): Promise<boolean> => {
-      const sources = new Map<
-        string,
-        {
-          collection: RecallProjectionSourceCollection;
-          document: StorageDocument;
-          id: string;
-        }
-      >();
-      for (const operation of batch.set) {
-        if (!isRecallProjectionSourceCollection(operation.collection)) {
-          continue;
-        }
-        sources.set(sourceMutationKey(operation.collection, operation.id), {
-          collection: operation.collection,
-          document: operation.document,
-          id: operation.id,
-        });
-      }
-      if (!writeThrough) {
-        const committed = await writeBatchIfUnchanged(batch);
-        if (committed) {
-          for (const source of sources.values()) {
-            await registerScopeAfterCanonicalWrite(
-              source.collection,
-              source.id,
-              source.document,
-            );
-          }
-        }
-        return committed;
-      }
-      return mutationLock.runExclusive([...sources.keys()], async () => {
-        const committed = await writeBatchIfUnchanged(batch);
-        if (!committed) {
-          return false;
-        }
-        for (const source of sources.values()) {
-          await synchronizeAfterCanonicalWrite(
-            source.collection,
-            source.id,
-            source.document,
-          );
-        }
-        return true;
-      });
-    };
-  }
 
   if (documentStore.queryPage) {
     decorated.queryPage = (collection, page) =>

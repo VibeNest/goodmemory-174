@@ -1,0 +1,126 @@
+{
+  "evidence": {
+    "arm": {
+      "absenceAuditPassed": true,
+      "absenceAuditSha256": "36debb972d7d2de5093292cd4ac20f802a6a34c1976de2dcf01c398a3c5e8d52",
+      "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+      "codexVersion": "codex-cli 0.144.5",
+      "instructionSha256": "8ed077f1a12979e23e9f9498e7ec6388a393d483f5bbdd34ead1d5f00eeea72e",
+      "networkAccess": false,
+      "permissionIsolationEvidenceSha256": "b41c605d01555921a28a1a78ed99435528204dde14216ae38e090fa08611634f",
+      "permissionIsolationPassed": true
+    },
+    "codex": {
+      "durationMs": 243344.57941599994,
+      "eventCount": 37,
+      "exitCode": 0,
+      "failureEventCount": 0,
+      "failureEventsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": "completed",
+      "stderrSha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "timedOut": false,
+      "usage": {
+        "cachedInputTokens": 252160,
+        "inputTokens": 292692,
+        "outputTokens": 6963
+      }
+    },
+    "dataset": {
+      "episodeId": "field-boundary-policy",
+      "promptSha256": "00463ca4e9afe125b5b6515a983edd6d188fd4242287fbe51001ae6f4bcd706d",
+      "repositoryCommit": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "repositoryTree": "cb825ad0d58139c91f40d885ace1a7ae25d4b4a9",
+      "snapshot": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "stageId": "stage-3",
+      "stageInputSha256": "a685056347b4c8a8ecc0be9296e65fb63270307f6e365555f38aa887705030ea"
+    },
+    "evaluator": {
+      "commitments": [
+        {
+          "relativePath": "cases.json",
+          "sha256": "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
+        },
+        {
+          "relativePath": "runner.ts",
+          "sha256": "e1617c0820949074739f9370b60e261f9a5005c957a5145b2fb1a3684f014712"
+        }
+      ],
+      "credentialsRemovedBeforeMaterialization": true,
+      "failToPass": {
+        "durationMs": 70.65766600007191,
+        "exitCode": 1,
+        "kind": "fail-to-pass",
+        "status": "failed",
+        "stderrSha256": "a4ed92f285c1dd46ebab2bbde77e40c4614bef238c3683b3f9d6ace0d80f049c",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "materializedAfterCodexExit": true,
+      "passToPass": {
+        "durationMs": 70.91512500005774,
+        "exitCode": 0,
+        "kind": "pass-to-pass",
+        "status": "passed",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sandbox": {
+        "configSha256": "2d7ea0abe2764befc6b8c6e4f499db9b2420176b2cc870bcb7d2f1d29f6ce154",
+        "configWriteDenied": true,
+        "copiedAuthRemovedBeforeEvaluator": true,
+        "evaluatorRead": true,
+        "evaluatorWriteDenied": true,
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "originalAuthAliasDenied": true,
+        "originalAuthDenied": true,
+        "profileName": "c4-evaluator",
+        "schemaVersion": 1,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "sandboxEvidenceSha256": "3105493c6ba006275e035825218cb3544bef4cd4336910b64c39d82b7e4dd369"
+    },
+    "failure": null,
+    "patch": {
+      "baseCommit": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "diff": "diff --git a/src/tasks.ts b/src/tasks.ts\nindex a2aedf47cba4bdfda96157a97231f8d6a2df2866..ad2060738688106feb46fd2e34d2d32f19683953 100644\n--- a/src/tasks.ts\n+++ b/src/tasks.ts\n@@ -34,5 +34,17 @@ export function parsePipeFields(input: string): string[] {\n }\n \n export function parseSemicolonFields(input: string): string[] {\n-  return input.split(\";\").map((field) => field.trim());\n+  const fields = input.split(\";\").map((field) => field.trim());\n+\n+  let start = 0;\n+  let end = fields.length;\n+\n+  while (start < end && fields[start] === \"\") {\n+    start += 1;\n+  }\n+  while (end > start && fields[end - 1] === \"\") {\n+    end -= 1;\n+  }\n+\n+  return fields.slice(start, end);\n }\n",
+      "forbiddenFiles": [],
+      "hasPatch": true,
+      "sha256": "9fa03d0a17b4aeb735ec586cb53a32fc077ee8e55c3d7c84041884d5d781f3e7",
+      "untrackedFiles": []
+    },
+    "visibleBaseHealth": {
+      "durationMs": 8.90887499996461,
+      "exitCode": 0,
+      "passed": true,
+      "status": "passed",
+      "stderrSha256": "8e1a7f50b780265eed325133accee1bda12dcb7104279a8373b6f367e9bdd155",
+      "stdoutSha256": "72af121bdc4cbb1d32d4d3454fb83f73b6700b1a1e939b5ec41ab8d6819f89b2"
+    }
+  },
+  "rawStageEvidenceSha256": "072dc695ccc342114081fb9382eee199190fa9a417a77577e81b63a16023fb95",
+  "result": {
+    "changedFiles": [
+      "src/tasks.ts"
+    ],
+    "codexStatus": "completed",
+    "disposition": "finalized",
+    "episodeId": "field-boundary-policy",
+    "executionFailureStage": null,
+    "failToPassStatus": "failed",
+    "passToPassStatus": "passed",
+    "patchSha256": "9fa03d0a17b4aeb735ec586cb53a32fc077ee8e55c3d7c84041884d5d781f3e7",
+    "resolved": false,
+    "stageId": "stage-3",
+    "stageInputSha256": "a685056347b4c8a8ecc0be9296e65fb63270307f6e365555f38aa887705030ea",
+    "taskFailureReasons": [
+      "hidden-fail-to-pass-failed"
+    ],
+    "threadId": "019f6e25-962b-7511-a1a5-9b1a3535dc85"
+  },
+  "schemaVersion": 2
+}

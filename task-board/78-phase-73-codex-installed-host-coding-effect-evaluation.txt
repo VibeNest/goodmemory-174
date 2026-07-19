@@ -116,58 +116,105 @@ and kept raw-transcript persistence false.
 arms. Both attempts were finalized and resolved, infrastructure failures were
 zero, and the comparable-pair outcome was `tie-both-pass` with
 `publicClaimEligible: false`.
-[OPEN] C3 must be rerun because the historical identity omitted the runner-time
-GoodMemory source commit/tree/dirty state and the normalized two-arm host-config
-diff, and its gitignored raw directory had no tracked sanitized projection. The
-hardened runner now requires a clean GoodMemory source tree, persists only
-status/digest/file-metadata projections before and after the live pair, and
-exposes those sanitized artifacts for tracking. Unmatched host PATH entries are
-projected as `<host-path>` using complete path-prefix boundaries, and both arms
-repeat config-hash and permission-isolation probes immediately before Codex
-launch. The projection verifier explicitly reports internal-consistency and
-clean-clone patch-replay scope with `externalAuthenticityVerified: false`;
-package/raw-run/canary authenticity still requires an external CI artifact,
-signature, or transparency root. The historical rejection is tracked under
-`reports/quality-gates/phase-73/`.
-[OPEN] C4 controlled pilot dataset readiness awaits a new v2 no-memory baseline
-and independent review.
-The frozen schema-v2 fixture has 6 episodes, 18 stages, 2 controlled
-repositories, all 8 required memory strata, and a 60-file asset lock. Three
-fresh base clones per stage produced 54 stable expected-failure probes; all 18
-gold patches replayed in fresh clones and passed visible, fail-to-pass, and
-pass-to-pass tests. The repaired leakage audit derives typed scalar leaves and
-per-case input-output relations from both fail-to-pass and pass-to-pass cases.
-Only frozen relations present in natural public repository content are exempt;
-synthetic file/path envelopes cannot create exemptions. Envelope metadata is
-excluded only from that surface's semantic hidden-value view, not from the
-episode globally. The reproduced `docs/setup guide#intro`,
-`2.5 -> 2_500`, hidden value `1` beside `schemaVersion: 1`, short
-pass-to-pass, `INFO -> invalid-level/false`, `3,000`, `3e3`, and `62.50`
-leaks all fail. Its 1458 mutation cells inject fragment, typed-value, and
-typed-relation channels. Gold replay covers schema-declared added, modified,
-deleted, and binary files.
-The deterministic core and a new review dispatch/input/request bundle are
-tracked, but the previous review/provenance/final report bound an older core and
-are intentionally absent. Only the historical v1 baseline is retained. A new
-v2 baseline must run from an asset-locked dataset copy, bind results to
-dataset-derived stage input hashes, project auditable evaluator/patch evidence,
-atomically publish one report-plus-stages bundle, and bind stage/test timeouts.
-Formal Codex non-zero exits such as authentication failures make it
-inconclusive. C4 cannot be accepted until that baseline and a separate bound
-review exist and the final gate regenerates the report.
-[OPEN] C5 broader live pilot. C4 made no live Codex call, compared no arms, and
-records `publicClaimEligible: false`, `publicCodingEffectProof: false`, and
-`readmeRowAllowed: false`.
+[DONE] C3 final clean-clone pair `c3-controlled-20260716-cleanclone-003` is
+accepted as `frozen-prehistory-pilot` protocol/host evidence. It used runner
+commit `fc31f4f96f3975daea361805da3fc4fc942c5aa4` / tree
+`996b1c24bfb53a9d9c62eb109997576df7b512af`, clean GoodMemory source
+commit `594ee5406ff082f6210d4be4f763f529f13a1a9f` / tree
+`af13dc2688a0e3636f2c2e40728a47eb52ce90eb`, package SHA-256
+`4526fc05ee1fadf05ff80e555827af67477724bf5e0d4cd3613452b899a647c3`,
+Codex CLI 0.144.5, and `gpt-5.6-sol` / `xhigh`.
+[DONE] C3 host preflight now rejects `/tmp`, `/private/tmp`, `/var/tmp`, and
+`/private/var/tmp` for sensitive roots because the macOS Codex platform
+sandbox allows those scratch trees even when an exact deny is present. The
+accepted run used non-temporary roots. Both profiles exact-denied the current
+arm runtime, cross-arm runtime/workspace, source/evaluator/output/tarball, and
+runner roots; direct probes covered both copied auth files, both configs,
+workspace read/write, and network denial immediately before launch.
+[DONE] No-memory exited before frozen-prehistory materialization and both Codex
+processes exited before evaluator materialization. The installed recall
+preflight/current-session canary bound the seeded memory, exact thread,
+sanitized transcript, cursor advancement, committed Stop writeback, and raw
+transcript persistence off. Deterministic fail-to-pass and pass-to-pass tests
+passed in both arms: 2 attempted, 2 finalized, 2 resolved, zero infrastructure
+failures, one comparable pair, outcome `tie-both-pass`, and
+`publicClaimEligible: false`.
+[DONE] The canonical tracked C3 projection is
+`reports/quality-gates/phase-73/c3-controlled-20260716-cleanclone-003/`.
+The independent verifier accepted 17 files and replayed both arm patches from
+clean clones with no reasons. Its scope is
+`internal-consistency-and-clean-clone-patch-replay`; it records
+`externalAuthenticityVerified: false`, so external package/raw-run/canary
+authenticity still needs an independent signature, CI artifact, or
+transparency root.
+[REOPENED] C3 source reproducibility is not closed. The recorded GoodMemory
+commit/tree are reachable, but runner commit
+`fc31f4f96f3975daea361805da3fc4fc942c5aa4` and tree
+`996b1c24bfb53a9d9c62eb109997576df7b512af` are absent from the current Git
+object database. The tracked projection remains internal-consistency evidence,
+not a recoverable verifier-source snapshot.
+[SUPERSEDED] C4 v8 controlled dataset/core was frozen at asset-lock SHA-256
+`a4db88c4dc9ebea7fc464ba104f34c3a0852e2743a798694723d9ae9614606c4`
+and core SHA-256
+`6ec596c99891376842e612520ae00b00f627e99ba63f48b9a690f02c06c72d3a`.
+It has 6 episodes, 18 stages, 2 controlled repositories, all 8 required
+memory strata, and a 63-file asset lock. Three fresh base clones per stage
+produced 54 stable
+expected-failure probes; all 18 gold patches replayed in fresh clones and
+passed visible, fail-to-pass, and pass-to-pass tests.
+[DONE] The full leakage audit contains 486 surface-by-hidden-artifact cells.
+Its 1458 intentional mutation cells cover fragment, typed-value, and
+typed-relation injection channels; 648 are applicable and 810 are explicitly
+not applicable. The v9 detector now audits exact trim/case relations across the
+whole agent-visible corpus, including repository-relative paths and
+physical-file boundaries. The manifest
+explicitly binds only public pass-to-pass relations present in visible source;
+undeclared split-file relations are rejected. Reproduced scalar, relation,
+numeric-equivalence, short pass-to-pass,
+and synthetic-envelope leaks all fail. Four dynamic
+content-preserving surfaces are deferred to mandatory live C5 re-audit:
+`effective-codex-input-after-seeding`, `flat-summary-after-seeding`,
+`goodmemory-export-after-seeding`, and
+`goodmemory-hook-context-after-seeding`.
+[DONE] A fresh `fork-turns-none` reviewer inspected only the 63 frozen assets
+and deterministic core, accepted all six episodes, and declared that no coding
+outcome artifact was inspected. Provenance SHA-256
+`1eee28b3fb8f08b5f57dcfb74db62632682145f062d32cad93341c227f54c4dc`
+binds dispatch, input, request, and response and discloses its orchestrator
+attestation as non-cryptographic.
+[DONE] Baseline raw evidence now retains structured Codex failure events;
+tracked evidence projects only count/hash and verifies them for both finalized
+and infrastructure records. Finalized stages require zero failure events.
+[SUPERSEDED] C4 live baseline and final readiness were accepted under v8. Run
+`run-c4-baseline-v8-20260717T032532Z` finalized 12/12 stages, resolved 2,
+recorded zero infrastructure failures and `ceilingRisk: false`, and decided
+`proceed-to-c5-pilot`; report SHA-256 is
+`145075fe1db774e14fbce1ba6df6b6170c64cd87a9c81c89a7abb39aefcfb220`.
+Final readiness SHA-256
+`7cf3f8cb829472f34e475dddfe69911651887c2896559712988e1153b6ea0128`
+bound core, baseline, review, and provenance. v9 corpus-wide leakage detection
+and exact prompt/repository/evaluator binding require regenerated core, review,
+baseline, and readiness artifacts. The old artifacts were moved unchanged to
+explicit `*-v8` historical paths; canonical v9 paths are intentionally absent.
+[DONE] C5 harness implementation now treats host-canary collection failures as
+sanitized, source-bound stage failures instead of dropping them; rejects
+foreign injected memory; authenticates the recursive runner import closure
+from projected source bytes; and supports strict same-identity `--resume`.
+Resume preserves an interrupted cluster attempt, rolls back only that
+uncommitted cluster, and keeps completed clusters. These are deterministic
+harness tests, not a completed C5 live run or coding-effect evidence.
+[BLOCKED] C5 broader live pilot has not run and is not unblocked until the v9 C4
+evidence chain is regenerated and independently reviewed. C4 made no paired
+treatment comparison and proves no coding uplift.
 [OPEN] C6-C7 expanded candidate, statistics, gate, and narrow claim decision.
 
 C3's deterministic hidden fail-to-pass and pass-to-pass tests alone decide task
-correctness. Memory, injection, transcript, and writeback diagnostics can explain
-the result but never override it. The historical run shows local protocol
-execution, but is not accepted C3 evidence without complete source/config
-provenance and a tracked projection. Its tie does not prove coding uplift, and
-the current C4 core contains no treatment comparison and is not an accepted C4
-gate. Neither is a public coding-effect claim. Phase 73 remains active while
-C3-C7 are open.
+correctness. Memory, injection, transcript, and writeback diagnostics can
+explain the result but never override it. C3 is internally accepted only as
+protocol/host evidence and its source-reproducibility gate is reopened; its tie
+does not prove uplift. C4 v8 is superseded and v9 readiness is pending. None
+authorizes a public coding-effect claim.
+Phase 73 remains active while C5-C7 are open.
 
 Boundary
 --------

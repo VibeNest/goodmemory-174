@@ -94,6 +94,39 @@ describe("Codex coding-effect fake host", () => {
     });
   });
 
+  it("retains and logs structured Codex failure events", async () => {
+    await withWorkspace(async (workspace) => {
+      const logs: CodexCodingEffectLogEvent[] = [];
+      const logger = createCodexCodingEffectLogger({
+        arm: "no-memory",
+        attemptId: "attempt-failed",
+        episodeId: "episode-failed",
+        repetition: 1,
+        runId: "run-failed",
+        seed: 1,
+        stageId: "stage-2",
+        traceId: "trace-failed",
+      }, (event) => logs.push(event));
+      const result = await runCodexProcess({
+        ...request(workspace, "non-zero-turn-failed"),
+        logger,
+      });
+
+      expect(result.status).toBe("non-zero-exit");
+      expect(result.failureEvents).toEqual([{
+        message: "synthetic upstream capacity failure",
+        sourceEventIndex: 3,
+        type: "turn.failed",
+      }]);
+      expect(logs.at(-1)).toMatchObject({
+        details: {
+          failureEvents: result.failureEvents,
+        },
+        event: "codex_process_failure",
+      });
+    });
+  });
+
   it("does not turn a non-zero host exit into a retryable parser failure", async () => {
     await withWorkspace(async (workspace) => {
       const result = await runCodexProcess(

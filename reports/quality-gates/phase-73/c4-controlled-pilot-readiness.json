@@ -1,0 +1,49 @@
+{
+  "assetLockSha256": "795473a2916e441ff9cc39ac92578565a84405ffd45589d90943ad31b81d1195",
+  "assetRootSha256": "721927b1b8a2477f59797402a21ac981a404be72beb28cabe41272f9cfb8440a",
+  "authorTaskName": "/root",
+  "authorAttestationSha256": "0192f7190f5437a3c167124a5bb6b9718b0631ddd4c442c53c2c86ecb64516f6",
+  "baselineCeiling": {
+    "ceilingRisk": false,
+    "decision": "proceed-to-c5-pilot",
+    "infrastructureFailureCount": 0,
+    "path": "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/report.json",
+    "reportSha256": "2140f020a5d3817d4b91a0d8edf5227db6fa7fec32995a6fab12df6d52901270",
+    "runIdentitySha256": "62aaa08302ed5c5fb7ae1c54b816d25d2d0491038a0412e0e358d95bf11773d7",
+    "stageEvidenceAggregateSha256": "b84532e86359d1295b4b795fbb8211f118947a73ef4b1b24711158545b176407"
+  },
+  "claimBoundary": "dataset-readiness-only-no-coding-uplift",
+  "coreSha256": "420f5c11b1a8aa344714a950b154477449856aed130be37abfe2cdf474eff544",
+  "counts": {
+    "baseProbes": 54,
+    "episodes": 6,
+    "repositories": 2,
+    "stages": 18
+  },
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "excludedHosts": [
+    "claude-code"
+  ],
+  "host": "codex",
+  "leakageAuditSha256": "b18e482107fd8c644745f1f9e704697cc5ffbb1077db42b0703cb78bdf3a63ef",
+  "manifestSha256": "c246d3c7fd7106e115f7cb1006791db0a91359203d27dab702ae89a6c077f6db",
+  "nextEvidencePhase": "C5-native-longitudinal-pilot",
+  "phase": "C4",
+  "publicClaimEligible": false,
+  "publicCodingEffectProof": false,
+  "readmeRowAllowed": false,
+  "reviewedAt": "2026-07-18T18:01:38Z",
+  "reviewer": "Codex independent C4 dataset reviewer v9",
+  "reviewerAgentName": "/root/c4_final_independent_review_v5",
+  "reviewerIdentityEvidence": "orchestrator-attestation-not-cryptographic-receipt",
+  "reviewerRequestedTaskName": "c4_final_independent_review_v5",
+  "reviewerType": "independent-ai-agent",
+  "reviewContextPolicy": "fork-turns-none",
+  "reviewDispatchSha256": "71fc4df6fec51308f0cbbb8b25a61ea13cab4b00f6cef9bb9935c531be1c6e59",
+  "reviewInputBundleSha256": "f7430cd7cf2b66d08ed15513bbf3b108359d6f611bda48e236cd0d334bc7a823",
+  "reviewProvenanceSha256": "a1c82a87669effd9f827e637151c481d00d540db0ba74b9c7c23bc24b64cdb1d",
+  "reviewRequestSha256": "2ea00cdb0a4c167b7c3ee78c78b8b983adc2d5781a69bce2ed7e3d17a238027e",
+  "reviewSha256": "16f63486e39d349b98abfb38340e8492962d8ecf2b78ed488b28e9c4ae439a09",
+  "schemaVersion": 3,
+  "status": "accepted"
+}

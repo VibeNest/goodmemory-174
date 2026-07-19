@@ -140,10 +140,13 @@ describe("Codex coding-effect C3 installed runtime", () => {
   it("keeps the no-memory environment empty and omits the packaged prefix", async () => {
     await withRuntimeFixture(async (fixture) => {
       const calls: string[][] = [];
+      const sensitivePath = join(fixture.root, "frozen-evaluator.ts");
+      await writeFile(sensitivePath, "hidden evaluator bytes\n", "utf8");
       const noMemory = await prepareC3NoMemoryArm({
         authFile: fixture.authFile,
         bunExecutable: process.execPath,
         codexExecutable: fixture.codexExecutable,
+        permissionDeniedReadPaths: [sensitivePath],
         plan: fixture.plans[0],
         runProcess: createFakeBoundary(fixture, calls),
       });
@@ -167,12 +170,38 @@ describe("Codex coding-effect C3 installed runtime", () => {
       expect(config).toContain('default_permissions = "c3-task"');
       expect(config).toContain('":root" = "deny"');
       expect(config).toContain('":minimal" = "read"');
+      expect(config).toContain(`${JSON.stringify(sensitivePath)} = "deny"`);
       expect(config).toContain("enabled = false");
       expect(noMemory.env.GOODMEMORY_HOME).toBeUndefined();
       expect(noMemory.env.PATH).not.toContain(
         fixture.plans[1].paths.packagePrefix!,
       );
       expect(calls.some((args) => args[0] === "install")).toBe(false);
+    });
+  });
+
+  it("rejects indented and nested legacy sandbox configuration", async () => {
+    await withRuntimeFixture(async (fixture) => {
+      for (const legacyConfig of [
+        "[features]\nhooks = true\n  sandbox_mode = \"workspace-write\"\n",
+        "[features]\nhooks = true\n[sandbox_workspace_write.network]\nenabled = false\n",
+      ]) {
+        await expect(prepareC3InstalledArm({
+          authFile: fixture.authFile,
+          bunExecutable: process.execPath,
+          codexExecutable: fixture.codexExecutable,
+          npmExecutable: fixture.npmExecutable,
+          packageTarball: fixture.packageTarball,
+          plan: fixture.plans[1],
+          runProcess: createFakeBoundary(fixture, [], legacyConfig),
+        })).rejects.toThrow(
+          "isolated Codex config contains legacy sandbox settings",
+        );
+        await rm(fixture.plans[1].paths.armRoot, {
+          force: true,
+          recursive: true,
+        });
+      }
     });
   });
 
@@ -646,6 +675,7 @@ async function withRuntimeFixture(
 function createFakeBoundary(
   fixture: RuntimeFixture,
   calls: string[][],
+  codexConfig = "[features]\nhooks = true\n",
 ): (request: BoundaryProcessRequest) => Promise<BoundaryProcessResult> {
   return async (request) => {
     calls.push([...request.args]);
@@ -704,7 +734,7 @@ function createFakeBoundary(
         managedHooks(home),
         "utf8",
       );
-      await writeFile(join(codexHome, "config.toml"), "[features]\nhooks = true\n", "utf8");
+      await writeFile(join(codexHome, "config.toml"), codexConfig, "utf8");
       return processResult({ stdout: "{}\n" });
     }
     if (request.args[0] === "status") {

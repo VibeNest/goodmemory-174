@@ -210,6 +210,87 @@ describe("installed host writeback runtime", () => {
     }
   });
 
+  it("treats an explicit repository project policy as a durable decision", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-project-policy-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-project-policy-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "observe" });
+      const content =
+        "Establish and implement the endpoint-display policy for this repository. Project policy: for endpoint display text, wrap a host containing a colon in one pair of parentheses unless it is already wrapped; leave other hosts unchanged.";
+      const result = await executeInstalledHostWriteback({
+        command: "turn-end",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          messages: [{ content, role: "user" }],
+          session_id: "project-policy-session",
+        },
+      });
+
+      expect(result).toMatchObject({
+        reason: "observed",
+        wrote: false,
+      });
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          content,
+          durable: true,
+          kind: "fact",
+          reason: "confirmed_decision",
+          source: "user",
+        }),
+      ]);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not turn policy questions or negations into confirmed decisions", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-policy-negative-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-policy-negative-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "observe" });
+      for (const content of [
+        "What is the project policy for deleting production data?",
+        "There is no repository policy for deleting production data.",
+        "Project policy is not defined.",
+        "Project policy is what?",
+        "Repository policy is under discussion.",
+        "Project policy is unknown.",
+        "Project policy is TBD.",
+        "Repository policy is not finalized.",
+        "Repository policy is being discussed.",
+        "Project policy: TBD",
+        "Project policy: requires clarification",
+        "Project policy is to be determined.",
+      ]) {
+        const result = await executeInstalledHostWriteback({
+          command: "turn-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [{ content, role: "user" }],
+            session_id: `policy-negative-${content.length}`,
+          },
+        });
+        expect(result.candidates).toEqual([]);
+        expect(result.wrote).toBe(false);
+      }
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("fails open when observe audit persistence fails", async () => {
     const homeRoot = await createWorkspace("goodmemory-writeback-observe-audit-fail-home-");
     const workspaceRoot = await createWorkspace(

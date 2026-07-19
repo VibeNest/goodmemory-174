@@ -330,50 +330,48 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         id: message.id ?? createMessageId(),
         role: message.role,
         content: message.content,
+        ...(message.observedAt ? { observedAt: message.observedAt } : {}),
       };
       const nextMessages = [
         ...state.buffer.messages,
         nextMessage,
       ];
 
-      let summary = state.buffer.summary;
-      let summaryUpToIndex = state.buffer.summaryUpToIndex;
-      let messages = nextMessages;
-      let preCompactInput: PreCompactSalvageInput | undefined;
-
-      if (nextMessages.length > maxBufferedMessages) {
-        const overflow = nextMessages.length - maxBufferedMessages;
-        const evictedMessages = nextMessages.slice(0, overflow);
-        preCompactInput = {
-          evictedMessages,
-          nextMessage,
-          nextMessages,
-          scope: sessionScope,
-          overflowCount: overflow,
-          runtimeState: state,
-        };
-        messages = nextMessages.slice(overflow);
-        summary = summary ?? "Earlier messages compacted.";
-        summaryUpToIndex += overflow;
-      }
-
-      const buffer = createSessionBuffer({
+      const pendingBuffer = createSessionBuffer({
         ...state.buffer,
-        messages,
-        summary,
-        summaryUpToIndex,
+        messages: nextMessages,
         lastActiveAt: timestamp,
       });
-      const onPreCompact = config.salvageHooks?.onPreCompact;
 
-      await config.sessionStore.saveBuffer(sessionScope, buffer);
-
-      if (preCompactInput && onPreCompact) {
-        await runBestEffortSalvage("pre-compact", async () => {
-          await onPreCompact(preCompactInput);
-        });
+      if (nextMessages.length <= maxBufferedMessages) {
+        await config.sessionStore.saveBuffer(sessionScope, pendingBuffer);
+        return pendingBuffer;
       }
 
+      const overflow = nextMessages.length - maxBufferedMessages;
+      const evictedMessages = nextMessages.slice(0, overflow);
+      const onPreCompact = config.salvageHooks?.onPreCompact;
+      if (onPreCompact) {
+        await runBestEffortSalvage("pre-compact", async () => {
+          await onPreCompact({
+            evictedMessages,
+            nextMessage,
+            nextMessages,
+            scope: sessionScope,
+            overflowCount: overflow,
+            runtimeState: state,
+          });
+        });
+      }
+      const buffer = createSessionBuffer({
+        ...state.buffer,
+        messages: nextMessages.slice(overflow),
+        summary: state.buffer.summary ?? "Earlier messages compacted.",
+        summaryUpToIndex: state.buffer.summaryUpToIndex + overflow,
+        lastActiveAt: timestamp,
+      });
+
+      await config.sessionStore.saveBuffer(sessionScope, buffer);
       return buffer;
     },
 

@@ -1,3 +1,5 @@
+import type { LanguageService } from "../language";
+
 // Query decomposition for multi-part questions.
 //
 // A single compound question ("What database do I use and which editor did I
@@ -21,15 +23,28 @@ const DEFAULT_MIN_SUB_QUERY_WORDS = 2;
 
 // Split on sentence / clause boundaries, then on coordination or an explicit
 // `with` facet that can stand as a useful secondary retrieval query.
-const CLAUSE_BOUNDARY_PATTERN = /[?.;!\n]+/u;
+const CLAUSE_BOUNDARY_PATTERN = /[?.;!。？；！\n]+/u;
 const QUERY_FACET_BOUNDARY_PATTERN =
-  /\s+(?:and|&|as well as|along with|with)\s+/iu;
+  /\s+(?:and|&|as well as|along with|with)\s+|(?:以及|并且|而且|同时|还有)/iu;
 
-function countWords(text: string): number {
+function countTerms(
+  text: string,
+  options: QueryDecompositionOptions | undefined,
+): number {
+  if (options?.language) {
+    return options.language.tokenize(text, options.locale ?? "und").length;
+  }
+  const hanCount = text.match(/\p{Script=Han}/gu)?.length ?? 0;
+  if (hanCount > 0) {
+    return hanCount;
+  }
   return text.split(/\s+/u).filter((token) => token.length > 0).length;
 }
 
 export interface QueryDecompositionOptions {
+  /** Locale-aware tokenizer/sentence splitter used by the recall planner. */
+  language?: Pick<LanguageService, "splitClauses" | "tokenize">;
+  locale?: string;
   /** Maximum number of sub-queries to keep (excludes the original query). Default 4. */
   maxSubQueries?: number;
   /** Minimum word count for a fragment to count as a sub-query. Default 2. */
@@ -52,14 +67,17 @@ export function splitQueryIntoSubQueries(
     return [];
   }
   const original = normalized
-    .replace(/[?.;!]+$/u, "")
+    .replace(/[?.;!。？；！]+$/u, "")
     .trim()
     .toLowerCase();
 
   const fragments: string[] = [];
-  for (const clause of normalized.split(CLAUSE_BOUNDARY_PATTERN)) {
+  const clauses = options?.language
+    ? options.language.splitClauses(normalized, options.locale ?? "und")
+    : normalized.split(CLAUSE_BOUNDARY_PATTERN);
+  for (const clause of clauses) {
     for (const piece of clause.split(QUERY_FACET_BOUNDARY_PATTERN)) {
-      const trimmed = piece.trim();
+      const trimmed = piece.replace(/[?.;!。？；！]+$/u, "").trim();
       if (trimmed.length > 0) {
         fragments.push(trimmed);
       }
@@ -70,7 +88,11 @@ export function splitQueryIntoSubQueries(
   const subQueries: string[] = [];
   for (const fragment of fragments) {
     const key = fragment.toLowerCase();
-    if (key === original || seen.has(key) || countWords(fragment) < minWords) {
+    if (
+      key === original ||
+      seen.has(key) ||
+      countTerms(fragment, options) < minWords
+    ) {
       continue;
     }
     seen.add(key);

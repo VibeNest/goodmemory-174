@@ -125,8 +125,8 @@ export type C3HostPreflightEvidence = z.infer<
 
 export async function collectC3HostPreflightEvidence(input: {
   baseHealth: {
-    goodmemoryInstalled: C3BaseHealthEvidence;
-    noMemory: C3BaseHealthEvidence;
+    goodmemoryInstalled: Pick<C3BaseHealthEvidence, "commit" | "passed" | "tree">;
+    noMemory: Pick<C3BaseHealthEvidence, "commit" | "passed" | "tree">;
   };
   bunExecutable: string;
   hostConfigurations: C3HostConfigurationEvidence;

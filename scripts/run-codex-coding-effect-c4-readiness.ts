@@ -92,6 +92,7 @@ export async function runC4ReadinessGate(
     ]);
     const final = finalizeC4DatasetReadiness({
       baselineBytes,
+      baselinePath: baselineReportLocator(options.baselinePath),
       baselineStageEvidenceFiles,
       dispatchBytes,
       inputBundleBytes,
@@ -113,6 +114,13 @@ export async function runC4ReadinessGate(
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
   }
+}
+
+function baselineReportLocator(path: string): string {
+  const absolute = resolve(path);
+  return absolute === resolve(C4_BASELINE_CEILING_REPORT_PATH)
+    ? C4_BASELINE_CEILING_REPORT_PATH
+    : absolute.split(sep).join("/");
 }
 
 function parseOptions(args: readonly string[]): C4ReadinessOptions {

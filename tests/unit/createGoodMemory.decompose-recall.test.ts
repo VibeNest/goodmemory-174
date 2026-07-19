@@ -64,6 +64,33 @@ describe("GoodMemory.recall decompose option", () => {
     expect(decomposedIds).toContain("db");
     expect(decomposedIds).toContain("editor");
     expect(decomposed.metadata.policyApplied).toContain("decomposed_recall");
+    const retrievalTrace = decomposed.metadata.retrievalTrace;
+    const recallPlan = retrievalTrace?.schemaVersion === 2
+      ? retrievalTrace.plan
+      : undefined;
+    expect(decomposed.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "decomposition_complete",
+      subQueries: ["What database do I use", "which code editor do I prefer"],
+      queryExecutions: [
+        expect.objectContaining({ query, role: "primary" }),
+        expect.objectContaining({
+          query: "What database do I use",
+          role: "subquery",
+          subQueryIndex: 0,
+        }),
+        expect.objectContaining({
+          query: "which code editor do I prefer",
+          role: "subquery",
+          subQueryIndex: 1,
+        }),
+      ],
+    });
+    expect(recallPlan).toMatchObject({
+      maxRenderedTokens: 6_000,
+      preRankLimit: 32,
+      selectedLimit: 12,
+    });
     // The union never drops what the single recall already found.
     for (const id of singleIds) {
       expect(decomposedIds).toContain(id);
@@ -71,6 +98,7 @@ describe("GoodMemory.recall decompose option", () => {
     expect(decomposedIds.length).toBeGreaterThanOrEqual(singleIds.length);
     // The packet is re-rendered over the union, so it reflects the merged facts.
     expect(decomposed.packet).toBeDefined();
+    expect(decomposed.packet.renderBudget).toEqual({ maxTokens: 6_000 });
   });
 
   it("is a no-op for a single-part query (no decomposition marker)", async () => {
@@ -85,5 +113,10 @@ describe("GoodMemory.recall decompose option", () => {
       decompose: true,
     });
     expect(result.metadata.policyApplied).not.toContain("decomposed_recall");
+    expect(result.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "single_pass_complete",
+      subQueries: [],
+    });
   });
 });

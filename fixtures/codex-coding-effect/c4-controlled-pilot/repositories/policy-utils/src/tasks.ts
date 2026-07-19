@@ -1,29 +1,21 @@
-export type ParseResult<T> =
-  | { ok: true; value: T }
-  | { error: string; ok: false };
-
-export type LogLevel = "debug" | "info" | "warn";
-
-export type OutputFormat = "json" | "text" | "yaml";
-
-export type TransportMode = "buffered" | "direct" | "relay";
-
-export const SETTING_ERROR_CODES = {
-  format: "invalid-format",
-  level: "invalid-level",
-  mode: "invalid-mode",
-} as const;
+import { acceptUnchecked } from "./parse-result";
+import { SETTING_ERROR_CODES } from "./errors";
+import type { ParseResult } from "./parse-result";
+import type { LogLevel, OutputFormat, TransportMode } from "./setting-types";
+export { SETTING_ERROR_CODES } from "./errors";
+export type { ParseResult } from "./parse-result";
+export type { LogLevel, OutputFormat, TransportMode } from "./setting-types";
 
 export function parseModeSetting(input: string): ParseResult<TransportMode> {
-  return { ok: true, value: input as TransportMode };
+  return acceptUnchecked(input as TransportMode);
 }
 
 export function parseLogLevelSetting(input: string): ParseResult<LogLevel> {
-  return { ok: true, value: input as LogLevel };
+  return acceptUnchecked(input as LogLevel);
 }
 
 export function parseOutputFormatSetting(input: string): ParseResult<OutputFormat> {
-  return { ok: true, value: input as OutputFormat };
+  return acceptUnchecked(input as OutputFormat);
 }
 
 export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }): { graceMs: number; timeoutMs: number } {

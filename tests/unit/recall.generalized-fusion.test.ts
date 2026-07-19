@@ -6,10 +6,12 @@ import {
   type GeneralizedFusionCandidate,
 } from "../../src/recall/generalizedFusion";
 import type {
+  ClaimProjection,
   EntityProjection,
   RecallIndexDocument,
   RecallProjectionSourceCollection,
 } from "../../src/recall/projections/contracts";
+import type { RecallPlan } from "../../src/recall/recallPlan";
 
 const scope = { userId: "user-1", workspaceId: "workspace-1" };
 const scopeKey = "user-1::::workspace-1::::";
@@ -59,6 +61,56 @@ function entity(input: {
     description: input.description,
     memoryIds: input.memoryIds,
     updatedAt: "2026-07-10T00:00:00.000Z",
+  };
+}
+
+function claim(input: {
+  id: string;
+  objectText: string;
+  predicateKey: string;
+  sourceMemoryId: string;
+  subjectEntityId?: string;
+  objectEntityId?: string;
+  observedAt?: string;
+  validUntil?: string;
+}): ClaimProjection {
+  return {
+    id: input.id,
+    schemaVersion: 1,
+    ...scope,
+    scopeKey,
+    sourceMemoryId: input.sourceMemoryId,
+    subjectEntityId: input.subjectEntityId ?? "entity-atlas",
+    predicateKey: input.predicateKey,
+    objectText: input.objectText,
+    objectEntityId: input.objectEntityId,
+    polarity: "positive",
+    modality: "asserted",
+    validUntil: input.validUntil,
+    observedAt: input.observedAt ?? "2026-07-09T00:00:00.000Z",
+    ingestedAt: input.observedAt ?? "2026-07-09T00:00:00.000Z",
+    evidenceIds: [`evidence-${input.id}`],
+    sourceMessageIds: [`message-${input.id}`],
+    extractorVersion: "test-v1",
+  };
+}
+
+function plan(input?: Partial<RecallPlan>): RecallPlan {
+  return {
+    entities: ["atlas", "lisbon"],
+    facets: [],
+    temporalConstraints: [
+      { kind: "current", referenceTime: "2026-07-10T00:00:00.000Z" },
+    ],
+    aggregation: "current",
+    evidenceNeeds: ["direct", "relation", "temporal"],
+    planes: ["semantic", "episodic"],
+    maxHops: 2,
+    preRankLimit: 32,
+    selectedLimit: 12,
+    maxRenderedTokens: 6_000,
+    uncertainty: "high",
+    ...input,
   };
 }
 
@@ -136,6 +188,261 @@ describe("generalized recall fusion", () => {
     expect(result.candidates[0]?.score).toBeGreaterThan(
       result.candidates[1]?.score ?? 0,
     );
+  });
+
+  it("fuses lexical, dense, entity, temporal, and relation candidates globally", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "What is Atlas's current relation to Lisbon?",
+      documents: [
+        document({
+          id: "doc-atlas",
+          sourceMemoryId: "fact-atlas",
+          text: "Atlas currently deploys through Lisbon.",
+          entityKeys: ["atlas", "lisbon"],
+        }),
+      ],
+      denseCandidates: [
+        { sourceCollection: "facts", sourceMemoryId: "fact-atlas", score: 0.9 },
+      ],
+      entities: [
+        entity({
+          key: "atlas",
+          aliases: ["Atlas"],
+          memoryIds: ["facts:fact-atlas"],
+        }),
+        entity({
+          key: "lisbon",
+          aliases: ["Lisbon"],
+          memoryIds: ["facts:fact-atlas"],
+        }),
+      ],
+      claims: [
+        claim({
+          id: "claim-atlas",
+          sourceMemoryId: "fact-atlas",
+          predicateKey: "deployment.relation",
+          objectText: "deploys through Lisbon",
+          objectEntityId: "entity-lisbon",
+        }),
+      ],
+      plan: plan(),
+      maxCandidates: 32,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    expect(Object.keys(result.candidates[0]?.channels ?? {}).sort()).toEqual([
+      "dense",
+      "entity",
+      "lexical",
+      "relation",
+      "temporal",
+    ]);
+  });
+
+  it("keeps temporal current-value evidence predicate-aware", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "What is Alice's current project?",
+      documents: [
+        document({
+          id: "doc-project",
+          sourceMemoryId: "fact-project",
+          text: "Alice's current project is Atlas.",
+        }),
+        document({
+          id: "doc-cats",
+          sourceMemoryId: "fact-cats",
+          text: "Alice currently has three cats.",
+        }),
+      ],
+      entities: [],
+      claims: [
+        claim({
+          id: "claim-project",
+          sourceMemoryId: "fact-project",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Atlas",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-cats",
+          sourceMemoryId: "fact-cats",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.pet_count",
+          objectText: "3 cats",
+          observedAt: "2026-07-09T00:00:00.000Z",
+        }),
+      ],
+      plan: plan({
+        entities: ["alice"],
+        evidenceNeeds: ["direct", "temporal"],
+        maxHops: 1,
+      }),
+      maxCandidates: 32,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    const byId = new Map(
+      result.rankedCandidates.map((candidate) => [
+        candidate.sourceMemoryId,
+        candidate,
+      ]),
+    );
+    expect(byId.get("fact-project")?.channels.temporal).toBeDefined();
+    expect(byId.get("fact-cats")?.channels.temporal).toBeUndefined();
+  });
+
+  it("keeps every selected predicate when one source carries multiple histories", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "How did Atlas status and owner change?",
+      documents: [
+        document({
+          id: "doc-atlas",
+          sourceMemoryId: "fact-atlas",
+          text: "Atlas status and owner history.",
+        }),
+      ],
+      entities: [],
+      claims: [
+        claim({
+          id: "claim-status",
+          sourceMemoryId: "fact-atlas",
+          predicateKey: "project.status",
+          objectText: "completed",
+        }),
+        claim({
+          id: "claim-owner",
+          sourceMemoryId: "fact-atlas",
+          predicateKey: "project.owner",
+          objectText: "Alice",
+        }),
+      ],
+      plan: plan({
+        aggregation: "history",
+        temporalConstraints: [{
+          kind: "history",
+          referenceTime: "2026-07-10T00:00:00.000Z",
+        }],
+      }),
+      maxCandidates: 32,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    expect(result.rankedCandidates[0]?.channels.temporal?.evidenceDocumentIds)
+      .toEqual(["claim-status", "claim-owner"]);
+  });
+
+  it("executes before and after boundaries over claim history", () => {
+    const claims = [
+      claim({
+        id: "claim-old",
+        sourceMemoryId: "fact-old",
+        subjectEntityId: "entity-atlas",
+        predicateKey: "project.status",
+        objectText: "old",
+        observedAt: "2024-12-01T00:00:00.000Z",
+      }),
+      claim({
+        id: "claim-new",
+        sourceMemoryId: "fact-new",
+        subjectEntityId: "entity-atlas",
+        predicateKey: "project.status",
+        objectText: "new",
+        observedAt: "2025-02-01T00:00:00.000Z",
+      }),
+    ];
+    const documents = claims.map((item) =>
+      document({
+        id: `doc-${item.id}`,
+        sourceMemoryId: item.sourceMemoryId,
+        text: `Atlas project status ${item.objectText}`,
+      })
+    );
+    const basePlan = plan({
+      entities: ["atlas"],
+      evidenceNeeds: ["direct", "temporal"],
+      maxHops: 1,
+    });
+
+    const before = fuseGeneralizedRecallCandidates({
+      claims,
+      documents,
+      entities: [],
+      maxCandidates: 8,
+      plan: {
+        ...basePlan,
+        temporalConstraints: [{
+          kind: "before",
+          referenceTime: "2025-01-01T00:00:00.000Z",
+        }],
+      },
+      query: "Atlas project status before 2025",
+      referenceTime: "2025-01-01T00:00:00.000Z",
+    });
+    const after = fuseGeneralizedRecallCandidates({
+      claims,
+      documents,
+      entities: [],
+      maxCandidates: 8,
+      plan: {
+        ...basePlan,
+        temporalConstraints: [{
+          kind: "after",
+          referenceTime: "2025-01-01T00:00:00.000Z",
+        }],
+      },
+      query: "Atlas project status after 2025",
+      referenceTime: "2025-01-01T00:00:00.000Z",
+    });
+
+    expect(before.candidates.map(({ sourceMemoryId }) => sourceMemoryId)).toEqual([
+      "fact-old",
+    ]);
+    expect(after.candidates.map(({ sourceMemoryId }) => sourceMemoryId)).toEqual([
+      "fact-new",
+    ]);
+  });
+
+  it("keeps every selected historical claim attached to one canonical source", () => {
+    const claims = [
+      claim({
+        id: "claim-planned",
+        sourceMemoryId: "fact-status",
+        predicateKey: "project.status",
+        objectText: "planned",
+        observedAt: "2024-12-01T00:00:00.000Z",
+      }),
+      claim({
+        id: "claim-completed",
+        sourceMemoryId: "fact-status",
+        predicateKey: "project.status",
+        objectText: "completed",
+        observedAt: "2025-02-01T00:00:00.000Z",
+      }),
+    ];
+    const result = fuseGeneralizedRecallCandidates({
+      claims,
+      documents: [document({
+        id: "doc-status",
+        sourceMemoryId: "fact-status",
+        text: "Atlas project status",
+      })],
+      entities: [],
+      maxCandidates: 8,
+      plan: plan({
+        aggregation: "change",
+        entities: ["atlas"],
+        evidenceNeeds: ["direct", "temporal"],
+        temporalConstraints: [],
+      }),
+      query: "How did Atlas project status change from planned to completed?",
+      referenceTime: "2026-01-01T00:00:00.000Z",
+    });
+
+    expect(result.candidates[0]?.channels.temporal?.evidenceDocumentIds).toEqual([
+      "claim-planned",
+      "claim-completed",
+    ]);
   });
 
   it("does not expand from a matched entity through a second entity to another memory", () => {

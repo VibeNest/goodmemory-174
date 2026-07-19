@@ -25,6 +25,7 @@ import {
   buildFrozenPrehistoryArmPlans,
   normalizeC3CodexTreatmentArgs,
 } from "./c3-arms";
+import type { C3ArmPlan } from "./c3-arms";
 import {
   assertC3BaseHealthPassed,
   runC3BaseHealthProbe,
@@ -366,10 +367,37 @@ export async function runC3FrozenPrehistoryPair(input: {
     const baseHealth = assertC3BaseHealthPassed(collectedBaseHealth);
     await rm(baseHealthWorkspace, { recursive: true });
 
+    const noMemoryPermissionDeniedReadPaths =
+      buildC3PermissionProfileDeniedReadPaths({
+        authFile: input.authFile,
+        evaluatorRoot,
+        goodMemorySourceRoot,
+        historySourcePath: input.historySourcePath,
+        otherPlan: installedPlan,
+        outputDirectory,
+        packageTarball: input.packageTarball,
+        runnerSourceRoot,
+        runtimePlan: noMemoryPlan,
+        sourceRepository,
+      });
+    const installedPermissionDeniedReadPaths =
+      buildC3PermissionProfileDeniedReadPaths({
+        authFile: input.authFile,
+        evaluatorRoot,
+        goodMemorySourceRoot,
+        historySourcePath: input.historySourcePath,
+        otherPlan: noMemoryPlan,
+        outputDirectory,
+        packageTarball: input.packageTarball,
+        runnerSourceRoot,
+        runtimePlan: installedPlan,
+        sourceRepository,
+      });
     noMemoryRuntime = await dependencies.prepareNoMemory({
       authFile: input.authFile,
       bunExecutable: input.bunExecutable,
       codexExecutable: input.codexExecutable,
+      permissionDeniedReadPaths: noMemoryPermissionDeniedReadPaths,
       plan: noMemoryPlan,
     });
     preflightLogger("goodmemory_setup_started", {
@@ -382,6 +410,7 @@ export async function runC3FrozenPrehistoryPair(input: {
       codexExecutable: input.codexExecutable,
       npmExecutable: input.npmExecutable,
       packageTarball: input.packageTarball,
+      permissionDeniedReadPaths: installedPermissionDeniedReadPaths,
       plan: installedPlan,
     });
     preflightLogger("goodmemory_setup_completed", {
@@ -505,19 +534,20 @@ export async function runC3FrozenPrehistoryPair(input: {
       throw error;
     }
     const hostPreflightBytes = serializeC3HostPreflightEvidence(hostPreflight);
+    const evaluatorDeniedReadPathEntries = evaluatorDeniedPaths({
+      authFile: input.authFile,
+      goodMemorySourceRoot,
+      historySourcePath: input.historySourcePath,
+      installedRuntime,
+      noMemoryRuntime,
+      outputDirectory,
+      packageTarball: input.packageTarball,
+      runnerSourceRoot,
+      sourceRepository,
+    });
     const evaluatorSecurityContract = buildC3EvaluatorSecurityContract({
       authFile: input.authFile,
-      deniedPaths: evaluatorDeniedPaths({
-        authFile: input.authFile,
-        goodMemorySourceRoot,
-        historySourcePath: input.historySourcePath,
-        installedRuntime,
-        noMemoryRuntime,
-        outputDirectory,
-        packageTarball: input.packageTarball,
-        runnerSourceRoot,
-        sourceRepository,
-      }),
+      deniedPaths: evaluatorDeniedReadPathEntries,
       evaluatorRoot,
       goodmemoryInstalled: {
         evaluationWorkspace: evaluationPaths[1],
@@ -766,6 +796,7 @@ export async function runC3FrozenPrehistoryPair(input: {
           bunExecutable: input.bunExecutable,
           codexExecutable: noMemoryRuntime.codex.executable,
           copiedAuthRemovedBeforeEvaluator: true,
+          deniedReadPaths: evaluatorDeniedReadPathEntries.map(({ path }) => path),
           evaluationWorkspace: evaluationPaths[0],
           evaluatorReadProbePath,
           evaluatorRoot,
@@ -779,6 +810,7 @@ export async function runC3FrozenPrehistoryPair(input: {
           bunExecutable: input.bunExecutable,
           codexExecutable: installedRuntime.codex.executable,
           copiedAuthRemovedBeforeEvaluator: true,
+          deniedReadPaths: evaluatorDeniedReadPathEntries.map(({ path }) => path),
           evaluationWorkspace: evaluationPaths[1],
           evaluatorReadProbePath,
           evaluatorRoot,
@@ -1264,12 +1296,20 @@ function permissionDeniedReadPaths(input: {
       path: join(runnerDirectory, "c3-controlled-pilot.ts"),
     },
     {
+      label: "current-runtime-auth",
+      path: join(input.runtime.plan.paths.codexHome, "auth.json"),
+    },
+    {
       label: "current-runtime-config",
       path: join(input.runtime.plan.paths.codexHome, "config.toml"),
     },
     {
       label: "other-arm-runtime-config",
       path: join(input.otherRuntime.plan.paths.codexHome, "config.toml"),
+    },
+    {
+      label: "other-arm-runtime-auth",
+      path: join(input.otherRuntime.plan.paths.codexHome, "auth.json"),
     },
     {
       label: "other-arm-workspace",
@@ -1285,6 +1325,39 @@ function permissionDeniedReadPaths(input: {
   ];
   assertDeniedReadLabels(paths, C3_BASE_DENIED_READ_LABELS);
   return paths;
+}
+
+function buildC3PermissionProfileDeniedReadPaths(input: {
+  authFile: string;
+  evaluatorRoot: string;
+  goodMemorySourceRoot: string;
+  historySourcePath: string;
+  otherPlan: C3ArmPlan;
+  outputDirectory: string;
+  packageTarball: string;
+  runnerSourceRoot: string;
+  runtimePlan: C3ArmPlan;
+  sourceRepository: string;
+}): string[] {
+  return [...new Set([
+    input.authFile,
+    input.runtimePlan.paths.armRoot,
+    input.runtimePlan.paths.codexHome,
+    join(input.runtimePlan.paths.codexHome, "auth.json"),
+    join(input.runtimePlan.paths.codexHome, "config.toml"),
+    input.evaluatorRoot,
+    input.goodMemorySourceRoot,
+    input.historySourcePath,
+    input.otherPlan.paths.armRoot,
+    input.otherPlan.paths.workspace,
+    input.outputDirectory,
+    input.packageTarball,
+    input.runnerSourceRoot,
+    input.sourceRepository,
+    ...(input.runtimePlan.paths.packagePrefix === undefined
+      ? []
+      : [input.runtimePlan.paths.packagePrefix]),
+  ].map((path) => resolve(path)))].sort();
 }
 
 function evaluatorDeniedPaths(input: {

@@ -72,6 +72,10 @@ import type {
   RecallRetrievalChannelTrace,
   RecallRetrievalTrace,
 } from "./retrievalTrace";
+import {
+  buildDeterministicRecallPlan,
+  type RecallPlan,
+} from "./recallPlan";
 import { ProviderBackedRecallError } from "./errors";
 import { computeBm25Scores } from "./bm25";
 import { fuseGeneralizedRecallCandidates } from "./generalizedFusion";
@@ -82,7 +86,10 @@ import type {
   GeneralizedFusionResult,
 } from "./generalizedFusion";
 import type { GeneralizedFusionSelectionInput } from "./factSelection/generalizedFusionUnion";
-import type { RecallProjectionSearchPort } from "./projections/contracts";
+import type {
+  ClaimProjection,
+  RecallProjectionSearchPort,
+} from "./projections/contracts";
 import {
   searchSemanticScores,
   type SemanticSearchScores,
@@ -105,6 +112,8 @@ export interface RecallInput {
   ignoreMemory?: boolean;
   locale?: string;
   rerank?: boolean;
+  /** Request-local plan shared by API orchestration and each retrieval hop. */
+  recallPlan?: RecallPlan;
 }
 
 export interface RecallHit {
@@ -219,37 +228,62 @@ export interface RecallGeneralizedFusionConfig {
   rrfK?: number;
 }
 
-const COMPLEX_QUERY_CONTENT_TERM_THRESHOLD = 7;
+function materializeHistoricalClaimFact(
+  claim: ClaimProjection,
+  source: FactMemory,
+): FactMemory {
+  return {
+    ...source,
+    id: claim.id,
+    content: claim.objectText,
+    attributes: {
+      ...source.attributes,
+      claimProjectionId: claim.id,
+      sourceMemoryId: claim.sourceMemoryId,
+    },
+    confidence: claim.confidence ?? source.confidence,
+    source: {
+      ...source.source,
+      extractedAt: claim.ingestedAt,
+    },
+    validFrom: claim.validFrom ?? claim.observedAt,
+    validUntil: claim.validUntil,
+    supersededBy: null,
+    lifecycle: "active",
+    isActive: true,
+    createdAt: claim.observedAt,
+    updatedAt: claim.ingestedAt,
+  };
+}
+
 const COMPLEX_QUERY_CANDIDATE_BONUS = 4;
 const COMPLEX_QUERY_FACT_BONUS = 2;
 
 export function resolveGeneralizedFusionBudget(input: {
-  aggregateQuery?: boolean;
   base: RecallGeneralizedFusionConfig;
-  contentTermCount: number;
+  plan: RecallPlan;
 }): {
   expanded: boolean;
-  maxCandidates: number | undefined;
-  maxTotalFacts: number | undefined;
+  maxCandidates: number;
+  maxTotalFacts: number;
 } {
-  const hasConfiguredLimit =
-    input.base.maxCandidates !== undefined ||
-    input.base.maxTotalFacts !== undefined;
   const expanded =
-    hasConfiguredLimit &&
-    (input.aggregateQuery === true ||
-      input.contentTermCount >= COMPLEX_QUERY_CONTENT_TERM_THRESHOLD);
+    input.plan.maxHops > 1 ||
+    input.plan.uncertainty === "high";
+  const baseCandidates =
+    input.base.maxCandidates ?? input.plan.preRankLimit;
+  const baseFacts = input.base.maxTotalFacts ?? input.plan.selectedLimit;
 
   return {
     expanded,
-    maxCandidates:
-      expanded && input.base.maxCandidates !== undefined
-        ? input.base.maxCandidates + COMPLEX_QUERY_CANDIDATE_BONUS
-        : input.base.maxCandidates,
-    maxTotalFacts:
-      expanded && input.base.maxTotalFacts !== undefined
-        ? input.base.maxTotalFacts + COMPLEX_QUERY_FACT_BONUS
-        : input.base.maxTotalFacts,
+    maxCandidates: Math.min(
+      input.plan.preRankLimit,
+      baseCandidates + (expanded ? COMPLEX_QUERY_CANDIDATE_BONUS : 0),
+    ),
+    maxTotalFacts: Math.min(
+      input.plan.preRankLimit,
+      baseFacts + (expanded ? COMPLEX_QUERY_FACT_BONUS : 0),
+    ),
   };
 }
 
@@ -327,6 +361,12 @@ function buildFusionRunTrace(input: {
           : {}),
         ...(candidate.channels.lexical
           ? { lexical: cloneFusionChannel(candidate.channels.lexical)! }
+          : {}),
+        ...(candidate.channels.relation
+          ? { relation: cloneFusionChannel(candidate.channels.relation)! }
+          : {}),
+        ...(candidate.channels.temporal
+          ? { temporal: cloneFusionChannel(candidate.channels.temporal)! }
           : {}),
       },
       evidenceTypes: (Object.keys(candidate.channels) as Array<
@@ -614,6 +654,14 @@ export function createRecallEngine(config: RecallEngineConfig) {
         locale: input.locale,
         text: input.query,
       });
+      const currentReferenceTime = referenceTime();
+      const recallPlan = input.recallPlan ?? buildDeterministicRecallPlan({
+        language,
+        locale: resolvedLanguage.locale,
+        query: input.query,
+        referenceTime: currentReferenceTime,
+        scope: input.scope,
+      });
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
       const generalizedFusionConfig = resolveActiveGeneralizedFusionConfig({
@@ -623,16 +671,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
       });
       const generalizedFusionBudget = generalizedFusionConfig
         ? resolveGeneralizedFusionBudget({
-            aggregateQuery: language.isAggregateCountQuery(
-              input.query,
-              resolvedLanguage.locale,
-            ),
             base: generalizedFusionConfig,
-            contentTermCount: new Set(
-              language.tokenize(input.query, resolvedLanguage.locale, {
-                excludeStopwords: true,
-              }),
-            ).size,
+            plan: recallPlan,
           })
         : undefined;
       const routerAvailability = {
@@ -674,6 +714,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           episodes: [],
           workingMemory: null,
           journal: null,
+          maxRenderedTokens: recallPlan.maxRenderedTokens,
           locale: resolvedLanguage.locale,
           routingDecision,
         });
@@ -841,7 +882,6 @@ export function createRecallEngine(config: RecallEngineConfig) {
         };
         policyApplied.add("explicit_evidence_requested");
       }
-      const currentReferenceTime = referenceTime();
       const visibleEvidencePool = await applyRecallPolicyToRecords(
         evidenceRaw,
         "evidence",
@@ -954,6 +994,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       let generalizedFusion: GeneralizedFusionSelectionInput | undefined;
       let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
+      let historicalClaimFacts: FactMemory[] = [];
+      let temporalClaimSourceIds = new Set<string>();
       let retrievalTrace: RecallRetrievalTrace | undefined;
       if (
         generalizedFusionConfig &&
@@ -978,9 +1020,29 @@ export function createRecallEngine(config: RecallEngineConfig) {
             const coverage = await config.projectionIndex.ensureScopeIndexed(
               input.scope,
             );
-            const [documents, entities] = await Promise.all([
-              config.projectionIndex.queryDocuments(input.scope),
+            const needsClaimHistory =
+              recallPlan.aggregation === "change" ||
+              recallPlan.aggregation === "history" ||
+              recallPlan.temporalConstraints.some(({ kind }) =>
+                kind === "after" || kind === "before" || kind === "history"
+              );
+            const needsCompleteDocuments =
+              needsClaimHistory || recallPlan.temporalConstraints.length > 0;
+            const temporalReferenceTime = recallPlan.temporalConstraints.find(
+              ({ kind }) => kind === "after" || kind === "before" || kind === "current",
+            )?.referenceTime ?? currentReferenceTime;
+            const [documents, entities, claims] = await Promise.all([
+              needsCompleteDocuments
+                ? config.projectionIndex.queryDocuments(input.scope)
+                : config.projectionIndex.searchDocuments(
+                    input.scope,
+                    input.query,
+                    recallPlan.preRankLimit * 4,
+                  ),
               config.projectionIndex.queryEntities(input.scope),
+              needsClaimHistory
+                ? config.projectionIndex.queryClaimHistory(input.scope)
+                : config.projectionIndex.queryClaims(input.scope),
             ]);
             const contentDocuments = documents.filter(
               (document) =>
@@ -1004,7 +1066,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
             const fused = fuseGeneralizedRecallCandidates({
               query: input.query,
               documents: contentDocuments,
+              documentSetComplete: needsCompleteDocuments,
               entities: contentEntities,
+              claims,
+              plan: recallPlan,
               denseCandidates: [
                 ...(semanticFactCandidates ?? [])
                   .filter((candidate, _index, candidates) => {
@@ -1050,9 +1115,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
                   })),
               ],
               maxCandidates: generalizedFusionBudget?.maxCandidates,
-              minRelativeStrength:
-                generalizedFusionConfig.minRelativeStrength,
-              referenceTime: currentReferenceTime,
+              minRelativeStrength: needsCompleteDocuments
+                ? generalizedFusionConfig.minRelativeStrength
+                : 0,
+              referenceTime: temporalReferenceTime,
               rrfK: generalizedFusionConfig.rrfK,
               tokenize: (text) =>
                 language.tokenize(text, resolvedLanguage.locale, {
@@ -1060,6 +1126,35 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 }),
             });
             generalizedFusionCandidates = fused.candidates;
+            if (needsClaimHistory) {
+              const selectedClaimIds = new Set(
+                fused.candidates.flatMap((candidate) =>
+                  candidate.channels.temporal?.evidenceDocumentIds ?? []
+                ),
+              );
+              const selectedClaims = claims.filter((claim) =>
+                selectedClaimIds.has(claim.id)
+              );
+              const requiresStrictTemporalReplacement =
+                recallPlan.aggregation === "history" ||
+                recallPlan.temporalConstraints.some(({ kind }) =>
+                  kind === "before" || kind === "after" || kind === "history"
+                );
+              temporalClaimSourceIds = new Set(
+                (requiresStrictTemporalReplacement ? claims : selectedClaims)
+                  .map(({ sourceMemoryId }) => sourceMemoryId),
+              );
+              const factsById = new Map(
+                factsRaw.map((fact) => [fact.id, fact] as const),
+              );
+              historicalClaimFacts = selectedClaims
+                .flatMap((claim) => {
+                  const source = factsById.get(claim.sourceMemoryId);
+                  return source
+                    ? [materializeHistoricalClaimFact(claim, source)]
+                    : [];
+                });
+            }
             retrievalTrace = {
               fusionRuns: [
                 buildFusionRunTrace({
@@ -1073,10 +1168,14 @@ export function createRecallEngine(config: RecallEngineConfig) {
             generalizedFusion = {
               candidates: fused.candidates
                 .filter((candidate) => candidate.sourceCollection === "facts")
-                .map((candidate) => ({
-                  id: candidate.sourceMemoryId,
-                  score: candidate.score,
-                })),
+                .flatMap((candidate) => {
+                  const claimFacts = historicalClaimFacts.filter((fact) =>
+                    fact.attributes?.sourceMemoryId === candidate.sourceMemoryId
+                  );
+                  return (claimFacts.length > 0 ? claimFacts : [{
+                    id: candidate.sourceMemoryId,
+                  }]).map(({ id }) => ({ id, score: candidate.score }));
+                }),
               maxAdditions: fused.budget,
               maxTotalFacts: generalizedFusionBudget?.maxTotalFacts,
             };
@@ -1179,8 +1278,14 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 : {}),
             }
           : undefined;
+      const factSelectionPool = temporalClaimSourceIds.size > 0
+        ? [
+            ...factsRaw.filter((fact) => !temporalClaimSourceIds.has(fact.id)),
+            ...historicalClaimFacts,
+          ]
+        : factsRaw;
       const selectedFacts = selectFacts(
-        factsRaw,
+        factSelectionPool,
         input.query,
         language,
         resolvedLanguage.locale,
@@ -1456,6 +1561,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         episodes,
         workingMemory,
         journal,
+        maxRenderedTokens: recallPlan.maxRenderedTokens,
         durableCandidateOrder: assistantInfluence?.rerankApplied
           ? assistantInfluence.rerankedCandidateIds
           : undefined,

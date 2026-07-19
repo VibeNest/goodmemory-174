@@ -4,6 +4,12 @@ export interface CodexEvent {
   type: string;
 }
 
+export interface CodexFailureEvent {
+  message: string;
+  sourceEventIndex: number;
+  type: string;
+}
+
 export interface NormalizedCodexCommand {
   command: string;
   exitCode: number | null;
@@ -146,6 +152,29 @@ export function normalizeCodexEvents(
     usage,
     usageEventIndex,
   };
+}
+
+export function extractCodexFailureEvents(
+  events: readonly CodexEvent[],
+): CodexFailureEvent[] {
+  return events.flatMap((event) => {
+    if (!/(?:failed|error)/iu.test(event.type)) {
+      return [];
+    }
+    const error = isRecord(event.data.error) ? event.data.error : null;
+    const message = typeof error?.message === "string"
+      ? error.message
+      : typeof event.data.error === "string"
+      ? event.data.error
+      : typeof event.data.message === "string"
+      ? event.data.message
+      : event.type;
+    return [{
+      message: message.replace(/\s+/gu, " ").trim().slice(0, 1_000),
+      sourceEventIndex: event.sourceEventIndex,
+      type: event.type,
+    }];
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

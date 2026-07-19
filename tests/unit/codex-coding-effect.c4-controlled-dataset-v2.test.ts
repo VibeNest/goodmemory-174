@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -7,6 +7,7 @@ import {
   c4DatasetAuthorAttestation,
   c4DatasetSpecs,
   cleanupC4ControlledPilotDataset,
+  loadC4VisibleRepositoryLeakageSurfaces,
   prepareC4ControlledPilotDataset,
 } from "../../scripts/codex-coding-effect/c4-controlled-dataset";
 
@@ -73,6 +74,22 @@ const RETIRED_LEAKAGE_IDS = [
 ] as const;
 
 describe("Codex coding-effect C4 controlled dataset v2 difficulty", () => {
+  it("treats visible relative paths and file contents as separate leakage surfaces", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c4-path-leakage-"));
+    try {
+      await mkdir(join(root, "src"), { recursive: true });
+      await writeFile(join(root, "src/2500.ts"), "export const neutral = true;\n");
+
+      const surfaces = await loadC4VisibleRepositoryLeakageSurfaces(root);
+
+      expect(surfaces).toContain("src/2500.ts");
+      expect(surfaces).toContain("export const neutral = true;\n");
+      expect(surfaces.join("\n")).not.toContain("FILE src/2500.ts");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
   it("materializes v2 with neutral prompt titles and canonical snapshots", async () => {
     const sandbox = await mkdtemp(join(tmpdir(), "goodmemory-c4-v2-spec-"));
     const fixture = await prepareC4ControlledPilotDataset({
@@ -96,12 +113,24 @@ describe("Codex coding-effect C4 controlled dataset v2 difficulty", () => {
       const settings = fixture.dataset.episodes.find((episode) =>
         episode.id === "parse-result-correction"
       )!;
-      expect(settings.allowedPublicLeakageRelations?.some((relation) =>
-        relation[0] === " info " && relation[1] === true
-      )).toBe(true);
-      expect(settings.allowedPublicLeakageRelations?.some((relation) =>
-        relation[0] === "INFO" && relation[1] === "invalid-level"
-      )).toBe(false);
+      expect(settings.allowedPublicLeakageRelations).toEqual([
+        ["debug", true],
+        ["direct", true],
+        ["json", true],
+        ["relay", true],
+        ["text", true],
+        ["warn", true],
+      ]);
+      const policyTasks = await readFile(
+        join(fixture.root, "repositories/policy-utils/src/tasks.ts"),
+        "utf8",
+      );
+      const policyErrors = await readFile(
+        join(fixture.root, "repositories/policy-utils/src/errors.ts"),
+        "utf8",
+      );
+      expect(policyTasks).not.toContain("invalid-level");
+      expect(policyErrors).toContain('level: "invalid-level"');
 
       for (const episode of fixture.dataset.episodes) {
         for (const stage of episode.stages) {

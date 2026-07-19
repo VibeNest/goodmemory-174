@@ -13,6 +13,8 @@ import type {
   ConditionalDocumentWriteBatch,
   DocumentQueryPageInput,
   DocumentStore,
+  DocumentTextSearchInput,
+  ProjectionCapableDocumentStore,
   SessionStore,
   StorageDocument,
   VectorRecord,
@@ -21,9 +23,15 @@ import type {
 } from "./contracts";
 import {
   assertDocumentQueryPageInput,
+  assertDocumentTextSearchInput,
   matchesFilter,
   shallowMergeDocument,
 } from "./contracts";
+import {
+  buildDocumentSearchQuery,
+  readDocumentSearchText,
+  tokenizeDocumentSearch,
+} from "./textSearch";
 import {
   DEFAULT_SQLITE_VECTOR_SEARCH_FUNCTION,
   applySQLiteCustomLibrary,
@@ -44,6 +52,10 @@ interface DocumentRow {
 
 interface DocumentPageRow extends DocumentRow {
   id: string;
+}
+
+interface DocumentSearchRow extends DocumentPageRow {
+  score: number;
 }
 
 interface SessionRow {
@@ -154,6 +166,25 @@ function ensureDocumentSchema(database: Database): void {
       json TEXT NOT NULL,
       PRIMARY KEY (collection, id)
     );
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS document_text_fts USING fts5(
+      collection UNINDEXED,
+      id UNINDEXED,
+      text,
+      tokenize = 'unicode61 remove_diacritics 2'
+    );
+  `);
+  database.exec(`
+    INSERT INTO document_text_fts (collection, id, text)
+    SELECT documents.collection, documents.id, json_extract(documents.json, '$.text')
+    FROM documents
+    WHERE json_type(documents.json, '$.text') = 'text'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM document_text_fts
+        WHERE document_text_fts.collection = documents.collection
+          AND document_text_fts.id = documents.id
+      )
   `);
 }
 
@@ -387,7 +418,7 @@ function searchSQLiteVectorsWithExtension(input: {
 export function createSQLiteDocumentStore(
   path: string,
   options?: SQLiteStoreOptions,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   const database = createDatabase(path, options);
   if (!options?.readOnly) {
     ensureDocumentSchema(database);
@@ -417,35 +448,69 @@ export function createSQLiteDocumentStore(
   const deleteStatement = database.query(
     `DELETE FROM documents WHERE collection = ?1 AND id = ?2`,
   );
-  function isSQLiteContentionError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    return /SQLITE_BUSY|SQLITE_LOCKED|database is locked|database is busy/i.test(
-      message,
-    );
+  const hasTextIndex = hasTable(database, "document_text_fts");
+  const deleteSearchStatement = hasTextIndex
+    ? database.query(
+        `DELETE FROM document_text_fts WHERE collection = ?1 AND id = ?2`,
+      )
+    : null;
+  const insertSearchStatement = hasTextIndex
+    ? database.query(
+        `INSERT INTO document_text_fts (collection, id, text) VALUES (?1, ?2, ?3)`,
+      )
+    : null;
+
+  function synchronizeSearchDocument(
+    collection: string,
+    id: string,
+    document: StorageDocument,
+  ): void {
+    if (!deleteSearchStatement || !insertSearchStatement) {
+      return;
+    }
+    deleteSearchStatement.run(collection, id);
+    const text = readDocumentSearchText(document, "text");
+    if (text !== undefined) {
+      insertSearchStatement.run(collection, id, text);
+    }
   }
 
-  function writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch): boolean {
-    try {
-      database.exec("BEGIN IMMEDIATE");
-    } catch (error) {
-      if (isSQLiteContentionError(error)) {
-        return false;
+  function buildSearchFilter(input: {
+    alias: string;
+    filter?: Record<string, unknown>;
+    values: SQLiteBindingValue[];
+  }): string[] {
+    const clauses: string[] = [];
+    for (const [key, value] of Object.entries(input.filter ?? {})) {
+      if (!canUseSQLiteJsonFilterValue(value)) {
+        continue;
       }
-
-      throw error;
+      input.values.push(`$."${key.replaceAll('"', '\\"')}"`);
+      const pathIndex = input.values.length;
+      if (value === null) {
+        clauses.push(`json_type(${input.alias}.json, ?${pathIndex}) = 'null'`);
+        continue;
+      }
+      input.values.push(value);
+      clauses.push(
+        `json_extract(${input.alias}.json, ?${pathIndex}) = ?${input.values.length}`,
+      );
     }
+    return clauses;
+  }
+  function writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch): boolean {
+    database.exec("BEGIN IMMEDIATE");
 
     try {
-      const current = getStatement.get(
-        input.expected.collection,
-        input.expected.id,
-      );
-      if (
-        !current ||
-        current.json !== JSON.stringify(input.expected.document)
-      ) {
-        database.exec("ROLLBACK");
-        return false;
+      for (const expected of [input.expected, ...(input.unchanged ?? [])]) {
+        const current = getStatement.get(expected.collection, expected.id);
+        const matches = expected.document === null
+          ? current === null
+          : current !== null && current.json === JSON.stringify(expected.document);
+        if (!matches) {
+          database.exec("ROLLBACK");
+          return false;
+        }
       }
 
       for (const operation of input.set) {
@@ -454,6 +519,17 @@ export function createSQLiteDocumentStore(
           operation.id,
           JSON.stringify(operation.document),
         );
+        synchronizeSearchDocument(
+          operation.collection,
+          operation.id,
+          operation.document,
+        );
+      }
+
+
+      for (const operation of input.delete ?? []) {
+        deleteStatement.run(operation.collection, operation.id);
+        deleteSearchStatement?.run(operation.collection, operation.id);
       }
 
       database.exec("COMMIT");
@@ -463,10 +539,6 @@ export function createSQLiteDocumentStore(
         database.exec("ROLLBACK");
       } catch {
         // The original mutation failure is more useful than rollback cleanup.
-      }
-
-      if (isSQLiteContentionError(error)) {
-        return false;
       }
 
       throw error;
@@ -480,6 +552,7 @@ export function createSQLiteDocumentStore(
       document: TDocument,
     ) {
       upsertStatement.run(collection, id, JSON.stringify(document));
+      synchronizeSearchDocument(collection, id, document);
     },
 
     async get<TDocument extends StorageDocument>(collection: string, id: string) {
@@ -548,6 +621,70 @@ export function createSQLiteDocumentStore(
       };
     },
 
+    async searchText<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentTextSearchInput,
+    ) {
+      assertDocumentTextSearchInput(input);
+      const query = buildDocumentSearchQuery(input.query);
+      if (query.length === 0) {
+        return [];
+      }
+
+      const values: SQLiteBindingValue[] = [];
+      let sql: string;
+      if (hasTextIndex && input.field === "text") {
+        values.push(query, collection);
+        const filterClauses = buildSearchFilter({
+          alias: "documents",
+          filter: input.filter,
+          values,
+        });
+        values.push(input.limit);
+        sql = `SELECT documents.id, documents.json, bm25(document_text_fts) AS score
+          FROM document_text_fts
+          JOIN documents
+            ON documents.collection = document_text_fts.collection
+           AND documents.id = document_text_fts.id
+          WHERE document_text_fts MATCH ?1
+            AND document_text_fts.collection = ?2
+            ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
+          ORDER BY score ASC, documents.id ASC
+          LIMIT ?${values.length}`;
+      } else {
+        values.push(collection, `$."${input.field.replaceAll('"', '\\"')}"`);
+        const tokens = tokenizeDocumentSearch(input.query);
+        const tokenClauses: string[] = [];
+        for (const token of tokens) {
+          values.push(`%${token}%`);
+          tokenClauses.push(
+            `lower(CAST(json_extract(documents.json, ?2) AS TEXT)) LIKE ?${values.length}`,
+          );
+        }
+        const filterClauses = buildSearchFilter({
+          alias: "documents",
+          filter: input.filter,
+          values,
+        });
+        values.push(input.limit);
+        sql = `SELECT documents.id, documents.json, 1 AS score
+          FROM documents
+          WHERE documents.collection = ?1
+            AND (${tokenClauses.join(" OR ")})
+            ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
+          ORDER BY documents.id ASC
+          LIMIT ?${values.length}`;
+      }
+      return database
+        .query<DocumentSearchRow, SQLiteBindingValue[]>(sql)
+        .all(...values)
+        .map((row) => ({
+          document: parseJson<TDocument>(row.json),
+          id: row.id,
+          score: Math.max(Number.EPSILON, Math.abs(Number(row.score))),
+        }));
+    },
+
     async writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch) {
       if (options?.readOnly) {
         throw createReadOnlyMutationError("document");
@@ -557,6 +694,7 @@ export function createSQLiteDocumentStore(
     },
 
     async delete(collection, id) {
+      deleteSearchStatement?.run(collection, id);
       deleteStatement.run(collection, id);
     },
   };

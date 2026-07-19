@@ -1,5 +1,6 @@
 import type {
   DocumentStore,
+  ProjectionCapableDocumentStore,
   SessionStore,
   StorageDocument,
   VectorRecord,
@@ -41,7 +42,7 @@ type AutoStorageConfig =
     };
 
 interface ResolvedStorageBackend {
-  documentStore: DocumentStore;
+  documentStore: ProjectionCapableDocumentStore;
   sessionStore: SessionStore;
   vectorStore: VectorStore;
 }
@@ -56,7 +57,7 @@ function describeAutoStorageProbeError(error: unknown): string {
 
 function createAutoDocumentStore(
   resolveBackend: () => Promise<ResolvedStorageBackend>,
-): DocumentStore {
+): ProjectionCapableDocumentStore {
   return {
     async set<TDocument extends StorageDocument>(
       collection: string,
@@ -91,10 +92,6 @@ function createAutoDocumentStore(
 
     async writeBatchIfUnchanged(input) {
       const backend = await resolveBackend();
-      if (!backend.documentStore.writeBatchIfUnchanged) {
-        return false;
-      }
-
       return backend.documentStore.writeBatchIfUnchanged(input);
     },
 

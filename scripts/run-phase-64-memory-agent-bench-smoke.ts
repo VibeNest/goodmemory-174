@@ -48,8 +48,8 @@ import {
   withAISDKRetries,
 } from "../src/provider/ai-sdk-runtime";
 import { resolveLiveModelConfig } from "./run-eval";
-import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
-import type { EvidenceTurn } from "../src/answer/evidencePack";
+import { buildAnswerEvidencePack } from "../src/eval/protocol-reader/evidencePack";
+import type { EvidenceTurn } from "../src/eval/protocol-reader/evidencePack";
 
 export const MEMORY_AGENT_BENCH_SMOKE_RUN_ID =
   "run-phase64-mab-smoke-current";

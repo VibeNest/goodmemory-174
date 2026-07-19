@@ -22,6 +22,7 @@ import {
 import type {
   C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
+  C4BaselineFrozenStageBinding,
   C4BaselineStageEvidenceFile,
   C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
@@ -70,6 +71,8 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
     expect(() => verifyC4BaselineStageEvidenceFiles(
       report,
       stageEvidenceFiles,
+      frozenBindings(report),
+      rawEvidenceFiles(report),
     )).not.toThrow();
     expect(stageEvidenceFiles.every((file) =>
       Object.keys(JSON.parse(file.bytes) as Record<string, unknown>)
@@ -78,13 +81,27 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
     )).toBe(true);
     expect(stageEvidenceFiles.every((file) => {
       const binding = JSON.parse(file.bytes) as {
-        evidence: { dataset: { stageInputSha256: string } };
+        evidence: {
+          codex: { failureEventCount: number };
+          dataset: { stageInputSha256: string };
+          evaluator: {
+            sandbox: {
+              evaluatorRead: boolean;
+              networkDenied: boolean;
+              originalAuthDenied: boolean;
+            };
+          };
+        };
         rawStageEvidenceSha256: string;
         schemaVersion: number;
       };
       return binding.schemaVersion === 2 &&
         binding.rawStageEvidenceSha256.length === 64 &&
-        binding.evidence.dataset.stageInputSha256.length === 64;
+        binding.evidence.codex.failureEventCount === 0 &&
+        binding.evidence.dataset.stageInputSha256.length === 64 &&
+        binding.evidence.evaluator.sandbox.evaluatorRead &&
+        binding.evidence.evaluator.sandbox.networkDenied &&
+        binding.evidence.evaluator.sandbox.originalAuthDenied;
     })).toBe(true);
     expect(stageEvidenceFiles.some((file) =>
       file.bytes.includes("/Users/")
@@ -96,11 +113,144 @@ describe("Codex coding-effect C4 baseline ceiling", () => {
           ? { ...file, bytes: file.bytes.replace("src/tasks.ts", "src/drift.ts") }
           : file
       ),
-    )).toThrow("C4 baseline patch observation mismatch");
+      frozenBindings(report),
+      rawEvidenceFiles(report),
+    )).toThrow("does not match authenticated raw source");
     expect(() => verifyC4BaselineStageEvidenceFiles(
       report,
       stageEvidenceFiles.slice(1),
+      frozenBindings(report),
+      rawEvidenceFiles(report),
     )).toThrow("C4 baseline stage evidence file set is inconsistent");
+    const semanticMutations: Array<
+      (evidence: Record<string, unknown>) => void
+    > = [
+      (evidence) => {
+        evidence.arm = null;
+      },
+      (evidence) => {
+        (evidence.arm as Record<string, unknown>).permissionIsolationPassed =
+          false;
+      },
+      (evidence) => {
+        (evidence.codex as Record<string, unknown>).exitCode = 37;
+      },
+      (evidence) => {
+        (evidence.codex as Record<string, unknown>).timedOut = true;
+      },
+      (evidence) => {
+        (evidence.codex as Record<string, unknown>).failureEventCount = 1;
+      },
+      (evidence) => {
+        const evaluator = evidence.evaluator as Record<string, unknown>;
+        evaluator.commitments = [];
+      },
+      (evidence) => {
+        const evaluator = evidence.evaluator as Record<string, unknown>;
+        evaluator.materializedAfterCodexExit = false;
+      },
+      (evidence) => {
+        const evaluator = evidence.evaluator as Record<string, unknown>;
+        (evaluator.sandbox as Record<string, unknown>).evaluatorRead = false;
+      },
+      (evidence) => {
+        const evaluator = evidence.evaluator as Record<string, unknown>;
+        (evaluator.failToPass as Record<string, unknown>).exitCode = 99;
+      },
+      (evidence) => {
+        const patch = evidence.patch as Record<string, unknown>;
+        patch.forbiddenFiles = ["evaluator/hidden.test.ts"];
+        patch.untrackedFiles = [{
+          path: "evaluator/hidden.test.ts",
+          sha256: "7".repeat(64),
+          size: 1,
+        }];
+      },
+      (evidence) => {
+        evidence.visibleBaseHealth = null;
+      },
+    ];
+    for (const mutate of semanticMutations) {
+      const semanticallyInvalid = stageEvidenceFiles.map((file, index) => {
+        if (index !== 0) {
+          return file;
+        }
+        const binding = JSON.parse(file.bytes) as {
+          evidence: Record<string, unknown>;
+        };
+        mutate(binding.evidence);
+        return {
+          ...file,
+          bytes: `${JSON.stringify(binding, null, 2)}\n`,
+        };
+      });
+      expect(() => verifyC4BaselineStageEvidenceFiles(
+        report,
+        semanticallyInvalid,
+        frozenBindings(report),
+        rawEvidenceFiles(report),
+      )).toThrow("does not match authenticated raw source");
+    }
+    const invalidFailureEventHash = stageEvidenceFiles.map((file, index) => {
+      if (index !== 0) {
+        return file;
+      }
+      const binding = JSON.parse(file.bytes) as {
+        evidence: { codex: Record<string, unknown> };
+      };
+      binding.evidence.codex.failureEventsSha256 = "f".repeat(64);
+      return { ...file, bytes: `${JSON.stringify(binding, null, 2)}\n` };
+    });
+    expect(() => verifyC4BaselineStageEvidenceFiles(
+      report,
+      invalidFailureEventHash,
+      frozenBindings(report),
+      rawEvidenceFiles(report),
+    )).toThrow("does not match authenticated raw source");
+    const forgedPromptHash = stageEvidenceFiles.map((file, index) => {
+      if (index !== 0) {
+        return file;
+      }
+      const binding = JSON.parse(file.bytes) as {
+        evidence: { dataset: { promptSha256: string } };
+      };
+      binding.evidence.dataset.promptSha256 = "9".repeat(64);
+      return { ...file, bytes: `${JSON.stringify(binding, null, 2)}\n` };
+    });
+    expect(() => verifyC4BaselineStageEvidenceFiles(
+      report,
+      forgedPromptHash,
+      frozenBindings(report),
+      rawEvidenceFiles(report),
+    )).toThrow("does not match authenticated raw source");
+    const forgedRawFiles = rawEvidenceFiles(report).map((file, index) => {
+      if (index !== 0) return file;
+      const evidence = JSON.parse(file.bytes) as {
+        dataset: { promptSha256: string };
+      };
+      evidence.dataset.promptSha256 = "9".repeat(64);
+      return { ...file, bytes: `${JSON.stringify(evidence, null, 2)}\n` };
+    });
+    const forgedResults = report.results.map((result, index) =>
+      index === 0
+        ? { ...result, stageEvidenceSha256: sha256(forgedRawFiles[0]!.bytes) }
+        : result
+    );
+    const forgedReport = {
+      ...report,
+      results: forgedResults,
+      stageEvidenceAggregateSha256: sha256(JSON.stringify(
+        forgedResults.map((result) => ({
+          path: `${result.episodeId}-${result.stageId}/stage-evidence.json`,
+          sha256: result.stageEvidenceSha256,
+        })),
+      )),
+    };
+    expect(() => buildC4BaselineStageEvidenceBindings(
+      forgedReport,
+      forgedRawFiles,
+      frozenBindings(report),
+    )).toThrow("C4 baseline finalized evidence is semantically invalid");
     expect(calls).toHaveLength(6);
     expect(calls.every((call) => call.endsWith("/stage-3"))).toBe(true);
     expect(report).toMatchObject({
@@ -419,7 +569,31 @@ function evidenceFiles(
 ): C4BaselineStageEvidenceFile[] {
   return buildC4BaselineStageEvidenceBindings(
     report,
-    report.results.map((stage) => ({
+    rawEvidenceFiles(report),
+    frozenBindings(report),
+  );
+}
+
+function frozenBindings(
+  report: C4BaselineCeilingReport,
+): C4BaselineFrozenStageBinding[] {
+  return report.results.map((result) => ({
+    episodeId: result.episodeId,
+    evaluatorCommitments: [
+      { relativePath: "cases.json", sha256: "a".repeat(64) },
+      { relativePath: "runner.ts", sha256: "b".repeat(64) },
+    ],
+    promptSha256: "1".repeat(64),
+    repositoryCommit: "2".repeat(40),
+    repositoryTree: "3".repeat(40),
+    stageId: result.stageId,
+  }));
+}
+
+function rawEvidenceFiles(
+  report: C4BaselineCeilingReport,
+): C4BaselineStageEvidenceFile[] {
+  return report.results.map((stage) => ({
       bytes: rawStageEvidenceBytes(
         stageEvidenceResult(stage),
         stage.patchSha256 === null
@@ -427,8 +601,7 @@ function evidenceFiles(
           : "diff --git a/src/tasks.ts b/src/tasks.ts\n+resolved\n",
       ),
       path: `${stage.episodeId}-${stage.stageId}/stage-evidence.json`,
-    })),
-  );
+    }));
 }
 
 function rawStageEvidenceBytes(
@@ -436,10 +609,24 @@ function rawStageEvidenceBytes(
   diff: string,
 ): string {
   return `${JSON.stringify({
+    arm: {
+      absenceAudit: {
+        passed: true,
+      },
+      codexExecutableSha256: "d".repeat(64),
+      codexVersion: "codex-cli 0.144.5",
+      instructionSha256: "8".repeat(64),
+      networkAccess: false,
+      permissionIsolation: {
+        audit: { passed: true },
+        evidenceSha256: "9".repeat(64),
+      },
+    },
     codex: {
       durationMs: 1,
       eventCount: 1,
       exitCode: 0,
+      failureEvents: [],
       status: result.codexStatus,
       stderr: "",
       timedOut: false,
@@ -455,7 +642,10 @@ function rawStageEvidenceBytes(
       stageInputSha256: result.stageInputSha256,
     },
     evaluator: {
-      commitments: [],
+      commitments: [
+        { relativePath: "cases.json", sha256: "a".repeat(64) },
+        { relativePath: "runner.ts", sha256: "b".repeat(64) },
+      ],
       credentialsRemovedBeforeMaterialization: true,
       failToPass: {
         durationMs: 1,
@@ -474,7 +664,22 @@ function rawStageEvidenceBytes(
         stderr: "",
         stdout: "",
       },
-      sandbox: {},
+      sandbox: {
+        configSha256: "c".repeat(64),
+        configWriteDenied: true,
+        copiedAuthRemovedBeforeEvaluator: true,
+        evaluatorRead: true,
+        evaluatorWriteDenied: true,
+        networkAccess: false,
+        networkDenied: true,
+        networkPositiveControl: true,
+        originalAuthAliasDenied: true,
+        originalAuthDenied: true,
+        profileName: "c4-evaluator",
+        schemaVersion: 1,
+        workspaceRead: true,
+        workspaceWrite: true,
+      },
     },
     patch: {
       baseCommit: "2".repeat(40),

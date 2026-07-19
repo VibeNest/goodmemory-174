@@ -24,12 +24,21 @@ describe("artifact spillover service", () => {
     expect(record.preview).toBe("This is a very long tool...");
     expect(record.replacementText).toContain("tool_result");
     expect(record.originalBytes).toBeGreaterThan(24);
+    expect(record.contentHash).toMatch(/^[a-f0-9]{64}$/u);
 
     const loaded = await service.getBySource(
       { userId: "u-1", sessionId: "s-1" },
       "tool-1",
     );
     expect(loaded).toEqual(record);
+    expect(
+      await service.resolve(
+        { userId: "u-1", sessionId: "s-1" },
+        record.storageUri,
+      ),
+    ).toBe(
+      "This is a very long tool result that should not remain inline in the prompt.",
+    );
   });
 
   it("reuses stable replacement text for the same source in one session lifecycle", async () => {
@@ -54,6 +63,13 @@ describe("artifact spillover service", () => {
     expect(second.replacementText).toBe(first.replacementText);
     expect(second.id).toBe(first.id);
     expect(second.preview).toBe("Updated retrieval...");
+    expect(second.storageUri).not.toBe(first.storageUri);
+    expect(await service.resolve(scope, first.storageUri)).toBe(
+      "First retrieval payload that is too large to inject verbatim.",
+    );
+    expect(await service.resolve(scope, second.storageUri)).toBe(
+      "Updated retrieval payload that should reuse the same replacement token.",
+    );
   });
 
   it("creates independent replacement tokens across different sessions", async () => {

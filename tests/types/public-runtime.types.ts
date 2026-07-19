@@ -6,11 +6,23 @@ import {
   createRuntimeContextService,
 } from "../../src";
 import type {
+  DocumentStore,
+  ProjectionCapableDocumentStore,
   RuntimeArchiveStore,
   RuntimeContextServiceConfig,
 } from "../../src";
 
 const documentStore = createInMemoryDocumentStore();
+const projectionCapableStore: ProjectionCapableDocumentStore = documentStore;
+const legacyDocumentStore: DocumentStore = {
+  set: documentStore.set,
+  get: documentStore.get,
+  update: documentStore.update,
+  query: documentStore.query,
+  delete: documentStore.delete,
+};
+void projectionCapableStore;
+void legacyDocumentStore;
 const sessionStore = createInMemorySessionStore();
 const archiveStore: RuntimeArchiveStore = createRuntimeArchiveStore({
   documentStore,

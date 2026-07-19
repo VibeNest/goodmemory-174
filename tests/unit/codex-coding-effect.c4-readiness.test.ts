@@ -18,6 +18,7 @@ import {
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
 import type {
   C4BaselineCeilingTarget,
+  C4BaselineFrozenStageBinding,
   C4BaselineStageEvidenceFile,
   C4BaselineStageResult,
 } from "../../scripts/codex-coding-effect/c4-baseline-ceiling";
@@ -229,11 +230,13 @@ describe("Codex coding-effect C4 readiness", () => {
       v1.bytes,
       v1.files,
       v1.targets,
+      v1.bindings,
     )).toThrow();
     expect(validateC4BaselineCeilingEvidence(
       v2.bytes,
       v2.files,
       v2.targets,
+      v2.bindings,
     ).report.datasetId).toBe(
       "codex-c4-controlled-pilot-v2",
     );
@@ -241,6 +244,7 @@ describe("Codex coding-effect C4 readiness", () => {
       v2.bytes,
       v2.files.slice(1),
       v2.targets,
+      v2.bindings,
     )).toThrow("C4 baseline stage evidence file set is inconsistent");
     expect(() => validateC4BaselineCeilingEvidence(
       v2.bytes,
@@ -249,6 +253,7 @@ describe("Codex coding-effect C4 readiness", () => {
         ...target,
         episodeId: `unrelated-${target.episodeId}`,
       })),
+      v2.bindings,
     )).toThrow("C4 baseline results do not match the frozen dataset targets");
   });
 
@@ -292,6 +297,7 @@ describe("Codex coding-effect C4 readiness", () => {
 });
 
 async function baselineEvidence(datasetId: string): Promise<{
+  bindings: C4BaselineFrozenStageBinding[];
   bytes: string;
   files: C4BaselineStageEvidenceFile[];
   targets: C4BaselineCeilingTarget[];
@@ -327,7 +333,7 @@ async function baselineEvidence(datasetId: string): Promise<{
         resolved: false,
         stageId: target.stageId,
         stageInputSha256: target.stageInputSha256,
-        taskFailureReasons: ["unresolved"],
+        taskFailureReasons: ["no-patch", "hidden-fail-to-pass-failed"],
         threadId: `${target.episodeId}-${target.stageId}`,
       };
       return {
@@ -359,11 +365,24 @@ async function baselineEvidence(datasetId: string): Promise<{
     targets,
   });
   const bytes = serializeC4BaselineCeilingReport(report);
+  const bindings = report.results.map((result) => ({
+    episodeId: result.episodeId,
+    evaluatorCommitments: [
+      { relativePath: "cases.json" as const, sha256: "a".repeat(64) },
+      { relativePath: "runner.ts" as const, sha256: "b".repeat(64) },
+    ],
+    promptSha256: "1".repeat(64),
+    repositoryCommit: "2".repeat(40),
+    repositoryTree: "3".repeat(40),
+    stageId: result.stageId,
+  }));
   return {
+    bindings,
     bytes,
     files: buildC4BaselineStageEvidenceBindings(
       report,
       report.results.map(rawStageEvidenceFile),
+      bindings,
     ),
     targets,
   };
@@ -383,10 +402,22 @@ function rawStageEvidenceBytes(
   result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
 ): string {
   return `${JSON.stringify({
+    arm: {
+      absenceAudit: { passed: true },
+      codexExecutableSha256: "c".repeat(64),
+      codexVersion: "codex-cli test",
+      instructionSha256: "8".repeat(64),
+      networkAccess: false,
+      permissionIsolation: {
+        audit: { passed: true },
+        evidenceSha256: "9".repeat(64),
+      },
+    },
     codex: {
       durationMs: 1,
       eventCount: 1,
       exitCode: 0,
+      failureEvents: [],
       status: result.codexStatus,
       stderr: "",
       timedOut: false,
@@ -402,7 +433,10 @@ function rawStageEvidenceBytes(
       stageInputSha256: result.stageInputSha256,
     },
     evaluator: {
-      commitments: [],
+      commitments: [
+        { relativePath: "cases.json", sha256: "a".repeat(64) },
+        { relativePath: "runner.ts", sha256: "b".repeat(64) },
+      ],
       credentialsRemovedBeforeMaterialization: true,
       failToPass: {
         durationMs: 1,
@@ -421,7 +455,22 @@ function rawStageEvidenceBytes(
         stderr: "",
         stdout: "",
       },
-      sandbox: {},
+      sandbox: {
+        configSha256: "c".repeat(64),
+        configWriteDenied: true,
+        copiedAuthRemovedBeforeEvaluator: true,
+        evaluatorRead: true,
+        evaluatorWriteDenied: true,
+        networkAccess: false,
+        networkDenied: true,
+        networkPositiveControl: true,
+        originalAuthAliasDenied: true,
+        originalAuthDenied: true,
+        profileName: "c4-evaluator",
+        schemaVersion: 1,
+        workspaceRead: true,
+        workspaceWrite: true,
+      },
     },
     patch: {
       baseCommit: "2".repeat(40),

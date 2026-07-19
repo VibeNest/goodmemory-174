@@ -1,8 +1,13 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { validateC4ControlledPilotDataset } from "./c4-contracts";
+import {
+  c4RepositoryIdForUrl,
+  materializeC4SourceRepository,
+} from "./c4-controlled-dataset";
 import type { CodexCodingEffectDataset } from "./dataset";
 
 export interface C4BaselineCeilingTarget {
@@ -102,6 +107,84 @@ export interface C4BaselineRunIdentity {
 export interface C4BaselineStageEvidenceFile {
   bytes: string;
   path: string;
+}
+
+export interface C4BaselineFrozenStageBinding {
+  episodeId: string;
+  evaluatorCommitments: ReadonlyArray<{
+    relativePath: "cases.json" | "runner.ts";
+    sha256: string;
+  }>;
+  promptSha256: string;
+  repositoryCommit: string;
+  repositoryTree: string;
+  stageId: "stage-2" | "stage-3";
+}
+
+export async function buildC4BaselineFrozenStageBindings(input: {
+  dataset: CodexCodingEffectDataset;
+  datasetRoot: string;
+  repositories: ReadonlyMap<string, { commit: string; tree: string }>;
+}): Promise<C4BaselineFrozenStageBinding[]> {
+  const evaluatorCommitments = await Promise.all(
+    (["cases.json", "runner.ts"] as const).map(async (relativePath) => ({
+      relativePath,
+      sha256: sha256(await readFile(join(
+        input.datasetRoot,
+        "evaluator",
+        relativePath,
+      ))),
+    })),
+  );
+  return Promise.all(validateC4ControlledPilotDataset(input.dataset).episodes
+    .flatMap((episode) => episode.stages
+      .filter((stage) => stage.position === 2 || stage.position === 3)
+      .map(async (stage): Promise<C4BaselineFrozenStageBinding> => {
+        const repository = input.repositories.get(episode.repository.url);
+        if (repository === undefined) {
+          throw new Error(`missing C4 frozen repository ${episode.repository.url}`);
+        }
+        const prompt = buildC4BaselinePrompt({
+          allowedFeedback: stage.allowedFeedback,
+          prompt: await readFile(
+            join(input.datasetRoot, stage.promptPath),
+            "utf8",
+          ),
+        });
+        return {
+          episodeId: episode.id,
+          evaluatorCommitments,
+          promptSha256: sha256(prompt),
+          repositoryCommit: repository.commit,
+          repositoryTree: repository.tree,
+          stageId: stage.id as "stage-2" | "stage-3",
+        };
+      })));
+}
+
+export async function reconstructC4BaselineFrozenStageBindings(input: {
+  dataset: CodexCodingEffectDataset;
+  datasetRoot: string;
+}): Promise<C4BaselineFrozenStageBinding[]> {
+  const workspace = await mkdtemp(join(tmpdir(), "goodmemory-c4-bindings-"));
+  try {
+    const repositories = new Map<string, { commit: string; tree: string }>();
+    for (const episode of validateC4ControlledPilotDataset(input.dataset).episodes) {
+      if (repositories.has(episode.repository.url)) continue;
+      const identity = await materializeC4SourceRepository({
+        datasetRoot: input.datasetRoot,
+        destination: join(
+          workspace,
+          c4RepositoryIdForUrl(episode.repository.url),
+        ),
+        repositoryId: c4RepositoryIdForUrl(episode.repository.url),
+      });
+      repositories.set(episode.repository.url, identity);
+    }
+    return buildC4BaselineFrozenStageBindings({ ...input, repositories });
+  } finally {
+    await rm(workspace, { force: true, recursive: true });
+  }
 }
 
 export function buildC4BaselineCeilingTargets(
@@ -378,8 +461,9 @@ export async function loadC4BaselineStageEvidenceFiles(
 export function buildC4BaselineStageEvidenceBindings(
   report: C4BaselineCeilingReport,
   rawFiles: readonly C4BaselineStageEvidenceFile[],
+  frozenBindings: readonly C4BaselineFrozenStageBinding[],
 ): C4BaselineStageEvidenceFile[] {
-  verifyC4BaselineRawStageEvidenceFiles(report, rawFiles);
+  verifyC4BaselineRawStageEvidenceFiles(report, rawFiles, frozenBindings);
   const byPath = new Map(rawFiles.map((file) => [file.path, file.bytes]));
   return report.results.map((result) => {
     const path = stageEvidenceRelativePath(result);
@@ -402,14 +486,36 @@ export function buildC4BaselineStageEvidenceBindings(
 export function verifyC4BaselineStageEvidenceFiles(
   report: C4BaselineCeilingReport,
   files: readonly C4BaselineStageEvidenceFile[],
+  frozenBindings: readonly C4BaselineFrozenStageBinding[],
+  rawFiles?: readonly C4BaselineStageEvidenceFile[],
 ): void {
+  if (rawFiles !== undefined) {
+    verifyC4BaselineRawStageEvidenceFiles(report, rawFiles, frozenBindings);
+  }
   verifyStageEvidenceFileSet(report, files);
+  const expectedFiles = rawFiles === undefined
+    ? null
+    : new Map(
+        buildC4BaselineStageEvidenceBindings(
+          report,
+          rawFiles,
+          frozenBindings,
+        ).map((file) => [
+          file.path,
+          file.bytes,
+        ]),
+      );
   const byPath = new Map(files.map((file) => [file.path, file.bytes]));
   for (const result of report.results) {
     const path = stageEvidenceRelativePath(result);
     const bytes = byPath.get(path);
     if (bytes === undefined) {
       throw new Error(`missing C4 baseline stage evidence binding for ${path}`);
+    }
+    if (expectedFiles !== null && bytes !== expectedFiles.get(path)) {
+      throw new Error(
+        `C4 baseline stage evidence does not match authenticated raw source for ${path}`,
+      );
     }
     const parsed = parseStageEvidenceBinding(bytes, path);
     if (parsed.rawStageEvidenceSha256 !== result.stageEvidenceSha256) {
@@ -419,13 +525,20 @@ export function verifyC4BaselineStageEvidenceFiles(
     if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
       throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
     }
-    verifyProjectedStageEvidence(parsed.evidence, expectedResult, path);
+    verifyProjectedStageEvidence(
+      parsed.evidence,
+      expectedResult,
+      report,
+      path,
+      requiredFrozenBinding(frozenBindings, result),
+    );
   }
 }
 
 export function verifyC4BaselineRawStageEvidenceFiles(
   report: C4BaselineCeilingReport,
   files: readonly C4BaselineStageEvidenceFile[],
+  frozenBindings: readonly C4BaselineFrozenStageBinding[],
 ): void {
   verifyStageEvidenceFileSet(report, files);
   const byPath = new Map(files.map((file) => [file.path, file.bytes]));
@@ -440,6 +553,13 @@ export function verifyC4BaselineRawStageEvidenceFiles(
     if (canonicalJson(parsed.result) !== canonicalJson(expectedResult)) {
       throw new Error(`C4 baseline stage evidence result mismatch for ${path}`);
     }
+    verifyProjectedStageEvidence(
+      projectStageEvidence(parsed),
+      expectedResult,
+      report,
+      path,
+      requiredFrozenBinding(frozenBindings, result),
+    );
   }
 }
 
@@ -455,6 +575,22 @@ function verifyStageEvidenceFileSet(
   ) {
     throw new Error("C4 baseline stage evidence file set is inconsistent");
   }
+}
+
+function requiredFrozenBinding(
+  bindings: readonly C4BaselineFrozenStageBinding[],
+  result: Pick<C4BaselineStageResult, "episodeId" | "stageId">,
+): C4BaselineFrozenStageBinding {
+  const binding = bindings.find((candidate) =>
+    candidate.episodeId === result.episodeId &&
+    candidate.stageId === result.stageId
+  );
+  if (binding === undefined) {
+    throw new Error(
+      `missing C4 frozen stage binding for ${result.episodeId}/${result.stageId}`,
+    );
+  }
+  return binding;
 }
 
 export function serializeC4BaselineRunIdentity(
@@ -652,8 +788,14 @@ function projectStageEvidence(
 ): Record<string, unknown> {
   const arm = optionalRecord(raw.arm);
   const codex = optionalRecord(raw.codex);
+  const codexFailureEvents = Array.isArray(codex?.failureEvents)
+    ? codex.failureEvents
+    : null;
   const dataset = optionalRecord(raw.dataset);
   const evaluator = optionalRecord(raw.evaluator);
+  const evaluatorSandbox = evaluator === null
+    ? null
+    : optionalRecord(evaluator.sandbox);
   const failure = optionalRecord(raw.failure);
   const patch = optionalRecord(raw.patch);
   const visibleBaseHealth = optionalRecord(raw.visibleBaseHealth);
@@ -661,6 +803,7 @@ function projectStageEvidence(
     arm: arm === null
       ? null
       : {
+          absenceAuditPassed: optionalRecord(arm.absenceAudit)?.passed ?? null,
           absenceAuditSha256: sha256(canonicalJson(arm.absenceAudit)),
           codexExecutableSha256: arm.codexExecutableSha256,
           codexVersion: arm.codexVersion,
@@ -678,6 +821,10 @@ function projectStageEvidence(
           durationMs: codex.durationMs,
           eventCount: codex.eventCount,
           exitCode: codex.exitCode,
+          failureEventCount: codexFailureEvents?.length ?? null,
+          failureEventsSha256: codexFailureEvents === null
+            ? null
+            : sha256(canonicalJson(codexFailureEvents)),
           status: codex.status,
           stderrSha256: sha256(String(codex.stderr ?? "")),
           timedOut: codex.timedOut,
@@ -703,6 +850,27 @@ function projectStageEvidence(
           failToPass: projectTestObservation(evaluator.failToPass),
           materializedAfterCodexExit: evaluator.materializedAfterCodexExit,
           passToPass: projectTestObservation(evaluator.passToPass),
+          sandbox: evaluatorSandbox === null
+            ? null
+            : {
+                configSha256: evaluatorSandbox.configSha256,
+                configWriteDenied: evaluatorSandbox.configWriteDenied,
+                copiedAuthRemovedBeforeEvaluator:
+                  evaluatorSandbox.copiedAuthRemovedBeforeEvaluator,
+                evaluatorRead: evaluatorSandbox.evaluatorRead,
+                evaluatorWriteDenied: evaluatorSandbox.evaluatorWriteDenied,
+                networkAccess: evaluatorSandbox.networkAccess,
+                networkDenied: evaluatorSandbox.networkDenied,
+                networkPositiveControl:
+                  evaluatorSandbox.networkPositiveControl,
+                originalAuthAliasDenied:
+                  evaluatorSandbox.originalAuthAliasDenied,
+                originalAuthDenied: evaluatorSandbox.originalAuthDenied,
+                profileName: evaluatorSandbox.profileName,
+                schemaVersion: evaluatorSandbox.schemaVersion,
+                workspaceRead: evaluatorSandbox.workspaceRead,
+                workspaceWrite: evaluatorSandbox.workspaceWrite,
+              },
           sandboxEvidenceSha256: sha256(canonicalJson(evaluator.sandbox)),
         },
     failure: failure === null
@@ -752,7 +920,9 @@ function projectTestObservation(value: unknown): Record<string, unknown> | null 
 function verifyProjectedStageEvidence(
   evidence: Record<string, unknown>,
   result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  report: C4BaselineCeilingReport,
   path: string,
+  frozen: C4BaselineFrozenStageBinding,
 ): void {
   const dataset = optionalRecord(evidence.dataset);
   if (
@@ -767,12 +937,10 @@ function verifyProjectedStageEvidence(
   const evaluator = optionalRecord(evidence.evaluator);
   const patch = optionalRecord(evidence.patch);
   if (
-    result.disposition === "finalized" &&
-    (codex === null || evaluator === null || patch === null)
+    codex !== null &&
+    (codex.status !== result.codexStatus ||
+      !validCodexFailureEventsProjection(codex))
   ) {
-    throw new Error(`C4 baseline stage observations are incomplete for ${path}`);
-  }
-  if (codex !== null && codex.status !== result.codexStatus) {
     throw new Error(`C4 baseline Codex observation mismatch for ${path}`);
   }
   if (evaluator !== null) {
@@ -805,6 +973,319 @@ function verifyProjectedStageEvidence(
   ) {
     throw new Error(`C4 baseline failure observation mismatch for ${path}`);
   }
+  if (
+    result.disposition === "finalized" &&
+    !isValidFinalizedEvidence({
+      arm: optionalRecord(evidence.arm),
+      codex,
+      dataset,
+      evaluator,
+      failure,
+      frozen,
+      patch,
+      report,
+      result,
+      visibleBaseHealth: optionalRecord(evidence.visibleBaseHealth),
+    })
+  ) {
+    throw new Error(
+      `C4 baseline finalized evidence is semantically invalid for ${path}`,
+    );
+  }
+}
+
+function isValidFinalizedEvidence(input: {
+  arm: Record<string, unknown> | null;
+  codex: Record<string, unknown> | null;
+  dataset: Record<string, unknown>;
+  evaluator: Record<string, unknown> | null;
+  failure: Record<string, unknown> | null;
+  frozen: C4BaselineFrozenStageBinding;
+  patch: Record<string, unknown> | null;
+  report: C4BaselineCeilingReport;
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">;
+  visibleBaseHealth: Record<string, unknown> | null;
+}): boolean {
+  const {
+    arm,
+    codex,
+    dataset,
+    evaluator,
+    failure,
+    patch,
+    report,
+    result,
+    visibleBaseHealth,
+  } = input;
+  if (
+    arm === null ||
+    codex === null ||
+    evaluator === null ||
+    patch === null ||
+    visibleBaseHealth === null ||
+    failure !== null ||
+    arm.absenceAuditPassed !== true ||
+    arm.permissionIsolationPassed !== true ||
+    arm.networkAccess !== false ||
+    arm.codexExecutableSha256 !== report.codexExecutableSha256 ||
+    arm.codexVersion !== report.codexVersion ||
+    !isSha256(arm.absenceAuditSha256) ||
+    !isSha256(arm.instructionSha256) ||
+    !isSha256(arm.permissionIsolationEvidenceSha256) ||
+    result.executionFailureStage !== null ||
+    !validDatasetProjection(dataset, result, input.frozen) ||
+    !validCodexProjection(codex, result) ||
+    !validEvaluatorProjection(evaluator, result, input.frozen) ||
+    !validBaseHealthProjection(visibleBaseHealth)
+  ) {
+    return false;
+  }
+  const changedFiles = stringArray(patch.changedFiles);
+  const forbiddenFiles = stringArray(patch.forbiddenFiles);
+  const untrackedFiles = untrackedFilePaths(patch.untrackedFiles);
+  const diff = patch.diff;
+  const hasPatch = patch.hasPatch;
+  const patchSha256 = typeof diff === "string" && diff.length > 0
+    ? sha256(diff)
+    : null;
+  if (
+    changedFiles === null ||
+    forbiddenFiles === null ||
+    untrackedFiles === null ||
+    typeof hasPatch !== "boolean" ||
+    patch.baseCommit !== dataset.snapshot ||
+    patch.sha256 !== result.patchSha256 ||
+    patchSha256 !== result.patchSha256 ||
+    hasPatch !== (result.patchSha256 !== null) ||
+    canonicalJson(changedFiles) !== canonicalJson(result.changedFiles) ||
+    [...forbiddenFiles, ...untrackedFiles].some((file) =>
+      !changedFiles.includes(file)
+    )
+  ) {
+    return false;
+  }
+  const expectedReasons = taskFailureReasons({
+    codexStatus: result.codexStatus,
+    failToPassStatus: result.failToPassStatus,
+    forbiddenFiles,
+    hasPatch,
+    passToPassStatus: result.passToPassStatus,
+  });
+  return canonicalJson(result.taskFailureReasons) ===
+      canonicalJson(expectedReasons) &&
+    result.resolved === (expectedReasons.length === 0);
+}
+
+function validDatasetProjection(
+  dataset: Record<string, unknown>,
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  frozen: C4BaselineFrozenStageBinding,
+): boolean {
+  return dataset.episodeId === result.episodeId &&
+    dataset.stageId === result.stageId &&
+    dataset.stageInputSha256 === result.stageInputSha256 &&
+    frozen.episodeId === result.episodeId &&
+    frozen.stageId === result.stageId &&
+    dataset.promptSha256 === frozen.promptSha256 &&
+    dataset.repositoryCommit === frozen.repositoryCommit &&
+    dataset.repositoryTree === frozen.repositoryTree &&
+    dataset.snapshot === dataset.repositoryCommit;
+}
+
+function validCodexProjection(
+  codex: Record<string, unknown>,
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+): boolean {
+  if (
+    codex.status !== result.codexStatus ||
+    !nonnegativeNumber(codex.durationMs) ||
+    !nonnegativeInteger(codex.eventCount) ||
+    !nonnegativeInteger(codex.failureEventCount) ||
+    !isSha256(codex.failureEventsSha256) ||
+    !isSha256(codex.stderrSha256)
+  ) {
+    return false;
+  }
+  if (result.codexStatus === "completed") {
+    return codex.exitCode === 0 &&
+      codex.failureEventCount === 0 &&
+      codex.timedOut === false &&
+      typeof result.threadId === "string" &&
+      result.threadId.length > 0;
+  }
+  return result.codexStatus === "timed-out" &&
+    codex.exitCode === null &&
+    codex.timedOut === true;
+}
+
+function validCodexFailureEventsProjection(
+  codex: Record<string, unknown>,
+): boolean {
+  if (
+    !nonnegativeInteger(codex.failureEventCount) ||
+    !isSha256(codex.failureEventsSha256)
+  ) {
+    return false;
+  }
+  return codex.failureEventCount !== 0 ||
+    codex.failureEventsSha256 === sha256("[]");
+}
+
+function validEvaluatorProjection(
+  evaluator: Record<string, unknown>,
+  result: Omit<C4BaselineStageResult, "stageEvidenceSha256">,
+  frozen: C4BaselineFrozenStageBinding,
+): boolean {
+  const commitments = evaluator.commitments;
+  const failToPass = optionalRecord(evaluator.failToPass);
+  const passToPass = optionalRecord(evaluator.passToPass);
+  const sandbox = optionalRecord(evaluator.sandbox);
+  return Array.isArray(commitments) &&
+    commitments.length === 2 &&
+    canonicalJson(commitments) === canonicalJson(frozen.evaluatorCommitments) &&
+    new Set(commitments.map((commitment) => {
+      const record = optionalRecord(commitment);
+      return record !== null && isSha256(record.sha256)
+        ? record.relativePath
+        : null;
+    })).size === 2 &&
+    commitments.every((commitment) => {
+      const record = optionalRecord(commitment);
+      return record !== null &&
+        (record.relativePath === "cases.json" ||
+          record.relativePath === "runner.ts") &&
+        isSha256(record.sha256);
+    }) &&
+    evaluator.credentialsRemovedBeforeMaterialization === true &&
+    evaluator.materializedAfterCodexExit === true &&
+    sandbox !== null &&
+    evaluator.sandboxEvidenceSha256 === sha256(canonicalJson(sandbox)) &&
+    isSha256(sandbox.configSha256) &&
+    sandbox.configWriteDenied === true &&
+    sandbox.copiedAuthRemovedBeforeEvaluator === true &&
+    sandbox.evaluatorRead === true &&
+    sandbox.evaluatorWriteDenied === true &&
+    sandbox.networkAccess === false &&
+    sandbox.networkDenied === true &&
+    sandbox.networkPositiveControl === true &&
+    sandbox.originalAuthAliasDenied === true &&
+    sandbox.originalAuthDenied === true &&
+    sandbox.profileName === "c4-evaluator" &&
+    sandbox.schemaVersion === 1 &&
+    sandbox.workspaceRead === true &&
+    sandbox.workspaceWrite === true &&
+    validTestProjection(failToPass, "fail-to-pass", result.failToPassStatus) &&
+    validTestProjection(passToPass, "pass-to-pass", result.passToPassStatus);
+}
+
+function validTestProjection(
+  test: Record<string, unknown> | null,
+  kind: "fail-to-pass" | "pass-to-pass",
+  status: string,
+): boolean {
+  if (
+    test === null ||
+    test.kind !== kind ||
+    test.status !== status ||
+    !nonnegativeNumber(test.durationMs) ||
+    !isSha256(test.stderrSha256) ||
+    !isSha256(test.stdoutSha256)
+  ) {
+    return false;
+  }
+  return status === "passed"
+    ? test.exitCode === 0
+    : status === "failed"
+    ? test.exitCode === 1
+    : status === "timed-out" && test.exitCode === null;
+}
+
+function validBaseHealthProjection(
+  baseHealth: Record<string, unknown>,
+): boolean {
+  return baseHealth.status === "passed" &&
+    baseHealth.passed === true &&
+    baseHealth.exitCode === 0 &&
+    nonnegativeNumber(baseHealth.durationMs) &&
+    isSha256(baseHealth.stderrSha256) &&
+    isSha256(baseHealth.stdoutSha256);
+}
+
+function taskFailureReasons(input: {
+  codexStatus: string;
+  failToPassStatus: string;
+  forbiddenFiles: readonly string[];
+  hasPatch: boolean;
+  passToPassStatus: string;
+}): string[] {
+  if (input.codexStatus === "timed-out") {
+    return ["codex-timeout"];
+  }
+  const reasons: string[] = [];
+  if (!input.hasPatch) {
+    reasons.push("no-patch");
+  }
+  if (input.forbiddenFiles.length > 0) {
+    reasons.push("forbidden-file-change");
+  }
+  if (
+    input.failToPassStatus === "timed-out" ||
+    input.passToPassStatus === "timed-out"
+  ) {
+    reasons.push("hidden-test-timeout");
+  }
+  if (input.failToPassStatus === "failed") {
+    reasons.push("hidden-fail-to-pass-failed");
+  }
+  if (input.passToPassStatus === "failed") {
+    reasons.push("pass-to-pass-regression");
+  }
+  return reasons;
+}
+
+function stringArray(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) =>
+      typeof item === "string" && item.length > 0
+    )
+    ? value
+    : null;
+}
+
+function untrackedFilePaths(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const paths: string[] = [];
+  for (const item of value) {
+    const record = optionalRecord(item);
+    if (
+      record === null ||
+      typeof record.path !== "string" ||
+      record.path.length === 0 ||
+      !isSha256(record.sha256) ||
+      !nonnegativeInteger(record.size)
+    ) {
+      return null;
+    }
+    paths.push(record.path);
+  }
+  return paths;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function isGitObjectId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
+}
+
+function nonnegativeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function nonnegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
 function optionalRecord(value: unknown): Record<string, unknown> | null {
@@ -829,6 +1310,6 @@ function canonicalValue(value: unknown): unknown {
   return value;
 }
 
-function sha256(value: string): string {
+function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }

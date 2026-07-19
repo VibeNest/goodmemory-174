@@ -1,0 +1,126 @@
+{
+  "evidence": {
+    "arm": {
+      "absenceAuditPassed": true,
+      "absenceAuditSha256": "36debb972d7d2de5093292cd4ac20f802a6a34c1976de2dcf01c398a3c5e8d52",
+      "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+      "codexVersion": "codex-cli 0.144.6",
+      "instructionSha256": "8ed077f1a12979e23e9f9498e7ec6388a393d483f5bbdd34ead1d5f00eeea72e",
+      "networkAccess": false,
+      "permissionIsolationEvidenceSha256": "9e10c2023fc12ca544bc705c18b2711a0a7db0d9c0086ba56f6bd39ec6be4fe7",
+      "permissionIsolationPassed": true
+    },
+    "codex": {
+      "durationMs": 89439.33012499998,
+      "eventCount": 23,
+      "exitCode": 0,
+      "failureEventCount": 0,
+      "failureEventsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "status": "completed",
+      "stderrSha256": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+      "timedOut": false,
+      "usage": {
+        "cachedInputTokens": 95232,
+        "inputTokens": 109735,
+        "outputTokens": 2361
+      }
+    },
+    "dataset": {
+      "episodeId": "delimiter-boundary-policy",
+      "promptSha256": "8cf2c98fc48bf0b6abe361ef997404056a43b54e68200b278568d9fcd6e925cd",
+      "repositoryCommit": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "repositoryTree": "cb825ad0d58139c91f40d885ace1a7ae25d4b4a9",
+      "snapshot": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "stageId": "stage-2",
+      "stageInputSha256": "bd285ee1f36d3ae50b8b65c303bf17393294c0e8fec1e97854f5948667ecf930"
+    },
+    "evaluator": {
+      "commitments": [
+        {
+          "relativePath": "cases.json",
+          "sha256": "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
+        },
+        {
+          "relativePath": "runner.ts",
+          "sha256": "e1617c0820949074739f9370b60e261f9a5005c957a5145b2fb1a3684f014712"
+        }
+      ],
+      "credentialsRemovedBeforeMaterialization": true,
+      "failToPass": {
+        "durationMs": 74.33170900004916,
+        "exitCode": 1,
+        "kind": "fail-to-pass",
+        "status": "failed",
+        "stderrSha256": "2ddf60e61065eed496c26ec5785c25c0b526fcc8a44e0d7b97bdb0814386fc2c",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "materializedAfterCodexExit": true,
+      "passToPass": {
+        "durationMs": 76.59233299992047,
+        "exitCode": 0,
+        "kind": "pass-to-pass",
+        "status": "passed",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sandbox": {
+        "configSha256": "2d7ea0abe2764befc6b8c6e4f499db9b2420176b2cc870bcb7d2f1d29f6ce154",
+        "configWriteDenied": true,
+        "copiedAuthRemovedBeforeEvaluator": true,
+        "evaluatorRead": true,
+        "evaluatorWriteDenied": true,
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "originalAuthAliasDenied": true,
+        "originalAuthDenied": true,
+        "profileName": "c4-evaluator",
+        "schemaVersion": 1,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "sandboxEvidenceSha256": "3105493c6ba006275e035825218cb3544bef4cd4336910b64c39d82b7e4dd369"
+    },
+    "failure": null,
+    "patch": {
+      "baseCommit": "0a306e12053c55639ba63c6bdc5a243feeac5b92",
+      "changedFiles": [
+        "src/tasks.ts"
+      ],
+      "diff": "diff --git a/src/tasks.ts b/src/tasks.ts\nindex a2aedf47cba4bdfda96157a97231f8d6a2df2866..38c77c1641ae71c962247832c0fc1ad2347ff87c 100644\n--- a/src/tasks.ts\n+++ b/src/tasks.ts\n@@ -16,8 +16,10 @@ export function splitAssignment(input: string): [string, string] | null {\n }\n \n export function splitHeader(input: string): [string, string] | null {\n-  const [head, tail] = input.split(\":\");\n-  return head !== undefined && tail !== undefined ? [head, tail] : null;\n+  const delimiterIndex = input.indexOf(\":\");\n+  return delimiterIndex === -1\n+    ? null\n+    : [input.slice(0, delimiterIndex), input.slice(delimiterIndex + 1)];\n }\n \n export function splitRoute(input: string): [string, string] | null {\n",
+      "forbiddenFiles": [],
+      "hasPatch": true,
+      "sha256": "dc291138bca27df30539807c6dab58d07d75a07b83ab836b2db66d92f53317a6",
+      "untrackedFiles": []
+    },
+    "visibleBaseHealth": {
+      "durationMs": 8.558042000047863,
+      "exitCode": 0,
+      "passed": true,
+      "status": "passed",
+      "stderrSha256": "dd75ebc399286308df3439cd3474b2b648a301c7ee1e294e522aceb6b0500cf3",
+      "stdoutSha256": "72af121bdc4cbb1d32d4d3454fb83f73b6700b1a1e939b5ec41ab8d6819f89b2"
+    }
+  },
+  "rawStageEvidenceSha256": "abf86791bf1e50adfec86a43143383896ae14bb446b3755941194707a7e0095d",
+  "result": {
+    "changedFiles": [
+      "src/tasks.ts"
+    ],
+    "codexStatus": "completed",
+    "disposition": "finalized",
+    "episodeId": "delimiter-boundary-policy",
+    "executionFailureStage": null,
+    "failToPassStatus": "failed",
+    "passToPassStatus": "passed",
+    "patchSha256": "dc291138bca27df30539807c6dab58d07d75a07b83ab836b2db66d92f53317a6",
+    "resolved": false,
+    "stageId": "stage-2",
+    "stageInputSha256": "bd285ee1f36d3ae50b8b65c303bf17393294c0e8fec1e97854f5948667ecf930",
+    "taskFailureReasons": [
+      "hidden-fail-to-pass-failed"
+    ],
+    "threadId": "019f7677-4b7b-71e1-b83d-63448a617f82"
+  },
+  "schemaVersion": 2
+}

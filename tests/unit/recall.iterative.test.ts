@@ -78,6 +78,12 @@ describe("iterative (two-pass) recall", () => {
       recall: lexicalRecall(corpus),
     });
     expect(outcome.hops).toBe(2);
+    expect(outcome.steps.map(({ hop, query: stepQuery }) => ({ hop, query: stepQuery })))
+      .toEqual([
+        { hop: 1, query },
+        { hop: 2, query: outcome.expandedQuery },
+      ]);
+    expect(outcome.stopReason).toBe("max_hops_reached");
     expect(outcome.bridgeEntities).toContain("Mika");
     const ids = outcome.result.facts.map((entry) => entry.id);
     expect(ids).toContain("a-goaltender");
@@ -123,5 +129,6 @@ describe("iterative (two-pass) recall", () => {
     expect(outcome.hops).toBe(1);
     expect(outcome.bridgeEntities).toEqual([]);
     expect(outcome.expandedQuery).toBe("what is it");
+    expect(outcome.stopReason).toBe("no_bridge_entities");
   });
 });

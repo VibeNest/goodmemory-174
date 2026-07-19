@@ -12,6 +12,7 @@ import type {
   MemoryScopeKind,
   ReferenceKind,
 } from "./records";
+import type { MemoryScope } from "./scope";
 
 export type ProfileField =
   | "name"
@@ -35,6 +36,41 @@ export type MemoryCandidateExplicitness = "explicit" | "inferred";
 export type MemoryExtractionStrategy = "rules-only" | "llm-assisted" | "auto";
 export type MessageAnnotationRememberMode = "always" | "never" | "auto";
 
+export type MemoryClaimPolarity = "positive" | "negative";
+export type MemoryClaimModality =
+  | "asserted"
+  | "planned"
+  | "attempted"
+  | "completed"
+  | "unknown";
+
+export interface MemoryCandidateClaimMetadata {
+  predicateKey: string;
+  objectText: string;
+  objectEntity?: string;
+  polarity?: MemoryClaimPolarity;
+  modality?: MemoryClaimModality;
+  validFrom?: string;
+  validUntil?: string;
+  confidence?: number;
+}
+
+export interface AppendClaimProjectionInput extends MemoryScope {
+  sourceMemoryId: string;
+  subject: string;
+  claim: MemoryCandidateClaimMetadata;
+  contextualDescriptor?: string;
+  observedAt: string;
+  ingestedAt: string;
+  evidenceIds: string[];
+  sourceMessageIds: string[];
+  extractorVersion: string;
+}
+
+export interface ClaimProjectionWritePort {
+  appendClaim(input: AppendClaimProjectionInput): Promise<void>;
+}
+
 export interface MemoryCandidateMetadata {
   category?: MemoryCategory;
   factKind?: FactKind;
@@ -51,6 +87,8 @@ export interface MemoryCandidateMetadata {
   referenceTitle?: string;
   referencePointer?: string;
   supersedesPointer?: string;
+  claim?: MemoryCandidateClaimMetadata;
+  contextualDescriptor?: string;
 }
 
 export interface MemoryCandidateAnnotationTrace {
@@ -74,6 +112,7 @@ export interface MemoryCandidate {
   ruleIds?: string[];
   content: string;
   sourceMessageIndex: number;
+  sourceMessageIndexes?: number[];
   sourceRole: string;
   metadata?: MemoryCandidateMetadata;
 }

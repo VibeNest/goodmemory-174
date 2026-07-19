@@ -29,6 +29,7 @@ export interface SessionMessage {
   id?: string;
   role: string;
   content: string;
+  observedAt?: string;
 }
 
 export interface PreferenceMemory {
@@ -287,6 +288,7 @@ export interface ArtifactSpillRecord {
   preview: string;
   replacementText: string;
   storageUri: string;
+  contentHash?: string;
   originalBytes: number;
   createdAt: string;
 }

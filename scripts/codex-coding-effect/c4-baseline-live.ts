@@ -31,6 +31,7 @@ import type { C3NoMemoryArmRuntime } from "./c3-runtime";
 import { prepareC3IsolatedClone } from "./c3-workspace";
 import {
   buildC4BaselineCeilingTargets,
+  buildC4BaselineFrozenStageBindings,
   buildC4BaselinePrompt,
   loadC4BaselineStageEvidenceFiles,
   runC4AdaptiveBaselineCeiling,
@@ -42,6 +43,7 @@ import type {
   C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
   C4BaselineRunIdentity,
+  C4BaselineFrozenStageBinding,
   C4BaselineStageResult,
 } from "./c4-baseline-ceiling";
 import {
@@ -93,6 +95,7 @@ export interface C4NoMemoryCeilingPilotInput {
 }
 
 export interface C4NoMemoryCeilingPilotResult {
+  frozenStageBindings: C4BaselineFrozenStageBinding[];
   report: C4BaselineCeilingReport;
   reportBytes: string;
   reportSha256: string;
@@ -157,6 +160,11 @@ export async function runC4NoMemoryCeilingPilot(
       datasetRoot: datasetSnapshotRoot,
       sourceRoot: join(sourceRoot, "repositories"),
     });
+    const frozenStageBindings = await buildC4BaselineFrozenStageBindings({
+      dataset: controlledDataset,
+      datasetRoot: datasetSnapshotRoot,
+      repositories,
+    });
     const runIdentity: C4BaselineRunIdentity = {
       assetLockSha256: storedAssetLock.assetLockSha256,
       assetRootSha256: storedAssetLock.assetLock.assetRootSha256,
@@ -212,6 +220,7 @@ export async function runC4NoMemoryCeilingPilot(
         join(outputDirectory, "stages"),
         report,
       ),
+      frozenStageBindings,
     );
     const reportBytes = serializeC4BaselineCeilingReport(report);
     const reportSha256 = sha256(reportBytes);
@@ -226,7 +235,7 @@ export async function runC4NoMemoryCeilingPilot(
       reportSha256,
       resolvedCount: report.resolvedCount,
     });
-    return { report, reportBytes, reportSha256 };
+    return { frozenStageBindings, report, reportBytes, reportSha256 };
   } catch (error) {
     const reason = sanitizeFailureReason(errorMessage(error));
     await writeFile(
@@ -498,6 +507,7 @@ async function executeBaselineStage(input: {
         durationMs: codex.durationMs,
         eventCount: codex.events.length,
         exitCode: codex.exitCode,
+        failureEvents: codex.failureEvents ?? [],
         status: codex.status,
         stderr: codex.stderr,
         stdoutOmitted: true,

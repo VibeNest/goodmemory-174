@@ -3,11 +3,19 @@ import {
   scopeToKey,
 } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
-import type { DocumentStore } from "../../storage/contracts";
+import {
+  isActiveMemoryLifecycle,
+  type FactMemory,
+} from "../../domain/records";
+import type {
+  ProjectionCapableDocumentStore,
+  StorageDocument,
+} from "../../storage/contracts";
 import {
   PROJECTION_REPAIRS_COLLECTION,
 } from "./contracts";
 import type {
+  AppendClaimProjectionInput,
   ProjectionRepairRecord,
   RecallProjectionSourceCollection,
 } from "./contracts";
@@ -27,9 +35,20 @@ export interface ProjectionRepairInput {
   error: unknown;
   scope?: MemoryScope;
   sourceMemoryId: string;
+  target?: "recall" | "claim";
+  claimInput?: AppendClaimProjectionInput;
 }
 
 export interface RecallProjectionRepairs {
+  deleteCanonicalAndRepairs(
+    collection: RecallProjectionSourceCollection,
+    sourceMemoryId: string,
+    canonical: StorageDocument,
+  ): Promise<boolean>;
+  discardSource(
+    collection: RecallProjectionSourceCollection,
+    sourceMemoryId: string,
+  ): Promise<void>;
   queue(input: ProjectionRepairInput): Promise<void>;
   repairPending(scope: MemoryScope): Promise<number>;
 }
@@ -37,23 +56,24 @@ export interface RecallProjectionRepairs {
 function repairId(
   collection: RecallProjectionSourceCollection,
   sourceMemoryId: string,
+  target: "recall" | "claim" = "recall",
 ): string {
-  return `${collection}:${sourceMemoryId}:${crypto.randomUUID()}`;
+  return `${collection}:${sourceMemoryId}:${target}`;
 }
 
 export function createRecallProjectionRepairs(input: {
-  documentStore: DocumentStore;
+  documentStore: ProjectionCapableDocumentStore;
   mutationLock: KeyedMutationLock;
   now: () => string;
   operations: RecallProjectionOperations;
 }): RecallProjectionRepairs {
   const { documentStore, mutationLock, now, operations } = input;
-  const volatileRepairs = new Map<string, ProjectionRepairRecord>();
 
   async function queue(repairInput: ProjectionRepairInput): Promise<void> {
     const id = repairId(
       repairInput.collection,
       repairInput.sourceMemoryId,
+      repairInput.target,
     );
     const scope = repairInput.scope;
     if (!scope) {
@@ -69,6 +89,36 @@ export function createRecallProjectionRepairs(input: {
     }
     const timestamp = now();
     const normalized = normalizeScope(scope);
+    const canonical = await documentStore.get<StorageDocument>(
+      repairInput.collection,
+      repairInput.sourceMemoryId,
+    );
+    const canonicalScope = canonical
+      ? resolveProjectionScope(canonical)
+      : null;
+    if (!canonical || !canonicalScope) {
+      if (repairInput.target === "claim" || repairInput.claimInput) return;
+      const repair: ProjectionRepairRecord = {
+        id,
+        schemaVersion: 1,
+        ...normalized,
+        scopeKey: scopeToKey(normalized),
+        sourceCollection: repairInput.collection,
+        sourceMemoryId: repairInput.sourceMemoryId,
+        attempts: 1,
+        firstFailedAt: timestamp,
+        lastFailedAt: timestamp,
+        lastError: errorMessage(repairInput.error),
+        target: "recall",
+      };
+      await documentStore.set(PROJECTION_REPAIRS_COLLECTION, id, repair);
+      return;
+    }
+    if (repairInput.target === "claim") {
+      if (!matchesScopeFilter(canonicalScope, normalized)) return;
+      const fact = canonical as FactMemory;
+      if (!isActiveMemoryLifecycle(fact) || fact.isActive === false) return;
+    }
     const repair: ProjectionRepairRecord = {
       id,
       schemaVersion: 1,
@@ -80,20 +130,31 @@ export function createRecallProjectionRepairs(input: {
       firstFailedAt: timestamp,
       lastFailedAt: timestamp,
       lastError: errorMessage(repairInput.error),
+      target: repairInput.target,
+      claimInput: repairInput.claimInput,
     };
-    volatileRepairs.set(id, repair);
-    try {
-      await documentStore.set(PROJECTION_REPAIRS_COLLECTION, id, repair);
-    } catch (queueError) {
-      console.error(
-        "[goodmemory:recall-projection] failed to persist projection repair",
-        {
-          collection: repairInput.collection,
-          error: errorMessage(queueError),
-          sourceMemoryId: repairInput.sourceMemoryId,
-        },
-      );
-    }
+    const existing = await documentStore.get<ProjectionRepairRecord>(
+      PROJECTION_REPAIRS_COLLECTION,
+      id,
+    );
+    const committed = await documentStore.writeBatchIfUnchanged({
+      expected: {
+        collection: repairInput.collection,
+        document: canonical,
+        id: repairInput.sourceMemoryId,
+      },
+      set: [{
+        collection: PROJECTION_REPAIRS_COLLECTION,
+        document: repair,
+        id,
+      }],
+      unchanged: [{
+        collection: PROJECTION_REPAIRS_COLLECTION,
+        document: existing,
+        id,
+      }],
+    });
+    if (!committed) return;
     const affectedScopes = new Map<string, MemoryScope>();
     for (const affected of [normalized, ...(repairInput.affectedScopes ?? [])]) {
       affectedScopes.set(scopeToKey(affected), affected);
@@ -114,6 +175,46 @@ export function createRecallProjectionRepairs(input: {
   }
 
   return {
+    async deleteCanonicalAndRepairs(collection, sourceMemoryId, canonical) {
+      const persisted = await documentStore.query<ProjectionRepairRecord>(
+        PROJECTION_REPAIRS_COLLECTION,
+        { sourceCollection: collection, sourceMemoryId },
+      );
+      const repairs = new Map<string, ProjectionRepairRecord | null>(
+        persisted.map((repair) => [repair.id, repair]),
+      );
+      for (const target of ["recall", "claim"] as const) {
+        const id = repairId(collection, sourceMemoryId, target);
+        if (!repairs.has(id)) {
+          repairs.set(id, null);
+        }
+      }
+      return documentStore.writeBatchIfUnchanged({
+        delete: [
+          { collection, id: sourceMemoryId },
+          ...[...repairs.keys()].map((id) => ({
+            collection: PROJECTION_REPAIRS_COLLECTION,
+            id,
+          })),
+        ],
+        expected: { collection, document: canonical, id: sourceMemoryId },
+        set: [],
+        unchanged: [...repairs].map(([id, repair]) => ({
+          collection: PROJECTION_REPAIRS_COLLECTION,
+          document: repair,
+          id,
+        })),
+      });
+    },
+    async discardSource(collection, sourceMemoryId) {
+      const persisted = await documentStore.query<ProjectionRepairRecord>(
+        PROJECTION_REPAIRS_COLLECTION,
+        { sourceCollection: collection, sourceMemoryId },
+      );
+      for (const repair of persisted) {
+        await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
+      }
+    },
     queue,
     async repairPending(scope) {
       const queried = await documentStore.query<ProjectionRepairRecord>(
@@ -123,30 +224,39 @@ export function createRecallProjectionRepairs(input: {
       const persisted = queried.filter((repair) =>
         matchesScopeFilter(repair, scope),
       );
-      const repairs = new Map(
-        [
-          ...persisted,
-          ...[...volatileRepairs.values()].filter((repair) =>
-            matchesScopeFilter(repair, scope),
-          ),
-        ].map((repair) => [repair.id, repair]),
-      );
       let repaired = 0;
-      for (const repair of [...repairs.values()].sort((left, right) =>
+      for (const repair of [...persisted].sort((left, right) =>
         left.id.localeCompare(right.id),
       )) {
         try {
           await mutationLock.runExclusive(
             [sourceMutationKey(repair.sourceCollection, repair.sourceMemoryId)],
-            () =>
-              operations.synchronizeUnsafe(
+            async () => {
+              if (repair.target === "claim" && repair.claimInput) {
+                const canonical = await documentStore.get<StorageDocument>(
+                  repair.sourceCollection,
+                  repair.sourceMemoryId,
+                );
+                const fact = canonical as FactMemory | null;
+                if (
+                  !fact ||
+                  !matchesScopeFilter(fact, repair.claimInput) ||
+                  !isActiveMemoryLifecycle(fact) ||
+                  fact.isActive === false
+                ) {
+                  return;
+                }
+                await operations.appendClaimUnsafe(repair.claimInput);
+                return;
+              }
+              await operations.synchronizeUnsafe(
                 repair.sourceCollection,
                 repair.sourceMemoryId,
                 resolveProjectionScope(repair) ?? undefined,
                 true,
-              ),
+              );
+            },
           );
-          volatileRepairs.delete(repair.id);
           await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
           repaired += 1;
         } catch (error) {
@@ -157,9 +267,30 @@ export function createRecallProjectionRepairs(input: {
             lastFailedAt: timestamp,
             lastError: errorMessage(error),
           };
-          volatileRepairs.set(next.id, next);
           try {
-            await documentStore.set(PROJECTION_REPAIRS_COLLECTION, next.id, next);
+            const canonical = await documentStore.get<StorageDocument>(
+              repair.sourceCollection,
+              repair.sourceMemoryId,
+            );
+            if (!canonical) {
+              await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
+              continue;
+            }
+            const committed = await documentStore.writeBatchIfUnchanged({
+              expected: {
+                collection: repair.sourceCollection,
+                document: canonical,
+                id: repair.sourceMemoryId,
+              },
+              set: [{
+                collection: PROJECTION_REPAIRS_COLLECTION,
+                document: next,
+                id: next.id,
+              }],
+            });
+            if (!committed) {
+              await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
+            }
           } catch (persistError) {
             console.error(
               "[goodmemory:recall-projection] repair retry could not persist state",

@@ -1,8 +1,8 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..c979521c41f21f2586de05f250f73faf5744b958 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..f05dc091ee1e6309cde6a68902441b236d414ad8 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -31,7 +31,7 @@ export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }
+@@ -23,7 +23,7 @@ export function resolveTimeoutConfig(input: { graceMs: number; timeout: number }
  }
  
  export function resolveRetryConfig(input: { capMs: number; initial: number }): { capMs: number; initialMs: number } {

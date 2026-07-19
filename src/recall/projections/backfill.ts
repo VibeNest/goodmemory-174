@@ -1,7 +1,9 @@
 import { normalizeScope } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
+import { EVIDENCE_COLLECTION } from "../../evidence/contracts";
+import type { EvidenceRecord } from "../../evidence/contracts";
 import type {
-  DocumentStore,
+  ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
 import {
@@ -33,7 +35,7 @@ export type EnsureScopeIndexed = RecallProjectionSearchPort["ensureScopeIndexed"
 
 export function createEnsureScopeIndexed(input: {
   bulkBackfill?: boolean;
-  documentStore: DocumentStore;
+  documentStore: ProjectionCapableDocumentStore;
   mutationLock: KeyedMutationLock;
   now: () => string;
   operations: RecallProjectionOperations;
@@ -57,6 +59,20 @@ export function createEnsureScopeIndexed(input: {
     }
 
     const canonicalSources: RecallProjectionCanonicalSource[] = [];
+    const queriedEvidence = await documentStore.query<EvidenceRecord>(
+      EVIDENCE_COLLECTION,
+      scopeFilter(normalized),
+    );
+    const evidenceByMemoryId = new Map<string, EvidenceRecord[]>();
+    for (const evidence of queriedEvidence.filter((record) =>
+      matchesScopeFilter(record, normalized),
+    )) {
+      for (const memoryId of evidence.linkedMemoryIds) {
+        const records = evidenceByMemoryId.get(memoryId) ?? [];
+        records.push(evidence);
+        evidenceByMemoryId.set(memoryId, records);
+      }
+    }
     for (const collection of RECALL_PROJECTION_SOURCE_COLLECTIONS) {
       const queriedDocuments = await documentStore.query<StorageDocument>(
         collection,
@@ -80,7 +96,12 @@ export function createEnsureScopeIndexed(input: {
               ? record.id
               : undefined;
         if (id) {
-          canonicalSources.push({ collection, document, id });
+          canonicalSources.push({
+            collection,
+            document,
+            evidence: evidenceByMemoryId.get(id) ?? [],
+            id,
+          });
         }
       }
     }
@@ -123,6 +144,8 @@ export function createEnsureScopeIndexed(input: {
               source.collection,
               source.id,
               sourceScope ?? undefined,
+              false,
+              source.evidence,
             ),
         );
         indexedSources += 1;

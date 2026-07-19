@@ -33,8 +33,8 @@ import {
   resolveCliFlagValueStrict,
   resolveCliPathSegmentFlagValueStrict,
 } from "./cli-options";
-import { buildAnswerEvidencePack } from "../src/answer/evidencePack";
-import type { EvidenceTurn } from "../src/answer/evidencePack";
+import { buildAnswerEvidencePack } from "../src/eval/protocol-reader/evidencePack";
+import type { EvidenceTurn } from "../src/eval/protocol-reader/evidencePack";
 import {
   assertPhase63Readiness,
   checkPhase63Readiness,

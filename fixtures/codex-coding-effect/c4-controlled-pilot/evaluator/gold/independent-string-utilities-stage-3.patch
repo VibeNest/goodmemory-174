@@ -1,8 +1,8 @@
 diff --git a/src/tasks.ts b/src/tasks.ts
-index 913dc38c9bb6a26e73bd722148427d6b649b7f98..3a5a014f0a6378c6f08b114ebe9a1cec756340ec 100644
+index 248330e0f0e46970b52f56af725edac918e5beee..1178418fcd0e8f8af036319c6e5241908c9d96f2 100644
 --- a/src/tasks.ts
 +++ b/src/tasks.ts
-@@ -47,5 +47,5 @@ export function parseCsvUnique(input: string): string[] {
+@@ -39,5 +39,5 @@ export function parseCsvUnique(input: string): string[] {
  }
  
  export function encodePathSegment(value: string): string {

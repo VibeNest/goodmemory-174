@@ -31,7 +31,12 @@ describe("Codex coding-effect evaluator sandbox", () => {
     const sandboxRoot = "/tmp/c3/runtime/evaluator-sandbox";
     const evaluatorRoot = join(sandboxRoot, "evaluator");
     const evaluationWorkspace = join(sandboxRoot, "workspace");
+    const deniedReadPaths = [
+      "/secure/auth.json",
+      "/secure/goodmemory-source",
+    ];
     const config = buildCodexEvaluatorSandboxConfig({
+      deniedReadPaths,
       evaluationWorkspace,
       evaluatorRoot,
       profileName: "c3-evaluator",
@@ -41,9 +46,83 @@ describe("Codex coding-effect evaluator sandbox", () => {
     expect(config).toContain('"evaluator" = "read"');
     expect(config).toContain('"workspace" = "write"');
     expect(config).toContain('"." = "read"');
+    for (const path of deniedReadPaths) {
+      expect(config).toContain(`${JSON.stringify(path)} = "deny"`);
+    }
     expect(config).not.toContain(
       `${JSON.stringify(resolve(sandboxRoot, "codex-home"))} = "write"`,
     );
+  });
+
+  it("keeps an evaluator already materialized at the canonical root readable", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-canonical-evaluator-"));
+    roots.push(root);
+    const authFile = join(root, "auth-source", "auth.json");
+    const sandboxRoot = join(root, "runtime", "sandbox");
+    const evaluatorRoot = join(sandboxRoot, "evaluator");
+    const evaluatorFile = join(evaluatorRoot, "runner.ts");
+    const evaluationWorkspace = join(sandboxRoot, "workspace");
+    const configPath = join(sandboxRoot, "codex-home", "config.toml");
+    await Promise.all([
+      mkdir(join(root, "auth-source"), { recursive: true }),
+      mkdir(evaluatorRoot, { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(authFile, "{}\n"),
+      writeFile(evaluatorFile, "export {};\n"),
+    ]);
+
+    const runBoundary = async (
+      request: BoundaryProcessRequest,
+    ): Promise<BoundaryProcessResult> => {
+      const command = sandboxCommand(request);
+      if (command[0] === "/bin/cat") {
+        const path = command[1]!;
+        if (path === evaluatorFile) {
+          const config = await readFile(configPath, "utf8");
+          return config.includes(`${JSON.stringify(evaluatorRoot)} = "deny"`)
+            ? result(1)
+            : result(0, await readFile(path, "utf8"));
+        }
+        if (path === authFile || path.endsWith("/.auth-alias-probe")) {
+          return result(1);
+        }
+        return result(0, await readFile(path, "utf8"));
+      }
+      if (command[0] === "/usr/bin/touch") {
+        const path = command[1]!;
+        if (path.startsWith(`${evaluatorRoot}/`) || path === configPath) {
+          return result(1);
+        }
+        await writeFile(path, "");
+        return result(0);
+      }
+      if (command[0] === resolve(process.execPath)) {
+        return result(1);
+      }
+      throw new Error(`unexpected sandbox command ${command.join(" ")}`);
+    };
+
+    const sandbox = await prepareCodexEvaluatorSandbox({
+      authFile,
+      baseEnv: { PATH: "/usr/bin:/bin" },
+      bunExecutable: resolve(process.execPath),
+      codexExecutable: "/opt/codex/bin/codex",
+      copiedAuthRemovedBeforeEvaluator: true,
+      evaluationWorkspace,
+      evaluatorReadProbePath: evaluatorFile,
+      evaluatorRoot,
+      networkProbe: async () => ({
+        networkDenied: true,
+        networkPositiveControl: true,
+      }),
+      profileName: "c4-evaluator",
+      runBoundary,
+      sandboxRoot,
+    });
+
+    expect(sandbox.evidence.evaluatorRead).toBe(true);
+    expect(sandbox.evaluatorRoot).toBe(evaluatorRoot);
   });
 
   it("fails closed when an evaluator process changes the canonical sandbox config", async () => {

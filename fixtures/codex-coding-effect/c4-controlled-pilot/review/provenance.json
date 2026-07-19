@@ -1,0 +1,33 @@
+{
+  "authorTaskName": "/root",
+  "datasetId": "codex-c4-controlled-pilot-v2",
+  "dispatch": {
+    "path": "review/dispatch.json",
+    "sha256": "71fc4df6fec51308f0cbbb8b25a61ea13cab4b00f6cef9bb9935c531be1c6e59"
+  },
+  "inputBundle": {
+    "path": "review/input-bundle.json",
+    "sha256": "f7430cd7cf2b66d08ed15513bbf3b108359d6f611bda48e236cd0d334bc7a823"
+  },
+  "recordedAt": "2026-07-18T18:12:16.507Z",
+  "request": {
+    "path": "review/request.md",
+    "sha256": "2ea00cdb0a4c167b7c3ee78c78b8b983adc2d5781a69bce2ed7e3d17a238027e"
+  },
+  "response": {
+    "path": "review/independent-review.json",
+    "sha256": "16f63486e39d349b98abfb38340e8492962d8ecf2b78ed488b28e9c4ae439a09"
+  },
+  "reviewer": {
+    "agentName": "/root/c4_final_independent_review_v5",
+    "contextPolicy": "fork-turns-none",
+    "orchestratorAttestation": {
+      "attestedByTaskName": "/root",
+      "basis": "dispatch-plus-recorder-cli-no-cryptographic-receipt",
+      "canonicalTaskName": "/root/c4_final_independent_review_v5"
+    },
+    "requestedTaskName": "c4_final_independent_review_v5",
+    "type": "independent-ai-agent"
+  },
+  "schemaVersion": 2
+}

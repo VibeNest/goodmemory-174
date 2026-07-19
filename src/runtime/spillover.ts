@@ -1,9 +1,21 @@
+import { createHash } from "node:crypto";
+
 import type { ArtifactSpillRecord } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
 import type { DocumentStore } from "../storage/contracts";
 
 export const ARTIFACT_SPILL_COLLECTION = "artifact_spills";
+export const ARTIFACT_SPILL_PAYLOAD_COLLECTION = "artifact_spill_payloads_v1";
+
+export interface ArtifactSpillPayloadRecord {
+  content: string;
+  contentHash: string;
+  createdAt: string;
+  id: string;
+  originalBytes: number;
+  scope: MemoryScope;
+}
 
 export interface SpillInput {
   kind: ArtifactSpillRecord["kind"];
@@ -40,6 +52,26 @@ function buildRecordId(scope: MemoryScope, sourceId: string): string {
   return `${scopeToKey(scope)}::${sourceId}`;
 }
 
+function buildContentHash(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function buildPayloadId(scope: MemoryScope, contentHash: string): string {
+  return `${scopeToKey(scope)}::${contentHash}`;
+}
+
+function buildPayloadUri(payloadId: string): string {
+  return `memory://artifact-spill-payloads/${encodeURIComponent(payloadId)}`;
+}
+
+function parsePayloadUri(storageUri: string): string | undefined {
+  const prefix = "memory://artifact-spill-payloads/";
+  if (!storageUri.startsWith(prefix)) {
+    return undefined;
+  }
+  return decodeURIComponent(storageUri.slice(prefix.length));
+}
+
 export function createArtifactSpilloverService(
   config: ArtifactSpilloverServiceConfig,
 ) {
@@ -53,6 +85,24 @@ export function createArtifactSpilloverService(
         recordId,
       );
 
+      const contentHash = buildContentHash(input.content);
+      const payloadId = buildPayloadId(scope, contentHash);
+      const originalBytes = new TextEncoder().encode(input.content).length;
+      const createdAt = existing?.createdAt ?? new Date(0).toISOString();
+      const payload: ArtifactSpillPayloadRecord = {
+        content: input.content,
+        contentHash,
+        createdAt,
+        id: payloadId,
+        originalBytes,
+        scope,
+      };
+      await config.documentStore.set(
+        ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+        payloadId,
+        payload,
+      );
+
       const record: ArtifactSpillRecord = {
         id: existing?.id ?? recordId,
         scope,
@@ -64,10 +114,10 @@ export function createArtifactSpilloverService(
           `[[spill:${input.kind}:${buildStableHandle(scope, input.sourceId)}]]`,
         storageUri:
           input.storageUri ??
-          existing?.storageUri ??
-          `memory://artifact-spills/${encodeURIComponent(recordId)}`,
-        originalBytes: new TextEncoder().encode(input.content).length,
-        createdAt: existing?.createdAt ?? new Date(0).toISOString(),
+          buildPayloadUri(payloadId),
+        originalBytes,
+        contentHash,
+        createdAt,
       };
 
       await config.documentStore.set(ARTIFACT_SPILL_COLLECTION, recordId, record);
@@ -82,6 +132,23 @@ export function createArtifactSpilloverService(
         ARTIFACT_SPILL_COLLECTION,
         buildRecordId(scope, sourceId),
       );
+    },
+
+    async resolve(
+      scope: MemoryScope,
+      value: ArtifactSpillRecord | string,
+    ): Promise<string | null> {
+      const payloadId = typeof value === "string"
+        ? parsePayloadUri(value)
+        : buildPayloadId(scope, value.contentHash ?? "");
+      if (!payloadId || !payloadId.startsWith(`${scopeToKey(scope)}::`)) {
+        return null;
+      }
+      const payload = await config.documentStore.get<ArtifactSpillPayloadRecord>(
+        ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+        payloadId,
+      );
+      return payload?.content ?? null;
     },
   };
 }

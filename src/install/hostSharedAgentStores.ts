@@ -61,9 +61,40 @@ export function wrapDocumentStoreForSharedAgents(
     update: (collection, id, patch) => store.update(collection, id, patch),
   };
 
-  // Preserve optional-capability detection on the base store.
   if (store.writeBatchIfUnchanged) {
-    wrapped.writeBatchIfUnchanged = (input) => store.writeBatchIfUnchanged!(input);
+    wrapped.writeBatchIfUnchanged = (input) =>
+      store.writeBatchIfUnchanged!(input);
+  }
+
+  if (store.searchText) {
+    wrapped.searchText = async <TDocument extends StorageDocument>(
+      collection: string,
+      input: Parameters<NonNullable<DocumentStore["searchText"]>>[1],
+    ) => {
+      if (!input.filter || input.filter.agentId !== options.ownAgentId) {
+        return store.searchText!<TDocument>(collection, input);
+      }
+      const results = await Promise.all(
+        [...visibleAgents].map((agentId) =>
+          store.searchText!<TDocument>(collection, {
+            ...input,
+            filter: { ...input.filter, agentId },
+          })
+        ),
+      );
+      return results
+        .flatMap((matches, agentIndex) => matches.map((match) => ({
+          ...match,
+          document: agentIndex === 0
+            ? match.document
+            : markRecallAgentScopeAuthorized(
+                { ...match.document },
+                options.ownAgentId,
+              ),
+        })))
+        .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
+        .slice(0, input.limit);
+    };
   }
 
   return wrapped;

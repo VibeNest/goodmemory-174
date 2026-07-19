@@ -14,7 +14,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { EmbeddingAdapter } from "../embedding/contracts";
-import type { EvidenceRecord } from "../evidence/contracts";
+import type { EvidenceRecord, SourceMessageRecord } from "../evidence/contracts";
 import type {
   ExperienceRecord,
   LearningProposal,
@@ -255,7 +255,7 @@ export interface BuildContextResult {
 
 export interface RememberInput {
   scope: MemoryScope;
-  messages: Array<{ role: string; content: string }>;
+  messages: SessionMessage[];
   annotations?: MessageAnnotation[];
   extractionStrategy?: MemoryExtractionStrategy;
   locale?: string;
@@ -363,6 +363,7 @@ export interface ExportMemoryResult {
     episodes: EpisodeMemory[];
     archives: SessionArchive[];
     evidence: EvidenceRecord[];
+    sourceMessages?: SourceMessageRecord[];
     experiences: ExperienceRecord[];
     proposals: LearningProposal[];
     promotions: PromotionRecord[];

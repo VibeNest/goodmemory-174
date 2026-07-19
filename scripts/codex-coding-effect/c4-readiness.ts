@@ -22,6 +22,7 @@ import {
 import type {
   C4BaselineCeilingReport,
   C4BaselineCeilingTarget,
+  C4BaselineFrozenStageBinding,
   C4BaselineStageEvidenceFile,
 } from "./c4-baseline-ceiling";
 import {
@@ -40,8 +41,8 @@ import {
 } from "./c4-contracts";
 import {
   auditC4SurfaceHiddenArtifactMatrix,
-  c4HiddenValueAppearsInSurface,
-  c4HiddenValueRelationAppearsInSurface,
+  c4HiddenValueAppearsInSurfaces,
+  c4HiddenValueRelationAppearsInSurfaces,
   C4_HIDDEN_ARTIFACT_IDS,
   C4_LEAKAGE_SURFACE_IDS,
   mutationTestC4SurfaceHiddenArtifactMatrix,
@@ -218,11 +219,15 @@ export interface C4StageReadiness {
   baseProbeStable: boolean;
   baseProbes: C4BaseProbeEvidence[];
   episodeId: string;
+  evaluatorCommitments: C4BaselineFrozenStageBinding["evaluatorCommitments"];
+  effectivePromptSha256: string;
   goldChangedFiles: string[];
   goldPassed: boolean;
   goldPatchSha256: string;
   goldReplaySha256: string;
   memoryExpectation: "irrelevant-control" | "none" | "required";
+  repositoryCommit: string;
+  repositoryTree: string;
   stageId: string;
   stageInputSha256: string;
 }
@@ -237,6 +242,9 @@ export interface C4LeakageReadiness {
   auditSha256: string;
   auditedHiddenArtifacts: string[];
   auditedSurfaces: C4LeakageSurfaceId[];
+  candidateBindingVersion: 1;
+  candidateExtractionVersion:
+    "semantic-documents-exact-relations-corpus-wide-v9";
   c5LiveReauditSurfaces: C4LiveReauditSurfaceId[];
   deferredC5Surfaces: C4LiveReauditSurfaceId[];
   directFrozenSurfaces: C4LeakageSurfaceId[];
@@ -254,6 +262,7 @@ export interface C4LeakageReadiness {
   mutationApplicableCellCount: number;
   mutationCellCount: number;
   mutationNotApplicableCellCount: number;
+  normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v4";
   overlapCount: number;
   runtimeSurfacePolicy:
     "content-preserving-projection-plus-C5-live-reaudit";
@@ -325,7 +334,7 @@ export interface C4DatasetReadinessReport {
     ceilingRisk: false;
     decision: "proceed-to-c5-pilot";
     infrastructureFailureCount: 0;
-    path: typeof C4_BASELINE_CEILING_REPORT_PATH;
+    path: string;
     reportSha256: string;
     runIdentitySha256: string;
     stageEvidenceAggregateSha256: string;
@@ -348,7 +357,7 @@ export interface C4DatasetReadinessReport {
   reviewerAgentName: string;
   reviewerIdentityEvidence:
     "orchestrator-attestation-not-cryptographic-receipt";
-  reviewerRequestedTaskName: "c4_final_independent_review_v3";
+  reviewerRequestedTaskName: "c4_final_independent_review_v5";
   reviewerType: "independent-ai-agent";
   reviewContextPolicy: "fork-turns-none";
   reviewDispatchSha256: string;
@@ -520,6 +529,7 @@ export function validateC4BaselineCeilingEvidence(
   baselineBytes: string,
   stageEvidenceFiles: readonly C4BaselineStageEvidenceFile[],
   expectedTargets: readonly C4BaselineCeilingTarget[],
+  frozenBindings: readonly C4BaselineFrozenStageBinding[],
 ): {
   report: C4BaselineCeilingReport;
   reportSha256: string;
@@ -539,7 +549,11 @@ export function validateC4BaselineCeilingEvidence(
   }
   assertC4BaselineCeilingReportBindings(report);
   verifyC4BaselineDatasetTargets(report, expectedTargets);
-  verifyC4BaselineStageEvidenceFiles(report, stageEvidenceFiles);
+  verifyC4BaselineStageEvidenceFiles(
+    report,
+    stageEvidenceFiles,
+    frozenBindings,
+  );
   if (report.decision === "redesign-episodes-before-c5") {
     throw new Error(
       "C4 baseline ceiling report requires episode redesign before C5",
@@ -562,6 +576,7 @@ export function validateC4BaselineCeilingEvidence(
 
 export function finalizeC4DatasetReadiness(input: {
   baselineBytes: string;
+  baselinePath?: string;
   baselineStageEvidenceFiles: readonly C4BaselineStageEvidenceFile[];
   dispatchBytes: string;
   inputBundleBytes: string;
@@ -580,6 +595,16 @@ export function finalizeC4DatasetReadiness(input: {
         position: stage.stageId === "stage-2" ? 2 : 3,
         stageId: stage.stageId === "stage-2" ? "stage-2" : "stage-3",
         stageInputSha256: stage.stageInputSha256,
+      })),
+    input.result.core.stages
+      .filter((stage) => stage.stageId === "stage-2" || stage.stageId === "stage-3")
+      .map((stage) => ({
+        episodeId: stage.episodeId,
+        evaluatorCommitments: stage.evaluatorCommitments,
+        promptSha256: stage.effectivePromptSha256,
+        repositoryCommit: stage.repositoryCommit,
+        repositoryTree: stage.repositoryTree,
+        stageId: stage.stageId as "stage-2" | "stage-3",
       })),
   );
   assertC4CanonicalIndependentReviewInstructions({
@@ -715,7 +740,7 @@ export function finalizeC4DatasetReadiness(input: {
       ceilingRisk: false,
       decision: "proceed-to-c5-pilot",
       infrastructureFailureCount: 0,
-      path: C4_BASELINE_CEILING_REPORT_PATH,
+      path: input.baselinePath ?? C4_BASELINE_CEILING_REPORT_PATH,
       reportSha256: baseline.reportSha256,
       runIdentitySha256: baseline.report.runIdentitySha256,
       stageEvidenceAggregateSha256:
@@ -928,16 +953,30 @@ async function verifyStage(input: {
   assertPassed(goldTests.passToPass, "gold pass-to-pass", input);
   assertPassed(goldTests.failToPass, "gold fail-to-pass", input);
   await rm(goldClone.path, { recursive: true });
+  const evaluatorCommitments = await Promise.all(
+    (["cases.json", "runner.ts"] as const).map(async (relativePath) => ({
+      relativePath,
+      sha256: sha256(await readFile(join(input.evaluatorRoot, relativePath))),
+    })),
+  );
+  const effectivePrompt = buildC4BaselinePrompt({
+    allowedFeedback: input.stage.allowedFeedback,
+    prompt: await readFile(join(input.datasetRoot, input.stage.promptPath), "utf8"),
+  });
 
   return {
     baseProbeStable: true,
     baseProbes,
     episodeId: input.episode.id,
+    evaluatorCommitments,
+    effectivePromptSha256: sha256(effectivePrompt),
     goldChangedFiles: changedFiles,
     goldPassed: true,
     goldPatchSha256: input.stage.goldPatch.sha256,
     goldReplaySha256,
     memoryExpectation: input.stage.memoryExpectation.mode,
+    repositoryCommit: input.stage.snapshot,
+    repositoryTree: input.sourceTree,
     stageId: input.stage.id,
     stageInputSha256: c4BaselineStageInputSha256(
       input.episode,
@@ -1029,13 +1068,8 @@ async function auditC4Leakage(
       .filter((file) => file.path.split("/").at(-1) === "AGENTS.md");
     const visibleFiles = repositorySurfaceFiles
       .filter((file) => file.path.split("/").at(-1) !== "AGENTS.md");
-    const repositoryInstructions = repositoryInstructionFiles
-      .map(serializeRepositorySurfaceFile);
-    const visibleRepositoryFiles = visibleFiles
-      .map(serializeRepositorySurfaceFile);
-    const publicNaturalSurface = repositorySurfaceFiles
-      .map((file) => file.content)
-      .join("\n\n");
+    const publicNaturalSurfaces = repositorySurfaceFiles
+      .flatMap((file) => [file.path, file.content]);
     const prehistoryMessages = artifact.records.map((record) =>
       record.message
     ).join("\n");
@@ -1089,39 +1123,36 @@ async function auditC4Leakage(
     const declaredAllowedValues = uniqueHiddenValues(
       episode.allowedPublicLeakageValues ?? [],
     );
-    const allHiddenRelations = uniqueHiddenValueRelations(
-      episodeCases.flatMap((testCase) => [
-        ...testCase.failToPass,
-        ...testCase.passToPass,
-      ]).flatMap(hiddenCaseRelations),
-    );
-    const allHiddenRelationKeys = new Set(
-      allHiddenRelations.map(hiddenValueRelationKey),
-    );
     const declaredAllowedRelations = uniqueHiddenValueRelations(
       episode.allowedPublicLeakageRelations ?? [],
     );
-    for (const relation of declaredAllowedRelations) {
-      if (
-        !allHiddenRelationKeys.has(hiddenValueRelationKey(relation)) ||
-        !c4HiddenValueRelationAppearsInSurface(
-          publicNaturalSurface,
-          relation,
-        )
-      ) {
-        throw new Error(
-          `C4 public leakage relation allowlist drifted for ${episode.id}`,
-        );
-      }
-    }
     const hiddenValueKeys = new Set(allHiddenValues.map(hiddenValueKey));
     for (const value of declaredAllowedValues) {
       if (
         !hiddenValueKeys.has(hiddenValueKey(value)) ||
-        !c4HiddenValueAppearsInSurface(publicNaturalSurface, value)
+        !c4HiddenValueAppearsInSurfaces(publicNaturalSurfaces, value)
       ) {
         throw new Error(
           `C4 public leakage allowlist drifted for ${episode.id}`,
+        );
+      }
+    }
+    const hiddenRelationKeys = new Set(
+      episodeCases.flatMap((testCase) => [
+        ...testCase.failToPass,
+        ...testCase.passToPass,
+      ]).flatMap(hiddenCaseRelations).map(hiddenValueRelationKey),
+    );
+    for (const relation of declaredAllowedRelations) {
+      if (
+        !hiddenRelationKeys.has(hiddenValueRelationKey(relation)) ||
+        !c4HiddenValueRelationAppearsInSurfaces(
+          publicNaturalSurfaces,
+          relation,
+        )
+      ) {
+        throw new Error(
+          `C4 public leakage relation proof drifted for ${episode.id}`,
         );
       }
     }
@@ -1183,10 +1214,11 @@ async function auditC4Leakage(
           id: "goodmemory-hook-context-after-seeding",
         },
         {
-          content: repositoryInstructions.join("\n"),
-          hiddenValueContent: repositoryInstructionFiles
-            .map((file) => file.content)
-            .join("\n\n"),
+          content: JSON.stringify(repositoryInstructionFiles),
+          fragmentContents: repositoryInstructionFiles
+            .flatMap((file) => [file.path, file.content]),
+          hiddenValueContents: repositoryInstructionFiles
+            .flatMap((file) => [file.path, file.content]),
           id: "repository-instructions",
         },
         {
@@ -1194,10 +1226,11 @@ async function auditC4Leakage(
           id: "stage-prompts",
         },
         {
-          content: visibleRepositoryFiles.join("\n"),
-          hiddenValueContent: visibleFiles
-            .map((file) => file.content)
-            .join("\n\n"),
+          content: JSON.stringify(visibleFiles),
+          fragmentContents: visibleFiles
+            .flatMap((file) => [file.path, file.content]),
+          hiddenValueContents: visibleFiles
+            .flatMap((file) => [file.path, file.content]),
           id: "visible-repository-files",
         },
       ];
@@ -1246,31 +1279,32 @@ async function auditC4Leakage(
       const artifacts: C4HiddenArtifact[] = [
         {
           allowedPublicFragments: expectedChangedFiles.filter((fragment) =>
-            containsNormalized(publicNaturalSurface, fragment)
+            containsNormalizedInSurfaces(publicNaturalSurfaces, fragment)
           ),
           content: JSON.stringify(expectedChangedFiles),
           fragments: expectedChangedFiles.filter((fragment) =>
-            !containsNormalized(publicNaturalSurface, fragment)
+            !containsNormalizedInSurfaces(publicNaturalSurfaces, fragment)
           ),
           id: "expected-changed-files",
         },
         {
           allowedPublicFragments: goldCandidateLines.filter((fragment) =>
-            containsNormalized(publicNaturalSurface, fragment)
+            containsNormalizedInSurfaces(publicNaturalSurfaces, fragment)
           ),
           content: goldPatch.bytes,
           fragments: goldCandidateLines.filter((fragment) =>
-            !containsNormalized(publicNaturalSurface, fragment)
+            !containsNormalizedInSurfaces(publicNaturalSurfaces, fragment)
           ),
           id: "gold-patches",
         },
         {
           allowedPublicFragments: hiddenSourceCandidateLines.filter(
-            (fragment) => containsNormalized(publicNaturalSurface, fragment),
+            (fragment) =>
+              containsNormalizedInSurfaces(publicNaturalSurfaces, fragment),
           ).concat(declaredAllowedValues.map(String)),
           content: hiddenSourceContent,
           fragments: hiddenSourceCandidateLines.filter((fragment) =>
-            !containsNormalized(publicNaturalSurface, fragment)
+            !containsNormalizedInSurfaces(publicNaturalSurfaces, fragment)
           ),
           hiddenValueRelations,
           hiddenValues,
@@ -1309,6 +1343,9 @@ async function auditC4Leakage(
   const auditBasis = {
     auditedHiddenArtifacts: [...C4_HIDDEN_ARTIFACT_IDS],
     auditedSurfaces: [...C4_LEAKAGE_SURFACE_IDS],
+    candidateBindingVersion: 1,
+    candidateExtractionVersion:
+      "semantic-documents-exact-relations-corpus-wide-v9",
     c5LiveReauditSurfaces: [
       "effective-codex-input-after-seeding",
       "flat-summary-after-seeding",
@@ -1350,6 +1387,7 @@ async function auditC4Leakage(
         ).length,
       0,
     ),
+    normalizationVersion: "nfkc-lowercase-whitespace-numeric-equivalence-v4",
     overlapCount: 0,
     runtimeSurfacePolicy:
       "content-preserving-projection-plus-C5-live-reaudit",
@@ -1360,6 +1398,8 @@ async function auditC4Leakage(
     auditSha256: sha256(JSON.stringify(auditBasis)),
     auditedHiddenArtifacts: [...auditBasis.auditedHiddenArtifacts],
     auditedSurfaces: [...auditBasis.auditedSurfaces],
+    candidateBindingVersion: auditBasis.candidateBindingVersion,
+    candidateExtractionVersion: auditBasis.candidateExtractionVersion,
     c5LiveReauditSurfaces: [...auditBasis.c5LiveReauditSurfaces],
     deferredC5Surfaces: [...auditBasis.deferredC5Surfaces],
     directFrozenSurfaces: [...auditBasis.directFrozenSurfaces],
@@ -1371,6 +1411,7 @@ async function auditC4Leakage(
     mutationCellCount: auditBasis.mutationCellCount,
     mutationNotApplicableCellCount:
       auditBasis.mutationNotApplicableCellCount,
+    normalizationVersion: auditBasis.normalizationVersion,
     overlapCount: 0,
     runtimeSurfacePolicy: auditBasis.runtimeSurfacePolicy,
     status: "accepted",
@@ -1406,12 +1447,6 @@ async function collectC4RepositorySurfaceFiles(
     });
   }
   return files.sort((left, right) => left.path.localeCompare(right.path));
-}
-
-function serializeRepositorySurfaceFile(
-  file: { content: string; path: string },
-): string {
-  return `FILE ${file.path}\n${file.content}`;
 }
 
 async function verifyLicenses(
@@ -1653,6 +1688,13 @@ function containsNormalized(surface: string, fragment: string): boolean {
   const normalized = normalizeLeakageText(fragment);
   return normalized.length > 0 &&
     normalizeLeakageText(surface).includes(normalized);
+}
+
+function containsNormalizedInSurfaces(
+  surfaces: readonly string[],
+  fragment: string,
+): boolean {
+  return surfaces.some((surface) => containsNormalized(surface, fragment));
 }
 
 function c4EpisodeMemoryExpectationMode(

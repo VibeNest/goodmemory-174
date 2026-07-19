@@ -1,0 +1,142 @@
+{
+  "arms": {
+    "goodmemoryInstalled": {
+      "codexConfig": {
+        "normalizedText": "default_permissions = \"c3-task\"\nweb_search = \"disabled\"\n\n[mcp_servers.goodmemory]\ncommand = \"goodmemory-mcp\"\nargs = [\"--host\", \"codex\"]\n[mcp_servers.goodmemory.env]\nGOODMEMORY_HOME = \"<home>\"\nGOODMEMORY_MANAGED_BY = \"goodmemory\"\n\n[features]\n# goodmemory-managed-hooks-section\nhooks = true # goodmemory-managed-hooks\n\n[permissions.c3-task.filesystem]\n\":root\" = \"deny\"\n\":minimal\" = \"read\"\n\"<host-path-058>\" = \"deny\"\n\"<host-path-049>\" = \"deny\"\n\"<host-path-003>\" = \"deny\"\n\"<host-path-052>\" = \"deny\"\n\"<host-path-050>\" = \"deny\"\n\"<host-path-045>\" = \"deny\"\n\"<host-path-025>\" = \"deny\"\n\"<host-path-054>\" = \"deny\"\n\"<host-path-039>\" = \"deny\"\n\"<arm-root>\" = \"deny\"\n\"<codex-home>\" = \"deny\"\n\"<codex-home>/auth.json\" = \"deny\"\n\"<codex-home>/config.toml\" = \"deny\"\n\"<package-prefix>\" = \"deny\"\n\"<host-path-041>\" = \"deny\"\n\n[permissions.c3-task.filesystem.\":workspace_roots\"]\n\".\" = \"write\"\n\n[permissions.c3-task.network]\nenabled = false\n",
+        "sourceSha256": "9a7c38f976706eae565e675e4cabd1a07b4153267ad51b30567b87479c51a645"
+      },
+      "environment": {
+        "CODEX_HOME": "<codex-home>",
+        "GOODMEMORY_HOME": "<home>",
+        "HOME": "<home>",
+        "PATH": "<package-prefix>/bin:<host-path>",
+        "TMPDIR": "<workspace>/.git/c3-tmp"
+      },
+      "goodmemoryConfig": {
+        "normalizedText": "{\n  \"activationMode\": \"global\",\n  \"contextMode\": \"fragment\",\n  \"debug\": false,\n  \"host\": \"codex\",\n  \"maintenance\": {\n    \"auto\": true\n  },\n  \"maxTokens\": 512,\n  \"promptInjection\": \"relevance_gated\",\n  \"sessionStartMaxTokens\": 1024,\n  \"retrieval\": {\n    \"bm25Ranking\": true\n  },\n  \"retrievalProfile\": \"coding_agent\",\n  \"storage\": {\n    \"path\": \"<home>/.goodmemory/memory.sqlite\",\n    \"provider\": \"sqlite\"\n  },\n  \"userId\": \"<user-id>\",\n  \"version\": 1,\n  \"writeback\": {\n    \"allowAssistantOutput\": \"confirmed_or_verified\",\n    \"dryRun\": false,\n    \"maxChars\": 12000,\n    \"maxMessages\": 12,\n    \"minConfidence\": 0.7,\n    \"mode\": \"selective\",\n    \"persistRawTranscript\": false\n  }\n}\n",
+        "sourceSha256": "2d507261a74983a1245eaf508fa06cecd6db4b5150bdc228b69d6291d28c4c7d"
+      },
+      "hooksConfig": {
+        "normalizedText": "{\n  \"hooks\": {\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"startup|resume|clear|compact\",\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"UserPromptSubmit\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-stop\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "sourceSha256": "23a37a3f5d09adcf6a9064c68fdf100183a40a09a1ba50895a860334b40522d3"
+      },
+      "profile": {
+        "activationMode": "global",
+        "hookRegistered": true,
+        "mcpRegistered": true,
+        "persistRawTranscript": false,
+        "retrievalProfile": "coding_agent",
+        "workspaceStatus": "ok",
+        "writebackMode": "selective"
+      }
+    },
+    "noMemory": {
+      "codexConfig": {
+        "normalizedText": "default_permissions = \"c3-task\"\nweb_search = \"disabled\"\n\n\n[permissions.c3-task.filesystem]\n\":root\" = \"deny\"\n\":minimal\" = \"read\"\n\"<host-path-058>\" = \"deny\"\n\"<host-path-049>\" = \"deny\"\n\"<host-path-003>\" = \"deny\"\n\"<host-path-052>\" = \"deny\"\n\"<host-path-050>\" = \"deny\"\n\"<host-path-045>\" = \"deny\"\n\"<host-path-025>\" = \"deny\"\n\"<host-path-054>\" = \"deny\"\n\"<arm-root>\" = \"deny\"\n\"<codex-home>\" = \"deny\"\n\"<codex-home>/auth.json\" = \"deny\"\n\"<codex-home>/config.toml\" = \"deny\"\n\"<host-path-040>\" = \"deny\"\n\"<host-path-042>\" = \"deny\"\n\n[permissions.c3-task.filesystem.\":workspace_roots\"]\n\".\" = \"write\"\n\n[permissions.c3-task.network]\nenabled = false\n",
+        "sourceSha256": "966dbac5e2e1e95d7ff54f1c15747de993e71aadb4803c26f2556206d4398ae4"
+      },
+      "environment": {
+        "CODEX_HOME": "<codex-home>",
+        "HOME": "<home>",
+        "PATH": "<host-path>",
+        "TMPDIR": "<workspace>/.git/c3-tmp"
+      },
+      "goodmemoryConfig": null,
+      "hooksConfig": null,
+      "profile": null
+    }
+  },
+  "normalizedDiff": [
+    {
+      "goodmemoryInstalled": "default_permissions = \"c3-task\"\nweb_search = \"disabled\"\n\n[mcp_servers.goodmemory]\ncommand = \"goodmemory-mcp\"\nargs = [\"--host\", \"codex\"]\n[mcp_servers.goodmemory.env]\nGOODMEMORY_HOME = \"<home>\"\nGOODMEMORY_MANAGED_BY = \"goodmemory\"\n\n[features]\n# goodmemory-managed-hooks-section\nhooks = true # goodmemory-managed-hooks\n\n[permissions.c3-task.filesystem]\n\":root\" = \"deny\"\n\":minimal\" = \"read\"\n\"<host-path-058>\" = \"deny\"\n\"<host-path-049>\" = \"deny\"\n\"<host-path-003>\" = \"deny\"\n\"<host-path-052>\" = \"deny\"\n\"<host-path-050>\" = \"deny\"\n\"<host-path-045>\" = \"deny\"\n\"<host-path-025>\" = \"deny\"\n\"<host-path-054>\" = \"deny\"\n\"<host-path-039>\" = \"deny\"\n\"<arm-root>\" = \"deny\"\n\"<codex-home>\" = \"deny\"\n\"<codex-home>/auth.json\" = \"deny\"\n\"<codex-home>/config.toml\" = \"deny\"\n\"<package-prefix>\" = \"deny\"\n\"<host-path-041>\" = \"deny\"\n\n[permissions.c3-task.filesystem.\":workspace_roots\"]\n\".\" = \"write\"\n\n[permissions.c3-task.network]\nenabled = false\n",
+      "noMemory": "default_permissions = \"c3-task\"\nweb_search = \"disabled\"\n\n\n[permissions.c3-task.filesystem]\n\":root\" = \"deny\"\n\":minimal\" = \"read\"\n\"<host-path-058>\" = \"deny\"\n\"<host-path-049>\" = \"deny\"\n\"<host-path-003>\" = \"deny\"\n\"<host-path-052>\" = \"deny\"\n\"<host-path-050>\" = \"deny\"\n\"<host-path-045>\" = \"deny\"\n\"<host-path-025>\" = \"deny\"\n\"<host-path-054>\" = \"deny\"\n\"<arm-root>\" = \"deny\"\n\"<codex-home>\" = \"deny\"\n\"<codex-home>/auth.json\" = \"deny\"\n\"<codex-home>/config.toml\" = \"deny\"\n\"<host-path-040>\" = \"deny\"\n\"<host-path-042>\" = \"deny\"\n\n[permissions.c3-task.filesystem.\":workspace_roots\"]\n\".\" = \"write\"\n\n[permissions.c3-task.network]\nenabled = false\n",
+      "path": "codexConfig.normalizedText"
+    },
+    {
+      "goodmemoryInstalled": "9a7c38f976706eae565e675e4cabd1a07b4153267ad51b30567b87479c51a645",
+      "noMemory": "966dbac5e2e1e95d7ff54f1c15747de993e71aadb4803c26f2556206d4398ae4",
+      "path": "codexConfig.sourceSha256"
+    },
+    {
+      "goodmemoryInstalled": "<home>",
+      "noMemory": null,
+      "path": "environment.GOODMEMORY_HOME"
+    },
+    {
+      "goodmemoryInstalled": "<package-prefix>/bin:<host-path>",
+      "noMemory": "<host-path>",
+      "path": "environment.PATH"
+    },
+    {
+      "goodmemoryInstalled": null,
+      "noMemory": null,
+      "path": "goodmemoryConfig"
+    },
+    {
+      "goodmemoryInstalled": "{\n  \"activationMode\": \"global\",\n  \"contextMode\": \"fragment\",\n  \"debug\": false,\n  \"host\": \"codex\",\n  \"maintenance\": {\n    \"auto\": true\n  },\n  \"maxTokens\": 512,\n  \"promptInjection\": \"relevance_gated\",\n  \"sessionStartMaxTokens\": 1024,\n  \"retrieval\": {\n    \"bm25Ranking\": true\n  },\n  \"retrievalProfile\": \"coding_agent\",\n  \"storage\": {\n    \"path\": \"<home>/.goodmemory/memory.sqlite\",\n    \"provider\": \"sqlite\"\n  },\n  \"userId\": \"<user-id>\",\n  \"version\": 1,\n  \"writeback\": {\n    \"allowAssistantOutput\": \"confirmed_or_verified\",\n    \"dryRun\": false,\n    \"maxChars\": 12000,\n    \"maxMessages\": 12,\n    \"minConfidence\": 0.7,\n    \"mode\": \"selective\",\n    \"persistRawTranscript\": false\n  }\n}\n",
+      "noMemory": null,
+      "path": "goodmemoryConfig.normalizedText"
+    },
+    {
+      "goodmemoryInstalled": "2d507261a74983a1245eaf508fa06cecd6db4b5150bdc228b69d6291d28c4c7d",
+      "noMemory": null,
+      "path": "goodmemoryConfig.sourceSha256"
+    },
+    {
+      "goodmemoryInstalled": null,
+      "noMemory": null,
+      "path": "hooksConfig"
+    },
+    {
+      "goodmemoryInstalled": "{\n  \"hooks\": {\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook pre-tool-use\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"startup|resume|clear|compact\",\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-start\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"UserPromptSubmit\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook user-prompt-submit\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"hooks\": [\n          {\n            \"command\": \"GOODMEMORY_HOME='<home>' GOODMEMORY_MANAGED_BY='goodmemory' goodmemory codex hook session-stop\",\n            \"type\": \"command\"\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+      "noMemory": null,
+      "path": "hooksConfig.normalizedText"
+    },
+    {
+      "goodmemoryInstalled": "23a37a3f5d09adcf6a9064c68fdf100183a40a09a1ba50895a860334b40522d3",
+      "noMemory": null,
+      "path": "hooksConfig.sourceSha256"
+    },
+    {
+      "goodmemoryInstalled": null,
+      "noMemory": null,
+      "path": "profile"
+    },
+    {
+      "goodmemoryInstalled": "global",
+      "noMemory": null,
+      "path": "profile.activationMode"
+    },
+    {
+      "goodmemoryInstalled": true,
+      "noMemory": null,
+      "path": "profile.hookRegistered"
+    },
+    {
+      "goodmemoryInstalled": true,
+      "noMemory": null,
+      "path": "profile.mcpRegistered"
+    },
+    {
+      "goodmemoryInstalled": false,
+      "noMemory": null,
+      "path": "profile.persistRawTranscript"
+    },
+    {
+      "goodmemoryInstalled": "coding_agent",
+      "noMemory": null,
+      "path": "profile.retrievalProfile"
+    },
+    {
+      "goodmemoryInstalled": "ok",
+      "noMemory": null,
+      "path": "profile.workspaceStatus"
+    },
+    {
+      "goodmemoryInstalled": "selective",
+      "noMemory": null,
+      "path": "profile.writebackMode"
+    }
+  ],
+  "schemaVersion": 1
+}

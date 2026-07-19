@@ -571,20 +571,28 @@
     {
       "allowedPublicLeakageRelations": [
         [
-          " direct ",
-          "direct"
-        ],
-        [
-          " info ",
+          "debug",
           true
         ],
         [
-          " info ",
-          "info"
+          "direct",
+          true
         ],
         [
-          " json ",
-          "json"
+          "json",
+          true
+        ],
+        [
+          "relay",
+          true
+        ],
+        [
+          "text",
+          true
+        ],
+        [
+          "warn",
+          true
         ]
       ],
       "allowedPublicLeakageValues": [
@@ -615,9 +623,9 @@
       "ecosystem": "bun",
       "forbiddenLeakage": {
         "fileSha256": [
-          "0460e34f1ac0b910afb690f52c3023fab6daaef0a828cdd101055368a23efc93",
-          "707253551a82e7c9e1c899b7b54b9c7ec2668dd234677283fb91b6449e49cc39",
-          "a75d61daa5dfc60f92cab7a9569841908175288e67a59c2e4ca057db7ce25469",
+          "294371b181295b27c6706a7dba53bcb77d2af8418e853d4670ee0c7dc35efe72",
+          "557b3979211c7871ab0ed288bd9eb529ae63b8fb40cf442226213848f4a1936d",
+          "79203589e714ece595c14feea719b99be187d82e25e8f122fddb2c22da31ad4e",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
         ],
         "strings": [
@@ -644,9 +652,9 @@
       },
       "prehistory": {
         "forbiddenLeakageSha256": [
-          "0460e34f1ac0b910afb690f52c3023fab6daaef0a828cdd101055368a23efc93",
-          "707253551a82e7c9e1c899b7b54b9c7ec2668dd234677283fb91b6449e49cc39",
-          "a75d61daa5dfc60f92cab7a9569841908175288e67a59c2e4ca057db7ce25469",
+          "294371b181295b27c6706a7dba53bcb77d2af8418e853d4670ee0c7dc35efe72",
+          "557b3979211c7871ab0ed288bd9eb529ae63b8fb40cf442226213848f4a1936d",
+          "79203589e714ece595c14feea719b99be187d82e25e8f122fddb2c22da31ad4e",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
         ],
         "path": "prehistory/parse-result-correction.jsonl",
@@ -655,7 +663,7 @@
       },
       "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
       "repository": {
-        "baseCommit": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+        "baseCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
         "license": "MIT",
         "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
       },
@@ -685,7 +693,7 @@
           "id": "stage-1",
           "position": 1,
           "promptPath": "prompts/parse-result-correction-parse-mode-setting.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -697,7 +705,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/parse-result-correction-stage-1.patch",
-            "sha256": "a75d61daa5dfc60f92cab7a9569841908175288e67a59c2e4ca057db7ce25469"
+            "sha256": "294371b181295b27c6706a7dba53bcb77d2af8418e853d4670ee0c7dc35efe72"
           },
           "memoryExpectation": {
             "dependencies": [],
@@ -725,7 +733,7 @@
           "id": "stage-2",
           "position": 2,
           "promptPath": "prompts/parse-result-correction-parse-log-level-setting.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -737,7 +745,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/parse-result-correction-stage-2.patch",
-            "sha256": "0460e34f1ac0b910afb690f52c3023fab6daaef0a828cdd101055368a23efc93"
+            "sha256": "557b3979211c7871ab0ed288bd9eb529ae63b8fb40cf442226213848f4a1936d"
           },
           "memoryExpectation": {
             "dependencies": [
@@ -774,7 +782,7 @@
           "id": "stage-3",
           "position": 3,
           "promptPath": "prompts/parse-result-correction-parse-output-format-setting.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -786,7 +794,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/parse-result-correction-stage-3.patch",
-            "sha256": "707253551a82e7c9e1c899b7b54b9c7ec2668dd234677283fb91b6449e49cc39"
+            "sha256": "79203589e714ece595c14feea719b99be187d82e25e8f122fddb2c22da31ad4e"
           },
           "memoryExpectation": {
             "dependencies": [
@@ -816,9 +824,9 @@
       "ecosystem": "bun",
       "forbiddenLeakage": {
         "fileSha256": [
-          "29bbedfcfe284ec70cdbc9f42e0abe529b4307503ce3ec897404c9ab43fd7a5e",
-          "53d5b3ed462fc08e72cc2ea669e343e6f5826f75336ed6f66a00a1eef4f5e8a5",
-          "9aedd0c4318095c767ebb63e374d75853824770107b5c37d343404f74821f928",
+          "1b1cb45eefbe6755706c39edd5ea56995a36920343d804bc08dde90733a53518",
+          "3cb2f5feecc1186088f0aab2589b5102cc4334bd4779d0e284fab3652b53ca47",
+          "a3c62a109efb56bee23585ff5c2e31f2f17309a2af53fad2489b308ac92adaad",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
         ],
         "strings": [
@@ -842,9 +850,9 @@
       },
       "prehistory": {
         "forbiddenLeakageSha256": [
-          "29bbedfcfe284ec70cdbc9f42e0abe529b4307503ce3ec897404c9ab43fd7a5e",
-          "53d5b3ed462fc08e72cc2ea669e343e6f5826f75336ed6f66a00a1eef4f5e8a5",
-          "9aedd0c4318095c767ebb63e374d75853824770107b5c37d343404f74821f928",
+          "1b1cb45eefbe6755706c39edd5ea56995a36920343d804bc08dde90733a53518",
+          "3cb2f5feecc1186088f0aab2589b5102cc4334bd4779d0e284fab3652b53ca47",
+          "a3c62a109efb56bee23585ff5c2e31f2f17309a2af53fad2489b308ac92adaad",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
         ],
         "path": "prehistory/duration-configuration-policy.jsonl",
@@ -853,7 +861,7 @@
       },
       "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
       "repository": {
-        "baseCommit": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+        "baseCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
         "license": "MIT",
         "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
       },
@@ -882,7 +890,7 @@
           "id": "stage-1",
           "position": 1,
           "promptPath": "prompts/duration-configuration-policy-resolve-timeout-config.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -894,7 +902,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/duration-configuration-policy-stage-1.patch",
-            "sha256": "29bbedfcfe284ec70cdbc9f42e0abe529b4307503ce3ec897404c9ab43fd7a5e"
+            "sha256": "a3c62a109efb56bee23585ff5c2e31f2f17309a2af53fad2489b308ac92adaad"
           },
           "memoryExpectation": {
             "dependencies": [],
@@ -922,7 +930,7 @@
           "id": "stage-2",
           "position": 2,
           "promptPath": "prompts/duration-configuration-policy-resolve-retry-config.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -934,7 +942,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/duration-configuration-policy-stage-2.patch",
-            "sha256": "53d5b3ed462fc08e72cc2ea669e343e6f5826f75336ed6f66a00a1eef4f5e8a5"
+            "sha256": "3cb2f5feecc1186088f0aab2589b5102cc4334bd4779d0e284fab3652b53ca47"
           },
           "memoryExpectation": {
             "dependencies": [
@@ -967,7 +975,7 @@
           "id": "stage-3",
           "position": 3,
           "promptPath": "prompts/duration-configuration-policy-compute-config-deadline.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -979,7 +987,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/duration-configuration-policy-stage-3.patch",
-            "sha256": "9aedd0c4318095c767ebb63e374d75853824770107b5c37d343404f74821f928"
+            "sha256": "1b1cb45eefbe6755706c39edd5ea56995a36920343d804bc08dde90733a53518"
           },
           "memoryExpectation": {
             "dependencies": [
@@ -1001,10 +1009,10 @@
       "ecosystem": "bun",
       "forbiddenLeakage": {
         "fileSha256": [
-          "559ad922b2203ba944418e0a8a170fc4f23ee4dff44884627ae7728eea6fca18",
-          "9da28bae74b037c84917c5632f0b3ed12001d58c88d7bf51b8f0f37398df2c4a",
+          "81626e010913035d54a9930d3e1752f3912488076b0471188d2272747f7f5262",
+          "9a33cb2fd5e175dcc232369bdde945eba8b4bc3c11c4d5ecd9363855d598e2fd",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56",
-          "f5dafe7c19b60072c88085ec7364ec9ffb6c2a497e6e96fcd269998e494213a0"
+          "fb42b49f871d6d7bf43c82cf13b9ce0930a4d9d74a2779db73e5d3904444def6"
         ],
         "strings": [
           "replace(/[^a-z0-9]+/gu, \"-\")",
@@ -1027,10 +1035,10 @@
       },
       "prehistory": {
         "forbiddenLeakageSha256": [
-          "559ad922b2203ba944418e0a8a170fc4f23ee4dff44884627ae7728eea6fca18",
-          "9da28bae74b037c84917c5632f0b3ed12001d58c88d7bf51b8f0f37398df2c4a",
+          "81626e010913035d54a9930d3e1752f3912488076b0471188d2272747f7f5262",
+          "9a33cb2fd5e175dcc232369bdde945eba8b4bc3c11c4d5ecd9363855d598e2fd",
           "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56",
-          "f5dafe7c19b60072c88085ec7364ec9ffb6c2a497e6e96fcd269998e494213a0"
+          "fb42b49f871d6d7bf43c82cf13b9ce0930a4d9d74a2779db73e5d3904444def6"
         ],
         "path": "prehistory/independent-string-utilities.jsonl",
         "sha256": "00460ffbf418283f071b711750e169bf6c837d21074e31b871a6f26f14920d08",
@@ -1038,7 +1046,7 @@
       },
       "provenance": "Controlled tasks authored and frozen before any C5 paired execution.",
       "repository": {
-        "baseCommit": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+        "baseCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
         "license": "MIT",
         "url": "https://example.invalid/goodmemory-c4/policy-utils.git"
       },
@@ -1067,7 +1075,7 @@
           "id": "stage-1",
           "position": 1,
           "promptPath": "prompts/independent-string-utilities-normalize-slug.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -1079,7 +1087,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/independent-string-utilities-stage-1.patch",
-            "sha256": "9da28bae74b037c84917c5632f0b3ed12001d58c88d7bf51b8f0f37398df2c4a"
+            "sha256": "9a33cb2fd5e175dcc232369bdde945eba8b4bc3c11c4d5ecd9363855d598e2fd"
           },
           "memoryExpectation": {
             "dependencies": [],
@@ -1107,7 +1115,7 @@
           "id": "stage-2",
           "position": 2,
           "promptPath": "prompts/independent-string-utilities-dedupe-csv-values.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -1119,7 +1127,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/independent-string-utilities-stage-2.patch",
-            "sha256": "f5dafe7c19b60072c88085ec7364ec9ffb6c2a497e6e96fcd269998e494213a0"
+            "sha256": "fb42b49f871d6d7bf43c82cf13b9ce0930a4d9d74a2779db73e5d3904444def6"
           },
           "memoryExpectation": {
             "dependencies": [
@@ -1152,7 +1160,7 @@
           "id": "stage-3",
           "position": 3,
           "promptPath": "prompts/independent-string-utilities-encode-path-segment.md",
-          "snapshot": "b4bdb53891c5973b63a04e39866ffded80f7ece5",
+          "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
           "timeoutMs": 30000,
           "visibleTest": [
             "bun",
@@ -1164,7 +1172,7 @@
           ],
           "goldPatch": {
             "path": "evaluator/gold/independent-string-utilities-stage-3.patch",
-            "sha256": "559ad922b2203ba944418e0a8a170fc4f23ee4dff44884627ae7728eea6fca18"
+            "sha256": "81626e010913035d54a9930d3e1752f3912488076b0471188d2272747f7f5262"
           },
           "memoryExpectation": {
             "dependencies": [

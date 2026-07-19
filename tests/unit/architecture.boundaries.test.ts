@@ -40,6 +40,22 @@ const DISALLOWED_SELECTOR_FILENAME_PATTERN =
   /(?:Alexis|Greg|Kimberly|Stephen|FlaskLogin|WeatherAutocomplete|AiHiring|Sneaker)/u;
 const DISALLOWED_SELECTOR_RUNTIME_FIXTURE_PATTERN =
   /\b(?:ashlee|bay-street|bay\s+street|laura|mason|michael|michele|patrick|robert|stephanie|thomas)\b/iu;
+const PRODUCTION_MEMORY_DIRECTORIES = [
+  "api",
+  "answer",
+  "recall",
+  "remember",
+  "runtime",
+] as const;
+const BENCHMARK_METADATA_IDENTIFIERS = new Set([
+  "caseId",
+  "expectedAnswer",
+  "goldEvidence",
+  "goldEvidenceIds",
+  "questionType",
+  "rubric",
+  "rubricItems",
+]);
 const internalImportEdgesCache = new Map<string, Promise<string[]>>();
 const sourceCache = new Map<string, Promise<string>>();
 const typeScriptFilesCache = new Map<string, Promise<string[]>>();
@@ -505,12 +521,15 @@ describe("architecture boundaries", () => {
     expect(source).not.toContain("input.memory.remember");
   });
 
-  it("keeps answer evidence modules bounded after the evidencePack split", async () => {
-    // The evidence pack accreted to ~1900 lines before the 2026-07-05 split
-    // into per-operation modules; this cap stops the next monolith. The pack's
-    // prompt strings are measured benchmark behavior, so growth belongs in a
-    // new operation module, not a bigger file.
-    const answerFiles = await collectTypeScriptFiles(join(SRC_ROOT, "answer"));
+  it("keeps the eval protocol reader isolated and bounded", async () => {
+    expect(await fileExists(join(SRC_ROOT, "answer/evidencePack.ts"))).toBe(false);
+    expect(await fileExists(join(SRC_ROOT, "answer/operations/count.ts"))).toBe(false);
+
+    // These prompts are measured benchmark behavior. They remain eval-only and
+    // split by operation so protocol compatibility cannot regrow a monolith.
+    const answerFiles = await collectTypeScriptFiles(
+      join(SRC_ROOT, "eval/protocol-reader"),
+    );
     const oversized: Array<{ file: string; lines: number }> = [];
     for (const file of answerFiles) {
       const lines = (await readFile(file, "utf8")).split("\n").length;
@@ -519,6 +538,52 @@ describe("architecture boundaries", () => {
       }
     }
     expect(oversized).toEqual([]);
+  });
+
+  it("keeps benchmark metadata and eval readers out of production memory layers", async () => {
+    const evalImportOffenders: Array<{ file: string; targets: string[] }> = [];
+    const metadataOffenders: Array<{ file: string; identifiers: string[] }> = [];
+
+    for (const directory of PRODUCTION_MEMORY_DIRECTORIES) {
+      const files = await collectTypeScriptFiles(join(SRC_ROOT, directory));
+      for (const file of files) {
+        const relativePath = toSourceRelativePath(file);
+        const targets = await collectInternalImportEdges(file);
+        const evalTargets = targets.filter((target) => target.startsWith("eval/"));
+        if (evalTargets.length > 0) {
+          evalImportOffenders.push({ file: relativePath, targets: evalTargets });
+        }
+
+        const source = await readSource(file);
+        const sourceFile = ts.createSourceFile(
+          relativePath,
+          source,
+          ts.ScriptTarget.Latest,
+          true,
+          ts.ScriptKind.TS,
+        );
+        const identifiers = new Set<string>();
+        const visit = (node: ts.Node): void => {
+          if (
+            ts.isIdentifier(node) &&
+            BENCHMARK_METADATA_IDENTIFIERS.has(node.text)
+          ) {
+            identifiers.add(node.text);
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(sourceFile);
+        if (identifiers.size > 0) {
+          metadataOffenders.push({
+            file: relativePath,
+            identifiers: [...identifiers].sort(),
+          });
+        }
+      }
+    }
+
+    expect(evalImportOffenders).toEqual([]);
+    expect(metadataOffenders).toEqual([]);
   });
 
   it("keeps recall selection split into orchestration plus bounded selector modules", async () => {
