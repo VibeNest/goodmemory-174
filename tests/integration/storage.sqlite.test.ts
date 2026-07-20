@@ -207,7 +207,315 @@ describe("sqlite document conditional batches", () => {
   });
 });
 
+describe("sqlite filtered document queries", () => {
+  it("filters in SQLite before deserializing non-matching documents", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-filtered-query-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      await store.set("entities_v1", "matching", {
+        id: "matching",
+        memoryId: "facts:atlas",
+      });
+      const database = new Database(path, { strict: true });
+      database
+        .query(
+          `INSERT INTO documents (collection, id, json)
+           VALUES ('entities_v1', 'non-matching', 'null')`,
+        )
+        .run();
+      database.close();
+
+      await expect(store.query("entities_v1", {
+        memoryId: "facts:atlas",
+      })).resolves.toEqual([{ id: "matching", memoryId: "facts:atlas" }]);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
+  it("uses the source-memory expression index for scalar projection filters", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-filter-plan-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      await store.set("claim_projections_v1", "claim-1", {
+        id: "claim-1",
+        sourceMemoryId: "fact-atlas",
+      });
+
+      const database = new Database(path, { readonly: true, strict: true });
+      const plan = database
+        .query<{ detail: string }, []>(
+          `EXPLAIN QUERY PLAN
+           SELECT json
+           FROM documents
+           WHERE collection = 'claim_projections_v1'
+             AND json_valid(json)
+             AND json_extract(json, '$.sourceMemoryId') = 'fact-atlas'`,
+        )
+        .all();
+      database.close();
+
+      expect(plan.some(({ detail }) =>
+        detail.includes("documents_collection_source_memory_id_idx") &&
+        detail.includes("<expr>=?"),
+      )).toBe(true);
+      await expect(store.query("claim_projections_v1", {
+        sourceMemoryId: "fact-atlas",
+      })).resolves.toEqual([{
+        id: "claim-1",
+        sourceMemoryId: "fact-atlas",
+      }]);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+});
+
 describe("sqlite projection text index", () => {
+  it("rebuilds legacy FTS state from canonical documents before versioning", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-legacy-text-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const legacy = new Database(path, { strict: true });
+      legacy.exec(`
+        CREATE TABLE documents (
+          collection TEXT NOT NULL,
+          id TEXT NOT NULL,
+          json TEXT NOT NULL,
+          PRIMARY KEY (collection, id)
+        );
+        CREATE VIRTUAL TABLE document_text_fts USING fts5(
+          collection UNINDEXED,
+          id UNINDEXED,
+          text,
+          tokenize = 'unicode61 remove_diacritics 2'
+        );
+      `);
+      const insertDocument = legacy.query(
+        `INSERT INTO documents (collection, id, json) VALUES (?1, ?2, ?3)`,
+      );
+      insertDocument.run("facts", "shared", JSON.stringify({
+        id: "shared",
+        text: "Atlas is canonical.",
+      }));
+      insertDocument.run("references", "shared", JSON.stringify({
+        id: "shared",
+        text: "Beacon is canonical.",
+      }));
+      insertDocument.run("facts", "missing", JSON.stringify({
+        id: "missing",
+        text: "Missing index row.",
+      }));
+      insertDocument.run("facts", "no-text", JSON.stringify({
+        id: "no-text",
+        content: "No searchable field.",
+      }));
+      legacy.exec(`
+        INSERT INTO document_text_fts (rowid, collection, id, text)
+        VALUES
+          (7, 'facts', 'shared', 'Atlas is stale.'),
+          (8, 'facts', 'shared', 'Atlas duplicate.'),
+          (9, 'facts', 'orphan', 'Orphan row.'),
+          (10, 'facts', 'no-text', 'No longer searchable.'),
+          (11, 'references', 'shared', 'Beacon is stale.');
+      `);
+      legacy.close();
+
+      createSQLiteDocumentStore(path);
+      const firstRead = new Database(path, { readonly: true, strict: true });
+      const firstRows = firstRead
+        .query<{
+          collection: string;
+          id: string;
+          rowid: number;
+          text: string;
+        }, []>(
+          `SELECT keys.rowid, keys.collection, keys.id, fts.text
+           FROM document_text_fts_keys AS keys
+           JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
+           ORDER BY keys.collection, keys.id`,
+        )
+        .all();
+      firstRead.close();
+
+      expect(firstRows.map(({ collection, id, text }) => ({
+        collection,
+        id,
+        text,
+      }))).toEqual([
+        {
+          collection: "facts",
+          id: "missing",
+          text: "Missing index row.",
+        },
+        {
+          collection: "facts",
+          id: "shared",
+          text: "Atlas is canonical.",
+        },
+        {
+          collection: "references",
+          id: "shared",
+          text: "Beacon is canonical.",
+        },
+      ]);
+
+      createSQLiteDocumentStore(path);
+      const reopened = new Database(path, { readonly: true, strict: true });
+      const reopenedRows = reopened
+        .query<{
+          collection: string;
+          id: string;
+          rowid: number;
+          text: string;
+        }, []>(
+          `SELECT keys.rowid, keys.collection, keys.id, fts.text
+           FROM document_text_fts_keys AS keys
+           JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
+           ORDER BY keys.collection, keys.id`,
+        )
+        .all();
+      reopened.close();
+      expect(reopenedRows).toEqual(firstRows);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
+  it("rolls back canonical and FTS state together when index writes fail", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-text-atomic-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      const faults = new Database(path, { strict: true });
+      faults.exec(`
+        CREATE TRIGGER fail_text_key_insert
+        BEFORE INSERT ON document_text_fts_keys
+        BEGIN
+          SELECT RAISE(ABORT, 'injected text-key insert failure');
+        END;
+      `);
+
+      await expect(store.set("recall_documents_v2", "document-1", {
+        id: "document-1",
+        text: "Atlas is active.",
+      })).rejects.toThrow("injected text-key insert failure");
+      await expect(store.get("recall_documents_v2", "document-1"))
+        .resolves.toBeNull();
+
+      faults.exec("DROP TRIGGER fail_text_key_insert");
+      await store.set("recall_documents_v2", "document-1", {
+        id: "document-1",
+        text: "Atlas is active.",
+      });
+      faults.exec(`
+        CREATE TRIGGER fail_text_key_delete
+        BEFORE DELETE ON document_text_fts_keys
+        BEGIN
+          SELECT RAISE(ABORT, 'injected text-key delete failure');
+        END;
+      `);
+
+      await expect(store.delete("recall_documents_v2", "document-1"))
+        .rejects.toThrow("injected text-key delete failure");
+      await expect(store.get("recall_documents_v2", "document-1"))
+        .resolves.toEqual({
+          id: "document-1",
+          text: "Atlas is active.",
+        });
+      await expect(store.searchText?.("recall_documents_v2", {
+        field: "text",
+        limit: 5,
+        query: "Atlas active",
+      })).resolves.toEqual([
+        expect.objectContaining({ id: "document-1" }),
+      ]);
+      faults.close();
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
+  it("maintains FTS rows through stable indexed keys", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-text-keys-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      await store.set("recall_documents_v2", "document-1", {
+        id: "document-1",
+        text: "Atlas is active.",
+        userId: "user-1",
+      });
+
+      const firstRead = new Database(path, { readonly: true, strict: true });
+      const firstKey = firstRead
+        .query<{ rowid: number }, []>(
+          `SELECT rowid
+           FROM document_text_fts_keys
+           WHERE collection = 'recall_documents_v2' AND id = 'document-1'`,
+        )
+        .get();
+      const schemaState = firstRead
+        .query<{ version: number }, []>(
+          `SELECT version
+           FROM document_store_schema
+           WHERE component = 'document_text_fts_keys'`,
+        )
+        .get();
+      firstRead.close();
+      expect(firstKey?.rowid).toBeNumber();
+      expect(schemaState?.version).toBe(1);
+
+      await store.set("recall_documents_v2", "document-1", {
+        id: "document-1",
+        text: "Atlas is completed.",
+        userId: "user-1",
+      });
+      const updatedRead = new Database(path, { readonly: true, strict: true });
+      const updated = updatedRead
+        .query<{ count: number; rowid: number; text: string }, []>(
+          `SELECT keys.rowid, fts.text, COUNT(*) AS count
+           FROM document_text_fts_keys AS keys
+           JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
+           WHERE keys.collection = 'recall_documents_v2' AND keys.id = 'document-1'`,
+        )
+        .get();
+      updatedRead.close();
+      expect(updated).toEqual({
+        count: 1,
+        rowid: firstKey!.rowid,
+        text: "Atlas is completed.",
+      });
+
+      await store.delete("recall_documents_v2", "document-1");
+      const deletedRead = new Database(path, { readonly: true, strict: true });
+      const remaining = deletedRead
+        .query<{ count: number }, []>(
+          `SELECT COUNT(*) AS count
+           FROM document_text_fts_keys AS keys
+           JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
+           WHERE keys.collection = 'recall_documents_v2' AND keys.id = 'document-1'`,
+        )
+        .get();
+      deletedRead.close();
+      expect(remaining?.count).toBe(0);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
   it("indexes and searches claim and entity projections through FTS", async () => {
     const path = join(
       tmpdir(),

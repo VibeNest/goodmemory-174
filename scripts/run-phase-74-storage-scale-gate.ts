@@ -66,9 +66,10 @@ export interface Phase74StorageScaleGateOptions {
 export interface Phase74StorageScaleGateReport {
   audit: {
     ftsIndexedDocumentCount: number;
+    ftsKeyCount: number;
     maxMaterializedDocumentsPerQuery: number;
     methodCalls: StoreMethodCalls;
-    nonMatchingInvalidJsonSentinelDidNotBreakSearch: boolean;
+    nonMatchingSentinelDidNotBreakSearch: boolean;
     projectionCounts: ProjectionCounts;
     sqlQueryPlan: string[];
     storedRowCount: number;
@@ -234,6 +235,7 @@ function seedProjectionDocuments(input: {
   syntheticDocumentCount: number;
 }): {
   ftsIndexedDocumentCount: number;
+  ftsKeyCount: number;
   projectionCounts: ProjectionCounts;
   storedRowCount: number;
 } {
@@ -244,9 +246,24 @@ function seedProjectionDocuments(input: {
   const insertDocument = database.query(
     `INSERT INTO documents (collection, id, json) VALUES (?1, ?2, ?3)`,
   );
-  const insertFts = database.query(
-    `INSERT INTO document_text_fts (collection, id, text) VALUES (?1, ?2, ?3)`,
+  const insertFtsKey = database.query<{ rowid: number }, [string, string]>(
+    `INSERT INTO document_text_fts_keys (collection, id)
+     VALUES (?1, ?2)
+     RETURNING rowid`,
   );
+  const insertFts = database.query(
+    `INSERT INTO document_text_fts (rowid, collection, id, text)
+     VALUES (?1, ?2, ?3, ?4)`,
+  );
+
+  function insertSearchDocument(
+    collection: string,
+    id: string,
+    text: string,
+  ): void {
+    const key = insertFtsKey.get(collection, id)!;
+    insertFts.run(key.rowid, collection, id, text);
+  }
 
   database.exec("PRAGMA synchronous = OFF");
   database.exec("BEGIN IMMEDIATE");
@@ -259,7 +276,7 @@ function seedProjectionDocuments(input: {
         claim.id,
         JSON.stringify(claim),
       );
-      insertFts.run(CLAIM_PROJECTIONS_COLLECTION, claim.id, claim.text!);
+      insertSearchDocument(CLAIM_PROJECTIONS_COLLECTION, claim.id, claim.text!);
       insertDocument.run(
         CLAIM_PROJECTION_STATUS_COLLECTION,
         status.id,
@@ -272,14 +289,14 @@ function seedProjectionDocuments(input: {
     for (let index = 0; index < entities; index += 1) {
       const entity = createEntity(index);
       insertDocument.run(ENTITIES_COLLECTION, entity.id, JSON.stringify(entity));
-      insertFts.run(ENTITIES_COLLECTION, entity.id, entity.text!);
+      insertSearchDocument(ENTITIES_COLLECTION, entity.id, entity.text!);
       if ((index + 1) % 25_000 === 0) {
         input.onProgress?.(`seeded ${index + 1} entity projections`);
       }
     }
 
     for (const collection of [CLAIM_PROJECTIONS_COLLECTION, ENTITIES_COLLECTION]) {
-      insertDocument.run(collection, SENTINEL_ID, "{not-json");
+      insertDocument.run(collection, SENTINEL_ID, "null");
     }
     database.exec("COMMIT");
   } catch (error) {
@@ -303,8 +320,19 @@ function seedProjectionDocuments(input: {
        WHERE collection IN (?1, ?2)`,
     )
     .get(CLAIM_PROJECTIONS_COLLECTION, ENTITIES_COLLECTION)!.count;
+  const ftsKeyCount = database
+    .query<{ count: number }, [string, string]>(
+      `SELECT count(*) AS count FROM document_text_fts_keys
+       WHERE collection IN (?1, ?2)`,
+    )
+    .get(CLAIM_PROJECTIONS_COLLECTION, ENTITIES_COLLECTION)!.count;
   database.close();
-  return { ftsIndexedDocumentCount, projectionCounts, storedRowCount };
+  return {
+    ftsIndexedDocumentCount,
+    ftsKeyCount,
+    projectionCounts,
+    storedRowCount,
+  };
 }
 
 function readFtsQueryPlan(databasePath: string, collection: string): string[] {
@@ -319,6 +347,7 @@ function readFtsQueryPlan(databasePath: string, collection: string): string[] {
         AND documents.id = document_text_fts.id
        WHERE document_text_fts MATCH ?1
          AND document_text_fts.collection = ?2
+         AND json_valid(documents.json)
          AND json_extract(documents.json, '$.scopeKey') = ?3
        ORDER BY score ASC, documents.id ASC
        LIMIT ?4`,
@@ -422,7 +451,7 @@ export async function runPhase74StorageScaleGate(
     );
     const expectedStoredRows = syntheticDocumentCount +
       seedAudit.projectionCounts.statuses + 2;
-    const nonMatchingInvalidJsonSentinelDidNotBreakSearch =
+    const nonMatchingSentinelDidNotBreakSearch =
       seedAudit.storedRowCount === expectedStoredRows;
     const maximumStatusGets =
       (warmupQueryCount + measuredQueryCount) * SELECTED_LIMIT;
@@ -433,8 +462,9 @@ export async function runPhase74StorageScaleGate(
       methodCalls.queryPage === 0 &&
       methodCalls.searchText === expectedSearchCount &&
       usesFtsVirtualTableIndex &&
-      nonMatchingInvalidJsonSentinelDidNotBreakSearch &&
+      nonMatchingSentinelDidNotBreakSearch &&
       seedAudit.ftsIndexedDocumentCount === syntheticDocumentCount &&
+      seedAudit.ftsKeyCount === seedAudit.ftsIndexedDocumentCount &&
       maxMaterializedDocumentsPerQuery <= SELECTED_LIMIT;
 
     return {
@@ -442,7 +472,7 @@ export async function runPhase74StorageScaleGate(
         ...seedAudit,
         maxMaterializedDocumentsPerQuery,
         methodCalls,
-        nonMatchingInvalidJsonSentinelDidNotBreakSearch,
+        nonMatchingSentinelDidNotBreakSearch,
         sqlQueryPlan,
         usesFtsVirtualTableIndex,
       },

@@ -59,6 +59,10 @@ interface DocumentSearchRow extends DocumentPageRow {
   score: number;
 }
 
+interface DocumentTextKeyRow {
+  rowid: number;
+}
+
 interface SessionRow {
   json: string;
 }
@@ -115,6 +119,10 @@ interface SQLiteVectorStoreDependencies {
 
 let sqliteCustomLibraryConfig: SQLiteCustomLibraryConfig | null = null;
 let sqliteRuntimeResolution: SQLiteRuntimeResolution | null = null;
+
+const DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT = "document_filter_indexes";
+const DOCUMENT_TEXT_KEY_SCHEMA_COMPONENT = "document_text_fts_keys";
+const DOCUMENT_SCHEMA_VERSION = 1;
 
 function ensureSQLiteCustomLibraryConfigured(): SQLiteCustomLibraryConfig {
   if (!sqliteCustomLibraryConfig) {
@@ -174,19 +182,96 @@ function ensureDocumentSchema(database: Database): void {
       text,
       tokenize = 'unicode61 remove_diacritics 2'
     );
+
+    CREATE TABLE IF NOT EXISTS document_text_fts_keys (
+      rowid INTEGER PRIMARY KEY,
+      collection TEXT NOT NULL,
+      id TEXT NOT NULL,
+      UNIQUE (collection, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS document_store_schema (
+      component TEXT PRIMARY KEY,
+      version INTEGER NOT NULL
+    );
   `);
-  database.exec(`
-    INSERT INTO document_text_fts (collection, id, text)
-    SELECT documents.collection, documents.id, json_extract(documents.json, '$.text')
-    FROM documents
-    WHERE json_type(documents.json, '$.text') = 'text'
-      AND NOT EXISTS (
-        SELECT 1
-        FROM document_text_fts
-        WHERE document_text_fts.collection = documents.collection
-          AND document_text_fts.id = documents.id
-      )
-  `);
+  try {
+    database.exec("BEGIN IMMEDIATE");
+    const versionStatement = database.query<
+      { version: number },
+      [string]
+    >(
+      `SELECT version FROM document_store_schema WHERE component = ?1`,
+    );
+    if (
+      versionStatement.get(DOCUMENT_TEXT_KEY_SCHEMA_COMPONENT)?.version !==
+        DOCUMENT_SCHEMA_VERSION
+    ) {
+      database.exec(`
+        DELETE FROM document_text_fts;
+        DELETE FROM document_text_fts_keys;
+
+        INSERT INTO document_text_fts_keys (collection, id)
+        SELECT collection, id
+        FROM documents
+        WHERE CASE WHEN json_valid(json)
+          THEN json_type(json, '$.text') = 'text'
+          ELSE 0
+        END;
+
+        INSERT INTO document_text_fts (rowid, collection, id, text)
+        SELECT keys.rowid, documents.collection, documents.id,
+          json_extract(documents.json, '$.text')
+        FROM documents
+        JOIN document_text_fts_keys AS keys
+          ON keys.collection = documents.collection AND keys.id = documents.id;
+      `);
+      database
+        .query(
+          `INSERT INTO document_store_schema (component, version)
+           VALUES (?1, ?2)
+           ON CONFLICT(component) DO UPDATE SET version = excluded.version`,
+        )
+        .run(DOCUMENT_TEXT_KEY_SCHEMA_COMPONENT, DOCUMENT_SCHEMA_VERSION);
+    }
+    if (
+      versionStatement.get(DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT)?.version !==
+        DOCUMENT_SCHEMA_VERSION
+    ) {
+      database.exec(`
+        DROP INDEX IF EXISTS documents_collection_scope_key_idx;
+        DROP INDEX IF EXISTS documents_collection_memory_id_idx;
+        DROP INDEX IF EXISTS documents_collection_source_memory_id_idx;
+
+        CREATE INDEX documents_collection_scope_key_idx
+          ON documents (collection, json_extract(json, '$.scopeKey'))
+          WHERE json_valid(json);
+
+        CREATE INDEX documents_collection_memory_id_idx
+          ON documents (collection, json_extract(json, '$.memoryId'))
+          WHERE json_valid(json);
+
+        CREATE INDEX documents_collection_source_memory_id_idx
+          ON documents (collection, json_extract(json, '$.sourceMemoryId'))
+          WHERE json_valid(json);
+      `);
+      database
+        .query(
+          `INSERT INTO document_store_schema (component, version)
+           VALUES (?1, ?2)
+           ON CONFLICT(component) DO UPDATE SET version = excluded.version`,
+        )
+        .run(DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT, DOCUMENT_SCHEMA_VERSION);
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {
+      // Preserve the migration failure.
+    }
+    throw error;
+  }
 }
 
 function ensureSessionSchema(database: Database): void {
@@ -262,6 +347,38 @@ function canUseSQLiteJsonFilterValue(value: unknown): value is string | number |
     typeof value === "number" ||
     typeof value === "boolean"
   );
+}
+
+function readIndexedDocumentJsonPath(key: string): string | undefined {
+  switch (key) {
+    case "memoryId":
+      return "$.memoryId";
+    case "scopeKey":
+      return "$.scopeKey";
+    case "sourceMemoryId":
+      return "$.sourceMemoryId";
+    default:
+      return undefined;
+  }
+}
+
+function runSQLiteImmediateTransaction<T>(
+  database: Database,
+  operation: () => T,
+): T {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const result = operation();
+    database.exec("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {
+      // Preserve the mutation failure.
+    }
+    throw error;
+  }
 }
 
 function createSQLiteJsonFilterClause(input: {
@@ -450,30 +567,72 @@ export function createSQLiteDocumentStore(
     `DELETE FROM documents WHERE collection = ?1 AND id = ?2`,
   );
   const hasTextIndex = hasTable(database, "document_text_fts");
+  const hasTextKeys = hasTable(database, "document_text_fts_keys");
+  const insertSearchKeyStatement = hasTextKeys
+    ? database.query(
+        `INSERT OR IGNORE INTO document_text_fts_keys (collection, id)
+         VALUES (?1, ?2)`,
+      )
+    : null;
+  const getSearchKeyStatement = hasTextKeys
+    ? database.query<DocumentTextKeyRow, [string, string]>(
+        `SELECT rowid FROM document_text_fts_keys
+         WHERE collection = ?1 AND id = ?2`,
+      )
+    : null;
   const deleteSearchStatement = hasTextIndex
     ? database.query(
-        `DELETE FROM document_text_fts WHERE collection = ?1 AND id = ?2`,
+        `DELETE FROM document_text_fts WHERE rowid = ?1`,
       )
     : null;
   const insertSearchStatement = hasTextIndex
     ? database.query(
-        `INSERT INTO document_text_fts (collection, id, text) VALUES (?1, ?2, ?3)`,
+        `INSERT INTO document_text_fts (rowid, collection, id, text)
+         VALUES (?1, ?2, ?3, ?4)`,
       )
     : null;
+  const deleteSearchKeyStatement = hasTextKeys
+    ? database.query(
+        `DELETE FROM document_text_fts_keys WHERE rowid = ?1`,
+      )
+    : null;
+
+  function deleteSearchDocument(collection: string, id: string): void {
+    const key = getSearchKeyStatement?.get(collection, id);
+    if (!key) {
+      return;
+    }
+    deleteSearchStatement?.run(key.rowid);
+    deleteSearchKeyStatement?.run(key.rowid);
+  }
 
   function synchronizeSearchDocument(
     collection: string,
     id: string,
     document: StorageDocument,
   ): void {
-    if (!deleteSearchStatement || !insertSearchStatement) {
+    if (
+      !deleteSearchStatement ||
+      !insertSearchStatement ||
+      !insertSearchKeyStatement ||
+      !getSearchKeyStatement
+    ) {
       return;
     }
-    deleteSearchStatement.run(collection, id);
-    const text = readDocumentSearchText(document, "text");
-    if (text !== undefined) {
-      insertSearchStatement.run(collection, id, text);
+    const existing = getSearchKeyStatement.get(collection, id);
+    if (existing) {
+      deleteSearchStatement.run(existing.rowid);
     }
+    const text = readDocumentSearchText(document, "text");
+    if (text === undefined) {
+      if (existing) {
+        deleteSearchKeyStatement?.run(existing.rowid);
+      }
+      return;
+    }
+    insertSearchKeyStatement.run(collection, id);
+    const key = getSearchKeyStatement.get(collection, id)!;
+    insertSearchStatement.run(key.rowid, collection, id, text);
   }
 
   function buildSearchFilter(input: {
@@ -481,9 +640,26 @@ export function createSQLiteDocumentStore(
     filter?: Record<string, unknown>;
     values: SQLiteBindingValue[];
   }): string[] {
-    const clauses: string[] = [];
-    for (const [key, value] of Object.entries(input.filter ?? {})) {
+    const entries = Object.entries(input.filter ?? {});
+    const clauses = entries.length > 0
+      ? [`json_valid(${input.alias}.json)`]
+      : [];
+    for (const [key, value] of entries) {
       if (!canUseSQLiteJsonFilterValue(value)) {
+        continue;
+      }
+      const indexedPath = readIndexedDocumentJsonPath(key);
+      if (indexedPath) {
+        if (value === null) {
+          clauses.push(
+            `json_type(${input.alias}.json, '${indexedPath}') = 'null'`,
+          );
+          continue;
+        }
+        input.values.push(value);
+        clauses.push(
+          `json_extract(${input.alias}.json, '${indexedPath}') = ?${input.values.length}`,
+        );
         continue;
       }
       input.values.push(`$."${key.replaceAll('"', '\\"')}"`);
@@ -530,7 +706,7 @@ export function createSQLiteDocumentStore(
 
       for (const operation of input.delete ?? []) {
         deleteStatement.run(operation.collection, operation.id);
-        deleteSearchStatement?.run(operation.collection, operation.id);
+        deleteSearchDocument(operation.collection, operation.id);
       }
 
       database.exec("COMMIT");
@@ -553,8 +729,10 @@ export function createSQLiteDocumentStore(
       id: string,
       document: TDocument,
     ) {
-      upsertStatement.run(collection, id, JSON.stringify(document));
-      synchronizeSearchDocument(collection, id, document);
+      runSQLiteImmediateTransaction(database, () => {
+        upsertStatement.run(collection, id, JSON.stringify(document));
+        synchronizeSearchDocument(collection, id, document);
+      });
     },
 
     async get<TDocument extends StorageDocument>(collection: string, id: string) {
@@ -580,6 +758,25 @@ export function createSQLiteDocumentStore(
       collection: string,
       filter?: Record<string, unknown>,
     ) {
+      if (
+        filter &&
+        Object.keys(filter).length > 0 &&
+        Object.values(filter).every(canUseSQLiteJsonFilterValue)
+      ) {
+        const values: SQLiteBindingValue[] = [collection];
+        const filterClauses = buildSearchFilter({
+          alias: "documents",
+          filter,
+          values,
+        });
+        const rows = database
+          .query<DocumentRow, SQLiteBindingValue[]>(
+            `SELECT json FROM documents
+             WHERE collection = ?1 AND ${filterClauses.join(" AND ")}`,
+          )
+          .all(...values);
+        return rows.map((row) => parseJson<TDocument>(row.json));
+      }
       const rows = listStatement.all(collection);
 
       return rows
@@ -696,8 +893,10 @@ export function createSQLiteDocumentStore(
     },
 
     async delete(collection, id) {
-      deleteSearchStatement?.run(collection, id);
-      deleteStatement.run(collection, id);
+      runSQLiteImmediateTransaction(database, () => {
+        deleteSearchDocument(collection, id);
+        deleteStatement.run(collection, id);
+      });
     },
   };
 }
