@@ -5,6 +5,7 @@ import {
   openSync,
   writeFileSync,
 } from "node:fs";
+import { readFile } from "node:fs/promises";
 
 import {
   modelTokenTotal,
@@ -29,6 +30,87 @@ export type Phase74ModelUsageBranch =
 export interface AttributedModelUsageAttempt extends ModelUsageAttempt {
   branch: Phase74ModelUsageBranch;
   caseId: string;
+}
+
+const PHASE74_USAGE_BRANCHES = new Set<Phase74ModelUsageBranch>([
+  "baseline",
+  "candidate",
+  "judge",
+  "oracle_reader",
+  "protocol_reader",
+  "shadow",
+]);
+const PHASE74_USAGE_OPERATIONS = new Set<ModelUsageOperation>([
+  "answer_generation",
+  "assisted_extraction",
+  "embedding",
+  "judge",
+  "recall_plan",
+  "recall_router_plan",
+  "recall_router_rerank",
+  "reranker_listwise",
+  "reranker_pointwise",
+]);
+
+function isUsageTokenCount(value: unknown): boolean {
+  return value === null || (
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+  );
+}
+
+function isAttributedModelUsageAttempt(
+  value: unknown,
+): value is AttributedModelUsageAttempt {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const event = value as Record<string, unknown>;
+  const usage = event.usage;
+  return Number.isSafeInteger(event.attempt) && Number(event.attempt) > 0 &&
+    typeof event.branch === "string" &&
+    PHASE74_USAGE_BRANCHES.has(event.branch as Phase74ModelUsageBranch) &&
+    typeof event.caseId === "string" && event.caseId.length > 0 &&
+    (event.completeness === "complete" ||
+      event.completeness === "missing" || event.completeness === "partial") &&
+    typeof event.modelId === "string" && event.modelId.length > 0 &&
+    typeof event.operation === "string" &&
+    PHASE74_USAGE_OPERATIONS.has(event.operation as ModelUsageOperation) &&
+    (event.outcome === "failed" || event.outcome === "succeeded") &&
+    typeof event.providerId === "string" && event.providerId.length > 0 &&
+    event.schemaVersion === 1 && usage !== null && typeof usage === "object" &&
+    !Array.isArray(usage) && [
+      "cacheCreationInputTokens",
+      "cacheReadInputTokens",
+      "inputTokens",
+      "outputTokens",
+      "uncachedInputTokens",
+    ].every((key) => isUsageTokenCount((usage as Record<string, unknown>)[key]));
+}
+
+export async function loadPhase74ModelUsageEvents(
+  path: string,
+): Promise<AttributedModelUsageAttempt[]> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+  return raw.split("\n").filter(Boolean).map((line, index) => {
+    let value: unknown;
+    try {
+      value = JSON.parse(line) as unknown;
+    } catch {
+      throw new Error(`Invalid Phase 74 model usage JSON at line ${index + 1}.`);
+    }
+    if (!isAttributedModelUsageAttempt(value)) {
+      throw new Error(`Invalid Phase 74 model usage event at line ${index + 1}.`);
+    }
+    return value;
+  });
 }
 
 interface Phase74ModelUsageAppendDependencies {

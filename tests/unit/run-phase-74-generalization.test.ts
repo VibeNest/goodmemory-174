@@ -6,11 +6,11 @@ import { join } from "node:path";
 import {
   buildPhase74FullRunIdentityConfiguration,
   createPhase74DurableCallBudget,
-  loadPhase74ModelUsageEvents,
   parsePhase74GeneralizationCliOptions,
   runPhase74GeneralizationSmoke,
   selectPhase74GeneralizationCases,
 } from "../../scripts/run-phase-74-generalization";
+import { loadPhase74ModelUsageEvents } from "../../src/eval/modelUsage";
 import {
   buildEvalRunIdentity,
   hashEvalExperimentIdentity,

@@ -13,9 +13,15 @@ import {
 } from "node:path";
 
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
+import {
+  buildPhase74ModelUsageEvidence,
+  loadPhase74ModelUsageEvents,
+} from "../src/eval/modelUsage";
 import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
 import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
 import { assertPhase74ExperimentIdentityContract } from "../src/eval/phase74ExperimentIdentity";
+import { buildPhase74RetrievalSnapshotId } from "../src/eval/phase74FullRuntime";
+import { buildPhase74StageConfigurations } from "../src/eval/phase74Generalization";
 import {
   evaluatePhase74PromotionGate,
   PHASE74_MAX_PROTECTION_REGRESSION,
@@ -41,7 +47,10 @@ import {
   hashEvalExperimentIdentity,
   hashEvalRunIdentity,
 } from "../src/eval/runIdentity";
-import type { EvalRunIdentity } from "../src/eval/runIdentity";
+import type {
+  EvalRunIdentity,
+  EvalRunJsonObject,
+} from "../src/eval/runIdentity";
 
 const BENCHMARKS = ["longmemeval", "locomo"] as const;
 const RETRIEVAL_STAGES = ["E1", "E2", "E3"] as const;
@@ -58,6 +67,15 @@ type RetrievalStage = (typeof RETRIEVAL_STAGES)[number];
 type ExperimentStage = (typeof ALL_STAGES)[number];
 type Replicate = 1 | 2 | 3;
 
+interface CallBudgetEvidence {
+  embeddingCalls: number;
+  embeddingInputByteUpperBound: number;
+  embeddingSpendLimitUsd: number;
+  languageCalls: number;
+  maxLanguageCalls: number;
+  schemaVersion: 1;
+}
+
 interface DatasetManifestEvidence {
   benchmark: Phase74BenchmarkFamily;
   caseCount: number;
@@ -66,12 +84,17 @@ interface DatasetManifestEvidence {
 }
 
 interface RetrievalProgressRow {
+  answer: string;
+  answerLatencyMs: number;
   arm: string;
   caseId: string;
   clusterId: string;
   contextTokens: number;
+  contextTokensBeforeTruncation: number;
+  contextTruncated: boolean;
   correct: boolean;
   productLatencyMs: number;
+  recallLatencyMs: number;
   score: number;
   snapshotId: string;
   stage: RetrievalStage;
@@ -114,6 +137,25 @@ interface RunArtifact {
   e4: E4StageArtifact;
 }
 
+interface RunBaseArtifact {
+  benchmark: Phase74BenchmarkFamily;
+  dataset: DatasetManifestEvidence;
+  experimentIdentityHash: string;
+  identity: EvalRunIdentity;
+  identityHash: string;
+  replicate: Replicate;
+  runDirectory: string;
+  selectedCaseKeysSha256: string;
+  selectionMode: "all" | "deterministic-content-hash-v2";
+}
+
+interface StageAggregationArtifact extends Omit<
+  RunBaseArtifact,
+  "selectedCaseKeysSha256"
+> {
+  retrieval: RetrievalStageArtifact;
+}
+
 interface ProtectionArtifact {
   e4: Record<EvidenceLedgerFormat, Phase74ProtectionEvidence[]>;
   promotion: {
@@ -144,6 +186,13 @@ export interface Phase74ArtifactAggregationInput {
   seed?: number;
 }
 
+export interface Phase74StageDiagnosticAggregationInput {
+  bootstrapSamples?: number;
+  runDirectories: readonly string[];
+  seed?: number;
+  stage: RetrievalStage;
+}
+
 export interface Phase74StageAggregation {
   aggregate: Phase74ReplicateAggregation;
   benchmark: Phase74BenchmarkFamily;
@@ -164,6 +213,7 @@ export interface Phase74StageAggregation {
     delta: number;
     replicateDeltas: [number, number, number];
   }>;
+  renderedContextMaxTokens: number;
   replicateStability: {
     deltas: [number, number, number];
     direction:
@@ -209,6 +259,24 @@ export interface Phase74ArtifactAggregationReport {
   };
   schemaVersion: 1;
   stageAggregations: Phase74StageAggregation[];
+}
+
+export interface Phase74StageDiagnosticAggregationReport {
+  aggregation: Phase74StageAggregation;
+  evidenceBoundary: "seen-case-stage-ablation-diagnostic";
+  inputs: Array<{
+    experimentIdentityHash: string;
+    identityHash: string;
+    replicate: Replicate;
+    runDirectory: string;
+    runId: string;
+  }>;
+  kind: "phase74-stage-only-diagnostic";
+  promotionEvaluated: false;
+  reason: "A selected single-stage ablation cannot authorize product promotion.";
+  schemaVersion: 1;
+  seenCasesOnly: true;
+  status: "not_evaluable_for_promotion";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -309,6 +377,7 @@ function assertAggregationAdmission(input: {
   dataset: DatasetManifestEvidence;
   datasetManifest: unknown;
   identity: EvalRunIdentity;
+  rerankerAdmission?: "provider" | "recorded";
 }): {
   selectedCaseKeysSha256: string;
   selectionMode: "all" | "deterministic-content-hash-v2";
@@ -342,15 +411,28 @@ function assertAggregationAdmission(input: {
     throw new Error("Phase 74 aggregation admission selected population drifted.");
   }
 
+  const providerReranker = {
+    ...input.identity.answerModel,
+    implementation: "provider-pointwise-v1",
+    mode: "provider",
+  };
+  const deterministicReranker = {
+    implementation: "lexical-coverage-v1",
+    mode: "deterministic",
+  };
+  const recordedReranker = recordValue(
+    configuration.reranker,
+    "aggregation admission reranker",
+  );
+  const expectedReranker = input.rerankerAdmission === "recorded" &&
+      stableJson(recordedReranker) === stableJson(deterministicReranker)
+    ? deterministicReranker
+    : providerReranker;
   assertPhase74ExperimentIdentityContract({
     benchmark: input.benchmark,
     configuration,
     dataset: input.datasetManifest,
-    expectedReranker: {
-      ...input.identity.answerModel,
-      implementation: "provider-pointwise-v1",
-      mode: "provider",
-    },
+    expectedReranker,
     judgeModel: input.identity.judgeModel,
   });
   const selection = recordValue(
@@ -614,6 +696,49 @@ function parseModelUsage(value: unknown): Phase74ModelUsageEvidence {
   };
 }
 
+function parseCallBudgetEvidence(
+  value: unknown,
+  label: string,
+): CallBudgetEvidence {
+  const budget = recordValue(value, label);
+  assertExactKeys(budget, [
+    "embeddingCalls",
+    "embeddingInputByteUpperBound",
+    "embeddingSpendLimitUsd",
+    "languageCalls",
+    "maxLanguageCalls",
+    "schemaVersion",
+  ], label);
+  if (budget.schemaVersion !== 1) {
+    throw new Error(`Phase 74 ${label} schemaVersion must be 1.`);
+  }
+  const embeddingSpendLimitUsd = finiteValue(
+    budget.embeddingSpendLimitUsd,
+    `${label} embeddingSpendLimitUsd`,
+  );
+  if (embeddingSpendLimitUsd <= 0) {
+    throw new Error(`Phase 74 ${label} embeddingSpendLimitUsd must be positive.`);
+  }
+  const parsed: CallBudgetEvidence = {
+    embeddingCalls: integerValue(budget.embeddingCalls, `${label} embeddingCalls`),
+    embeddingInputByteUpperBound: integerValue(
+      budget.embeddingInputByteUpperBound,
+      `${label} embeddingInputByteUpperBound`,
+    ),
+    embeddingSpendLimitUsd,
+    languageCalls: integerValue(budget.languageCalls, `${label} languageCalls`),
+    maxLanguageCalls: positiveIntegerValue(
+      budget.maxLanguageCalls,
+      `${label} maxLanguageCalls`,
+    ),
+    schemaVersion: 1,
+  };
+  if (parsed.languageCalls > parsed.maxLanguageCalls) {
+    throw new Error(`Phase 74 ${label} exceeds its language call limit.`);
+  }
+  return parsed;
+}
+
 function parseSummaryBase(input: {
   benchmark: Phase74BenchmarkFamily;
   experimentIdentityHash: string;
@@ -625,6 +750,7 @@ function parseSummaryBase(input: {
   const summary = recordValue(input.value, `${input.stage} summary`);
   assertExactKeys(summary, [
     "benchmark",
+    "callBudget",
     "caseCount",
     "comparison",
     "endToEndScores",
@@ -655,6 +781,10 @@ function parseSummaryBase(input: {
     throw new Error(`Phase 74 ${input.stage} summary replicate drift.`);
   }
   return {
+    callBudget: parseCallBudgetEvidence(
+      summary.callBudget,
+      `${input.stage} summary callBudget`,
+    ),
     caseCount: positiveIntegerValue(summary.caseCount, `${input.stage} caseCount`),
     comparison: summary.comparison,
     endToEndScores: recordValue(
@@ -703,6 +833,7 @@ function parseRetrievalProgress(
   input: {
     caseCount: number;
     comparison: Phase74ReplicateComparison;
+    expectedConfigurations: Readonly<Record<string, EvalRunJsonObject>>;
     selectedCaseIdsSha256: string;
     stage: RetrievalStage;
   },
@@ -722,7 +853,20 @@ function parseRetrievalProgress(
     if (row.stage !== input.stage) {
       throw new Error(`Phase 74 ${input.stage} progress stage drift.`);
     }
+    if (
+      stableJson(row.configuration) !==
+        stableJson(input.expectedConfigurations[arm])
+    ) {
+      throw new Error(
+        `Phase 74 ${input.stage}/${arm} progress configuration drift.`,
+      );
+    }
     return {
+      answer: stringValue(row.answer, `${input.stage} progress answer`),
+      answerLatencyMs: finiteValue(
+        row.answerLatencyMs,
+        `${input.stage} progress answerLatencyMs`,
+      ),
       arm,
       caseId: stringValue(row.caseId, `${input.stage} progress caseId`),
       clusterId: stringValue(
@@ -733,10 +877,22 @@ function parseRetrievalProgress(
         row.contextTokens,
         `${input.stage} progress contextTokens`,
       ),
+      contextTokensBeforeTruncation: integerValue(
+        row.contextTokensBeforeTruncation,
+        `${input.stage} progress contextTokensBeforeTruncation`,
+      ),
+      contextTruncated: booleanValue(
+        row.contextTruncated,
+        `${input.stage} progress contextTruncated`,
+      ),
       correct: booleanValue(row.correct, `${input.stage} progress correct`),
       productLatencyMs: finiteValue(
         row.productLatencyMs,
         `${input.stage} progress productLatencyMs`,
+      ),
+      recallLatencyMs: finiteValue(
+        row.recallLatencyMs,
+        `${input.stage} progress recallLatencyMs`,
       ),
       score: unitValue(row.score, `${input.stage} progress score`),
       snapshotId: sha256Value(
@@ -746,8 +902,13 @@ function parseRetrievalProgress(
       stage: input.stage,
     };
   });
-  if (rows.some(({ productLatencyMs }) => productLatencyMs < 0)) {
-    throw new Error(`Phase 74 ${input.stage} productLatencyMs cannot be negative.`);
+  if (rows.some((row) =>
+    row.answerLatencyMs < 0 ||
+    row.productLatencyMs < 0 ||
+    row.recallLatencyMs < 0 ||
+    row.contextTokensBeforeTruncation < row.contextTokens
+  )) {
+    throw new Error(`Phase 74 ${input.stage} progress metrics are invalid.`);
   }
   const seen = new Set<string>();
   for (const row of rows) {
@@ -820,6 +981,23 @@ function validateEndToEndScores(input: {
   }
 }
 
+function validateProtocolScoreSemantics(input: {
+  benchmark: Phase74BenchmarkFamily;
+  rows: readonly RetrievalProgressRow[];
+  stage: RetrievalStage;
+}): void {
+  const invalid = input.rows.some(({ correct, score }) =>
+    input.benchmark === "locomo"
+      ? correct !== (score === 1)
+      : score !== Number(correct)
+  );
+  if (invalid) {
+    throw new Error(
+      `Phase 74 ${input.stage} ${input.benchmark} score/correctness drift.`,
+    );
+  }
+}
+
 function validateUsagePopulation(
   usage: Phase74ModelUsageEvidence,
   input: {
@@ -832,12 +1010,9 @@ function validateUsagePopulation(
     ["baseline", usage.baseline],
     ["candidate", usage.candidate],
   ] as const) {
-    if (
-      evidence.caseIdsSha256 !== input.selectedCaseKeysSha256 ||
-      evidence.logicalCaseCount !== input.caseCount
-    ) {
+    if (evidence.missingRequestCount > 0 || evidence.partialRequestCount > 0) {
       throw new Error(
-        `Phase 74 ${input.stage} ${branch} model usage case population drift.`,
+        `Phase 74 ${input.stage} ${branch} has incomplete model usage.`,
       );
     }
     if (evidence.unobservedCaseIds.some(
@@ -847,12 +1022,23 @@ function validateUsagePopulation(
         `Phase 74 ${input.stage} ${branch} model usage contains a non-opaque unobserved case.`,
       );
     }
+    if (
+      evidence.caseIdsSha256 !== input.selectedCaseKeysSha256 ||
+      evidence.logicalCaseCount !== input.caseCount ||
+      evidence.answerGenerationCaseCount !== input.caseCount ||
+      evidence.unobservedCaseIds.length !== 0
+    ) {
+      throw new Error(
+        `Phase 74 ${input.stage} ${branch} model usage case population drift.`,
+      );
+    }
   }
 }
 
 async function validateRetrievalPackets(input: {
   expectedSnapshotIds: readonly string[];
   path: string;
+  rows?: readonly RetrievalProgressRow[];
   stage: ExperimentStage;
 }): Promise<void> {
   const packets = await readJsonLines(
@@ -865,14 +1051,61 @@ async function validateRetrievalPackets(input: {
       `${input.stage} retrieval packet snapshotId`,
     )
   );
-  if (new Set(observed).size !== observed.length) {
-    throw new Error(`Phase 74 ${input.stage} retrieval packets contain duplicate snapshots.`);
-  }
-  const expected = [...new Set(input.expectedSnapshotIds)];
   if (
-    [...observed].sort().join("\0") !== [...expected].sort().join("\0")
+    observed.length !== input.expectedSnapshotIds.length ||
+    observed.some((snapshotId, index) =>
+      snapshotId !== input.expectedSnapshotIds[index]
+    )
   ) {
     throw new Error(`Phase 74 ${input.stage} retrieval packet population drift.`);
+  }
+  if (input.rows === undefined) {
+    return;
+  }
+  for (const [index, packetValue] of packets.entries()) {
+    const packet = recordValue(
+      packetValue,
+      `${input.stage} retrieval packet ${index + 1}`,
+    );
+    const snapshotId = observed[index]!;
+    const row = input.rows[index]!;
+    const retrievedMemories = packet.retrievedMemories;
+    const storedMemories = packet.storedMemories;
+    if (!Array.isArray(retrievedMemories) || !Array.isArray(storedMemories)) {
+      throw new Error(
+        `Phase 74 ${input.stage} retrieval packet memories are invalid.`,
+      );
+    }
+    const expectedSnapshotId = buildPhase74RetrievalSnapshotId({
+      arm: row.arm,
+      evidenceLedgers: packet.evidenceLedgers,
+      retrievedMemories,
+      stage: input.stage,
+      storedMemories,
+    });
+    if (expectedSnapshotId !== snapshotId) {
+      throw new Error(`Phase 74 ${input.stage} retrieval packet hash drift.`);
+    }
+    const evaluation = recordValue(
+      packet.evaluation,
+      `${input.stage} retrieval packet evaluation`,
+    );
+    const expectedEvaluation = {
+      answer: row.answer,
+      answerLatencyMs: row.answerLatencyMs,
+      contextTokens: row.contextTokens,
+      contextTokensBeforeTruncation: row.contextTokensBeforeTruncation,
+      contextTruncated: row.contextTruncated,
+      correct: row.correct,
+      productLatencyMs: row.productLatencyMs,
+      recallLatencyMs: row.recallLatencyMs,
+      score: row.score,
+    };
+    if (stableJson(evaluation) !== stableJson(expectedEvaluation)) {
+      throw new Error(
+        `Phase 74 ${input.stage} retrieval packet evaluation drift.`,
+      );
+    }
   }
 }
 
@@ -938,7 +1171,10 @@ function validateE4Population(input: {
   }
 }
 
-async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
+async function loadRunBaseArtifact(
+  runDirectory: string,
+  rerankerAdmission: "provider" | "recorded",
+): Promise<RunBaseArtifact> {
   const identityEvidence = parseIdentity(
     await readJson(join(runDirectory, "run-identity.json"), "run identity"),
   );
@@ -949,7 +1185,9 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
   const dataset = parseDatasetManifest(datasetManifest);
   if (
     identityEvidence.identity.datasetSha256 !== dataset.datasetSha256 ||
-    identityEvidence.identity.benchmark !== `${dataset.benchmark}-full`
+    identityEvidence.identity.benchmark !== `${dataset.benchmark}-full` ||
+    identityEvidence.identity.generatedBy !==
+      "scripts/run-phase-74-generalization.ts"
   ) {
     throw new Error("Phase 74 run identity and dataset manifest drifted.");
   }
@@ -958,6 +1196,7 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     dataset,
     datasetManifest,
     identity: identityEvidence.identity,
+    rerankerAdmission,
   });
   const replicate = parseReplicate(
     identityEvidence.identity.configuration.replicate,
@@ -970,79 +1209,174 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     identityEvidence.identity.configuration.seenCasesOnly,
     "run identity seenCasesOnly",
   );
+  return {
+    benchmark: dataset.benchmark,
+    dataset,
+    experimentIdentityHash: identityEvidence.experimentIdentityHash,
+    identity: identityEvidence.identity,
+    identityHash: identityEvidence.identityHash,
+    replicate,
+    runDirectory,
+    selectedCaseKeysSha256: admission.selectedCaseKeysSha256,
+    selectionMode: admission.selectionMode,
+  };
+}
 
+async function validateStageCallBudget(
+  base: RunBaseArtifact,
+  stage: ExperimentStage,
+  summary: CallBudgetEvidence,
+): Promise<void> {
+  const configured = recordValue(
+    base.identity.configuration.callBudget,
+    `${stage} identity callBudget`,
+  );
+  if (
+    configured.embeddingSpendLimitUsd !== summary.embeddingSpendLimitUsd ||
+    configured.maxLanguageCalls !== summary.maxLanguageCalls
+  ) {
+    throw new Error(`Phase 74 ${stage} call budget limits drifted from identity.`);
+  }
+  const persisted = parseCallBudgetEvidence(
+    await readJson(
+      join(base.runDirectory, `${stage.toLowerCase()}-call-budget.json`),
+      `${stage} call budget`,
+    ),
+    `${stage} persisted callBudget`,
+  );
+  if (stableJson(persisted) !== stableJson(summary)) {
+    throw new Error(`Phase 74 ${stage} persisted call budget drift.`);
+  }
+}
+
+async function loadRetrievalStageArtifact(
+  base: RunBaseArtifact,
+  stage: RetrievalStage,
+): Promise<RetrievalStageArtifact> {
+  const prefix = stage.toLowerCase();
+  const summaryRaw = await readJson(
+    join(base.runDirectory, `${prefix}-summary.json`),
+    `${stage} summary`,
+  );
+  const summary = parseSummaryBase({
+    benchmark: base.benchmark,
+    experimentIdentityHash: base.experimentIdentityHash,
+    identityHash: base.identityHash,
+    replicate: base.replicate,
+    stage,
+    value: summaryRaw,
+  });
+  await validateStageCallBudget(base, stage, summary.callBudget);
+  if (
+    summary.caseCount !== base.dataset.caseCount ||
+    summary.executionFailures !== 0
+  ) {
+    throw new Error(
+      `Phase 74 ${stage} summary population or execution failures are invalid.`,
+    );
+  }
+  const comparison = parseComparison(summary.comparison, {
+    benchmark: base.benchmark,
+    selectedCaseIdsSha256: base.dataset.selectedCaseIdsSha256,
+    stage,
+  });
+  const rows = parseRetrievalProgress(
+    await readJsonLines(
+      join(base.runDirectory, `${prefix}-progress.jsonl`),
+      `${stage} progress`,
+    ),
+    {
+      caseCount: base.dataset.caseCount,
+      comparison,
+      expectedConfigurations: buildPhase74StageConfigurations(
+        base.identity.configuration,
+        stage,
+      ),
+      selectedCaseIdsSha256: base.dataset.selectedCaseIdsSha256,
+      stage,
+    },
+  );
+  const renderedContextMaxTokens = Math.max(
+    0,
+    ...rows.map(({ contextTokens }) => contextTokens),
+  );
+  validateProtocolScoreSemantics({
+    benchmark: base.benchmark,
+    rows,
+    stage,
+  });
+  if (renderedContextMaxTokens !== summary.renderedContextMaxTokens) {
+    throw new Error(`Phase 74 ${stage} rendered context summary drift.`);
+  }
+  validateEndToEndScores({
+    endToEndScores: summary.endToEndScores,
+    rows,
+    stage,
+  });
+  const modelUsage = parseModelUsage(summary.modelUsage);
+  if (
+    base.identity.configuration.costBoundary !==
+      "query-only-comparison-with-shadow-ingestion" ||
+    modelUsage.costBoundary !== "query-only"
+  ) {
+    throw new Error(`Phase 74 ${stage} model usage cost boundary drift.`);
+  }
+  const persistedUsage = parseModelUsage(await readJson(
+    join(base.runDirectory, `${prefix}-model-usage-summary.json`),
+    `${stage} model usage summary`,
+  ));
+  if (stableJson(modelUsage) !== stableJson(persistedUsage)) {
+    throw new Error(`Phase 74 ${stage} model usage summary drift.`);
+  }
+  validateUsagePopulation(modelUsage, {
+    caseCount: base.dataset.caseCount,
+    selectedCaseKeysSha256: base.selectedCaseKeysSha256,
+    stage,
+  });
+  const usageEvents = await loadPhase74ModelUsageEvents(
+    join(base.runDirectory, `${prefix}-model-usage.jsonl`),
+  );
+  const branchCaseIds = (branch: "baseline" | "candidate") =>
+    [...new Set(usageEvents
+      .filter((event) => event.branch === branch)
+      .map(({ caseId }) => caseId))]
+      .sort();
+  const baselineCaseIds = branchCaseIds("baseline");
+  const candidateCaseIds = branchCaseIds("candidate");
+  const rebuiltUsage = buildPhase74ModelUsageEvidence(usageEvents, {
+    baselineCaseIds,
+    candidateCaseIds,
+    costBoundary: "query-only",
+  });
+  if (
+    stableJson(rebuiltUsage) !== stableJson(modelUsage) ||
+    baselineCaseIds.length !== base.dataset.caseCount ||
+    candidateCaseIds.length !== base.dataset.caseCount ||
+    sha256(JSON.stringify(baselineCaseIds)) !== base.selectedCaseKeysSha256 ||
+    sha256(JSON.stringify(candidateCaseIds)) !== base.selectedCaseKeysSha256
+  ) {
+    throw new Error(`Phase 74 ${stage} raw model usage drift.`);
+  }
+  await validateRetrievalPackets({
+    expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
+    path: join(base.runDirectory, `${prefix}-retrieval-packets.jsonl`),
+    rows,
+    stage,
+  });
+  return {
+    comparison,
+    executionFailures: summary.executionFailures,
+    modelUsage,
+    renderedContextMaxTokens,
+    rows,
+  };
+}
+
+async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
+  const base = await loadRunBaseArtifact(runDirectory, "provider");
   const retrieval = {} as Record<RetrievalStage, RetrievalStageArtifact>;
   for (const stage of RETRIEVAL_STAGES) {
-    const prefix = stage.toLowerCase();
-    const summaryRaw = await readJson(
-      join(runDirectory, `${prefix}-summary.json`),
-      `${stage} summary`,
-    );
-    const summary = parseSummaryBase({
-      benchmark: dataset.benchmark,
-      experimentIdentityHash: identityEvidence.experimentIdentityHash,
-      identityHash: identityEvidence.identityHash,
-      replicate,
-      stage,
-      value: summaryRaw,
-    });
-    if (summary.caseCount !== dataset.caseCount || summary.executionFailures !== 0) {
-      throw new Error(`Phase 74 ${stage} summary population or execution failures are invalid.`);
-    }
-    const comparison = parseComparison(summary.comparison, {
-      benchmark: dataset.benchmark,
-      selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
-      stage,
-    });
-    const rows = parseRetrievalProgress(
-      await readJsonLines(
-        join(runDirectory, `${prefix}-progress.jsonl`),
-        `${stage} progress`,
-      ),
-      {
-        caseCount: dataset.caseCount,
-        comparison,
-        selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
-        stage,
-      },
-    );
-    const renderedContextMaxTokens = Math.max(
-      0,
-      ...rows.map(({ contextTokens }) => contextTokens),
-    );
-    if (renderedContextMaxTokens !== summary.renderedContextMaxTokens) {
-      throw new Error(`Phase 74 ${stage} rendered context summary drift.`);
-    }
-    validateEndToEndScores({
-      endToEndScores: summary.endToEndScores,
-      rows,
-      stage,
-    });
-    const modelUsage = parseModelUsage(summary.modelUsage);
-    const persistedUsage = parseModelUsage(await readJson(
-      join(runDirectory, `${prefix}-model-usage-summary.json`),
-      `${stage} model usage summary`,
-    ));
-    if (stableJson(modelUsage) !== stableJson(persistedUsage)) {
-      throw new Error(`Phase 74 ${stage} model usage summary drift.`);
-    }
-    validateUsagePopulation(modelUsage, {
-      caseCount: dataset.caseCount,
-      selectedCaseKeysSha256: admission.selectedCaseKeysSha256,
-      stage,
-    });
-    await validateRetrievalPackets({
-      expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
-      path: join(runDirectory, `${prefix}-retrieval-packets.jsonl`),
-      stage,
-    });
-    retrieval[stage] = {
-      comparison,
-      executionFailures: summary.executionFailures,
-      modelUsage,
-      renderedContextMaxTokens,
-      rows,
-    };
+    retrieval[stage] = await loadRetrievalStageArtifact(base, stage);
   }
   const e1Clusters = new Map(
     retrieval.E1.rows
@@ -1063,17 +1397,18 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     "E4 summary",
   );
   const e4Summary = parseSummaryBase({
-    benchmark: dataset.benchmark,
-    experimentIdentityHash: identityEvidence.experimentIdentityHash,
-    identityHash: identityEvidence.identityHash,
-    replicate,
+    benchmark: base.benchmark,
+    experimentIdentityHash: base.experimentIdentityHash,
+    identityHash: base.identityHash,
+    replicate: base.replicate,
     stage: "E4",
     value: e4SummaryRaw,
   });
+  await validateStageCallBudget(base, "E4", e4Summary.callBudget);
   if (e4Summary.comparison !== null || e4Summary.modelUsage !== null) {
     throw new Error("Phase 74 E4 summary must not claim a paired cost comparison.");
   }
-  if (e4Summary.caseCount !== dataset.caseCount) {
+  if (e4Summary.caseCount !== base.dataset.caseCount) {
     throw new Error("Phase 74 E4 summary case population drift.");
   }
   const e4RowsRaw = await readJsonLines(
@@ -1082,9 +1417,9 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
   );
   const e4Rows = parseE4Progress(e4RowsRaw);
   validateE4Population({
-    caseCount: dataset.caseCount,
+    caseCount: base.dataset.caseCount,
     rows: e4Rows,
-    selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
+    selectedCaseIdsSha256: base.dataset.selectedCaseIdsSha256,
   });
   if (
     e4Rows
@@ -1098,9 +1433,9 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     "E4 report",
   );
   if (
-    e4Report.identityHash !== identityEvidence.identityHash ||
-    e4Report.experimentIdentityHash !== identityEvidence.experimentIdentityHash ||
-    stableJson(e4Report.identity) !== stableJson(identityEvidence.identity)
+    e4Report.identityHash !== base.identityHash ||
+    e4Report.experimentIdentityHash !== base.experimentIdentityHash ||
+    stableJson(e4Report.identity) !== stableJson(base.identity)
   ) {
     throw new Error("Phase 74 E4 report identity drift.");
   }
@@ -1117,7 +1452,9 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     throw new Error("Phase 74 E4 report/summary drift.");
   }
   await validateRetrievalPackets({
-    expectedSnapshotIds: e4Rows.map(({ snapshotId }) => snapshotId),
+    expectedSnapshotIds: e4Rows
+      .filter(({ format }) => format === "prose")
+      .map(({ snapshotId }) => snapshotId),
     path: join(runDirectory, "e4-retrieval-packets.jsonl"),
     stage: "E4",
   });
@@ -1132,15 +1469,15 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     throw new Error("Phase 74 E4 model usage summary must be not_applicable.");
   }
   return {
-    benchmark: dataset.benchmark,
-    dataset,
-    experimentIdentityHash: identityEvidence.experimentIdentityHash,
-    identity: identityEvidence.identity,
-    identityHash: identityEvidence.identityHash,
-    replicate,
+    benchmark: base.benchmark,
+    dataset: base.dataset,
+    experimentIdentityHash: base.experimentIdentityHash,
+    identity: base.identity,
+    identityHash: base.identityHash,
+    replicate: base.replicate,
     retrieval,
     runDirectory,
-    selectionMode: admission.selectionMode,
+    selectionMode: base.selectionMode,
     e4: {
       executionFailures: e4Summary.executionFailures,
       renderedContextMaxTokens: e4Summary.renderedContextMaxTokens,
@@ -1224,11 +1561,10 @@ function combineUsage(input: {
 }
 
 function outcomesForArm(
-  artifact: RunArtifact,
-  stage: RetrievalStage,
+  artifact: StageAggregationArtifact,
   arm: string,
 ): Phase74ReplicateCaseOutcome[] {
-  return artifact.retrieval[stage].rows
+  return artifact.retrieval.rows
     .filter((row) => row.arm === arm)
     .map((row) => ({
       caseId: row.caseId,
@@ -1238,16 +1574,10 @@ function outcomesForArm(
     }));
 }
 
-function clusterAwareDelta(run: Phase74ReplicateRun): number {
-  const groups = new Map<string, number[]>();
-  for (const [index, baseline] of run.baseline.entries()) {
-    const candidate = run.candidate[index]!;
-    groups.set(baseline.clusterId, [
-      ...(groups.get(baseline.clusterId) ?? []),
-      candidate.value - baseline.value,
-    ]);
-  }
-  return mean([...groups.values()].map((values) => mean(values)));
+function questionWeightedDelta(run: Phase74ReplicateRun): number {
+  return mean(run.baseline.map((baseline, index) =>
+    run.candidate[index]!.value - baseline.value
+  ));
 }
 
 function deltaDirection(
@@ -1266,23 +1596,25 @@ function deltaDirection(
 }
 
 function buildStageAggregation(input: {
-  artifacts: readonly [RunArtifact, RunArtifact, RunArtifact];
+  artifacts: readonly [
+    StageAggregationArtifact,
+    StageAggregationArtifact,
+    StageAggregationArtifact,
+  ];
   benchmark: Phase74BenchmarkFamily;
   bootstrapSamples?: number;
   seed?: number;
   stage: RetrievalStage;
 }): Phase74StageAggregation {
   const runs = input.artifacts.map((artifact): Phase74ReplicateRun => {
-    const comparison = artifact.retrieval[input.stage].comparison;
+    const comparison = artifact.retrieval.comparison;
     return {
       baseline: outcomesForArm(
         artifact,
-        input.stage,
         comparison.baselineArm,
       ),
       candidate: outcomesForArm(
         artifact,
-        input.stage,
         comparison.candidateArm,
       ),
       comparison,
@@ -1300,14 +1632,14 @@ function buildStageAggregation(input: {
     ...(input.seed === undefined ? {} : { seed: input.seed }),
   });
   const baselineLatencies = input.artifacts.flatMap((artifact) => {
-    const comparison = artifact.retrieval[input.stage].comparison;
-    return artifact.retrieval[input.stage].rows
+    const comparison = artifact.retrieval.comparison;
+    return artifact.retrieval.rows
       .filter(({ arm }) => arm === comparison.baselineArm)
       .map(({ productLatencyMs }) => productLatencyMs);
   });
   const candidateLatencies = input.artifacts.flatMap((artifact) => {
-    const comparison = artifact.retrieval[input.stage].comparison;
-    return artifact.retrieval[input.stage].rows
+    const comparison = artifact.retrieval.comparison;
+    return artifact.retrieval.rows
       .filter(({ arm }) => arm === comparison.candidateArm)
       .map(({ productLatencyMs }) => productLatencyMs);
   });
@@ -1329,7 +1661,7 @@ function buildStageAggregation(input: {
       replicateDeltas,
     };
   });
-  const independentlyDerivedDeltas = runs.map(clusterAwareDelta) as [
+  const independentlyDerivedDeltas = runs.map(questionWeightedDelta) as [
     number,
     number,
     number,
@@ -1353,7 +1685,7 @@ function buildStageAggregation(input: {
       benchmark: input.benchmark,
       caseIds: runs[artifact.replicate - 1]!.baseline.map(({ caseId }) => caseId),
       replicate: artifact.replicate,
-      usage: artifact.retrieval[input.stage].modelUsage,
+      usage: artifact.retrieval.modelUsage,
     })),
   });
   return {
@@ -1369,6 +1701,11 @@ function buildStageAggregation(input: {
     },
     modelUsage,
     perCase,
+    renderedContextMaxTokens: Math.max(
+      ...input.artifacts.map(({ retrieval }) =>
+        retrieval.renderedContextMaxTokens
+      ),
+    ),
     replicateStability: {
       deltas: replicateDeltas,
       direction: deltaDirection(replicateDeltas),
@@ -1778,6 +2115,121 @@ function normalizeRunDirectories(runDirectories: readonly string[]): string[] {
   return resolved;
 }
 
+function selectStageArtifact(
+  artifact: RunArtifact,
+  stage: RetrievalStage,
+): StageAggregationArtifact {
+  return {
+    benchmark: artifact.benchmark,
+    dataset: artifact.dataset,
+    experimentIdentityHash: artifact.experimentIdentityHash,
+    identity: artifact.identity,
+    identityHash: artifact.identityHash,
+    replicate: artifact.replicate,
+    retrieval: artifact.retrieval[stage],
+    runDirectory: artifact.runDirectory,
+    selectionMode: artifact.selectionMode,
+  };
+}
+
+function orderStageArtifacts(
+  artifacts: readonly StageAggregationArtifact[],
+): [StageAggregationArtifact, StageAggregationArtifact, StageAggregationArtifact] {
+  const sorted = [...artifacts].sort(
+    (left, right) => left.replicate - right.replicate,
+  );
+  if (
+    sorted.length !== 3 ||
+    sorted[0]?.replicate !== 1 ||
+    sorted[1]?.replicate !== 2 ||
+    sorted[2]?.replicate !== 3
+  ) {
+    throw new Error(
+      "Phase 74 stage diagnostic requires replicates 1, 2, and 3 exactly once.",
+    );
+  }
+  if (new Set(sorted.map(({ benchmark }) => benchmark)).size !== 1) {
+    throw new Error("Phase 74 stage diagnostic benchmark drift.");
+  }
+  if (
+    new Set(sorted.map(({ experimentIdentityHash }) =>
+      experimentIdentityHash
+    )).size !== 1
+  ) {
+    throw new Error("Phase 74 stage diagnostic experiment identity drift.");
+  }
+  if (new Set(sorted.map(({ dataset }) => stableJson(dataset))).size !== 1) {
+    throw new Error("Phase 74 stage diagnostic dataset population drift.");
+  }
+  if (new Set(sorted.map(({ identityHash }) => identityHash)).size !== 3) {
+    throw new Error("Phase 74 stage diagnostic run identity hashes must be unique.");
+  }
+  if (new Set(sorted.map(({ identity }) => identity.runId)).size !== 3) {
+    throw new Error("Phase 74 stage diagnostic run IDs must be unique.");
+  }
+  return sorted as [
+    StageAggregationArtifact,
+    StageAggregationArtifact,
+    StageAggregationArtifact,
+  ];
+}
+
+export async function aggregatePhase74StageDiagnosticArtifacts(
+  input: Phase74StageDiagnosticAggregationInput,
+): Promise<Phase74StageDiagnosticAggregationReport> {
+  if (input.runDirectories.length !== 3) {
+    throw new Error(
+      "Phase 74 stage diagnostic requires exactly three run directories.",
+    );
+  }
+  const runDirectories = input.runDirectories.map((path) => resolve(path));
+  if (new Set(runDirectories).size !== runDirectories.length) {
+    throw new Error("Phase 74 stage diagnostic contains duplicate run directories.");
+  }
+  const artifacts = orderStageArtifacts(await Promise.all(
+    runDirectories.map(async (runDirectory): Promise<StageAggregationArtifact> => {
+      const base = await loadRunBaseArtifact(runDirectory, "recorded");
+      return {
+        benchmark: base.benchmark,
+        dataset: base.dataset,
+        experimentIdentityHash: base.experimentIdentityHash,
+        identity: base.identity,
+        identityHash: base.identityHash,
+        replicate: base.replicate,
+        retrieval: await loadRetrievalStageArtifact(base, input.stage),
+        runDirectory: base.runDirectory,
+        selectionMode: base.selectionMode,
+      };
+    }),
+  ));
+  const aggregation = buildStageAggregation({
+    artifacts,
+    benchmark: artifacts[0].benchmark,
+    ...(input.bootstrapSamples === undefined
+      ? {}
+      : { bootstrapSamples: input.bootstrapSamples }),
+    ...(input.seed === undefined ? {} : { seed: input.seed }),
+    stage: input.stage,
+  });
+  return {
+    aggregation,
+    evidenceBoundary: "seen-case-stage-ablation-diagnostic",
+    inputs: artifacts.map((artifact) => ({
+      experimentIdentityHash: artifact.experimentIdentityHash,
+      identityHash: artifact.identityHash,
+      replicate: artifact.replicate,
+      runDirectory: artifact.runDirectory,
+      runId: artifact.identity.runId,
+    })),
+    kind: "phase74-stage-only-diagnostic",
+    promotionEvaluated: false,
+    reason: "A selected single-stage ablation cannot authorize product promotion.",
+    schemaVersion: 1,
+    seenCasesOnly: true,
+    status: "not_evaluable_for_promotion",
+  };
+}
+
 export async function aggregatePhase74GeneralizationArtifacts(
   input: Phase74ArtifactAggregationInput,
 ): Promise<Phase74ArtifactAggregationReport> {
@@ -1793,7 +2245,13 @@ export async function aggregatePhase74GeneralizationArtifacts(
       (artifact) => artifact.benchmark === benchmark,
     ) as [RunArtifact, RunArtifact, RunArtifact];
     return RETRIEVAL_STAGES.map((stage) => buildStageAggregation({
-      artifacts: selected,
+      artifacts: selected.map((artifact) =>
+        selectStageArtifact(artifact, stage)
+      ) as [
+        StageAggregationArtifact,
+        StageAggregationArtifact,
+        StageAggregationArtifact,
+      ],
       benchmark,
       ...(input.bootstrapSamples === undefined
         ? {}

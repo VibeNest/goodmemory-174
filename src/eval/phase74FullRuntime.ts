@@ -127,6 +127,22 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+export function buildPhase74RetrievalSnapshotId(input: {
+  arm: string;
+  evidenceLedgers?: unknown;
+  retrievedMemories: readonly unknown[];
+  stage: string;
+  storedMemories: readonly unknown[];
+}): string {
+  return sha256(canonicalJson({
+    arm: input.arm,
+    evidenceLedgers: input.evidenceLedgers,
+    retrievedMemories: input.retrievedMemories,
+    stage: input.stage,
+    storedMemories: input.storedMemories,
+  }));
+}
+
 export function buildPhase74IngestionKey(
   input: Phase74IngestionKeyInput,
 ): string {
@@ -589,13 +605,13 @@ export function createPhase74FullRetrievalRuntime(input: {
                 })).content],
               ))) as Record<EvidenceLedgerFormat, string>
             : undefined;
-        const snapshotId = sha256(canonicalJson({
+        const snapshotId = buildPhase74RetrievalSnapshotId({
           arm,
           evidenceLedgers,
           retrievedMemories,
           stage,
           storedMemories,
-        }));
+        });
         return {
           ...(evidenceLedgers === undefined ? {} : { evidenceLedgers }),
           recallMetadata: {

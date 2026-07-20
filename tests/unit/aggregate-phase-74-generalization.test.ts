@@ -13,11 +13,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 
 import {
   aggregatePhase74GeneralizationArtifacts,
+  aggregatePhase74StageDiagnosticArtifacts,
   parsePhase74AggregationCliOptions,
   runPhase74GeneralizationAggregation,
 } from "../../scripts/aggregate-phase-74-generalization";
 import { PHASE74_EXPERIMENT_ARMS } from "../../src/eval/phase74ExperimentDesign";
-import { PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION } from "../../src/eval/phase74FullRuntime";
+import { buildPhase74StageConfigurations } from "../../src/eval/phase74Generalization";
+import {
+  buildPhase74RetrievalSnapshotId,
+  PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
+} from "../../src/eval/phase74FullRuntime";
 import { buildPhase74ProtocolScoringIdentity } from "../../src/eval/phase74ProtocolScoring";
 import { buildPhase74ReplicateComparison } from "../../src/eval/phase74Replicates";
 import {
@@ -107,6 +112,29 @@ function usageEvidence(
   };
 }
 
+function usageEvents(caseIds: readonly string[]) {
+  return (["baseline", "candidate"] as const).flatMap((branch) =>
+    caseIds.map((caseId) => ({
+      attempt: 1,
+      branch,
+      caseId,
+      completeness: "complete",
+      modelId: "gpt-5.6-terra",
+      operation: "answer_generation",
+      outcome: "succeeded",
+      providerId: "openai",
+      schemaVersion: 1,
+      usage: {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: branch === "candidate" ? 90 : 80,
+        outputTokens: 20,
+        uncachedInputTokens: branch === "candidate" ? 90 : 80,
+      },
+    }))
+  );
+}
+
 interface FixtureOptions {
   admission?:
     | "canonical"
@@ -123,6 +151,7 @@ interface FixtureOptions {
     replicate: 1 | 2 | 3;
   };
   subsetSelection?: boolean;
+  unequalClusterE2?: boolean;
 }
 
 async function createArtifactFixture(options: FixtureOptions = {}) {
@@ -290,6 +319,14 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
 
       for (const stage of STAGES) {
         const prefix = stage.toLowerCase();
+        const callBudget = {
+          embeddingCalls: cases.length,
+          embeddingInputByteUpperBound: cases.length * 100,
+          embeddingSpendLimitUsd: 0.1,
+          languageCalls: cases.length * 2,
+          maxLanguageCalls: 80,
+          schemaVersion: 1,
+        };
         if (stage === "E4") {
           const e4Rows = cases.flatMap(({ caseId, clusterId }) =>
             FORMATS.map((format, formatIndex) => ({
@@ -333,6 +370,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             },
           };
           await Promise.all([
+            writeJson(join(runDirectory, `${prefix}-call-budget.json`), callBudget),
             writeJsonLines(join(runDirectory, `${prefix}-progress.jsonl`), e4Rows),
             writeJsonLines(
               join(runDirectory, `${prefix}-retrieval-packets.jsonl`),
@@ -345,6 +383,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             writeJson(join(runDirectory, `${prefix}-report.json`), report),
             writeJson(join(runDirectory, `${prefix}-summary.json`), {
               benchmark,
+              callBudget,
               caseCount: cases.length,
               comparison: null,
               endToEndScores: {},
@@ -362,36 +401,44 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
         }
 
         const arms = stageArms(stage);
+        const stageConfigurations = buildPhase74StageConfigurations(
+          identity.configuration,
+          stage,
+        );
         const comparison = buildPhase74ReplicateComparison({
           benchmark,
           selectedCaseIdsSha256,
           stage,
         });
         const targetArms = comparisonArms(stage);
-        const baselineScore = 0.4;
+        const baselineScore = benchmark === "longmemeval" ? 0 : 0.4;
         const candidateDelta =
             stage === "E3" &&
               options.negativeE3Replicate?.benchmark === benchmark &&
               options.negativeE3Replicate.replicate === replicate
           ? -0.02
           : benchmark === "longmemeval" ? 0.04 : 0.02;
-        const rows = cases.flatMap(({ caseId, clusterId }) =>
+        const rows = cases.flatMap(({ caseId, clusterId }, caseIndex) =>
           arms.map((arm) => {
             const isCandidate = arm === targetArms.candidate;
-            const score = isCandidate
-              ? baselineScore + candidateDelta
-              : baselineScore;
+            const rowDelta = options.unequalClusterE2 &&
+                benchmark === "locomo" && stage === "E2"
+              ? clusterId === "conversation-2" ? 0.6 : 0
+              : candidateDelta;
+            const score = benchmark === "longmemeval"
+              ? Number(isCandidate && caseIndex === 0)
+              : isCandidate ? baselineScore + rowDelta : baselineScore;
             return {
               answer: "answer",
               answerLatencyMs: isCandidate ? 30 : 25,
               arm,
               caseId,
               clusterId,
-              configuration: {},
+              configuration: stageConfigurations[arm],
               contextTokens: isCandidate ? 120 : 100,
               contextTokensBeforeTruncation: isCandidate ? 120 : 100,
               contextTruncated: false,
-              correct: isCandidate && candidateDelta > 0,
+              correct: score === 1,
               productLatencyMs: isCandidate ? 110 : 100,
               recallLatencyMs: isCandidate ? 80 : 75,
               score,
@@ -400,14 +447,41 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             };
           })
         );
-        const packets = rows.map(({ snapshotId }) => ({
-          retrievedMemories: [],
-          snapshotId,
-          storedMemories: [],
-        }));
+        const packets = rows.map((row) => {
+          const retrievedMemories = [{
+            content: `evidence for ${row.caseId}`,
+            id: `${row.caseId}-${row.arm}`,
+            sourceIds: [],
+          }];
+          const storedMemories: unknown[] = [];
+          const snapshotId = buildPhase74RetrievalSnapshotId({
+            arm: row.arm,
+            evidenceLedgers: undefined,
+            retrievedMemories,
+            stage,
+            storedMemories,
+          });
+          row.snapshotId = snapshotId;
+          return {
+            evaluation: {
+              answer: row.answer,
+              answerLatencyMs: row.answerLatencyMs,
+              contextTokens: row.contextTokens,
+              contextTokensBeforeTruncation: row.contextTokensBeforeTruncation,
+              contextTruncated: row.contextTruncated,
+              correct: row.correct,
+              productLatencyMs: row.productLatencyMs,
+              recallLatencyMs: row.recallLatencyMs,
+              score: row.score,
+            },
+            retrievedMemories,
+            snapshotId,
+            storedMemories,
+          };
+        });
         const modelUsage = usageEvidence(
           caseKeys,
-          options.costBoundary ?? "full-product",
+          options.costBoundary ?? "query-only",
         );
         const endToEndScores = Object.fromEntries(arms.map((arm) => {
           const armRows = rows.filter((row) => row.arm === arm);
@@ -422,6 +496,11 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           }];
         }));
         await Promise.all([
+          writeJson(join(runDirectory, `${prefix}-call-budget.json`), callBudget),
+          writeJsonLines(
+            join(runDirectory, `${prefix}-model-usage.jsonl`),
+            usageEvents(caseKeys),
+          ),
           writeJsonLines(join(runDirectory, `${prefix}-progress.jsonl`), rows),
           writeJsonLines(
             join(runDirectory, `${prefix}-retrieval-packets.jsonl`),
@@ -433,6 +512,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           ),
           writeJson(join(runDirectory, `${prefix}-summary.json`), {
             benchmark,
+            callBudget,
             caseCount: cases.length,
             comparison,
             endToEndScores,
@@ -486,6 +566,321 @@ async function writeProtectionArtifact(root: string): Promise<string> {
 }
 
 describe("Phase 74 frozen artifact aggregation", () => {
+  it("keeps stage diagnostic score deltas question-weighted for unequal LoCoMo clusters", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+      unequalClusterE2: true,
+    });
+    const report = await aggregatePhase74StageDiagnosticArtifacts({
+      bootstrapSamples: 500,
+      runDirectories: fixture.runDirectories.filter((path) =>
+        path.includes("locomo-replicate-")
+      ),
+      seed: 74,
+      stage: "E2",
+    });
+
+    expect(report.aggregation.aggregate.inference.delta).toBeCloseTo(0.2);
+    for (const delta of report.aggregation.replicateStability.deltas) {
+      expect(delta).toBeCloseTo(0.2);
+    }
+  });
+
+  it("aggregates one deterministic stage from three frozen diagnostic replicates", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      costBoundary: "query-only",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    await Promise.all(runDirectories.flatMap((runDirectory) => [
+      rm(join(runDirectory, "e1-summary.json")),
+      rm(join(runDirectory, "e3-summary.json")),
+      rm(join(runDirectory, "e4-summary.json")),
+    ]));
+
+    const report = await aggregatePhase74StageDiagnosticArtifacts({
+      bootstrapSamples: 500,
+      runDirectories,
+      seed: 74,
+      stage: "E2",
+    });
+
+    expect(report).toMatchObject({
+      evidenceBoundary: "seen-case-stage-ablation-diagnostic",
+      kind: "phase74-stage-only-diagnostic",
+      promotionEvaluated: false,
+      reason: "A selected single-stage ablation cannot authorize product promotion.",
+      schemaVersion: 1,
+      seenCasesOnly: true,
+      status: "not_evaluable_for_promotion",
+    });
+    expect(report.aggregation).toMatchObject({
+      benchmark: "locomo",
+      caseCount: 3,
+      clusterCount: 2,
+      replicateStability: { direction: "consistent_positive" },
+      stage: "E2",
+    });
+    expect(report.inputs).toHaveLength(3);
+    expect(report.aggregation.aggregate.inference.delta).toBeCloseTo(0.02);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories: runDirectories.slice(0, 2),
+      stage: "E2",
+    })).rejects.toThrow("exactly three run directories");
+  });
+
+  it("rejects a stage progress row whose product configuration was tampered", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const progressPath = join(runDirectories[0]!, "e2-progress.jsonl");
+    const rows = (await readFile(progressPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    rows[0].configuration = { tampered: true };
+    await writeJsonLines(progressPath, rows);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("progress configuration drift");
+  });
+
+  it("rejects raw model usage that does not reproduce the frozen summary", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const usagePath = join(runDirectories[0]!, "e2-model-usage.jsonl");
+    const events = (await readFile(usagePath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    events[0].usage.inputTokens += 1;
+    await writeJsonLines(usagePath, events);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("raw model usage drift");
+  });
+
+  it("binds the model usage cost boundary to the frozen run identity", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      costBoundary: "full-product",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("cost boundary drift");
+  });
+
+  it("rejects incomplete baseline or candidate model usage", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      costBoundary: "query-only",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const runDirectory = runDirectories[0]!;
+    const usagePath = join(runDirectory, "e2-model-usage.jsonl");
+    const events = (await readFile(usagePath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const baselineEvent = events.find(({ branch }) => branch === "baseline");
+    baselineEvent.completeness = "missing";
+    for (const key of Object.keys(baselineEvent.usage)) {
+      baselineEvent.usage[key] = null;
+    }
+    await writeJsonLines(usagePath, events);
+
+    const summaryPath = join(runDirectory, "e2-summary.json");
+    const usageSummaryPath = join(runDirectory, "e2-model-usage-summary.json");
+    const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    summary.modelUsage.baseline.completeRequestCount -= 1;
+    summary.modelUsage.baseline.missingRequestCount += 1;
+    summary.modelUsage.baseline.totalTokens -= 100;
+    await writeJson(summaryPath, summary);
+    await writeJson(usageSummaryPath, summary.modelUsage);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("incomplete model usage");
+  });
+
+  it("rejects a retrieval packet whose committed evaluation was tampered", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const packetsPath = join(runDirectories[0]!, "e2-retrieval-packets.jsonl");
+    const packets = (await readFile(packetsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    packets[0].evaluation.score = 0.99;
+    await writeJsonLines(packetsPath, packets);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("retrieval packet evaluation drift");
+  });
+
+  it("accepts content-addressed snapshots shared by multiple cases", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      costBoundary: "query-only",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const runDirectory = runDirectories[0]!;
+    const progressPath = join(runDirectory, "e2-progress.jsonl");
+    const rows = (await readFile(progressPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const first = rows[0];
+    const second = rows.find(({ arm, caseId }) =>
+      arm === first.arm && caseId !== first.caseId
+    );
+    const secondSnapshotId = second.snapshotId;
+    second.snapshotId = first.snapshotId;
+    await writeJsonLines(progressPath, rows);
+
+    const packetsPath = join(runDirectory, "e2-retrieval-packets.jsonl");
+    const packets = (await readFile(packetsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const firstPacket = packets.find(({ snapshotId }) =>
+      snapshotId === first.snapshotId
+    );
+    const secondPacket = packets.find(({ snapshotId }) =>
+      snapshotId === secondSnapshotId
+    );
+    secondPacket.retrievedMemories = firstPacket.retrievedMemories;
+    secondPacket.storedMemories = firstPacket.storedMemories;
+    secondPacket.snapshotId = firstPacket.snapshotId;
+    await writeJsonLines(packetsPath, packets);
+
+    const report = await aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    });
+    expect(report.aggregation.caseCount).toBe(3);
+  });
+
+  it("rejects score and correctness pairs that violate the frozen family scorer", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const runDirectory = runDirectories[0]!;
+    const progressPath = join(runDirectory, "e2-progress.jsonl");
+    const rows = (await readFile(progressPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    rows[0].correct = true;
+    await writeJsonLines(progressPath, rows);
+
+    const packetsPath = join(runDirectory, "e2-retrieval-packets.jsonl");
+    const packets = (await readFile(packetsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    packets.find(({ snapshotId }) => snapshotId === rows[0].snapshotId)
+      .evaluation.correct = true;
+    await writeJsonLines(packetsPath, packets);
+
+    const summaryPath = join(runDirectory, "e2-summary.json");
+    const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    const armRows = rows.filter(({ arm }) => arm === rows[0].arm);
+    summary.endToEndScores[rows[0].arm].semanticAccuracy =
+      armRows.filter(({ correct }) => correct).length / armRows.length;
+    await writeJson(summaryPath, summary);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("score/correctness drift");
+  });
+
+  it("rejects fractional LongMemEval scores even when binary correctness agrees", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("longmemeval-replicate-")
+    );
+    const runDirectory = runDirectories[0]!;
+    const progressPath = join(runDirectory, "e2-progress.jsonl");
+    const rows = (await readFile(progressPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    rows[0].score = 0.5;
+    rows[0].correct = false;
+    await writeJsonLines(progressPath, rows);
+
+    const packetsPath = join(runDirectory, "e2-retrieval-packets.jsonl");
+    const packets = (await readFile(packetsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const packet = packets.find(({ snapshotId }) => snapshotId === rows[0].snapshotId);
+    packet.evaluation.score = 0.5;
+    packet.evaluation.correct = false;
+    await writeJsonLines(packetsPath, packets);
+
+    const summaryPath = join(runDirectory, "e2-summary.json");
+    const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    const armRows = rows.filter(({ arm }) => arm === rows[0].arm);
+    summary.endToEndScores[rows[0].arm].meanFamilyScore =
+      armRows.reduce((total, { score }) => total + score, 0) / armRows.length;
+    summary.endToEndScores[rows[0].arm].semanticAccuracy =
+      armRows.filter(({ correct }) => correct).length / armRows.length;
+    await writeJson(summaryPath, summary);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("score/correctness drift");
+  });
+
   it("derives repeated statistics and blocks seen-case evidence from promotion", async () => {
     const fixture = await createArtifactFixture();
     const protectionArtifactPath = await writeProtectionArtifact(fixture.root);

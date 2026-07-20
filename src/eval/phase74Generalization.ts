@@ -360,6 +360,15 @@ function assertIsolatedConfigurations(
   }
 }
 
+export function buildPhase74StageConfigurations(
+  base: EvalRunJsonObject,
+  stage: Phase74ExperimentStage,
+): Readonly<Record<string, EvalRunJsonObject>> {
+  const configurations = buildConfigurations(base);
+  assertIsolatedConfigurations(configurations);
+  return configurations[stage] as Readonly<Record<string, EvalRunJsonObject>>;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
