@@ -291,7 +291,7 @@ describe("recall projections through the public API", () => {
     ).toEqual([]);
   });
 
-  it("uses structured claims in the temporal and relation fusion channels", async () => {
+  it("uses a structured singleton claim only in the relation fusion channel", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({
       adapters: {
@@ -353,7 +353,7 @@ describe("recall projections through the public API", () => {
       ?.flatMap(({ candidates }) => candidates)
       .find(({ sourceMemoryId }) => sourceMemoryId === memoryId);
 
-    expect(traceCandidate?.channels.temporal).toBeDefined();
+    expect(traceCandidate?.channels.temporal).toBeUndefined();
     expect(traceCandidate?.channels.relation).toBeDefined();
     expect(recalled.facts).toEqual([
       expect.objectContaining({
