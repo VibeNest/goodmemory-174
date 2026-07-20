@@ -991,8 +991,8 @@ export async function runPhase72LongMemEvalAnswerRevision(
     claimBoundary: selectionScoped
       ? "Frozen-selection answer-revision diagnostic. Selection labels define evaluation cohorts only and are excluded from model prompts."
       : options.allCases
-        ? "Full-source all-case conservative answer-revision diagnostic. Requires a separate official-protocol rescore by the pinned independent judge before any comparison claim."
-        : "Full-source explicit-abstention revision diagnostic. Requires a separate official-protocol rescore by the pinned independent judge before any comparison claim.",
+        ? "Full-source all-case conservative answer-revision diagnostic. Requires a separate pinned-prompt rescore; numerical comparison additionally requires a supported evaluator model."
+        : "Full-source explicit-abstention revision diagnostic. Requires a separate pinned-prompt rescore; numerical comparison additionally requires a supported evaluator model.",
     datasetPath,
     datasetSha256: createHash("sha256").update(datasetRaw).digest("hex"),
     generatedAt,

@@ -7,6 +7,12 @@ export const LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY = {
   repository: "https://github.com/xiaowu0162/LongMemEval",
 } as const;
 
+export const LONGMEMEVAL_OFFICIAL_METRIC_MODELS = [
+  "gpt-4o",
+  "gpt-4o-mini",
+  "llama-3.1-70b-instruct",
+] as const;
+
 const DEFAULT_TEMPLATE =
   "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. \n\nQuestion: {q}\n\nCorrect Answer: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
 const TEMPORAL_TEMPLATE =
@@ -30,10 +36,15 @@ function fillTemplate(input: {
   question: string;
   template: string;
 }): string {
-  return input.template
-    .replace("{q}", input.question)
-    .replace("{a}", input.expectedAnswer)
-    .replace("{r}", input.candidateAnswer);
+  const fields = {
+    a: input.expectedAnswer,
+    q: input.question,
+    r: input.candidateAnswer,
+  };
+  return input.template.replace(
+    /\{([aqr])\}/gu,
+    (_, field: keyof typeof fields) => fields[field],
+  );
 }
 
 export function isLongMemEvalOfficialAbstentionCase(caseId: string): boolean {

@@ -62,6 +62,19 @@ describe("LongMemEval official scorer", () => {
     expect(parseLongMemEvalOfficialJudgeVerdict("No")).toBe(false);
   });
 
+  it("interpolates upstream template fields exactly once", () => {
+    const prompt = buildLongMemEvalOfficialJudgePrompt({
+      candidateAnswer: "candidate {q}",
+      expectedAnswer: "gold {r}",
+      question: "literal {a}",
+      questionType: "multi-session",
+    });
+
+    expect(prompt).toContain("Question: literal {a}");
+    expect(prompt).toContain("Correct Answer: gold {r}");
+    expect(prompt).toContain("Model Response: candidate {q}");
+  });
+
   it("rejects unsupported question types instead of silently changing protocol", () => {
     expect(() => buildLongMemEvalOfficialJudgePrompt({
       candidateAnswer: "candidate",

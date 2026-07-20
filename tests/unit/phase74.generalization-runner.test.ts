@@ -177,8 +177,12 @@ describe("Phase 74 generalization runner", () => {
       "E3:recall-plan-assisted",
     ]);
     expect(renderedSnapshots).toHaveLength(4);
-    expect(new Set(renderedSnapshots.map(({ snapshotId }) => snapshotId))).toEqual(
-      new Set(["case-1:E3:recall-plan-deterministic"]),
+    const renderedSnapshotIds = [...new Set(
+      renderedSnapshots.map(({ snapshotId }) => snapshotId),
+    )];
+    expect(renderedSnapshotIds).toHaveLength(1);
+    expect(renderedSnapshotIds[0]).toMatch(
+      /^case-[a-f0-9]{64}:E3:recall-plan-deterministic$/u,
     );
     expect(report.e4.selectedFormat).toBe("compact_json");
     expect(report.e4.cases.every(({ score }) => score === 1)).toBe(true);
@@ -355,6 +359,7 @@ describe("Phase 74 generalization runner", () => {
     let readerCalls = 0;
     let judgeCalls = 0;
     let identityCalls = 0;
+    const productCaseIds: string[] = [];
     const checkpoint = {
       async loadE4(key: string) {
         const value = e4.get(key);
@@ -388,6 +393,9 @@ describe("Phase 74 generalization runner", () => {
         expect(testCase).not.toHaveProperty("goldEvidenceIds");
         expect(testCase).not.toHaveProperty("protocolMetadata");
         expect(testCase).not.toHaveProperty("family");
+        expect(JSON.stringify(testCase)).not.toContain("case-1");
+        expect(JSON.stringify(testCase)).not.toContain("session-2");
+        productCaseIds.push(testCase.caseId);
         return {
           evidenceLedgers: {
             prose: "Postgres",
@@ -398,18 +406,20 @@ describe("Phase 74 generalization runner", () => {
           retrievedMemories: [{
             content: "Postgres",
             id: "memory-1",
-            sourceIds: ["session-2"],
+            sourceIds: testCase.rawEvidence[0]?.sourceIds ?? [],
           }],
           snapshotId: `${stage}:${arm}`,
           storedMemories: [{
             content: "Postgres",
             id: "memory-1",
-            sourceIds: ["session-2"],
+            sourceIds: testCase.rawEvidence[0]?.sourceIds ?? [],
           }],
         };
       },
-      genericReader: async ({ context }) => {
+      genericReader: async ({ caseId, context }) => {
         readerCalls += 1;
+        expect(caseId).not.toBe("case-1");
+        expect(caseId).not.toContain("_abs");
         return context.includes("Postgres") ? "Postgres" : "No answer";
       },
       identity: identity(),
@@ -433,6 +443,8 @@ describe("Phase 74 generalization runner", () => {
     const resumed = await run();
 
     expect(firstCounts.retrievalCalls).toBe(8);
+    expect(new Set(productCaseIds).size).toBe(1);
+    expect(productCaseIds[0]).toMatch(/^case-[a-f0-9]{64}$/u);
     expect({ judgeCalls, readerCalls, retrievalCalls }).toEqual(firstCounts);
     expect(identityCalls).toBe(2);
     expect(resumed.executions).toEqual(first.executions);

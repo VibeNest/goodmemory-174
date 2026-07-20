@@ -5,6 +5,7 @@ import { describe, expect, it } from "bun:test";
 import {
   createPhase74LocomoDataset,
   createPhase74LongMemEvalDataset,
+  createPhase74SelectedDatasetBundle,
   PHASE74_FROZEN_DATASET_SOURCES,
   verifyPhase74DatasetSource,
 } from "../../src/eval/phase74Datasets";
@@ -289,5 +290,39 @@ describe("Phase 74 frozen dataset adapters", () => {
       raw: "changed",
       source: { ...source, sourceSha256: sha256("expected") },
     })).toThrow("source SHA-256 mismatch");
+  });
+
+  it("creates a case-consistent run manifest for a deterministic subset", () => {
+    const raw = JSON.stringify(Array.from({ length: 3 }, (_, index) => ({
+      answer: `answer-${index}`,
+      answer_session_ids: [`session-${index}`],
+      haystack_dates: ["2026-01-01"],
+      haystack_session_ids: [`session-${index}`],
+      haystack_sessions: [[{ role: "user", content: `evidence-${index}` }]],
+      question: `question-${index}`,
+      question_date: "2026-01-02",
+      question_id: `question-${index}`,
+      question_type: "single-session-user",
+    })));
+    const full = createPhase74LongMemEvalDataset({
+      raw,
+      source: { ...source, sourceSha256: sha256(raw) },
+    });
+    const selected = createPhase74SelectedDatasetBundle({
+      bundle: full,
+      cases: [full.cases[1]!],
+    });
+
+    expect(selected.cases.map(({ caseId }) => caseId)).toEqual(["question-1"]);
+    expect(selected.manifest).toMatchObject({
+      caseCount: 1,
+      datasetSha256: full.manifest.datasetSha256,
+      selectedCaseIdsSha256: sha256(JSON.stringify(["question-1"])),
+      unresolvedGoldEvidence: [],
+      unresolvedGoldEvidenceCount: 0,
+    });
+    expect(selected.manifest.adaptedCasesSha256).toBe(
+      sha256(JSON.stringify(selected.cases)),
+    );
   });
 });

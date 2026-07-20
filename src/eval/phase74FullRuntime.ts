@@ -195,7 +195,7 @@ function isoDate(value: string | undefined): string {
 
 function groupSessionId(item: Phase74RawEvidenceItem): string {
   const sourceId = item.sourceIds[0] ?? "source";
-  return sourceId.match(/^(D\d+):/u)?.[1] ?? sourceId;
+  return sourceId.match(/^([^:]+):/u)?.[1] ?? sourceId;
 }
 
 export function buildPhase74LabelFreeScope(

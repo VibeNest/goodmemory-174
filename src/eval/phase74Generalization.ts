@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { selectEvidenceLedgerFormat } from "./evidenceLedgerFormats";
 import type { EvidenceLedgerFormat } from "./evidenceLedgerFormats";
 import type { RecallResult } from "../api/contracts";
@@ -60,6 +62,13 @@ export interface Phase74RecallCase {
   question: string;
   rawEvidence: readonly Phase74RawEvidenceItem[];
   referenceTime?: string;
+}
+
+interface Phase74LabelFreeCaseBoundary {
+  caseKey: string;
+  goldEvidenceIds: readonly string[];
+  recallCase: Phase74RecallCase;
+  unresolvedGoldEvidenceIds: readonly string[];
 }
 
 export interface Phase74RetrievalSnapshot {
@@ -353,35 +362,84 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function oracleCase(
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export function buildPhase74LabelFreeCaseBoundary(
   testCase: Phase74GeneralizationCase,
-  snapshot: Phase74RetrievalSnapshot,
-) {
-  return {
-    caseId: testCase.caseId,
-    expectedAnswer: testCase.expectedAnswer,
-    goldEvidenceIds: testCase.goldEvidenceIds,
-    protocolMetadata: testCase.protocolMetadata,
+): Phase74LabelFreeCaseBoundary {
+  const sessionAliases = new Map<string, string>();
+  const sourceAliases = new Map<string, string>();
+  const sourceAlias = (sourceId: string) => {
+    const existing = sourceAliases.get(sourceId);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const sessionId = sourceId.match(/^([^:]+):/u)?.[1] ?? sourceId;
+    let sessionAlias = sessionAliases.get(sessionId);
+    if (sessionAlias === undefined) {
+      sessionAlias = `session-${sessionAliases.size + 1}`;
+      sessionAliases.set(sessionId, sessionAlias);
+    }
+    const alias = `${sessionAlias}:source-${sourceAliases.size + 1}`;
+    sourceAliases.set(sourceId, alias);
+    return alias;
+  };
+  const rawEvidence = testCase.rawEvidence.map((item, index) => ({
+    content: item.content,
+    id: `evidence-${index + 1}`,
+    ...(item.observedAt === undefined ? {} : { observedAt: item.observedAt }),
+    ...(item.role === undefined ? {} : { role: item.role }),
+    sourceIds: item.sourceIds.map(sourceAlias),
+  }));
+  const memoryGroupId = `group-${sha256(JSON.stringify({
+    locale: testCase.locale ?? null,
+    rawEvidence,
+    referenceTime: testCase.referenceTime ?? null,
+  }))}`;
+  const caseKey = `case-${sha256(JSON.stringify({
+    locale: testCase.locale ?? null,
+    memoryGroupId,
     question: testCase.question,
-    rawEvidence: testCase.rawEvidence,
-    retrievedMemories: snapshot.retrievedMemories,
-    storedMemories: snapshot.storedMemories,
-    unresolvedGoldEvidenceIds: testCase.unresolvedGoldEvidenceIds,
+    referenceTime: testCase.referenceTime ?? null,
+  }))}`;
+  const aliasGoldSource = (sourceId: string) =>
+    sourceAliases.get(sourceId) ?? `unresolved-source-${sha256(sourceId)}`;
+  return {
+    caseKey,
+    goldEvidenceIds: testCase.goldEvidenceIds.map(aliasGoldSource),
+    recallCase: {
+      caseId: caseKey,
+      ...(testCase.locale === undefined ? {} : { locale: testCase.locale }),
+      memoryGroupId,
+      question: testCase.question,
+      rawEvidence,
+      ...(testCase.referenceTime === undefined
+        ? {}
+        : { referenceTime: testCase.referenceTime }),
+    },
+    unresolvedGoldEvidenceIds: (testCase.unresolvedGoldEvidenceIds ?? []).map(
+      aliasGoldSource,
+    ),
   };
 }
 
-function recallCase(testCase: Phase74GeneralizationCase): Phase74RecallCase {
+function oracleCase(
+  testCase: Phase74GeneralizationCase,
+  snapshot: Phase74RetrievalSnapshot,
+  boundary = buildPhase74LabelFreeCaseBoundary(testCase),
+) {
   return {
-    caseId: testCase.caseId,
-    ...(testCase.locale === undefined ? {} : { locale: testCase.locale }),
-    ...(testCase.memoryGroupId === undefined
-      ? {}
-      : { memoryGroupId: testCase.memoryGroupId }),
+    caseId: boundary.caseKey,
+    expectedAnswer: testCase.expectedAnswer,
+    goldEvidenceIds: boundary.goldEvidenceIds,
+    protocolMetadata: testCase.protocolMetadata,
     question: testCase.question,
-    rawEvidence: testCase.rawEvidence,
-    ...(testCase.referenceTime === undefined
-      ? {}
-      : { referenceTime: testCase.referenceTime }),
+    rawEvidence: boundary.recallCase.rawEvidence,
+    retrievedMemories: snapshot.retrievedMemories,
+    storedMemories: snapshot.storedMemories,
+    unresolvedGoldEvidenceIds: boundary.unresolvedGoldEvidenceIds,
   };
 }
 
@@ -444,6 +502,7 @@ export async function runPhase74Generalization(
   const now = input.now ?? (() => performance.now());
 
   for (const testCase of input.cases) {
+    const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
     for (const stage of ["E1", "E2", "E3"] as const) {
       if (!stages.has(stage)) {
         continue;
@@ -470,7 +529,7 @@ export async function runPhase74Generalization(
             arm,
             configuration,
             stage,
-            testCase: recallCase(testCase),
+            testCase: labelFreeBoundary.recallCase,
           });
           const recallCompletedAt = now();
           let snapshot = retrievedSnapshot;
@@ -489,7 +548,7 @@ export async function runPhase74Generalization(
             const branch = phase74ComparisonBranch(stage, arm);
             const answerStartedAt = now();
             const answer = await input.genericReader({
-              caseId: testCase.caseId,
+              caseId: labelFreeBoundary.caseKey,
               context: budgetedContext.content,
               purpose: `final:${branch}:${stage}:${arm}`,
               question: testCase.question,
@@ -523,7 +582,7 @@ export async function runPhase74Generalization(
           }
           input.onRetrievalSnapshot?.(snapshot);
           const metrics = measureOracleMatrixCoverage(
-            oracleCase(testCase, snapshot),
+            oracleCase(testCase, snapshot, labelFreeBoundary),
           );
           const evaluation = snapshot.evaluation;
           if (evaluation === undefined) {
@@ -571,6 +630,7 @@ export async function runPhase74Generalization(
   const e4Cases: Phase74E4CaseResult[] = [];
   if (stages.has("E4")) {
     for (const testCase of input.cases) {
+      const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
       if (!deterministicSnapshots.has(testCase.caseId) && input.checkpoint) {
         const key = checkpointKey(
           identityHash,
@@ -624,7 +684,7 @@ export async function runPhase74Generalization(
             budgetedContext.renderedContextTokensBeforeTruncation;
           contextTruncated = budgetedContext.contextTruncated;
           const answer = await input.genericReader({
-            caseId: testCase.caseId,
+            caseId: labelFreeBoundary.caseKey,
             context,
             purpose: `e4:${format}`,
             question: testCase.question,
@@ -706,6 +766,7 @@ export async function runPhase74Generalization(
   const oracle: OracleMatrixCaseResult[] = [];
   if (input.includeOracle !== false) {
     for (const testCase of input.cases) {
+      const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
       const snapshot = deterministicSnapshots.get(testCase.caseId);
       if (!snapshot) {
         continue;
@@ -728,7 +789,7 @@ export async function runPhase74Generalization(
         genericReader: input.genericReader,
         judge: input.judge,
         protocolReader: input.protocolReader,
-        testCase: oracleCase(testCase, snapshot),
+        testCase: oracleCase(testCase, snapshot, labelFreeBoundary),
       });
       oracle.push(...results);
       if (results.every(({ executionError }) => executionError === undefined)) {

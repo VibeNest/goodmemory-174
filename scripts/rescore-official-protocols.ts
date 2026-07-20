@@ -1,9 +1,7 @@
 /**
- * Phase A of the public-claims comparability plan: rescore EXISTING run
- * answers under each benchmark's OFFICIAL / industry-comparable judge
- * protocol, so GoodMemory numbers can sit next to published competitor
- * numbers on the same scale. No answers are regenerated - this only re-judges
- * stored hypotheses.
+ * Rescore EXISTING run answers with benchmark-source judge prompts. No answers
+ * are regenerated. Numerical comparability still requires the evaluator model
+ * and the rest of the pinned benchmark configuration to match.
  *
  * Protocols (embedded verbatim from the upstream sources):
  * - longmemeval: the official evaluate_qa.py anscheck prompts
@@ -24,6 +22,10 @@ import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import {
+  buildLongMemEvalOfficialJudgePrompt,
+  LONGMEMEVAL_OFFICIAL_METRIC_MODELS,
+} from "../src/eval/longmemevalOfficialScorer";
 import {
   parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
@@ -194,7 +196,7 @@ export interface OfficialRescoreRunIdentity {
   sourceAnswersUnchanged: true;
 }
 
-interface JudgeCase {
+export interface OfficialRescoreJudgeCase {
   category: string;
   gold: string;
   hypothesis: string;
@@ -219,8 +221,25 @@ export interface OfficialRescoreRubricProgressRow {
 }
 
 const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
-const OFFICIAL_RESCORE_CLAIM_BOUNDARY =
-  "Official-protocol comparability rescore of stored answers; not answer regeneration or a public benchmark claim unless promoted by the benchmark-claim gate.";
+
+export function buildOfficialRescoreClaimBoundary(
+  benchmark: OfficialRescoreBenchmark,
+  judgeModel: string | undefined,
+): string {
+  if (benchmark !== "longmemeval") {
+    return "Official/industry-prompt-compatible stored-answer rescore; numeric comparability is benchmark-specific and requires a matching pinned evaluator configuration; not answer regeneration or a public benchmark claim.";
+  }
+  if (
+    judgeModel !== undefined &&
+    LONGMEMEVAL_OFFICIAL_METRIC_MODELS.some((model) => model === judgeModel)
+  ) {
+    return "Official LongMemEval prompt and pinned evaluator-model stored-answer rescore; published-score comparison still requires the remaining benchmark configuration to match; not answer regeneration or a public benchmark claim.";
+  }
+  const modelBoundary = judgeModel === undefined
+    ? "the judge model is unspecified"
+    : `judge model ${judgeModel} is outside the pinned evaluator model zoo`;
+  return `Official-prompt-compatible LongMemEval stored-answer rescore; ${modelBoundary}, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.`;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -509,7 +528,10 @@ export function buildOfficialRescoreMetadata(
 ) {
   return {
     benchmark: input.benchmark,
-    claimBoundary: OFFICIAL_RESCORE_CLAIM_BOUNDARY,
+    claimBoundary: buildOfficialRescoreClaimBoundary(
+      input.benchmark,
+      input.judgeModel,
+    ),
     generatedAt: input.generatedAt,
     generatedBy: "scripts/rescore-official-protocols.ts",
     judgeModel: input.judgeModel,
@@ -543,8 +565,14 @@ export function validateOfficialRescoreSummary(value: unknown): string[] {
   if (!hasOnlyKnownKeys(value, knownKeys)) {
     errors.push("summary contains unknown fields");
   }
-  if (value.claimBoundary !== OFFICIAL_RESCORE_CLAIM_BOUNDARY) {
-    errors.push("claimBoundary must describe stored-answer comparability");
+  if (
+    isNonEmptyUnpaddedString(value.judgeModel) &&
+    value.claimBoundary !==
+      buildOfficialRescoreClaimBoundary(benchmark, value.judgeModel)
+  ) {
+    errors.push(
+      "claimBoundary must match benchmark and judge-model comparability",
+    );
   }
   if (!isNonEmptyUnpaddedString(value.generatedAt)) {
     errors.push("generatedAt must be a non-empty unpadded string");
@@ -1157,42 +1185,17 @@ export function parseOfficialRescoreCliOptions(
   };
 }
 
-// ---------------------------------------------------------------------------
-// LongMemEval official prompts (evaluate_qa.py get_anscheck_prompt, verbatim)
-// ---------------------------------------------------------------------------
-
-const LME_DEFAULT_TEMPLATE =
-  "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. \n\nQuestion: {q}\n\nCorrect Answer: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
-const LME_TEMPORAL_TEMPLATE =
-  "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. In addition, do not penalize off-by-one errors for the number of days. If the question asks for the number of days/weeks/months, etc., and the model makes off-by-one errors (e.g., predicting 19 days when the answer is 18), the model's response is still correct. \n\nQuestion: {q}\n\nCorrect Answer: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
-const LME_KNOWLEDGE_UPDATE_TEMPLATE =
-  "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response contains some previous information along with an updated answer, the response should be considered as correct as long as the updated answer is the required answer.\n\nQuestion: {q}\n\nCorrect Answer: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
-const LME_PREFERENCE_TEMPLATE =
-  "I will give you a question, a rubric for desired personalized response, and a response from a model. Please answer yes if the response satisfies the desired response. Otherwise, answer no. The model does not need to reflect all the points in the rubric. The response is correct as long as it recalls and utilizes the user's personal information correctly.\n\nQuestion: {q}\n\nRubric: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
-const LME_ABSTENTION_TEMPLATE =
-  "I will give you an unanswerable question, an explanation, and a response from a model. Please answer yes if the model correctly identifies the question as unanswerable. The model could say that the information is incomplete, or some other information is given but the asked information is not.\n\nQuestion: {q}\n\nExplanation: {a}\n\nModel Response: {r}\n\nDoes the model correctly identify the question as unanswerable? Answer yes or no only.";
-
-function fillTemplate(template: string, c: JudgeCase): string {
-  return template
-    .replace("{q}", c.question)
-    .replace("{a}", c.gold)
-    .replace("{r}", c.hypothesis);
-}
-
-function buildLongmemevalPrompt(c: JudgeCase, abstention: boolean): string {
-  if (abstention) {
-    return fillTemplate(LME_ABSTENTION_TEMPLATE, c);
-  }
-  switch (c.category) {
-    case "temporal-reasoning":
-      return fillTemplate(LME_TEMPORAL_TEMPLATE, c);
-    case "knowledge-update":
-      return fillTemplate(LME_KNOWLEDGE_UPDATE_TEMPLATE, c);
-    case "single-session-preference":
-      return fillTemplate(LME_PREFERENCE_TEMPLATE, c);
-    default:
-      return fillTemplate(LME_DEFAULT_TEMPLATE, c);
-  }
+export function buildLongMemEvalRescorePrompt(
+  c: OfficialRescoreJudgeCase,
+  abstention: boolean,
+): string {
+  return buildLongMemEvalOfficialJudgePrompt({
+    abstention,
+    candidateAnswer: c.hypothesis,
+    expectedAnswer: c.gold,
+    question: c.question,
+    questionType: c.category,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1487,7 +1490,7 @@ export async function loadLongmemevalCases(input: {
   profile?: string;
   referencePath: string;
   reportPath: string;
-}): Promise<{ abstentionIds: Set<string>; cases: JudgeCase[] }> {
+}): Promise<{ abstentionIds: Set<string>; cases: OfficialRescoreJudgeCase[] }> {
   const report = (await loadJson(input.reportPath)) as {
     profiles: Record<string, { cases: Array<{ hypothesis: string; questionId: string }> }>;
   };
@@ -1504,7 +1507,7 @@ export async function loadLongmemevalCases(input: {
   }>;
   const byId = new Map(reference.map((entry) => [entry.question_id, entry]));
   const abstentionIds = new Set<string>();
-  const cases: JudgeCase[] = [];
+  const cases: OfficialRescoreJudgeCase[] = [];
   for (const entry of profile.cases) {
     const ref = byId.get(entry.questionId);
     if (!ref) {
@@ -1527,7 +1530,7 @@ export async function loadLongmemevalCases(input: {
 async function loadLocomoCases(input: {
   reportPath: string;
   rootPath: string;
-}): Promise<JudgeCase[]> {
+}): Promise<OfficialRescoreJudgeCase[]> {
   const report = (await loadJson(input.reportPath)) as {
     cases: Array<{
       caseId: string;
@@ -1548,7 +1551,7 @@ async function loadLocomoCases(input: {
       byId.set(question.questionId, question);
     }
   }
-  const cases: JudgeCase[] = [];
+  const cases: OfficialRescoreJudgeCase[] = [];
   for (const entry of report.cases) {
     // The industry J-metric judges categories 1-4 only; the adversarial
     // category is excluded from the comparable number (reported separately by
@@ -1835,9 +1838,13 @@ async function main(): Promise<void> {
   const progressPath = join(outputDir, "progress.jsonl");
   const judgeModel = judgeEnv.model;
 
-  let judgePrompt: (c: JudgeCase) => { maxTokens: number; prompt: string; system?: string };
+  let judgePrompt: (c: OfficialRescoreJudgeCase) => {
+    maxTokens: number;
+    prompt: string;
+    system?: string;
+  };
   let parseVerdict: (raw: string) => boolean;
-  let cases: JudgeCase[];
+  let cases: OfficialRescoreJudgeCase[];
   let sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
   let sourceInputs: OfficialRescoreSourceInputs;
 
@@ -1865,7 +1872,10 @@ async function main(): Promise<void> {
     cases = loaded;
     judgePrompt = (c) => ({
       maxTokens: 10,
-      prompt: buildLongmemevalPrompt(c, abstentionIds.has(c.questionId)),
+      prompt: buildLongMemEvalRescorePrompt(
+        c,
+        abstentionIds.has(c.questionId),
+      ),
     });
     parseVerdict = parseYesNo;
   } else if (benchmark === "locomo") {

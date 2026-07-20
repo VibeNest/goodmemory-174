@@ -17,6 +17,7 @@ import {
   runPhase74GeneralizationAggregation,
 } from "../../scripts/aggregate-phase-74-generalization";
 import { PHASE74_EXPERIMENT_ARMS } from "../../src/eval/phase74ExperimentDesign";
+import { buildPhase74ProtocolScoringIdentity } from "../../src/eval/phase74ProtocolScoring";
 import { buildPhase74ReplicateComparison } from "../../src/eval/phase74Replicates";
 import {
   buildEvalRunIdentity,
@@ -106,6 +107,7 @@ function usageEvidence(
 }
 
 interface FixtureOptions {
+  admission?: "canonical" | "deterministic-reranker" | "legacy" | "noncanonical-scorer";
   costBoundary?: "full-product" | "query-only";
   includeE4Scores?: boolean;
   negativeE3Replicate?: {
@@ -113,6 +115,7 @@ interface FixtureOptions {
     replicate: 1 | 2 | 3;
   };
   seenCasesOnly?: boolean;
+  subsetSelection?: boolean;
 }
 
 async function createArtifactFixture(options: FixtureOptions = {}) {
@@ -132,12 +135,59 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           { caseId: "lme-q2", clusterId: "lme-q2" },
         ];
     const caseIds = cases.map(({ caseId }) => caseId);
+    const caseKeys = cases.map(({ caseId }) => `case-${sha256(caseId)}`);
     const selectedCaseIdsSha256 = sha256(JSON.stringify(caseIds));
 
     for (const replicate of [1, 2, 3] as const) {
       const runDirectory = join(root, `${benchmark}-replicate-${replicate}`);
       runDirectories.push(runDirectory);
       await mkdir(runDirectory, { recursive: true });
+      const datasetManifest = {
+        adaptedCasesSha256: sha256(JSON.stringify(cases)),
+        benchmark,
+        caseCount: cases.length,
+        datasetSha256: sha256(`${benchmark}-dataset`),
+        normalizedFingerprint: sha256(`${benchmark}-normalized`),
+        schemaVersion: 2,
+        selectedCaseIdsSha256,
+        source: {
+          commit: "source-commit",
+          license: "test-only",
+          repository: "https://example.test/benchmark",
+          sourceSha256: sha256(`${benchmark}-source`),
+          sourceUrl: "https://example.test/benchmark/data.json",
+        },
+        unresolvedGoldEvidence: [],
+        unresolvedGoldEvidenceCount: 0,
+      };
+      const canonicalConfiguration = {
+        costBoundary: "diagnostic-all-live-calls",
+        dataset: datasetManifest,
+        reader: "generic-label-free-v1",
+        replicate,
+        reranker: {
+          gateway: "https://ai.gurkiai.com/v1",
+          implementation: "provider-pointwise-v1",
+          mode: "provider",
+          model: "gpt-5.6-terra",
+          provider: "openai",
+        },
+        scoring: buildPhase74ProtocolScoringIdentity(benchmark, "gpt-5.5"),
+        selection: {
+          mode: options.subsetSelection
+            ? "deterministic-content-hash-v2"
+            : "all",
+          populationContentSha256: sha256(`${benchmark}-population`),
+          populationSize: cases.length + (options.subsetSelection ? 7 : 0),
+          ...(options.subsetSelection ? { seed: 74 } : {}),
+          selectedCaseIdsSha256,
+          selectedCaseKeysSha256: sha256(JSON.stringify([...caseKeys].sort())),
+          selectedSize: cases.length,
+        },
+        selectedCaseIdsSha256,
+        seenCasesOnly: options.seenCasesOnly ?? false,
+      };
+      const admission = options.admission ?? "canonical";
       const identity = buildEvalRunIdentity({
         answerModel: {
           gateway: "https://ai.gurkiai.com/v1",
@@ -145,13 +195,33 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           provider: "openai",
         },
         benchmark: `${benchmark}-full`,
-        configuration: {
-          costBoundary: "diagnostic-all-live-calls",
-          reader: "generic-label-free-v1",
-          replicate,
-          seenCasesOnly: options.seenCasesOnly ?? false,
-        },
-        datasetSha256: sha256(`${benchmark}-dataset`),
+        configuration: admission === "legacy"
+          ? {
+              costBoundary: "diagnostic-all-live-calls",
+              reader: "generic-label-free-v1",
+              replicate,
+              seenCasesOnly: options.seenCasesOnly ?? false,
+            }
+          : {
+              ...canonicalConfiguration,
+              ...(admission === "deterministic-reranker"
+                ? {
+                    reranker: {
+                      implementation: "lexical-coverage-v1",
+                      mode: "deterministic",
+                    },
+                  }
+                : {}),
+              ...(admission === "noncanonical-scorer"
+                ? {
+                    scoring: {
+                      ...canonicalConfiguration.scoring,
+                      scorer: "unapproved-scorer",
+                    },
+                  }
+                : {}),
+            },
+        datasetSha256: datasetManifest.datasetSha256,
         generatedAt: `2026-07-1${replicate}T00:00:00.000Z`,
         generatedBy: "scripts/run-phase-74-generalization.ts",
         judgeModel: {
@@ -168,13 +238,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
       const identityHash = hashEvalRunIdentity(identity);
       const experimentIdentityHash = hashEvalExperimentIdentity(identity);
       await writeJson(join(runDirectory, "run-identity.json"), identity);
-      await writeJson(join(runDirectory, "dataset-manifest.json"), {
-        benchmark,
-        caseCount: cases.length,
-        datasetSha256: identity.datasetSha256,
-        schemaVersion: 2,
-        selectedCaseIdsSha256,
-      });
+      await writeJson(join(runDirectory, "dataset-manifest.json"), datasetManifest);
 
       for (const stage of STAGES) {
         const prefix = stage.toLowerCase();
@@ -294,7 +358,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           storedMemories: [],
         }));
         const modelUsage = usageEvidence(
-          caseIds,
+          caseKeys,
           options.costBoundary ?? "full-product",
         );
         const endToEndScores = Object.fromEntries(arms.map((arm) => {
@@ -456,6 +520,19 @@ describe("Phase 74 frozen artifact aggregation", () => {
     })).rejects.toThrow("productLatencyMs");
   });
 
+  it("rejects identities that do not satisfy scoring, reranker, and selection admission", async () => {
+    for (const [admission, message] of [
+      ["legacy", "admission"],
+      ["deterministic-reranker", "provider reranker"],
+      ["noncanonical-scorer", "scoring"],
+    ] as const) {
+      const fixture = await createArtifactFixture({ admission });
+      await expect(aggregatePhase74GeneralizationArtifacts({
+        runDirectories: fixture.runDirectories,
+      })).rejects.toThrow(message);
+    }
+  });
+
   it("reports explicit blockers for legacy E4 scores, query-only usage, and missing protection", async () => {
     const fixture = await createArtifactFixture({
       costBoundary: "query-only",
@@ -475,6 +552,20 @@ describe("Phase 74 frozen artifact aggregation", () => {
     expect(report.promotion.gaps.join(" ")).toContain("full-product");
     expect(report.promotion.gaps.join(" ")).toContain("seen-case");
     expect(report.promotion.gaps.join(" ")).toContain("protection artifact");
+  });
+
+  it("aggregates a case-consistent subset but never promotes it as a full-family result", async () => {
+    const fixture = await createArtifactFixture({ subsetSelection: true });
+    const protectionArtifactPath = await writeProtectionArtifact(fixture.root);
+    const report = await aggregatePhase74GeneralizationArtifacts({
+      promotionStage: "E3",
+      protectionArtifactPath,
+      runDirectories: fixture.runDirectories,
+    });
+
+    expect(report.stageAggregations).toHaveLength(6);
+    expect(report.promotion.status).toBe("not_evaluable");
+    expect(report.promotion.gaps.join(" ")).toContain("selected subset");
   });
 
   it("blocks promotion when one independent replicate reverses direction", async () => {
@@ -566,7 +657,7 @@ describe("Phase 74 frozen artifact aggregation", () => {
     await writeJson(usageFilePath, usageSummary.modelUsage);
     await expect(aggregatePhase74GeneralizationArtifacts({
       runDirectories: usageFixture.runDirectories,
-    })).rejects.toThrow("unknown unobserved case");
+    })).rejects.toThrow("non-opaque unobserved case");
   });
 
   it("writes a reproducible report and parses strict paths", async () => {

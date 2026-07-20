@@ -13,14 +13,15 @@ import {
 import {
   loadPhase74VersionCreateGoodMemory,
   runPhase74VersionWorker,
-  type Phase74VersionWorkerResult,
 } from "./phase74-version-worker";
+import type { Phase74VersionWorkerResult } from "./phase74-version-worker";
 import {
   buildPhase74EmbeddingIdentity,
   createPhase74LiveReader,
   phase74LivePromptSha256s,
   resolvePhase74LiveModels,
 } from "../src/eval/phase74Live";
+import { buildPhase74LabelFreeCaseBoundary } from "../src/eval/phase74Generalization";
 import {
   buildPhase74OfficialScoringIdentity,
   createPhase74OfficialAnswerAssessor,
@@ -44,9 +45,14 @@ import {
 } from "../src/eval/oracleMatrix";
 import {
   appendPhase74ModelUsageEventSync,
-  type AttributedModelUsageAttempt,
 } from "../src/eval/modelUsage";
-import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
+import type { AttributedModelUsageAttempt } from "../src/eval/modelUsage";
+import { createPhase74SelectedDatasetBundle } from "../src/eval/phase74Datasets";
+import type {
+  Phase74BenchmarkFamily,
+  Phase74DatasetBundle,
+  Phase74DatasetCase,
+} from "../src/eval/phase74Datasets";
 
 const CONTEXT_TOKEN_BUDGET = 6_000;
 const OPENROUTER_EMBEDDING_USD_PER_MILLION_INPUT_TOKENS = 0.02;
@@ -74,6 +80,67 @@ export interface Phase74VersionScoredOutcome {
   caseId: string;
   correct: boolean;
   score: number;
+}
+
+export function preparePhase74VersionDataset(input: {
+  dataset: Phase74DatasetBundle;
+  seed: number;
+  size: number;
+}) {
+  const selection = selectPhase74GeneralizationCases({
+    cases: input.dataset.cases,
+    seed: input.seed,
+    size: input.size,
+  });
+  return {
+    dataset: createPhase74SelectedDatasetBundle({
+      bundle: input.dataset,
+      cases: selection.cases,
+    }),
+    selection,
+  };
+}
+
+export function buildPhase74ReleaseWorkerInput(
+  testCase: Phase74DatasetCase,
+) {
+  const boundary = buildPhase74LabelFreeCaseBoundary(testCase);
+  return parsePhase74VersionWorkerInput({
+    arm: "release",
+    caseId: boundary.caseKey,
+    ...(boundary.recallCase.locale === undefined
+      ? {}
+      : { locale: boundary.recallCase.locale }),
+    memoryGroupId: boundary.recallCase.memoryGroupId ?? boundary.caseKey,
+    question: boundary.recallCase.question,
+    rawEvidence: boundary.recallCase.rawEvidence,
+    ...(boundary.recallCase.referenceTime === undefined
+      ? {}
+      : { referenceTime: boundary.recallCase.referenceTime }),
+    schemaVersion: 1,
+    sourceCommit: PHASE74_RELEASE_COMMIT,
+  });
+}
+
+export async function createPhase74FreshVersionRunDirectory(
+  outputDir: string,
+  runId: string,
+): Promise<string> {
+  const root = resolve(outputDir);
+  const runDirectory = join(root, runId);
+  await mkdir(root, { recursive: true });
+  try {
+    await mkdir(runDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(
+        `Phase 74 version run directory already exists: ${runDirectory}`,
+      );
+    }
+    throw error;
+  }
+  await mkdir(join(runDirectory, "release-ingestion"));
+  return runDirectory;
 }
 
 export function buildPhase74VersionComparison(input: {
@@ -263,12 +330,12 @@ async function writeJson(path: string, value: unknown): Promise<void> {
 export async function runPhase74VersionBaseline(
   options: Phase74VersionBaselineOptions,
 ): Promise<{ reportPath: string; runDirectory: string }> {
-  const dataset = await loadPhase74PreparedDataset({
+  const preparedDataset = await loadPhase74PreparedDataset({
     benchmark: options.benchmark,
     benchmarkRoot: options.benchmarkRoot,
   });
-  const selection = selectPhase74GeneralizationCases({
-    cases: dataset.cases,
+  const { dataset, selection } = preparePhase74VersionDataset({
+    dataset: preparedDataset,
     seed: options.caseSelectionSeed,
     size: options.caseSelectionSize,
   });
@@ -314,8 +381,10 @@ export async function runPhase74VersionBaseline(
     )),
     stage: options.candidateStage,
   });
-  const runDirectory = join(resolve(options.outputDir), options.runId);
-  await mkdir(join(runDirectory, "release-ingestion"), { recursive: true });
+  const runDirectory = await createPhase74FreshVersionRunDirectory(
+    options.outputDir,
+    options.runId,
+  );
   const releaseSource = createPhase74VersionSourceIdentity({
     archiveSha256: await sha256File(options.releaseArchive),
     arm: "release",
@@ -325,6 +394,23 @@ export async function runPhase74VersionBaseline(
     tree: PHASE74_RELEASE_TREE,
     workerSha256: await sha256File(join(process.cwd(), "scripts/phase74-version-worker.ts")),
   });
+  const candidateRunIdentitySha256 = sha256(candidateIdentityRaw);
+  const scoring = buildPhase74OfficialScoringIdentity(options.benchmark);
+  const versionRunIdentity = {
+    answerModel: publicModelIdentity(models.answer),
+    benchmark: options.benchmark,
+    candidateRunIdentitySha256,
+    candidateSource,
+    embedding: buildPhase74EmbeddingIdentity(models.embedding),
+    judgeModel: publicModelIdentity(models.judge),
+    promptSha256s: phase74LivePromptSha256s(),
+    releaseSource,
+    reranker: { implementation: "lexical-coverage-v1", mode: "deterministic" },
+    runId: options.runId,
+    scoring,
+    selection: selection.identity,
+  };
+  await writeJson(join(runDirectory, "run-identity.json"), versionRunIdentity);
   const events: AttributedModelUsageAttempt[] = [];
   const usagePath = join(runDirectory, "model-usage.jsonl");
   const onUsageEvent = (event: AttributedModelUsageAttempt) => {
@@ -375,19 +461,7 @@ export async function runPhase74VersionBaseline(
   const snapshots: Phase74VersionWorkerResult[] = [];
   try {
     for (const testCase of selection.cases) {
-      const workerInput = parsePhase74VersionWorkerInput({
-        arm: "release",
-        caseId: testCase.caseId,
-        ...(testCase.locale === undefined ? {} : { locale: testCase.locale }),
-        memoryGroupId: testCase.memoryGroupId ?? testCase.caseId,
-        question: testCase.question,
-        rawEvidence: testCase.rawEvidence,
-        ...(testCase.referenceTime === undefined
-          ? {}
-          : { referenceTime: testCase.referenceTime }),
-        schemaVersion: 1,
-        sourceCommit: PHASE74_RELEASE_COMMIT,
-      });
+      const workerInput = buildPhase74ReleaseWorkerInput(testCase);
       const snapshot = await runPhase74VersionWorker({
         createGoodMemory,
         input: workerInput,
@@ -434,7 +508,7 @@ export async function runPhase74VersionBaseline(
       maxLanguageCalls: options.maxLanguageCalls,
     },
     candidate,
-    candidateRunIdentitySha256: sha256(candidateIdentityRaw),
+    candidateRunIdentitySha256,
     candidateSource,
     comparison,
     generatedAt: new Date().toISOString(),
@@ -444,27 +518,13 @@ export async function runPhase74VersionBaseline(
     releaseSource,
     runId: options.runId,
     schemaVersion: 1,
-    scoring: buildPhase74OfficialScoringIdentity(options.benchmark),
+    scoring,
     selection: selection.identity,
     status: "not_evaluable",
   };
   const reportPath = join(runDirectory, "report.json");
   await Promise.all([
     writeFile(usagePath, "", { encoding: "utf8", flag: "a" }),
-    writeJson(join(runDirectory, "run-identity.json"), {
-      answerModel: publicModelIdentity(models.answer),
-      benchmark: options.benchmark,
-      candidateRunIdentitySha256: report.candidateRunIdentitySha256,
-      candidateSource,
-      embedding: buildPhase74EmbeddingIdentity(models.embedding),
-      judgeModel: publicModelIdentity(models.judge),
-      promptSha256s: phase74LivePromptSha256s(),
-      releaseSource,
-      reranker: { implementation: "lexical-coverage-v1", mode: "deterministic" },
-      runId: options.runId,
-      scoring: report.scoring,
-      selection: report.selection,
-    }),
     writeJson(reportPath, report),
   ]);
   return { reportPath, runDirectory };

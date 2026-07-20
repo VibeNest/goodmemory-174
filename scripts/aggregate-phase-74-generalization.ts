@@ -15,6 +15,7 @@ import {
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
 import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
 import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
+import { buildPhase74ProtocolScoringIdentity } from "../src/eval/phase74ProtocolScoring";
 import {
   evaluatePhase74PromotionGate,
   PHASE74_MAX_PROTECTION_REGRESSION,
@@ -39,8 +40,8 @@ import type {
 import {
   hashEvalExperimentIdentity,
   hashEvalRunIdentity,
-  type EvalRunIdentity,
 } from "../src/eval/runIdentity";
+import type { EvalRunIdentity } from "../src/eval/runIdentity";
 
 const BENCHMARKS = ["longmemeval", "locomo"] as const;
 const RETRIEVAL_STAGES = ["E1", "E2", "E3"] as const;
@@ -109,6 +110,7 @@ interface RunArtifact {
   replicate: Replicate;
   retrieval: Record<RetrievalStage, RetrievalStageArtifact>;
   runDirectory: string;
+  selectionMode: "all" | "deterministic-content-hash-v2";
   e4: E4StageArtifact;
 }
 
@@ -300,6 +302,108 @@ function stableJson(value: unknown): string {
     ).join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function assertAggregationAdmission(input: {
+  benchmark: Phase74BenchmarkFamily;
+  dataset: DatasetManifestEvidence;
+  datasetManifest: unknown;
+  identity: EvalRunIdentity;
+}): {
+  selectedCaseKeysSha256: string;
+  selectionMode: "all" | "deterministic-content-hash-v2";
+} {
+  const configuration = input.identity.configuration;
+  const missing = ["dataset", "reranker", "scoring", "selection", "selectedCaseIdsSha256"]
+    .filter((field) => configuration[field] === undefined);
+  if (missing.length > 0) {
+    throw new Error(
+      `Phase 74 aggregation admission is missing ${missing.join(", ")}.`,
+    );
+  }
+  if (stableJson(configuration.dataset) !== stableJson(input.datasetManifest)) {
+    throw new Error("Phase 74 aggregation admission dataset manifest drifted.");
+  }
+  if (
+    sha256Value(
+      configuration.selectedCaseIdsSha256,
+      "aggregation admission selectedCaseIdsSha256",
+    ) !== input.dataset.selectedCaseIdsSha256
+  ) {
+    throw new Error("Phase 74 aggregation admission selected population drifted.");
+  }
+
+  const expectedReranker = {
+    ...input.identity.answerModel,
+    implementation: "provider-pointwise-v1",
+    mode: "provider",
+  };
+  if (stableJson(configuration.reranker) !== stableJson(expectedReranker)) {
+    throw new Error(
+      "Phase 74 aggregation admission requires the frozen provider reranker.",
+    );
+  }
+  const expectedScoring = buildPhase74ProtocolScoringIdentity(
+    input.benchmark,
+    input.identity.judgeModel.model,
+  );
+  if (stableJson(configuration.scoring) !== stableJson(expectedScoring)) {
+    throw new Error("Phase 74 aggregation admission scoring identity drifted.");
+  }
+
+  const selection = recordValue(
+    configuration.selection,
+    "aggregation admission selection",
+  );
+  const mode = stringValue(selection.mode, "aggregation admission selection mode");
+  if (mode !== "all" && mode !== "deterministic-content-hash-v2") {
+    throw new Error("Phase 74 aggregation admission selection mode is unsupported.");
+  }
+  assertExactKeys(selection, [
+    "mode",
+    "populationContentSha256",
+    "populationSize",
+    ...(mode === "deterministic-content-hash-v2" ? ["seed"] : []),
+    "selectedCaseIdsSha256",
+    "selectedCaseKeysSha256",
+    "selectedSize",
+  ], "aggregation admission selection");
+  sha256Value(
+    selection.populationContentSha256,
+    "aggregation admission populationContentSha256",
+  );
+  const populationSize = positiveIntegerValue(
+    selection.populationSize,
+    "aggregation admission populationSize",
+  );
+  const selectedSize = positiveIntegerValue(
+    selection.selectedSize,
+    "aggregation admission selectedSize",
+  );
+  const selectionCaseIdsSha256 = sha256Value(
+    selection.selectedCaseIdsSha256,
+    "aggregation admission selection selectedCaseIdsSha256",
+  );
+  if (
+    selectedSize !== input.dataset.caseCount ||
+    selectedSize > populationSize ||
+    selectionCaseIdsSha256 !== input.dataset.selectedCaseIdsSha256
+  ) {
+    throw new Error("Phase 74 aggregation admission selection population drifted.");
+  }
+  if (mode === "all" && selectedSize !== populationSize) {
+    throw new Error("Phase 74 aggregation admission all-selection is incomplete.");
+  }
+  if (mode === "deterministic-content-hash-v2") {
+    integerValue(selection.seed, "aggregation admission selection seed");
+  }
+  return {
+    selectedCaseKeysSha256: sha256Value(
+      selection.selectedCaseKeysSha256,
+      "aggregation admission selectedCaseKeysSha256",
+    ),
+    selectionMode: mode,
+  };
 }
 
 function mean(values: readonly number[]): number {
@@ -716,26 +820,29 @@ function validateEndToEndScores(input: {
 
 function validateUsagePopulation(
   usage: Phase74ModelUsageEvidence,
-  caseIds: readonly string[],
-  stage: RetrievalStage,
+  input: {
+    caseCount: number;
+    selectedCaseKeysSha256: string;
+    stage: RetrievalStage;
+  },
 ): void {
-  const expectedDigest = sha256(JSON.stringify([...caseIds].sort()));
   for (const [branch, evidence] of [
     ["baseline", usage.baseline],
     ["candidate", usage.candidate],
   ] as const) {
     if (
-      evidence.caseIdsSha256 !== expectedDigest ||
-      evidence.logicalCaseCount !== caseIds.length
+      evidence.caseIdsSha256 !== input.selectedCaseKeysSha256 ||
+      evidence.logicalCaseCount !== input.caseCount
     ) {
       throw new Error(
-        `Phase 74 ${stage} ${branch} model usage case population drift.`,
+        `Phase 74 ${input.stage} ${branch} model usage case population drift.`,
       );
     }
-    const expected = new Set(caseIds);
-    if (evidence.unobservedCaseIds.some((caseId) => !expected.has(caseId))) {
+    if (evidence.unobservedCaseIds.some(
+      (caseId) => !/^case-[a-f0-9]{64}$/u.test(caseId),
+    )) {
       throw new Error(
-        `Phase 74 ${stage} ${branch} model usage contains an unknown unobserved case.`,
+        `Phase 74 ${input.stage} ${branch} model usage contains a non-opaque unobserved case.`,
       );
     }
   }
@@ -833,18 +940,23 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
   const identityEvidence = parseIdentity(
     await readJson(join(runDirectory, "run-identity.json"), "run identity"),
   );
-  const dataset = parseDatasetManifest(
-    await readJson(
-      join(runDirectory, "dataset-manifest.json"),
-      "dataset manifest",
-    ),
+  const datasetManifest = await readJson(
+    join(runDirectory, "dataset-manifest.json"),
+    "dataset manifest",
   );
+  const dataset = parseDatasetManifest(datasetManifest);
   if (
     identityEvidence.identity.datasetSha256 !== dataset.datasetSha256 ||
     identityEvidence.identity.benchmark !== `${dataset.benchmark}-full`
   ) {
     throw new Error("Phase 74 run identity and dataset manifest drifted.");
   }
+  const admission = assertAggregationAdmission({
+    benchmark: dataset.benchmark,
+    dataset,
+    datasetManifest,
+    identity: identityEvidence.identity,
+  });
   const replicate = parseReplicate(
     identityEvidence.identity.configuration.replicate,
     "run identity replicate",
@@ -912,10 +1024,11 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     if (stableJson(modelUsage) !== stableJson(persistedUsage)) {
       throw new Error(`Phase 74 ${stage} model usage summary drift.`);
     }
-    const caseIds = rows
-      .filter(({ arm }) => arm === comparison.baselineArm)
-      .map(({ caseId }) => caseId);
-    validateUsagePopulation(modelUsage, caseIds, stage);
+    validateUsagePopulation(modelUsage, {
+      caseCount: dataset.caseCount,
+      selectedCaseKeysSha256: admission.selectedCaseKeysSha256,
+      stage,
+    });
     await validateRetrievalPackets({
       expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
       path: join(runDirectory, `${prefix}-retrieval-packets.jsonl`),
@@ -1025,6 +1138,7 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
     replicate,
     retrieval,
     runDirectory,
+    selectionMode: admission.selectionMode,
     e4: {
       executionFailures: e4Summary.executionFailures,
       renderedContextMaxTokens: e4Summary.renderedContextMaxTokens,
@@ -1555,6 +1669,9 @@ function buildPromotionEvaluation(input: {
   );
   if (seenCasesOnly) {
     gaps.push("seen-case evidence cannot authorize promotion.");
+  }
+  if (selectedArtifacts.some(({ artifact }) => artifact.selectionMode !== "all")) {
+    gaps.push("The full frozen population is required; a selected subset cannot promote.");
   }
   if (gaps.length > 0) {
     return { gaps, stage, status: "not_evaluable" };

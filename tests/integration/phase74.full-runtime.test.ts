@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { createPhase74FullRetrievalRuntime } from "../../src/eval/phase74FullRuntime";
+import { buildPhase74LabelFreeCaseBoundary } from "../../src/eval/phase74Generalization";
 import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
 import { createSQLiteDocumentStore } from "../../src/storage/sqlite";
 
@@ -113,21 +114,32 @@ describe("Phase 74 full retrieval runtime", () => {
           observedAt: "2023-05-08T00:00:00.000Z",
           role: "assistant",
           sourceIds: ["D1:1"],
+        }, {
+          content: "Caroline: Pepper likes long walks.",
+          id: "conversation-1/D1:2",
+          observedAt: "2023-05-08T00:01:00.000Z",
+          role: "user",
+          sourceIds: ["D1:2"],
         }],
       };
+      const labelFreeCase = buildPhase74LabelFreeCaseBoundary({
+        ...testCase,
+        expectedAnswer: "Pepper",
+        goldEvidenceIds: ["D1:1"],
+      }).recallCase;
 
       const first = await runtime.execute({
         arm: "atomic-contextual-raw-pointer",
         configuration,
         stage: "E1",
-        testCase,
+        testCase: labelFreeCase,
       });
       const second = await runtime.execute({
         arm: "atomic-contextual-raw-pointer",
         configuration,
         stage: "E1",
         testCase: {
-          ...testCase,
+          ...labelFreeCase,
           caseId: "conversation-1/q2",
           question: "What kind of pet did Caroline adopt?",
         },
@@ -139,7 +151,7 @@ describe("Phase 74 full retrieval runtime", () => {
           representation: "fact-only",
         },
         stage: "E1",
-        testCase,
+        testCase: labelFreeCase,
       });
       const rawOnly = await runtime.execute({
         arm: "raw-only",
@@ -148,7 +160,7 @@ describe("Phase 74 full retrieval runtime", () => {
           representation: "raw-only",
         },
         stage: "E1",
-        testCase,
+        testCase: labelFreeCase,
       });
 
       expect(first.storedMemories.map(({ content }) => content)).toContain(
@@ -165,6 +177,7 @@ describe("Phase 74 full retrieval runtime", () => {
       );
       expect(rawOnly.storedMemories.map(({ content }) => content)).toEqual([
         "Caroline: I adopted a dog named Pepper.",
+        "Caroline: Pepper likes long walks.",
       ]);
       expect(events.filter(
         ({ operation }) => operation === "assisted_extraction",

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   mkdir,
   readFile,
@@ -25,19 +26,25 @@ import type {
   MemoryExtractor,
 } from "../src/remember/candidates";
 import {
-  type Phase74GeneralizationCase,
-  type Phase74GeneralizationReport,
-  type Phase74RetrievalSnapshot,
+  buildPhase74LabelFreeCaseBoundary,
   runPhase74Generalization,
+} from "../src/eval/phase74Generalization";
+import type {
+  Phase74GeneralizationCase,
+  Phase74GeneralizationReport,
+  Phase74RetrievalSnapshot,
 } from "../src/eval/phase74Generalization";
 import { createPhase74FileCheckpoint } from "../src/eval/phase74Checkpoint";
 import {
   assertPhase74FrozenDataset,
   createPhase74LocomoDataset,
   createPhase74LongMemEvalDataset,
-  type Phase74BenchmarkFamily,
-  type Phase74DatasetCase,
-  type Phase74DatasetBundle,
+  createPhase74SelectedDatasetBundle,
+} from "../src/eval/phase74Datasets";
+import type {
+  Phase74BenchmarkFamily,
+  Phase74DatasetBundle,
+  Phase74DatasetCase,
 } from "../src/eval/phase74Datasets";
 import {
   createPhase74FullRetrievalRuntime,
@@ -46,9 +53,9 @@ import {
 import { buildPhase74ReplicateComparison } from "../src/eval/phase74Replicates";
 import { createPhase74ProtocolReader } from "../src/eval/phase74ProtocolReader";
 import {
-  buildPhase74OfficialScoringIdentity,
-  createPhase74OfficialAnswerAssessor,
-} from "../src/eval/phase74OfficialScoring";
+  buildPhase74ProtocolScoringIdentity,
+  createPhase74ProtocolCompatibleAnswerAssessor,
+} from "../src/eval/phase74ProtocolScoring";
 import type {
   Phase74EmbeddingIdentity,
   Phase74LiveModels,
@@ -65,34 +72,38 @@ import {
 import {
   appendPhase74ModelUsageEventSync,
   buildPhase74ModelUsageEvidence,
-  type AttributedModelUsageAttempt,
 } from "../src/eval/modelUsage";
+import type { AttributedModelUsageAttempt } from "../src/eval/modelUsage";
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
 import type { GeneralizedFusionChannel } from "../src/recall/generalizedFusion";
-import {
-  type LongMemEvalCase,
-  validateLongMemEvalCases,
-} from "../src/eval/longmemeval";
-import {
-  LOCOMO_MATCH_MODES,
-  locomoTokenF1,
-  scoreLocomoAnswer,
-  type LocomoMatchMode,
-} from "../src/eval/locomo";
+import { validateLongMemEvalCases } from "../src/eval/longmemeval";
+import type { LongMemEvalCase } from "../src/eval/longmemeval";
 import {
   buildEvalRunIdentity,
   createOrMatchEvalRunIdentity,
   hashEvalExperimentIdentity,
-  type EvalRunJsonObject,
 } from "../src/eval/runIdentity";
+import type { EvalRunJsonObject } from "../src/eval/runIdentity";
 
 const DEFAULT_DATASET_PATH =
   "fixtures/external-benchmarks/longmemeval/longmemeval_s_smoke.json";
 const DEFAULT_OUTPUT_DIR =
   "reports/eval/research/phase-74/generalization";
 const CONTEXT_TOKEN_BUDGET = 6_000;
+const DEFAULT_EMBEDDING_SPEND_LIMIT_USD = 1;
+const DEFAULT_MAX_LANGUAGE_CALLS = 50_000;
+const OPENROUTER_EMBEDDING_USD_PER_MILLION_INPUT_TOKENS = 0.02;
 const PRE_RANK_LIMIT = 32;
 const SELECTED_LIMIT = 12;
+
+interface Phase74CallBudgetState {
+  embeddingCalls: number;
+  embeddingInputByteUpperBound: number;
+  embeddingSpendLimitUsd: number;
+  languageCalls: number;
+  maxLanguageCalls: number;
+  schemaVersion: 1;
+}
 
 interface RuntimeSnapshot extends Phase74RetrievalSnapshot {
 }
@@ -114,7 +125,9 @@ export interface Phase74GeneralizationFullOptions {
   benchmarkRoot: string;
   caseSelectionSeed?: number;
   caseSelectionSize?: number;
+  embeddingSpendLimitUsd: number;
   generatedAt?: string;
+  maxLanguageCalls: number;
   outputDir: string;
   replicate: 1 | 2 | 3;
   rerankerMode?: "deterministic" | "provider";
@@ -129,6 +142,10 @@ export interface Phase74GeneralizationFullResult {
 }
 
 export function buildPhase74FullRunIdentityConfiguration(input: {
+  callBudget: {
+    embeddingSpendLimitUsd: number;
+    maxLanguageCalls: number;
+  };
   dataset: EvalRunJsonObject;
   embedding: Phase74EmbeddingIdentity;
   evaluatorSource: EvalRunJsonObject;
@@ -144,6 +161,7 @@ export function buildPhase74FullRunIdentityConfiguration(input: {
       reasoningEffort: "medium",
       temperature: 0,
     },
+    callBudget: input.callBudget,
     context: {
       maxTokens: CONTEXT_TOKEN_BUDGET,
       tokenizer: "utf8-byte-upper-bound-v1",
@@ -166,25 +184,113 @@ export function buildPhase74FullRunIdentityConfiguration(input: {
   };
 }
 
-function sha256(content: string): string {
-  return createHash("sha256").update(content).digest("hex");
+function phase74RequestUrl(request: RequestInfo | URL): string {
+  if (typeof request === "string") {
+    return request;
+  }
+  return request instanceof URL ? request.toString() : request.url;
 }
 
-function labelFreeCaseContent(testCase: Phase74DatasetCase): string {
-  return JSON.stringify({
-    caseId: testCase.caseId,
-    locale: testCase.locale ?? null,
-    memoryGroupId: testCase.memoryGroupId ?? null,
-    question: testCase.question,
-    rawEvidence: testCase.rawEvidence.map((item) => ({
-      content: item.content,
-      id: item.id,
-      observedAt: item.observedAt ?? null,
-      role: item.role ?? null,
-      sourceIds: [...item.sourceIds],
-    })),
-    referenceTime: testCase.referenceTime ?? null,
-  });
+function phase74EmbeddingRequestBytes(init: RequestInit | undefined): number {
+  if (typeof init?.body !== "string") {
+    throw new Error("Phase 74 embedding budget requires a JSON string body.");
+  }
+  const parsed = JSON.parse(init.body) as { input?: unknown };
+  const values = Array.isArray(parsed.input) ? parsed.input : [parsed.input];
+  if (!values.every((value) => typeof value === "string")) {
+    throw new Error("Phase 74 embedding budget requires string inputs.");
+  }
+  return values.reduce(
+    (total, value) => total + Buffer.byteLength(value as string),
+    0,
+  );
+}
+
+function parsePhase74CallBudgetState(
+  raw: string,
+  limits: Pick<
+    Phase74CallBudgetState,
+    "embeddingSpendLimitUsd" | "maxLanguageCalls"
+  >,
+): Phase74CallBudgetState {
+  const value = JSON.parse(raw) as Partial<Phase74CallBudgetState>;
+  if (
+    value.schemaVersion !== 1 ||
+    value.embeddingSpendLimitUsd !== limits.embeddingSpendLimitUsd ||
+    value.maxLanguageCalls !== limits.maxLanguageCalls ||
+    !Number.isSafeInteger(value.embeddingCalls) ||
+    !Number.isSafeInteger(value.embeddingInputByteUpperBound) ||
+    !Number.isSafeInteger(value.languageCalls) ||
+    (value.embeddingCalls ?? -1) < 0 ||
+    (value.embeddingInputByteUpperBound ?? -1) < 0 ||
+    (value.languageCalls ?? -1) < 0
+  ) {
+    throw new Error("Phase 74 durable call budget is malformed or drifted.");
+  }
+  return value as Phase74CallBudgetState;
+}
+
+export function createPhase74DurableCallBudget(input: {
+  embeddingSpendLimitUsd: number;
+  fetch: typeof globalThis.fetch;
+  maxLanguageCalls: number;
+  path: string;
+}): {
+  fetch: typeof globalThis.fetch;
+  snapshot: () => Phase74CallBudgetState;
+} {
+  const limits = {
+    embeddingSpendLimitUsd: input.embeddingSpendLimitUsd,
+    maxLanguageCalls: input.maxLanguageCalls,
+  };
+  let state = existsSync(input.path)
+    ? parsePhase74CallBudgetState(readFileSync(input.path, "utf8"), limits)
+    : {
+        embeddingCalls: 0,
+        embeddingInputByteUpperBound: 0,
+        ...limits,
+        languageCalls: 0,
+        schemaVersion: 1 as const,
+      };
+  const persist = () => {
+    writeFileSync(input.path, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  };
+  if (!existsSync(input.path)) {
+    persist();
+  }
+  const fetch = (async (request, init) => {
+    const pathname = new URL(phase74RequestUrl(request)).pathname;
+    if (pathname.endsWith("/chat/completions")) {
+      if (state.languageCalls + 1 > state.maxLanguageCalls) {
+        throw new Error("Phase 74 language-call limit would be exceeded.");
+      }
+      state = { ...state, languageCalls: state.languageCalls + 1 };
+      persist();
+    } else if (pathname.endsWith("/embeddings")) {
+      const requestBytes = phase74EmbeddingRequestBytes(init);
+      const projectedBytes = state.embeddingInputByteUpperBound + requestBytes;
+      const projectedUsd = projectedBytes *
+        OPENROUTER_EMBEDDING_USD_PER_MILLION_INPUT_TOKENS / 1_000_000;
+      if (projectedUsd > state.embeddingSpendLimitUsd) {
+        throw new Error("Phase 74 embedding spend limit would be exceeded.");
+      }
+      state = {
+        ...state,
+        embeddingCalls: state.embeddingCalls + 1,
+        embeddingInputByteUpperBound: projectedBytes,
+      };
+      persist();
+    }
+    return input.fetch(request, init);
+  }) as typeof globalThis.fetch;
+  return {
+    fetch,
+    snapshot: () => ({ ...state }),
+  };
+}
+
+function sha256(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
 }
 
 export function selectPhase74GeneralizationCases(input: {
@@ -200,10 +306,13 @@ export function selectPhase74GeneralizationCases(input: {
       "Phase 74 case selection seed and size must be provided together.",
     );
   }
-  const contentHashes = input.cases.map((testCase) =>
-    sha256(labelFreeCaseContent(testCase))
+  const caseKeys = input.cases.map(
+    (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
   );
-  const populationContentSha256 = sha256(JSON.stringify(contentHashes));
+  if (new Set(caseKeys).size !== caseKeys.length) {
+    throw new Error("Phase 74 label-free case keys must be unique.");
+  }
+  const populationContentSha256 = sha256(JSON.stringify(caseKeys));
   if (input.seed === undefined || input.size === undefined) {
     const cases = [...input.cases];
     return {
@@ -215,6 +324,7 @@ export function selectPhase74GeneralizationCases(input: {
         selectedCaseIdsSha256: sha256(
           JSON.stringify(cases.map(({ caseId }) => caseId)),
         ),
+        selectedCaseKeysSha256: sha256(JSON.stringify([...caseKeys].sort())),
         selectedSize: cases.length,
       },
     };
@@ -233,29 +343,31 @@ export function selectPhase74GeneralizationCases(input: {
   }
   const selectedIndexes = new Set(
     input.cases
-      .map((testCase, index) => ({
-        caseId: testCase.caseId,
+      .map((_, index) => ({
         index,
-        rank: sha256(JSON.stringify([input.seed, contentHashes[index]])),
+        rank: sha256(JSON.stringify([input.seed, caseKeys[index]])),
       }))
       .sort((left, right) =>
         left.rank.localeCompare(right.rank) ||
-        left.caseId.localeCompare(right.caseId) ||
         left.index - right.index
       )
       .slice(0, input.size)
       .map(({ index }) => index),
   );
   const cases = input.cases.filter((_, index) => selectedIndexes.has(index));
+  const selectedCaseKeys = caseKeys.filter((_, index) => selectedIndexes.has(index));
   return {
     cases,
     identity: {
-      mode: "deterministic-content-hash",
+      mode: "deterministic-content-hash-v2",
       populationContentSha256,
       populationSize: input.cases.length,
       seed: input.seed,
       selectedCaseIdsSha256: sha256(
         JSON.stringify(cases.map(({ caseId }) => caseId)),
+      ),
+      selectedCaseKeysSha256: sha256(
+        JSON.stringify([...selectedCaseKeys].sort()),
       ),
       selectedSize: cases.length,
     },
@@ -781,37 +893,6 @@ function publicModelIdentity(model: Phase74LiveModels["answer"]) {
   };
 }
 
-export function phase74BenchmarkScore(input: {
-  answer: string;
-  benchmark: Phase74BenchmarkFamily;
-  correct: boolean;
-  testCase: Phase74GeneralizationCase;
-}): number {
-  if (input.benchmark === "longmemeval") {
-    return Number(input.correct);
-  }
-  const rawMatchMode = input.testCase.protocolMetadata?.matchMode;
-  if (
-    typeof rawMatchMode !== "string" ||
-    !LOCOMO_MATCH_MODES.includes(rawMatchMode as LocomoMatchMode)
-  ) {
-    throw new Error(`Phase 74 LoCoMo case ${input.testCase.caseId} has no valid match mode.`);
-  }
-  const matchMode = rawMatchMode as LocomoMatchMode;
-  if (matchMode === "f1_token_overlap") {
-    return locomoTokenF1(input.answer, input.testCase.expectedAnswer);
-  }
-  const adversarialAnswer = input.testCase.protocolMetadata?.adversarialAnswer;
-  return Number(scoreLocomoAnswer({
-    ...(typeof adversarialAnswer === "string" || adversarialAnswer === null
-      ? { adversarialAnswer }
-      : {}),
-    answer: input.answer,
-    goldAnswer: input.testCase.expectedAnswer,
-    matchMode,
-  }));
-}
-
 export async function loadPhase74PreparedDataset(input: {
   benchmark: Phase74BenchmarkFamily;
   benchmarkRoot: string;
@@ -873,13 +954,17 @@ export async function runPhase74GeneralizationFull(
   env: Record<string, string | undefined> = process.env,
 ): Promise<Phase74GeneralizationFullResult> {
   assertCliPathSegmentValue({ flag: "--run-id", value: options.runId });
-  const dataset = await loadPhase74PreparedDataset(options);
+  const preparedDataset = await loadPhase74PreparedDataset(options);
   const selection = selectPhase74GeneralizationCases({
-    cases: dataset.cases,
+    cases: preparedDataset.cases,
     seed: options.caseSelectionSeed,
     size: options.caseSelectionSize,
   });
   const selectedCases = selection.cases;
+  const dataset = createPhase74SelectedDatasetBundle({
+    bundle: preparedDataset,
+    cases: selectedCases,
+  });
   const models = resolvePhase74LiveModels(env);
   const rerankerMode = options.rerankerMode ?? "provider";
   const evaluatorSource = await verifyPhase74EvaluatorSource({
@@ -897,6 +982,10 @@ export async function runPhase74GeneralizationFull(
     answerModel: publicModelIdentity(models.answer),
     benchmark: `${options.benchmark}-full`,
     configuration: buildPhase74FullRunIdentityConfiguration({
+      callBudget: {
+        embeddingSpendLimitUsd: options.embeddingSpendLimitUsd,
+        maxLanguageCalls: options.maxLanguageCalls,
+      },
       dataset: dataset.manifest as unknown as EvalRunJsonObject,
       embedding: buildPhase74EmbeddingIdentity(models.embedding),
       evaluatorSource,
@@ -911,7 +1000,10 @@ export async function runPhase74GeneralizationFull(
             implementation: "provider-pointwise-v1",
             mode: "provider",
           },
-      scoring: buildPhase74OfficialScoringIdentity(options.benchmark),
+      scoring: buildPhase74ProtocolScoringIdentity(
+        options.benchmark,
+        models.judge.model,
+      ),
       selection: selection.identity,
       selectedCaseIdsSha256,
     }),
@@ -923,6 +1015,13 @@ export async function runPhase74GeneralizationFull(
     runId: options.runId,
   });
   const prefix = options.stage.toLowerCase();
+  await persistRunIdentity({ identity, runDirectory });
+  const callBudget = createPhase74DurableCallBudget({
+    embeddingSpendLimitUsd: options.embeddingSpendLimitUsd,
+    fetch: globalThis.fetch,
+    maxLanguageCalls: options.maxLanguageCalls,
+    path: join(runDirectory, `${prefix}-call-budget.json`),
+  });
   const usagePath = join(runDirectory, `${prefix}-model-usage.jsonl`);
   const events = await loadPhase74ModelUsageEvents(usagePath);
   const onUsageEvent = (event: AttributedModelUsageAttempt) => {
@@ -948,7 +1047,7 @@ export async function runPhase74GeneralizationFull(
     model: models.judge,
     onUsageEvent,
   });
-  const officialAssessment = createPhase74OfficialAnswerAssessor({
+  const protocolCompatibleAssessment = createPhase74ProtocolCompatibleAnswerAssessor({
     benchmark: options.benchmark,
     events,
     model: models.judge,
@@ -962,34 +1061,45 @@ export async function runPhase74GeneralizationFull(
     reader,
   });
   const snapshots: Phase74RetrievalSnapshot[] = [];
-  const report = await runPhase74Generalization({
-    assessAnswer: officialAssessment,
-    cases: selectedCases,
-    checkpoint: createPhase74FileCheckpoint(join(runDirectory, "checkpoints")),
-    contextTokenBudget: CONTEXT_TOKEN_BUDGET,
-    countRenderedTokens,
-    executeRetrieval: retrieval.execute,
-    genericReader: reader,
-    identity,
-    includeOracle: options.stage === "E4",
-    judge,
-    onRetrievalSnapshot: (snapshot) => {
-      snapshots.push(snapshot);
-    },
-    persistIdentity: (nextIdentity) => persistRunIdentity({
-      identity: nextIdentity,
-      runDirectory,
-    }),
-    protocolReader,
-    renderEvidenceLedger: retrieval.render,
-    stages: [options.stage],
-  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = callBudget.fetch;
+  let report: Phase74GeneralizationReport;
+  try {
+    report = await runPhase74Generalization({
+      assessAnswer: protocolCompatibleAssessment,
+      cases: selectedCases,
+      checkpoint: createPhase74FileCheckpoint(join(runDirectory, "checkpoints")),
+      contextTokenBudget: CONTEXT_TOKEN_BUDGET,
+      countRenderedTokens,
+      executeRetrieval: retrieval.execute,
+      genericReader: reader,
+      identity,
+      includeOracle: options.stage === "E4",
+      judge,
+      onRetrievalSnapshot: (snapshot) => {
+        snapshots.push(snapshot);
+      },
+      persistIdentity: (nextIdentity) => persistRunIdentity({
+        identity: nextIdentity,
+        runDirectory,
+      }),
+      protocolReader,
+      renderEvidenceLedger: retrieval.render,
+      stages: [options.stage],
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
   const experimentIdentityHash = hashEvalExperimentIdentity(report.identity);
   const modelUsage = options.stage === "E4"
     ? null
     : buildPhase74ModelUsageEvidence(events, {
-        baselineCaseIds: selectedCases.map(({ caseId }) => caseId),
-        candidateCaseIds: selectedCases.map(({ caseId }) => caseId),
+        baselineCaseIds: selectedCases.map(
+          (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+        ),
+        candidateCaseIds: selectedCases.map(
+          (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+        ),
         costBoundary: "query-only",
       });
   const endToEndScores = Object.fromEntries(
@@ -1052,6 +1162,7 @@ export async function runPhase74GeneralizationFull(
         endToEndScores,
         experimentIdentityHash,
         identityHash: report.identityHash,
+        callBudget: callBudget.snapshot(),
         modelUsage,
         replicate: options.replicate,
         stage: options.stage,
@@ -1088,11 +1199,11 @@ export async function runPhase74GeneralizationSmoke(
   await mkdir(runDirectory, { recursive: true });
   const rawDataset = await readFile(datasetPath, "utf8");
   const testCases = validateLongMemEvalCases(JSON.parse(rawDataset));
-  const casesById = new Map(testCases.map((testCase) => [
-    testCase.questionId,
-    testCase,
-  ]));
   const generalizationCases = testCases.map(buildGeneralizationCase);
+  const casesByKey = new Map(generalizationCases.map((testCase, index) => [
+    buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+    testCases[index]!,
+  ]));
   const selectedCaseIdsSha256 = sha256(
     JSON.stringify(testCases.map(({ questionId }) => questionId)),
   );
@@ -1139,7 +1250,7 @@ export async function runPhase74GeneralizationSmoke(
     contextTokenBudget: CONTEXT_TOKEN_BUDGET,
     countRenderedTokens: (content) => Buffer.byteLength(content, "utf8"),
     executeRetrieval: async ({ arm, configuration, stage, testCase }) => {
-      const benchmarkCase = casesById.get(testCase.caseId);
+      const benchmarkCase = casesByKey.get(testCase.caseId);
       if (!benchmarkCase) {
         throw new Error(`Unknown LongMemEval smoke case ${testCase.caseId}`);
       }
@@ -1253,6 +1364,8 @@ export type Phase74GeneralizationCliOptions =
       benchmarkRoot: string;
       caseSelectionSeed?: number;
       caseSelectionSize?: number;
+      embeddingSpendLimitUsd: number;
+      maxLanguageCalls: number;
       mode: "full";
       outputDir: string;
       replicate: 1 | 2 | 3;
@@ -1296,6 +1409,10 @@ export function parsePhase74GeneralizationCliOptions(
   const runId = readFlag("--run-id");
   const rawCaseSelectionSeed = readFlag("--case-selection-seed");
   const rawCaseSelectionSize = readFlag("--case-selection-size");
+  const rawEmbeddingSpendLimitUsd = readFlag("--embedding-spend-limit-usd") ??
+    String(DEFAULT_EMBEDDING_SPEND_LIMIT_USD);
+  const rawMaxLanguageCalls = readFlag("--max-language-calls") ??
+    String(DEFAULT_MAX_LANGUAGE_CALLS);
   if (
     (rawCaseSelectionSeed === undefined) !==
       (rawCaseSelectionSize === undefined)
@@ -1317,6 +1434,19 @@ export function parsePhase74GeneralizationCliOptions(
       !Number.isSafeInteger(Number(rawCaseSelectionSize)))
   ) {
     throw new Error("--case-selection-size must be a positive integer.");
+  }
+  const embeddingSpendLimitUsd = Number(rawEmbeddingSpendLimitUsd);
+  if (
+    !Number.isFinite(embeddingSpendLimitUsd) ||
+    embeddingSpendLimitUsd <= 0
+  ) {
+    throw new Error("--embedding-spend-limit-usd must be a positive number.");
+  }
+  if (
+    !/^[1-9]\d*$/u.test(rawMaxLanguageCalls) ||
+    !Number.isSafeInteger(Number(rawMaxLanguageCalls))
+  ) {
+    throw new Error("--max-language-calls must be a positive integer.");
   }
   const rawReplicate = readFlag("--replicate");
   if (rawReplicate !== "1" && rawReplicate !== "2" && rawReplicate !== "3") {
@@ -1349,6 +1479,8 @@ export function parsePhase74GeneralizationCliOptions(
     ...(rawCaseSelectionSize === undefined
       ? {}
       : { caseSelectionSize: Number(rawCaseSelectionSize) }),
+    embeddingSpendLimitUsd,
+    maxLanguageCalls: Number(rawMaxLanguageCalls),
     mode,
     outputDir,
     replicate: Number(rawReplicate) as 1 | 2 | 3,

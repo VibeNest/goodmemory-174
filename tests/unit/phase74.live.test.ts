@@ -153,20 +153,23 @@ describe("Phase 74 live provider boundary", () => {
     })).toThrow("text-embedding-3-small through https://openrouter.ai/api/v1");
   });
 
-  it("records a complete non-secret embedding identity", () => {
+  it("records embedding configuration without a credential fingerprint", () => {
     const identity = buildPhase74EmbeddingIdentity(
       resolvePhase74LiveModels(env).embedding,
     );
 
     expect(identity).toEqual({
-      credentialSha256: createHash("sha256")
-        .update("embedding-key")
-        .digest("hex"),
       gateway: "https://openrouter.ai/api/v1",
       model: "text-embedding-3-small",
       provider: "openai",
     });
     expect(JSON.stringify(identity)).not.toContain("embedding-key");
+    expect(buildPhase74EmbeddingIdentity(
+      resolvePhase74LiveModels({
+        ...env,
+        GOODMEMORY_EMBEDDING_API_KEY: "rotated-key",
+      }).embedding,
+    )).toEqual(identity);
   });
 
   it("uses one label-free reader prompt and attributes its exact charged request", async () => {

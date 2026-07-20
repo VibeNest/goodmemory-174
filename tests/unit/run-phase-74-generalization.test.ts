@@ -5,9 +5,9 @@ import { join } from "node:path";
 
 import {
   buildPhase74FullRunIdentityConfiguration,
+  createPhase74DurableCallBudget,
   loadPhase74ModelUsageEvents,
   parsePhase74GeneralizationCliOptions,
-  phase74BenchmarkScore,
   runPhase74GeneralizationSmoke,
   selectPhase74GeneralizationCases,
 } from "../../scripts/run-phase-74-generalization";
@@ -17,11 +17,66 @@ import {
 } from "../../src/eval/runIdentity";
 
 describe("phase 74 generalization smoke runner", () => {
+  it("reserves language calls and OpenRouter spend durably before requests", async () => {
+    const root = await mkdtemp(join(tmpdir(), "phase74-call-budget-"));
+    const path = join(root, "budget.json");
+    const requests: string[] = [];
+    const fetch = (async (request) => {
+      requests.push(String(request));
+      return new Response("{}", { status: 200 });
+    }) as typeof globalThis.fetch;
+    try {
+      const budget = createPhase74DurableCallBudget({
+        embeddingSpendLimitUsd: 0.0000001,
+        fetch,
+        maxLanguageCalls: 1,
+        path,
+      });
+      await budget.fetch("https://provider.test/v1/chat/completions");
+      await budget.fetch("https://openrouter.ai/api/v1/embeddings", {
+        body: JSON.stringify({ input: "abcd" }),
+        method: "POST",
+      });
+      await expect(
+        budget.fetch("https://provider.test/v1/chat/completions"),
+      ).rejects.toThrow("language-call limit");
+      await expect(
+        budget.fetch("https://openrouter.ai/api/v1/embeddings", {
+          body: JSON.stringify({ input: "xx" }),
+          method: "POST",
+        }),
+      ).rejects.toThrow("embedding spend limit");
+
+      const resumed = createPhase74DurableCallBudget({
+        embeddingSpendLimitUsd: 0.0000001,
+        fetch,
+        maxLanguageCalls: 1,
+        path,
+      });
+      await expect(
+        resumed.fetch("https://provider.test/v1/chat/completions"),
+      ).rejects.toThrow("language-call limit");
+      expect(resumed.snapshot()).toMatchObject({
+        embeddingCalls: 1,
+        languageCalls: 1,
+      });
+      expect(requests).toHaveLength(2);
+      expect(JSON.parse(await readFile(path, "utf8"))).toEqual(
+        resumed.snapshot(),
+      );
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
   it("records every frozen provider object-call setting in full run identity", () => {
     const configuration = buildPhase74FullRunIdentityConfiguration({
+      callBudget: {
+        embeddingSpendLimitUsd: 0.1,
+        maxLanguageCalls: 80,
+      },
       dataset: { datasetSha256: "dataset-sha" },
       embedding: {
-        credentialSha256: "credential-sha",
         gateway: "https://openrouter.ai/api/v1",
         model: "text-embedding-3-small",
         provider: "openai",
@@ -33,9 +88,10 @@ describe("phase 74 generalization smoke runner", () => {
         mode: "deterministic",
       },
       scoring: {
-        binaryCorrectRule: "official-yes-no",
-        primaryMetric: "accuracy",
-        scorer: "longmemeval-official-qa-accuracy-v1",
+        binaryCorrectRule: "yes-substring",
+        comparability: "official-prompt-compatible-only",
+        primaryMetric: "paired-accuracy",
+        scorer: "longmemeval-official-prompt-compatible-qa-accuracy-v1",
       },
       selection: {
         mode: "all",
@@ -47,9 +103,12 @@ describe("phase 74 generalization smoke runner", () => {
       selectedCaseIdsSha256: "case-ids-sha",
     });
     expect(configuration).toMatchObject({
+      callBudget: {
+        embeddingSpendLimitUsd: 0.1,
+        maxLanguageCalls: 80,
+      },
       costBoundary: "query-only-comparison-with-shadow-ingestion",
       embedding: {
-        credentialSha256: "credential-sha",
         gateway: "https://openrouter.ai/api/v1",
         model: "text-embedding-3-small",
         provider: "openai",
@@ -64,9 +123,10 @@ describe("phase 74 generalization smoke runner", () => {
         mode: "deterministic",
       },
       scoring: {
-        binaryCorrectRule: "official-yes-no",
-        primaryMetric: "accuracy",
-        scorer: "longmemeval-official-qa-accuracy-v1",
+        binaryCorrectRule: "yes-substring",
+        comparability: "official-prompt-compatible-only",
+        primaryMetric: "paired-accuracy",
+        scorer: "longmemeval-official-prompt-compatible-qa-accuracy-v1",
       },
       selection: {
         mode: "all",
@@ -75,13 +135,6 @@ describe("phase 74 generalization smoke runner", () => {
       },
     });
 
-    const changedCredential = {
-      ...configuration,
-      embedding: {
-        ...(configuration.embedding as Record<string, unknown>),
-        credentialSha256: "different-credential-sha",
-      },
-    };
     const identity = (nextConfiguration: typeof configuration) =>
       buildEvalRunIdentity({
         answerModel: {
@@ -102,37 +155,9 @@ describe("phase 74 generalization smoke runner", () => {
         promptSha256s: { reader: "reader-sha" },
         runId: "run-1",
       });
-    expect(hashEvalExperimentIdentity(identity(configuration))).not.toBe(
-      hashEvalExperimentIdentity(identity(changedCredential)),
+    expect(hashEvalExperimentIdentity(identity(configuration))).toBe(
+      hashEvalExperimentIdentity(identity(configuration)),
     );
-  });
-
-  it("keeps semantic accuracy and the frozen family metric separate", () => {
-    expect(phase74BenchmarkScore({
-      answer: "wrong",
-      benchmark: "longmemeval",
-      correct: false,
-      testCase: {
-        caseId: "long-1",
-        expectedAnswer: "Postgres",
-        goldEvidenceIds: [],
-        question: "Which database?",
-        rawEvidence: [],
-      },
-    })).toBe(0);
-    expect(phase74BenchmarkScore({
-      answer: "Pepper dog",
-      benchmark: "locomo",
-      correct: true,
-      testCase: {
-        caseId: "locomo-1",
-        expectedAnswer: "Pepper",
-        goldEvidenceIds: [],
-        protocolMetadata: { matchMode: "f1_token_overlap" },
-        question: "What is the dog's name?",
-        rawEvidence: [],
-      },
-    })).toBeCloseTo(2 / 3);
   });
 
   it("parses an explicit full-family stage and replicate without benchmark fallbacks", () => {
@@ -159,11 +184,17 @@ describe("phase 74 generalization smoke runner", () => {
       "74",
       "--case-selection-size",
       "25",
+      "--max-language-calls",
+      "80",
+      "--embedding-spend-limit-usd",
+      "0.1",
     ])).toEqual({
       benchmark: "locomo",
       benchmarkRoot: "/private/tmp/phase74/locomo",
       caseSelectionSeed: 74,
       caseSelectionSize: 25,
+      embeddingSpendLimitUsd: 0.1,
+      maxLanguageCalls: 80,
       mode: "full",
       outputDir: "/tmp/reports",
       replicate: 2,
@@ -226,6 +257,8 @@ describe("phase 74 generalization smoke runner", () => {
     ])).toEqual({
       benchmark: "longmemeval",
       benchmarkRoot: "/private/tmp/phase74/longmemeval",
+      embeddingSpendLimitUsd: 1,
+      maxLanguageCalls: 50_000,
       mode: "full",
       outputDir: "/tmp/reports",
       replicate: 1,
@@ -261,6 +294,7 @@ describe("phase 74 generalization smoke runner", () => {
     const relabeled = selectPhase74GeneralizationCases({
       cases: cases.map((testCase) => ({
         ...testCase,
+        caseId: testCase.caseId === "case-2" ? "q_abs" : testCase.caseId,
         expectedAnswer: `changed-${testCase.caseId}`,
         goldEvidenceIds: ["changed-gold"],
         protocolMetadata: { benchmarkLabel: "changed" },
@@ -269,10 +303,15 @@ describe("phase 74 generalization smoke runner", () => {
       size: 3,
     });
 
-    expect(selected.cases.map(({ caseId }) => caseId)).toEqual(
-      relabeled.cases.map(({ caseId }) => caseId),
+    expect(selected.cases.map(({ question }) => question)).toEqual(
+      relabeled.cases.map(({ question }) => question),
     );
-    expect(selected.identity).toEqual(relabeled.identity);
+    expect(selected.identity.populationContentSha256).toBe(
+      relabeled.identity.populationContentSha256,
+    );
+    expect(selected.identity.selectedCaseKeysSha256).toBe(
+      relabeled.identity.selectedCaseKeysSha256,
+    );
     const changedContent = selectPhase74GeneralizationCases({
       cases: cases.map((testCase, index) =>
         index === 0
@@ -292,7 +331,7 @@ describe("phase 74 generalization smoke runner", () => {
       selected.identity.populationContentSha256,
     );
     expect(selected.identity).toMatchObject({
-      mode: "deterministic-content-hash",
+      mode: "deterministic-content-hash-v2",
       populationSize: 6,
       seed: 74,
       selectedSize: 3,

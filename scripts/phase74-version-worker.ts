@@ -98,7 +98,7 @@ function isoDate(value: string | undefined): string {
 }
 
 function sessionId(sourceId: string): string {
-  return sourceId.match(/^(D\d+):/u)?.[1] ?? sourceId;
+  return sourceId.match(/^([^:]+):/u)?.[1] ?? sourceId;
 }
 
 function contextItems(input: {

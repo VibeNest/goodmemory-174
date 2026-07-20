@@ -7,6 +7,60 @@ import {
 import { PHASE74_RELEASE_COMMIT } from "../../src/eval/phase74VersionBaseline";
 
 describe("Phase 74 version worker", () => {
+  it("keeps opaque turns from one source session in one remember call", async () => {
+    const remembered: Array<{ messageCount: number; sessionId: string }> = [];
+    const memory: Phase74VersionGoodMemory = {
+      async exportMemory() {
+        return { durable: { evidence: [], facts: [] } };
+      },
+      async recall() {
+        return { evidence: [], facts: [], metadata: { latencyMs: 0 } };
+      },
+      async remember(input) {
+        remembered.push({
+          messageCount: input.messages.length,
+          sessionId: input.scope.sessionId ?? "",
+        });
+        return { accepted: input.messages.length, rejected: 0, warnings: [] };
+      },
+    };
+
+    await runPhase74VersionWorker({
+      createGoodMemory: () => memory,
+      input: {
+        arm: "release",
+        caseId: `case-${"a".repeat(64)}`,
+        memoryGroupId: `group-${"b".repeat(64)}`,
+        question: "question",
+        rawEvidence: [{
+          content: "first",
+          id: "evidence-1",
+          sourceIds: ["session-1:source-1"],
+        }, {
+          content: "second",
+          id: "evidence-2",
+          sourceIds: ["session-1:source-2"],
+        }, {
+          content: "third",
+          id: "evidence-3",
+          sourceIds: ["session-2:source-3"],
+        }],
+        schemaVersion: 1,
+        sourceCommit: PHASE74_RELEASE_COMMIT,
+      },
+      models: {
+        embedding: { apiKey: "e", model: "embed", provider: "openai" },
+        extraction: { apiKey: "x", model: "extract", provider: "openai" },
+      },
+      sqlitePath: "/tmp/release-memory.sqlite",
+    });
+
+    expect(remembered).toEqual([
+      { messageCount: 2, sessionId: "session-1" },
+      { messageCount: 1, sessionId: "session-2" },
+    ]);
+  });
+
   it("runs one source-isolated label-free remember/recall/export flow", async () => {
     const rememberedSessions: string[] = [];
     let receivedConfig: unknown;

@@ -169,6 +169,22 @@ function manifest(input: {
   normalizedFingerprint: string;
   source: Phase74DatasetSourcePin;
 }): Phase74DatasetManifest {
+  return caseBoundManifest({
+    benchmark: input.benchmark,
+    cases: input.cases,
+    datasetSha256: sha256(input.datasetRaw),
+    normalizedFingerprint: input.normalizedFingerprint,
+    source: input.source,
+  });
+}
+
+function caseBoundManifest(input: {
+  benchmark: Phase74BenchmarkFamily;
+  cases: readonly Phase74DatasetCase[];
+  datasetSha256: string;
+  normalizedFingerprint: string;
+  source: Phase74DatasetSourcePin;
+}): Phase74DatasetManifest {
   const unresolvedGoldEvidence = input.cases.flatMap((testCase) =>
     testCase.unresolvedGoldEvidenceIds.length === 0
       ? []
@@ -181,7 +197,7 @@ function manifest(input: {
     adaptedCasesSha256: sha256(JSON.stringify(input.cases)),
     benchmark: input.benchmark,
     caseCount: input.cases.length,
-    datasetSha256: sha256(input.datasetRaw),
+    datasetSha256: input.datasetSha256,
     normalizedFingerprint: input.normalizedFingerprint,
     schemaVersion: 2,
     selectedCaseIdsSha256: sha256(
@@ -193,6 +209,23 @@ function manifest(input: {
       (count, item) => count + item.evidenceIds.length,
       0,
     ),
+  };
+}
+
+export function createPhase74SelectedDatasetBundle(input: {
+  bundle: Phase74DatasetBundle;
+  cases: readonly Phase74DatasetCase[];
+}): Phase74DatasetBundle {
+  const cases = [...input.cases];
+  return {
+    cases,
+    manifest: caseBoundManifest({
+      benchmark: input.bundle.manifest.benchmark,
+      cases,
+      datasetSha256: input.bundle.manifest.datasetSha256,
+      normalizedFingerprint: input.bundle.manifest.normalizedFingerprint,
+      source: input.bundle.manifest.source,
+    }),
   };
 }
 

@@ -6,6 +6,7 @@ import {
   assertOfficialRescoreRunIdentityCompatible,
   assertOfficialRescoreSourceInputsOutsideOutputDir,
   assertOfficialRescoreSummaryValid,
+  buildLongMemEvalRescorePrompt,
   buildOfficialRescoreRunIdentity,
   buildOfficialRescoreMetadata,
   buildOfficialRescoreScopeMetadata,
@@ -326,7 +327,7 @@ describe("official protocol rescore CLI", () => {
     ).toEqual({
       benchmark: "beam",
       claimBoundary:
-        "Official-protocol comparability rescore of stored answers; not answer regeneration or a public benchmark claim unless promoted by the benchmark-claim gate.",
+        "Official/industry-prompt-compatible stored-answer rescore; numeric comparability is benchmark-specific and requires a matching pinned evaluator configuration; not answer regeneration or a public benchmark claim.",
       generatedAt: "2026-07-05T16:10:00.000Z",
       generatedBy: "scripts/rescore-official-protocols.ts",
       judgeModel: "gpt-5.4-mini",
@@ -397,8 +398,29 @@ describe("official protocol rescore CLI", () => {
           reportPath: "/reports/longmemeval/report.json",
         },
         sourceProfile: "goodmemory-recommended",
-      }).sourceProfile,
-    ).toBe("goodmemory-recommended");
+      }),
+    ).toMatchObject({
+      claimBoundary:
+        "Official-prompt-compatible LongMemEval stored-answer rescore; judge model gpt-5.4 is outside the pinned evaluator model zoo, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.",
+      sourceProfile: "goodmemory-recommended",
+    });
+  });
+
+  it("interpolates LongMemEval rescore prompts exactly once", () => {
+    const prompt = buildLongMemEvalRescorePrompt(
+      {
+        category: "single-session-user",
+        gold: "{q}",
+        hypothesis: "{a}",
+        question: "literal {a}",
+        questionId: "case-1",
+      },
+      false,
+    );
+
+    expect(prompt).toContain("Question: literal {a}");
+    expect(prompt).toContain("Correct Answer: {q}");
+    expect(prompt).toContain("Model Response: {a}");
   });
 
   it("validates complete official-rescore case and BEAM summaries before writing", () => {
@@ -518,7 +540,7 @@ describe("official protocol rescore CLI", () => {
       totalCases: 1,
     };
     const staleErrors = validateOfficialRescoreSummary(staleSummary);
-    expect(staleErrors).toContain("claimBoundary must describe stored-answer comparability");
+    expect(staleErrors).toContain("claimBoundary must match benchmark and judge-model comparability");
     expect(staleErrors).toContain("sourceInputFingerprints must be canonical source fingerprints");
     expect(staleErrors).toContain("sourceInputs must be canonical source input paths");
 

@@ -113,7 +113,6 @@ export interface Phase74LiveModels {
 
 export interface Phase74EmbeddingIdentity {
   readonly [key: string]: string;
-  credentialSha256: string;
   gateway: string;
   model: string;
   provider: string;
@@ -122,11 +121,10 @@ export interface Phase74EmbeddingIdentity {
 export function buildPhase74EmbeddingIdentity(
   model: AISDKModelConfig,
 ): Phase74EmbeddingIdentity {
-  if (!model.apiKey || !model.baseURL) {
-    throw new Error("Phase 74 embedding identity requires a credential and base URL.");
+  if (!model.baseURL) {
+    throw new Error("Phase 74 embedding identity requires a base URL.");
   }
   return {
-    credentialSha256: createHash("sha256").update(model.apiKey).digest("hex"),
     gateway: model.baseURL,
     model: model.model,
     provider: model.provider,
