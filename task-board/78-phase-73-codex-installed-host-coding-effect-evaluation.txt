@@ -176,10 +176,10 @@ content-preserving surfaces are deferred to mandatory live C5 re-audit:
 `effective-codex-input-after-seeding`, `flat-summary-after-seeding`,
 `goodmemory-export-after-seeding`, and
 `goodmemory-hook-context-after-seeding`.
-[DONE] A fresh `fork-turns-none` reviewer inspected only the 63 frozen assets
+[DONE] A fresh `fork-turns-none` v9 reviewer inspected only the 63 frozen assets
 and deterministic core, accepted all six episodes, and declared that no coding
 outcome artifact was inspected. Provenance SHA-256
-`1eee28b3fb8f08b5f57dcfb74db62632682145f062d32cad93341c227f54c4dc`
+`a1c82a87669effd9f827e637151c481d00d540db0ba74b9c7c23bc24b64cdb1d`
 binds dispatch, input, request, and response and discloses its orchestrator
 attestation as non-cryptographic.
 [DONE] Baseline raw evidence now retains structured Codex failure events;
@@ -192,10 +192,20 @@ recorded zero infrastructure failures and `ceilingRisk: false`, and decided
 `145075fe1db774e14fbce1ba6df6b6170c64cd87a9c81c89a7abb39aefcfb220`.
 Final readiness SHA-256
 `7cf3f8cb829472f34e475dddfe69911651887c2896559712988e1153b6ea0128`
-bound core, baseline, review, and provenance. v9 corpus-wide leakage detection
-and exact prompt/repository/evaluator binding require regenerated core, review,
-baseline, and readiness artifacts. The old artifacts were moved unchanged to
-explicit `*-v8` historical paths; canonical v9 paths are intentionally absent.
+bound core, baseline, review, and provenance. The old artifacts remain at
+explicit `*-v8` historical paths.
+[DONE] Canonical C4 v9 is accepted. Baseline
+`run-c4-baseline-v9-20260718T1815Z` finalized all 12 stages with zero
+infrastructure failures, `ceilingRisk: false`, and
+`proceed-to-c5-pilot`. Core SHA-256 is
+`420f5c11b1a8aa344714a950b154477449856aed130be37abfe2cdf474eff544`;
+baseline report SHA-256 is
+`2140f020a5d3817d4b91a0d8edf5227db6fa7fec32995a6fab12df6d52901270`;
+final readiness SHA-256 is
+`3b24b4233faa6930d98c4de3d9bfea003ab09225c0eec0c7c81fb9c10869b2e2`.
+The canonical baseline directory contains both the 12 sanitized projections
+and their 12 authenticated raw stage sources, so C5 readiness replays from the
+repository bundle without gitignored local evidence.
 [DONE] C5 harness implementation now treats host-canary collection failures as
 sanitized, source-bound stage failures instead of dropping them; rejects
 foreign injected memory; authenticates the recursive runner import closure
@@ -203,16 +213,19 @@ from projected source bytes; and supports strict same-identity `--resume`.
 Resume preserves an interrupted cluster attempt, rolls back only that
 uncommitted cluster, and keeps completed clusters. These are deterministic
 harness tests, not a completed C5 live run or coding-effect evidence.
-[BLOCKED] C5 broader live pilot has not run and is not unblocked until the v9 C4
-evidence chain is regenerated and independently reviewed. C4 made no paired
-treatment comparison and proves no coding uplift.
+[REJECTED] A six-process C5 lifecycle diagnostic canary reached stage 2, where
+live evidence disproved an exact-equality prior-memory rule. Its source identity
+was later invalidated; it is diagnostic evidence only, not accepted canary or
+pilot evidence.
+[OPEN] C5 broader live pilot is unblocked by accepted C4 v9 but has not run.
+C4 made no paired treatment comparison and proves no coding uplift.
 [OPEN] C6-C7 expanded candidate, statistics, gate, and narrow claim decision.
 
 C3's deterministic hidden fail-to-pass and pass-to-pass tests alone decide task
 correctness. Memory, injection, transcript, and writeback diagnostics can
 explain the result but never override it. C3 is internally accepted only as
 protocol/host evidence and its source-reproducibility gate is reopened; its tie
-does not prove uplift. C4 v8 is superseded and v9 readiness is pending. None
+does not prove uplift. C4 v8 is superseded and v9 readiness is accepted. None
 authorizes a public coding-effect claim.
 Phase 73 remains active while C5-C7 are open.
 

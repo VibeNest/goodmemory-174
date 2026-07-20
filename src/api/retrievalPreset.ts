@@ -18,8 +18,8 @@ import type { RecallGeneralizedFusionConfig } from "../recall/engine";
 export const RECOMMENDED_SEMANTIC_CANDIDATES_TOP_K = 16;
 export const RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES = 8;
 export const RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 10;
-export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES = 20;
-export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 20;
+export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES = 32;
+export const RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS = 32;
 
 // Brand carried by createLocalEmbeddingAdapter(): hashed-lexical vectors are
 // not semantic, so the preset must reject them — structural typing makes a
@@ -102,12 +102,18 @@ export function resolveGoodMemoryRetrievalRuntime(input: {
         }
       : userCandidates;
   const generalizedFusion: RecallGeneralizedFusionConfig = {
+    ...(input.retrieval.generalizedFusionChannels
+      ? { channels: input.retrieval.generalizedFusionChannels }
+      : {}),
     maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
     maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
   };
   const rerankGeneralizedFusion: RecallGeneralizedFusionConfig | undefined =
-    input.providerRerankerConfigured
+    input.providerRerankerConfigured || input.adapters?.reranker
       ? {
+          ...(input.retrieval.generalizedFusionChannels
+            ? { channels: input.retrieval.generalizedFusionChannels }
+            : {}),
           maxCandidates:
             RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
           maxTotalFacts: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,

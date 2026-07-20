@@ -55,6 +55,10 @@ bulk-load. Start here, then open only the file that matches the question.
 - `plans/GoodMemory-Codex-Coding-Effect-Evaluation-and-Development-Plan.md` -
   Codex-first host-native coding A/B design, hidden-test evidence contract, TDD
   implementation order, and public-claim gate; Claude Code is deferred.
+- `plans/GoodMemory-Phase-74-Generalized-Memory-Core-Implementation.md` -
+  experimental generalized-memory implementation record, completed local
+  verification, scale evidence, and the still-unmet cross-benchmark promotion
+  boundary.
 - `beam-instruction-following-diagnosis.md` - why BEAM instruction_following
   0.394 is a design tension (abstention vs world-knowledge), not a shaping bug.
 - `archive/quality-gates/README.md` - historical quality-gate index.

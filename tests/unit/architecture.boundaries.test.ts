@@ -586,6 +586,22 @@ describe("architecture boundaries", () => {
     expect(metadataOffenders).toEqual([]);
   });
 
+  it("keeps generic ledger rendering in answer while eval owns only format selection", async () => {
+    const answerRenderer = join(
+      SRC_ROOT,
+      "answer/evidenceLedgerContext.ts",
+    );
+    expect(await fileExists(answerRenderer)).toBe(true);
+
+    const answerSource = await readFile(answerRenderer, "utf8");
+    const evalSource = await readFile(
+      join(SRC_ROOT, "eval/evidenceLedgerFormats.ts"),
+      "utf8",
+    );
+    expect(answerSource).not.toContain("../eval/");
+    expect(evalSource).toContain("../answer/evidenceLedgerContext");
+  });
+
   it("keeps recall selection split into orchestration plus bounded selector modules", async () => {
     const selectorDirectory = join(SRC_ROOT, "recall", "selectors");
     const selectionSource = await readFile(

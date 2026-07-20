@@ -1,0 +1,259 @@
+import { createHash } from "node:crypto";
+
+import { describe, expect, it } from "bun:test";
+
+import {
+  createPhase74LiveJudge,
+  createPhase74LiveReader,
+  PHASE74_GENERIC_READER_SYSTEM_PROMPT,
+  PHASE74_EVALUATOR_SOURCE_SNAPSHOT,
+  phase74LivePromptSha256s,
+  resolvePhase74EvaluatorSource,
+  resolvePhase74LiveModels,
+  verifyPhase74EvaluatorSource,
+} from "../../src/eval/phase74Live";
+import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
+import {
+  CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
+  MEMORY_EXTRACTION_SYSTEM_PROMPT,
+} from "../../src/provider/memory-extractor";
+import { RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT } from "../../src/provider/recall-plan-assistant";
+import { POINTWISE_RERANKER_SYSTEM_PROMPT } from "../../src/provider/reranker";
+import { PHASE74_PROTOCOL_READER_SYSTEM_PROMPT } from "../../src/eval/phase74ProtocolReader";
+
+const env = {
+  GOODMEMORY_EMBEDDING_API_KEY: "embedding-key",
+  GOODMEMORY_EMBEDDING_BASE_URL: "https://ai.gurkiai.com/v1",
+  GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-large",
+  GOODMEMORY_EMBEDDING_PROVIDER: "openai",
+  GOODMEMORY_EVAL_API_KEY: "answer-key",
+  GOODMEMORY_EVAL_BASE_URL: "https://ai.gurkiai.com/v1",
+  GOODMEMORY_EVAL_MODEL: "gpt-5.6-terra",
+  GOODMEMORY_EVAL_PROVIDER: "openai",
+  GOODMEMORY_JUDGE_API_KEY: "judge-key",
+  GOODMEMORY_JUDGE_BASE_URL: "https://ai.gurkiai.com/v1",
+  GOODMEMORY_JUDGE_MODEL: "gpt-5.5",
+  GOODMEMORY_JUDGE_PROVIDER: "openai",
+};
+
+describe("Phase 74 live provider boundary", () => {
+  it("binds post-run aggregation and the real storage gate into evaluator source identity", () => {
+    expect(PHASE74_EVALUATOR_SOURCE_SNAPSHOT.version).toBe(2);
+    expect(PHASE74_EVALUATOR_SOURCE_SNAPSHOT.files).toContain(
+      "scripts/aggregate-phase-74-generalization.ts",
+    );
+    expect(PHASE74_EVALUATOR_SOURCE_SNAPSHOT.files).toContain(
+      "scripts/run-phase-74-storage-scale-gate.ts",
+    );
+  });
+
+  it("hashes the actual extraction, planning, and reranking system prompts", () => {
+    const sha256 = (value: string) =>
+      createHash("sha256").update(value).digest("hex");
+    const hashes = phase74LivePromptSha256s();
+
+    expect(hashes.assistedExtraction).toBe(
+      sha256(MEMORY_EXTRACTION_SYSTEM_PROMPT),
+    );
+    expect(hashes.conversationalExtraction).toBe(
+      sha256(CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT),
+    );
+    expect(hashes.planner).toBe(sha256(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT));
+    expect(hashes.reranker).toBe(sha256(POINTWISE_RERANKER_SYSTEM_PROMPT));
+    expect(hashes.protocolReader).toBe(sha256([
+      PHASE74_PROTOCOL_READER_SYSTEM_PROMPT,
+      PHASE74_GENERIC_READER_SYSTEM_PROMPT,
+    ].join("\0")));
+  });
+
+  it("requires an exact evaluator commit and source snapshot hash", () => {
+    expect(resolvePhase74EvaluatorSource({
+      GOODMEMORY_PHASE74_SOURCE_COMMIT:
+        "5d7639a8fa164d86e0aa1ed10a8ea398b7912464",
+      GOODMEMORY_PHASE74_SOURCE_SHA256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    })).toEqual({
+      commit: "5d7639a8fa164d86e0aa1ed10a8ea398b7912464",
+      sha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    });
+    expect(() => resolvePhase74EvaluatorSource({
+      GOODMEMORY_PHASE74_SOURCE_COMMIT: "main",
+      GOODMEMORY_PHASE74_SOURCE_SHA256: "short",
+    })).toThrow("exact 40-character commit and 64-character SHA-256");
+  });
+
+  it("verifies evaluator source declarations against the actual checkout", async () => {
+    const declared = {
+      commit: "5d7639a8fa164d86e0aa1ed10a8ea398b7912464",
+      sha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    };
+    const dependencies = {
+      hashSnapshot: async () => declared.sha256,
+      resolveGitHead: async () => declared.commit,
+    };
+
+    await expect(verifyPhase74EvaluatorSource({
+      declared,
+      dependencies,
+      repoRoot: "/repo",
+    })).resolves.toEqual(declared);
+    await expect(verifyPhase74EvaluatorSource({
+      declared,
+      dependencies: {
+        ...dependencies,
+        resolveGitHead: async () => "a".repeat(40),
+      },
+      repoRoot: "/repo",
+    })).rejects.toThrow("commit does not match git HEAD");
+    await expect(verifyPhase74EvaluatorSource({
+      declared,
+      dependencies: {
+        ...dependencies,
+        hashSnapshot: async () => "b".repeat(64),
+      },
+      repoRoot: "/repo",
+    })).rejects.toThrow("source snapshot SHA-256 does not match");
+  });
+
+  it("pins every non-judge language call to Terra/GurkiAI and keeps the judge independent", () => {
+    const models = resolvePhase74LiveModels(env);
+    expect(models.answer).toMatchObject({
+      baseURL: "https://ai.gurkiai.com/v1",
+      model: "gpt-5.6-terra",
+      provider: "openai",
+    });
+    expect(models.assistedExtraction).toEqual(models.answer);
+    expect(models.planner).toEqual(models.answer);
+    expect(models.reranker).toEqual(models.answer);
+    expect(models.judge).toMatchObject({ model: "gpt-5.5" });
+    expect(models.embedding).toMatchObject({
+      model: "text-embedding-3-large",
+      provider: "openai",
+    });
+
+    expect(() => resolvePhase74LiveModels({
+      ...env,
+      GOODMEMORY_JUDGE_MODEL: "gpt-5.6-terra",
+    })).toThrow("independent gpt-5.5");
+    expect(() => resolvePhase74LiveModels({
+      ...env,
+      GOODMEMORY_EVAL_BASE_URL: "https://api.openai.com/v1",
+    })).toThrow("gpt-5.6-terra through https://ai.gurkiai.com/v1");
+  });
+
+  it("uses one label-free reader prompt and attributes its exact charged request", async () => {
+    const events: AttributedModelUsageAttempt[] = [];
+    let requestBody = "";
+    const reader = createPhase74LiveReader({
+      events,
+      fetch: async (_url, init) => {
+        requestBody = String(init?.body);
+        return new Response([
+          'data: {"choices":[{"delta":{"content":"Postgres"},"index":0}]}',
+          'data: {"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":2}}',
+          "data: [DONE]",
+          "",
+        ].join("\n\n"), {
+          headers: { "content-type": "text/event-stream" },
+          status: 200,
+        });
+      },
+      model: resolvePhase74LiveModels(env).answer,
+    });
+
+    expect(await reader({
+      caseId: "case-1",
+      context: "Current database: Postgres",
+      purpose: "e4:compact_json",
+      question: "Which database is current?",
+    })).toBe("Postgres");
+    const body = JSON.parse(requestBody);
+    expect(body).toMatchObject({
+      max_tokens: 512,
+      model: "gpt-5.6-terra",
+      temperature: 0,
+    });
+    expect(requestBody).not.toContain("questionType");
+    expect(requestBody).not.toContain("goldEvidence");
+    expect(events).toEqual([
+      expect.objectContaining({
+        branch: "shadow",
+        caseId: "case-1",
+        completeness: "complete",
+        operation: "answer_generation",
+      }),
+    ]);
+  });
+
+  it("separates frozen baseline and candidate answer costs from shadow readers", async () => {
+    const events: AttributedModelUsageAttempt[] = [];
+    const reader = createPhase74LiveReader({
+      events,
+      fetch: async () => new Response([
+        'data: {"choices":[{"delta":{"content":"Postgres"},"index":0}]}',
+        'data: {"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":2}}',
+        "data: [DONE]",
+        "",
+      ].join("\n\n"), {
+        headers: { "content-type": "text/event-stream" },
+        status: 200,
+      }),
+      model: resolvePhase74LiveModels(env).answer,
+    });
+
+    await reader({
+      caseId: "case-1",
+      context: "Postgres",
+      purpose: "final:baseline:E2:claim-temporal-off",
+      question: "Which database is current?",
+    });
+    await reader({
+      caseId: "case-1",
+      context: "Postgres",
+      purpose: "final:candidate:E2:claim-temporal-on",
+      question: "Which database is current?",
+    });
+
+    expect(events.map(({ branch }) => branch)).toEqual([
+      "baseline",
+      "candidate",
+    ]);
+  });
+
+  it("attributes correctness judging only to the independent judge branch", async () => {
+    const events: AttributedModelUsageAttempt[] = [];
+    const judge = createPhase74LiveJudge({
+      events,
+      fetch: async () => new Response(JSON.stringify({
+        choices: [{
+          finish_reason: "stop",
+          index: 0,
+          message: {
+            content: JSON.stringify({ correct: true, reasoning: "Equivalent." }),
+            role: "assistant",
+          },
+        }],
+        usage: { completion_tokens: 3, prompt_tokens: 15 },
+      }), { headers: { "content-type": "application/json" } }),
+      model: resolvePhase74LiveModels(env).judge,
+    });
+
+    expect(await judge({
+      answer: "Postgres",
+      caseId: "case-1",
+      expectedAnswer: "Postgres",
+      purpose: "e4:prose",
+      question: "Which database is current?",
+    })).toEqual({ correct: true });
+    expect(events).toEqual([
+      expect.objectContaining({
+        branch: "judge",
+        caseId: "case-1",
+        completeness: "complete",
+        operation: "judge",
+      }),
+    ]);
+  });
+});

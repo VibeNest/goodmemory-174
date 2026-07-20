@@ -5,6 +5,7 @@ import type { Reranker, RerankerDocument, RerankerScore } from "../recall/rerank
 import {
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
+  requestOpenAICompatibleObjectResult,
   resolveAISDKModel,
   withAISDKRetries,
 } from "./ai-sdk-runtime";
@@ -13,6 +14,11 @@ import type {
   AISDKRetryOptions,
   FetchLike,
 } from "./ai-sdk-runtime";
+import {
+  normalizeAISDKLanguageModelUsage,
+  runWithModelUsageAttempt,
+} from "./model-usage";
+import type { ModelUsageSink } from "./model-usage";
 
 const pointwiseRerankerScoreSchema = z.object({
   score: z.number().min(0).max(1),
@@ -71,6 +77,7 @@ export interface PointwiseRerankerDependencies {
   fetch?: FetchLike;
   generateObject?: typeof generateObject;
   maxConcurrency?: number;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   resolveModel?: typeof resolveAISDKModel;
   retryOptions?: AISDKRetryOptions;
@@ -80,6 +87,7 @@ export interface ListwiseRerankerDependencies {
   fetch?: FetchLike;
   generateObject?: typeof generateObject;
   maxConcurrency?: number;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   resolveModel?: typeof resolveAISDKModel;
   retryOptions?: AISDKRetryOptions;
@@ -180,8 +188,10 @@ async function mapWithConcurrency<TInput, TOutput>(input: {
 
 export function createLLMPointwiseReranker(input: {
   dependencies?: PointwiseRerankerDependencies;
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
   system?: string;
+  temperature?: number;
 }): Reranker {
   const scoreDocument = async (
     query: string,
@@ -192,31 +202,67 @@ export function createLLMPointwiseReranker(input: {
       query,
     });
     const system = input.system ?? POINTWISE_RERANKER_SYSTEM_PROMPT;
+    let attempt = 0;
     const object = await withAISDKRetries(async () => {
-      if (input.model.provider === "openai" && input.model.baseURL) {
-        return requestOpenAICompatibleObject({
-          fetch: input.dependencies?.fetch,
-          model: input.model,
-          prompt,
-          schema: pointwiseRerankerScoreSchema,
-          system,
-          timeoutMs: input.dependencies?.requestTimeoutMs,
-        });
-      }
+      attempt += 1;
+      return runWithModelUsageAttempt({
+        attempt,
+        modelId: input.model.model,
+        operation: "reranker_pointwise",
+        providerId: input.model.provider,
+        sink: input.dependencies?.modelUsageSink,
+        run: async (report) => {
+          if (input.model.provider === "openai" && input.model.baseURL) {
+            return input.dependencies?.modelUsageSink
+              ? (await requestOpenAICompatibleObjectResult({
+                  fetch: input.dependencies?.fetch,
+                  maxOutputTokens: input.maxOutputTokens,
+                  model: input.model,
+                  onUsage: (usage) => report(
+                    usage ?? normalizeAISDKLanguageModelUsage(undefined),
+                  ),
+                  prompt,
+                  schema: pointwiseRerankerScoreSchema,
+                  system,
+                  temperature: input.temperature,
+                  timeoutMs: input.dependencies?.requestTimeoutMs,
+                })).object
+              : requestOpenAICompatibleObject({
+                  fetch: input.dependencies?.fetch,
+                  maxOutputTokens: input.maxOutputTokens,
+                  model: input.model,
+                  prompt,
+                  schema: pointwiseRerankerScoreSchema,
+                  system,
+                  temperature: input.temperature,
+                  timeoutMs: input.dependencies?.requestTimeoutMs,
+                });
+          }
 
-      const response = await (
-        input.dependencies?.generateObject ?? generateObject
-      )({
-        maxRetries: 0,
-        model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-        prompt,
-        schema: pointwiseRerankerScoreSchema,
-        system,
-        timeout:
-          input.dependencies?.requestTimeoutMs ??
-          DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+          const response = await (
+            input.dependencies?.generateObject ?? generateObject
+          )({
+            maxRetries: 0,
+            ...(input.maxOutputTokens === undefined
+              ? {}
+              : { maxOutputTokens: input.maxOutputTokens }),
+            model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(
+              input.model,
+            ),
+            prompt,
+            schema: pointwiseRerankerScoreSchema,
+            system,
+            ...(input.temperature === undefined
+              ? {}
+              : { temperature: input.temperature }),
+            timeout:
+              input.dependencies?.requestTimeoutMs ??
+              DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+          });
+          report(normalizeAISDKLanguageModelUsage(response.usage));
+          return response.object;
+        },
       });
-      return response.object;
     }, input.dependencies?.retryOptions);
     return { id: document.id, score: object.score };
   };
@@ -254,38 +300,62 @@ export function createLLMListwiseReranker(input: {
       }
       const prompt = buildListwiseRerankerPrompt({ documents, query });
       const system = input.system ?? LISTWISE_RERANKER_SYSTEM_PROMPT;
+      let attempt = 0;
       const orderedCandidateIds = await runWithConcurrency(() =>
         withAISDKRetries(async () => {
-          let object: z.infer<typeof listwiseRerankerOrderSchema>;
-          if (input.model.provider === "openai" && input.model.baseURL) {
-            object = await requestOpenAICompatibleObject({
-              fetch: input.dependencies?.fetch,
-              model: input.model,
-              prompt,
-              schema: listwiseRerankerOrderSchema,
-              system,
-              timeoutMs: input.dependencies?.requestTimeoutMs,
-            });
-          } else {
-            const response = await (
-              input.dependencies?.generateObject ?? generateObject
-            )({
-              maxRetries: 0,
-              model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(
-                input.model,
-              ),
-              prompt,
-              schema: listwiseRerankerOrderSchema,
-              system,
-              timeout:
-                input.dependencies?.requestTimeoutMs ??
-                DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
-            });
-            object = response.object;
-          }
-          return finalizeListwiseCandidateOrder({
-            documents,
-            orderedCandidateIds: object.orderedCandidateIds,
+          attempt += 1;
+          return runWithModelUsageAttempt({
+            attempt,
+            modelId: input.model.model,
+            operation: "reranker_listwise",
+            providerId: input.model.provider,
+            sink: input.dependencies?.modelUsageSink,
+            run: async (report) => {
+              let object: z.infer<typeof listwiseRerankerOrderSchema>;
+              if (input.model.provider === "openai" && input.model.baseURL) {
+                object = input.dependencies?.modelUsageSink
+                  ? (await requestOpenAICompatibleObjectResult({
+                      fetch: input.dependencies?.fetch,
+                      model: input.model,
+                      onUsage: (usage) => report(
+                        usage ?? normalizeAISDKLanguageModelUsage(undefined),
+                      ),
+                      prompt,
+                      schema: listwiseRerankerOrderSchema,
+                      system,
+                      timeoutMs: input.dependencies?.requestTimeoutMs,
+                    })).object
+                  : await requestOpenAICompatibleObject({
+                      fetch: input.dependencies?.fetch,
+                      model: input.model,
+                      prompt,
+                      schema: listwiseRerankerOrderSchema,
+                      system,
+                      timeoutMs: input.dependencies?.requestTimeoutMs,
+                    });
+              } else {
+                const response = await (
+                  input.dependencies?.generateObject ?? generateObject
+                )({
+                  maxRetries: 0,
+                  model: (
+                    input.dependencies?.resolveModel ?? resolveAISDKModel
+                  )(input.model),
+                  prompt,
+                  schema: listwiseRerankerOrderSchema,
+                  system,
+                  timeout:
+                    input.dependencies?.requestTimeoutMs ??
+                    DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+                });
+                report(normalizeAISDKLanguageModelUsage(response.usage));
+                object = response.object;
+              }
+              return finalizeListwiseCandidateOrder({
+                documents,
+                orderedCandidateIds: object.orderedCandidateIds,
+              });
+            },
           });
         }, input.dependencies?.retryOptions),
       );

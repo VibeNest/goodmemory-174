@@ -4,6 +4,7 @@ import {
   fuseGeneralizedRecallCandidates,
   selectDynamicFusionBudget,
   type GeneralizedFusionCandidate,
+  type GeneralizedFusionInput,
 } from "../../src/recall/generalizedFusion";
 import type {
   ClaimProjection,
@@ -83,6 +84,7 @@ function claim(input: {
     subjectEntityId: input.subjectEntityId ?? "entity-atlas",
     predicateKey: input.predicateKey,
     objectText: input.objectText,
+    text: `${input.predicateKey} ${input.objectText}`,
     objectEntityId: input.objectEntityId,
     polarity: "positive",
     modality: "asserted",
@@ -191,7 +193,7 @@ describe("generalized recall fusion", () => {
   });
 
   it("fuses lexical, dense, entity, temporal, and relation candidates globally", () => {
-    const result = fuseGeneralizedRecallCandidates({
+    const input: GeneralizedFusionInput = {
       query: "What is Atlas's current relation to Lisbon?",
       documents: [
         document({
@@ -228,7 +230,8 @@ describe("generalized recall fusion", () => {
       plan: plan(),
       maxCandidates: 32,
       referenceTime: "2026-07-10T00:00:00.000Z",
-    });
+    };
+    const result = fuseGeneralizedRecallCandidates(input);
 
     expect(Object.keys(result.candidates[0]?.channels ?? {}).sort()).toEqual([
       "dense",
@@ -237,6 +240,14 @@ describe("generalized recall fusion", () => {
       "relation",
       "temporal",
     ]);
+
+    const withoutClaimChannels = fuseGeneralizedRecallCandidates({
+      ...input,
+      channels: ["lexical", "dense", "entity"],
+    });
+    expect(
+      Object.keys(withoutClaimChannels.candidates[0]?.channels ?? {}).sort(),
+    ).toEqual(["dense", "entity", "lexical"]);
   });
 
   it("keeps temporal current-value evidence predicate-aware", () => {
@@ -244,8 +255,13 @@ describe("generalized recall fusion", () => {
       query: "What is Alice's current project?",
       documents: [
         document({
-          id: "doc-project",
-          sourceMemoryId: "fact-project",
+          id: "doc-project-old",
+          sourceMemoryId: "fact-project-old",
+          text: "Alice's previous project was Legacy.",
+        }),
+        document({
+          id: "doc-project-new",
+          sourceMemoryId: "fact-project-new",
           text: "Alice's current project is Atlas.",
         }),
         document({
@@ -257,8 +273,16 @@ describe("generalized recall fusion", () => {
       entities: [],
       claims: [
         claim({
-          id: "claim-project",
-          sourceMemoryId: "fact-project",
+          id: "claim-project-old",
+          sourceMemoryId: "fact-project-old",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Legacy",
+          observedAt: "2026-06-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-new",
+          sourceMemoryId: "fact-project-new",
           subjectEntityId: "entity-alice",
           predicateKey: "profile.current_project",
           objectText: "Atlas",
@@ -288,8 +312,156 @@ describe("generalized recall fusion", () => {
         candidate,
       ]),
     );
-    expect(byId.get("fact-project")?.channels.temporal).toBeDefined();
+    expect(byId.has("fact-project-old")).toBe(false);
+    expect(
+      byId.get("fact-project-new")?.channels.temporal?.evidenceDocumentIds,
+    ).toEqual(["claim-project-new"]);
     expect(byId.get("fact-cats")?.channels.temporal).toBeUndefined();
+  });
+
+  it("does not let other channels reintroduce an older selected claim group source", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "What is Alice's current project?",
+      documents: [
+        document({
+          id: "doc-project-old",
+          sourceMemoryId: "fact-project-old",
+          text: "Alice current project current project Legacy.",
+        }),
+        document({
+          id: "doc-project-new",
+          sourceMemoryId: "fact-project-new",
+          text: "Alice project Atlas.",
+        }),
+      ],
+      denseCandidates: [
+        {
+          sourceCollection: "facts",
+          sourceMemoryId: "fact-project-old",
+          score: 1,
+        },
+        {
+          sourceCollection: "facts",
+          sourceMemoryId: "fact-project-new",
+          score: 0.2,
+        },
+      ],
+      entities: [
+        entity({
+          key: "alice",
+          memoryIds: ["facts:fact-project-old", "facts:fact-project-new"],
+        }),
+      ],
+      claims: [
+        claim({
+          id: "claim-project-old",
+          sourceMemoryId: "fact-project-old",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Legacy",
+          observedAt: "2026-06-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-new",
+          sourceMemoryId: "fact-project-new",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Atlas",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+      ],
+      plan: plan({
+        entities: ["alice"],
+        evidenceNeeds: ["direct", "temporal"],
+        maxHops: 1,
+      }),
+      maxCandidates: 8,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    expect(
+      result.rankedCandidates.map(({ sourceMemoryId }) => sourceMemoryId),
+    ).toEqual(["fact-project-new"]);
+  });
+
+  it("keeps every active value in a counted claim group", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "How many current project assignments does Alice have?",
+      documents: [
+        document({
+          id: "doc-project-atlas",
+          sourceMemoryId: "fact-project-atlas",
+          text: "Alice current project assignment Atlas.",
+        }),
+        document({
+          id: "doc-project-beacon",
+          sourceMemoryId: "fact-project-beacon",
+          text: "Alice current project assignment Beacon.",
+        }),
+        document({
+          id: "doc-project-legacy",
+          sourceMemoryId: "fact-project-legacy",
+          text: "Alice current project assignment Legacy.",
+        }),
+      ],
+      denseCandidates: [
+        {
+          sourceCollection: "facts",
+          sourceMemoryId: "fact-project-atlas",
+          score: 0.8,
+        },
+        {
+          sourceCollection: "facts",
+          sourceMemoryId: "fact-project-beacon",
+          score: 0.8,
+        },
+        {
+          sourceCollection: "facts",
+          sourceMemoryId: "fact-project-legacy",
+          score: 1,
+        },
+      ],
+      entities: [],
+      claims: [
+        claim({
+          id: "claim-project-atlas",
+          sourceMemoryId: "fact-project-atlas",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Atlas",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-beacon",
+          sourceMemoryId: "fact-project-beacon",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Beacon",
+          observedAt: "2026-07-02T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-legacy",
+          sourceMemoryId: "fact-project-legacy",
+          subjectEntityId: "entity-alice",
+          predicateKey: "profile.current_project",
+          objectText: "Legacy",
+          observedAt: "2026-06-01T00:00:00.000Z",
+          validUntil: "2026-07-01T00:00:00.000Z",
+        }),
+      ],
+      plan: plan({
+        aggregation: "count",
+        entities: ["alice"],
+        evidenceNeeds: ["aggregation", "direct", "temporal"],
+        maxHops: 1,
+      }),
+      maxCandidates: 8,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    expect(
+      result.rankedCandidates.map(({ sourceMemoryId }) => sourceMemoryId).sort(),
+    ).toEqual(["fact-project-atlas", "fact-project-beacon"]);
   });
 
   it("keeps every selected predicate when one source carries multiple histories", () => {

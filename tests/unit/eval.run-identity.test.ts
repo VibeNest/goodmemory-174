@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 
 import {
   buildEvalRunIdentity,
+  canonicalEvalExperimentIdentityJson,
   canonicalEvalRunIdentityJson,
   createOrMatchEvalRunIdentity,
+  hashEvalExperimentIdentity,
   hashEvalRunIdentity,
 } from "../../src/eval/runIdentity";
 import type {
@@ -90,6 +92,37 @@ describe("eval run identity", () => {
     );
     expect(hashEvalRunIdentity(first)).toBe(hashEvalRunIdentity(second));
     expect(canonicalEvalRunIdentityJson(first)).not.toContain("generatedAt");
+  });
+
+  it("keeps run hashes unique while sharing one experiment hash across replicates", () => {
+    const first = createIdentity({
+      configuration: { replicate: 1, selectedLimit: 12 },
+      generatedAt: "2026-07-16T00:00:00.000Z",
+      runId: "experiment-r1",
+    });
+    const second = createIdentity({
+      configuration: { replicate: 2, selectedLimit: 12 },
+      generatedAt: "2026-07-17T00:00:00.000Z",
+      runId: "experiment-r2",
+    });
+    const changedExperiment = createIdentity({
+      configuration: { replicate: 3, selectedLimit: 10 },
+      runId: "experiment-r3",
+    });
+
+    expect(hashEvalRunIdentity(first)).not.toBe(hashEvalRunIdentity(second));
+    expect(hashEvalExperimentIdentity(first)).toBe(
+      hashEvalExperimentIdentity(second),
+    );
+    expect(hashEvalExperimentIdentity(first)).not.toBe(
+      hashEvalExperimentIdentity(changedExperiment),
+    );
+    expect(canonicalEvalExperimentIdentityJson(first)).not.toContain(
+      "experiment-r1",
+    );
+    expect(canonicalEvalExperimentIdentityJson(first)).not.toContain(
+      "replicate",
+    );
   });
 
   it("creates a missing identity with generatedAt preserved in the audit artifact", async () => {

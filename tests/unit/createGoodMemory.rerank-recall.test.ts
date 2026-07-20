@@ -126,6 +126,48 @@ describe("GoodMemory.recall reranker adapter", () => {
     expect(result.packet.renderBudget).toEqual({ maxTokens: 6_000 });
   });
 
+  it("lets the reranker change final membership over the global pre-rank pool", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        reranker: {
+          async rerank({ documents }) {
+            return documents.map(({ id }) => ({
+              id,
+              score: id === "fact-15" ? 1 : 0,
+            }));
+          },
+        },
+      },
+      retrieval: { preset: "recommended" },
+      testing: { now: () => new Date("2026-01-02T00:00:00.000Z") },
+    });
+    for (let index = 1; index <= 15; index += 1) {
+      const id = `fact-${String(index).padStart(2, "0")}`;
+      await documentStore.set("facts", id, createFactMemory({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: `alpha topic shared detail ${index}`,
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }));
+    }
+
+    const result = await memory.recall({ scope, query, strategy: "hybrid" });
+
+    expect(result.facts).toHaveLength(12);
+    expect(result.facts[0]?.id).toBe("fact-15");
+    expect(result.metadata.retrievalTrace?.reranker?.candidateCount).toBe(15);
+    expect(result.metadata.retrievalTrace?.reranker?.scores).toContainEqual(
+      expect.objectContaining({ memoryId: "fact-15", rankAfter: 1 }),
+    );
+  });
+
   it("is a no-op when no reranker is configured", async () => {
     const { documentStore, makeFact, memory } = buildMemory();
     await seed(documentStore, makeFact);

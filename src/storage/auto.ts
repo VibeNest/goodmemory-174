@@ -8,6 +8,7 @@ import type {
   VectorSearchResult,
   VectorStore,
 } from "./contracts";
+import { PROJECTION_BATCH_SEMANTICS } from "./contracts";
 import {
   canBootstrapPostgresStorageBackend,
   createPostgresDocumentStore,
@@ -59,6 +60,7 @@ function createAutoDocumentStore(
   resolveBackend: () => Promise<ResolvedStorageBackend>,
 ): ProjectionCapableDocumentStore {
   return {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,

@@ -373,11 +373,15 @@ export function createGoodMemoryRuntimeKit(
       locale: callInput.locale,
       retrievalProfile: callInput.retrievalProfile,
       ignoreMemory: false,
+      ...(input.evidenceLedgerFormat ? { includeEvidence: true } : {}),
     });
     const builtContext = await input.memory.buildContext({
       recall,
       output: "system_prompt_fragment",
       maxTokens: callInput.maxMemoryTokens ?? defaultMaxMemoryTokens,
+      ...(input.evidenceLedgerFormat
+        ? { evidenceLedgerFormat: input.evidenceLedgerFormat }
+        : {}),
     });
     const rawCarryover = await (async (): Promise<
       RawCarryoverResolution | undefined

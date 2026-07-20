@@ -4,6 +4,7 @@ import type {
   SessionStore,
   VectorStore,
 } from "./contracts";
+import { PROJECTION_BATCH_SEMANTICS } from "./contracts";
 
 export interface PostgresStorageConfig {
   url: string;
@@ -75,6 +76,7 @@ function createDeferredDocumentStore(
   resolveStore: () => Promise<DocumentStore>,
 ): ProjectionCapableDocumentStore {
   return {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set(collection, id, document) {
       const store = await resolveStore();
       return store.set(collection, id, document);

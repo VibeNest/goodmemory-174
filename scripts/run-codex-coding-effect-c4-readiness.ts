@@ -123,13 +123,11 @@ function baselineReportLocator(path: string): string {
     : absolute.split(sep).join("/");
 }
 
-function parseOptions(args: readonly string[]): C4ReadinessOptions {
+export function parseC4ReadinessOptions(
+  args: readonly string[],
+): C4ReadinessOptions {
   const options: C4ReadinessOptions = {
     baselinePath: resolve(C4_BASELINE_CEILING_REPORT_PATH),
-    baselineStageEvidenceRoot: resolve(
-      dirname(C4_BASELINE_CEILING_REPORT_PATH),
-      "stages",
-    ),
     coreOutput: join(DEFAULT_REPORT_ROOT, "c4-controlled-pilot-core.json"),
     datasetRoot: DEFAULT_DATASET_ROOT,
     dispatchPath: join(DEFAULT_DATASET_ROOT, "review", "dispatch.json"),
@@ -276,6 +274,8 @@ function pathInsideOrEqual(parent: string, candidate: string): boolean {
 }
 
 if (import.meta.main) {
-  const result = await runC4ReadinessGate(parseOptions(process.argv.slice(2)));
+  const result = await runC4ReadinessGate(
+    parseC4ReadinessOptions(process.argv.slice(2)),
+  );
   console.log(JSON.stringify(result, null, 2));
 }

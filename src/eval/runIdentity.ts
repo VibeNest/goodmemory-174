@@ -77,9 +77,32 @@ export function canonicalEvalRunIdentityJson(
   return canonicalJson(comparableIdentity);
 }
 
+export function canonicalEvalExperimentIdentityJson(
+  identity: EvalRunIdentity,
+): string {
+  validateEvalRunIdentity(identity);
+  const {
+    generatedAt: _generatedAt,
+    runId: _runId,
+    configuration,
+    ...experimentIdentity
+  } = identity;
+  const { replicate: _replicate, ...experimentConfiguration } = configuration;
+  return canonicalJson({
+    ...experimentIdentity,
+    configuration: experimentConfiguration,
+  });
+}
+
 export function hashEvalRunIdentity(identity: EvalRunIdentity): string {
   return createHash("sha256")
     .update(canonicalEvalRunIdentityJson(identity))
+    .digest("hex");
+}
+
+export function hashEvalExperimentIdentity(identity: EvalRunIdentity): string {
+  return createHash("sha256")
+    .update(canonicalEvalExperimentIdentityJson(identity))
     .digest("hex");
 }
 

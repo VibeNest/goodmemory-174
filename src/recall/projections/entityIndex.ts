@@ -24,6 +24,11 @@ import {
 
 export interface EntityProjectionIndex {
   query(scope: MemoryScope): Promise<EntityProjection[]>;
+  search(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+  ): Promise<EntityProjection[]>;
   updateForSource(input: {
     collection: RecallProjectionSourceCollection;
     existingDocuments: RecallIndexDocument[];
@@ -33,6 +38,16 @@ export interface EntityProjectionIndex {
     sourceMemoryId: string;
     timestamp: string;
   }): Promise<void>;
+}
+
+export function buildEntityProjectionSearchText(input: {
+  aliases: readonly string[];
+  canonicalKey: string;
+  description?: string;
+}): string {
+  return [input.canonicalKey, ...input.aliases, input.description]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
 }
 
 function firstDefinedTimestamp(
@@ -175,6 +190,7 @@ export function buildEntityAdjacencyProjections(input: {
         memoryId,
         aliases: source.aliases,
         ...(source.description ? { description: source.description } : {}),
+        text: buildEntityProjectionSearchText(source),
         ...(source.validFrom ? { validFrom: source.validFrom } : {}),
         ...(source.validUntil ? { validUntil: source.validUntil } : {}),
         updatedAt: input.timestamp,
@@ -228,6 +244,7 @@ export function createEntityProjectionIndex(
       ...(input.source.description
         ? { description: input.source.description }
         : {}),
+      text: buildEntityProjectionSearchText(input.source),
       ...(input.source.validFrom ? { validFrom: input.source.validFrom } : {}),
       ...(input.source.validUntil ? { validUntil: input.source.validUntil } : {}),
       updatedAt: input.timestamp,
@@ -243,6 +260,45 @@ export function createEntityProjectionIndex(
       );
       return aggregateEntityAdjacencies(
         queried.filter((edge) => matchesScopeFilter(edge, scope)),
+      );
+    },
+    async search(scope, query, limit) {
+      if (!documentStore.searchText) {
+        return (await this.query(scope)).slice(0, limit);
+      }
+      const results = await documentStore.searchText<EntityAdjacencyProjection>(
+        ENTITIES_COLLECTION,
+        {
+          field: "text",
+          filter: scopeFilter(scope),
+          limit,
+          query,
+        },
+      );
+      const ranked = new Map<
+        string,
+        { edge: EntityAdjacencyProjection; score: number }
+      >();
+      for (const result of results) {
+        if (!matchesScopeFilter(result.document, scope)) {
+          continue;
+        }
+        const existing = ranked.get(result.id);
+        if (!existing || result.score > existing.score) {
+          ranked.set(result.id, {
+            edge: result.document,
+            score: result.score,
+          });
+        }
+      }
+      return aggregateEntityAdjacencies(
+        [...ranked.values()]
+          .sort(
+            (left, right) =>
+              right.score - left.score || left.edge.id.localeCompare(right.edge.id),
+          )
+          .slice(0, limit)
+          .map(({ edge }) => edge),
       );
     },
     async updateForSource(input) {

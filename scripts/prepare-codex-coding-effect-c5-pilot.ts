@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import {
   loadC5PilotReadiness,
@@ -15,8 +15,6 @@ const DEFAULT_C4_READINESS_REPORT =
   "reports/quality-gates/phase-73/c4-controlled-pilot-readiness.json";
 const DEFAULT_BASELINE_REPORT =
   "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/report.json";
-const DEFAULT_BASELINE_STAGE_EVIDENCE =
-  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/stages";
 const DEFAULT_C4_READINESS_CORE =
   "reports/quality-gates/phase-73/c4-controlled-pilot-core.json";
 const DEFAULT_C4_REVIEW_ROOT =
@@ -90,18 +88,14 @@ export function parseC5ReadinessOptions(
     );
   }
 
+  const baselineReportPath = values.get("baseline-report") ??
+    DEFAULT_BASELINE_REPORT;
   return {
-    baselineReportPath: values.get("baseline-report") ??
-      DEFAULT_BASELINE_REPORT,
-    ...(values.has("baseline-raw-stage-evidence")
-      ? {
-          baselineRawStageEvidenceRoot: values.get(
-            "baseline-raw-stage-evidence",
-          )!,
-        }
-      : {}),
+    baselineReportPath,
+    baselineRawStageEvidenceRoot: values.get("baseline-raw-stage-evidence") ??
+      join(dirname(baselineReportPath), "raw-stages"),
     baselineStageEvidenceRoot: values.get("baseline-stage-evidence") ??
-      DEFAULT_BASELINE_STAGE_EVIDENCE,
+      join(dirname(baselineReportPath), "stages"),
     c4ReadinessCorePath: values.get("c4-readiness-core") ??
       DEFAULT_C4_READINESS_CORE,
     c4ReadinessReportPath: values.get("c4-readiness-report") ??

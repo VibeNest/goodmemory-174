@@ -1,0 +1,377 @@
+import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readdir, readFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+import { promisify } from "node:util";
+
+import { z } from "zod";
+
+import {
+  requestOpenAICompatibleObjectResult,
+  requestOpenAICompatibleTextResult,
+  stripThinkingBlocks,
+  withAISDKRetries,
+  type AISDKModelConfig,
+  type FetchLike,
+} from "../provider/ai-sdk-runtime";
+import {
+  CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
+  MEMORY_EXTRACTION_SYSTEM_PROMPT,
+} from "../provider/memory-extractor";
+import {
+  normalizeAISDKLanguageModelUsage,
+  runWithModelUsageAttempt,
+} from "../provider/model-usage";
+import { RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT } from "../provider/recall-plan-assistant";
+import { POINTWISE_RERANKER_SYSTEM_PROMPT } from "../provider/reranker";
+import { PHASE74_PROTOCOL_READER_SYSTEM_PROMPT } from "./phase74ProtocolReader";
+import {
+  createAttributedModelUsageSink,
+  type AttributedModelUsageAttempt,
+  type Phase74ModelUsageBranch,
+} from "./modelUsage";
+import type {
+  OracleMatrixJudge,
+  OracleMatrixReader,
+} from "./oracleMatrix";
+
+export const PHASE74_LANGUAGE_MODEL = "gpt-5.6-terra";
+export const PHASE74_JUDGE_MODEL = "gpt-5.5";
+export const PHASE74_GATEWAY = "https://ai.gurkiai.com/v1";
+export const PHASE74_READER_MAX_OUTPUT_TOKENS = 512;
+export const PHASE74_READER_TEMPERATURE = 0;
+
+export const PHASE74_GENERIC_READER_SYSTEM_PROMPT = [
+  "Answer the user's question using only the supplied memory evidence.",
+  "Do not infer benchmark protocols or invent missing details.",
+  "If the evidence is insufficient, say that the answer cannot be determined.",
+].join(" ");
+
+export const PHASE74_CORRECTNESS_JUDGE_SYSTEM_PROMPT = [
+  "Judge whether the candidate answer is semantically correct for the question",
+  "given the reference answer. Return strict JSON with correct and reasoning.",
+].join(" ");
+
+export const PHASE74_EVALUATOR_SOURCE_SNAPSHOT = {
+  files: [
+    "bun.lock",
+    "package.json",
+    "scripts/cli-options.ts",
+    "scripts/aggregate-phase-74-generalization.ts",
+    "scripts/prepare-phase-65-locomo-data.ts",
+    "scripts/prepare-phase-74-datasets.ts",
+    "scripts/run-phase-74-generalization.ts",
+    "scripts/run-phase-74-storage-scale-gate.ts",
+  ],
+  sourceExtensions: [".cts", ".mts", ".ts"],
+  sourceTrees: ["src"],
+  version: 2,
+} as const;
+
+export interface Phase74EvaluatorSource {
+  readonly [key: string]: string;
+  commit: string;
+  sha256: string;
+}
+
+export interface Phase74EvaluatorSourceVerificationDependencies {
+  hashSnapshot(repoRoot: string): Promise<string>;
+  resolveGitHead(repoRoot: string): Promise<string>;
+}
+
+const execFileAsync = promisify(execFile);
+
+export function phase74LivePromptSha256s(): Record<string, string> {
+  const hash = (value: string) =>
+    createHash("sha256").update(value).digest("hex");
+  return {
+    assistedExtraction: hash(MEMORY_EXTRACTION_SYSTEM_PROMPT),
+    conversationalExtraction: hash(
+      CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
+    ),
+    genericReader: hash(PHASE74_GENERIC_READER_SYSTEM_PROMPT),
+    judge: hash(PHASE74_CORRECTNESS_JUDGE_SYSTEM_PROMPT),
+    planner: hash(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT),
+    protocolReader: hash([
+      PHASE74_PROTOCOL_READER_SYSTEM_PROMPT,
+      PHASE74_GENERIC_READER_SYSTEM_PROMPT,
+    ].join("\0")),
+    reranker: hash(POINTWISE_RERANKER_SYSTEM_PROMPT),
+  };
+}
+
+export interface Phase74LiveModels {
+  answer: AISDKModelConfig;
+  assistedExtraction: AISDKModelConfig;
+  embedding: AISDKModelConfig;
+  judge: AISDKModelConfig;
+  planner: AISDKModelConfig;
+  reranker: AISDKModelConfig;
+}
+
+export function resolvePhase74EvaluatorSource(
+  env: Record<string, string | undefined>,
+): Phase74EvaluatorSource {
+  const commit = env.GOODMEMORY_PHASE74_SOURCE_COMMIT ?? "";
+  const sha256 = env.GOODMEMORY_PHASE74_SOURCE_SHA256 ?? "";
+  if (!/^[0-9a-f]{40}$/iu.test(commit) || !/^[0-9a-f]{64}$/iu.test(sha256)) {
+    throw new Error(
+      "Phase 74 evaluator source requires an exact 40-character commit and 64-character SHA-256.",
+    );
+  }
+  return { commit: commit.toLowerCase(), sha256: sha256.toLowerCase() };
+}
+
+async function listSourceSnapshotFiles(
+  repoRoot: string,
+): Promise<string[]> {
+  const paths: string[] = [...PHASE74_EVALUATOR_SOURCE_SNAPSHOT.files];
+  const sourceExtensions = new Set<string>(
+    PHASE74_EVALUATOR_SOURCE_SNAPSHOT.sourceExtensions,
+  );
+
+  async function visit(relativeDirectory: string): Promise<void> {
+    const entries = await readdir(join(repoRoot, relativeDirectory), {
+      withFileTypes: true,
+    });
+    entries.sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const relativePath = join(relativeDirectory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(relativePath);
+      } else if (entry.isFile() && sourceExtensions.has(extname(entry.name))) {
+        paths.push(relativePath);
+      }
+    }
+  }
+
+  for (const sourceTree of PHASE74_EVALUATOR_SOURCE_SNAPSHOT.sourceTrees) {
+    await visit(sourceTree);
+  }
+  return paths.sort();
+}
+
+export async function hashPhase74EvaluatorSourceSnapshot(
+  repoRoot: string,
+): Promise<string> {
+  const hash = createHash("sha256");
+  hash.update(`phase74-evaluator-source-v${PHASE74_EVALUATOR_SOURCE_SNAPSHOT.version}\0`);
+  for (const relativePath of await listSourceSnapshotFiles(repoRoot)) {
+    const content = await readFile(join(repoRoot, relativePath));
+    hash.update(`${Buffer.byteLength(relativePath)}:${relativePath}\0`);
+    hash.update(`${content.byteLength}:`);
+    hash.update(content);
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+async function resolvePhase74GitHead(repoRoot: string): Promise<string> {
+  const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  return stdout.trim();
+}
+
+export async function verifyPhase74EvaluatorSource(input: {
+  declared: Phase74EvaluatorSource;
+  dependencies?: Phase74EvaluatorSourceVerificationDependencies;
+  repoRoot: string;
+}): Promise<Phase74EvaluatorSource> {
+  const dependencies = input.dependencies ?? {
+    hashSnapshot: hashPhase74EvaluatorSourceSnapshot,
+    resolveGitHead: resolvePhase74GitHead,
+  };
+  const actualCommit = (await dependencies.resolveGitHead(input.repoRoot))
+    .trim()
+    .toLowerCase();
+  if (actualCommit !== input.declared.commit.toLowerCase()) {
+    throw new Error(
+      "Phase 74 evaluator source commit does not match git HEAD.",
+    );
+  }
+  const actualSha256 = (await dependencies.hashSnapshot(input.repoRoot))
+    .trim()
+    .toLowerCase();
+  if (actualSha256 !== input.declared.sha256.toLowerCase()) {
+    throw new Error(
+      "Phase 74 evaluator source snapshot SHA-256 does not match the checkout.",
+    );
+  }
+  return { commit: actualCommit, sha256: actualSha256 };
+}
+
+function requiredEnv(
+  env: Record<string, string | undefined>,
+  name: string,
+): string {
+  const value = env[name];
+  if (value === undefined || value.trim() === "") {
+    throw new Error(`Missing required Phase 74 environment variable ${name}.`);
+  }
+  return value;
+}
+
+function modelFromEnv(
+  env: Record<string, string | undefined>,
+  prefix: string,
+): AISDKModelConfig {
+  return {
+    apiKey: requiredEnv(env, `${prefix}_API_KEY`),
+    baseURL: requiredEnv(env, `${prefix}_BASE_URL`),
+    model: requiredEnv(env, `${prefix}_MODEL`),
+    provider: requiredEnv(env, `${prefix}_PROVIDER`) as "openai",
+  };
+}
+
+export function resolvePhase74LiveModels(
+  env: Record<string, string | undefined>,
+): Phase74LiveModels {
+  const answer = modelFromEnv(env, "GOODMEMORY_EVAL");
+  const judge = modelFromEnv(env, "GOODMEMORY_JUDGE");
+  const embedding = modelFromEnv(env, "GOODMEMORY_EMBEDDING");
+  if (
+    answer.provider !== "openai" ||
+    answer.model !== PHASE74_LANGUAGE_MODEL ||
+    answer.baseURL !== PHASE74_GATEWAY
+  ) {
+    throw new Error(
+      `Phase 74 language calls require ${PHASE74_LANGUAGE_MODEL} through ${PHASE74_GATEWAY}.`,
+    );
+  }
+  if (
+    judge.provider !== "openai" ||
+    judge.model !== PHASE74_JUDGE_MODEL ||
+    judge.baseURL !== PHASE74_GATEWAY
+  ) {
+    throw new Error(
+      `Phase 74 judging requires independent ${PHASE74_JUDGE_MODEL} through ${PHASE74_GATEWAY}.`,
+    );
+  }
+  if (
+    embedding.provider !== "openai" ||
+    embedding.baseURL !== PHASE74_GATEWAY
+  ) {
+    throw new Error(
+      `Phase 74 embedding calls require an OpenAI-compatible model through ${PHASE74_GATEWAY}.`,
+    );
+  }
+  return {
+    answer,
+    assistedExtraction: answer,
+    embedding,
+    judge,
+    planner: answer,
+    reranker: answer,
+  };
+}
+
+function readerBranch(purpose: string | undefined): Phase74ModelUsageBranch {
+  if (purpose?.startsWith("final:baseline:") === true) {
+    return "baseline";
+  }
+  if (purpose?.startsWith("final:candidate:") === true) {
+    return "candidate";
+  }
+  if (purpose?.startsWith("oracle:") === true) {
+    return "oracle_reader";
+  }
+  if (purpose?.startsWith("protocol:") === true) {
+    return "protocol_reader";
+  }
+  return "shadow";
+}
+
+export function createPhase74LiveReader(input: {
+  events: AttributedModelUsageAttempt[];
+  fetch?: FetchLike;
+  model: AISDKModelConfig;
+  onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+}): OracleMatrixReader {
+  return async (payload) => {
+    const caseId = payload.caseId ?? "unattributed";
+    const sink = createAttributedModelUsageSink({
+      branch: readerBranch(payload.purpose),
+      caseId,
+      events: input.events,
+      onEvent: input.onUsageEvent,
+    });
+    let attempt = 0;
+    return withAISDKRetries(async () => {
+      attempt += 1;
+      return runWithModelUsageAttempt({
+        attempt,
+        modelId: input.model.model,
+        operation: "answer_generation",
+        providerId: input.model.provider,
+        sink,
+        run: async (report) => {
+          const result = await requestOpenAICompatibleTextResult({
+            fetch: input.fetch,
+            maxOutputTokens: PHASE74_READER_MAX_OUTPUT_TOKENS,
+            model: input.model,
+            prompt: `Question:\n${payload.question}\n\nMemory evidence:\n${payload.context}`,
+            system: PHASE74_GENERIC_READER_SYSTEM_PROMPT,
+            temperature: PHASE74_READER_TEMPERATURE,
+          });
+          report(result.usage ?? normalizeAISDKLanguageModelUsage(undefined));
+          const answer = stripThinkingBlocks(result.text);
+          if (answer === "") {
+            throw new Error("Phase 74 generic reader returned an empty answer.");
+          }
+          return answer;
+        },
+      });
+    }, { retryLimit: 3 });
+  };
+}
+
+const correctnessSchema = z.object({
+  correct: z.boolean(),
+  reasoning: z.string(),
+});
+
+export function createPhase74LiveJudge(input: {
+  events: AttributedModelUsageAttempt[];
+  fetch?: FetchLike;
+  model: AISDKModelConfig;
+  onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+}): OracleMatrixJudge {
+  return async (payload) => {
+    const sink = createAttributedModelUsageSink({
+      branch: "judge",
+      caseId: payload.caseId ?? "unattributed",
+      events: input.events,
+      onEvent: input.onUsageEvent,
+    });
+    let attempt = 0;
+    return withAISDKRetries(async () => {
+      attempt += 1;
+      return runWithModelUsageAttempt({
+        attempt,
+        modelId: input.model.model,
+        operation: "judge",
+        providerId: input.model.provider,
+        sink,
+        run: async (report) => {
+          const result = await requestOpenAICompatibleObjectResult({
+            fetch: input.fetch,
+            maxOutputTokens: PHASE74_READER_MAX_OUTPUT_TOKENS,
+            model: input.model,
+            prompt: [
+              `Question: ${payload.question}`,
+              `Reference answer: ${payload.expectedAnswer}`,
+              `Candidate answer: ${payload.answer}`,
+            ].join("\n"),
+            schema: correctnessSchema,
+            system: PHASE74_CORRECTNESS_JUDGE_SYSTEM_PROMPT,
+            temperature: 0,
+          });
+          report(result.usage ?? normalizeAISDKLanguageModelUsage(undefined));
+          return { correct: result.object.correct };
+        },
+      });
+    }, { retryLimit: 3 });
+  };
+}

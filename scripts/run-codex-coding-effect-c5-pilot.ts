@@ -62,8 +62,6 @@ const DEFAULT_C4_READINESS_CORE =
   "reports/quality-gates/phase-73/c4-controlled-pilot-core.json";
 const DEFAULT_BASELINE_REPORT =
   "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/report.json";
-const DEFAULT_BASELINE_STAGE_EVIDENCE =
-  "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/stages";
 const FIXED_PLATFORM_TEMP_ROOTS = [
   "/tmp",
   "/private/tmp",
@@ -151,11 +149,11 @@ export function parseC5LivePilotOptions(
   );
   const baselineRawStageEvidenceRoot = baselineRawStageEvidence
     ? resolve(cwd, baselineRawStageEvidence)
-    : undefined;
+    : join(dirname(baselineReportPath), "raw-stages");
   const baselineStageEvidenceRoot = resolve(
     cwd,
     resolveCliFlagValueStrict(argv, "--baseline-stage-evidence") ??
-      DEFAULT_BASELINE_STAGE_EVIDENCE,
+      join(dirname(baselineReportPath), "stages"),
   );
   const c4ReadinessCorePath = resolve(
     cwd,

@@ -363,17 +363,18 @@ describe("public provider facade", () => {
     });
 
     expect(prompts).toHaveLength(1);
-    expect(orderedCandidateIds).toHaveLength(20);
-    expect(result.facts).toHaveLength(20);
+    expect(orderedCandidateIds).toHaveLength(24);
+    expect(orderedCandidateIds.length).toBeLessThanOrEqual(32);
+    expect(result.facts).toHaveLength(12);
     expect(result.facts[0]?.id).toBe(orderedCandidateIds[0]);
     expect(result.packet.factSummary?.match(/^- /gmu)).toHaveLength(6);
     expect(result.metadata.retrievalTrace?.reranker).toMatchObject({
       adapter: "provider",
-      candidateCount: 20,
+      candidateCount: 24,
       status: "applied",
       strategy: "listwise",
     });
-    expect(result.metadata.retrievalTrace?.fusionRuns?.[0]?.budget).toBe(20);
+    expect(result.metadata.retrievalTrace?.fusionRuns?.[0]?.budget).toBe(24);
 
     const disabled = await memory.recall({
       scope,

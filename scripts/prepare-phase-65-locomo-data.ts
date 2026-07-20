@@ -12,27 +12,33 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   deriveLocomoMatchMode,
+  LOCOMO_UPSTREAM_COMMIT,
+  LOCOMO_UPSTREAM_SHA256,
+  LOCOMO_UPSTREAM_URL,
+  normalizeLocomoDateTime,
   normalizeLocomoCategoryCode,
-  type LocomoCase,
-  type LocomoQuestion,
-  type LocomoTurn,
+} from "../src/eval/locomo";
+import type {
+  LocomoCase,
+  LocomoQuestion,
+  LocomoTurn,
 } from "../src/eval/locomo";
 import {
   assertDistinctCliPathValues,
   resolveCliFlagValueStrict,
 } from "./cli-options";
 
-export const LOCOMO_UPSTREAM_COMMIT =
-  "cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc";
-export const LOCOMO_UPSTREAM_SHA256 =
-  "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4";
-export const LOCOMO_UPSTREAM_URL =
-  `https://raw.githubusercontent.com/snap-research/locomo/${LOCOMO_UPSTREAM_COMMIT}/data/locomo10.json`;
+export {
+  LOCOMO_UPSTREAM_COMMIT,
+  LOCOMO_UPSTREAM_SHA256,
+  LOCOMO_UPSTREAM_URL,
+} from "../src/eval/locomo";
 const ADVERSARIAL_ABSTENTION_GOLD = "No information available";
 const CANONICAL_LOCOMO_DIA_ID_PATTERN = /^D(\d+):(\d+)$/u;
 const LEGACY_LOCOMO_DIA_ID_PATTERN = /^D:(\d+):(\d+)$/u;
 
 export interface LocomoPrepNormalizeOptions {
+  includeImageCaptions?: boolean;
   maxConversations: number;
   maxQuestionsPerCase: number;
 }
@@ -182,7 +188,10 @@ export function normalizeLocomoDiaId(value: string): string | null {
   return null;
 }
 
-function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
+function normalizeTurns(
+  conversation: Record<string, unknown>,
+  includeImageCaptions = true,
+): LocomoTurn[] {
   const turns: LocomoTurn[] = [];
   const sessionKeys = Object.keys(conversation)
     .filter((key) => /^session_\d+$/u.test(key))
@@ -196,11 +205,13 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
     if (!Array.isArray(session)) {
       continue;
     }
-    // Absolute session date/time (e.g. "1:56 pm on 8 May, 2023"), stored under a
-    // sibling "<session>_date_time" key upstream. Carried per turn so temporal
-    // answering can resolve relative dates to absolute ones.
+    // Absolute session date/time is stored under a sibling
+    // "<session>_date_time" key upstream. Normalize it before persistence so
+    // every evaluator sees the same timezone-independent representation.
     const sessionDate = conversation[`${key}_date_time`];
-    const date = typeof sessionDate === "string" ? sessionDate : undefined;
+    const date = typeof sessionDate === "string"
+      ? normalizeLocomoDateTime(sessionDate)
+      : undefined;
     for (const entry of session) {
       if (!isRecord(entry)) {
         continue;
@@ -222,7 +233,7 @@ function normalizeTurns(conversation: Record<string, unknown>): LocomoTurn[] {
       }
       const imageCaption =
         typeof entry.blip_caption === "string" ? entry.blip_caption.trim() : "";
-      const sourceContent = imageCaption.length > 0
+      const sourceContent = includeImageCaptions && imageCaption.length > 0
         ? `${content}\n\nImage caption: ${imageCaption}`
         : content;
       turns.push(
@@ -300,7 +311,11 @@ function normalizeQuestions(
 
 export function normalizeLocomoPrepCases(
   parsed: unknown,
-  { maxConversations, maxQuestionsPerCase }: LocomoPrepNormalizeOptions,
+  {
+    includeImageCaptions = true,
+    maxConversations,
+    maxQuestionsPerCase,
+  }: LocomoPrepNormalizeOptions,
 ): LocomoCase[] {
   if (!Array.isArray(parsed)) {
     throw new Error("Upstream locomo10.json must be a JSON array of conversations.");
@@ -319,7 +334,7 @@ export function normalizeLocomoPrepCases(
         ? entry.sample_id
         : `conversation-${index + 1}`;
     const conversation = entry.conversation;
-    const turns = normalizeTurns(conversation);
+    const turns = normalizeTurns(conversation, includeImageCaptions);
     const questions = normalizeQuestions(entry.qa, sampleId, maxQuestionsPerCase);
     if (turns.length === 0 || questions.length === 0) {
       continue;

@@ -1,3 +1,4 @@
+import type { EvidenceLedgerFormat } from "../answer/evidenceLedgerContext";
 import type {
   BuildContextResult,
   GoodMemory,
@@ -165,6 +166,7 @@ export interface RuntimeKitObserveToolResultResult {
 export interface CreateGoodMemoryRuntimeKitInput {
   defaultContextMode?: RuntimeKitContextMode;
   defaultMaxMemoryTokens?: number;
+  evidenceLedgerFormat?: EvidenceLedgerFormat;
   hostAdapter?: Pick<HostAdapter, "assessAction">;
   memory: GoodMemory;
   onRuntimeEvent?(event: RuntimeKitEvent): Promise<void> | void;

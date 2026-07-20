@@ -1,3 +1,4 @@
+import type { EvidenceLedgerFormat } from "../answer/evidenceLedgerContext";
 import type { MemoryScope } from "../domain/scope";
 import type {
   ArtifactSpillRecord,
@@ -33,6 +34,9 @@ import type {
 import type { MaintenanceJobName, MaintenanceRunReport } from "../maintenance/runner";
 import type { GoodMemoryPolicyHooks } from "../policy/hooks";
 import type { MemoryPacket } from "../recall/contextBuilder";
+import type { EvidenceLedgerEntry } from "../recall/evidenceLedger";
+import type { GeneralizedFusionChannel } from "../recall/generalizedFusion";
+import type { RecallPlanAssistant } from "../recall/recallPlan";
 import type {
   RecallCandidateTrace,
   RecallHit,
@@ -137,6 +141,12 @@ export interface GoodMemoryRetrievalConfig {
   // embeddings add a dense RRF channel. Explicit fields below always win over
   // the preset; unset keeps the zero-dependency default behavior unchanged.
   preset?: GoodMemoryRetrievalPresetId;
+  // Experimental E2 ablation hook. Omit to run all five fusion channels.
+  generalizedFusionChannels?: readonly GeneralizedFusionChannel[];
+  // Experimental Phase 74 execution path. When enabled, RecallPlan facets and
+  // maxHops drive decomposition and iterative retrieval unless a call supplies
+  // an explicit decompose or multiHop override. Off until promotion gates pass.
+  recallPlanExecution?: boolean;
   // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
   // lexical ranking signal for hybrid/llm-assisted strategies, populating the
   // same ranking slot the neural semantic score would, so it works with no
@@ -168,6 +178,7 @@ export interface GoodMemoryConfig {
     // Opt-in pointwise reranker. When set, recalled facts are reranked over their
     // top-K window (and the packet re-rendered). Absent by default => no-op.
     reranker?: Reranker;
+    recallPlanner?: RecallPlanAssistant;
     sessionStore?: SessionStore;
     vectorStore?: VectorStore;
   };
@@ -183,16 +194,12 @@ export interface RecallInput {
   query: string;
   retrievalProfile?: "general_chat" | "coding_agent";
   strategy?: RecallRouterStrategy;
-  // Opt-in iterative retrieval for multi-hop questions: after each pass, bridge
-  // entities (names/values) from the retrieved facts expand the query so a
-  // further pass reaches facts reachable only through that bridge. `true` runs
-  // the default two passes; a number sets the maximum number of passes (e.g. 3
-  // for two bridge expansions). Defaults to single-pass recall.
+  // Override iterative retrieval. `false` forces one pass, `true` runs the
+  // default iterative path, and a number sets the maximum number of passes.
+  // When unset, the experimental plan-execution profile may use maxHops.
   multiHop?: boolean | number;
-  // Opt-in query decomposition: split a compound query into sub-queries, recall
-  // each separately, and union the results (the packet is re-rendered over the
-  // union). Lexical-compatible and provider-free by default (a deterministic
-  // splitter). Defaults to a single recall; composes with multiHop.
+  // Override decomposition. When unset, the experimental plan-execution
+  // profile may recall non-empty planned facets. `false` forces one query.
   decompose?: boolean;
   // When a reranker adapter is configured, reranking is applied unless this is
   // set to false; ignored when no reranker is configured.
@@ -212,6 +219,7 @@ export interface RecallResult {
   feedback: FeedbackMemory[];
   archives: SessionArchive[];
   evidence: EvidenceRecord[];
+  evidenceLedger?: EvidenceLedgerEntry[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -239,6 +247,7 @@ export interface BuildContextInput {
   recall: RecallResult;
   output?: "json" | "markdown" | "system_prompt_fragment" | "developer_prompt_fragment";
   maxTokens?: number;
+  evidenceLedgerFormat?: EvidenceLedgerFormat;
   // Opt-in: drop evidence lines that duplicate a fact verbatim (used by host
   // injection to avoid redundant Evidence/Facts noise in the injected fragment).
   // Off by default so benchmark rendering is unchanged.
@@ -600,6 +609,7 @@ export interface GoodMemory {
   reviseMemory(input: ReviseMemoryInput): Promise<ReviseMemoryResult>;
   forget(input: ForgetInput): Promise<ForgetResult>;
   exportMemory(input: ExportMemoryInput): Promise<ExportMemoryResult>;
+  /** Requires a projection-capable document store so scoped deletion is terminal. */
   deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult>;
   feedback(input: FeedbackInput): Promise<FeedbackResult>;
   runMaintenance(input: RunMaintenanceInput): Promise<RunMaintenanceResult>;

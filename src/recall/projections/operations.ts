@@ -43,6 +43,10 @@ export interface RecallProjectionOperations {
   appendClaimUnsafe(input: AppendClaimProjectionInput): Promise<void>;
   markClaimFailed(input: AppendClaimProjectionInput, error: unknown): Promise<void>;
   queryClaims(scope: MemoryScope): Promise<ClaimProjection[]>;
+  queryClaimsBySourceMemoryIds(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
   queryDocuments(scope: MemoryScope): Promise<RecallIndexDocument[]>;
   searchDocuments(
@@ -50,6 +54,17 @@ export interface RecallProjectionOperations {
     query: string,
     limit: number,
   ): Promise<RecallIndexDocument[]>;
+  searchEntities(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+  ): Promise<EntityProjection[]>;
+  searchClaims(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+    history?: boolean,
+  ): Promise<ClaimProjection[]>;
   queryEntities(scope: MemoryScope): Promise<EntityProjection[]>;
   registerScope(
     scope: MemoryScope,
@@ -244,8 +259,14 @@ export function createRecallProjectionOperations(input: {
     queryClaims(scope) {
       return claimIndex.query(scope);
     },
+    queryClaimsBySourceMemoryIds(scope, sourceMemoryIds) {
+      return claimIndex.queryBySourceMemoryIds(scope, sourceMemoryIds);
+    },
     queryClaimHistory(scope) {
       return claimIndex.queryHistory(scope);
+    },
+    searchClaims(scope, query, limit, history = false) {
+      return claimIndex.search(scope, query, limit, history);
     },
     async queryDocuments(scope) {
       const documents = await documentStore.query<RecallIndexDocument>(
@@ -290,6 +311,9 @@ export function createRecallProjectionOperations(input: {
     },
     queryEntities(scope) {
       return entityIndex.query(scope);
+    },
+    searchEntities(scope, query, limit) {
+      return entityIndex.search(scope, query, limit);
     },
     registerScope,
     async rebuildScopeUnsafe(scope, sources) {

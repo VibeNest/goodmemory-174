@@ -47,6 +47,24 @@ export interface BuildRecallPlanInput {
   scope: MemoryScope;
 }
 
+export interface RecallPlanAssistantInput {
+  deterministicPlan: RecallPlan;
+  locale?: string;
+  query: string;
+  referenceTime: string;
+  scope: MemoryScope;
+}
+
+export interface RecallPlanAssistant {
+  plan(input: RecallPlanAssistantInput): Promise<Partial<RecallPlan>>;
+}
+
+export interface RecallPlanResolution {
+  assistantApplied: boolean;
+  fallbackReason?: "assistant_error";
+  plan: RecallPlan;
+}
+
 const CURRENT_QUERY_PATTERN =
   /\b(?:current|currently|latest|now|present)\b|(?:当前|目前|现在|最新|如今)/iu;
 const HISTORY_QUERY_PATTERN =
@@ -224,4 +242,40 @@ export function buildDeterministicRecallPlan(
     maxRenderedTokens: RECALL_PLAN_MAX_RENDERED_TOKENS,
     uncertainty,
   };
+}
+
+export async function resolveRecallPlan(input: {
+  assistant?: RecallPlanAssistant;
+  input: BuildRecallPlanInput;
+}): Promise<RecallPlanResolution> {
+  const deterministicPlan = buildDeterministicRecallPlan(input.input);
+  if (!input.assistant) {
+    return { assistantApplied: false, plan: deterministicPlan };
+  }
+  try {
+    const assisted = await input.assistant.plan({
+      deterministicPlan,
+      locale: input.input.locale,
+      query: input.input.query,
+      referenceTime: input.input.referenceTime,
+      scope: input.input.scope,
+    });
+    return {
+      assistantApplied: true,
+      plan: {
+        ...deterministicPlan,
+        ...assisted,
+        maxHops: Math.max(1, Math.min(3, assisted.maxHops ?? deterministicPlan.maxHops)),
+        preRankLimit: RECALL_PLAN_PRE_RANK_LIMIT,
+        selectedLimit: RECALL_PLAN_SELECTED_LIMIT,
+        maxRenderedTokens: RECALL_PLAN_MAX_RENDERED_TOKENS,
+      },
+    };
+  } catch {
+    return {
+      assistantApplied: false,
+      fallbackReason: "assistant_error",
+      plan: deterministicPlan,
+    };
+  }
 }

@@ -1,0 +1,1836 @@
+import { createHash } from "node:crypto";
+import {
+  mkdir,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
+import {
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
+
+import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
+import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
+import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
+import {
+  evaluatePhase74PromotionGate,
+  PHASE74_MAX_PROTECTION_REGRESSION,
+} from "../src/eval/phase74PromotionGate";
+import type {
+  Phase74ModelUsageBranchEvidence,
+  Phase74ModelUsageEvidence,
+  Phase74PromotionGateInput,
+  Phase74PromotionGateResult,
+  Phase74ProtectionEvidence,
+} from "../src/eval/phase74PromotionGate";
+import {
+  aggregatePhase74Replicates,
+  buildPhase74ReplicateComparison,
+} from "../src/eval/phase74Replicates";
+import type {
+  Phase74ReplicateAggregation,
+  Phase74ReplicateCaseOutcome,
+  Phase74ReplicateComparison,
+  Phase74ReplicateRun,
+} from "../src/eval/phase74Replicates";
+import {
+  hashEvalExperimentIdentity,
+  hashEvalRunIdentity,
+  type EvalRunIdentity,
+} from "../src/eval/runIdentity";
+
+const BENCHMARKS = ["longmemeval", "locomo"] as const;
+const RETRIEVAL_STAGES = ["E1", "E2", "E3"] as const;
+const ALL_STAGES = [...RETRIEVAL_STAGES, "E4"] as const;
+const EVIDENCE_LEDGER_FORMATS = [
+  "prose",
+  "chronology",
+  "compact_json",
+  "json_locale_note",
+] as const satisfies readonly EvidenceLedgerFormat[];
+const COMPARISON_TOLERANCE = 1e-12;
+
+type RetrievalStage = (typeof RETRIEVAL_STAGES)[number];
+type ExperimentStage = (typeof ALL_STAGES)[number];
+type Replicate = 1 | 2 | 3;
+
+interface DatasetManifestEvidence {
+  benchmark: Phase74BenchmarkFamily;
+  caseCount: number;
+  datasetSha256: string;
+  selectedCaseIdsSha256: string;
+}
+
+interface RetrievalProgressRow {
+  arm: string;
+  caseId: string;
+  clusterId: string;
+  contextTokens: number;
+  correct: boolean;
+  productLatencyMs: number;
+  score: number;
+  snapshotId: string;
+  stage: RetrievalStage;
+}
+
+interface E4ProgressRow {
+  caseId: string;
+  clusterId: string;
+  contextTokens: number;
+  executionError?: string;
+  format: EvidenceLedgerFormat;
+  score?: number;
+  snapshotId: string;
+}
+
+interface RetrievalStageArtifact {
+  comparison: Phase74ReplicateComparison;
+  executionFailures: number;
+  modelUsage: Phase74ModelUsageEvidence;
+  renderedContextMaxTokens: number;
+  rows: RetrievalProgressRow[];
+}
+
+interface E4StageArtifact {
+  executionFailures: number;
+  renderedContextMaxTokens: number;
+  rows: E4ProgressRow[];
+}
+
+interface RunArtifact {
+  benchmark: Phase74BenchmarkFamily;
+  dataset: DatasetManifestEvidence;
+  experimentIdentityHash: string;
+  identity: EvalRunIdentity;
+  identityHash: string;
+  replicate: Replicate;
+  retrieval: Record<RetrievalStage, RetrievalStageArtifact>;
+  runDirectory: string;
+  e4: E4StageArtifact;
+}
+
+interface ProtectionArtifact {
+  e4: Record<EvidenceLedgerFormat, Phase74ProtectionEvidence[]>;
+  promotion: {
+    protections: Phase74ProtectionEvidence[];
+    safety: Phase74PromotionGateInput["safety"];
+  };
+  sha256: string;
+  source: {
+    identityHashes: string[];
+    runIds: string[];
+  };
+}
+
+export interface Phase74AggregationCliOptions {
+  bootstrapSamples?: number;
+  outputPath: string;
+  promotionStage?: RetrievalStage;
+  protectionArtifactPath?: string;
+  runDirectories: string[];
+  seed?: number;
+}
+
+export interface Phase74ArtifactAggregationInput {
+  bootstrapSamples?: number;
+  promotionStage?: RetrievalStage;
+  protectionArtifactPath?: string;
+  runDirectories: readonly string[];
+  seed?: number;
+}
+
+export interface Phase74StageAggregation {
+  aggregate: Phase74ReplicateAggregation;
+  benchmark: Phase74BenchmarkFamily;
+  caseCount: number;
+  clusterCount: number;
+  experimentIdentityHash: string;
+  latency: {
+    baselineP95Ms: number;
+    candidateP95Ms: number;
+    sampleCountPerArm: number;
+  };
+  modelUsage: Phase74ModelUsageEvidence;
+  perCase: Array<{
+    baselineMean: number;
+    candidateMean: number;
+    caseId: string;
+    clusterId: string;
+    delta: number;
+    replicateDeltas: [number, number, number];
+  }>;
+  replicateStability: {
+    deltas: [number, number, number];
+    direction:
+      | "consistent_negative"
+      | "consistent_positive"
+      | "mixed"
+      | "stable_zero";
+  };
+  runIds: [string, string, string];
+  stage: RetrievalStage;
+}
+
+export interface Phase74ArtifactAggregationReport {
+  e4: {
+    formats: Array<{
+      averageTokens: number | null;
+      eligible: boolean | null;
+      format: EvidenceLedgerFormat;
+      macroScore: number | null;
+      minimumProtectionDelta: number | null;
+    }>;
+    gaps: string[];
+    selectedFormat: EvidenceLedgerFormat | "not_evaluable";
+    status: "evaluated" | "not_evaluable";
+  };
+  inputs: {
+    protectionArtifactSha256: string | null;
+    runs: Array<{
+      benchmark: Phase74BenchmarkFamily;
+      experimentIdentityHash: string;
+      identityHash: string;
+      replicate: Replicate;
+      runDirectory: string;
+      runId: string;
+    }>;
+  };
+  promotion: {
+    gaps: string[];
+    input?: Phase74PromotionGateInput;
+    result?: Phase74PromotionGateResult;
+    stage: RetrievalStage | null;
+    status: "evaluated" | "not_evaluable";
+  };
+  schemaVersion: 1;
+  stageAggregations: Phase74StageAggregation[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function recordValue(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`Phase 74 ${label} must be a JSON object.`);
+  }
+  return value;
+}
+
+function stringValue(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Phase 74 ${label} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function sha256Value(value: unknown, label: string): string {
+  const result = stringValue(value, label);
+  if (!/^[a-f0-9]{64}$/u.test(result)) {
+    throw new Error(`Phase 74 ${label} must be a lowercase SHA-256.`);
+  }
+  return result;
+}
+
+function integerValue(value: unknown, label: string): number {
+  if (!Number.isSafeInteger(value) || Number(value) < 0) {
+    throw new Error(`Phase 74 ${label} must be a non-negative integer.`);
+  }
+  return Number(value);
+}
+
+function positiveIntegerValue(value: unknown, label: string): number {
+  const result = integerValue(value, label);
+  if (result === 0) {
+    throw new Error(`Phase 74 ${label} must be greater than zero.`);
+  }
+  return result;
+}
+
+function finiteValue(value: unknown, label: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Phase 74 ${label} must be a finite number.`);
+  }
+  return value;
+}
+
+function unitValue(value: unknown, label: string): number {
+  const result = finiteValue(value, label);
+  if (result < 0 || result > 1) {
+    throw new Error(`Phase 74 ${label} must be between 0 and 1.`);
+  }
+  return result;
+}
+
+function booleanValue(value: unknown, label: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`Phase 74 ${label} must be boolean.`);
+  }
+  return value;
+}
+
+function assertExactKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  label: string,
+): void {
+  const allowedKeys = new Set(allowed);
+  const unexpected = Object.keys(value).filter((key) => !allowedKeys.has(key));
+  if (unexpected.length > 0) {
+    throw new Error(
+      `Phase 74 ${label} contains unsupported field(s): ${unexpected.join(", ")}.`,
+    );
+  }
+}
+
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) =>
+      `${JSON.stringify(key)}:${stableJson(value[key])}`
+    ).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function mean(values: readonly number[]): number {
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
+function p95(values: readonly number[]): number {
+  if (values.length === 0) {
+    throw new Error("Phase 74 latency evidence must contain at least one sample.");
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.ceil(sorted.length * 0.95) - 1]!;
+}
+
+async function readJson(path: string, label: string): Promise<unknown> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    throw new Error(`Phase 74 cannot read ${label} at ${path}.`, {
+      cause: error,
+    });
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(`Phase 74 ${label} at ${path} is not valid JSON.`, {
+      cause: error,
+    });
+  }
+}
+
+async function readJsonLines(path: string, label: string): Promise<unknown[]> {
+  let raw: string;
+  try {
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    throw new Error(`Phase 74 cannot read ${label} at ${path}.`, {
+      cause: error,
+    });
+  }
+  const lines = raw.endsWith("\n") ? raw.slice(0, -1).split("\n") : raw.split("\n");
+  if (lines.length === 0 || lines.some((line) => line.trim() === "")) {
+    throw new Error(`Phase 74 ${label} at ${path} contains an empty JSONL row.`);
+  }
+  return lines.map((line, index) => {
+    try {
+      return JSON.parse(line) as unknown;
+    } catch (error) {
+      throw new Error(
+        `Phase 74 ${label} at ${path} has invalid JSON on line ${index + 1}.`,
+        { cause: error },
+      );
+    }
+  });
+}
+
+function parseDatasetManifest(value: unknown): DatasetManifestEvidence {
+  const manifest = recordValue(value, "dataset manifest");
+  const benchmark = stringValue(manifest.benchmark, "dataset benchmark");
+  if (benchmark !== "locomo" && benchmark !== "longmemeval") {
+    throw new Error(`Phase 74 dataset benchmark ${benchmark} is unsupported.`);
+  }
+  if (manifest.schemaVersion !== 2) {
+    throw new Error("Phase 74 dataset manifest schemaVersion must be 2.");
+  }
+  return {
+    benchmark,
+    caseCount: positiveIntegerValue(manifest.caseCount, "dataset caseCount"),
+    datasetSha256: sha256Value(
+      manifest.datasetSha256,
+      "dataset datasetSha256",
+    ),
+    selectedCaseIdsSha256: sha256Value(
+      manifest.selectedCaseIdsSha256,
+      "dataset selectedCaseIdsSha256",
+    ),
+  };
+}
+
+function parseIdentity(value: unknown): {
+  experimentIdentityHash: string;
+  identity: EvalRunIdentity;
+  identityHash: string;
+} {
+  const identity = value as EvalRunIdentity;
+  return {
+    experimentIdentityHash: hashEvalExperimentIdentity(identity),
+    identity,
+    identityHash: hashEvalRunIdentity(identity),
+  };
+}
+
+function parseReplicate(value: unknown, label: string): Replicate {
+  if (value !== 1 && value !== 2 && value !== 3) {
+    throw new Error(`Phase 74 ${label} must be 1, 2, or 3.`);
+  }
+  return value;
+}
+
+function parseModelUsageBranch(
+  value: unknown,
+  label: string,
+): Phase74ModelUsageBranchEvidence {
+  const branch = recordValue(value, `${label} model usage`);
+  assertExactKeys(branch, [
+    "answerGenerationCaseCount",
+    "caseIdsSha256",
+    "completeRequestCount",
+    "logicalCaseCount",
+    "missingRequestCount",
+    "operationCounts",
+    "partialRequestCount",
+    "requestCount",
+    "totalTokens",
+    "unobservedCaseIds",
+  ], `${label} model usage`);
+  const operationCountsRecord = recordValue(
+    branch.operationCounts,
+    `${label} operationCounts`,
+  );
+  const operationCounts = Object.fromEntries(
+    Object.entries(operationCountsRecord).map(([operation, count]) => [
+      operation,
+      integerValue(count, `${label} operationCounts.${operation}`),
+    ]),
+  );
+  if (!Array.isArray(branch.unobservedCaseIds)) {
+    throw new Error(`Phase 74 ${label} unobservedCaseIds must be an array.`);
+  }
+  const unobservedCaseIds = branch.unobservedCaseIds.map((caseId) =>
+    stringValue(caseId, `${label} unobservedCaseIds`)
+  );
+  if (new Set(unobservedCaseIds).size !== unobservedCaseIds.length) {
+    throw new Error(`Phase 74 ${label} unobservedCaseIds contains duplicates.`);
+  }
+  const parsed = {
+    answerGenerationCaseCount: integerValue(
+      branch.answerGenerationCaseCount,
+      `${label} answerGenerationCaseCount`,
+    ),
+    caseIdsSha256: sha256Value(branch.caseIdsSha256, `${label} caseIdsSha256`),
+    completeRequestCount: integerValue(
+      branch.completeRequestCount,
+      `${label} completeRequestCount`,
+    ),
+    logicalCaseCount: integerValue(
+      branch.logicalCaseCount,
+      `${label} logicalCaseCount`,
+    ),
+    missingRequestCount: integerValue(
+      branch.missingRequestCount,
+      `${label} missingRequestCount`,
+    ),
+    operationCounts,
+    partialRequestCount: integerValue(
+      branch.partialRequestCount,
+      `${label} partialRequestCount`,
+    ),
+    requestCount: integerValue(branch.requestCount, `${label} requestCount`),
+    totalTokens: finiteValue(branch.totalTokens, `${label} totalTokens`),
+    unobservedCaseIds,
+  };
+  if (parsed.totalTokens < 0) {
+    throw new Error(`Phase 74 ${label} totalTokens cannot be negative.`);
+  }
+  const operationRequestCount = Object.values(parsed.operationCounts).reduce(
+    (total, count) => total + (count ?? 0),
+    0,
+  );
+  if (
+    operationRequestCount !== parsed.requestCount ||
+    parsed.completeRequestCount + parsed.partialRequestCount +
+        parsed.missingRequestCount !== parsed.requestCount
+  ) {
+    throw new Error(`Phase 74 ${label} model usage counts are inconsistent.`);
+  }
+  return parsed;
+}
+
+function parseModelUsage(value: unknown): Phase74ModelUsageEvidence {
+  const usage = recordValue(value, "model usage summary");
+  assertExactKeys(usage, [
+    "accountingVersion",
+    "baseline",
+    "candidate",
+    "costBoundary",
+  ], "model usage summary");
+  if (usage.accountingVersion !== "phase74-model-usage-v1") {
+    throw new Error(
+      "Phase 74 model usage accountingVersion must be phase74-model-usage-v1.",
+    );
+  }
+  if (
+    usage.costBoundary !== "full-product" &&
+    usage.costBoundary !== "query-only" &&
+    usage.costBoundary !== "reader-only"
+  ) {
+    throw new Error("Phase 74 model usage costBoundary is invalid.");
+  }
+  return {
+    accountingVersion: "phase74-model-usage-v1",
+    baseline: parseModelUsageBranch(usage.baseline, "baseline"),
+    candidate: parseModelUsageBranch(usage.candidate, "candidate"),
+    costBoundary: usage.costBoundary,
+  };
+}
+
+function parseSummaryBase(input: {
+  benchmark: Phase74BenchmarkFamily;
+  experimentIdentityHash: string;
+  identityHash: string;
+  replicate: Replicate;
+  stage: ExperimentStage;
+  value: unknown;
+}) {
+  const summary = recordValue(input.value, `${input.stage} summary`);
+  assertExactKeys(summary, [
+    "benchmark",
+    "caseCount",
+    "comparison",
+    "endToEndScores",
+    "executionFailures",
+    "experimentIdentityHash",
+    "identityHash",
+    "modelUsage",
+    "renderedContextMaxTokens",
+    "replicate",
+    "stage",
+    "status",
+  ], `${input.stage} summary`);
+  if (summary.benchmark !== input.benchmark || summary.stage !== input.stage) {
+    throw new Error(`Phase 74 ${input.stage} summary benchmark/stage drift.`);
+  }
+  if (summary.status !== "not_evaluable") {
+    throw new Error(`Phase 74 ${input.stage} source summary must be diagnostic.`);
+  }
+  if (summary.identityHash !== input.identityHash) {
+    throw new Error(`Phase 74 ${input.stage} summary run identity hash drift.`);
+  }
+  if (summary.experimentIdentityHash !== input.experimentIdentityHash) {
+    throw new Error(
+      `Phase 74 ${input.stage} summary experiment identity hash drift.`,
+    );
+  }
+  if (parseReplicate(summary.replicate, `${input.stage} replicate`) !== input.replicate) {
+    throw new Error(`Phase 74 ${input.stage} summary replicate drift.`);
+  }
+  return {
+    caseCount: positiveIntegerValue(summary.caseCount, `${input.stage} caseCount`),
+    comparison: summary.comparison,
+    endToEndScores: recordValue(
+      summary.endToEndScores,
+      `${input.stage} endToEndScores`,
+    ),
+    executionFailures: integerValue(
+      summary.executionFailures,
+      `${input.stage} executionFailures`,
+    ),
+    modelUsage: summary.modelUsage,
+    renderedContextMaxTokens: integerValue(
+      summary.renderedContextMaxTokens,
+      `${input.stage} renderedContextMaxTokens`,
+    ),
+  };
+}
+
+function parseComparison(
+  value: unknown,
+  input: {
+    benchmark: Phase74BenchmarkFamily;
+    selectedCaseIdsSha256: string;
+    stage: RetrievalStage;
+  },
+): Phase74ReplicateComparison {
+  const comparison = recordValue(value, `${input.stage} comparison`);
+  assertExactKeys(comparison, [
+    "baselineArm",
+    "benchmark",
+    "candidateArm",
+    "selectedCaseIdsSha256",
+    "stage",
+  ], `${input.stage} comparison`);
+  const expected = buildPhase74ReplicateComparison(input);
+  if (stableJson(comparison) !== stableJson(expected)) {
+    throw new Error(
+      `Phase 74 ${input.stage} comparison arms or identity drifted.`,
+    );
+  }
+  return expected;
+}
+
+function parseRetrievalProgress(
+  values: readonly unknown[],
+  input: {
+    caseCount: number;
+    comparison: Phase74ReplicateComparison;
+    selectedCaseIdsSha256: string;
+    stage: RetrievalStage;
+  },
+): RetrievalProgressRow[] {
+  const expectedArms = new Set<string>(PHASE74_EXPERIMENT_ARMS[input.stage]);
+  const rows = values.map((value, index): RetrievalProgressRow => {
+    const row = recordValue(value, `${input.stage} progress row ${index + 1}`);
+    if (row.executionError !== undefined) {
+      throw new Error(
+        `Phase 74 ${input.stage} progress contains executionError for ${String(row.caseId)}.`,
+      );
+    }
+    const arm = stringValue(row.arm, `${input.stage} progress arm`);
+    if (!expectedArms.has(arm)) {
+      throw new Error(`Phase 74 ${input.stage} progress contains unknown arm ${arm}.`);
+    }
+    if (row.stage !== input.stage) {
+      throw new Error(`Phase 74 ${input.stage} progress stage drift.`);
+    }
+    return {
+      arm,
+      caseId: stringValue(row.caseId, `${input.stage} progress caseId`),
+      clusterId: stringValue(
+        row.clusterId,
+        `${input.stage} progress clusterId`,
+      ),
+      contextTokens: integerValue(
+        row.contextTokens,
+        `${input.stage} progress contextTokens`,
+      ),
+      correct: booleanValue(row.correct, `${input.stage} progress correct`),
+      productLatencyMs: finiteValue(
+        row.productLatencyMs,
+        `${input.stage} progress productLatencyMs`,
+      ),
+      score: unitValue(row.score, `${input.stage} progress score`),
+      snapshotId: sha256Value(
+        row.snapshotId,
+        `${input.stage} progress snapshotId`,
+      ),
+      stage: input.stage,
+    };
+  });
+  if (rows.some(({ productLatencyMs }) => productLatencyMs < 0)) {
+    throw new Error(`Phase 74 ${input.stage} productLatencyMs cannot be negative.`);
+  }
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const key = `${row.caseId}\0${row.arm}`;
+    if (seen.has(key)) {
+      throw new Error(`Phase 74 ${input.stage} progress contains duplicate ${row.caseId}/${row.arm}.`);
+    }
+    seen.add(key);
+  }
+  const baselineRows = rows.filter(
+    ({ arm }) => arm === input.comparison.baselineArm,
+  );
+  if (baselineRows.length !== input.caseCount) {
+    throw new Error(`Phase 74 ${input.stage} progress case population mismatch.`);
+  }
+  const caseIds = baselineRows.map(({ caseId }) => caseId);
+  if (new Set(caseIds).size !== caseIds.length) {
+    throw new Error(`Phase 74 ${input.stage} progress contains duplicate case IDs.`);
+  }
+  if (sha256(JSON.stringify(caseIds)) !== input.selectedCaseIdsSha256) {
+    throw new Error(`Phase 74 ${input.stage} selected case population digest drift.`);
+  }
+  const baselineByCase = new Map(baselineRows.map((row) => [row.caseId, row]));
+  for (const arm of expectedArms) {
+    const armRows = rows.filter((row) => row.arm === arm);
+    if (armRows.length !== caseIds.length) {
+      throw new Error(`Phase 74 ${input.stage}/${arm} case population mismatch.`);
+    }
+    for (const [index, row] of armRows.entries()) {
+      const caseId = caseIds[index];
+      const baseline = caseId === undefined ? undefined : baselineByCase.get(caseId);
+      if (row.caseId !== caseId || baseline?.clusterId !== row.clusterId) {
+        throw new Error(
+          `Phase 74 ${input.stage}/${arm} case or cluster population drift.`,
+        );
+      }
+    }
+  }
+  return rows;
+}
+
+function validateEndToEndScores(input: {
+  endToEndScores: Record<string, unknown>;
+  rows: readonly RetrievalProgressRow[];
+  stage: RetrievalStage;
+}): void {
+  const expectedArms = PHASE74_EXPERIMENT_ARMS[input.stage];
+  if (
+    Object.keys(input.endToEndScores).sort().join("\0") !==
+    [...expectedArms].sort().join("\0")
+  ) {
+    throw new Error(`Phase 74 ${input.stage} endToEndScores arm population drift.`);
+  }
+  for (const arm of expectedArms) {
+    const summary = recordValue(
+      input.endToEndScores[arm],
+      `${input.stage}/${arm} endToEndScores`,
+    );
+    const rows = input.rows.filter((row) => row.arm === arm);
+    const expectedMean = mean(rows.map(({ score }) => score));
+    const expectedAccuracy = rows.filter(({ correct }) => correct).length / rows.length;
+    if (
+      integerValue(summary.caseCount, `${input.stage}/${arm} caseCount`) !== rows.length ||
+      integerValue(summary.scoredCaseCount, `${input.stage}/${arm} scoredCaseCount`) !== rows.length ||
+      Math.abs(finiteValue(summary.meanFamilyScore, `${input.stage}/${arm} meanFamilyScore`) - expectedMean) > COMPARISON_TOLERANCE ||
+      Math.abs(finiteValue(summary.semanticAccuracy, `${input.stage}/${arm} semanticAccuracy`) - expectedAccuracy) > COMPARISON_TOLERANCE
+    ) {
+      throw new Error(`Phase 74 ${input.stage}/${arm} endToEndScores drifted.`);
+    }
+  }
+}
+
+function validateUsagePopulation(
+  usage: Phase74ModelUsageEvidence,
+  caseIds: readonly string[],
+  stage: RetrievalStage,
+): void {
+  const expectedDigest = sha256(JSON.stringify([...caseIds].sort()));
+  for (const [branch, evidence] of [
+    ["baseline", usage.baseline],
+    ["candidate", usage.candidate],
+  ] as const) {
+    if (
+      evidence.caseIdsSha256 !== expectedDigest ||
+      evidence.logicalCaseCount !== caseIds.length
+    ) {
+      throw new Error(
+        `Phase 74 ${stage} ${branch} model usage case population drift.`,
+      );
+    }
+    const expected = new Set(caseIds);
+    if (evidence.unobservedCaseIds.some((caseId) => !expected.has(caseId))) {
+      throw new Error(
+        `Phase 74 ${stage} ${branch} model usage contains an unknown unobserved case.`,
+      );
+    }
+  }
+}
+
+async function validateRetrievalPackets(input: {
+  expectedSnapshotIds: readonly string[];
+  path: string;
+  stage: ExperimentStage;
+}): Promise<void> {
+  const packets = await readJsonLines(
+    input.path,
+    `${input.stage} retrieval packets`,
+  );
+  const observed = packets.map((value, index) =>
+    sha256Value(
+      recordValue(value, `${input.stage} retrieval packet ${index + 1}`).snapshotId,
+      `${input.stage} retrieval packet snapshotId`,
+    )
+  );
+  if (new Set(observed).size !== observed.length) {
+    throw new Error(`Phase 74 ${input.stage} retrieval packets contain duplicate snapshots.`);
+  }
+  const expected = [...new Set(input.expectedSnapshotIds)];
+  if (
+    [...observed].sort().join("\0") !== [...expected].sort().join("\0")
+  ) {
+    throw new Error(`Phase 74 ${input.stage} retrieval packet population drift.`);
+  }
+}
+
+function parseE4Progress(values: readonly unknown[]): E4ProgressRow[] {
+  const allowedFormats = new Set<EvidenceLedgerFormat>(EVIDENCE_LEDGER_FORMATS);
+  const rows = values.map((value, index): E4ProgressRow => {
+    const row = recordValue(value, `E4 progress row ${index + 1}`);
+    const format = stringValue(row.format, "E4 progress format");
+    if (!allowedFormats.has(format as EvidenceLedgerFormat)) {
+      throw new Error(`Phase 74 E4 progress contains unknown format ${format}.`);
+    }
+    const score = row.score === undefined
+      ? undefined
+      : unitValue(row.score, "E4 progress score");
+    return {
+      caseId: stringValue(row.caseId, "E4 progress caseId"),
+      clusterId: stringValue(row.clusterId, "E4 progress clusterId"),
+      contextTokens: integerValue(row.contextTokens, "E4 progress contextTokens"),
+      ...(typeof row.executionError === "string"
+        ? { executionError: row.executionError }
+        : {}),
+      format: format as EvidenceLedgerFormat,
+      ...(score === undefined ? {} : { score }),
+      snapshotId: sha256Value(row.snapshotId, "E4 progress snapshotId"),
+    };
+  });
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const key = `${row.caseId}\0${row.format}`;
+    if (seen.has(key)) {
+      throw new Error(`Phase 74 E4 progress contains duplicate ${row.caseId}/${row.format}.`);
+    }
+    seen.add(key);
+  }
+  return rows;
+}
+
+function validateE4Population(input: {
+  caseCount: number;
+  rows: readonly E4ProgressRow[];
+  selectedCaseIdsSha256: string;
+}): void {
+  const proseRows = input.rows.filter(({ format }) => format === "prose");
+  const caseIds = proseRows.map(({ caseId }) => caseId);
+  if (
+    caseIds.length !== input.caseCount ||
+    new Set(caseIds).size !== caseIds.length ||
+    sha256(JSON.stringify(caseIds)) !== input.selectedCaseIdsSha256
+  ) {
+    throw new Error("Phase 74 E4 selected case population drift.");
+  }
+  for (const format of EVIDENCE_LEDGER_FORMATS) {
+    const formatRows = input.rows.filter((row) => row.format === format);
+    const formatCaseIds = formatRows.map(({ caseId }) => caseId);
+    if (formatCaseIds.join("\0") !== caseIds.join("\0")) {
+      throw new Error(`Phase 74 E4/${format} case population drift.`);
+    }
+    for (const [index, row] of formatRows.entries()) {
+      if (row.clusterId !== proseRows[index]?.clusterId) {
+        throw new Error(`Phase 74 E4/${format} cluster population drift.`);
+      }
+    }
+  }
+}
+
+async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
+  const identityEvidence = parseIdentity(
+    await readJson(join(runDirectory, "run-identity.json"), "run identity"),
+  );
+  const dataset = parseDatasetManifest(
+    await readJson(
+      join(runDirectory, "dataset-manifest.json"),
+      "dataset manifest",
+    ),
+  );
+  if (
+    identityEvidence.identity.datasetSha256 !== dataset.datasetSha256 ||
+    identityEvidence.identity.benchmark !== `${dataset.benchmark}-full`
+  ) {
+    throw new Error("Phase 74 run identity and dataset manifest drifted.");
+  }
+  const replicate = parseReplicate(
+    identityEvidence.identity.configuration.replicate,
+    "run identity replicate",
+  );
+  if (identityEvidence.identity.configuration.reader !== "generic-label-free-v1") {
+    throw new Error("Phase 74 aggregation requires the frozen generic label-free reader.");
+  }
+  booleanValue(
+    identityEvidence.identity.configuration.seenCasesOnly,
+    "run identity seenCasesOnly",
+  );
+
+  const retrieval = {} as Record<RetrievalStage, RetrievalStageArtifact>;
+  for (const stage of RETRIEVAL_STAGES) {
+    const prefix = stage.toLowerCase();
+    const summaryRaw = await readJson(
+      join(runDirectory, `${prefix}-summary.json`),
+      `${stage} summary`,
+    );
+    const summary = parseSummaryBase({
+      benchmark: dataset.benchmark,
+      experimentIdentityHash: identityEvidence.experimentIdentityHash,
+      identityHash: identityEvidence.identityHash,
+      replicate,
+      stage,
+      value: summaryRaw,
+    });
+    if (summary.caseCount !== dataset.caseCount || summary.executionFailures !== 0) {
+      throw new Error(`Phase 74 ${stage} summary population or execution failures are invalid.`);
+    }
+    const comparison = parseComparison(summary.comparison, {
+      benchmark: dataset.benchmark,
+      selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
+      stage,
+    });
+    const rows = parseRetrievalProgress(
+      await readJsonLines(
+        join(runDirectory, `${prefix}-progress.jsonl`),
+        `${stage} progress`,
+      ),
+      {
+        caseCount: dataset.caseCount,
+        comparison,
+        selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
+        stage,
+      },
+    );
+    const renderedContextMaxTokens = Math.max(
+      0,
+      ...rows.map(({ contextTokens }) => contextTokens),
+    );
+    if (renderedContextMaxTokens !== summary.renderedContextMaxTokens) {
+      throw new Error(`Phase 74 ${stage} rendered context summary drift.`);
+    }
+    validateEndToEndScores({
+      endToEndScores: summary.endToEndScores,
+      rows,
+      stage,
+    });
+    const modelUsage = parseModelUsage(summary.modelUsage);
+    const persistedUsage = parseModelUsage(await readJson(
+      join(runDirectory, `${prefix}-model-usage-summary.json`),
+      `${stage} model usage summary`,
+    ));
+    if (stableJson(modelUsage) !== stableJson(persistedUsage)) {
+      throw new Error(`Phase 74 ${stage} model usage summary drift.`);
+    }
+    const caseIds = rows
+      .filter(({ arm }) => arm === comparison.baselineArm)
+      .map(({ caseId }) => caseId);
+    validateUsagePopulation(modelUsage, caseIds, stage);
+    await validateRetrievalPackets({
+      expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
+      path: join(runDirectory, `${prefix}-retrieval-packets.jsonl`),
+      stage,
+    });
+    retrieval[stage] = {
+      comparison,
+      executionFailures: summary.executionFailures,
+      modelUsage,
+      renderedContextMaxTokens,
+      rows,
+    };
+  }
+  const e1Clusters = new Map(
+    retrieval.E1.rows
+      .filter(({ arm }) => arm === retrieval.E1.comparison.baselineArm)
+      .map(({ caseId, clusterId }) => [caseId, clusterId]),
+  );
+  for (const stage of ["E2", "E3"] as const) {
+    const rows = retrieval[stage].rows.filter(
+      ({ arm }) => arm === retrieval[stage].comparison.baselineArm,
+    );
+    if (rows.some(({ caseId, clusterId }) => e1Clusters.get(caseId) !== clusterId)) {
+      throw new Error(`Phase 74 ${stage} cluster population drifted from E1.`);
+    }
+  }
+
+  const e4SummaryRaw = await readJson(
+    join(runDirectory, "e4-summary.json"),
+    "E4 summary",
+  );
+  const e4Summary = parseSummaryBase({
+    benchmark: dataset.benchmark,
+    experimentIdentityHash: identityEvidence.experimentIdentityHash,
+    identityHash: identityEvidence.identityHash,
+    replicate,
+    stage: "E4",
+    value: e4SummaryRaw,
+  });
+  if (e4Summary.comparison !== null || e4Summary.modelUsage !== null) {
+    throw new Error("Phase 74 E4 summary must not claim a paired cost comparison.");
+  }
+  if (e4Summary.caseCount !== dataset.caseCount) {
+    throw new Error("Phase 74 E4 summary case population drift.");
+  }
+  const e4RowsRaw = await readJsonLines(
+    join(runDirectory, "e4-progress.jsonl"),
+    "E4 progress",
+  );
+  const e4Rows = parseE4Progress(e4RowsRaw);
+  validateE4Population({
+    caseCount: dataset.caseCount,
+    rows: e4Rows,
+    selectedCaseIdsSha256: dataset.selectedCaseIdsSha256,
+  });
+  if (
+    e4Rows
+      .filter(({ format }) => format === "prose")
+      .some(({ caseId, clusterId }) => e1Clusters.get(caseId) !== clusterId)
+  ) {
+    throw new Error("Phase 74 E4 cluster population drifted from retrieval stages.");
+  }
+  const e4Report = recordValue(
+    await readJson(join(runDirectory, "e4-report.json"), "E4 report"),
+    "E4 report",
+  );
+  if (
+    e4Report.identityHash !== identityEvidence.identityHash ||
+    e4Report.experimentIdentityHash !== identityEvidence.experimentIdentityHash ||
+    stableJson(e4Report.identity) !== stableJson(identityEvidence.identity)
+  ) {
+    throw new Error("Phase 74 E4 report identity drift.");
+  }
+  const reportE4 = recordValue(e4Report.e4, "E4 report payload");
+  if (stableJson(reportE4.cases) !== stableJson(e4RowsRaw)) {
+    throw new Error("Phase 74 E4 report/progress case drift.");
+  }
+  const reportSummary = recordValue(e4Report.summary, "E4 report summary");
+  if (
+    reportSummary.caseCount !== e4Summary.caseCount ||
+    reportSummary.executionFailures !== e4Summary.executionFailures ||
+    reportSummary.renderedContextMaxTokens !== e4Summary.renderedContextMaxTokens
+  ) {
+    throw new Error("Phase 74 E4 report/summary drift.");
+  }
+  await validateRetrievalPackets({
+    expectedSnapshotIds: e4Rows.map(({ snapshotId }) => snapshotId),
+    path: join(runDirectory, "e4-retrieval-packets.jsonl"),
+    stage: "E4",
+  });
+  const e4Usage = recordValue(
+    await readJson(
+      join(runDirectory, "e4-model-usage-summary.json"),
+      "E4 model usage summary",
+    ),
+    "E4 model usage summary",
+  );
+  if (e4Usage.status !== "not_applicable") {
+    throw new Error("Phase 74 E4 model usage summary must be not_applicable.");
+  }
+  return {
+    benchmark: dataset.benchmark,
+    dataset,
+    experimentIdentityHash: identityEvidence.experimentIdentityHash,
+    identity: identityEvidence.identity,
+    identityHash: identityEvidence.identityHash,
+    replicate,
+    retrieval,
+    runDirectory,
+    e4: {
+      executionFailures: e4Summary.executionFailures,
+      renderedContextMaxTokens: e4Summary.renderedContextMaxTokens,
+      rows: e4Rows,
+    },
+  };
+}
+
+function sumOperationCounts(
+  branches: readonly Phase74ModelUsageBranchEvidence[],
+): Phase74ModelUsageBranchEvidence["operationCounts"] {
+  const result: Record<string, number> = {};
+  for (const branch of branches) {
+    for (const [operation, count] of Object.entries(branch.operationCounts)) {
+      result[operation] = (result[operation] ?? 0) + (count ?? 0);
+    }
+  }
+  return result;
+}
+
+function combineUsage(input: {
+  artifacts: readonly {
+    benchmark: Phase74BenchmarkFamily;
+    caseIds: readonly string[];
+    replicate: Replicate;
+    usage: Phase74ModelUsageEvidence;
+  }[];
+}): Phase74ModelUsageEvidence {
+  const boundaries = new Set(input.artifacts.map(({ usage }) => usage.costBoundary));
+  if (boundaries.size !== 1) {
+    throw new Error("Phase 74 model usage cost boundary drift across artifacts.");
+  }
+  const combineBranch = (branch: "baseline" | "candidate") => {
+    const evidence = input.artifacts.map(({ usage }) => usage[branch]);
+    const virtualCaseIds = input.artifacts.flatMap(
+      ({ benchmark, caseIds, replicate }) =>
+        caseIds.map((caseId) => `${benchmark}/replicate-${replicate}/${caseId}`),
+    ).sort();
+    return {
+      answerGenerationCaseCount: evidence.reduce(
+        (total, item) => total + item.answerGenerationCaseCount,
+        0,
+      ),
+      caseIdsSha256: sha256(JSON.stringify(virtualCaseIds)),
+      completeRequestCount: evidence.reduce(
+        (total, item) => total + item.completeRequestCount,
+        0,
+      ),
+      logicalCaseCount: virtualCaseIds.length,
+      missingRequestCount: evidence.reduce(
+        (total, item) => total + item.missingRequestCount,
+        0,
+      ),
+      operationCounts: sumOperationCounts(evidence),
+      partialRequestCount: evidence.reduce(
+        (total, item) => total + item.partialRequestCount,
+        0,
+      ),
+      requestCount: evidence.reduce(
+        (total, item) => total + item.requestCount,
+        0,
+      ),
+      totalTokens: evidence.reduce(
+        (total, item) => total + item.totalTokens,
+        0,
+      ),
+      unobservedCaseIds: input.artifacts.flatMap(
+        ({ benchmark, replicate, usage }) =>
+          usage[branch].unobservedCaseIds.map(
+            (caseId) => `${benchmark}/replicate-${replicate}/${caseId}`,
+          ),
+      ),
+    };
+  };
+  return {
+    accountingVersion: "phase74-model-usage-v1",
+    baseline: combineBranch("baseline"),
+    candidate: combineBranch("candidate"),
+    costBoundary: input.artifacts[0]!.usage.costBoundary,
+  };
+}
+
+function outcomesForArm(
+  artifact: RunArtifact,
+  stage: RetrievalStage,
+  arm: string,
+): Phase74ReplicateCaseOutcome[] {
+  return artifact.retrieval[stage].rows
+    .filter((row) => row.arm === arm)
+    .map((row) => ({
+      caseId: row.caseId,
+      clusterId: row.clusterId,
+      passed: row.correct,
+      value: row.score,
+    }));
+}
+
+function clusterAwareDelta(run: Phase74ReplicateRun): number {
+  const groups = new Map<string, number[]>();
+  for (const [index, baseline] of run.baseline.entries()) {
+    const candidate = run.candidate[index]!;
+    groups.set(baseline.clusterId, [
+      ...(groups.get(baseline.clusterId) ?? []),
+      candidate.value - baseline.value,
+    ]);
+  }
+  return mean([...groups.values()].map((values) => mean(values)));
+}
+
+function deltaDirection(
+  deltas: readonly [number, number, number],
+): Phase74StageAggregation["replicateStability"]["direction"] {
+  if (deltas.every((delta) => Math.abs(delta) <= COMPARISON_TOLERANCE)) {
+    return "stable_zero";
+  }
+  if (deltas.every((delta) => delta > COMPARISON_TOLERANCE)) {
+    return "consistent_positive";
+  }
+  if (deltas.every((delta) => delta < -COMPARISON_TOLERANCE)) {
+    return "consistent_negative";
+  }
+  return "mixed";
+}
+
+function buildStageAggregation(input: {
+  artifacts: readonly [RunArtifact, RunArtifact, RunArtifact];
+  benchmark: Phase74BenchmarkFamily;
+  bootstrapSamples?: number;
+  seed?: number;
+  stage: RetrievalStage;
+}): Phase74StageAggregation {
+  const runs = input.artifacts.map((artifact): Phase74ReplicateRun => {
+    const comparison = artifact.retrieval[input.stage].comparison;
+    return {
+      baseline: outcomesForArm(
+        artifact,
+        input.stage,
+        comparison.baselineArm,
+      ),
+      candidate: outcomesForArm(
+        artifact,
+        input.stage,
+        comparison.candidateArm,
+      ),
+      comparison,
+      experimentIdentityHash: artifact.experimentIdentityHash,
+      identityHash: artifact.identityHash,
+      replicate: artifact.replicate,
+      runId: artifact.identity.runId,
+    };
+  }) as [Phase74ReplicateRun, Phase74ReplicateRun, Phase74ReplicateRun];
+  const aggregate = aggregatePhase74Replicates({
+    ...(input.bootstrapSamples === undefined
+      ? {}
+      : { bootstrapSamples: input.bootstrapSamples }),
+    runs,
+    ...(input.seed === undefined ? {} : { seed: input.seed }),
+  });
+  const baselineLatencies = input.artifacts.flatMap((artifact) => {
+    const comparison = artifact.retrieval[input.stage].comparison;
+    return artifact.retrieval[input.stage].rows
+      .filter(({ arm }) => arm === comparison.baselineArm)
+      .map(({ productLatencyMs }) => productLatencyMs);
+  });
+  const candidateLatencies = input.artifacts.flatMap((artifact) => {
+    const comparison = artifact.retrieval[input.stage].comparison;
+    return artifact.retrieval[input.stage].rows
+      .filter(({ arm }) => arm === comparison.candidateArm)
+      .map(({ productLatencyMs }) => productLatencyMs);
+  });
+  const reference = runs[0].baseline;
+  const perCase = reference.map((baseline, caseIndex) => {
+    const baselineValues = runs.map((run) => run.baseline[caseIndex]!.value);
+    const candidateValues = runs.map((run) => run.candidate[caseIndex]!.value);
+    const replicateDeltas = candidateValues.map(
+      (value, index) => value - baselineValues[index]!,
+    ) as [number, number, number];
+    const baselineMean = mean(baselineValues);
+    const candidateMean = mean(candidateValues);
+    return {
+      baselineMean,
+      candidateMean,
+      caseId: baseline.caseId,
+      clusterId: baseline.clusterId,
+      delta: candidateMean - baselineMean,
+      replicateDeltas,
+    };
+  });
+  const independentlyDerivedDeltas = runs.map(clusterAwareDelta) as [
+    number,
+    number,
+    number,
+  ];
+  if (
+    aggregate.replicateDeltas.some(
+      (delta, index) =>
+        Math.abs(delta - independentlyDerivedDeltas[index]!) >
+        COMPARISON_TOLERANCE,
+    )
+  ) {
+    throw new Error("Phase 74 hierarchical replicate delta derivation drifted.");
+  }
+  const replicateDeltas = [...aggregate.replicateDeltas] as [
+    number,
+    number,
+    number,
+  ];
+  const modelUsage = combineUsage({
+    artifacts: input.artifacts.map((artifact) => ({
+      benchmark: input.benchmark,
+      caseIds: runs[artifact.replicate - 1]!.baseline.map(({ caseId }) => caseId),
+      replicate: artifact.replicate,
+      usage: artifact.retrieval[input.stage].modelUsage,
+    })),
+  });
+  return {
+    aggregate,
+    benchmark: input.benchmark,
+    caseCount: aggregate.caseCount,
+    clusterCount: aggregate.clusterCount,
+    experimentIdentityHash: input.artifacts[0].experimentIdentityHash,
+    latency: {
+      baselineP95Ms: p95(baselineLatencies),
+      candidateP95Ms: p95(candidateLatencies),
+      sampleCountPerArm: baselineLatencies.length,
+    },
+    modelUsage,
+    perCase,
+    replicateStability: {
+      deltas: replicateDeltas,
+      direction: deltaDirection(replicateDeltas),
+    },
+    runIds: input.artifacts.map(({ identity }) => identity.runId) as [
+      string,
+      string,
+      string,
+    ],
+    stage: input.stage,
+  };
+}
+
+function parseProtectionEvidence(
+  value: unknown,
+  label: string,
+): Phase74ProtectionEvidence[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Phase 74 ${label} must be a non-empty array.`);
+  }
+  const evidence = value.map((item, index) => {
+    const record = recordValue(item, `${label}[${index}]`);
+    assertExactKeys(record, ["delta", "name"], `${label}[${index}]`);
+    return {
+      delta: finiteValue(record.delta, `${label}[${index}].delta`),
+      name: stringValue(record.name, `${label}[${index}].name`),
+    };
+  });
+  if (new Set(evidence.map(({ name }) => name)).size !== evidence.length) {
+    throw new Error(`Phase 74 ${label} contains duplicate protection names.`);
+  }
+  return evidence;
+}
+
+async function loadProtectionArtifact(path: string): Promise<ProtectionArtifact> {
+  const raw = await readFile(path, "utf8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch (error) {
+    throw new Error(`Phase 74 protection artifact at ${path} is not valid JSON.`, {
+      cause: error,
+    });
+  }
+  const artifact = recordValue(parsed, "protection artifact");
+  assertExactKeys(artifact, [
+    "artifactKind",
+    "e4",
+    "promotion",
+    "schemaVersion",
+    "source",
+  ], "protection artifact");
+  if (
+    artifact.artifactKind !== "phase74-frozen-protection-evidence" ||
+    artifact.schemaVersion !== 1
+  ) {
+    throw new Error("Phase 74 protection artifact kind or schemaVersion is invalid.");
+  }
+  const source = recordValue(artifact.source, "protection artifact source");
+  assertExactKeys(source, ["identityHashes", "runIds"], "protection artifact source");
+  if (!Array.isArray(source.identityHashes) || !Array.isArray(source.runIds)) {
+    throw new Error("Phase 74 protection artifact source lists are required.");
+  }
+  const identityHashes = source.identityHashes.map((value) =>
+    sha256Value(value, "protection source identityHash")
+  );
+  const runIds = source.runIds.map((value) =>
+    stringValue(value, "protection source runId")
+  );
+  if (
+    identityHashes.length === 0 ||
+    identityHashes.length !== runIds.length ||
+    new Set(identityHashes).size !== identityHashes.length ||
+    new Set(runIds).size !== runIds.length
+  ) {
+    throw new Error("Phase 74 protection artifact source identities are invalid.");
+  }
+  const e4 = recordValue(artifact.e4, "protection artifact E4");
+  assertExactKeys(e4, ["formatDeltas"], "protection artifact E4");
+  const formatDeltas = recordValue(e4.formatDeltas, "protection E4 formatDeltas");
+  assertExactKeys(
+    formatDeltas,
+    EVIDENCE_LEDGER_FORMATS,
+    "protection E4 formatDeltas",
+  );
+  const parsedFormatDeltas = Object.fromEntries(
+    EVIDENCE_LEDGER_FORMATS.map((format) => [
+      format,
+      parseProtectionEvidence(
+        formatDeltas[format],
+        `protection E4 ${format}`,
+      ),
+    ]),
+  ) as Record<EvidenceLedgerFormat, Phase74ProtectionEvidence[]>;
+  const expectedNames = parsedFormatDeltas.prose.map(({ name }) => name).sort();
+  for (const format of EVIDENCE_LEDGER_FORMATS) {
+    if (
+      parsedFormatDeltas[format].map(({ name }) => name).sort().join("\0") !==
+      expectedNames.join("\0")
+    ) {
+      throw new Error("Phase 74 E4 protection populations drift across formats.");
+    }
+  }
+  const promotion = recordValue(
+    artifact.promotion,
+    "protection artifact promotion",
+  );
+  assertExactKeys(
+    promotion,
+    ["protections", "safety"],
+    "protection artifact promotion",
+  );
+  const safety = recordValue(promotion.safety, "protection safety");
+  assertExactKeys(safety, [
+    "abstentionAccuracyDelta",
+    "hallucinationRateDelta",
+    "privacyPassRateDelta",
+    "updateCorrectnessDelta",
+  ], "protection safety");
+  return {
+    e4: parsedFormatDeltas,
+    promotion: {
+      protections: parseProtectionEvidence(
+        promotion.protections,
+        "promotion protections",
+      ),
+      safety: {
+        abstentionAccuracyDelta: finiteValue(
+          safety.abstentionAccuracyDelta,
+          "safety abstentionAccuracyDelta",
+        ),
+        hallucinationRateDelta: finiteValue(
+          safety.hallucinationRateDelta,
+          "safety hallucinationRateDelta",
+        ),
+        privacyPassRateDelta: finiteValue(
+          safety.privacyPassRateDelta,
+          "safety privacyPassRateDelta",
+        ),
+        updateCorrectnessDelta: finiteValue(
+          safety.updateCorrectnessDelta,
+          "safety updateCorrectnessDelta",
+        ),
+      },
+    },
+    sha256: sha256(raw),
+    source: { identityHashes, runIds },
+  };
+}
+
+function buildE4Evaluation(
+  artifacts: readonly RunArtifact[],
+  protection: ProtectionArtifact | null,
+): Phase74ArtifactAggregationReport["e4"] {
+  const gaps: string[] = [];
+  const missingScoreCount = artifacts.reduce(
+    (total, artifact) =>
+      total + artifact.e4.rows.filter(({ score }) => score === undefined).length,
+    0,
+  );
+  if (missingScoreCount > 0) {
+    gaps.push(
+      `E4 per-case score is missing from ${missingScoreCount} progress row(s); binary correct is not a cross-family scorer.`,
+    );
+  }
+  if (protection === null) {
+    gaps.push("A frozen protection artifact is required for E4 format selection.");
+  }
+  if (artifacts.some(({ e4 }) => e4.executionFailures !== 0)) {
+    gaps.push("E4 contains execution failures.");
+  }
+  const formats = EVIDENCE_LEDGER_FORMATS.map((format) => {
+    const familyScores = BENCHMARKS.map((benchmark) => {
+      const rows = artifacts
+        .filter((artifact) => artifact.benchmark === benchmark)
+        .flatMap((artifact) => artifact.e4.rows)
+        .filter((row) => row.format === format);
+      return rows.every(({ score }) => score !== undefined)
+        ? mean(rows.map(({ score }) => score!))
+        : null;
+    });
+    const familyTokens = BENCHMARKS.map((benchmark) => {
+      const rows = artifacts
+        .filter((artifact) => artifact.benchmark === benchmark)
+        .flatMap((artifact) => artifact.e4.rows)
+        .filter((row) => row.format === format);
+      return mean(rows.map(({ contextTokens }) => contextTokens));
+    });
+    const protectionDeltas = protection?.e4[format].map(({ delta }) => delta) ?? [];
+    const minimumProtectionDelta = protectionDeltas.length === 0
+      ? null
+      : Math.min(...protectionDeltas);
+    return {
+      averageTokens: mean(familyTokens),
+      eligible: minimumProtectionDelta === null
+        ? null
+        : minimumProtectionDelta + COMPARISON_TOLERANCE >=
+          -PHASE74_MAX_PROTECTION_REGRESSION,
+      format,
+      macroScore: familyScores.every((score) => score !== null)
+        ? mean(familyScores as number[])
+        : null,
+      minimumProtectionDelta,
+    };
+  });
+  const eligible = formats.filter(
+    (format): format is typeof format & { macroScore: number } =>
+      format.eligible === true && format.macroScore !== null,
+  );
+  if (protection !== null && eligible.length === 0) {
+    gaps.push("Every E4 format regressed a protection set by more than 1pp.");
+  }
+  if (gaps.length > 0) {
+    return {
+      formats,
+      gaps,
+      selectedFormat: "not_evaluable",
+      status: "not_evaluable",
+    };
+  }
+  const bestScore = Math.max(...eligible.map(({ macroScore }) => macroScore));
+  const selected = eligible
+    .filter(({ macroScore }) =>
+      macroScore + 0.01 + COMPARISON_TOLERANCE >= bestScore
+    )
+    .sort((left, right) =>
+      left.averageTokens - right.averageTokens ||
+      EVIDENCE_LEDGER_FORMATS.indexOf(left.format) -
+        EVIDENCE_LEDGER_FORMATS.indexOf(right.format)
+    )[0]!;
+  return {
+    formats,
+    gaps: [],
+    selectedFormat: selected.format,
+    status: "evaluated",
+  };
+}
+
+function buildPromotionEvaluation(input: {
+  artifacts: readonly RunArtifact[];
+  e4: Phase74ArtifactAggregationReport["e4"];
+  promotionStage?: RetrievalStage;
+  protection: ProtectionArtifact | null;
+  stageAggregations: readonly Phase74StageAggregation[];
+}): Phase74ArtifactAggregationReport["promotion"] {
+  const gaps: string[] = [];
+  if (input.promotionStage === undefined) {
+    gaps.push("A promotion comparison stage must be selected explicitly.");
+    return {
+      gaps,
+      stage: null,
+      status: "not_evaluable",
+    };
+  }
+  const stage = input.promotionStage;
+  const selected = input.stageAggregations.filter(
+    (aggregation) => aggregation.stage === stage,
+  );
+  if (selected.length !== 2) {
+    throw new Error(`Phase 74 ${stage} must contain both benchmark families.`);
+  }
+  if (input.protection === null) {
+    gaps.push("A frozen protection artifact is required for promotion.");
+  }
+  if (input.e4.status !== "evaluated") {
+    gaps.push("E4 evidence-ledger format selection is not evaluable.");
+  }
+  if (
+    selected.some(
+      ({ replicateStability }) =>
+        replicateStability.direction !== "consistent_positive",
+    )
+  ) {
+    gaps.push(
+      "Every benchmark family must improve in each of the three independent replicates.",
+    );
+  }
+  const selectedArtifacts = input.artifacts.map((artifact) => {
+    const comparison = artifact.retrieval[stage].comparison;
+    return {
+      artifact,
+      baselineRows: artifact.retrieval[stage].rows.filter(
+        ({ arm }) => arm === comparison.baselineArm,
+      ),
+      candidateRows: artifact.retrieval[stage].rows.filter(
+        ({ arm }) => arm === comparison.candidateArm,
+      ),
+    };
+  });
+  const costBoundaries = new Set(
+    selectedArtifacts.map(({ artifact }) =>
+      artifact.retrieval[stage].modelUsage.costBoundary
+    ),
+  );
+  if (costBoundaries.size !== 1 || !costBoundaries.has("full-product")) {
+    gaps.push("full-product model usage evidence is required; query-only evidence cannot promote.");
+  }
+  const seenCasesOnly = selectedArtifacts.some(({ artifact }) =>
+    artifact.identity.configuration.seenCasesOnly === true
+  );
+  if (seenCasesOnly) {
+    gaps.push("seen-case evidence cannot authorize promotion.");
+  }
+  if (gaps.length > 0) {
+    return { gaps, stage, status: "not_evaluable" };
+  }
+  const modelUsage = combineUsage({
+    artifacts: selectedArtifacts.map(({ artifact, baselineRows }) => ({
+      benchmark: artifact.benchmark,
+      caseIds: baselineRows.map(({ caseId }) => caseId),
+      replicate: artifact.replicate,
+      usage: artifact.retrieval[stage].modelUsage,
+    })),
+  });
+  const promotionInput: Phase74PromotionGateInput = {
+    evidenceBoundary: {
+      goldAware: false,
+      protocolReader: false,
+      seenCasesOnly: false,
+    },
+    families: selected.map((aggregation) => ({
+      delta: aggregation.aggregate.inference.delta,
+      family: aggregation.benchmark,
+      inference: {
+        confidenceLevel: aggregation.aggregate.inference.confidenceLevel,
+        lower: aggregation.aggregate.inference.lower,
+        method: aggregation.aggregate.inference.method,
+        upper: aggregation.aggregate.inference.upper,
+      },
+      runIds: [...aggregation.runIds],
+    })),
+    operations: {
+      baselineP95LatencyMs: p95(selectedArtifacts.flatMap(({ baselineRows }) =>
+        baselineRows.map(({ productLatencyMs }) => productLatencyMs)
+      )),
+      candidateP95LatencyMs: p95(selectedArtifacts.flatMap(({ candidateRows }) =>
+        candidateRows.map(({ productLatencyMs }) => productLatencyMs)
+      )),
+      executionFailures: selectedArtifacts.reduce(
+        (total, { artifact }) =>
+          total + artifact.retrieval[stage].executionFailures,
+        0,
+      ),
+      modelUsage,
+      renderedContextMaxTokens: Math.max(
+        ...selectedArtifacts.map(({ artifact }) =>
+          artifact.retrieval[stage].renderedContextMaxTokens
+        ),
+      ),
+    },
+    protections: input.protection!.promotion.protections,
+    safety: input.protection!.promotion.safety,
+  };
+  return {
+    gaps: [],
+    input: promotionInput,
+    result: evaluatePhase74PromotionGate(promotionInput),
+    stage,
+    status: "evaluated",
+  };
+}
+
+function orderArtifacts(artifacts: readonly RunArtifact[]): RunArtifact[] {
+  const sorted = [...artifacts].sort((left, right) =>
+    BENCHMARKS.indexOf(left.benchmark) - BENCHMARKS.indexOf(right.benchmark) ||
+    left.replicate - right.replicate
+  );
+  for (const benchmark of BENCHMARKS) {
+    const selected = sorted.filter((artifact) => artifact.benchmark === benchmark);
+    if (
+      selected.length !== 3 ||
+      selected[0]?.replicate !== 1 ||
+      selected[1]?.replicate !== 2 ||
+      selected[2]?.replicate !== 3
+    ) {
+      throw new Error(
+        `Phase 74 ${benchmark} requires replicates 1, 2, and 3 exactly once.`,
+      );
+    }
+    if (new Set(selected.map(({ experimentIdentityHash }) => experimentIdentityHash)).size !== 1) {
+      throw new Error(`Phase 74 ${benchmark} experiment identity drift.`);
+    }
+    if (new Set(selected.map(({ dataset }) => stableJson(dataset))).size !== 1) {
+      throw new Error(`Phase 74 ${benchmark} dataset population drift.`);
+    }
+  }
+  if (new Set(sorted.map(({ identityHash }) => identityHash)).size !== sorted.length) {
+    throw new Error("Phase 74 run identity hashes must be globally unique.");
+  }
+  if (new Set(sorted.map(({ identity }) => identity.runId)).size !== sorted.length) {
+    throw new Error("Phase 74 run IDs must be globally unique.");
+  }
+  return sorted;
+}
+
+function normalizeRunDirectories(runDirectories: readonly string[]): string[] {
+  const resolved = runDirectories.map((path) => resolve(path));
+  if (new Set(resolved).size !== resolved.length) {
+    throw new Error("Phase 74 aggregation contains duplicate run directories.");
+  }
+  if (runDirectories.length !== 6) {
+    throw new Error("Phase 74 aggregation requires exactly six run directories.");
+  }
+  return resolved;
+}
+
+export async function aggregatePhase74GeneralizationArtifacts(
+  input: Phase74ArtifactAggregationInput,
+): Promise<Phase74ArtifactAggregationReport> {
+  const runDirectories = normalizeRunDirectories(input.runDirectories);
+  const artifacts = orderArtifacts(await Promise.all(
+    runDirectories.map(loadRunArtifact),
+  ));
+  const protection = input.protectionArtifactPath === undefined
+    ? null
+    : await loadProtectionArtifact(resolve(input.protectionArtifactPath));
+  const stageAggregations = BENCHMARKS.flatMap((benchmark) => {
+    const selected = artifacts.filter(
+      (artifact) => artifact.benchmark === benchmark,
+    ) as [RunArtifact, RunArtifact, RunArtifact];
+    return RETRIEVAL_STAGES.map((stage) => buildStageAggregation({
+      artifacts: selected,
+      benchmark,
+      ...(input.bootstrapSamples === undefined
+        ? {}
+        : { bootstrapSamples: input.bootstrapSamples }),
+      ...(input.seed === undefined ? {} : { seed: input.seed }),
+      stage,
+    }));
+  });
+  const e4 = buildE4Evaluation(artifacts, protection);
+  const promotion = buildPromotionEvaluation({
+    artifacts,
+    e4,
+    ...(input.promotionStage === undefined
+      ? {}
+      : { promotionStage: input.promotionStage }),
+    protection,
+    stageAggregations,
+  });
+  return {
+    e4,
+    inputs: {
+      protectionArtifactSha256: protection?.sha256 ?? null,
+      runs: artifacts.map((artifact) => ({
+        benchmark: artifact.benchmark,
+        experimentIdentityHash: artifact.experimentIdentityHash,
+        identityHash: artifact.identityHash,
+        replicate: artifact.replicate,
+        runDirectory: artifact.runDirectory,
+        runId: artifact.identity.runId,
+      })),
+    },
+    promotion,
+    schemaVersion: 1,
+    stageAggregations,
+  };
+}
+
+function cliValue(argv: readonly string[], index: number, flag: string): string {
+  const value = argv[index + 1];
+  if (value === undefined || value.startsWith("--") || value.trim() !== value || value === "") {
+    throw new Error(`${flag} requires a non-empty, non-whitespace-padded value.`);
+  }
+  return value;
+}
+
+export function parsePhase74AggregationCliOptions(
+  argv: readonly string[],
+): Phase74AggregationCliOptions {
+  const runDirectories: string[] = [];
+  let outputPath: string | undefined;
+  let protectionArtifactPath: string | undefined;
+  let promotionStage: RetrievalStage | undefined;
+  let bootstrapSamples: number | undefined;
+  let seed: number | undefined;
+  const seenSingletons = new Set<string>();
+  let sawOption = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const flag = argv[index]!;
+    if (!flag.startsWith("--")) {
+      if (sawOption) {
+        throw new Error(`Phase 74 aggregation received unexpected positional argument ${flag}.`);
+      }
+      continue;
+    }
+    sawOption = true;
+    if (![
+      "--bootstrap-samples",
+      "--output",
+      "--promotion-stage",
+      "--protection-artifact",
+      "--run-dir",
+      "--seed",
+    ].includes(flag)) {
+      throw new Error(`Phase 74 aggregation received unknown option ${flag}.`);
+    }
+    const value = cliValue(argv, index, flag);
+    index += 1;
+    if (flag === "--run-dir") {
+      runDirectories.push(resolve(value));
+      continue;
+    }
+    if (seenSingletons.has(flag)) {
+      throw new Error(`${flag} cannot be specified more than once.`);
+    }
+    seenSingletons.add(flag);
+    if (flag === "--output") {
+      outputPath = resolve(value);
+    } else if (flag === "--protection-artifact") {
+      protectionArtifactPath = resolve(value);
+    } else if (flag === "--promotion-stage") {
+      if (!RETRIEVAL_STAGES.includes(value as RetrievalStage)) {
+        throw new Error("--promotion-stage must be E1, E2, or E3.");
+      }
+      promotionStage = value as RetrievalStage;
+    } else {
+      if (!/^[1-9]\d*$/u.test(value) || !Number.isSafeInteger(Number(value))) {
+        throw new Error(`${flag} must be a positive integer.`);
+      }
+      if (flag === "--bootstrap-samples") {
+        bootstrapSamples = Number(value);
+      } else {
+        seed = Number(value);
+      }
+    }
+  }
+  const normalizedRunDirectories = normalizeRunDirectories(runDirectories);
+  if (outputPath === undefined) {
+    throw new Error("Phase 74 aggregation requires --output.");
+  }
+  if (
+    protectionArtifactPath !== undefined &&
+    protectionArtifactPath === outputPath
+  ) {
+    throw new Error("--output and --protection-artifact must be different paths.");
+  }
+  for (const runDirectory of normalizedRunDirectories) {
+    const outputRelative = relative(runDirectory, outputPath);
+    if (
+      outputRelative === "" ||
+      (!outputRelative.startsWith("..") && !isAbsolute(outputRelative))
+    ) {
+      throw new Error("--output must not mutate a frozen Phase 74 run directory.");
+    }
+  }
+  return {
+    ...(bootstrapSamples === undefined ? {} : { bootstrapSamples }),
+    outputPath,
+    ...(promotionStage === undefined ? {} : { promotionStage }),
+    ...(protectionArtifactPath === undefined
+      ? {}
+      : { protectionArtifactPath }),
+    runDirectories: normalizedRunDirectories,
+    ...(seed === undefined ? {} : { seed }),
+  };
+}
+
+export async function runPhase74GeneralizationAggregation(
+  options: Phase74AggregationCliOptions,
+): Promise<Phase74ArtifactAggregationReport> {
+  const report = await aggregatePhase74GeneralizationArtifacts(options);
+  await mkdir(dirname(options.outputPath), { recursive: true });
+  await writeFile(
+    options.outputPath,
+    `${JSON.stringify(report, null, 2)}\n`,
+    "utf8",
+  );
+  return report;
+}
+
+if (import.meta.main) {
+  const options = parsePhase74AggregationCliOptions(process.argv);
+  const report = await runPhase74GeneralizationAggregation(options);
+  console.log(JSON.stringify({
+    e4: report.e4.status,
+    outputPath: options.outputPath,
+    promotion: report.promotion.status,
+    stageAggregationCount: report.stageAggregations.length,
+  }, null, 2));
+}

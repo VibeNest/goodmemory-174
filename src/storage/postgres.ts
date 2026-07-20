@@ -19,6 +19,7 @@ import type {
   VectorStore,
 } from "./contracts";
 import {
+  PROJECTION_BATCH_SEMANTICS,
   assertDocumentQueryPageInput,
   assertDocumentTextSearchInput,
 } from "./contracts";
@@ -431,6 +432,7 @@ export function createPostgresDocumentStore(
   const runtime = createRuntime(config);
 
   return {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,
@@ -595,6 +597,40 @@ export function createPostgresDocumentStore(
         await runtime.ensureDocumentStore();
       }
       const searchTerms = buildPostgresDocumentSearchTerms(input.query);
+      if (input.field === "text") {
+        const values: unknown[] = [collection, searchTerms.tsQuery];
+        const filterClause = buildJsonbFilterClause(
+          "document",
+          input.filter,
+          values,
+        );
+        values.push(input.limit);
+        const rows = await runtime.sql.unsafe<DocumentSearchRow[]>(
+          `
+            SELECT
+              id,
+              document::text AS document_json,
+              ts_rank(
+                to_tsvector('simple', COALESCE(document ->> 'text', '')),
+                to_tsquery('simple', $2)
+              ) AS score
+            FROM ${runtime.documentTable}
+            WHERE collection = $1${filterClause}
+              AND to_tsvector(
+                'simple',
+                COALESCE(document ->> 'text', '')
+              ) @@ to_tsquery('simple', $2)
+            ORDER BY score DESC, id ASC
+            LIMIT $${values.length}
+          `,
+          values,
+        );
+        return rows.map((row) => ({
+          document: parseJson<TDocument>(row.document_json),
+          id: row.id,
+          score: Number(row.score),
+        }));
+      }
       const values: unknown[] = [collection, input.field, searchTerms.tsQuery];
       const filterClause = buildJsonbFilterClause(
         "document",

@@ -8,6 +8,7 @@ import {
 } from "../../src/storage/memory";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
+import type { ModelUsageAttempt } from "../../src/provider/model-usage";
 
 describe("public remember API", () => {
   it("writes durable memory through the public API", async () => {
@@ -320,6 +321,100 @@ describe("public remember API", () => {
     );
   });
 
+  it("does not let rollback delete a concurrent writer's replacement", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    let replacementId: string | null = null;
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        vectorStore: createInMemoryVectorStore(),
+        embeddingAdapter: {
+          async embed() {
+            const [written] = await documentStore.query<{
+              content: string;
+              id: string;
+              updatedAt?: string;
+            }>("facts", { userId: "u-concurrent-rollback" });
+            replacementId = written!.id;
+            await documentStore.set("facts", written!.id, {
+              ...written!,
+              content: "A concurrent writer committed the replacement.",
+              updatedAt: "2026-07-18T12:00:00.000Z",
+            });
+            throw new Error("embedding unavailable after concurrent write");
+          },
+        },
+      },
+    });
+
+    await expect(memory.remember({
+      scope: {
+        userId: "u-concurrent-rollback",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+      },
+      messages: [{
+        role: "user",
+        content: "Remember that the runtime rollout is blocked on vendor approval.",
+      }],
+    })).rejects.toThrow("embedding unavailable after concurrent write");
+
+    expect(replacementId).not.toBeNull();
+    expect(await documentStore.get<{ content: string }>("facts", replacementId!))
+      .toMatchObject({ content: "A concurrent writer committed the replacement." });
+  });
+
+  it("does not let rollback delete an identical value committed by another runtime", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const input = {
+      scope: {
+        userId: "u-identical-concurrent-rollback",
+        workspaceId: "workspace-a",
+        sessionId: "s-1",
+      },
+      messages: [{
+        role: "user" as const,
+        content: "Remember that the runtime rollout is blocked on vendor approval.",
+      }],
+    };
+    const now = () => new Date("2026-07-18T11:00:00.000Z");
+    const concurrentMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      testing: { now },
+    });
+    let concurrentAccepted = 0;
+    const failingMemory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        vectorStore: createInMemoryVectorStore(),
+        embeddingAdapter: {
+          async embed() {
+            concurrentAccepted = (await concurrentMemory.remember(input)).accepted;
+            throw new Error("embedding unavailable after identical concurrent write");
+          },
+        },
+      },
+      testing: { now },
+    });
+
+    await expect(failingMemory.remember(input)).rejects.toThrow(
+      "embedding unavailable after identical concurrent write",
+    );
+
+    expect(concurrentAccepted).toBeGreaterThan(0);
+    expect(await documentStore.query("facts", {
+      userId: input.scope.userId,
+    })).toHaveLength(1);
+  });
+
   it("can merge llm-assisted extraction into remember while preserving model influence in trace", async () => {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
@@ -387,6 +482,61 @@ describe("public remember API", () => {
         workspaceId: "workspace-a",
       }),
     ).toHaveLength(1);
+  });
+
+  it("routes automatic provider extraction usage to the configured observability sink", async () => {
+    const originalFetch = globalThis.fetch;
+    const events: ModelUsageAttempt[] = [];
+    globalThis.fetch = (async () => new Response([
+      'data: {"choices":[{"delta":{"content":"{\\"candidates\\":[],\\"ignoredMessageCount\\":1}"},"index":0}]}',
+      'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":4}}}',
+      "data: [DONE]",
+      "",
+    ].join("\n\n"), {
+      headers: { "content-type": "text/event-stream" },
+      status: 200,
+    })) as unknown as typeof fetch;
+
+    try {
+      const memory = createGoodMemory({
+        storage: { provider: "memory" },
+        observability: {
+          modelUsageSink: { emit(event) { events.push(event); } },
+        },
+        providers: {
+          extraction: {
+            apiKey: "test-key",
+            baseURL: "https://gateway.example/v1",
+            model: "gpt-5.6-terra",
+            provider: "openai",
+          },
+        },
+      });
+
+      await memory.remember({
+        extractionStrategy: "llm-assisted",
+        messages: [{ role: "user", content: "Hello." }],
+        scope: { userId: "u-provider-usage", sessionId: "s-1" },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        completeness: "complete",
+        modelId: "gpt-5.6-terra",
+        operation: "assisted_extraction",
+        outcome: "succeeded",
+        providerId: "openai",
+        usage: expect.objectContaining({
+          cacheReadInputTokens: 4,
+          inputTokens: 12,
+          outputTokens: 3,
+          uncachedInputTokens: 8,
+        }),
+      }),
+    ]);
   });
 
   it("keeps policy and write gating ahead of llm-assisted model output", async () => {

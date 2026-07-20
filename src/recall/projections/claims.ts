@@ -33,7 +33,17 @@ export interface ClaimProjectionIndex {
   ): Promise<ClaimProjection | null>;
   markFailed(input: AppendClaimProjectionInput, error: unknown): Promise<void>;
   query(scope: MemoryScope): Promise<ClaimProjection[]>;
+  queryBySourceMemoryIds(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
+  search(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+    history: boolean,
+  ): Promise<ClaimProjection[]>;
   rebuildScope(input: {
     scope: MemoryScope;
     sources: readonly ClaimProjectionCanonicalSource[];
@@ -64,8 +74,31 @@ function canonicalEntity(value: string): string {
   return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
 }
 
-function statusId(scope: MemoryScope, sourceMemoryId: string): string {
+export function buildClaimProjectionStatusId(
+  scope: MemoryScope,
+  sourceMemoryId: string,
+): string {
   return stableId("claim-status", `${recallScopeKey(scope)}\u0000${sourceMemoryId}`);
+}
+
+export function buildClaimProjectionSearchText(input: {
+  contextualDescriptor?: string;
+  modality?: string;
+  objectEntity?: string;
+  objectText: string;
+  polarity?: string;
+  predicateKey: string;
+  subject: string;
+}): string {
+  return [
+    input.subject,
+    input.predicateKey,
+    input.objectText,
+    input.objectEntity,
+    input.polarity,
+    input.modality,
+    input.contextualDescriptor,
+  ].filter((value): value is string => Boolean(value?.trim())).join(" ");
 }
 
 function projectionId(input: Omit<ClaimProjection, "id">): string {
@@ -130,121 +163,164 @@ export function createClaimProjectionIndex(
       );
   }
 
+  async function backfillClaimSearchText(
+    statuses: readonly ClaimProjectionStatus[],
+    subject: string,
+  ): Promise<void> {
+    const claimIds = [...new Set(statuses.flatMap(({ claimIds }) => claimIds))];
+    for (const claimId of claimIds) {
+      const claim = await documentStore.get<ClaimProjection>(
+        CLAIM_PROJECTIONS_COLLECTION,
+        claimId,
+      );
+      if (!claim || claim.text) {
+        continue;
+      }
+      await documentStore.set(CLAIM_PROJECTIONS_COLLECTION, claim.id, {
+        ...claim,
+        text: buildClaimProjectionSearchText({
+          subject,
+          predicateKey: claim.predicateKey,
+          objectText: claim.objectText,
+          polarity: claim.polarity,
+          modality: claim.modality,
+          contextualDescriptor: claim.contextualDescriptor,
+        }),
+      });
+    }
+  }
+
   async function append(
     input: AppendClaimProjectionInput,
     state: ClaimProjectionState = "projected",
   ): Promise<ClaimProjection | null> {
-    const normalized = normalizeScope(input);
-    const sourceFact = await documentStore.get<FactMemory>(
-      "facts",
-      input.sourceMemoryId,
-    );
-    if (
-      !sourceFact ||
-      !matchesScopeFilter(sourceFact, normalized) ||
-      !isActiveMemoryLifecycle(sourceFact) ||
-      sourceFact.isActive === false
-    ) {
-      return null;
-    }
-    const id = statusId(normalized, input.sourceMemoryId);
-    const existingStatus = await documentStore.get<ClaimProjectionStatus>(
-      CLAIM_PROJECTION_STATUS_COLLECTION,
-      id,
-    );
-    if (existingStatus?.sourceUpdatedAt) {
-      const timeOrder = existingStatus.sourceUpdatedAt.localeCompare(input.ingestedAt);
-      const structuredPromotion =
-        timeOrder === 0 &&
-        existingStatus.state === "unstructured" &&
-        state === "projected";
-      const provenanceEnrichment =
-        timeOrder === 0 &&
-        existingStatus.state === "unstructured" &&
-        state === "unstructured";
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const normalized = normalizeScope(input);
+      const sourceFact = await documentStore.get<FactMemory>(
+        "facts",
+        input.sourceMemoryId,
+      );
       if (
-        timeOrder > 0 ||
-        (timeOrder === 0 &&
-          existingStatus.state !== "failed" &&
-          !structuredPromotion &&
-          !provenanceEnrichment)
+        !sourceFact ||
+        !matchesScopeFilter(sourceFact, normalized) ||
+        !isActiveMemoryLifecycle(sourceFact) ||
+        sourceFact.isActive === false
       ) {
         return null;
       }
-    }
-    const scopeKey = recallScopeKey(normalized);
-    const subjectKey = canonicalEntity(input.subject);
-    const objectEntityKey = input.claim.objectEntity
-      ? canonicalEntity(input.claim.objectEntity)
-      : undefined;
-    const projectionWithoutId: Omit<ClaimProjection, "id"> = {
-      schemaVersion: 1,
-      ...normalized,
-      scopeKey,
-      sourceMemoryId: input.sourceMemoryId,
-      subjectEntityId: buildEntityProjectionId(scopeKey, subjectKey),
-      predicateKey: input.claim.predicateKey.trim(),
-      objectText: input.claim.objectText.trim(),
-      ...(objectEntityKey
-        ? { objectEntityId: buildEntityProjectionId(scopeKey, objectEntityKey) }
-        : {}),
-      polarity: input.claim.polarity ?? "positive",
-      modality: input.claim.modality ?? "asserted",
-      ...(input.claim.validFrom ? { validFrom: input.claim.validFrom } : {}),
-      ...(input.claim.validUntil ? { validUntil: input.claim.validUntil } : {}),
-      observedAt: input.observedAt,
-      ingestedAt: input.ingestedAt,
-      evidenceIds: [...new Set(input.evidenceIds)],
-      sourceMessageIds: [...new Set(input.sourceMessageIds)],
-      extractorVersion: input.extractorVersion,
-      ...(input.claim.confidence !== undefined
-        ? { confidence: input.claim.confidence }
-        : {}),
-      ...(input.contextualDescriptor
-        ? { contextualDescriptor: input.contextualDescriptor }
-        : {}),
-    };
-    const claim: ClaimProjection = {
-      id: projectionId(projectionWithoutId),
-      ...projectionWithoutId,
-    };
-    const status: ClaimProjectionStatus = {
-      id,
-      schemaVersion: 1,
-      ...normalized,
-      scopeKey,
-      sourceMemoryId: input.sourceMemoryId,
-      state,
-      claimIds: [claim.id],
-      extractorVersion: input.extractorVersion,
-      sourceUpdatedAt: input.ingestedAt,
-      updatedAt: input.ingestedAt,
-    };
-    const committed = await documentStore.writeBatchIfUnchanged({
-      expected: {
-        collection: "facts",
-        id: sourceFact.id,
-        document: sourceFact,
-      },
-      set: [
-        {
-          collection: CLAIM_PROJECTIONS_COLLECTION,
-          id: claim.id,
-          document: claim,
-        },
-        {
-          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
-          id: status.id,
-          document: status,
-        },
-      ],
-      unchanged: [{
-        collection: CLAIM_PROJECTION_STATUS_COLLECTION,
-        document: existingStatus,
+      const id = buildClaimProjectionStatusId(normalized, input.sourceMemoryId);
+      const existingStatus = await documentStore.get<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
         id,
-      }],
-    });
-    return committed ? claim : null;
+      );
+      if (existingStatus?.sourceUpdatedAt) {
+        const timeOrder = existingStatus.sourceUpdatedAt.localeCompare(
+          input.ingestedAt,
+        );
+        const structuredPromotion =
+          timeOrder === 0 &&
+          existingStatus.state === "unstructured" &&
+          state === "projected";
+        const provenanceEnrichment =
+          timeOrder === 0 &&
+          existingStatus.state === "unstructured" &&
+          state === "unstructured";
+        if (
+          timeOrder > 0 ||
+          (timeOrder === 0 &&
+            existingStatus.state !== "failed" &&
+            !structuredPromotion &&
+            !provenanceEnrichment)
+        ) {
+          return null;
+        }
+      }
+      const scopeKey = recallScopeKey(normalized);
+      const subjectKey = canonicalEntity(input.subject);
+      const objectEntityKey = input.claim.objectEntity
+        ? canonicalEntity(input.claim.objectEntity)
+        : undefined;
+      const projectionWithoutId: Omit<ClaimProjection, "id"> = {
+        schemaVersion: 1,
+        ...normalized,
+        scopeKey,
+        sourceMemoryId: input.sourceMemoryId,
+        subjectEntityId: buildEntityProjectionId(scopeKey, subjectKey),
+        predicateKey: input.claim.predicateKey.trim(),
+        objectText: input.claim.objectText.trim(),
+        text: buildClaimProjectionSearchText({
+          subject: input.subject,
+          predicateKey: input.claim.predicateKey,
+          objectText: input.claim.objectText,
+          objectEntity: input.claim.objectEntity,
+          polarity: input.claim.polarity ?? "positive",
+          modality: input.claim.modality ?? "asserted",
+          contextualDescriptor: input.contextualDescriptor,
+        }),
+        ...(objectEntityKey
+          ? { objectEntityId: buildEntityProjectionId(scopeKey, objectEntityKey) }
+          : {}),
+        polarity: input.claim.polarity ?? "positive",
+        modality: input.claim.modality ?? "asserted",
+        ...(input.claim.validFrom ? { validFrom: input.claim.validFrom } : {}),
+        ...(input.claim.validUntil ? { validUntil: input.claim.validUntil } : {}),
+        observedAt: input.observedAt,
+        ingestedAt: input.ingestedAt,
+        evidenceIds: [...new Set(input.evidenceIds)],
+        sourceMessageIds: [...new Set(input.sourceMessageIds)],
+        extractorVersion: input.extractorVersion,
+        ...(input.claim.confidence !== undefined
+          ? { confidence: input.claim.confidence }
+          : {}),
+        ...(input.contextualDescriptor
+          ? { contextualDescriptor: input.contextualDescriptor }
+          : {}),
+      };
+      const claim: ClaimProjection = {
+        id: projectionId(projectionWithoutId),
+        ...projectionWithoutId,
+      };
+      const status: ClaimProjectionStatus = {
+        id,
+        schemaVersion: 1,
+        ...normalized,
+        scopeKey,
+        sourceMemoryId: input.sourceMemoryId,
+        state,
+        claimIds: [claim.id],
+        extractorVersion: input.extractorVersion,
+        sourceUpdatedAt: input.ingestedAt,
+        updatedAt: input.ingestedAt,
+      };
+      const committed = await documentStore.writeBatchIfUnchanged({
+        expected: {
+          collection: "facts",
+          id: sourceFact.id,
+          document: sourceFact,
+        },
+        set: [
+          {
+            collection: CLAIM_PROJECTIONS_COLLECTION,
+            id: claim.id,
+            document: claim,
+          },
+          {
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            id: status.id,
+            document: status,
+          },
+        ],
+        unchanged: [{
+          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+          document: existingStatus,
+          id,
+        }],
+      });
+      if (committed) return claim;
+    }
+    throw new Error(
+      `Claim projection changed repeatedly during append: ${input.sourceMemoryId}`,
+    );
   }
 
   async function removeSource(sourceMemoryId: string): Promise<void> {
@@ -283,12 +359,18 @@ export function createClaimProjectionIndex(
     if (!factScope) {
       return;
     }
-    const existingStatuses = (
-      await documentStore.query<ClaimProjectionStatus>(
-        CLAIM_PROJECTION_STATUS_COLLECTION,
-        { sourceMemoryId: input.sourceMemoryId },
-      )
-    ).filter((status) => matchesScopeFilter(status, factScope));
+    const existingStatus = await documentStore.get<ClaimProjectionStatus>(
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+      buildClaimProjectionStatusId(factScope, input.sourceMemoryId),
+    );
+    const existingStatuses = existingStatus &&
+      matchesScopeFilter(existingStatus, factScope)
+      ? [existingStatus]
+      : [];
+    await backfillClaimSearchText(
+      existingStatuses,
+      fact.subject && fact.subject !== "unknown" ? fact.subject : fact.userId,
+    );
     const evidence = input.evidence ?? [];
     const evidenceIds = evidence.map(({ id }) => id);
     const sourceMessageIds = [
@@ -404,7 +486,7 @@ export function createClaimProjectionIndex(
     append,
     async markFailed(input, error) {
       const normalized = normalizeScope(input);
-      const id = statusId(normalized, input.sourceMemoryId);
+      const id = buildClaimProjectionStatusId(normalized, input.sourceMemoryId);
       const [sourceFact, existing] = await Promise.all([
         documentStore.get<FactMemory>("facts", input.sourceMemoryId),
         documentStore.get<ClaimProjectionStatus>(
@@ -466,7 +548,89 @@ export function createClaimProjectionIndex(
       ]);
       return selectedClaims(statuses, history);
     },
+    async queryBySourceMemoryIds(scope, sourceMemoryIds) {
+      const ids = [...new Set(sourceMemoryIds)];
+      const statuses = (
+        await Promise.all(ids.map((sourceMemoryId) =>
+          documentStore.get<ClaimProjectionStatus>(
+            CLAIM_PROJECTION_STATUS_COLLECTION,
+            buildClaimProjectionStatusId(scope, sourceMemoryId),
+          )
+        ))
+      ).filter((status): status is ClaimProjectionStatus =>
+        status !== null && matchesScopeFilter(status, scope)
+      );
+      const claimIds = [...new Set(statuses.flatMap(({ claimIds }) => claimIds))];
+      const history = (
+        await Promise.all(claimIds.map((claimId) =>
+          documentStore.get<ClaimProjection>(
+            CLAIM_PROJECTIONS_COLLECTION,
+            claimId,
+          )
+        ))
+      ).filter((claim): claim is ClaimProjection =>
+        claim !== null && matchesScopeFilter(claim, scope)
+      );
+      return selectedClaims(
+        statuses,
+        history,
+      );
+    },
     queryHistory,
+    async search(scope, query, limit, history) {
+      if (!documentStore.searchText) {
+        return (history ? await queryHistory(scope) : await this.query(scope))
+          .slice(0, limit);
+      }
+      const results = await documentStore.searchText<ClaimProjection>(
+        CLAIM_PROJECTIONS_COLLECTION,
+        {
+          field: "text",
+          filter: scopeFilter(scope),
+          limit,
+          query,
+        },
+      );
+      const ranked = new Map<string, { claim: ClaimProjection; score: number }>();
+      for (const result of results) {
+        if (!matchesScopeFilter(result.document, scope)) {
+          continue;
+        }
+        const existing = ranked.get(result.id);
+        if (!existing || result.score > existing.score) {
+          ranked.set(result.id, {
+            claim: result.document,
+            score: result.score,
+          });
+        }
+      }
+      const claims = [...ranked.values()]
+        .sort(
+          (left, right) =>
+            right.score - left.score || left.claim.id.localeCompare(right.claim.id),
+        )
+        .slice(0, limit)
+        .map(({ claim }) => claim);
+      if (history) {
+        return claims;
+      }
+      const sourceMemoryIds = [...new Set(
+        claims.map(({ sourceMemoryId }) => sourceMemoryId),
+      )];
+      const statuses = (
+        await Promise.all(
+          sourceMemoryIds.map((sourceMemoryId) =>
+            documentStore.get<ClaimProjectionStatus>(
+              CLAIM_PROJECTION_STATUS_COLLECTION,
+              buildClaimProjectionStatusId(scope, sourceMemoryId),
+            )
+          ),
+        )
+      ).filter((status): status is ClaimProjectionStatus =>
+        status !== null && matchesScopeFilter(status, scope)
+      );
+      return selectedClaims(statuses, claims);
+    },
     async rebuildScope({ scope, sources, timestamp }) {
       const factSources = sources.filter((source) => source.collection === "facts");
       const canonicalIds = new Set(factSources.map(({ id }) => id));

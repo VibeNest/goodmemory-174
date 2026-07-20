@@ -1,0 +1,360 @@
+{
+  "arm": {
+    "absenceAudit": {
+      "codexHomeEntryNames": [
+        "auth.json",
+        "config.toml"
+      ],
+      "goodMemoryFileCount": 0,
+      "hookConfigPresent": false,
+      "mcpConfigPresent": false,
+      "passed": true,
+      "preexistingSessionCount": 0,
+      "reasons": []
+    },
+    "codexExecutableSha256": "134063e133f0b4244fa3b251acf973d4fe4b4aeeacbdc135211bf480f59f1477",
+    "codexVersion": "codex-cli 0.144.6",
+    "instructionSha256": "8ed077f1a12979e23e9f9498e7ec6388a393d483f5bbdd34ead1d5f00eeea72e",
+    "networkAccess": false,
+    "permissionIsolation": {
+      "audit": {
+        "configSha256": "b6aff79493578b17c2ee35cfcb39c4a94b15bf3347c1e0ce9024c32c9d68c8ee",
+        "deniedReads": [
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "asset-lock",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/asset-lock.json",
+            "pathSha256": "1e3156946674d6065e2f8e092685e957531de4b9eb438b93a0a959de06a7b252"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "dataset-manifest",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/manifest.json",
+            "pathSha256": "e738288a4736f3415a7abfe24f902ee59216056972904da944f4e1598e12b706"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "evaluator-cases",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/evaluator/cases.json",
+            "pathSha256": "3fdec7d4a71c9404f1b0f9cf421808c86349902bc424cefb60c5b1dfcb6cf03f"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "evaluator-runner",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/evaluator/runner.ts",
+            "pathSha256": "95df310c22b3b43edbf323e624d0a42ea7d56b65177f5d716b909f73e4556f4e"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "frozen-prehistory",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/prehistory/duration-configuration-policy.jsonl",
+            "pathSha256": "fd7f8427d2817bb7ab12faf4534030e1a2079f9474d0e329065daf0c061dab6e"
+          },
+          {
+            "denied": true,
+            "exitCode": 1,
+            "label": "gold-patch",
+            "path": "/Users/hjqcan/.goodmemory-eval/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/c4-baseline-work/sources/dataset/evaluator/gold/duration-configuration-policy-stage-3.patch",
+            "pathSha256": "48b517fe636ee3d41ca774f0ebd6ebbe07f77fe2e68300d8aec81c835603bf56"
+          }
+        ],
+        "networkAccess": false,
+        "networkDenied": true,
+        "networkPositiveControl": true,
+        "passed": true,
+        "phase": "preflight",
+        "profileName": "c3-task",
+        "reasons": [],
+        "schemaVersion": 1,
+        "workspaceRead": true,
+        "workspaceWrite": true
+      },
+      "evidenceSha256": "445d7fb78c216935d1b86b4f24bd4a3783d39914272a248acb3956c65eb1c364"
+    }
+  },
+  "codex": {
+    "durationMs": 134830.49504200002,
+    "eventCount": 23,
+    "exitCode": 0,
+    "failureEvents": [],
+    "status": "completed",
+    "stderr": "Reading additional input from stdin...\n",
+    "stdoutOmitted": true,
+    "timedOut": false,
+    "usage": {
+      "cachedInputTokens": 126464,
+      "inputTokens": 167830,
+      "outputTokens": 3032
+    }
+  },
+  "dataset": {
+    "episodeId": "duration-configuration-policy",
+    "promptSha256": "f49e4f91c715ecb73eaaf6d883ad5f70ecb87872352f01ca9df0daa403b99ba9",
+    "repositoryCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+    "repositoryTree": "1965dd790ca336abbc9192d29bbbda4fa4fcad99",
+    "snapshot": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+    "stageId": "stage-3",
+    "stageInputSha256": "04aea94d1db03dfd08fac75670391a2df32dac85aa8ec948b93b17a5211ee899"
+  },
+  "evaluator": {
+    "commitments": [
+      {
+        "relativePath": "cases.json",
+        "sha256": "d2099fa3feb1826bab28abe11317d600005eccf161cbcebc1da748ad6cda7b56"
+      },
+      {
+        "relativePath": "runner.ts",
+        "sha256": "e1617c0820949074739f9370b60e261f9a5005c957a5145b2fb1a3684f014712"
+      }
+    ],
+    "credentialsRemovedAt": "2026-07-18T18:16:07.976Z",
+    "credentialsRemovedBeforeMaterialization": true,
+    "failToPass": {
+      "command": [
+        "bun",
+        "/Users/hjqcan/workspace/GoodMemory/reports/eval/research/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/stages/duration-configuration-policy-stage-3/evaluation-sandbox/evaluator/runner.ts",
+        "fail-to-pass",
+        "duration-configuration-policy",
+        "stage-3"
+      ],
+      "durationMs": 73.36683300000732,
+      "exitCode": 1,
+      "kind": "fail-to-pass",
+      "status": "failed",
+      "stderr": "C4_F2P|duration-configuration-policy|stage-3|case-1\n",
+      "stdout": ""
+    },
+    "materializedAfterCodexExit": true,
+    "materializedAt": "2026-07-18T18:16:07.976Z",
+    "passToPass": {
+      "command": [
+        "bun",
+        "/Users/hjqcan/workspace/GoodMemory/reports/eval/research/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/stages/duration-configuration-policy-stage-3/evaluation-sandbox/evaluator/runner.ts",
+        "pass-to-pass",
+        "duration-configuration-policy",
+        "stage-3"
+      ],
+      "durationMs": 74.1215830000001,
+      "exitCode": 0,
+      "kind": "pass-to-pass",
+      "status": "passed",
+      "stderr": "",
+      "stdout": ""
+    },
+    "sandbox": {
+      "configSha256": "2d7ea0abe2764befc6b8c6e4f499db9b2420176b2cc870bcb7d2f1d29f6ce154",
+      "configWriteDenied": true,
+      "copiedAuthRemovedBeforeEvaluator": true,
+      "evaluatorRead": true,
+      "evaluatorWriteDenied": true,
+      "networkAccess": false,
+      "networkDenied": true,
+      "networkPositiveControl": true,
+      "originalAuthAliasDenied": true,
+      "originalAuthDenied": true,
+      "profileName": "c4-evaluator",
+      "schemaVersion": 1,
+      "workspaceRead": true,
+      "workspaceWrite": true
+    }
+  },
+  "events": [
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "argumentCount": 16,
+        "executable": "/Users/hjqcan/.npm-global/lib/node_modules/@openai/codex/bin/codex.js"
+      },
+      "event": "codex_process_started",
+      "timestamp": "2026-07-18T18:13:53.080Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "durationMs": 134830.49504200002,
+        "exitCode": 0,
+        "status": "exited",
+        "timedOut": false
+      },
+      "event": "codex_process_exited",
+      "timestamp": "2026-07-18T18:16:07.910Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "changedFileCount": 1,
+        "forbiddenFileCount": 0,
+        "hasPatch": true,
+        "sha256": "341aafa780519eb44a9d82f529bad23bacd5deb25562f3b0dd9af248987bd5c2",
+        "untrackedFileCount": 0
+      },
+      "event": "patch_captured",
+      "timestamp": "2026-07-18T18:16:07.966Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "commit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+        "path": "/Users/hjqcan/workspace/GoodMemory/reports/eval/research/codex-coding-effect/run-c4-baseline-v9-20260718T1815Z/stages/duration-configuration-policy-stage-3/evaluation-sandbox/workspace",
+        "tree": "1965dd790ca336abbc9192d29bbbda4fa4fcad99"
+      },
+      "event": "workspace_prepared",
+      "timestamp": "2026-07-18T18:16:08.550Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "changedFileCount": 1,
+        "hasPatch": true,
+        "sha256": "341aafa780519eb44a9d82f529bad23bacd5deb25562f3b0dd9af248987bd5c2"
+      },
+      "event": "patch_applied_for_evaluation",
+      "timestamp": "2026-07-18T18:16:08.595Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "kind": "fail-to-pass"
+      },
+      "event": "hidden_tests_started",
+      "timestamp": "2026-07-18T18:16:08.595Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "durationMs": 73.36683300000732,
+        "exitCode": 1,
+        "kind": "fail-to-pass",
+        "status": "failed"
+      },
+      "event": "hidden_tests_completed",
+      "timestamp": "2026-07-18T18:16:08.669Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "kind": "pass-to-pass"
+      },
+      "event": "hidden_tests_started",
+      "timestamp": "2026-07-18T18:16:08.669Z"
+    },
+    {
+      "arm": "no-memory",
+      "attemptId": "duration-configuration-policy/stage-3/no-memory/1/1#attempt-1",
+      "episodeId": "duration-configuration-policy",
+      "repetition": 1,
+      "runId": "run-c4-baseline-v9-20260718T1815Z",
+      "seed": 1,
+      "stageId": "stage-3",
+      "traceId": "run-c4-baseline-v9-20260718T1815Z/duration-configuration-policy/stage-3/no-memory",
+      "details": {
+        "durationMs": 74.1215830000001,
+        "exitCode": 0,
+        "kind": "pass-to-pass",
+        "status": "passed"
+      },
+      "event": "hidden_tests_completed",
+      "timestamp": "2026-07-18T18:16:08.743Z"
+    }
+  ],
+  "patch": {
+    "baseCommit": "e75e83bc4464e2445b8575e321b4c39967b9f73f",
+    "changedFiles": [
+      "src/tasks.ts"
+    ],
+    "diff": "diff --git a/src/tasks.ts b/src/tasks.ts\nindex 248330e0f0e46970b52f56af725edac918e5beee..55480db82b5787b3649fb0c9d931052de1fe4537 100644\n--- a/src/tasks.ts\n+++ b/src/tasks.ts\n@@ -27,7 +27,8 @@ export function resolveRetryConfig(input: { capMs: number; initial: number }): {\n }\n \n export function deadlineFromConfig(input: { skewMs: number; startMs: number; timeout: number }): number {\n-  return input.startMs + input.timeout + input.skewMs;\n+  const timeoutMs = Math.max(0, input.timeout);\n+  return input.startMs + timeoutMs + input.skewMs;\n }\n \n export function slugify(value: string): string {\n",
+    "forbiddenFiles": [],
+    "hasPatch": true,
+    "sha256": "341aafa780519eb44a9d82f529bad23bacd5deb25562f3b0dd9af248987bd5c2",
+    "untrackedFiles": []
+  },
+  "result": {
+    "changedFiles": [
+      "src/tasks.ts"
+    ],
+    "codexStatus": "completed",
+    "disposition": "finalized",
+    "episodeId": "duration-configuration-policy",
+    "executionFailureStage": null,
+    "failToPassStatus": "failed",
+    "passToPassStatus": "passed",
+    "patchSha256": "341aafa780519eb44a9d82f529bad23bacd5deb25562f3b0dd9af248987bd5c2",
+    "resolved": false,
+    "stageId": "stage-3",
+    "stageInputSha256": "04aea94d1db03dfd08fac75670391a2df32dac85aa8ec948b93b17a5211ee899",
+    "taskFailureReasons": [
+      "hidden-fail-to-pass-failed"
+    ],
+    "threadId": "019f766f-5583-7551-8acf-9dc6d10a450e"
+  },
+  "schemaVersion": 1,
+  "visibleBaseHealth": {
+    "durationMs": 8.568749999991269,
+    "exitCode": 0,
+    "passed": true,
+    "status": "passed",
+    "stderr": "\ntests/base-health.test.ts:\n(pass) visible base health > parse-mode-setting\n(pass) visible base health > parse-log-level-setting\n(pass) visible base health > parse-output-format-setting\n(pass) visible base health > resolve-timeout-config\n(pass) visible base health > resolve-retry-config\n(pass) visible base health > compute-config-deadline\n(pass) visible base health > normalize-slug\n(pass) visible base health > dedupe-csv-values\n(pass) visible base health > encode-path-segment [0.10ms]\n\n 9 pass\n 0 fail\n 9 expect() calls\nRan 9 tests across 1 file. [5.00ms]\n",
+    "stdout": "bun test v1.3.11 (af24e281)\n"
+  }
+}

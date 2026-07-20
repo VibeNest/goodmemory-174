@@ -1,0 +1,160 @@
+import { describe, expect, it } from "bun:test";
+
+import { createMemorySource } from "../../src/domain/provenance";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
+import {
+  buildEvidenceLedger,
+  type EvidenceLedgerEntry,
+} from "../../src/recall/evidenceLedger";
+import type { ClaimProjection } from "../../src/recall/projections/contracts";
+
+const scope = { userId: "user-1", workspaceId: "workspace-1" };
+const scopeKey = "user-1::::workspace-1::::";
+const referenceTime = "2026-07-10T00:00:00.000Z";
+
+function evidence(memoryId: string) {
+  return createEvidenceRecord({
+    id: `evidence-${memoryId}`,
+    ...scope,
+    kind: "conversation_excerpt",
+    excerpt: `source for ${memoryId}`,
+    source: createMemorySource({
+      method: "explicit",
+      extractedAt: referenceTime,
+    }),
+    sourceMessageIds: [`message-${memoryId}`],
+    sourceRecordIds: [`source-record-${memoryId}`],
+    linkedMemoryIds: [memoryId],
+  });
+}
+
+function claim(input: {
+  id: string;
+  sourceMemoryId: string;
+  predicateKey: string;
+  objectText: string;
+  observedAt: string;
+  validUntil?: string;
+}): ClaimProjection {
+  return {
+    id: input.id,
+    schemaVersion: 1,
+    ...scope,
+    scopeKey,
+    sourceMemoryId: input.sourceMemoryId,
+    subjectEntityId: "entity-alice",
+    predicateKey: input.predicateKey,
+    objectText: input.objectText,
+    text: `${input.predicateKey} ${input.objectText}`,
+    polarity: "positive",
+    modality: "asserted",
+    validUntil: input.validUntil,
+    observedAt: input.observedAt,
+    ingestedAt: input.observedAt,
+    evidenceIds: [`evidence-${input.sourceMemoryId}`],
+    sourceMessageIds: [`message-${input.sourceMemoryId}`],
+    extractorVersion: "test-v1",
+  };
+}
+
+function byMemory(entries: EvidenceLedgerEntry[]) {
+  return new Map(entries.map((entry) => [entry.sourceMemoryId, entry]));
+}
+
+describe("evidence ledger", () => {
+  it("resolves current and superseded claims within subject and predicate groups", () => {
+    const entries = buildEvidenceLedger({
+      aggregation: "current",
+      claims: [
+        claim({
+          id: "claim-project-old",
+          sourceMemoryId: "project-old",
+          predicateKey: "profile.current_project",
+          objectText: "Beacon",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-new",
+          sourceMemoryId: "project-new",
+          predicateKey: "profile.current_project",
+          objectText: "Atlas",
+          observedAt: "2026-07-08T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-cats",
+          sourceMemoryId: "cats",
+          predicateKey: "profile.pet_count",
+          objectText: "3",
+          observedAt: "2026-07-09T00:00:00.000Z",
+        }),
+      ],
+      evidence: [
+        evidence("project-old"),
+        evidence("project-new"),
+        evidence("cats"),
+      ],
+      referenceTime,
+      selectedMemoryIds: ["project-old", "project-new", "cats"],
+    });
+    const ledger = byMemory(entries);
+
+    expect(ledger.get("project-old")).toMatchObject({
+      relation: "contradicts",
+      temporalStatus: "superseded",
+    });
+    expect(ledger.get("project-new")).toMatchObject({
+      relation: "supports",
+      temporalStatus: "current",
+    });
+    expect(ledger.get("cats")).toMatchObject({
+      relation: "supports",
+      temporalStatus: "current",
+    });
+  });
+
+  it("keeps multiple active values current for count aggregation", () => {
+    const entries = buildEvidenceLedger({
+      aggregation: "count",
+      claims: [
+        claim({
+          id: "claim-project-atlas",
+          sourceMemoryId: "project-atlas",
+          predicateKey: "profile.project",
+          objectText: "Atlas",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-beacon",
+          sourceMemoryId: "project-beacon",
+          predicateKey: "profile.project",
+          objectText: "Beacon",
+          observedAt: "2026-07-02T00:00:00.000Z",
+        }),
+      ],
+      evidence: [evidence("project-atlas"), evidence("project-beacon")],
+      referenceTime,
+      selectedMemoryIds: ["project-atlas", "project-beacon"],
+    });
+
+    expect(entries.map(({ temporalStatus }) => temporalStatus)).toEqual([
+      "current",
+      "current",
+    ]);
+  });
+
+  it("retains evidence without a structured claim as uncertain context", () => {
+    expect(buildEvidenceLedger({
+      claims: [],
+      evidence: [evidence("legacy-fact")],
+      referenceTime,
+      selectedMemoryIds: ["legacy-fact"],
+    })).toEqual([
+      expect.objectContaining({
+        evidenceId: "evidence-legacy-fact",
+        sourceMemoryId: "legacy-fact",
+        relation: "context",
+        temporalStatus: "uncertain",
+      }),
+    ]);
+  });
+});

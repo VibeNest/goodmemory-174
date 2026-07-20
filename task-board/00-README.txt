@@ -91,13 +91,13 @@ Current Transition
   `c3-controlled-20260716-cleanclone-003`: 2/2 arms resolved, zero infrastructure
   failures, `tie-both-pass`; the independent verifier replayed both patches and
   accepted 17 projected files with `externalAuthenticityVerified: false`.
-  C3 source reproducibility is reopened because the recorded runner commit and
-  tree are absent from the current Git object database; this is not a
+  C3 source reproducibility is reopened because the recorded runner commit and tree are absent from the current Git object database; this is not a
   recoverable verifier-source snapshot. C4's
   v8 core, review, baseline, and readiness are superseded historical evidence.
-  The v9 corpus-wide leakage detector and exact frozen-input bindings are in
-  code, but canonical v9 core, independent review, baseline, and readiness
-  artifacts are pending. C5 remains blocked until that v9 chain is accepted.
+  The canonical v9 core, independent review, baseline, projected stages, raw
+  stage sources, and readiness are accepted and tracked as one replayable
+  bundle. That artifact bundle is the C4 truth source; this router and the current-status document are projections whose bindings are enforced by the
+  C4 release test. C5 is unblocked for the internal pilot but has not run.
   No result proves coding uplift; C5-C7 remain open. See
   `78-phase-73-codex-installed-host-coding-effect-evaluation.txt`.
 

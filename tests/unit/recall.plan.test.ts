@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
 import { createLanguageService } from "../../src/language";
-import { buildDeterministicRecallPlan } from "../../src/recall/recallPlan";
+import {
+  buildDeterministicRecallPlan,
+  resolveRecallPlan,
+} from "../../src/recall/recallPlan";
 
 const scope = { userId: "user-1", workspaceId: "workspace-1" };
 const referenceTime = "2026-07-16T00:00:00.000Z";
@@ -63,5 +66,68 @@ describe("deterministic recall plan", () => {
     expect(plan("What changed after 2025-06-01?").temporalConstraints).toEqual([
       { kind: "after", referenceTime: "2025-06-01T00:00:00.000Z" },
     ]);
+  });
+
+  it("lets an optional query-only assistant refine the plan without changing fixed budgets", async () => {
+    const result = await resolveRecallPlan({
+      input: {
+        locale: "zh-CN",
+        query: "告诉我这两个项目现在的状态",
+        referenceTime,
+        scope,
+      },
+      assistant: {
+        async plan(input) {
+          expect(Object.keys(input).sort()).toEqual([
+            "deterministicPlan",
+            "locale",
+            "query",
+            "referenceTime",
+            "scope",
+          ]);
+          return {
+            ...input.deterministicPlan,
+            entities: ["Atlas", "Beacon"],
+            facets: ["Atlas 现在的状态", "Beacon 现在的状态"],
+            maxHops: 2,
+            preRankLimit: 999,
+            selectedLimit: 999,
+            maxRenderedTokens: 999_999,
+          };
+        },
+      },
+    });
+
+    expect(result.assistantApplied).toBe(true);
+    expect(result.plan).toMatchObject({
+      entities: ["Atlas", "Beacon"],
+      facets: ["Atlas 现在的状态", "Beacon 现在的状态"],
+      maxHops: 2,
+      preRankLimit: 32,
+      selectedLimit: 12,
+      maxRenderedTokens: 6_000,
+    });
+  });
+
+  it("falls back to the deterministic plan when the optional assistant fails", async () => {
+    const input = {
+      query: "Where do I live?",
+      referenceTime,
+      scope,
+    };
+    const result = await resolveRecallPlan({
+      input,
+      assistant: {
+        async plan() {
+          throw new Error("provider unavailable");
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      assistantApplied: false,
+      fallbackReason: "assistant_error",
+      plan: buildDeterministicRecallPlan(input),
+    });
   });
 });

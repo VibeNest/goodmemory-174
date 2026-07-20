@@ -20,13 +20,20 @@ import type {
 import {
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
+  requestOpenAICompatibleObjectResult,
   resolveAISDKModel,
   withAISDKRetries,
 } from "./ai-sdk-runtime";
+import {
+  normalizeAISDKLanguageModelUsage,
+  runWithModelUsageAttempt,
+} from "./model-usage";
+import type { ModelUsageSink } from "./model-usage";
 
 interface RecallRouterDependencies {
   fetch?: FetchLike;
   generateObject?: typeof generateObject;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   resolveModel?: typeof resolveAISDKModel;
   retryOptions?: AISDKRetryOptions;
@@ -478,34 +485,61 @@ export function createLLMRecallRouter(input: {
     async plan(payload): Promise<RecallAssistantPlan> {
       const prompt = (input.planPromptBuilder ?? buildRecallAssistantPlanPrompt)(payload);
       const system = input.planSystem ?? RECALL_ROUTER_PLAN_SYSTEM_PROMPT;
+      let attempt = 0;
 
       return withAISDKRetries(async () => {
-        if (input.model.provider === "openai" && input.model.baseURL) {
-          const object = await requestOpenAICompatibleObject({
-            model: input.model,
-            schema: recallAssistantPlanSchema,
-            system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-            normalizePayload: normalizeRecallAssistantPlanPayload,
-          });
+        attempt += 1;
+        return runWithModelUsageAttempt({
+          attempt,
+          modelId: input.model.model,
+          operation: "recall_router_plan",
+          providerId: input.model.provider,
+          sink: input.dependencies?.modelUsageSink,
+          run: async (report) => {
+            if (input.model.provider === "openai" && input.model.baseURL) {
+              const object = input.dependencies?.modelUsageSink
+                ? (await requestOpenAICompatibleObjectResult({
+                    model: input.model,
+                    schema: recallAssistantPlanSchema,
+                    system,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeRecallAssistantPlanPayload,
+                    onUsage: (usage) => report(
+                      usage ?? normalizeAISDKLanguageModelUsage(undefined),
+                    ),
+                  })).object
+                : await requestOpenAICompatibleObject({
+                    model: input.model,
+                    schema: recallAssistantPlanSchema,
+                    system,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeRecallAssistantPlanPayload,
+                  });
+              return finalizeRecallAssistantPlan(object);
+            }
 
-          return finalizeRecallAssistantPlan(object);
-        }
-
-        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-          maxRetries: 0,
-          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-          schema: recallAssistantPlanSchema,
-          system,
-          prompt,
-          timeout:
-            input.dependencies?.requestTimeoutMs ??
-            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            const response = await (
+              input.dependencies?.generateObject ?? generateObject
+            )({
+              maxRetries: 0,
+              model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(
+                input.model,
+              ),
+              schema: recallAssistantPlanSchema,
+              system,
+              prompt,
+              timeout:
+                input.dependencies?.requestTimeoutMs ??
+                DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            });
+            report(normalizeAISDKLanguageModelUsage(response.usage));
+            return finalizeRecallAssistantPlan(response.object);
+          },
         });
-
-        return finalizeRecallAssistantPlan(object);
       }, input.dependencies?.retryOptions);
     },
 
@@ -514,34 +548,61 @@ export function createLLMRecallRouter(input: {
         payload,
       );
       const system = input.rerankSystem ?? RECALL_ROUTER_RERANK_SYSTEM_PROMPT;
+      let attempt = 0;
 
       return withAISDKRetries(async () => {
-        if (input.model.provider === "openai" && input.model.baseURL) {
-          const object = await requestOpenAICompatibleObject({
-            model: input.model,
-            schema: recallAssistantRerankSchema,
-            system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-            normalizePayload: normalizeRecallAssistantRerankPayload,
-          });
+        attempt += 1;
+        return runWithModelUsageAttempt({
+          attempt,
+          modelId: input.model.model,
+          operation: "recall_router_rerank",
+          providerId: input.model.provider,
+          sink: input.dependencies?.modelUsageSink,
+          run: async (report) => {
+            if (input.model.provider === "openai" && input.model.baseURL) {
+              const object = input.dependencies?.modelUsageSink
+                ? (await requestOpenAICompatibleObjectResult({
+                    model: input.model,
+                    schema: recallAssistantRerankSchema,
+                    system,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeRecallAssistantRerankPayload,
+                    onUsage: (usage) => report(
+                      usage ?? normalizeAISDKLanguageModelUsage(undefined),
+                    ),
+                  })).object
+                : await requestOpenAICompatibleObject({
+                    model: input.model,
+                    schema: recallAssistantRerankSchema,
+                    system,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeRecallAssistantRerankPayload,
+                  });
+              return finalizeRecallAssistantRerank(object);
+            }
 
-          return finalizeRecallAssistantRerank(object);
-        }
-
-        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-          maxRetries: 0,
-          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-          schema: recallAssistantRerankSchema,
-          system,
-          prompt,
-          timeout:
-            input.dependencies?.requestTimeoutMs ??
-            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            const response = await (
+              input.dependencies?.generateObject ?? generateObject
+            )({
+              maxRetries: 0,
+              model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(
+                input.model,
+              ),
+              schema: recallAssistantRerankSchema,
+              system,
+              prompt,
+              timeout:
+                input.dependencies?.requestTimeoutMs ??
+                DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            });
+            report(normalizeAISDKLanguageModelUsage(response.usage));
+            return finalizeRecallAssistantRerank(response.object);
+          },
         });
-
-        return finalizeRecallAssistantRerank(object);
       }, input.dependencies?.retryOptions);
     },
   };

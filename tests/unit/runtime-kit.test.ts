@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import type {
+  BuildContextInput,
   GoodMemory,
   GoodMemoryRuntimeStateResult,
+  RecallInput,
   RecallResult,
   RememberInput,
 } from "../../src";
@@ -346,6 +348,48 @@ describe("runtime-kit", () => {
       contextMode: "fragment",
     });
     expect(calls).toEqual(["recall:What should I remember?", "build:80"]);
+  });
+
+  it("opts into typed ledger recall and rendering only for an enabled runtime profile", async () => {
+    const recallInputs: RecallInput[] = [];
+    const buildInputs: BuildContextInput[] = [];
+    const memory = createMemoryStub({
+      async recall(input) {
+        recallInputs.push(input);
+        return createRecallResult();
+      },
+      async buildContext(input) {
+        buildInputs.push(input);
+        return {
+          output: "system_prompt_fragment",
+          content: "Ledger context.",
+          estimatedTokens: 4,
+          omittedSections: [],
+        };
+      },
+    });
+
+    const defaultRuntime = createGoodMemoryRuntimeKit({ memory });
+    await defaultRuntime.beforeModelCall({
+      query: "What is current?",
+      scope,
+    });
+
+    const ledgerRuntime = createGoodMemoryRuntimeKit({
+      evidenceLedgerFormat: "chronology",
+      memory,
+    });
+    await ledgerRuntime.beforeModelCall({
+      query: "What is current?",
+      scope,
+    });
+
+    expect(recallInputs[0]).not.toHaveProperty("includeEvidence");
+    expect(buildInputs[0]).not.toHaveProperty("evidenceLedgerFormat");
+    expect(recallInputs[1]).toMatchObject({ includeEvidence: true });
+    expect(buildInputs[1]).toMatchObject({
+      evidenceLedgerFormat: "chronology",
+    });
   });
 
   it("adds hidden behavioral steering without exposing remembered-note phrasing", async () => {

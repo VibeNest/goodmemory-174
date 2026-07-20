@@ -1,5 +1,3 @@
-import { isDeepStrictEqual } from "node:util";
-
 import { buildEpisodeEmbeddingWrite } from "../embedding/vectorWrites";
 import { createLanguageService } from "../language";
 import type { PolicyContext } from "../policy/hooks";
@@ -27,7 +25,6 @@ import type {
 import type {
   RememberEngineConfig,
   RememberResult,
-  RollbackAction,
   RememberWriteState,
 } from "./contracts";
 import {
@@ -40,6 +37,7 @@ import {
   normalizeMemoryCandidate,
 } from "./normalization";
 import { commitRememberVectors, rollbackRememberWrites } from "./vectorOps";
+import { createRememberWriteCoordinator } from "./writeOwnership";
 
 export type {
   ClassifiedCandidate,
@@ -623,7 +621,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
         requestedExtractionStrategy,
         resolvedExtractionStrategy,
       } = await resolveExtraction(input);
-      const rollbackActions: RollbackAction[] = [];
+      const writeCoordinator = createRememberWriteCoordinator(config.documentStore);
+      const { rollbackActions } = writeCoordinator;
       const state: RememberWriteState = {
         accepted: 0,
         rejected: 0,
@@ -639,40 +638,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
         locale: resolvedLanguage.locale,
         localeSource: resolvedLanguage.localeSource,
       };
-      const setDocumentWithRollback = async <TDocument extends object>(
-        collection: string,
-        id: string,
-        document: TDocument,
-      ): Promise<void> => {
-        const previous = await config.documentStore.get<object>(collection, id);
-        rollbackActions.push(async () => {
-          const current = await config.documentStore.get<object>(collection, id);
-          if (previous) {
-            if (!isDeepStrictEqual(current, previous)) {
-              await config.documentStore.set(collection, id, previous);
-            }
-            return;
-          }
-          if (current) {
-            await config.documentStore.delete(collection, id);
-          }
-        });
-        await config.documentStore.set(collection, id, document);
-      };
-      const deleteDocumentWithRollback = async (
-        collection: string,
-        id: string,
-      ): Promise<void> => {
-        const previous = await config.documentStore.get<object>(collection, id);
-        if (!previous) {
-          return;
-        }
-
-        await config.documentStore.delete(collection, id);
-        rollbackActions.push(async () => {
-          await config.documentStore.set(collection, id, previous);
-        });
-      };
+      const setDocumentWithRollback = writeCoordinator.setDocument;
+      const deleteDocumentWithRollback = writeCoordinator.deleteDocument;
 
       try {
         for (const candidate of extraction.candidates) {
@@ -813,6 +780,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
           }
         }
 
+        await writeCoordinator.releaseOwnership();
+
         const warnings: string[] = [];
         if (extractionWarning) {
           warnings.push(extractionWarning);
@@ -842,6 +811,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
         };
       } catch (error) {
         const rollbackErrors = await rollbackRememberWrites(rollbackActions);
+        await writeCoordinator.releaseOwnership();
         if (rollbackErrors.length > 0) {
           throw new AggregateError(
             [error, ...rollbackErrors],

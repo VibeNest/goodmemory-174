@@ -1,5 +1,10 @@
 import type { MemoryScope } from "../../domain/scope";
 import {
+  createScopeDeletionAwareDocumentStore,
+  createScopeDeletionCoordinator,
+  type ScopeDeletionCoordinator,
+} from "../../storage/scopeDeletion";
+import {
   isProjectionCapableDocumentStore,
   type DocumentStore,
   type ProjectionCapableDocumentStore,
@@ -20,6 +25,7 @@ export interface RecallProjectionRuntime extends
   RecallProjectionSearchPort {
   documentStore: ProjectionCapableDocumentStore;
   repairPending(scope: MemoryScope): Promise<number>;
+  scopeDeletion: ScopeDeletionCoordinator;
 }
 
 export interface RecallProjectionRuntimeConfig {
@@ -37,7 +43,8 @@ export function createRecallProjectionRuntime(
       "Recall projection requires document-store atomic conditional batches.",
     );
   }
-  const documentStore = config.documentStore;
+  const rawDocumentStore = config.documentStore;
+  const documentStore = createScopeDeletionAwareDocumentStore(rawDocumentStore);
   const now = config.now ?? (() => new Date().toISOString());
   const mutationLock = createKeyedMutationLock();
   const operations = createRecallProjectionOperations({
@@ -68,6 +75,7 @@ export function createRecallProjectionRuntime(
       repairs,
       writeThrough: config.writeThrough ?? true,
     }),
+    scopeDeletion: createScopeDeletionCoordinator(rawDocumentStore),
     ensureScopeIndexed,
     async appendClaim(claimInput) {
       await mutationLock.runExclusive(
@@ -111,6 +119,9 @@ export function createRecallProjectionRuntime(
     queryClaims(scope) {
       return operations.queryClaims(scope);
     },
+    queryClaimsBySourceMemoryIds(scope, sourceMemoryIds) {
+      return operations.queryClaimsBySourceMemoryIds(scope, sourceMemoryIds);
+    },
     queryClaimHistory(scope) {
       return operations.queryClaimHistory(scope);
     },
@@ -119,6 +130,12 @@ export function createRecallProjectionRuntime(
     },
     searchDocuments(scope, query, limit) {
       return operations.searchDocuments(scope, query, limit);
+    },
+    searchEntities(scope, query, limit) {
+      return operations.searchEntities(scope, query, limit);
+    },
+    searchClaims(scope, query, limit, history) {
+      return operations.searchClaims(scope, query, limit, history);
     },
     queryEntities(scope) {
       return operations.queryEntities(scope);

@@ -4,10 +4,20 @@ import { z } from "zod";
 import {
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   requestOpenAICompatibleObject,
+  requestOpenAICompatibleObjectResult,
   resolveAISDKModel,
   withAISDKRetries,
 } from "./ai-sdk-runtime";
-import type { AISDKModelConfig, AISDKRetryOptions, FetchLike } from "./ai-sdk-runtime";
+import type {
+  AISDKModelConfig,
+  AISDKRetryOptions,
+  FetchLike,
+} from "./ai-sdk-runtime";
+import {
+  normalizeAISDKLanguageModelUsage,
+  runWithModelUsageAttempt,
+} from "./model-usage";
+import type { ModelUsageSink } from "./model-usage";
 import type {
   MemoryClaimModality,
   MemoryClaimPolarity,
@@ -25,6 +35,7 @@ import type {
 interface MemoryExtractorDependencies {
   fetch?: FetchLike;
   generateObject?: typeof generateObject;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   resolveModel?: typeof resolveAISDKModel;
   retryOptions?: AISDKRetryOptions;
@@ -68,7 +79,7 @@ const MEMORY_CLAIM_MODALITY_VALUES = [
   "unknown",
 ] as const satisfies [MemoryClaimModality, ...MemoryClaimModality[]];
 
-const MEMORY_EXTRACTION_SYSTEM_PROMPT = [
+export const MEMORY_EXTRACTION_SYSTEM_PROMPT = [
   "You extract durable memory candidates from a conversation.",
   "Prefer profile updates, preferences, references, durable facts, and reusable feedback.",
   "Return an empty candidate list when nothing should be remembered.",
@@ -379,12 +390,14 @@ export function buildConversationalMemoryExtractionPrompt(
 
 export function createLLMMemoryExtractor(input: {
   dependencies?: MemoryExtractorDependencies;
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
   promptBuilder?: (
     input: MemoryExtractionInput,
     context?: MemoryExtractionContext,
   ) => string;
   system?: string;
+  temperature?: number;
 }): MemoryExtractor {
   return {
     async extract(payload, context): Promise<MemoryExtractionResult> {
@@ -393,34 +406,71 @@ export function createLLMMemoryExtractor(input: {
         context,
       );
       const system = input.system ?? MEMORY_EXTRACTION_SYSTEM_PROMPT;
+      let attempt = 0;
 
       return withAISDKRetries(async () => {
-        if (input.model.provider === "openai" && input.model.baseURL) {
-          const object = await requestOpenAICompatibleObject({
-            model: input.model,
-            schema: memoryExtractionResultSchema,
-            system,
-            prompt,
-            fetch: input.dependencies?.fetch,
-            timeoutMs: input.dependencies?.requestTimeoutMs,
-            normalizePayload: normalizeMemoryExtractionPayload,
-          });
+        attempt += 1;
+        return runWithModelUsageAttempt({
+          attempt,
+          modelId: input.model.model,
+          operation: "assisted_extraction",
+          providerId: input.model.provider,
+          sink: input.dependencies?.modelUsageSink,
+          run: async (report) => {
+            if (input.model.provider === "openai" && input.model.baseURL) {
+              const object = input.dependencies?.modelUsageSink
+                ? (await requestOpenAICompatibleObjectResult({
+                    maxOutputTokens: input.maxOutputTokens,
+                    model: input.model,
+                    schema: memoryExtractionResultSchema,
+                    system,
+                    temperature: input.temperature,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeMemoryExtractionPayload,
+                    onUsage: (usage) => report(
+                      usage ?? normalizeAISDKLanguageModelUsage(undefined),
+                    ),
+                  })).object
+                : await requestOpenAICompatibleObject({
+                    maxOutputTokens: input.maxOutputTokens,
+                    model: input.model,
+                    schema: memoryExtractionResultSchema,
+                    system,
+                    temperature: input.temperature,
+                    prompt,
+                    fetch: input.dependencies?.fetch,
+                    timeoutMs: input.dependencies?.requestTimeoutMs,
+                    normalizePayload: normalizeMemoryExtractionPayload,
+                  });
+              return finalizeMemoryExtractionResult(object);
+            }
 
-          return finalizeMemoryExtractionResult(object);
-        }
-
-        const { object } = await (input.dependencies?.generateObject ?? generateObject)({
-          maxRetries: 0,
-          model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(input.model),
-          schema: memoryExtractionResultSchema,
-          system,
-          prompt,
-          timeout:
-            input.dependencies?.requestTimeoutMs ??
-            DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            const response = await (
+              input.dependencies?.generateObject ?? generateObject
+            )({
+              maxRetries: 0,
+              ...(input.maxOutputTokens === undefined
+                ? {}
+                : { maxOutputTokens: input.maxOutputTokens }),
+              model: (input.dependencies?.resolveModel ?? resolveAISDKModel)(
+                input.model,
+              ),
+              schema: memoryExtractionResultSchema,
+              system,
+              ...(input.temperature === undefined
+                ? {}
+                : { temperature: input.temperature }),
+              prompt,
+              timeout:
+                input.dependencies?.requestTimeoutMs ??
+                DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
+            });
+            report(normalizeAISDKLanguageModelUsage(response.usage));
+            return finalizeMemoryExtractionResult(response.object);
+          },
         });
-
-        return finalizeMemoryExtractionResult(object);
       }, input.dependencies?.retryOptions);
     },
   };

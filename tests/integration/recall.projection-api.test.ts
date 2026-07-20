@@ -19,6 +19,7 @@ import {
 function createOneShotProjectionFailureStore(inner: DocumentStore): DocumentStore {
   let shouldFail = true;
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,
@@ -43,6 +44,7 @@ function createOneShotProjectionDeleteFailureStore(
 ): DocumentStore {
   let shouldFail = true;
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     set: (collection, id, document) => inner.set(collection, id, document),
     get: (collection, id) => inner.get(collection, id),
     update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -287,5 +289,91 @@ describe("recall projections through the public API", () => {
         sourceMemoryId: memoryId,
       }),
     ).toEqual([]);
+  });
+
+  it("uses structured claims in the temporal and relation fusion channels", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+      testing: {
+        extractor: {
+          async extract() {
+            return {
+              candidates: [{
+                id: "candidate-atlas-lisbon",
+                kindHint: "fact" as const,
+                explicitness: "explicit" as const,
+                content: "Atlas currently deploys through Lisbon.",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                extractorIds: ["test-claim-v1"],
+                metadata: {
+                  subject: "Atlas",
+                  claim: {
+                    predicateKey: "deployment.relation",
+                    objectText: "deploys through Lisbon",
+                    objectEntity: "Lisbon",
+                    validFrom: "2026-07-01T00:00:00.000Z",
+                  },
+                },
+              }],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+        now: () => new Date("2026-07-10T12:00:00.000Z"),
+      },
+    });
+    const scope = { userId: "claim-channel-user" };
+    const remembered = await memory.remember({
+      scope,
+      messages: [{
+        id: "message-atlas-lisbon",
+        role: "user",
+        content: "Atlas currently deploys through Lisbon.",
+        observedAt: "2026-07-01T00:00:00.000Z",
+      }],
+    });
+    const memoryId = remembered.events.find(({ memoryType }) => memoryType === "fact")
+      ?.memoryId;
+
+    const recalled = await memory.recall({
+      scope,
+      query: "How is Atlas currently connected to Lisbon?",
+      strategy: "hybrid",
+    });
+    const traceCandidate = recalled.metadata.retrievalTrace?.fusionRuns
+      ?.flatMap(({ candidates }) => candidates)
+      .find(({ sourceMemoryId }) => sourceMemoryId === memoryId);
+
+    expect(traceCandidate?.channels.temporal).toBeDefined();
+    expect(traceCandidate?.channels.relation).toBeDefined();
+    expect("evidenceLedger" in recalled).toBe(false);
+
+    const withEvidence = await memory.recall({
+      scope,
+      query: "How is Atlas currently connected to Lisbon?",
+      strategy: "hybrid",
+      includeEvidence: true,
+    });
+
+    expect(withEvidence.evidence[0]?.sourceRecordIds).toEqual([
+      expect.any(String),
+    ]);
+    expect(withEvidence.evidenceLedger).toEqual([
+      expect.objectContaining({
+        evidenceId: withEvidence.evidence[0]?.id,
+        sourceMemoryId: memoryId,
+        relation: "supports",
+        temporalStatus: "current",
+        claim: expect.objectContaining({
+          predicateKey: "deployment.relation",
+        }),
+      }),
+    ]);
   });
 });

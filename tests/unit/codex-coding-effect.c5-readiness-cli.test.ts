@@ -15,6 +15,8 @@ describe("Codex coding-effect C5 readiness CLI", () => {
     ])).toMatchObject({
       baselineReportPath:
         "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/report.json",
+      baselineRawStageEvidenceRoot:
+        "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/raw-stages",
       baselineStageEvidenceRoot:
         "reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/stages",
       c4ReadinessCorePath:
@@ -40,9 +42,13 @@ describe("Codex coding-effect C5 readiness CLI", () => {
       orderSeed: 73,
     });
     expect(parseC5ReadinessOptions([
+      "--baseline-report=/custom/run/report.json",
       "--material-effect-pp=10",
       "--order-seed=73",
-    ]).baselineRawStageEvidenceRoot).toBeUndefined();
+    ])).toMatchObject({
+      baselineRawStageEvidenceRoot: "/custom/run/raw-stages",
+      baselineStageEvidenceRoot: "/custom/run/stages",
+    });
     expect(parseC5ReadinessOptions([
       "--baseline-raw-stage-evidence=/evidence/run-v9/stages",
       "--material-effect-pp=10",

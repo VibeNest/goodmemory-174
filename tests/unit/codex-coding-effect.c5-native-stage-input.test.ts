@@ -7,6 +7,7 @@ import {
   initializeC5EmptyInstalledStorage,
   replaceC5TrajectoryWorkspace,
   resolveC5CodexStageInput,
+  resolveC5PriorStageTrajectoryOrigins,
   sanitizeC5StageEvents,
 } from "../../scripts/codex-coding-effect/c5-native-adapter";
 
@@ -68,6 +69,28 @@ describe("Codex coding-effect C5 native stage input", () => {
       ].join("\n"),
       timeoutMs: 900_000,
     });
+  });
+
+  it("attests prior Codex output as the source of native Stop memory", () => {
+    expect(resolveC5PriorStageTrajectoryOrigins({
+      codexStdout: '{"type":"item.completed","text":"process.exit(1);"}\n',
+      patch: "+export const mode = 'buffered';\n",
+      prompt: "Implement the accepted setting policy.",
+      stageId: "stage-1",
+    })).toEqual([
+      {
+        content: "Implement the accepted setting policy.",
+        id: "stage-1:effective-prompt",
+      },
+      {
+        content: "+export const mode = 'buffered';\n",
+        id: "stage-1:agent-patch",
+      },
+      {
+        content: '{"type":"item.completed","text":"process.exit(1);"}\n',
+        id: "stage-1:codex-jsonl-output",
+      },
+    ]);
   });
 
   it("removes executable paths and raw failure text from persisted stage events", () => {

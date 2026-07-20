@@ -15,13 +15,13 @@
 // It complements, and is distinct from, two existing mechanisms:
 //   - storage-level supersession (`FactMemory.supersededBy` / `lifecycle`),
 //     which records a decided supersession at write time, and
-//   - answer-time LLM framing (`buildAnswerEvidencePack`'s `conflict_update`
-//     operation), which asks the model to resolve the current value in prose.
+//   - eval-only protocol framing (`src/eval/protocol-reader`), which may ask a
+//     benchmark reader to resolve the current value in prose.
 // `resolveCurrentValue` resolves the current value deterministically over a set
 // of already-grouped candidate entries about one fact, with no model in the loop.
 
 // A denial / negation signal, mirrored from the contradiction patterns in
-// evidencePack.ts so the two modules classify negations consistently. Kept local
+// the eval protocol reader so the two paths classify negations consistently. Kept local
 // (rather than imported) to keep this primitive dependency-free and leave the
 // accepted answer pipeline untouched.
 const DENIAL_PATTERN =

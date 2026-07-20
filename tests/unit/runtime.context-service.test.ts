@@ -7,6 +7,7 @@ import {
 import {
   createMemoryRepositories,
 } from "../../src/storage/repositories";
+import type { SessionStore } from "../../src/storage/contracts";
 import {
   DeterministicClock,
   createDeterministicIdGenerator,
@@ -14,11 +15,14 @@ import {
 
 function createService(
   maxBufferedMessages = 3,
-  input?: { salvageHooks?: RuntimeSalvageHooks },
+  input?: {
+    salvageHooks?: RuntimeSalvageHooks;
+    sessionStore?: SessionStore;
+  },
 ) {
   const clock = new DeterministicClock("2026-01-01T00:00:00.000Z");
   const documentStore = createInMemoryDocumentStore();
-  const sessionStore = createInMemorySessionStore();
+  const sessionStore = input?.sessionStore ?? createInMemorySessionStore();
   const repositories = createMemoryRepositories({
     documentStore,
     sessionStore,
@@ -157,7 +161,7 @@ describe("runtime context service", () => {
     ]);
   });
 
-  it("enforces the buffer limit even when pre-compact salvage fails", async () => {
+  it("retains evicted raw messages while enforcing the live limit when salvage fails", async () => {
     const errors: unknown[][] = [];
     const originalConsoleError = console.error;
     console.error = (...args) => {
@@ -183,6 +187,9 @@ describe("runtime context service", () => {
 
       let buffer = (await service.getRuntimeState(scope)).buffer;
       expect(buffer.messages.map((message) => message.content)).toEqual(["m2", "m3"]);
+      expect(buffer.compactedMessages?.map((message) => message.content)).toEqual([
+        "m1",
+      ]);
 
       expect(errors).toHaveLength(1);
       expect(String(errors[0]?.[0])).toContain("Runtime salvage hook failed");
@@ -192,13 +199,17 @@ describe("runtime context service", () => {
 
       buffer = (await service.getRuntimeState(scope)).buffer;
       expect(buffer.messages.map((message) => message.content)).toEqual(["m3", "m4"]);
+      expect(buffer.compactedMessages?.map((message) => message.content)).toEqual([
+        "m1",
+        "m2",
+      ]);
       expect(errors).toHaveLength(2);
     } finally {
       console.error = originalConsoleError;
     }
   });
 
-  it("does not reconstruct evicted raw messages in the session archive", async () => {
+  it("reconstructs the exact compacted transcript in the session archive", async () => {
     const { repositories, service } = createService(2, {
       salvageHooks: {
         async onPreCompact() {
@@ -221,10 +232,90 @@ describe("runtime context service", () => {
 
       await service.endSession(scope);
       const archives = await repositories.archives.listByScope(scope);
-      expect(archives[0]?.normalizedTranscript).toBe("user: m5\nassistant: m6");
+      expect(archives[0]?.normalizedTranscript).toBe(
+        "user: m1\nassistant: m2\nuser: m3\nassistant: m4\nuser: m5\nassistant: m6",
+      );
     } finally {
       console.error = originalConsoleError;
     }
+  });
+
+  it("rejects an append when the bounded buffer cannot be persisted", async () => {
+    const inner = createInMemorySessionStore();
+    let failTrim = true;
+    const sessionStore: SessionStore = {
+      ...inner,
+      async saveBuffer(scope, buffer) {
+        if (
+          failTrim &&
+          buffer.messages.map(({ content }) => content).join(",") === "m2,m3"
+        ) {
+          failTrim = false;
+          throw new Error("trim persistence unavailable");
+        }
+        await inner.saveBuffer(scope, buffer);
+      },
+    };
+    const { service } = createService(2, { sessionStore });
+    const scope = { userId: "u-transactional", sessionId: "s-transactional" };
+    await service.startSession(scope);
+    await service.appendToSession(scope, { role: "user", content: "m1" });
+    await service.appendToSession(scope, { role: "assistant", content: "m2" });
+
+    await expect(
+      service.appendToSession(scope, {
+        role: "user",
+        content: "m3",
+      }),
+    ).rejects.toThrow("trim persistence unavailable");
+
+    const pending = await inner.getBuffer(scope);
+    expect(pending?.messages.map(({ content }) => content)).toEqual([
+      "m1",
+      "m2",
+      "m3",
+    ]);
+    expect(pending?.compactedMessages?.map(({ content }) => content)).toEqual([
+      "m1",
+    ]);
+
+    const retried = await service.appendToSession(scope, {
+      role: "assistant",
+      content: "m4",
+    });
+    expect(retried.messages.map(({ content }) => content)).toEqual(["m3", "m4"]);
+    expect(retried.compactedMessages?.map(({ content }) => content)).toEqual([
+      "m1",
+      "m2",
+    ]);
+  });
+
+  it("archives a pending full buffer exactly once when live trimming fails", async () => {
+    const inner = createInMemorySessionStore();
+    const sessionStore: SessionStore = {
+      ...inner,
+      async saveBuffer(scope, buffer) {
+        if (buffer.messages.map(({ content }) => content).join(",") === "m2,m3") {
+          throw new Error("trim persistence unavailable");
+        }
+        await inner.saveBuffer(scope, buffer);
+      },
+    };
+    const { repositories, service } = createService(2, { sessionStore });
+    const scope = { userId: "u-replay", sessionId: "s-replay" };
+    await service.startSession(scope);
+    await service.appendToSession(scope, { role: "user", content: "m1" });
+    await service.appendToSession(scope, { role: "assistant", content: "m2" });
+    await expect(service.appendToSession(scope, {
+      role: "user",
+      content: "m3",
+    })).rejects.toThrow("trim persistence unavailable");
+
+    await service.endSession(scope);
+    const archives = await repositories.archives.listByScope(scope);
+    expect(archives[0]?.normalizedTranscript).toBe(
+      "user: m1\nassistant: m2\nuser: m3",
+    );
   });
 
   it("updates working memory without leaking into durable memory semantics", async () => {

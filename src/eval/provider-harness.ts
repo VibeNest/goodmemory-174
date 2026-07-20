@@ -5,6 +5,7 @@
 // stay free of any `eval/` import and keeps the dependency direction
 // one-way (eval → provider). See architecture.boundaries.test.ts.
 import type { AISDKModelConfig } from "../provider/ai-sdk-runtime";
+import type { ModelUsageSink } from "../provider/model-usage";
 import {
   buildProviderRequestDependencies,
   type ProviderRequestDependencies,
@@ -40,13 +41,17 @@ interface ProviderJudgeModelFactory {
 
 export function createProviderTextGenerator(input: {
   model: AISDKModelConfig;
+  modelUsageSink?: ModelUsageSink;
   system?: string;
   promptBuilder?: (input: EvalAnswerGeneratorInput) => string;
   createTextGenerator?: ProviderTextGeneratorFactory;
   requestTimeoutMs?: number;
 }): EvalAnswerGenerator {
   return (input.createTextGenerator ?? createEvalAnswerGenerator)({
-    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
+    dependencies: buildProviderRequestDependencies(
+      input.requestTimeoutMs,
+      input.modelUsageSink,
+    ),
     model: input.model,
     system: input.system,
     promptBuilder: input.promptBuilder,
@@ -55,12 +60,16 @@ export function createProviderTextGenerator(input: {
 
 export function createProviderJudgeModel(input: {
   model: AISDKModelConfig;
+  modelUsageSink?: ModelUsageSink;
   system?: string;
   createJudgeModel?: ProviderJudgeModelFactory;
   requestTimeoutMs?: number;
 }): JudgeModel {
   return (input.createJudgeModel ?? createEvalJudgeModel)({
-    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
+    dependencies: buildProviderRequestDependencies(
+      input.requestTimeoutMs,
+      input.modelUsageSink,
+    ),
     model: input.model,
     system: input.system,
   });

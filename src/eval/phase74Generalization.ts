@@ -1,0 +1,743 @@
+import { selectEvidenceLedgerFormat } from "./evidenceLedgerFormats";
+import type { EvidenceLedgerFormat } from "./evidenceLedgerFormats";
+import type { RecallResult } from "../api/contracts";
+import {
+  measureOracleMatrixCoverage,
+  PHASE74_CONTEXT_TOKEN_BUDGET,
+  renderOracleMatrixContext,
+  runOracleMatrixCase,
+  truncateRenderedContext,
+} from "./oracleMatrix";
+import type {
+  OracleMatrixCaseResult,
+  OracleMatrixContextItem,
+  OracleMatrixJudge,
+  OracleMatrixProtocolReader,
+  OracleMatrixReader,
+  RenderedTokenCounter,
+} from "./oracleMatrix";
+import {
+  PHASE74_EXPERIMENT_ARMS,
+  assertPhase74StageIsolation,
+} from "./phase74ExperimentDesign";
+import type { Phase74ExperimentStage } from "./phase74ExperimentDesign";
+import {
+  hashEvalExperimentIdentity,
+  hashEvalRunIdentity,
+} from "./runIdentity";
+import type {
+  EvalRunIdentity,
+  EvalRunJsonObject,
+  EvalRunJsonValue,
+} from "./runIdentity";
+
+type RetrievalStage = Exclude<Phase74ExperimentStage, "E4">;
+type RetrievalArm = (typeof PHASE74_EXPERIMENT_ARMS)[RetrievalStage][number];
+
+export interface Phase74GeneralizationCase {
+  caseId: string;
+  expectedAnswer: string;
+  family?: "locomo" | "longmemeval";
+  goldEvidenceIds: readonly string[];
+  locale?: string;
+  memoryGroupId?: string;
+  protocolMetadata?: Readonly<Record<string, unknown>>;
+  question: string;
+  rawEvidence: readonly Phase74RawEvidenceItem[];
+  referenceTime?: string;
+  unresolvedGoldEvidenceIds?: readonly string[];
+}
+
+export interface Phase74RawEvidenceItem extends OracleMatrixContextItem {
+  observedAt?: string;
+  role?: string;
+}
+
+export interface Phase74RecallCase {
+  caseId: string;
+  locale?: string;
+  memoryGroupId?: string;
+  question: string;
+  rawEvidence: readonly Phase74RawEvidenceItem[];
+  referenceTime?: string;
+}
+
+export interface Phase74RetrievalSnapshot {
+  evaluation?: Phase74RetrievalEvaluation;
+  evidenceLedgers?: Partial<Record<EvidenceLedgerFormat, string>>;
+  recallMetadata?: Pick<
+    RecallResult["metadata"],
+    "candidateTraces" | "latencyMs" | "retrievalTrace" | "routingDecision"
+  >;
+  retrievedMemories: readonly OracleMatrixContextItem[];
+  snapshotId: string;
+  storedMemories: readonly OracleMatrixContextItem[];
+}
+
+export interface Phase74RetrievalEvaluation {
+  answer: string;
+  answerLatencyMs: number;
+  contextTokens: number;
+  contextTokensBeforeTruncation: number;
+  contextTruncated: boolean;
+  correct: boolean;
+  productLatencyMs: number;
+  recallLatencyMs: number;
+  score: number;
+}
+
+export interface Phase74RetrievalExecutionInput {
+  arm: RetrievalArm;
+  configuration: EvalRunJsonObject;
+  stage: RetrievalStage;
+  testCase: Phase74RecallCase;
+}
+
+export interface Phase74GeneralizationExecutionResult {
+  answer?: string;
+  answerLatencyMs?: number;
+  arm: RetrievalArm;
+  caseId: string;
+  clusterId: string;
+  configuration: EvalRunJsonObject;
+  contextTokens?: number;
+  contextTokensBeforeTruncation?: number;
+  contextTruncated?: boolean;
+  correct?: boolean;
+  executionError?: string;
+  metrics?: ReturnType<typeof measureOracleMatrixCoverage>;
+  productLatencyMs?: number;
+  recallLatencyMs?: number;
+  score?: number;
+  snapshotId?: string;
+  stage: RetrievalStage;
+}
+
+export function phase74ComparisonBranch(
+  stage: RetrievalStage,
+  arm: RetrievalArm,
+): "baseline" | "candidate" | "shadow" {
+  if (
+    (stage === "E1" && arm === "fact-only") ||
+    (stage === "E2" && arm === "claim-temporal-off") ||
+    (stage === "E3" && arm === "recall-plan-off")
+  ) {
+    return "baseline";
+  }
+  if (
+    (stage === "E1" && arm === "atomic-contextual-raw-pointer") ||
+    (stage === "E2" && arm === "claim-temporal-on") ||
+    (stage === "E3" && arm === "recall-plan-deterministic")
+  ) {
+    return "candidate";
+  }
+  return "shadow";
+}
+
+export interface Phase74E4CaseResult {
+  answer: string | null;
+  caseId: string;
+  clusterId: string;
+  contextTokens: number;
+  contextTokensBeforeTruncation: number;
+  contextTruncated: boolean;
+  correct: boolean;
+  executionError?: string;
+  format: EvidenceLedgerFormat;
+  score: number;
+  snapshotId: string;
+}
+
+export interface Phase74E4FormatResult {
+  averageTokens: number | null;
+  format: EvidenceLedgerFormat;
+  macroScore: number;
+  protectionDelta: number | null;
+}
+
+export interface Phase74GeneralizationReport {
+  e4: {
+    cases: Phase74E4CaseResult[];
+    formatResults: Phase74E4FormatResult[];
+    selectedFormat: EvidenceLedgerFormat | "not_evaluable";
+  };
+  executions: Phase74GeneralizationExecutionResult[];
+  experimentIdentityHash: string;
+  identity: EvalRunIdentity;
+  identityHash: string;
+  oracle: OracleMatrixCaseResult[];
+  reason: string;
+  schemaVersion: 1;
+  status: "not_evaluable";
+  summary: {
+    caseCount: number;
+    executionFailures: number;
+    renderedContextMaxTokens: number;
+  };
+}
+
+export interface RunPhase74GeneralizationInput {
+  cases: readonly Phase74GeneralizationCase[];
+  checkpoint?: Phase74GeneralizationCheckpoint;
+  contextTokenBudget?: number;
+  countRenderedTokens: RenderedTokenCounter;
+  e4ProtectionDeltas?: Partial<Record<EvidenceLedgerFormat, number>>;
+  executeRetrieval(
+    input: Phase74RetrievalExecutionInput,
+  ): Promise<Phase74RetrievalSnapshot>;
+  genericReader: OracleMatrixReader;
+  identity: EvalRunIdentity;
+  includeOracle?: boolean;
+  judge: OracleMatrixJudge;
+  onRetrievalSnapshot?(snapshot: Phase74RetrievalSnapshot): void;
+  persistIdentity(
+    identity: EvalRunIdentity,
+  ): Promise<EvalRunIdentity | void>;
+  protocolReader: OracleMatrixProtocolReader;
+  renderEvidenceLedger(input: {
+    format: EvidenceLedgerFormat;
+    locale?: string;
+    snapshot: Phase74RetrievalSnapshot;
+  }): Promise<string>;
+  scoreAnswer?(input: {
+    answer: string;
+    correct: boolean;
+    testCase: Phase74GeneralizationCase;
+  }): number;
+  stages?: readonly Phase74ExperimentStage[];
+  now?(): number;
+}
+
+export interface Phase74GeneralizationCheckpoint {
+  loadE4(key: string): Promise<Phase74E4CaseResult | null>;
+  loadOracle(key: string): Promise<readonly OracleMatrixCaseResult[] | null>;
+  loadRetrieval(key: string): Promise<Phase74RetrievalSnapshot | null>;
+  saveE4(key: string, value: Phase74E4CaseResult): Promise<void>;
+  saveOracle(
+    key: string,
+    value: readonly OracleMatrixCaseResult[],
+  ): Promise<void>;
+  saveRetrieval(key: string, value: Phase74RetrievalSnapshot): Promise<void>;
+}
+
+function jsonObject(value: EvalRunJsonValue | undefined): EvalRunJsonObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as EvalRunJsonObject
+    : {};
+}
+
+function retrievalConfiguration(
+  base: EvalRunJsonObject,
+  input: {
+    channels?: readonly string[];
+    evidenceLedgerFormat?: EvidenceLedgerFormat;
+    planner?: "off" | "deterministic" | "assisted";
+    recallPlanExecution?: boolean;
+    representation?: string;
+  },
+): EvalRunJsonObject {
+  const retrieval = jsonObject(base.retrieval);
+  return {
+    ...base,
+    ...(input.representation === undefined
+      ? {}
+      : { representation: input.representation }),
+    ...(input.planner === undefined
+      ? {}
+      : { planner: { mode: input.planner } }),
+    ...(input.evidenceLedgerFormat === undefined
+      ? {}
+      : { evidenceLedger: { format: input.evidenceLedgerFormat } }),
+    retrieval: {
+      ...retrieval,
+      ...(input.channels === undefined
+        ? {}
+        : { generalizedFusionChannels: [...input.channels] }),
+      ...(input.recallPlanExecution === undefined
+        ? {}
+        : { recallPlanExecution: input.recallPlanExecution }),
+    },
+  };
+}
+
+function buildConfigurations(base: EvalRunJsonObject): {
+  E1: Record<(typeof PHASE74_EXPERIMENT_ARMS.E1)[number], EvalRunJsonObject>;
+  E2: Record<(typeof PHASE74_EXPERIMENT_ARMS.E2)[number], EvalRunJsonObject>;
+  E3: Record<(typeof PHASE74_EXPERIMENT_ARMS.E3)[number], EvalRunJsonObject>;
+  E4: Record<(typeof PHASE74_EXPERIMENT_ARMS.E4)[number], EvalRunJsonObject>;
+} {
+  const e1 = Object.fromEntries(
+    PHASE74_EXPERIMENT_ARMS.E1.map((representation) => [
+      representation,
+      retrievalConfiguration(base, { representation }),
+    ]),
+  ) as Record<(typeof PHASE74_EXPERIMENT_ARMS.E1)[number], EvalRunJsonObject>;
+  const claimBase = retrievalConfiguration(base, {
+    representation: "atomic-contextual-raw-pointer",
+  });
+  const e2 = {
+    "claim-temporal-off": retrievalConfiguration(claimBase, {
+      channels: ["lexical", "dense", "entity"],
+    }),
+    "claim-temporal-on": retrievalConfiguration(claimBase, {
+      channels: ["lexical", "dense", "entity", "temporal", "relation"],
+    }),
+  };
+  const planBase = e2["claim-temporal-on"];
+  const e3 = {
+    "recall-plan-off": retrievalConfiguration(planBase, {
+      planner: "off",
+      recallPlanExecution: false,
+    }),
+    "recall-plan-deterministic": retrievalConfiguration(planBase, {
+      planner: "deterministic",
+      recallPlanExecution: true,
+    }),
+    "recall-plan-assisted": retrievalConfiguration(planBase, {
+      planner: "assisted",
+      recallPlanExecution: true,
+    }),
+  };
+  const ledgerBase = e3["recall-plan-deterministic"];
+  const e4 = Object.fromEntries(
+    PHASE74_EXPERIMENT_ARMS.E4.map((format) => [
+      format,
+      retrievalConfiguration(ledgerBase, { evidenceLedgerFormat: format }),
+    ]),
+  ) as Record<(typeof PHASE74_EXPERIMENT_ARMS.E4)[number], EvalRunJsonObject>;
+  return { E1: e1, E2: e2, E3: e3, E4: e4 };
+}
+
+function assertIsolatedConfigurations(
+  configurations: ReturnType<typeof buildConfigurations>,
+): void {
+  for (const arm of PHASE74_EXPERIMENT_ARMS.E1.slice(1)) {
+    assertPhase74StageIsolation({
+      baselineConfiguration: configurations.E1["fact-only"],
+      candidateConfiguration: configurations.E1[arm],
+      stage: "E1",
+    });
+  }
+  assertPhase74StageIsolation({
+    baselineConfiguration: configurations.E2["claim-temporal-off"],
+    candidateConfiguration: configurations.E2["claim-temporal-on"],
+    stage: "E2",
+  });
+  for (const arm of PHASE74_EXPERIMENT_ARMS.E3.slice(1)) {
+    assertPhase74StageIsolation({
+      baselineConfiguration: configurations.E3["recall-plan-off"],
+      candidateConfiguration: configurations.E3[arm],
+      stage: "E3",
+    });
+  }
+  for (const format of PHASE74_EXPERIMENT_ARMS.E4.slice(1)) {
+    assertPhase74StageIsolation({
+      baselineConfiguration: configurations.E4.prose,
+      candidateConfiguration: configurations.E4[format],
+      stage: "E4",
+    });
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function oracleCase(
+  testCase: Phase74GeneralizationCase,
+  snapshot: Phase74RetrievalSnapshot,
+) {
+  return {
+    caseId: testCase.caseId,
+    expectedAnswer: testCase.expectedAnswer,
+    goldEvidenceIds: testCase.goldEvidenceIds,
+    protocolMetadata: testCase.protocolMetadata,
+    question: testCase.question,
+    rawEvidence: testCase.rawEvidence,
+    retrievedMemories: snapshot.retrievedMemories,
+    storedMemories: snapshot.storedMemories,
+    unresolvedGoldEvidenceIds: testCase.unresolvedGoldEvidenceIds,
+  };
+}
+
+function recallCase(testCase: Phase74GeneralizationCase): Phase74RecallCase {
+  return {
+    caseId: testCase.caseId,
+    ...(testCase.locale === undefined ? {} : { locale: testCase.locale }),
+    ...(testCase.memoryGroupId === undefined
+      ? {}
+      : { memoryGroupId: testCase.memoryGroupId }),
+    question: testCase.question,
+    rawEvidence: testCase.rawEvidence,
+    ...(testCase.referenceTime === undefined
+      ? {}
+      : { referenceTime: testCase.referenceTime }),
+  };
+}
+
+function checkpointKey(
+  identityHash: string,
+  ...parts: readonly string[]
+): string {
+  return JSON.stringify([identityHash, ...parts]);
+}
+
+export async function runPhase74Generalization(
+  input: RunPhase74GeneralizationInput,
+): Promise<Phase74GeneralizationReport> {
+  const identity = await input.persistIdentity(input.identity) ?? input.identity;
+  const identityHash = hashEvalRunIdentity(identity);
+  const configurations = buildConfigurations(identity.configuration);
+  assertIsolatedConfigurations(configurations);
+  const executions: Phase74GeneralizationExecutionResult[] = [];
+  const deterministicSnapshots = new Map<string, Phase74RetrievalSnapshot>();
+  const stages = new Set(
+    input.stages ?? (["E1", "E2", "E3", "E4"] as const),
+  );
+  const now = input.now ?? (() => performance.now());
+
+  for (const testCase of input.cases) {
+    for (const stage of ["E1", "E2", "E3"] as const) {
+      if (!stages.has(stage)) {
+        continue;
+      }
+      const arms = PHASE74_EXPERIMENT_ARMS[stage] as readonly RetrievalArm[];
+      const stageConfigurations = configurations[stage] as Record<
+        RetrievalArm,
+        EvalRunJsonObject
+      >;
+      for (const arm of arms) {
+        const configuration = stageConfigurations[arm];
+        const clusterId = testCase.memoryGroupId ?? testCase.caseId;
+        const productStartedAt = now();
+        try {
+          const key = checkpointKey(
+            identityHash,
+            "retrieval",
+            testCase.caseId,
+            stage,
+            arm,
+          );
+          const cached = await input.checkpoint?.loadRetrieval(key) ?? null;
+          const retrievedSnapshot = cached ?? await input.executeRetrieval({
+            arm,
+            configuration,
+            stage,
+            testCase: recallCase(testCase),
+          });
+          const recallCompletedAt = now();
+          let snapshot = retrievedSnapshot;
+          if (snapshot.evaluation === undefined) {
+            if (cached !== null) {
+              throw new Error(
+                `Phase 74 retrieval checkpoint lacks end-to-end evaluation for ${testCase.caseId}/${stage}/${arm}.`,
+              );
+            }
+            const budgetedContext = truncateRenderedContext({
+              content: renderOracleMatrixContext(snapshot.retrievedMemories),
+              contextTokenBudget:
+                input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
+              countRenderedTokens: input.countRenderedTokens,
+            });
+            const branch = phase74ComparisonBranch(stage, arm);
+            const answerStartedAt = now();
+            const answer = await input.genericReader({
+              caseId: testCase.caseId,
+              context: budgetedContext.content,
+              purpose: `final:${branch}:${stage}:${arm}`,
+              question: testCase.question,
+            });
+            const answerCompletedAt = now();
+            const judgment = await input.judge({
+              answer,
+              caseId: testCase.caseId,
+              expectedAnswer: testCase.expectedAnswer,
+              purpose: `final:${branch}:${stage}:${arm}`,
+              question: testCase.question,
+            });
+            const score = input.scoreAnswer?.({
+              answer,
+              correct: judgment.correct,
+              testCase,
+            }) ?? Number(judgment.correct);
+            if (!Number.isFinite(score) || score < 0 || score > 1) {
+              throw new Error(
+                `Phase 74 answer score must be between 0 and 1 for ${testCase.caseId}/${stage}/${arm}.`,
+              );
+            }
+            snapshot = {
+              ...snapshot,
+              evaluation: {
+                answer,
+                answerLatencyMs: Math.max(0, answerCompletedAt - answerStartedAt),
+                contextTokens: budgetedContext.renderedContextTokens,
+                contextTokensBeforeTruncation:
+                  budgetedContext.renderedContextTokensBeforeTruncation,
+                contextTruncated: budgetedContext.contextTruncated,
+                correct: judgment.correct,
+                productLatencyMs: Math.max(0, answerCompletedAt - productStartedAt),
+                recallLatencyMs: snapshot.recallMetadata?.latencyMs ??
+                  Math.max(0, recallCompletedAt - productStartedAt),
+                score,
+              },
+            };
+          }
+          if (cached === null) {
+            await input.checkpoint?.saveRetrieval(key, snapshot);
+          }
+          input.onRetrievalSnapshot?.(snapshot);
+          const metrics = measureOracleMatrixCoverage(
+            oracleCase(testCase, snapshot),
+          );
+          const evaluation = snapshot.evaluation;
+          if (evaluation === undefined) {
+            throw new Error(
+              `Phase 74 retrieval evaluation was not committed for ${testCase.caseId}/${stage}/${arm}.`,
+            );
+          }
+          executions.push({
+            answer: evaluation.answer,
+            answerLatencyMs: evaluation.answerLatencyMs,
+            arm,
+            caseId: testCase.caseId,
+            clusterId,
+            configuration,
+            contextTokens: evaluation.contextTokens,
+            contextTokensBeforeTruncation:
+              evaluation.contextTokensBeforeTruncation,
+            contextTruncated: evaluation.contextTruncated,
+            correct: evaluation.correct,
+            metrics,
+            productLatencyMs: evaluation.productLatencyMs,
+            recallLatencyMs: evaluation.recallLatencyMs,
+            score: evaluation.score,
+            snapshotId: snapshot.snapshotId,
+            stage,
+          });
+          if (stage === "E3" && arm === "recall-plan-deterministic") {
+            deterministicSnapshots.set(testCase.caseId, snapshot);
+          }
+        } catch (error) {
+          executions.push({
+            arm,
+            caseId: testCase.caseId,
+            clusterId,
+            configuration,
+            executionError: errorMessage(error),
+            productLatencyMs: Math.max(0, now() - productStartedAt),
+            stage,
+          });
+        }
+      }
+    }
+  }
+
+  const e4Cases: Phase74E4CaseResult[] = [];
+  if (stages.has("E4")) {
+    for (const testCase of input.cases) {
+      if (!deterministicSnapshots.has(testCase.caseId) && input.checkpoint) {
+        const key = checkpointKey(
+          identityHash,
+          "retrieval",
+          testCase.caseId,
+          "E3",
+          "recall-plan-deterministic",
+        );
+        const snapshot = await input.checkpoint.loadRetrieval(key);
+        if (snapshot !== null) {
+          deterministicSnapshots.set(testCase.caseId, snapshot);
+          input.onRetrievalSnapshot?.(snapshot);
+        }
+      }
+      const snapshot = deterministicSnapshots.get(testCase.caseId);
+      if (!snapshot) {
+        throw new Error(
+          `Phase 74 E4 requires a committed deterministic E3 snapshot for ${testCase.caseId}.`,
+        );
+      }
+      for (const format of PHASE74_EXPERIMENT_ARMS.E4) {
+        const key = checkpointKey(
+          identityHash,
+          "e4",
+          testCase.caseId,
+          snapshot.snapshotId,
+          format,
+        );
+        const cached = await input.checkpoint?.loadE4(key) ?? null;
+        if (cached !== null) {
+          e4Cases.push(cached);
+          continue;
+        }
+        let context = "";
+        let contextTokensBeforeTruncation = 0;
+        let contextTruncated = false;
+        try {
+          const renderedContext = await input.renderEvidenceLedger({
+            format,
+            locale: testCase.locale,
+            snapshot,
+          });
+          const budgetedContext = truncateRenderedContext({
+            content: renderedContext,
+            contextTokenBudget:
+              input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
+            countRenderedTokens: input.countRenderedTokens,
+          });
+          context = budgetedContext.content;
+          contextTokensBeforeTruncation =
+            budgetedContext.renderedContextTokensBeforeTruncation;
+          contextTruncated = budgetedContext.contextTruncated;
+          const answer = await input.genericReader({
+            caseId: testCase.caseId,
+            context,
+            purpose: `e4:${format}`,
+            question: testCase.question,
+          });
+          const judgment = await input.judge({
+            answer,
+            caseId: testCase.caseId,
+            expectedAnswer: testCase.expectedAnswer,
+            purpose: `e4:${format}`,
+            question: testCase.question,
+          });
+          const score = input.scoreAnswer?.({
+            answer,
+            correct: judgment.correct,
+            testCase,
+          }) ?? Number(judgment.correct);
+          if (!Number.isFinite(score) || score < 0 || score > 1) {
+            throw new Error(
+              `Phase 74 answer score must be between 0 and 1 for ${testCase.caseId}/E4/${format}.`,
+            );
+          }
+          const result: Phase74E4CaseResult = {
+            answer,
+            caseId: testCase.caseId,
+            clusterId: testCase.memoryGroupId ?? testCase.caseId,
+            contextTokens: input.countRenderedTokens(context),
+            contextTokensBeforeTruncation,
+            contextTruncated,
+            correct: judgment.correct,
+            format,
+            score,
+            snapshotId: snapshot.snapshotId,
+          };
+          e4Cases.push(result);
+          await input.checkpoint?.saveE4(key, result);
+        } catch (error) {
+          e4Cases.push({
+            answer: null,
+            caseId: testCase.caseId,
+            clusterId: testCase.memoryGroupId ?? testCase.caseId,
+            contextTokens: input.countRenderedTokens(context),
+            contextTokensBeforeTruncation,
+            contextTruncated,
+            correct: false,
+            executionError: errorMessage(error),
+            format,
+            score: 0,
+            snapshotId: snapshot.snapshotId,
+          });
+        }
+      }
+    }
+  }
+
+  const formatResults: Phase74E4FormatResult[] =
+    PHASE74_EXPERIMENT_ARMS.E4.map((format) => {
+      const cases = e4Cases.filter((result) => result.format === format);
+      return {
+        averageTokens: cases.length === 0
+          ? null
+          : cases.reduce((total, result) => total + result.contextTokens, 0) /
+            cases.length,
+        format,
+        macroScore: cases.length === 0
+          ? 0
+          : cases.reduce((total, { score }) => total + score, 0) / cases.length,
+        protectionDelta: input.e4ProtectionDeltas?.[format] ?? null,
+      };
+    });
+  const hasCompleteProtectionEvidence =
+    input.cases.length > 0 &&
+    formatResults.every(({ averageTokens, protectionDelta }) =>
+      averageTokens !== null &&
+      protectionDelta !== null &&
+      Number.isFinite(protectionDelta)
+    );
+  const hasEligibleFormat = formatResults.some(({ protectionDelta }) =>
+    protectionDelta !== null && protectionDelta >= -0.01
+  );
+  const selectedFormat = hasCompleteProtectionEvidence && hasEligibleFormat
+    ? selectEvidenceLedgerFormat(
+        formatResults.map((result) => ({
+          ...result,
+          averageTokens: result.averageTokens!,
+          protectionDelta: result.protectionDelta!,
+        })),
+      )
+    : "not_evaluable";
+
+  const oracle: OracleMatrixCaseResult[] = [];
+  if (input.includeOracle !== false) {
+    for (const testCase of input.cases) {
+      const snapshot = deterministicSnapshots.get(testCase.caseId);
+      if (!snapshot) {
+        continue;
+      }
+      const key = checkpointKey(
+        identityHash,
+        "oracle",
+        testCase.caseId,
+        snapshot.snapshotId,
+      );
+      const cached = await input.checkpoint?.loadOracle(key) ?? null;
+      if (cached !== null) {
+        oracle.push(...cached);
+        continue;
+      }
+      const results = await runOracleMatrixCase({
+        contextTokenBudget:
+          input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
+        countRenderedTokens: input.countRenderedTokens,
+        genericReader: input.genericReader,
+        judge: input.judge,
+        protocolReader: input.protocolReader,
+        testCase: oracleCase(testCase, snapshot),
+      });
+      oracle.push(...results);
+      if (results.every(({ executionError }) => executionError === undefined)) {
+        await input.checkpoint?.saveOracle(key, results);
+      }
+    }
+  }
+
+  const renderedContextMaxTokens = Math.max(
+    0,
+    ...executions.map(({ contextTokens }) => contextTokens ?? 0),
+    ...e4Cases.map(({ contextTokens }) => contextTokens),
+    ...oracle.map(({ renderedContextTokens }) => renderedContextTokens),
+  );
+  const executionFailures =
+    executions.filter(({ executionError }) => executionError).length +
+    e4Cases.filter(({ executionError }) => executionError).length +
+    oracle.filter(({ executionError }) => executionError).length;
+
+  return {
+    e4: { cases: e4Cases, formatResults, selectedFormat },
+    executions,
+    experimentIdentityHash: hashEvalExperimentIdentity(identity),
+    identity,
+    identityHash,
+    oracle,
+    reason:
+      "Smoke and single-run diagnostics cannot authorize Phase 74 product promotion.",
+    schemaVersion: 1,
+    status: "not_evaluable",
+    summary: {
+      caseCount: input.cases.length,
+      executionFailures,
+      renderedContextMaxTokens,
+    },
+  };
+}

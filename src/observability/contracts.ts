@@ -64,5 +64,7 @@ export interface GoodMemoryObservabilityConfig {
    * offline by trace receivers.
    */
   scopeDigestSecret?: string;
+  modelUsageSink?: ModelUsageSink;
   traceSink?: GoodMemoryTraceSink;
 }
+import type { ModelUsageSink } from "../provider/model-usage";

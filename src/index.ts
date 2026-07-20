@@ -108,10 +108,12 @@ export {
 export type {
   EvidenceKind,
   EvidenceRecord,
+  SourceMessageRecord,
 } from "./evidence/contracts";
 export {
   createEvidenceRecord,
   EVIDENCE_COLLECTION,
+  SOURCE_MESSAGES_COLLECTION,
 } from "./evidence/contracts";
 export type { EmbeddingAdapter } from "./embedding/contracts";
 export {
@@ -154,6 +156,24 @@ export type {
   RecallRetrievalSourceCollection,
   RecallRetrievalTrace,
 } from "./recall/retrievalTrace";
+export type {
+  EvidenceLedgerEntry,
+} from "./recall/evidenceLedger";
+export type {
+  ClaimProjection,
+  ClaimProjectionState,
+  ClaimProjectionStatus,
+} from "./recall/projections/contracts";
+export type {
+  RecallAggregation,
+  RecallEvidenceNeed,
+  RecallPlan,
+  RecallPlanAssistant,
+  RecallPlanAssistantInput,
+  RecallPlanResolution,
+  RecallPlanUncertainty,
+  TemporalConstraint,
+} from "./recall/recallPlan";
 export {
   resolveCurrentValue,
   resolveCurrentValuesByGroup,
@@ -188,6 +208,7 @@ export type {
   VectorStore,
 } from "./storage/contracts";
 export {
+  PROJECTION_BATCH_SEMANTICS,
   isProjectionCapableDocumentStore,
   matchesFilter,
   shallowMergeDocument,
@@ -299,6 +320,13 @@ export type {
   GoodMemoryTraceSpanName,
   GoodMemoryTraceSpanStatus,
 } from "./observability/contracts";
+export type {
+  ModelTokenUsage,
+  ModelUsageAttempt,
+  ModelUsageCompleteness,
+  ModelUsageOperation,
+  ModelUsageSink,
+} from "./provider/model-usage";
 export type {
   RuntimeArchiveStore,
   RuntimeArchiveStoreConfig,

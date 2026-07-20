@@ -10,6 +10,7 @@ import {
   createProviderListwiseReranker,
   createProviderPointwiseReranker,
 } from "../../src/provider/layer";
+import type { ModelUsageAttempt } from "../../src/provider/model-usage";
 
 describe("provider listwise reranker", () => {
   it("ranks the bounded candidate set jointly in one model call", async () => {
@@ -47,6 +48,32 @@ describe("provider listwise reranker", () => {
       { id: "relevant", score: 0.5 },
       { id: "other", score: 1 },
     ]);
+  });
+
+  it("emits one usage event for one bounded listwise pool", async () => {
+    const events: ModelUsageAttempt[] = [];
+    const reranker = createLLMListwiseReranker({
+      dependencies: {
+        generateObject: async () => ({
+          object: { orderedCandidateIds: ["a", "b"] },
+          usage: { inputTokens: 30, outputTokens: 4 },
+        }) as never,
+        modelUsageSink: { emit(event) { events.push(event); } },
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+
+    await reranker.rerank({
+      documents: [{ id: "a", text: "alpha" }, { id: "b", text: "beta" }],
+      query: "alpha beta",
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      operation: "reranker_listwise",
+      usage: { inputTokens: 30, outputTokens: 4 },
+    });
   });
 
   it("appends omitted known candidates but rejects invented IDs", async () => {
@@ -171,9 +198,11 @@ describe("provider listwise reranker", () => {
 describe("provider pointwise reranker", () => {
   it("scores each query-document pair in an independent model call", async () => {
     const prompts: string[] = [];
+    const calls: Array<Record<string, unknown>> = [];
     const reranker = createLLMPointwiseReranker({
       dependencies: {
         generateObject: (async (input: Record<string, unknown>) => {
+          calls.push(input);
           const prompt = String(input.prompt);
           prompts.push(prompt);
           return {
@@ -184,10 +213,12 @@ describe("provider pointwise reranker", () => {
         }) as never,
         resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
       },
+      maxOutputTokens: 256,
       model: {
         provider: "anthropic",
         model: "claude-sonnet",
       },
+      temperature: 0,
     });
 
     const scores = await reranker.rerank({
@@ -207,6 +238,71 @@ describe("provider pointwise reranker", () => {
     expect(prompts[0]).not.toContain("office lunch");
     expect(prompts[1]).toContain("office lunch");
     expect(prompts[1]).not.toContain("migration blocker");
+    expect(calls.every(
+      (call) => call.maxOutputTokens === 256 && call.temperature === 0,
+    )).toBe(true);
+  });
+
+  it("forwards frozen generation settings to the openai-compatible request", async () => {
+    let requestBody = "";
+    const reranker = createLLMPointwiseReranker({
+      dependencies: {
+        fetch: async (_url, init) => {
+          requestBody = String(init?.body);
+          return new Response(
+            'data: {"choices":[{"delta":{"content":"{\\"score\\":0.75}"},"index":0}]}\n\ndata: [DONE]\n\n',
+            {
+              headers: { "content-type": "text/event-stream" },
+              status: 200,
+            },
+          );
+        },
+        retryOptions: { retryLimit: 1 },
+      },
+      maxOutputTokens: 256,
+      model: {
+        apiKey: "test-key",
+        baseURL: "https://ai.gurkiai.com/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+      temperature: 0,
+    });
+
+    await expect(reranker.rerank({
+      documents: [{ id: "a", text: "alpha" }],
+      query: "alpha",
+    })).resolves.toEqual([{ id: "a", score: 0.75 }]);
+    expect(JSON.parse(requestBody)).toMatchObject({
+      max_tokens: 256,
+      temperature: 0,
+    });
+  });
+
+  it("emits one usage event per pointwise candidate call", async () => {
+    const events: ModelUsageAttempt[] = [];
+    const reranker = createLLMPointwiseReranker({
+      dependencies: {
+        generateObject: async () => ({
+          object: { score: 0.5 },
+          usage: { inputTokens: 10, outputTokens: 1 },
+        }) as never,
+        modelUsageSink: { emit(event) { events.push(event); } },
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+
+    await reranker.rerank({
+      documents: [{ id: "a", text: "alpha" }, { id: "b", text: "beta" }],
+      query: "alpha beta",
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events.every(
+      (event) => event.operation === "reranker_pointwise",
+    )).toBe(true);
+    expect(events.map((event) => event.usage.inputTokens)).toEqual([10, 10]);
   });
 
   it("quotes the candidate as untrusted evidence and requests one bounded score", () => {
@@ -222,21 +318,29 @@ describe("provider pointwise reranker", () => {
 
   it("uses a bounded single-attempt provider budget before deterministic fallback", () => {
     let dependencies: Record<string, unknown> | undefined;
+    let maxOutputTokens: number | undefined;
+    let temperature: number | undefined;
     createProviderPointwiseReranker({
       createReranker(input) {
         dependencies = input.dependencies as Record<string, unknown>;
+        maxOutputTokens = input.maxOutputTokens;
+        temperature = input.temperature;
         return { async rerank() { return []; } };
       },
+      maxOutputTokens: 256,
       model: {
         provider: "openai",
         model: "gpt-5.6-terra",
         apiKey: "test-key",
         baseURL: "https://ai.gurkiai.com/v1",
       },
+      temperature: 0,
     });
 
     expect(dependencies?.requestTimeoutMs).toBe(15_000);
     expect(dependencies?.retryOptions).toEqual({ retryLimit: 1 });
+    expect(maxOutputTokens).toBe(256);
+    expect(temperature).toBe(0);
   });
 
   it("accepts an explicit positive request timeout without changing retry policy", () => {

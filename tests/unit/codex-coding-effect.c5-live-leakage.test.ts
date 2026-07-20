@@ -99,7 +99,7 @@ describe("Codex coding-effect C5 live leakage", () => {
     })).toThrow("C5 live leakage surfaces must match the frozen four-surface contract");
   });
 
-  it("accepts a dynamic overlap only when a prior prompt or patch attests its origin", () => {
+  it("accepts a dynamic overlap only when a prior trajectory attests its origin", () => {
     const surfaces = liveSurfaces().map((surface) =>
       surface.id === "goodmemory-export-after-seeding"
         ? { ...surface, content: '{"memory":"SECRET_IMPLEMENTATION"}' }
@@ -153,6 +153,33 @@ describe("Codex coding-effect C5 live leakage", () => {
     expect(originMatchUnion(audit.trajectoryOrigins, "gold-patches")).toEqual(
       exportCell!.originAttestedMatchSha256,
     );
+  });
+
+  it("accepts prior Codex output provenance without persisting the raw output", () => {
+    const rawOutput = [
+      '{"type":"item.completed","item":{',
+      '"type":"agent_message","text":"SECRET_IMPLEMENTATION"}}',
+    ].join("");
+    const audit = auditC5LiveLeakageSurfaces({
+      artifacts: hiddenArtifacts(),
+      liveSurfaces: liveSurfaces().map((surface) =>
+        surface.id === "goodmemory-export-after-seeding"
+          ? { ...surface, content: '{"memory":"SECRET_IMPLEMENTATION"}' }
+          : surface
+      ),
+      staticSurfaces: staticSurfaces(),
+      trajectoryOrigins: [{
+        content: rawOutput,
+        id: "stage-1:codex-jsonl-output",
+      }],
+    });
+
+    expect(audit).toMatchObject({
+      status: "accepted",
+      trajectoryOriginOverlapCount: 1,
+      unexplainedLiveOverlapCount: 0,
+    });
+    expect(JSON.stringify(audit)).not.toContain(rawOutput);
   });
 
   it("binds receipt and partition mutations to independently recomputable hashes", () => {

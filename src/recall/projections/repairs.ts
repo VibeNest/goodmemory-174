@@ -257,8 +257,16 @@ export function createRecallProjectionRepairs(input: {
               );
             },
           );
-          await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
-          repaired += 1;
+          const consumed = await documentStore.writeBatchIfUnchanged({
+            delete: [{ collection: PROJECTION_REPAIRS_COLLECTION, id: repair.id }],
+            expected: {
+              collection: PROJECTION_REPAIRS_COLLECTION,
+              document: repair,
+              id: repair.id,
+            },
+            set: [],
+          });
+          if (consumed) repaired += 1;
         } catch (error) {
           const timestamp = now();
           const next: ProjectionRepairRecord = {
@@ -273,7 +281,15 @@ export function createRecallProjectionRepairs(input: {
               repair.sourceMemoryId,
             );
             if (!canonical) {
-              await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
+              await documentStore.writeBatchIfUnchanged({
+                delete: [{ collection: PROJECTION_REPAIRS_COLLECTION, id: repair.id }],
+                expected: {
+                  collection: PROJECTION_REPAIRS_COLLECTION,
+                  document: repair,
+                  id: repair.id,
+                },
+                set: [],
+              });
               continue;
             }
             const committed = await documentStore.writeBatchIfUnchanged({
@@ -287,10 +303,13 @@ export function createRecallProjectionRepairs(input: {
                 document: next,
                 id: next.id,
               }],
+              unchanged: [{
+                collection: PROJECTION_REPAIRS_COLLECTION,
+                document: repair,
+                id: repair.id,
+              }],
             });
-            if (!committed) {
-              await documentStore.delete(PROJECTION_REPAIRS_COLLECTION, repair.id);
-            }
+            if (!committed) continue;
           } catch (persistError) {
             console.error(
               "[goodmemory:recall-projection] repair retry could not persist state",

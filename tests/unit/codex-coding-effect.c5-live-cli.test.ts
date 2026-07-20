@@ -62,7 +62,9 @@ describe("Codex coding-effect C5 live CLI", () => {
       workspaceRoot:
         "/users/eval/.goodmemory-eval/codex-coding-effect/c5-run-001/c5-pilot/workspaces",
     });
-    expect(options.baselineRawStageEvidenceRoot).toBeUndefined();
+    expect(options.baselineRawStageEvidenceRoot).toBe(
+      "/repo/goodmemory/reports/quality-gates/phase-73/c4-baseline-ceiling-pilot/raw-stages",
+    );
   });
 
   it("rejects post-hoc, duplicate, unknown, and overlapping run inputs", () => {

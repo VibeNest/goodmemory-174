@@ -27,6 +27,7 @@ interface ProfileRepositoryPort {
 
 interface PreferenceRepositoryPort {
   preferences: {
+    get?(id: string): Promise<PreferenceMemory | null>;
     listByScope(scope: MemoryScope): Promise<PreferenceMemory[]>;
     upsert(preference: PreferenceMemory): Promise<void>;
   };
@@ -35,6 +36,7 @@ interface PreferenceRepositoryPort {
 interface ReferenceRepositoryPort {
   references: {
     add(reference: ReferenceMemory): Promise<void>;
+    get?(id: string): Promise<ReferenceMemory | null>;
     listByScope(scope: MemoryScope): Promise<ReferenceMemory[]>;
   };
 }
@@ -42,12 +44,14 @@ interface ReferenceRepositoryPort {
 interface FactRepositoryPort {
   facts: {
     add(fact: FactMemory): Promise<void>;
+    get?(id: string): Promise<FactMemory | null>;
     listByScope(scope: MemoryScope): Promise<FactMemory[]>;
   };
 }
 
 interface FeedbackRepositoryPort {
   feedback: {
+    get?(id: string): Promise<FeedbackMemory | null>;
     listByScope(scope: MemoryScope): Promise<FeedbackMemory[]>;
     upsert(feedback: FeedbackMemory): Promise<void>;
   };
@@ -56,6 +60,7 @@ interface FeedbackRepositoryPort {
 interface EpisodeRepositoryPort {
   episodes: {
     add(episode: EpisodeMemory): Promise<void>;
+    get?(id: string): Promise<EpisodeMemory | null>;
     listByScope(scope: MemoryScope): Promise<EpisodeMemory[]>;
   };
 }
@@ -63,6 +68,7 @@ interface EpisodeRepositoryPort {
 interface ArchiveRepositoryPort {
   archives: {
     add(archive: SessionArchive): Promise<void>;
+    get?(id: string): Promise<SessionArchive | null>;
     listByScope(scope: MemoryScope): Promise<SessionArchive[]>;
   };
 }
@@ -70,6 +76,7 @@ interface ArchiveRepositoryPort {
 interface EvidenceRepositoryPort {
   evidence: {
     add(evidence: EvidenceRecord): Promise<void>;
+    get?(id: string): Promise<EvidenceRecord | null>;
     listByScope(scope: MemoryScope): Promise<EvidenceRecord[]>;
   };
 }

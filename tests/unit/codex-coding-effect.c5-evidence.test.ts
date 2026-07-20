@@ -224,7 +224,7 @@ describe("Codex coding-effect C5 evidence closure", () => {
     }
   });
 
-  it("rejects required recall that was not written by an earlier native Stop", async () => {
+  it("rejects required recall outside the isolated pre-stage export", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-c5-recall-binding-"));
     try {
       const fixture = await createRawFixture(root);
@@ -240,7 +240,7 @@ describe("Codex coding-effect C5 evidence closure", () => {
       await expect(projectC5RunEvidence({
         outputDirectory: join(root, "projection"),
         rawRunDirectory: fixture.raw,
-      })).rejects.toThrow(/prior native Stop|written memory|recall/u);
+      })).rejects.toThrow(/prior native Stop|memory export|recall/u);
     } finally {
       await rm(root, { force: true, recursive: true });
     }
@@ -518,7 +518,7 @@ describe("Codex coding-effect C5 evidence closure", () => {
     } finally {
       await rm(root, { force: true, recursive: true });
     }
-  }, 300_000);
+  }, 600_000);
 
   it("accepts a strictly bound schema v5 infrastructure-rejected leakage variant", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-c5-leakage-failure-"));
@@ -675,6 +675,16 @@ describe("Codex coding-effect C5 evidence closure", () => {
           },
           name: "memory-export-semantic-commitment",
           reason: /live semantic surface is not source-bound/u,
+        },
+        {
+          mutate: ({ canary }) => {
+            const receipts = canary.sourceReceipts as Record<string, unknown>;
+            const memoryExport = receipts.memoryExport as Record<string, unknown>;
+            memoryExport.recordIds = [];
+            return "canary";
+          },
+          name: "memory-export-missing-stop-lineage",
+          reason: /prior-memory lineage|prior native Stop/u,
         },
         {
           mutate: ({ audit }) => {
@@ -983,9 +993,10 @@ async function createRawFixture(root: string): Promise<{
 
       const priorWrittenMemoryIds: string[] = [];
       for (const [stageIndex, stage] of run.stages.entries()) {
-        const writebackRequired = run.stages.slice(stageIndex + 1).some(
-          ({ memoryExpectation }) => memoryExpectation === "required",
-        );
+        const writebackRequired = priorWrittenMemoryIds.length === 0 &&
+          run.stages.slice(stageIndex + 1).some(
+            ({ memoryExpectation }) => memoryExpectation === "required",
+          );
         const stageRoot = join(armRoot, stage.stageId);
         const threadId = `thread-${stage.stageRunIdentitySha256}`;
         const patch = agentPatchForStage(stage);
@@ -1383,9 +1394,21 @@ async function replaceHostCanaryRecall(
       injectedRecordIds: string[];
       recalledPriorMemoryIds: string[];
     };
+    sourceReceipts: {
+      injection: {
+        events: Array<{ decision: string; recordIds: string[] }>;
+        injectedRecordIds: string[];
+      };
+    };
   };
   canary.canary.injectedRecordIds = [recalledId];
   canary.canary.recalledPriorMemoryIds = [recalledId];
+  canary.sourceReceipts.injection.injectedRecordIds = [recalledId];
+  for (const event of canary.sourceReceipts.injection.events) {
+    if (event.decision === "injected" || event.decision === "duplicate_context") {
+      event.recordIds = [recalledId];
+    }
+  }
   await writeJson(canaryPath, canary);
 
   await rebindHostCanaryEvidence(

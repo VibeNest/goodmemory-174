@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   buildC4BaselineStageEvidenceBindings,
@@ -30,9 +30,25 @@ import {
 import {
   freezeC4ControlledPilotDataset,
 } from "../../scripts/freeze-codex-coding-effect-c4-dataset";
-import { runC4ReadinessGate } from "../../scripts/run-codex-coding-effect-c4-readiness";
+import {
+  parseC4ReadinessOptions,
+  runC4ReadinessGate,
+} from "../../scripts/run-codex-coding-effect-c4-readiness";
 
 describe("Codex coding-effect C4 readiness", () => {
+  it("derives custom stage evidence from the selected baseline report", () => {
+    expect(parseC4ReadinessOptions([
+      "--baseline-report=/custom/c4/report.json",
+    ]).baselineStageEvidenceRoot).toBeUndefined();
+    expect(resolve(
+      parseC4ReadinessOptions([
+        "--baseline-report=/custom/c4/report.json",
+      ]).baselinePath,
+      "..",
+      "stages",
+    )).toBe("/custom/c4/stages");
+  });
+
   it("captures replay bytes from every schema-v2 expected changed file", async () => {
     const repositoryRoot = await mkdtemp(join(tmpdir(), "goodmemory-c4-replay-"));
     try {

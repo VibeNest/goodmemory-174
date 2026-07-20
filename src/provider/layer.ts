@@ -1,4 +1,5 @@
 import type { RecallRouterAssistant } from "../recall/assistant";
+import type { RecallPlanAssistant } from "../recall/recallPlan";
 import type { Reranker } from "../recall/reranker";
 import type {
   MemoryExtractionContext,
@@ -14,6 +15,8 @@ import {
   createLLMMemoryExtractor,
 } from "./memory-extractor";
 import { createLLMRecallRouter } from "./recall-router";
+import { createLLMRecallPlanAssistant } from "./recall-plan-assistant";
+import type { RecallPlanAssistantDependencies } from "./recall-plan-assistant";
 import {
   createLLMListwiseReranker,
   createLLMPointwiseReranker,
@@ -27,16 +30,19 @@ import type {
   ProviderRuntimeMetadata,
   RuntimeTargetDescriptor,
 } from "./contracts";
+import type { ModelUsageSink } from "./model-usage";
 
 interface ProviderMemoryExtractorFactory {
   (input: {
     dependencies?: ProviderRequestDependencies;
+    maxOutputTokens?: number;
     model: AISDKModelConfig;
     promptBuilder?: (
       input: MemoryExtractionInput,
       context?: MemoryExtractionContext,
     ) => string;
     system?: string;
+    temperature?: number;
   }): MemoryExtractor;
 }
 
@@ -56,10 +62,22 @@ interface ProviderRecallRouterFactory {
   }): RecallRouterAssistant;
 }
 
+interface ProviderRecallPlanAssistantFactory {
+  (input: {
+    dependencies?: RecallPlanAssistantDependencies;
+    maxOutputTokens?: number;
+    model: AISDKModelConfig;
+    system?: string;
+    temperature?: number;
+  }): RecallPlanAssistant;
+}
+
 interface ProviderRerankerFactory {
   (input: {
     dependencies?: PointwiseRerankerDependencies;
+    maxOutputTokens?: number;
     model: AISDKModelConfig;
+    temperature?: number;
   }): Reranker;
 }
 
@@ -72,8 +90,11 @@ interface ProviderListwiseRerankerFactory {
 
 const DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS = 15_000;
 const DEFAULT_PROVIDER_LISTWISE_RERANKER_REQUEST_TIMEOUT_MS = 60_000;
+const DEFAULT_PROVIDER_RECALL_PLAN_REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_PROVIDER_RECALL_PLAN_RETRY_LIMIT = 3;
 
 export interface ProviderRequestDependencies {
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
 }
 
@@ -133,6 +154,7 @@ export function normalizeProviderRuntimeMetadata(
 }
 
 export function createProviderMemoryExtractor(input: {
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
   promptBuilder?: (
     input: MemoryExtractionInput,
@@ -140,13 +162,20 @@ export function createProviderMemoryExtractor(input: {
   ) => string;
   system?: string;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
+  temperature?: number;
 }): MemoryExtractor {
   return (input.createMemoryExtractor ?? createLLMMemoryExtractor)({
-    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
+    dependencies: buildProviderRequestDependencies(
+      input.requestTimeoutMs,
+      input.modelUsageSink,
+    ),
+    maxOutputTokens: input.maxOutputTokens,
     model: input.model,
     promptBuilder: input.promptBuilder,
     system: input.system,
+    temperature: input.temperature,
   });
 }
 
@@ -163,10 +192,14 @@ export function createProviderConversationalMemoryExtractor(input: {
   // vocabulary mismatch. Off by default.
   contextualDescriptor?: boolean;
   createMemoryExtractor?: ProviderMemoryExtractorFactory;
+  maxOutputTokens?: number;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
+  temperature?: number;
 }): MemoryExtractor {
   return createProviderMemoryExtractor({
     model: input.model,
+    maxOutputTokens: input.maxOutputTokens,
     promptBuilder: (payload, context) =>
       buildConversationalMemoryExtractionPrompt(payload, {
         contextualDescriptor: input.contextualDescriptor,
@@ -174,17 +207,23 @@ export function createProviderConversationalMemoryExtractor(input: {
       }),
     system: CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
     createMemoryExtractor: input.createMemoryExtractor,
+    modelUsageSink: input.modelUsageSink,
     requestTimeoutMs: input.requestTimeoutMs,
+    temperature: input.temperature,
   });
 }
 
 export function createProviderEmbeddingAdapter(input: {
   model: AISDKModelConfig;
   createEmbeddingAdapter?: ProviderEmbeddingAdapterFactory;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
 }): EmbeddingAdapter {
   return (input.createEmbeddingAdapter ?? createAISDKEmbeddingAdapter)({
-    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
+    dependencies: buildProviderRequestDependencies(
+      input.requestTimeoutMs,
+      input.modelUsageSink,
+    ),
     model: input.model,
   });
 }
@@ -192,24 +231,71 @@ export function createProviderEmbeddingAdapter(input: {
 export function createProviderRecallRouter(input: {
   model: AISDKModelConfig;
   createRecallRouter?: ProviderRecallRouterFactory;
+  modelUsageSink?: ModelUsageSink;
   planSystem?: string;
   requestTimeoutMs?: number;
   rerankSystem?: string;
 }): RecallRouterAssistant {
   return (input.createRecallRouter ?? createLLMRecallRouter)({
-    dependencies: buildProviderRequestDependencies(input.requestTimeoutMs),
+    dependencies: buildProviderRequestDependencies(
+      input.requestTimeoutMs,
+      input.modelUsageSink,
+    ),
     model: input.model,
     planSystem: input.planSystem,
     rerankSystem: input.rerankSystem,
   });
 }
 
+export function createProviderRecallPlanAssistant(input: {
+  createRecallPlanAssistant?: ProviderRecallPlanAssistantFactory;
+  maxOutputTokens?: number;
+  model: AISDKModelConfig;
+  modelUsageSink?: ModelUsageSink;
+  requestTimeoutMs?: number;
+  retryLimit?: number;
+  system?: string;
+  temperature?: number;
+}): RecallPlanAssistant {
+  const requestTimeoutMs =
+    input.requestTimeoutMs ?? DEFAULT_PROVIDER_RECALL_PLAN_REQUEST_TIMEOUT_MS;
+  const retryLimit =
+    input.retryLimit ?? DEFAULT_PROVIDER_RECALL_PLAN_RETRY_LIMIT;
+  if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs <= 0) {
+    throw new Error(
+      "Provider recall plan requestTimeoutMs must be a positive integer.",
+    );
+  }
+  if (!Number.isSafeInteger(retryLimit) || retryLimit <= 0) {
+    throw new Error(
+      "Provider recall plan retryLimit must be a positive integer.",
+    );
+  }
+
+  return (input.createRecallPlanAssistant ?? createLLMRecallPlanAssistant)({
+    dependencies: {
+      ...(input.modelUsageSink === undefined
+        ? {}
+        : { modelUsageSink: input.modelUsageSink }),
+      requestTimeoutMs,
+      retryOptions: { retryLimit },
+    },
+    maxOutputTokens: input.maxOutputTokens,
+    model: input.model,
+    system: input.system,
+    temperature: input.temperature,
+  });
+}
+
 export function createProviderPointwiseReranker(input: {
   createReranker?: ProviderRerankerFactory;
   maxConcurrency?: number;
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   retryLimit?: number;
+  temperature?: number;
 }): Reranker {
   const requestTimeoutMs =
     input.requestTimeoutMs ?? DEFAULT_PROVIDER_RERANKER_REQUEST_TIMEOUT_MS;
@@ -233,10 +319,15 @@ export function createProviderPointwiseReranker(input: {
       ...(input.maxConcurrency === undefined
         ? {}
         : { maxConcurrency: input.maxConcurrency }),
+      ...(input.modelUsageSink === undefined
+        ? {}
+        : { modelUsageSink: input.modelUsageSink }),
       requestTimeoutMs,
       retryOptions: { retryLimit: input.retryLimit ?? 1 },
     },
+    maxOutputTokens: input.maxOutputTokens,
     model: input.model,
+    temperature: input.temperature,
   });
 }
 
@@ -244,6 +335,7 @@ export function createProviderListwiseReranker(input: {
   createReranker?: ProviderListwiseRerankerFactory;
   maxConcurrency?: number;
   model: AISDKModelConfig;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   retryLimit?: number;
 }): Reranker {
@@ -270,6 +362,9 @@ export function createProviderListwiseReranker(input: {
       ...(input.maxConcurrency === undefined
         ? {}
         : { maxConcurrency: input.maxConcurrency }),
+      ...(input.modelUsageSink === undefined
+        ? {}
+        : { modelUsageSink: input.modelUsageSink }),
       requestTimeoutMs,
       retryOptions: { retryLimit: input.retryLimit ?? 3 },
     },
@@ -279,6 +374,13 @@ export function createProviderListwiseReranker(input: {
 
 export function buildProviderRequestDependencies(
   requestTimeoutMs: number | undefined,
+  modelUsageSink?: ModelUsageSink,
 ): ProviderRequestDependencies | undefined {
-  return requestTimeoutMs === undefined ? undefined : { requestTimeoutMs };
+  if (requestTimeoutMs === undefined && modelUsageSink === undefined) {
+    return undefined;
+  }
+  return {
+    ...(modelUsageSink === undefined ? {} : { modelUsageSink }),
+    ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+  };
 }

@@ -30,6 +30,7 @@ describe("phase-65 LoCoMo external-root prep", () => {
       [
         {
           conversation: {
+            session_11_date_time: "10:04 am on 19 June, 2023",
             session_11: [
               {
                 blip_caption: "a photo of a contemporary dance performance",
@@ -45,6 +46,7 @@ describe("phase-65 LoCoMo external-root prep", () => {
                 text: "Your favorite dance style is contemporary.",
               },
             ],
+            session_2_date_time: "1:56 pm on 8 May, 2023",
             speaker_a: "Gina",
             speaker_b: "Caroline",
           },
@@ -67,10 +69,39 @@ describe("phase-65 LoCoMo external-root prep", () => {
 
     expect(cases).toHaveLength(1);
     expect(cases[0]?.turns.map((turn) => turn.diaId)).toEqual(["D2:3", "D11:26"]);
+    expect(cases[0]?.turns.map((turn) => turn.date)).toEqual([
+      "2023-05-08T13:56:00.000Z",
+      "2023-06-19T10:04:00.000Z",
+    ]);
     expect(cases[0]?.turns[1]?.content).toBe(
       "I started the dance studio after leaving banking.\n\nImage caption: a photo of a contemporary dance performance",
     );
     expect(cases[0]?.questions[0]?.evidenceTurnIds).toEqual(["D11:26", "D2:3"]);
+  });
+
+  it("fails closed when an upstream session timestamp is malformed", () => {
+    expect(() => normalizeLocomoPrepCases(
+      [{
+        conversation: {
+          session_1: [{
+            dia_id: "D1:1",
+            speaker: "speaker_a",
+            text: "I adopted Pepper.",
+          }],
+          session_1_date_time: "13:56 on 8 May, 2023",
+          speaker_a: "Caroline",
+          speaker_b: "Melanie",
+        },
+        qa: [{
+          answer: "Pepper",
+          category: 4,
+          evidence: ["D1:1"],
+          question: "What is the dog's name?",
+        }],
+        sample_id: "conversation-1",
+      }],
+      { maxConversations: 0, maxQuestionsPerCase: 0 },
+    )).toThrow("Invalid LoCoMo date/time");
   });
 
   it("parses prep scope flags with strict non-negative integer validation", () => {

@@ -32,6 +32,10 @@ import {
   type MemoryPacket,
 } from "./contextBuilder";
 import {
+  buildEvidenceLedger,
+  type EvidenceLedgerEntry,
+} from "./evidenceLedger";
+import {
   applyRecallAssistantPlan,
   applyRecallAssistantRerank,
   buildRecallAssistantCandidates,
@@ -73,21 +77,27 @@ import type {
   RecallRetrievalTrace,
 } from "./retrievalTrace";
 import {
-  buildDeterministicRecallPlan,
+  resolveRecallPlan,
   type RecallPlan,
+  type RecallPlanAssistant,
 } from "./recallPlan";
 import { ProviderBackedRecallError } from "./errors";
 import { computeBm25Scores } from "./bm25";
-import { fuseGeneralizedRecallCandidates } from "./generalizedFusion";
+import {
+  claimProjectionGroupKey,
+  fuseGeneralizedRecallCandidates,
+} from "./generalizedFusion";
 import { admitGeneralizedRecords } from "./generalizedAdmissions";
 import type {
   GeneralizedFusionCandidate,
+  GeneralizedFusionChannel,
   GeneralizedFusionChannelEvidence,
   GeneralizedFusionResult,
 } from "./generalizedFusion";
 import type { GeneralizedFusionSelectionInput } from "./factSelection/generalizedFusionUnion";
 import type {
   ClaimProjection,
+  RecallIndexDocument,
   RecallProjectionSearchPort,
 } from "./projections/contracts";
 import {
@@ -172,6 +182,7 @@ export interface RecallResult {
   feedback: FeedbackMemory[];
   archives: SessionArchive[];
   evidence: EvidenceRecord[];
+  evidenceLedger?: EvidenceLedgerEntry[];
   episodes: EpisodeMemory[];
   workingMemory: WorkingMemorySnapshot | null;
   journal: SessionJournal | null;
@@ -218,6 +229,8 @@ export interface RecallSemanticCandidatesConfig {
 }
 
 export interface RecallGeneralizedFusionConfig {
+  // Omit to enable lexical, dense, entity, temporal, and relation channels.
+  channels?: readonly GeneralizedFusionChannel[];
   // Global cap for the fused content-candidate set. This is an additive recall
   // budget, not a cap on records already selected by the baseline selectors.
   maxCandidates?: number;
@@ -228,7 +241,7 @@ export interface RecallGeneralizedFusionConfig {
   rrfK?: number;
 }
 
-function materializeHistoricalClaimFact(
+function materializeClaimFact(
   claim: ClaimProjection,
   source: FactMemory,
 ): FactMemory {
@@ -254,6 +267,11 @@ function materializeHistoricalClaimFact(
     createdAt: claim.observedAt,
     updatedAt: claim.ingestedAt,
   };
+}
+
+function canonicalFactMemoryId(fact: FactMemory): string {
+  const sourceMemoryId = fact.attributes?.sourceMemoryId;
+  return typeof sourceMemoryId === "string" ? sourceMemoryId : fact.id;
 }
 
 const COMPLEX_QUERY_CANDIDATE_BONUS = 4;
@@ -310,6 +328,7 @@ export interface RecallEngineConfig {
   now?: () => number;
   policy?: Pick<GoodMemoryPolicyHooks, "shouldRecall">;
   projectionIndex?: RecallProjectionSearchPort;
+  recallPlanner?: RecallPlanAssistant;
   referenceTime?: () => string;
 }
 
@@ -655,15 +674,33 @@ export function createRecallEngine(config: RecallEngineConfig) {
         text: input.query,
       });
       const currentReferenceTime = referenceTime();
-      const recallPlan = input.recallPlan ?? buildDeterministicRecallPlan({
-        language,
-        locale: resolvedLanguage.locale,
-        query: input.query,
-        referenceTime: currentReferenceTime,
-        scope: input.scope,
-      });
+      const planResolution = input.recallPlan
+        ? { assistantApplied: false, plan: input.recallPlan }
+        : await resolveRecallPlan({
+            assistant: config.recallPlanner,
+            input: {
+              language,
+              locale: resolvedLanguage.locale,
+              query: input.query,
+              referenceTime: currentReferenceTime,
+              scope: input.scope,
+            },
+          });
+      const recallPlan = planResolution.plan;
       const retrievalProfile = resolveRetrievalProfile(input.retrievalProfile);
       const policyApplied = new Set<string>();
+      if (planResolution.assistantApplied) {
+        policyApplied.add("recall_plan_assistant_applied");
+      } else if (planResolution.fallbackReason) {
+        policyApplied.add("recall_plan_assistant_fallback");
+        console.error(
+          "[goodmemory:recall-plan] assisted planning failed; using deterministic plan",
+          {
+            locale: resolvedLanguage.locale,
+            queryLength: input.query.length,
+          },
+        );
+      }
       const generalizedFusionConfig = resolveActiveGeneralizedFusionConfig({
         base: config.generalizedFusion,
         rerank: input.rerank !== false,
@@ -688,6 +725,35 @@ export function createRecallEngine(config: RecallEngineConfig) {
         ),
         llmRouting: Boolean(config.assistedRouter),
       };
+      const factGet = config.repositories.facts.get?.bind(
+        config.repositories.facts,
+      );
+      const preferenceGet = config.repositories.preferences.get?.bind(
+        config.repositories.preferences,
+      );
+      const referenceGet = config.repositories.references.get?.bind(
+        config.repositories.references,
+      );
+      const episodeGet = config.repositories.episodes.get?.bind(
+        config.repositories.episodes,
+      );
+      const archiveGet = config.repositories.archives.get?.bind(
+        config.repositories.archives,
+      );
+      const feedbackGet = config.repositories.feedback.get?.bind(
+        config.repositories.feedback,
+      );
+      const useProjectedContentLoading = Boolean(
+          generalizedFusionConfig &&
+          config.projectionIndex &&
+          input.strategy !== "rules-only" &&
+          factGet &&
+          referenceGet &&
+          episodeGet &&
+          archiveGet &&
+          preferenceGet &&
+          feedbackGet,
+      );
 
       if (input.ignoreMemory) {
         const routingDecision = planRecall({
@@ -728,6 +794,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           feedback: [],
           archives: [],
           evidence: [],
+          ...(input.includeEvidence ? { evidenceLedger: [] } : {}),
           episodes: [],
           workingMemory: null,
           journal: null,
@@ -761,13 +828,27 @@ export function createRecallEngine(config: RecallEngineConfig) {
         journalRaw,
       ] = await Promise.all([
         config.repositories.profiles.get(input.scope.userId),
-        config.repositories.preferences.listByScope(input.scope),
-        config.repositories.references.listByScope(input.scope),
-        config.repositories.facts.listByScope(input.scope),
-        config.repositories.feedback.listByScope(input.scope),
-        config.repositories.archives.listByScope(input.scope),
-        config.repositories.evidence.listByScope(input.scope),
-        config.repositories.episodes.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<PreferenceMemory[]>([])
+          : config.repositories.preferences.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<ReferenceMemory[]>([])
+          : config.repositories.references.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<FactMemory[]>([])
+          : config.repositories.facts.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<FeedbackMemory[]>([])
+          : config.repositories.feedback.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<SessionArchive[]>([])
+          : config.repositories.archives.listByScope(input.scope),
+        useProjectedContentLoading && input.includeEvidence !== true
+          ? Promise.resolve<EvidenceRecord[]>([])
+          : config.repositories.evidence.listByScope(input.scope),
+        useProjectedContentLoading
+          ? Promise.resolve<EpisodeMemory[]>([])
+          : config.repositories.episodes.listByScope(input.scope),
         input.scope.sessionId
           ? config.runtime.getWorkingMemory(input.scope)
           : Promise.resolve(null),
@@ -775,41 +856,164 @@ export function createRecallEngine(config: RecallEngineConfig) {
           ? config.runtime.getJournal(input.scope)
           : Promise.resolve(null),
       ]);
-      const preferencesRaw = filterRecordsByDefaultRecallScope(
+      let preferencesRaw = filterRecordsByDefaultRecallScope(
         preferencesLoaded,
         input.scope,
         policyApplied,
       );
-      const referencesRaw = filterRecordsByDefaultRecallScope(
+      let referencesRaw = filterRecordsByDefaultRecallScope(
         referencesLoaded,
         input.scope,
         policyApplied,
       );
-      const factsRaw = filterRecordsByDefaultRecallScope(
+      let factsRaw = filterRecordsByDefaultRecallScope(
         factsLoaded,
         input.scope,
         policyApplied,
       );
-      const feedbackRaw = filterRecordsByDefaultRecallScope(
+      let feedbackRaw = filterRecordsByDefaultRecallScope(
         feedbackLoaded,
         input.scope,
         policyApplied,
       );
-      const archivesRaw = filterRecordsByDefaultRecallScope(
+      let archivesRaw = filterRecordsByDefaultRecallScope(
         archivesLoaded,
         input.scope,
         policyApplied,
       );
-      const evidenceRaw = filterRecordsByDefaultRecallScope(
+      let evidenceRaw = filterRecordsByDefaultRecallScope(
         evidenceLoaded,
         input.scope,
         policyApplied,
       );
-      const episodesRaw = filterRecordsByDefaultRecallScope(
+      let episodesRaw = filterRecordsByDefaultRecallScope(
         episodesLoaded,
         input.scope,
         policyApplied,
       );
+
+      const loadProjectedContent = async (
+        candidates: readonly GeneralizedFusionCandidate[],
+        documents: readonly RecallIndexDocument[],
+      ): Promise<void> => {
+        if (!useProjectedContentLoading) {
+          return;
+        }
+        const sources = [...candidates, ...documents];
+        const sourceIds = (
+          collection: GeneralizedFusionCandidate["sourceCollection"],
+        ) => [...new Set(
+          sources
+            .filter((candidate) => candidate.sourceCollection === collection)
+            .map(({ sourceMemoryId }) => sourceMemoryId),
+        )];
+        const [
+          facts,
+          references,
+          episodes,
+          archives,
+          preferences,
+          feedback,
+        ] =
+          await Promise.all([
+          Promise.all(sourceIds("facts").map((id) => factGet!(id))),
+          Promise.all(sourceIds("references").map((id) => referenceGet!(id))),
+          Promise.all(sourceIds("episodes").map((id) => episodeGet!(id))),
+          Promise.all(sourceIds("session_archives").map((id) => archiveGet!(id))),
+          Promise.all(sourceIds("preferences").map((id) => preferenceGet!(id))),
+          Promise.all(sourceIds("feedback").map((id) => feedbackGet!(id))),
+        ]);
+        factsRaw = filterRecordsByDefaultRecallScope(
+          facts.filter((record): record is FactMemory => record !== null),
+          input.scope,
+          policyApplied,
+        );
+        referencesRaw = filterRecordsByDefaultRecallScope(
+          references.filter(
+            (record): record is ReferenceMemory => record !== null,
+          ),
+          input.scope,
+          policyApplied,
+        );
+        episodesRaw = filterRecordsByDefaultRecallScope(
+          episodes.filter((record): record is EpisodeMemory => record !== null),
+          input.scope,
+          policyApplied,
+        );
+        archivesRaw = filterRecordsByDefaultRecallScope(
+          archives.filter((record): record is SessionArchive => record !== null),
+          input.scope,
+          policyApplied,
+        );
+        preferencesRaw = filterRecordsByDefaultRecallScope(
+          preferences.filter(
+            (record): record is PreferenceMemory => record !== null,
+          ),
+          input.scope,
+          policyApplied,
+        );
+        feedbackRaw = filterRecordsByDefaultRecallScope(
+          feedback.filter((record): record is FeedbackMemory => record !== null),
+          input.scope,
+          policyApplied,
+        );
+      };
+
+      const loadFullContent = async (): Promise<void> => {
+        const [
+          facts,
+          references,
+          episodes,
+          archives,
+          preferences,
+          feedback,
+          evidence,
+        ] =
+          await Promise.all([
+          config.repositories.facts.listByScope(input.scope),
+          config.repositories.references.listByScope(input.scope),
+          config.repositories.episodes.listByScope(input.scope),
+          config.repositories.archives.listByScope(input.scope),
+          config.repositories.preferences.listByScope(input.scope),
+          config.repositories.feedback.listByScope(input.scope),
+          config.repositories.evidence.listByScope(input.scope),
+        ]);
+        factsRaw = filterRecordsByDefaultRecallScope(
+          facts,
+          input.scope,
+          policyApplied,
+        );
+        referencesRaw = filterRecordsByDefaultRecallScope(
+          references,
+          input.scope,
+          policyApplied,
+        );
+        episodesRaw = filterRecordsByDefaultRecallScope(
+          episodes,
+          input.scope,
+          policyApplied,
+        );
+        archivesRaw = filterRecordsByDefaultRecallScope(
+          archives,
+          input.scope,
+          policyApplied,
+        );
+        preferencesRaw = filterRecordsByDefaultRecallScope(
+          preferences,
+          input.scope,
+          policyApplied,
+        );
+        feedbackRaw = filterRecordsByDefaultRecallScope(
+          feedback,
+          input.scope,
+          policyApplied,
+        );
+        evidenceRaw = filterRecordsByDefaultRecallScope(
+          evidence,
+          input.scope,
+          policyApplied,
+        );
+      };
 
       let routingDecision = planRecall({
         retrievalProfile,
@@ -824,6 +1028,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
           hasJournal: Boolean(journalRaw),
         },
       });
+      if (
+        useProjectedContentLoading &&
+        routingDecision.strategy === "rules-only"
+      ) {
+        await loadFullContent();
+      }
       let assistantInfluence =
         routingDecision.strategy === "llm-assisted" && config.assistedRouter
           ? buildEmptyAssistantInfluence()
@@ -994,8 +1204,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       let generalizedFusion: GeneralizedFusionSelectionInput | undefined;
       let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
-      let historicalClaimFacts: FactMemory[] = [];
-      let temporalClaimSourceIds = new Set<string>();
+      let materializedClaimFacts: FactMemory[] = [];
+      let claimReplacementSourceIds = new Set<string>();
       let retrievalTrace: RecallRetrievalTrace | undefined;
       if (
         generalizedFusionConfig &&
@@ -1026,23 +1236,33 @@ export function createRecallEngine(config: RecallEngineConfig) {
               recallPlan.temporalConstraints.some(({ kind }) =>
                 kind === "after" || kind === "before" || kind === "history"
               );
-            const needsCompleteDocuments =
-              needsClaimHistory || recallPlan.temporalConstraints.length > 0;
+            const needsClaimMaterialization =
+              needsClaimHistory ||
+              recallPlan.aggregation === "count" ||
+              recallPlan.aggregation === "current" ||
+              recallPlan.temporalConstraints.some(({ kind }) =>
+                kind === "current"
+              );
             const temporalReferenceTime = recallPlan.temporalConstraints.find(
               ({ kind }) => kind === "after" || kind === "before" || kind === "current",
             )?.referenceTime ?? currentReferenceTime;
             const [documents, entities, claims] = await Promise.all([
-              needsCompleteDocuments
-                ? config.projectionIndex.queryDocuments(input.scope)
-                : config.projectionIndex.searchDocuments(
-                    input.scope,
-                    input.query,
-                    recallPlan.preRankLimit * 4,
-                  ),
-              config.projectionIndex.queryEntities(input.scope),
-              needsClaimHistory
-                ? config.projectionIndex.queryClaimHistory(input.scope)
-                : config.projectionIndex.queryClaims(input.scope),
+              config.projectionIndex.searchDocuments(
+                input.scope,
+                input.query,
+                recallPlan.preRankLimit * 4,
+              ),
+              config.projectionIndex.searchEntities(
+                input.scope,
+                input.query,
+                recallPlan.preRankLimit,
+              ),
+              config.projectionIndex.searchClaims(
+                input.scope,
+                input.query,
+                recallPlan.preRankLimit * 4,
+                needsClaimHistory,
+              ),
             ]);
             const contentDocuments = documents.filter(
               (document) =>
@@ -1066,7 +1286,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
             const fused = fuseGeneralizedRecallCandidates({
               query: input.query,
               documents: contentDocuments,
-              documentSetComplete: needsCompleteDocuments,
+              documentSetComplete: false,
               entities: contentEntities,
               claims,
               plan: recallPlan,
@@ -1114,10 +1334,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
                     score,
                   })),
               ],
+              channels: generalizedFusionConfig.channels,
               maxCandidates: generalizedFusionBudget?.maxCandidates,
-              minRelativeStrength: needsCompleteDocuments
-                ? generalizedFusionConfig.minRelativeStrength
-                : 0,
+              minRelativeStrength: 0,
               referenceTime: temporalReferenceTime,
               rrfK: generalizedFusionConfig.rrfK,
               tokenize: (text) =>
@@ -1126,7 +1345,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 }),
             });
             generalizedFusionCandidates = fused.candidates;
-            if (needsClaimHistory) {
+            await loadProjectedContent(generalizedFusionCandidates, documents);
+            if (needsClaimMaterialization) {
               const selectedClaimIds = new Set(
                 fused.candidates.flatMap((candidate) =>
                   candidate.channels.temporal?.evidenceDocumentIds ?? []
@@ -1135,23 +1355,24 @@ export function createRecallEngine(config: RecallEngineConfig) {
               const selectedClaims = claims.filter((claim) =>
                 selectedClaimIds.has(claim.id)
               );
-              const requiresStrictTemporalReplacement =
-                recallPlan.aggregation === "history" ||
-                recallPlan.temporalConstraints.some(({ kind }) =>
-                  kind === "before" || kind === "after" || kind === "history"
-                );
-              temporalClaimSourceIds = new Set(
-                (requiresStrictTemporalReplacement ? claims : selectedClaims)
+              const selectedGroupKeys = new Set(
+                selectedClaims.map(claimProjectionGroupKey),
+              );
+              claimReplacementSourceIds = new Set(
+                claims
+                  .filter((claim) =>
+                    selectedGroupKeys.has(claimProjectionGroupKey(claim))
+                  )
                   .map(({ sourceMemoryId }) => sourceMemoryId),
               );
               const factsById = new Map(
                 factsRaw.map((fact) => [fact.id, fact] as const),
               );
-              historicalClaimFacts = selectedClaims
+              materializedClaimFacts = selectedClaims
                 .flatMap((claim) => {
                   const source = factsById.get(claim.sourceMemoryId);
                   return source
-                    ? [materializeHistoricalClaimFact(claim, source)]
+                    ? [materializeClaimFact(claim, source)]
                     : [];
                 });
             }
@@ -1169,7 +1390,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
               candidates: fused.candidates
                 .filter((candidate) => candidate.sourceCollection === "facts")
                 .flatMap((candidate) => {
-                  const claimFacts = historicalClaimFacts.filter((fact) =>
+                  const claimFacts = materializedClaimFacts.filter((fact) =>
                     fact.attributes?.sourceMemoryId === candidate.sourceMemoryId
                   );
                   return (claimFacts.length > 0 ? claimFacts : [{
@@ -1192,6 +1413,9 @@ export function createRecallEngine(config: RecallEngineConfig) {
               error,
             );
             policyApplied.add("generalized_fusion_unavailable");
+            if (useProjectedContentLoading) {
+              await loadFullContent();
+            }
             retrievalTrace = {
               fusionRuns: [
                 {
@@ -1278,10 +1502,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 : {}),
             }
           : undefined;
-      const factSelectionPool = temporalClaimSourceIds.size > 0
+      const factSelectionPool = claimReplacementSourceIds.size > 0
         ? [
-            ...factsRaw.filter((fact) => !temporalClaimSourceIds.has(fact.id)),
-            ...historicalClaimFacts,
+            ...factsRaw.filter((fact) => !claimReplacementSourceIds.has(fact.id)),
+            ...materializedClaimFacts,
           ]
         : factsRaw;
       const selectedFacts = selectFacts(
@@ -1486,10 +1710,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const feedbackEvidenceIds = new Set(
         feedback.flatMap((feedbackItem) => feedbackItem.evidence ?? []),
       );
+      const selectedFactSourceIds = facts.map(canonicalFactMemoryId);
       const visibleLinkedEvidence = filterLinkedEvidence(
         visibleEvidencePool,
         new Set([
-          ...facts.map((fact) => fact.id),
+          ...selectedFactSourceIds,
           ...references.map((reference) => reference.id),
           ...feedback.map((feedbackItem) => feedbackItem.id),
           ...episodes.map((episode) => episode.id),
@@ -1501,6 +1726,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         visibleEvidencePool,
         new Set([
           ...factTraceIds.memoryIds,
+          ...selectedFactSourceIds,
           ...referenceTraceIds.memoryIds,
           ...episodeTraceIds.memoryIds,
           ...feedback.map((feedbackItem) => feedbackItem.id),
@@ -1550,6 +1776,40 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const workingMemory =
         retrievalProfile === "coding_agent" ? workingMemoryRaw : null;
       const journal = retrievalProfile === "coding_agent" ? journalRaw : null;
+      const selectedMemoryIds = [
+        ...selectedFactSourceIds,
+        ...references.map(({ id }) => id),
+        ...feedback.map(({ id }) => id),
+        ...episodes.map(({ id }) => id),
+        ...archives.map(({ id }) => id),
+      ];
+      let ledgerClaims: ClaimProjection[] = [];
+      if (
+        input.includeEvidence &&
+        evidence.length > 0 &&
+        config.projectionIndex
+      ) {
+        try {
+          ledgerClaims = await config.projectionIndex.queryClaimsBySourceMemoryIds(
+            input.scope,
+            selectedMemoryIds,
+          );
+        } catch (error) {
+          console.error(
+            "[goodmemory:evidence-ledger] claim lookup failed; returning raw evidence ledger",
+            error,
+          );
+        }
+      }
+      const evidenceLedger = input.includeEvidence
+        ? buildEvidenceLedger({
+            aggregation: recallPlan.aggregation,
+            claims: ledgerClaims,
+            evidence,
+            referenceTime: currentReferenceTime,
+            selectedMemoryIds,
+          })
+        : undefined;
       const packet = buildMemoryPacket({
         profile: filteredProfile,
         preferences,
@@ -1577,6 +1837,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         feedback,
         archives,
         evidence,
+        ...(evidenceLedger ? { evidenceLedger } : {}),
         episodes,
         workingMemory,
         journal,

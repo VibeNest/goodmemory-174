@@ -166,7 +166,7 @@ export async function openC5EvidenceLedger(input: {
         const key = `${pair.clusterId}/${pair.stageId}`;
         if (pairKeys.has(key)) throw new Error(`duplicate C5 pair result ${key}`);
         validatePair(pair, expectedPairs[pairKeys.size]);
-        await appendFile(pairsPath, `${JSON.stringify(pair)}\n`, "utf8");
+        await appendJsonLine(pairsPath, pair);
         parsedPairs.rows.push(pair);
         pairKeys.add(key);
       });
@@ -177,7 +177,7 @@ export async function openC5EvidenceLedger(input: {
           throw new Error(`duplicate C5 stage execution ${execution.stageRunId}`);
         }
         validateStage(execution, expectedStages[stageIds.size]);
-        await appendFile(stagesPath, `${JSON.stringify(execution)}\n`, "utf8");
+        await appendJsonLine(stagesPath, execution);
         parsedStages.rows.push(execution);
         stageIds.add(execution.stageRunId);
       });
@@ -203,7 +203,7 @@ export async function openC5EvidenceLedger(input: {
           clusterId,
           schemaVersion: 1,
         };
-        await appendFile(commitsPath, `${JSON.stringify(commit)}\n`, "utf8");
+        await appendJsonLine(commitsPath, commit);
         parsedCommits.rows.push(commit);
       });
     },
@@ -404,18 +404,25 @@ async function preserveInterruptedCluster(input: {
   await mkdir(dirname(join(input.directory, attemptEvidencePath)), {
     recursive: true,
   });
-  await writeFile(join(input.directory, attemptEvidencePath), bytes, {
-    encoding: "utf8",
-    flag: "wx",
-  });
-  await appendFile(input.attemptsPath, `${JSON.stringify({
+  const evidencePath = join(input.directory, attemptEvidencePath);
+  try {
+    await writeFile(evidencePath, bytes, {
+      encoding: "utf8",
+      flag: "wx",
+    });
+  } catch (error) {
+    if (!isAlreadyExists(error) || await readRequired(evidencePath) !== bytes) {
+      throw error;
+    }
+  }
+  await appendJsonLine(input.attemptsPath, {
     attemptEvidencePath,
     attemptEvidenceSha256: sha256(bytes),
     attemptId,
     clusterId: input.clusterId,
     disposition: "process-interrupted-before-cluster-commit",
     schemaVersion: 1,
-  })}\n`, "utf8");
+  });
 }
 
 async function collectInterruptedArtifacts(
@@ -556,6 +563,12 @@ async function writeAtomicJsonLines(path: string, rows: readonly unknown[]): Pro
   await rename(temporary, path);
 }
 
+async function appendJsonLine(path: string, row: unknown): Promise<void> {
+  const current = await readOptional(path);
+  const separator = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
+  await appendFile(path, `${separator}${JSON.stringify(row)}\n`, "utf8");
+}
+
 async function readOptional(path: string): Promise<string> {
   try {
     return await readFile(path, "utf8");
@@ -586,6 +599,10 @@ async function exists(path: string): Promise<boolean> {
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+function isAlreadyExists(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "EEXIST";
 }
 
 function clusterDigest(clusterId: string): string {

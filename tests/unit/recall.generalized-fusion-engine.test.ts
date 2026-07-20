@@ -95,6 +95,18 @@ describe("generalized fusion through the recall engine", () => {
         fullScans += 1;
         return projectionRuntime.queryDocuments(scopeInput);
       },
+      queryEntities(scopeInput: typeof scope) {
+        fullScans += 1;
+        return projectionRuntime.queryEntities(scopeInput);
+      },
+      queryClaims(scopeInput: typeof scope) {
+        fullScans += 1;
+        return projectionRuntime.queryClaims(scopeInput);
+      },
+      queryClaimHistory(scopeInput: typeof scope) {
+        fullScans += 1;
+        return projectionRuntime.queryClaimHistory(scopeInput);
+      },
       searchDocuments(scopeInput: typeof scope, query: string, limit: number) {
         searches += 1;
         return projectionRuntime.searchDocuments(scopeInput, query, limit);
@@ -105,6 +117,54 @@ describe("generalized fusion through the recall engine", () => {
       documentStore: projectionRuntime.documentStore,
       sessionStore,
     });
+    let canonicalFullScans = 0;
+    const factListByScope = repositories.facts.listByScope.bind(repositories.facts);
+    repositories.facts.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return factListByScope(scopeInput);
+    };
+    const referenceListByScope = repositories.references.listByScope.bind(
+      repositories.references,
+    );
+    repositories.references.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return referenceListByScope(scopeInput);
+    };
+    const episodeListByScope = repositories.episodes.listByScope.bind(
+      repositories.episodes,
+    );
+    repositories.episodes.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return episodeListByScope(scopeInput);
+    };
+    const archiveListByScope = repositories.archives.listByScope.bind(
+      repositories.archives,
+    );
+    repositories.archives.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return archiveListByScope(scopeInput);
+    };
+    const preferenceListByScope = repositories.preferences.listByScope.bind(
+      repositories.preferences,
+    );
+    repositories.preferences.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return preferenceListByScope(scopeInput);
+    };
+    const feedbackListByScope = repositories.feedback.listByScope.bind(
+      repositories.feedback,
+    );
+    repositories.feedback.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return feedbackListByScope(scopeInput);
+    };
+    const evidenceListByScope = repositories.evidence.listByScope.bind(
+      repositories.evidence,
+    );
+    repositories.evidence.listByScope = (scopeInput) => {
+      canonicalFullScans += 1;
+      return evidenceListByScope(scopeInput);
+    };
     await repositories.facts.add(createFactMemory({
       id: "fact-atlas",
       ...scope,
@@ -130,6 +190,7 @@ describe("generalized fusion through the recall engine", () => {
 
     expect(searches).toBe(1);
     expect(fullScans).toBe(0);
+    expect(canonicalFullScans).toBe(0);
   });
 
   it("admits a fused dense candidate with generalized attribution and no parallel semantic bypass", async () => {
@@ -494,6 +555,70 @@ describe("generalized fusion through the recall engine", () => {
         }),
       ]),
     );
+  });
+
+  it("materializes only the latest source in a current claim group", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    for (const [id, content, objectText, timestamp] of [
+      [
+        "fact-project-old",
+        "Atlas current project status planned current project status.",
+        "planned",
+        "2026-07-01T00:00:00.000Z",
+      ],
+      [
+        "fact-project-new",
+        "Opaque completion record.",
+        "completed",
+        "2026-07-09T00:00:00.000Z",
+      ],
+    ] as const) {
+      await repositories.facts.add(createFactMemory({
+        id,
+        ...scope,
+        category: "project",
+        content,
+        source: { method: "explicit", extractedAt: timestamp },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
+      await projectionIndex.appendClaim({
+        ...scope,
+        sourceMemoryId: id,
+        subject: "Atlas",
+        claim: { predicateKey: "project.status", objectText },
+        observedAt: timestamp,
+        ingestedAt: timestamp,
+        evidenceIds: [],
+        sourceMessageIds: [],
+        extractorVersion: "claim-test-v1",
+      });
+    }
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 8 },
+      projectionIndex,
+      referenceTime: () => "2026-07-10T00:00:00.000Z",
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: "What is Atlas's current project status?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts.map(({ content }) => content)).toEqual(["completed"]);
   });
 
   it("queries claim history and selects the status before an explicit boundary", async () => {

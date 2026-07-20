@@ -22,6 +22,7 @@ import type {
   VectorStore,
 } from "./contracts";
 import {
+  PROJECTION_BATCH_SEMANTICS,
   assertDocumentQueryPageInput,
   assertDocumentTextSearchInput,
   matchesFilter,
@@ -546,6 +547,7 @@ export function createSQLiteDocumentStore(
   }
 
   return {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,

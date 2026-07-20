@@ -66,6 +66,7 @@ import type {
 import {
   auditC5LiveLeakageSurfaces,
 } from "./c5-live-leakage";
+import type { C5TrajectoryOrigin } from "./c5-live-leakage";
 import type {
   C5StageEvaluation,
   C5StageExecution,
@@ -75,6 +76,7 @@ import type {
   C5PilotPlan,
   C5PilotStageRun,
 } from "./c5-pilot-plan";
+import { isC5StageWritebackRequired } from "./c5-memory-protocol";
 import { restoreC5ArmModelCredential } from "./c5-runtime";
 import {
   auditC5TaskAliasIsolation,
@@ -168,6 +170,32 @@ export function resolveC5CodexStageInput(input: {
     }),
     timeoutMs: input.stageTimeoutMs,
   };
+}
+
+export function resolveC5PriorStageTrajectoryOrigins(input: {
+  codexStdout: string;
+  patch: string;
+  prompt: string;
+  stageId: string;
+}): C5TrajectoryOrigin[] {
+  return [
+    {
+      content: input.prompt,
+      id: `${input.stageId}:effective-prompt`,
+    },
+    ...(input.patch.length > 0
+      ? [{
+          content: input.patch,
+          id: `${input.stageId}:agent-patch`,
+        }]
+      : []),
+    ...(input.codexStdout.length > 0
+      ? [{
+          content: input.codexStdout,
+          id: `${input.stageId}:codex-jsonl-output`,
+        }]
+      : []),
+  ];
 }
 
 export function sanitizeC5StageEvents(input: {
@@ -285,18 +313,12 @@ export async function createC5NativeLiveAdapter(input: {
                 `missing C5 trajectory origin stage ${priorStageId}`,
               );
             }
-            return [
-              {
-                content: priorStage.prompt,
-                id: `${priorStageId}:effective-prompt`,
-              },
-              ...(priorStage.patch.diff.length > 0
-                ? [{
-                    content: priorStage.patch.diff,
-                    id: `${priorStageId}:agent-patch`,
-                  }]
-                : []),
-            ];
+            return resolveC5PriorStageTrajectoryOrigins({
+              codexStdout: priorStage.codex.stdout,
+              patch: priorStage.patch.diff,
+              prompt: priorStage.prompt,
+              stageId: priorStageId,
+            });
           }),
         });
         await writeFile(
@@ -699,13 +721,11 @@ async function executeNativeStage(input: {
         memoryExpectation: input.stage.memoryExpectation,
         runtime: input.state.runtime,
         timeoutMs: input.input.testTimeoutMs,
-        writebackRequired:
-          input.state.priorWrittenMemoryIds.length === 0 &&
-          input.state.run.stages
-            .slice(
-              input.state.run.stages.findIndex(({ id }) => id === input.stage.id) + 1,
-            )
-            .some(({ memoryExpectation }) => memoryExpectation === "required"),
+        writebackRequired: isC5StageWritebackRequired({
+          priorWritebackCommitted: input.state.priorWrittenMemoryIds.length > 0,
+          run: input.state.run,
+          stage: input.stage,
+        }),
       });
       if (!canary.canary.passed) {
         failureStage = "host-canary";

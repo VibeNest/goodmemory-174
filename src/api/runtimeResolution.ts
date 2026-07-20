@@ -117,6 +117,7 @@ function hasExplicitAdaptersConfigured(
       adapters?.documentStore ||
       adapters?.embeddingAdapter ||
       adapters?.reranker ||
+      adapters?.recallPlanner ||
       adapters?.sessionStore ||
       adapters?.vectorStore,
   );

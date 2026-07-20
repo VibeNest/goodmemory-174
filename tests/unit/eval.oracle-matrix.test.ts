@@ -71,7 +71,12 @@ describe("eval oracle matrix", () => {
   it("uses one label-free reader for the first five arms and protocol metadata only for the sixth", async () => {
     const genericInputs: OracleMatrixReaderInput[] = [];
     const protocolInputs: OracleMatrixProtocolReaderInput[] = [];
+    const countedContexts: string[] = [];
     const results = await runOracleMatrixCase({
+      countRenderedTokens: (context) => {
+        countedContexts.push(context);
+        return context.length + 7;
+      },
       genericReader: async (input) => {
         genericInputs.push(input);
         return "Postgres";
@@ -86,10 +91,30 @@ describe("eval oracle matrix", () => {
       testCase: createCase(),
     });
 
+    expect(countedContexts).toEqual([
+      ...genericInputs.map(({ context }) => context),
+      protocolInputs[0]!.context,
+    ]);
+    expect(results.map(({ renderedContextTokens }) => renderedContextTokens))
+      .toEqual(countedContexts.map((context) => context.length + 7));
     expect(genericInputs).toHaveLength(5);
     expect(
       genericInputs.map((input) => Object.keys(input).sort()),
-    ).toEqual(Array.from({ length: 5 }, () => ["context", "question"]));
+    ).toEqual(Array.from({ length: 5 }, () => [
+      "caseId",
+      "context",
+      "purpose",
+      "question",
+    ]));
+    expect(genericInputs.map(({ caseId }) => caseId)).toEqual(
+      Array.from({ length: 5 }, () => "case-1"),
+    );
+    expect(genericInputs.map(({ purpose }) => purpose)).toEqual(
+      ORACLE_MATRIX_ARMS.slice(0, 5).map((arm) => `oracle:${arm}`),
+    );
+    expect(genericInputs.every((input) =>
+      !("protocolMetadata" in input) && !("expectedAnswer" in input)
+    )).toBe(true);
     expect(protocolInputs).toHaveLength(1);
     expect(protocolInputs[0]?.protocolMetadata).toEqual({
       questionType: "knowledge_update",
@@ -105,19 +130,151 @@ describe("eval oracle matrix", () => {
     expect(results[4]?.contextItemIds).toEqual(results[5]?.contextItemIds);
   });
 
+  it("enforces the frozen context budget before every reader and records truncation", async () => {
+    const readerContexts: string[] = [];
+    const longCase = createCase();
+    longCase.goldEvidenceIds = ["raw-1", "raw-2"];
+    longCase.rawEvidence = [
+      {
+        content: "a".repeat(500),
+        id: "raw-1",
+        sourceIds: ["raw-1"],
+      },
+      {
+        content: "second item",
+        id: "x".repeat(200),
+        sourceIds: ["raw-2"],
+      },
+    ];
+    longCase.retrievedMemories = longCase.rawEvidence;
+    longCase.storedMemories = longCase.rawEvidence;
+
+    const results = await runOracleMatrixCase({
+      contextTokenBudget: 96,
+      countRenderedTokens: (context) => context.length,
+      genericReader: async ({ context }) => {
+        readerContexts.push(context);
+        return "Postgres";
+      },
+      judge: async () => ({ correct: true }),
+      protocolReader: async ({ context }) => {
+        readerContexts.push(context);
+        return "Postgres";
+      },
+      testCase: longCase,
+    });
+
+    expect(readerContexts).toHaveLength(6);
+    expect(readerContexts.every((context) => context.length <= 96)).toBe(true);
+    expect(results.every(({ renderedContextTokens }) =>
+      renderedContextTokens <= 96
+    )).toBe(true);
+    const raw = results.find(({ arm }) => arm === "oracle-raw");
+    expect(raw).toMatchObject({
+      contextItemIds: ["raw-1"],
+      contextTruncated: true,
+      renderedContextTokens: 96,
+    });
+    expect(raw!.renderedContextTokensBeforeTruncation).toBeGreaterThan(96);
+    expect(raw!.contextCharsBeforeTruncation).toBeGreaterThan(
+      raw!.contextChars,
+    );
+    expect(readerContexts.some((context) => context.includes("x".repeat(200))))
+      .toBe(false);
+  });
+
+  it("safely truncates one oversized item while retaining only its visible id", async () => {
+    const readerContexts: string[] = [];
+    const inputCase = createCase();
+    inputCase.goldEvidenceIds = ["raw-1"];
+    inputCase.rawEvidence = [{
+      content: "😀".repeat(100),
+      id: "raw-1",
+      sourceIds: ["raw-1"],
+    }];
+    inputCase.retrievedMemories = inputCase.rawEvidence;
+    inputCase.storedMemories = inputCase.rawEvidence;
+
+    const results = await runOracleMatrixCase({
+      contextTokenBudget: 79,
+      countRenderedTokens: (context) => context.length,
+      genericReader: async ({ context }) => {
+        readerContexts.push(context);
+        return "Postgres";
+      },
+      judge: async () => ({ correct: true }),
+      protocolReader: async ({ context }) => {
+        readerContexts.push(context);
+        return "Postgres";
+      },
+      testCase: inputCase,
+    });
+    const raw = results.find(({ arm }) => arm === "oracle-raw");
+
+    expect(raw?.contextItemIds).toEqual(["raw-1"]);
+    expect(raw?.renderedContextTokens).toBeLessThanOrEqual(79);
+    expect(raw?.contextTruncated).toBe(true);
+    expect(readerContexts.every((context) =>
+      new TextDecoder().decode(new TextEncoder().encode(context)) === context
+    )).toBe(true);
+  });
+
   it("reports storage coverage separately from retrieval recall conditional on storage", () => {
     expect(measureOracleMatrixCoverage(createCase())).toEqual({
+      evaluable: true,
       goldEvidenceCount: 2,
       retrievedEvidenceRecall: 0.5,
       retrievedGoldEvidenceCount: 1,
       retrievalRecallGivenStorage: 0.5,
       storageCoverage: 1,
       storedGoldEvidenceCount: 2,
+      unresolvedGoldEvidenceIds: [],
     });
+  });
+
+  it("marks gold-dependent coverage and oracle arms non-evaluable when upstream evidence is missing", async () => {
+    const testCase = {
+      ...createCase(),
+      goldEvidenceIds: [...createCase().goldEvidenceIds, "raw-missing"],
+      unresolvedGoldEvidenceIds: ["raw-missing"],
+    };
+    const genericPurposes: string[] = [];
+    const results = await runOracleMatrixCase({
+      countRenderedTokens: (context) => context.length,
+      genericReader: async ({ purpose }) => {
+        genericPurposes.push(purpose!);
+        return "Postgres";
+      },
+      judge: async () => ({ correct: true }),
+      protocolReader: async () => "Postgres",
+      testCase,
+    });
+
+    expect(measureOracleMatrixCoverage(testCase)).toEqual({
+      evaluable: false,
+      goldEvidenceCount: 3,
+      retrievedEvidenceRecall: null,
+      retrievedGoldEvidenceCount: 1,
+      retrievalRecallGivenStorage: null,
+      storageCoverage: null,
+      storedGoldEvidenceCount: 2,
+      unresolvedGoldEvidenceIds: ["raw-missing"],
+    });
+    expect(results.filter(({ evaluable }) => !evaluable).map(({ arm }) => arm))
+      .toEqual(["oracle-raw", "oracle-memory", "retrieved-gold-only"]);
+    expect(results.filter(({ evaluable }) => !evaluable).every((result) =>
+      result.answer === null && result.correct === null &&
+      result.notEvaluableReason?.includes("raw-missing")
+    )).toBe(true);
+    expect(genericPurposes).toEqual([
+      "oracle:no-memory",
+      "oracle:retrieved-full",
+    ]);
   });
 
   it("retains an arm-level failure instead of dropping the rest of the matrix", async () => {
     const results = await runOracleMatrixCase({
+      countRenderedTokens: (context) => context.length,
       genericReader: async () => "Postgres",
       judge: async () => ({ correct: true }),
       protocolReader: async () => {

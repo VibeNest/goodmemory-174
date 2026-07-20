@@ -21,6 +21,11 @@ import {
   createInMemorySessionStore,
   createInMemoryVectorStore,
 } from "../../src/storage/memory";
+import type {
+  DocumentStore,
+  ProjectionCapableDocumentStore,
+  StorageDocument,
+} from "../../src/storage/contracts";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 import { createArtifactSpilloverService } from "../../src/runtime/spillover";
 import {
@@ -635,6 +640,101 @@ describe("public governance API", () => {
     expect(JSON.stringify(await Promise.all(projectionCollections.map((collection) =>
       documentStore.query(collection, {})
     )))).not.toContain("sensitive-object-text");
+  });
+
+  it("rejects a cross-runtime scoped write while deleteAllMemory is in progress", async () => {
+    const inner = createInMemoryDocumentStore();
+    let releaseProjectionScan: (() => void) | undefined;
+    let markProjectionScanReached: (() => void) | undefined;
+    const projectionScanReached = new Promise<void>((resolve) => {
+      markProjectionScanReached = resolve;
+    });
+    const projectionScanReleased = new Promise<void>((resolve) => {
+      releaseProjectionScan = resolve;
+    });
+    let pauseProjectionScan = false;
+    const documentStore: ProjectionCapableDocumentStore = {
+      ...inner,
+      async query<TDocument extends StorageDocument>(
+        collection: string,
+        filter?: Record<string, unknown>,
+      ) {
+        const records = await inner.query<TDocument>(collection, filter);
+        if (pauseProjectionScan && collection === PROJECTION_REPAIRS_COLLECTION) {
+          pauseProjectionScan = false;
+          markProjectionScanReached?.();
+          await projectionScanReleased;
+        }
+        return records;
+      },
+    };
+    const scope = {
+      userId: "u-delete-race",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    };
+    const deletingMemory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const concurrentMemory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    await deletingMemory.remember({
+      scope,
+      messages: [{ role: "user", content: "Remember that the first rollout is blocked." }],
+    });
+
+    pauseProjectionScan = true;
+    const deletion = deletingMemory.deleteAllMemory({ scope });
+    await projectionScanReached;
+    const concurrentWrite = concurrentMemory.remember({
+      scope,
+      messages: [{ role: "user", content: "Remember that sensitive late write." }],
+    });
+    const writeOutcome = await concurrentWrite.then(
+      () => "resolved" as const,
+      () => "rejected" as const,
+    );
+    releaseProjectionScan?.();
+    await deletion;
+
+    expect(writeOutcome).toBe("rejected");
+    expect(await inner.query("facts", scope)).toEqual([]);
+    expect(JSON.stringify(await inner.query(SOURCE_MESSAGES_COLLECTION, scope)))
+      .not.toContain("sensitive late write");
+
+    const postDeleteWrite = await concurrentMemory.remember({
+      scope,
+      messages: [{ role: "user", content: "Remember that a new rollout starts now." }],
+    });
+    expect(postDeleteWrite.accepted).toBeGreaterThan(0);
+  });
+
+  it("fails closed when an adapter cannot provide terminal delete semantics", async () => {
+    const inner = createInMemoryDocumentStore();
+    const legacyStore: DocumentStore = {
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => inner.get(collection, id),
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => inner.query(collection, filter),
+      delete: (collection, id) => inner.delete(collection, id),
+    };
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: legacyStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+
+    await expect(memory.deleteAllMemory({
+      scope: { userId: "u-legacy-delete" },
+    })).rejects.toThrow("projection-capable document store");
   });
 
   it("keeps workspace-scoped proposals when deleting one contributing session", async () => {

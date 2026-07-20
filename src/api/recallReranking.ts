@@ -2,6 +2,10 @@ import { rebuildMemoryPacket } from "../recall/contextBuilder";
 import { applyRerankingWithScores } from "../recall/reranker";
 import type { Reranker } from "../recall/reranker";
 import type { RecallRerankerTrace } from "../recall/retrievalTrace";
+import {
+  RECALL_PLAN_PRE_RANK_LIMIT,
+  RECALL_PLAN_SELECTED_LIMIT,
+} from "../recall/recallPlan";
 import type { RecallResult } from "./contracts";
 
 export interface RerankerExecutionTarget {
@@ -49,6 +53,7 @@ export function withRerankerTrace(
   reranker: RecallRerankerTrace,
   policy?: "reranked" | "reranker_fallback",
 ): RecallResult {
+  const previous = result.metadata.retrievalTrace;
   return {
     ...result,
     metadata: {
@@ -56,11 +61,13 @@ export function withRerankerTrace(
       ...(policy
         ? { policyApplied: [...new Set([...result.metadata.policyApplied, policy])] }
         : {}),
-      retrievalTrace: {
-        ...result.metadata.retrievalTrace,
-        reranker,
-        schemaVersion: 1,
-      },
+      retrievalTrace: previous?.schemaVersion === 2
+        ? { ...previous, reranker }
+        : {
+            ...(previous?.fusionRuns ? { fusionRuns: previous.fusionRuns } : {}),
+            reranker,
+            schemaVersion: 1,
+          },
     },
   };
 }
@@ -100,20 +107,125 @@ export function mergeDurableCandidateOrder(input: {
   return merged;
 }
 
-// Membership and abstention stay owned by deterministic recall. This stage only
-// reorders selected facts, and provider failure returns the original result.
+function sourceMemoryId(fact: RecallResult["facts"][number]): string {
+  const sourceId = fact.attributes?.sourceMemoryId;
+  return typeof sourceId === "string" ? sourceId : fact.id;
+}
+
+function rebuildRerankedResult(input: {
+  durableCandidateOrder?: string[];
+  facts: RecallResult["facts"];
+  result: RecallResult;
+}): RecallResult {
+  const factIds = new Set(
+    input.facts.flatMap((fact) => [fact.id, sourceMemoryId(fact)]),
+  );
+  const selectedMemoryIds = new Set([
+    ...factIds,
+    ...input.result.references.map(({ id }) => id),
+    ...input.result.feedback.map(({ id }) => id),
+    ...input.result.episodes.map(({ id }) => id),
+    ...input.result.archives.map(({ id }) => id),
+  ]);
+  const evidence = input.result.evidence.filter((record) => {
+    const linked = [...record.linkedMemoryIds, ...record.linkedArchiveIds];
+    return linked.length === 0 || linked.some((id) => selectedMemoryIds.has(id));
+  });
+  const evidenceIds = new Set(evidence.map(({ id }) => id));
+  const evidenceLedger = input.result.evidenceLedger?.filter((entry) =>
+    selectedMemoryIds.has(entry.sourceMemoryId) &&
+    evidenceIds.has(entry.evidenceId),
+  );
+  const packet = rebuildMemoryPacket(input.result.packet, {
+    profile: input.result.profile,
+    preferences: input.result.preferences,
+    references: input.result.references,
+    facts: input.facts,
+    feedback: input.result.feedback,
+    archives: input.result.archives,
+    evidence,
+    episodes: input.result.episodes,
+    workingMemory: input.result.workingMemory,
+    journal: input.result.journal,
+    durableCandidateOrder: input.durableCandidateOrder,
+    locale: input.result.metadata.locale,
+    routingDecision: input.result.metadata.routingDecision,
+  });
+  const retrievalTrace = input.result.metadata.retrievalTrace;
+
+  return {
+    ...input.result,
+    facts: input.facts,
+    evidence,
+    ...(evidenceLedger ? { evidenceLedger } : {}),
+    packet,
+    metadata: {
+      ...input.result.metadata,
+      tokenCount: packet.debug?.estimatedTokens ?? input.result.metadata.tokenCount,
+      hits: input.result.metadata.hits.filter((hit) =>
+        hit.type === "fact"
+          ? factIds.has(hit.id)
+          : hit.type === "evidence"
+            ? evidenceIds.has(hit.id)
+            : true,
+      ),
+      candidateTraces: input.result.metadata.candidateTraces.map((trace) => {
+        if (trace.memoryType !== "fact") {
+          return trace;
+        }
+        const selected = factIds.has(trace.memoryId);
+        const { whyReturned: _whyReturned, whySuppressed: _whySuppressed, ...base } = trace;
+        return selected
+          ? { ...base, returned: true, whyReturned: "selected after reranking" }
+          : {
+              ...base,
+              returned: false,
+              whySuppressed: "reranker_final_selection",
+            };
+      }),
+      verificationHints: input.result.metadata.verificationHints.filter(
+        (hint) => hint.memoryType !== "fact" || factIds.has(hint.memoryId),
+      ),
+      ...(retrievalTrace?.fusionRuns
+        ? {
+            retrievalTrace: {
+              ...retrievalTrace,
+              fusionRuns: retrievalTrace.fusionRuns.map((run) => ({
+                ...run,
+                candidates: run.candidates.map((candidate) => {
+                  const selected = candidate.sourceCollection !== "facts" ||
+                    factIds.has(candidate.sourceMemoryId);
+                  return {
+                    ...candidate,
+                    selected,
+                    ...(!selected ? { eliminationReason: "not_selected" as const } : {}),
+                  };
+                }),
+              })),
+            },
+          }
+        : {}),
+    },
+  };
+}
+
 export async function applyFactRerankingToResult(input: {
+  preRankLimit?: number;
   query: string;
   reranker: Reranker;
   result: RecallResult;
+  selectedLimit?: number;
   target: RerankerExecutionTarget;
 }): Promise<RecallResult> {
   const { query, reranker, result, target } = input;
-  if (result.facts.length < 2) {
+  const preRankLimit = input.preRankLimit ?? RECALL_PLAN_PRE_RANK_LIMIT;
+  const selectedLimit = input.selectedLimit ?? RECALL_PLAN_SELECTED_LIMIT;
+  const candidatePool = result.facts.slice(0, preRankLimit);
+  if (candidatePool.length < 2) {
     return withRerankerTrace(
       result,
       buildSkippedRerankerTrace({
-        candidateCount: result.facts.length,
+        candidateCount: candidatePool.length,
         reason: "insufficient_candidates",
         target,
       }),
@@ -122,56 +234,38 @@ export async function applyFactRerankingToResult(input: {
   const startedAt = Date.now();
   try {
     const topK = resolveRerankerTopK({
-      candidateCount: result.facts.length,
+      candidateCount: candidatePool.length,
       target,
     });
     const outcome = await applyRerankingWithScores({
-      items: result.facts,
+      items: candidatePool,
       query,
       reranker,
-      ...(topK === undefined ? {} : { topK }),
+      topK: topK ?? candidatePool.length,
       getText: (fact) => `${fact.content} ${fact.subject ?? ""}`,
     });
-    const facts = outcome.items;
+    const facts = outcome.items.slice(0, selectedLimit);
     const rankBefore = new Map(
-      result.facts.map((fact, index) => [fact.id, index + 1] as const),
+      candidatePool.map((fact, index) => [fact.id, index + 1] as const),
     );
     const rankAfter = new Map(
-      facts.map((fact, index) => [fact.id, index + 1] as const),
+      outcome.items.map((fact, index) => [fact.id, index + 1] as const),
     );
     const durableCandidateOrder = result.metadata.assistantInfluence?.rerankApplied
       ? mergeDurableCandidateOrder({
           factIdsAfter: facts.map((fact) => fact.id),
-          factIdsBefore: result.facts.map((fact) => fact.id),
+          factIdsBefore: candidatePool.map((fact) => fact.id),
           originalOrder:
             result.metadata.assistantInfluence.rerankedCandidateIds,
         })
       : undefined;
-    const packet = rebuildMemoryPacket(result.packet, {
-      profile: result.profile,
-      preferences: result.preferences,
-      references: result.references,
-      facts,
-      feedback: result.feedback,
-      archives: result.archives,
-      evidence: result.evidence,
-      episodes: result.episodes,
-      workingMemory: result.workingMemory,
-      journal: result.journal,
+    const selectedResult = rebuildRerankedResult({
       durableCandidateOrder,
-      locale: result.metadata.locale,
-      routingDecision: result.metadata.routingDecision,
+      facts,
+      result,
     });
     return withRerankerTrace(
-      {
-        ...result,
-        facts,
-        packet,
-        metadata: {
-          ...result.metadata,
-          tokenCount: packet.debug?.estimatedTokens ?? result.metadata.tokenCount,
-        },
-      },
+      selectedResult,
       {
         ...target,
         candidateCount: outcome.windowIds.length,
@@ -200,10 +294,13 @@ export async function applyFactRerankingToResult(input: {
       },
     );
     return withRerankerTrace(
-      result,
+      rebuildRerankedResult({
+        facts: candidatePool.slice(0, selectedLimit),
+        result,
+      }),
       {
         ...target,
-        candidateCount: result.facts.length,
+        candidateCount: candidatePool.length,
         fallbackReason:
           target.adapter === "provider" ? "provider_error" : "adapter_error",
         latencyMs: Date.now() - startedAt,

@@ -1752,8 +1752,8 @@ C4 acceptance:
 - all episodes pass deterministic readiness;
 - raw source licenses recorded.
 
-C4 implementation status (2026-07-17): **V8 SUPERSEDED; V9 EVIDENCE
-REGENERATION AND REVIEW PENDING; C5 BLOCKED**.
+C4 implementation status (2026-07-18): **V8 SUPERSEDED; V9 ACCEPTED; C5
+INTERNAL PILOT UNBLOCKED**.
 The schema-v2 fixture at
 `fixtures/codex-coding-effect/c4-controlled-pilot/` freezes six independently
 designed three-stage episodes across two dependency-free TypeScript
@@ -1832,10 +1832,16 @@ failures, and no ceiling risk. Report SHA-256
 recorded `proceed-to-c5-pilot` under v8. Final readiness SHA-256
 `7cf3f8cb829472f34e475dddfe69911651887c2896559712988e1153b6ea0128`
 bound the v8 frozen core, live baseline, independent review, and provenance.
-Both artifacts are superseded: v9 requires exact frozen prompt,
-repository-commit/tree, and evaluator commitments plus regenerated independent
-review and readiness. C4 does not prove coding uplift, does not currently
-unblock C5, and authorizes no public coding-effect claim.
+Both artifacts are superseded. Canonical v9 baseline
+`run-c4-baseline-v9-20260718T1815Z` has report SHA-256
+`2140f020a5d3817d4b91a0d8edf5227db6fa7fec32995a6fab12df6d52901270`,
+zero infrastructure failures, no ceiling risk, and decision
+`proceed-to-c5-pilot`. Final readiness SHA-256
+`3b24b4233faa6930d98c4de3d9bfea003ab09225c0eec0c7c81fb9c10869b2e2`
+binds exact frozen prompt, repository commit/tree, evaluator commitments,
+independent review, 12 projected stage records, and their 12 authenticated raw
+sources in a repository-replayable bundle. C4 does not prove coding uplift,
+but it unblocks the internal C5 pilot and authorizes no public claim.
 
 ### Phase C5: live pilot
 
@@ -1951,12 +1957,14 @@ snapshot is frozen. The resulting C6 budget cannot
 fall below 30 episodes, 90 distinct scored stages, 6 repositories, 3 order
 seeds, or 540 Codex calls.
 
-The C5 harness currently has 37 focused tests with 508 assertions. No C5 live
-model call or paired coding result has been produced. The readiness command
-currently fails before model execution because
-`reports/quality-gates/phase-73/c4-controlled-pilot-readiness.json` is absent;
-the superseded v8 evidence is retained only at explicit `*-v8` historical
-paths. Therefore C5 is not accepted and no coding-uplift statement is eligible.
+A six-process C5 lifecycle diagnostic canary made live model calls, but it was
+rejected before the broader pilot after live evidence disproved an exact-equality
+prior-memory rule. Its source identity was later invalidated, so it is diagnostic
+evidence only. No accepted C5 canary, broader pilot, or paired coding result
+exists. The readiness command now replays the accepted canonical C4 v9 bundle
+and produces the frozen 72-process plan without relying on gitignored local
+evidence. C5 is unblocked for internal execution, not accepted, and no
+coding-uplift statement is eligible.
 
 ### Phase C6: expanded dataset and full run
 

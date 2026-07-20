@@ -13,6 +13,68 @@
 // (one case per QA category) so the Phase 65 adapter can be built and gated
 // before any external-root run.
 
+export const LOCOMO_UPSTREAM_COMMIT =
+  "cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc";
+export const LOCOMO_UPSTREAM_SHA256 =
+  "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4";
+export const LOCOMO_UPSTREAM_URL =
+  `https://raw.githubusercontent.com/snap-research/locomo/${LOCOMO_UPSTREAM_COMMIT}/data/locomo10.json`;
+
+const LOCOMO_DATE_TIME_PATTERN =
+  /^(\d{1,2}):(\d{2}) (am|pm) on (\d{1,2}) ([A-Z][a-z]+), (\d{4})$/u;
+const LOCOMO_ISO_DATE_TIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
+const LOCOMO_MONTHS = new Map([
+  ["January", 0],
+  ["February", 1],
+  ["March", 2],
+  ["April", 3],
+  ["May", 4],
+  ["June", 5],
+  ["July", 6],
+  ["August", 7],
+  ["September", 8],
+  ["October", 9],
+  ["November", 10],
+  ["December", 11],
+]);
+
+export function normalizeLocomoDateTime(value: string): string {
+  if (LOCOMO_ISO_DATE_TIME_PATTERN.test(value)) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime()) && parsed.toISOString() === value) {
+      return value;
+    }
+  }
+
+  const match = LOCOMO_DATE_TIME_PATTERN.exec(value);
+  const month = match === null ? undefined : LOCOMO_MONTHS.get(match[5]);
+  if (match === null || month === undefined) {
+    throw new Error(`Invalid LoCoMo date/time: ${value}`);
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const day = Number(match[4]);
+  const year = Number(match[6]);
+  if (hour < 1 || hour > 12 || minute > 59 || day < 1 || day > 31) {
+    throw new Error(`Invalid LoCoMo date/time: ${value}`);
+  }
+
+  const hour24 = hour % 12 + (match[3] === "pm" ? 12 : 0);
+  const parsed = new Date(Date.UTC(year, month, day, hour24, minute));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month ||
+    parsed.getUTCDate() !== day ||
+    parsed.getUTCHours() !== hour24 ||
+    parsed.getUTCMinutes() !== minute
+  ) {
+    throw new Error(`Invalid LoCoMo date/time: ${value}`);
+  }
+  return parsed.toISOString();
+}
+
 // Upstream QA "category" is an integer 1-5; these are the normalized names.
 export const LOCOMO_QA_CATEGORIES = [
   "single_hop",
@@ -69,9 +131,7 @@ export function deriveLocomoMatchMode(
 // "D<session>:<turn>" (e.g. "D1:3"); the recall diagnostic keys on it.
 export interface LocomoTurn {
   content: string;
-  // Absolute date/time of the turn's session (e.g. "1:56 pm on 8 May, 2023"),
-  // when the upstream conversation provides it. Carried so temporal answering can
-  // resolve relative dates ("last Saturday") against the gold's absolute date.
+  // Canonical UTC ISO date/time of the turn's session, when upstream provides it.
   date?: string;
   diaId: string;
   speaker: string;

@@ -7,9 +7,8 @@ import {
 } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
 
-// The multiHop recall option is opt-in: default recall stays single-pass, and
-// multiHop: true routes the same query through iterative two-pass retrieval so a
-// fact reachable only through a bridge entity is recovered.
+// A query-only RecallPlan drives multi-hop execution by default. The public
+// option remains as an explicit override for callers that need a one-pass replay.
 describe("GoodMemory.recall multiHop option", () => {
   const scope = { userId: "u-1", workspaceId: "workspace-a" };
 
@@ -19,6 +18,7 @@ describe("GoodMemory.recall multiHop option", () => {
     const vectorStore = createInMemoryVectorStore();
     const memory = createGoodMemory({
       adapters: { documentStore, sessionStore, vectorStore },
+      retrieval: { recallPlanExecution: true },
       storage: { provider: "memory" },
     });
     const makeFact = (id: string, content: string) =>
@@ -35,7 +35,7 @@ describe("GoodMemory.recall multiHop option", () => {
     return { documentStore, makeFact, memory };
   }
 
-  it("recovers the bridged fact only when multiHop is enabled", async () => {
+  it("uses the planned hop count by default and keeps an explicit disable override", async () => {
     const { documentStore, makeFact, memory } = buildMemory();
     const identity = makeFact("identity", "Mika Linna is our goaltender.");
     const attribute = makeFact("attribute", "Mika Linna competes in pesapallo.");
@@ -45,17 +45,17 @@ describe("GoodMemory.recall multiHop option", () => {
     }
     const query = "What is the goaltender known for?";
 
-    const single = await memory.recall({ scope, query, strategy: "rules-only" });
+    const single = await memory.recall({
+      scope,
+      query,
+      strategy: "rules-only",
+      multiHop: false,
+    });
     const singleIds = single.facts.map((entry) => entry.id);
     expect(singleIds).toContain("identity");
     expect(singleIds).not.toContain("attribute");
 
-    const multi = await memory.recall({
-      scope,
-      query,
-      strategy: "rules-only",
-      multiHop: true,
-    });
+    const multi = await memory.recall({ scope, query, strategy: "rules-only" });
     const multiIds = multi.facts.map((entry) => entry.id);
     expect(multiIds).toContain("attribute");
     const retrievalTrace = multi.metadata.retrievalTrace;
@@ -65,6 +65,7 @@ describe("GoodMemory.recall multiHop option", () => {
     expect(hopCount).toBe(2);
     expect(multi.metadata.retrievalTrace).toMatchObject({
       schemaVersion: 2,
+      plan: { maxHops: 2 },
       stopReason: "multi_hop_complete",
       subQueries: [],
       queryExecutions: [
@@ -74,6 +75,10 @@ describe("GoodMemory.recall multiHop option", () => {
           stopReason: "max_hops_reached",
         }),
       ],
+    });
+    expect(single.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "single_pass_complete",
     });
     expect(multi.packet.renderBudget).toEqual({ maxTokens: 6_000 });
   });

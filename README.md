@@ -30,6 +30,50 @@ and the model runtime.
 - Evaluation and release evidence paths for deterministic tests, live evals,
   provider-backed evals, package smoke tests, and quality gates.
 
+## OpenAI Build Week 2026
+
+**Pre-existing foundation.** GoodMemory existed before OpenAI Build Week. The
+pre-event foundation already included the core memory API, local
+SQLite/Postgres storage, installed-host integration, and the local Inspector.
+The hackathon entry is the work added after the submission period opened on
+July 13, 2026, not the entire repository.
+
+**Added during Build Week.** Dated commits completed and published `v0.6.0`,
+strengthened generalized retrieval and iterative-recall verification, added
+claim-source provenance coverage, hardened installed-host canaries and leakage
+audits, and expanded the controlled Codex coding-effect evaluation path. Review
+the [pre-event-to-Build-Week diff](https://github.com/hjqcan/GoodMemory/compare/373e1f9a...5d7639a8)
+and its dated commit history for the exact boundary.
+
+**How Codex and GPT-5.6 were used.** Codex with GPT-5.6 was the primary
+implementation and verification environment: exploring the repository,
+implementing and reviewing changes, writing regression tests, reproducing
+installed-host behavior, and exercising the release and coding-effect evidence
+paths. GPT-5.6 also powers disclosed non-judge model calls in current evaluation
+profiles; public-claim paths either use deterministic scoring or keep the judge
+independent from the answer model.
+
+**Run and verify.** Install the submitted release and inspect its local memory
+surface:
+
+```bash
+npm install -g goodmemory@0.6.0
+goodmemory setup --host codex
+goodmemory status codex --workspace-root .
+goodmemory inspector serve
+```
+
+Verify the repository from source with `bun install --frozen-lockfile`,
+`bun test`, and `bun run typecheck`. See the
+[Devpost submission](https://devpost.com/software/goodmemory) and
+[public demo video](https://youtu.be/xK663ultN5o).
+
+**Claim boundary:** the submission demonstrates durable cross-session memory,
+governed writeback, recall evidence, and inspection/deletion infrastructure. It
+does not claim that GoodMemory has already proven an improvement in Codex
+coding outcomes; that paired hidden-test evaluation remains an active,
+fail-closed evidence track.
+
 ## Start Here: Codex Or Claude Code
 
 ```bash
@@ -872,10 +916,14 @@ user's manager?" vs. "yeah my boss Dana signed off").
 Custom `DocumentStore` adapters keep the original set/get/update/query/delete
 contract. Projection-backed features such as the `recommended` generalized
 fusion preset additionally require `ProjectionCapableDocumentStore`, whose
+`projectionBatchSemantics` must equal the exported
+`PROJECTION_BATCH_SEMANTICS` version and whose
 `writeBatchIfUnchanged()` must atomically validate `expected`/`unchanged` rows
 and apply every `set` and `delete` in the batch. Existing adapters can continue
-to run without projections; add that capability before enabling generalized
-fusion. The built-in memory, SQLite, and Postgres stores already implement it.
+to run without projections; a legacy same-named method is deliberately not
+treated as the current atomic contract. Add the version marker only after the
+adapter implements the full semantics. The built-in memory, SQLite, and
+Postgres stores already implement it.
 
 Inspect the resolved runtime instead of guessing:
 

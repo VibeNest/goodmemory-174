@@ -12,11 +12,14 @@ import {
   DEFAULT_AISDK_REQUEST_TIMEOUT_MS,
   parseAISDKModelConfigFromEnv,
   requestOpenAICompatibleText,
+  requestOpenAICompatibleTextResult,
   resolveAISDKEmbeddingModel,
   resolveAISDKModel,
   stripThinkingBlocks,
   withAISDKRetries,
 } from "../../src/provider/ai-sdk-runtime";
+import type { ModelUsageAttempt } from "../../src/provider/model-usage";
+import type { RoutingDecision } from "../../src/recall/router";
 import {
   createLLMMemoryExtractor as createAISDKMemoryExtractor,
 } from "../../src/provider/memory-extractor";
@@ -59,6 +62,111 @@ describe("model adapters", () => {
     expect(JSON.parse(requestBody)).toMatchObject({
       model: "gpt-5.6-terra",
       temperature: 0,
+    });
+    expect(JSON.parse(requestBody).stream_options).toBeUndefined();
+  });
+
+  it("forwards the frozen output-token budget to openai-compatible gateways", async () => {
+    let requestBody = "";
+    await requestOpenAICompatibleText({
+      fetch: async (_url, init) => {
+        requestBody = String(init?.body);
+        return new Response("data: [DONE]\n\n", {
+          headers: { "content-type": "text/event-stream" },
+          status: 200,
+        });
+      },
+      maxOutputTokens: 512,
+      model: {
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+      prompt: "answer",
+    });
+
+    expect(JSON.parse(requestBody)).toMatchObject({ max_tokens: 512 });
+  });
+
+  it("captures usage from the final OpenAI-compatible stream chunk without changing legacy calls", async () => {
+    let requestBody = "";
+    const result = await requestOpenAICompatibleTextResult({
+      fetch: async (_url, init) => {
+        requestBody = String(init?.body);
+        return new Response(
+          [
+            'data: {"choices":[{"delta":{"content":"stable"},"index":0}]}',
+            'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":4}}}',
+            "data: [DONE]",
+            "",
+          ].join("\n\n"),
+          {
+            headers: { "content-type": "text/event-stream" },
+            status: 200,
+          },
+        );
+      },
+      model: {
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+      prompt: "return stable output",
+    });
+
+    expect(result).toEqual({
+      text: "stable",
+      usage: {
+        cacheCreationInputTokens: null,
+        cacheReadInputTokens: 4,
+        inputTokens: 12,
+        outputTokens: 3,
+        uncachedInputTokens: 8,
+      },
+    });
+    expect(JSON.parse(requestBody).stream_options).toEqual({
+      include_usage: true,
+    });
+  });
+
+  it("captures usage from OpenAI-compatible JSON responses", async () => {
+    const result = await requestOpenAICompatibleTextResult({
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "json-answer" } }],
+            usage: {
+              cache_creation_input_tokens: 2,
+              cache_read_input_tokens: 3,
+              input_tokens: 10,
+              output_tokens: 4,
+            },
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      model: {
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+      prompt: "return stable output",
+    });
+
+    expect(result).toEqual({
+      text: "json-answer",
+      usage: {
+        cacheCreationInputTokens: 2,
+        cacheReadInputTokens: 3,
+        inputTokens: 15,
+        outputTokens: 4,
+        uncachedInputTokens: 10,
+      },
     });
   });
 
@@ -207,6 +315,169 @@ describe("model adapters", () => {
     expect(String(calls[0]?.prompt)).toContain("migration open loop");
     expect(calls[0]?.maxRetries).toBe(0);
     expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
+  });
+
+  it("emits independent AI SDK usage sidecars for answer and judge calls", async () => {
+    const answerEvents: ModelUsageAttempt[] = [];
+    const judgeEvents: ModelUsageAttempt[] = [];
+    const usage = {
+      inputTokenDetails: {
+        cacheReadTokens: 3,
+        cacheWriteTokens: 2,
+        noCacheTokens: 5,
+      },
+      inputTokens: 10,
+      outputTokens: 4,
+    };
+    const generator = createAISDKTextGenerator({
+      dependencies: {
+        generateText: async () => ({ text: "answer", usage }) as never,
+        modelUsageSink: { emit(event) { answerEvents.push(event); } },
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+    const judge = createAISDKJudgeModel({
+      dependencies: {
+        generateObject: async () => ({
+          object: {
+            failure_tags: [],
+            reasoning: "ok",
+            scores: {
+              contamination_penalty: 7,
+              cross_domain_transfer: 7,
+              factual_recall: 7,
+              personalization_usefulness: 7,
+              preference_consistency: 7,
+              provenance_explainability: 7,
+              update_correctness: 7,
+            },
+            winner: "tie",
+          },
+          usage,
+        }) as never,
+        modelUsageSink: { emit(event) { judgeEvents.push(event); } },
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "judge-model", provider: "anthropic" },
+    });
+
+    await generator({
+      persona: {} as never,
+      prompt: "continue",
+      scenario: {} as never,
+      transcript: "user: hi",
+    });
+    await judge.complete({ purpose: "eval_judge", prompt: "judge" });
+
+    expect(answerEvents).toHaveLength(1);
+    expect(answerEvents[0]).toMatchObject({
+      completeness: "complete",
+      modelId: "gpt-5.6-terra",
+      operation: "answer_generation",
+      usage: { inputTokens: 10, outputTokens: 4 },
+    });
+    expect(judgeEvents).toHaveLength(1);
+    expect(judgeEvents[0]).toMatchObject({
+      completeness: "complete",
+      modelId: "judge-model",
+      operation: "judge",
+      usage: { inputTokens: 10, outputTokens: 4 },
+    });
+  });
+
+  it("emits usage from an OpenAI-compatible answer stream only on the usage-aware path", async () => {
+    const events: ModelUsageAttempt[] = [];
+    let requestBody = "";
+    const generator = createAISDKTextGenerator({
+      dependencies: {
+        fetch: async (_url, init) => {
+          requestBody = String(init?.body);
+          return new Response(
+            [
+              'data: {"choices":[{"delta":{"content":"answer"},"index":0}]}',
+              'data: {"choices":[],"usage":{"prompt_tokens":18,"completion_tokens":2}}',
+              "data: [DONE]",
+              "",
+            ].join("\n\n"),
+            {
+              headers: { "content-type": "text/event-stream" },
+              status: 200,
+            },
+          );
+        },
+        modelUsageSink: { emit(event) { events.push(event); } },
+        retryOptions: { retryLimit: 1 },
+      },
+      model: {
+        apiKey: "gateway-key",
+        baseURL: "https://gateway.example/v1",
+        model: "gpt-5.6-terra",
+        provider: "openai",
+      },
+    });
+
+    const result = await generator({
+      persona: {} as never,
+      prompt: "continue",
+      scenario: {} as never,
+      transcript: "user: hi",
+    });
+
+    expect(result.content).toBe("answer");
+    expect(JSON.parse(requestBody).stream_options).toEqual({
+      include_usage: true,
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      operation: "answer_generation",
+      usage: { inputTokens: 18, outputTokens: 2 },
+    });
+  });
+
+  it("records a missing failed attempt separately from a successful retry", async () => {
+    const events: ModelUsageAttempt[] = [];
+    let calls = 0;
+    const generator = createAISDKTextGenerator({
+      dependencies: {
+        generateText: async () => {
+          calls += 1;
+          if (calls === 1) {
+            throw new Error(
+              "OpenAI-compatible gateway error 503: Service temporarily unavailable",
+            );
+          }
+          return {
+            text: "recovered",
+            usage: { inputTokens: 9, outputTokens: 1 },
+          } as never;
+        },
+        modelUsageSink: { emit(event) { events.push(event); } },
+        resolveModel: () => ({}) as never,
+        retryOptions: { retryLimit: 2, sleep: async () => {} },
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+
+    await expect(generator({
+      persona: {} as never,
+      prompt: "continue",
+      scenario: {} as never,
+      transcript: "user: hi",
+    })).resolves.toEqual({ content: "recovered" });
+
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      attempt: 1,
+      completeness: "missing",
+      outcome: "failed",
+    });
+    expect(events[1]).toMatchObject({
+      attempt: 2,
+      completeness: "complete",
+      outcome: "succeeded",
+      usage: { inputTokens: 9, outputTokens: 1 },
+    });
   });
 
   it("honors custom AI SDK text request timeouts", async () => {
@@ -525,11 +796,13 @@ describe("model adapters", () => {
   it("creates a structured memory extractor using generateObject", async () => {
     const calls: Array<Record<string, unknown>> = [];
     const extractor = createAISDKMemoryExtractor({
+      maxOutputTokens: 4_096,
       model: {
         provider: "anthropic",
         model: "claude-sonnet",
       },
       system: "extract durable memory",
+      temperature: 0,
       dependencies: {
         resolveModel: (config) => ({ resolvedFrom: config.model }) as never,
         generateObject: async (input) => {
@@ -571,9 +844,56 @@ describe("model adapters", () => {
     expect(result.candidates[0]?.kindHint).toBe("fact");
     expect(result.candidates[0]?.content).toContain("legal signoff");
     expect(calls[0]?.maxRetries).toBe(0);
+    expect(calls[0]?.maxOutputTokens).toBe(4_096);
     expect(calls[0]?.schema).toBeTruthy();
     expect(String(calls[0]?.prompt)).toContain("runtime rollout");
+    expect(calls[0]?.temperature).toBe(0);
     expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
+  });
+
+  it("emits AI SDK usage for assisted extraction and embedding batches", async () => {
+    const events: ModelUsageAttempt[] = [];
+    const sink = { emit(event: ModelUsageAttempt) { events.push(event); } };
+    const extractor = createAISDKMemoryExtractor({
+      dependencies: {
+        generateObject: async () => ({
+          object: { candidates: [], ignoredMessageCount: 1 },
+          usage: { inputTokens: 21, outputTokens: 5 },
+        }) as never,
+        modelUsageSink: sink,
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+    const embedding = createAISDKEmbeddingAdapter({
+      dependencies: {
+        embedMany: async () => ({
+          embeddings: [[1, 0]],
+          usage: { tokens: 6 },
+        }) as never,
+        modelUsageSink: sink,
+        resolveEmbeddingModel: () => ({}) as never,
+      },
+      model: { model: "text-embedding-3-small", provider: "openai" },
+    });
+
+    await extractor.extract({
+      messages: [{ content: "hello", role: "user" }],
+      scope: { userId: "u-1" },
+    });
+    await embedding.embed(["hello"]);
+
+    expect(events.map((event) => event.operation)).toEqual([
+      "assisted_extraction",
+      "embedding",
+    ]);
+    expect(events[1]?.usage).toEqual({
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+      inputTokens: 6,
+      outputTokens: 0,
+      uncachedInputTokens: 6,
+    });
   });
 
   it("creates an embedding adapter using injected dependencies", async () => {
@@ -816,6 +1136,70 @@ describe("model adapters", () => {
     expect(calls[1]?.schema).toBeTruthy();
     expect(calls[0]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
     expect(calls[1]?.timeout).toBe(DEFAULT_AISDK_REQUEST_TIMEOUT_MS);
+  });
+
+  it("records legacy assisted recall plan and rerank calls separately", async () => {
+    const events: ModelUsageAttempt[] = [];
+    let invocation = 0;
+    const router = createLLMRecallRouter({
+      dependencies: {
+        generateObject: async () => {
+          invocation += 1;
+          return {
+            object: invocation === 1
+              ? { querySummary: "summary", rationale: "reason" }
+              : { orderedCandidateIds: ["fact-1"], rationale: "reason" },
+            usage: { inputTokens: 8, outputTokens: 2 },
+          } as never;
+        },
+        modelUsageSink: { emit(event) { events.push(event); } },
+        resolveModel: () => ({}) as never,
+      },
+      model: { model: "gpt-5.6-terra", provider: "openai" },
+    });
+    const routingDecision: RoutingDecision = {
+      actionDriving: false,
+      continuation: false,
+      intent: "general_assistance",
+      referenceSeeking: false,
+      requestedSlots: [],
+      retrievalProfile: "general_chat",
+      sourcePriorities: ["fact"],
+      strategy: "llm-assisted",
+      strategyExplanation: {
+        hardFloor: "lexical_runtime_procedural_priors",
+        llmRefinement: true,
+        requestedStrategy: "llm-assisted",
+        resolvedStrategy: "llm-assisted",
+        semanticTieBreaking: false,
+        summary: "assisted",
+      },
+      supportSlots: [],
+    };
+
+    const plan = await router.plan({
+      locale: "en",
+      query: "current project",
+      routingDecision,
+      runtime: { hasJournal: false, hasWorkingMemory: false },
+    });
+    await router.rerank({
+      candidates: [{
+        id: "fact-1",
+        protected: false,
+        summary: "current project",
+        type: "fact",
+      }],
+      locale: "en",
+      query: "current project",
+      querySummary: plan.querySummary,
+      routingDecision,
+    });
+
+    expect(events.map((event) => event.operation)).toEqual([
+      "recall_router_plan",
+      "recall_router_rerank",
+    ]);
   });
 
   it("normalizes openai-compatible recall router alias payloads before schema validation", async () => {
@@ -1103,6 +1487,7 @@ describe("model adapters", () => {
   it("uses fetch-based memory extraction for openai-compatible base URLs", async () => {
     const fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
     const extractor = createAISDKMemoryExtractor({
+      maxOutputTokens: 4_096,
       model: {
         provider: "openai",
         model: "gpt-5.4",
@@ -1110,6 +1495,7 @@ describe("model adapters", () => {
         baseURL: "https://gateway.example/v1",
       },
       system: "extract durable memory",
+      temperature: 0,
       dependencies: {
         fetch: async (url, init) => {
           fetchCalls.push({ url: String(url), init });
@@ -1147,7 +1533,11 @@ describe("model adapters", () => {
     expect(result.candidates[0]?.metadata?.subject).toBe("runtime rollout");
     expect(fetchCalls[0]?.url).toBe("https://gateway.example/v1/chat/completions");
     expect(fetchCalls[0]?.init?.method).toBe("POST");
-    expect(String(fetchCalls[0]?.init?.body)).toContain("\"reasoning_effort\":\"medium\"");
+    expect(JSON.parse(String(fetchCalls[0]?.init?.body))).toMatchObject({
+      max_tokens: 4_096,
+      reasoning_effort: "medium",
+      temperature: 0,
+    });
     expect(String(fetchCalls[0]?.init?.body)).toContain("\"content\":\"extract durable memory\"");
     expect(String(fetchCalls[0]?.init?.body)).toContain("runtime rollout");
   });

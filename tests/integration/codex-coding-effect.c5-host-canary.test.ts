@@ -149,6 +149,92 @@ describe("Codex coding-effect C5 installed host canary", () => {
     });
   });
 
+  it("accepts host-generated records from the same isolated pre-stage export", async () => {
+    await withFixture(async ({ codex, evidenceDirectory, runtime, sessionDigest }) => {
+      const hookContext = "Durable project rule from the prior stage.";
+      const exported = JSON.parse(exportedMemory("Explicit writeback memory.")) as {
+        durable: { facts: Array<Record<string, unknown>> };
+      };
+      exported.durable.facts.push({
+        ...exported.durable.facts[0],
+        content: "Host-generated memory from the same prior stage.",
+        id: "memory-automatic-stage-1",
+      });
+      const memoryExportBeforeStage = `${JSON.stringify(exported)}\n`;
+      await writeHostState({
+        contentHashes: [hashC5HookContext(hookContext)],
+        injectedRecordIds: [
+          "memory-stage-1",
+          "memory-automatic-stage-1",
+        ],
+        runtime,
+        sessionDigest,
+      });
+      await writeTranscript(runtime, codex, "Implement stage two.", hookContext);
+
+      const result = await collectC5InstalledHostCanary({
+        codex,
+        effectivePrompt: "Implement stage two.",
+        evidenceDirectory,
+        expectedPriorMemoryIds: ["memory-stage-1"],
+        memoryExportBeforeStage,
+        memoryExpectation: "required",
+        runProcess: fakePublicCommands([], sessionDigest),
+        runtime,
+        writebackRequired: false,
+      });
+
+      expect(result.canary).toMatchObject({
+        injectedRecordIds: [
+          "memory-automatic-stage-1",
+          "memory-stage-1",
+        ],
+        memoryChannelStatus: "passed",
+        passed: true,
+        recalledPriorMemoryIds: [
+          "memory-automatic-stage-1",
+          "memory-stage-1",
+        ],
+      });
+      expect(result.canary.reasons).toEqual([]);
+    });
+  });
+
+  it("rejects a pre-stage export that omits prior native Stop lineage", async () => {
+    await withFixture(async ({ codex, evidenceDirectory, runtime, sessionDigest }) => {
+      const hookContext = "Durable project rule from an unbound record.";
+      const exported = JSON.parse(exportedMemory("Unbound memory.")) as {
+        durable: { facts: Array<Record<string, unknown>> };
+      };
+      exported.durable.facts[0]!.id = "memory-automatic-stage-1";
+      const memoryExportBeforeStage = `${JSON.stringify(exported)}\n`;
+      await writeHostState({
+        contentHashes: [hashC5HookContext(hookContext)],
+        injectedRecordIds: ["memory-automatic-stage-1"],
+        runtime,
+        sessionDigest,
+      });
+      await writeTranscript(runtime, codex, "Implement stage two.", hookContext);
+
+      const result = await collectC5InstalledHostCanary({
+        codex,
+        effectivePrompt: "Implement stage two.",
+        evidenceDirectory,
+        expectedPriorMemoryIds: ["memory-stage-1"],
+        memoryExportBeforeStage,
+        memoryExpectation: "required",
+        runProcess: fakePublicCommands([], sessionDigest),
+        runtime,
+        writebackRequired: false,
+      });
+
+      expect(result.canary.memoryChannelStatus).toBe("failed");
+      expect(result.canary.reasons).toContain(
+        "pre-stage memory export omits prior native Stop lineage",
+      );
+    });
+  });
+
   it("fails the required memory channel when a hash receipt cannot recover actual hook context", async () => {
     await withFixture(async ({ codex, evidenceDirectory, runtime, sessionDigest }) => {
       const missingContext = "Context that is absent from the exact transcript.";
@@ -197,7 +283,7 @@ describe("Codex coding-effect C5 installed host canary", () => {
         codex,
         effectivePrompt: "Implement stage two.",
         evidenceDirectory,
-        expectedPriorMemoryIds: [],
+        expectedPriorMemoryIds: ["memory-stage-1"],
         memoryExportBeforeStage,
         memoryExpectation: "none",
         runProcess: fakePublicCommands([], sessionDigest),

@@ -271,6 +271,7 @@ describe("installed host writeback runtime", () => {
         "Project policy: TBD",
         "Project policy: requires clarification",
         "Project policy is to be determined.",
+        "Project policy is that we have not decided.",
       ]) {
         const result = await executeInstalledHostWriteback({
           command: "turn-end",

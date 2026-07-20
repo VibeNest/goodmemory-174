@@ -102,6 +102,22 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     expect(resolved.retrieval.rerankGeneralizedFusion).toBeUndefined();
   });
 
+  it("preserves an explicit fusion-channel ablation in the experimental preset", () => {
+    const channels = ["lexical", "dense", "entity"] as const;
+    const resolved = resolve({
+      retrieval: {
+        generalizedFusionChannels: channels,
+        preset: "recommended",
+      },
+    });
+
+    expect(resolved.retrieval.generalizedFusion).toEqual({
+      channels,
+      maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+    });
+  });
+
   it("widens only the first-party provider reranker lane", () => {
     const resolved = resolve({
       embeddingEnabled: true,

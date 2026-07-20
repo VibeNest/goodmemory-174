@@ -50,9 +50,10 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
 - Phase 73 remains active as a separate Codex-only product-effect lane. C0-C2
   are closed. C3's tracked projection remains internally accepted as
   frozen-prehistory protocol/host evidence, but its source-reproducibility gate
-  is reopened. C4's prior v8 acceptance is superseded by the v9 corpus-wide
-  leakage detector and exact frozen-input verifier; regenerated core, review,
-  baseline, and readiness evidence are pending. C5-C7 remain blocked/open.
+  is reopened. C4's prior v8 acceptance is superseded; the canonical v9
+  corpus-wide leakage core, independent review, baseline, authenticated raw
+  and projected stage evidence, and final readiness are accepted. C5 is
+  unblocked for the internal pilot but has not run; C6-C7 remain open.
   Final C3 run `c3-controlled-20260716-cleanclone-003` used a clean mechanical
   runner snapshot at commit
   `fc31f4f96f3975daea361805da3fc4fc942c5aa4` / tree
@@ -125,18 +126,33 @@ This is the compact current-truth entrypoint. Historical narrative has been remo
   `145075fe1db774e14fbce1ba6df6b6170c64cd87a9c81c89a7abb39aefcfb220`
   recorded decision `proceed-to-c5-pilot`. Historical final readiness SHA-256
   `7cf3f8cb829472f34e475dddfe69911651887c2896559712988e1153b6ea0128`
-  bound the superseded core, baseline, review, and provenance. It is not valid
-  for v9 and does not unblock C5. The immutable v8 artifacts now live only at
-  explicit `*-v8` historical paths; canonical C4 core, review, baseline, and
-  readiness paths are absent until regenerated. No C4 version proves coding
-  uplift or authorizes a public coding-effect claim.
+  bound the superseded core, baseline, review, and provenance. The immutable
+  v8 artifacts remain at explicit `*-v8` historical paths. Canonical v9 core
+  SHA-256
+  `420f5c11b1a8aa344714a950b154477449856aed130be37abfe2cdf474eff544`
+  and review SHA-256
+  `16f63486e39d349b98abfb38340e8492962d8ecf2b78ed488b28e9c4ae439a09`
+  bind asset lock
+  `795473a2916e441ff9cc39ac92578565a84405ffd45589d90943ad31b81d1195`.
+  Baseline `run-c4-baseline-v9-20260718T1815Z` has report SHA-256
+  `2140f020a5d3817d4b91a0d8edf5227db6fa7fec32995a6fab12df6d52901270`,
+  zero infrastructure failures, no ceiling risk, and decision
+  `proceed-to-c5-pilot`. Final readiness SHA-256
+  `3b24b4233faa6930d98c4de3d9bfea003ab09225c0eec0c7c81fb9c10869b2e2`
+  binds the v9 core, baseline, review, provenance, 12 projected stages, and 12
+  authenticated raw sources in one repository-replayable bundle. Those
+  artifacts, not this summary prose, are the C4 truth source; the release test
+  rejects any routing/status projection that drifts from them. No C4
+  version proves coding uplift or authorizes a public coding-effect claim.
   The C5 harness implementation now retains sanitized failed-canary and
   interrupted-resume attempts in the verifiable projection, rejects foreign
   injected memory, authenticates its recursive runtime import closure from
   projected source bytes, and resumes only at the uncommitted cluster boundary
   under the exact original run identity. This is implementation/test closure
-  only: no C5 live pilot has run, and C5 remains blocked on accepted v9 C4
-  prerequisite evidence.
+  only. A six-process C5 diagnostic canary was rejected under a live-disproved
+  prior-memory equality rule, and its source identity was later invalidated;
+  no accepted canary or broader pilot has run.
+  C5 is unblocked for internal execution by accepted v9 C4 prerequisite evidence.
 - The Phase 72 benchmark gate and versioned release gate are closed for
   `v0.6.0`. Current public-opt-in claims are LoCoMo, BEAM, and
   MemoryAgentBench. The strict claim gate reports five consistent declarations,

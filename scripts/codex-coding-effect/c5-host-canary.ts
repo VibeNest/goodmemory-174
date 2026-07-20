@@ -17,6 +17,10 @@ import {
 import {
   evaluateC5LongitudinalCanary,
 } from "./c5-longitudinal-canary";
+import {
+  C5_PRIOR_EXPORT_LINEAGE_REASON,
+  resolveC5PriorMemoryLineage,
+} from "./c5-memory-protocol";
 import type {
   C5LongitudinalCanary,
 } from "./c5-longitudinal-canary";
@@ -439,10 +443,15 @@ export async function collectC5InstalledHostCanary(input: {
   const memoryExportSha256 = sha256(memoryExport);
   const memorySemanticContents = extractC5MemorySemanticContents(memoryExport);
   const memoryRecordIds = extractC5MemoryRecordIds(memoryExport);
+  const lineage = resolveC5PriorMemoryLineage({
+    exportedMemoryIds: memoryRecordIds,
+    injectedMemoryIds: injectionSessionRecordIds,
+    priorWritebackMemoryIds: input.expectedPriorMemoryIds,
+  });
 
   const evaluated = evaluateC5LongitudinalCanary({
     cursorSessionDigests,
-    expectedPriorMemoryIds: input.expectedPriorMemoryIds,
+    expectedPriorMemoryIds: lineage.expectedPriorMemoryIds,
     injectionEvents,
     injectionSessionContentHashes,
     memoryExpectation: input.memoryExpectation,
@@ -452,7 +461,13 @@ export async function collectC5InstalledHostCanary(input: {
     writebackEvents,
     writebackRequired: input.writebackRequired,
   });
-  const reasons = [...new Set([...failures, ...evaluated.reasons])];
+  const reasons = [...new Set([
+    ...failures,
+    ...(!lineage.containsPriorWritebackLineage
+      ? [C5_PRIOR_EXPORT_LINEAGE_REASON]
+      : []),
+    ...evaluated.reasons,
+  ])];
   const canary: C5LongitudinalCanary = {
     ...evaluated,
     memoryChannelStatus: reasons.length === 0 ? "passed" : "failed",

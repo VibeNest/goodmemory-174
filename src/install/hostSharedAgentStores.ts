@@ -3,6 +3,7 @@ import type {
   StorageDocument,
   StorageFilter,
 } from "../storage/contracts";
+import { isProjectionCapableDocumentStore } from "../storage/contracts";
 import { markRecallAgentScopeAuthorized } from "../policy/hooks";
 
 // Opt-in cross-host read union (config sharedAgents). The storage filter is
@@ -61,9 +62,10 @@ export function wrapDocumentStoreForSharedAgents(
     update: (collection, id, patch) => store.update(collection, id, patch),
   };
 
-  if (store.writeBatchIfUnchanged) {
+  if (isProjectionCapableDocumentStore(store)) {
+    wrapped.projectionBatchSemantics = store.projectionBatchSemantics;
     wrapped.writeBatchIfUnchanged = (input) =>
-      store.writeBatchIfUnchanged!(input);
+      store.writeBatchIfUnchanged(input);
   }
 
   if (store.searchText) {

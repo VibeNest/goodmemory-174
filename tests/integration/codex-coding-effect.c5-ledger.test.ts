@@ -217,6 +217,72 @@ describe("Codex coding-effect C5 evidence ledger", () => {
       await rm(root, { force: true, recursive: true });
     }
   });
+
+  it("inserts a record boundary after a complete final row without LF", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c5-ledger-no-lf-"));
+    try {
+      const plan = await pilotPlan();
+      const ledger = await openC5EvidenceLedger({
+        directory: root,
+        identity: { runId: "c5-ledger-no-lf", schemaVersion: 1 },
+        plan,
+      });
+      const [first, second] = orderedStageExecutions(plan);
+      await ledger.appendStageExecution(first!);
+      await writeFile(
+        join(root, "stage-executions.jsonl"),
+        JSON.stringify(first),
+        "utf8",
+      );
+
+      await ledger.appendStageExecution(second!);
+
+      expect(lines(await readFile(
+        join(root, "stage-executions.jsonl"),
+        "utf8",
+      ))).toEqual([JSON.stringify(first), JSON.stringify(second)]);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("reconciles an orphan attempt receipt after a crash before ledger append", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-c5-ledger-orphan-attempt-"));
+    try {
+      const plan = await pilotPlan();
+      const identity = { runId: "c5-ledger-orphan-attempt", schemaVersion: 1 };
+      const ledger = await openC5EvidenceLedger({ directory: root, identity, plan });
+      for (const execution of orderedStageExecutions(plan).slice(0, 5)) {
+        await ledger.appendStageExecution(execution);
+      }
+      for (const pair of orderedPairResults(plan).slice(0, 2)) {
+        await ledger.appendPair(pair);
+      }
+      const partialStages = await readFile(
+        join(root, "stage-executions.jsonl"),
+        "utf8",
+      );
+      const partialPairs = await readFile(join(root, "pairs.jsonl"), "utf8");
+
+      await openC5EvidenceLedger({ directory: root, identity, plan, resume: true });
+      await writeFile(join(root, "stage-executions.jsonl"), partialStages, "utf8");
+      await writeFile(join(root, "pairs.jsonl"), partialPairs, "utf8");
+      await writeFile(join(root, "run-attempts.jsonl"), "", "utf8");
+
+      const resumed = await openC5EvidenceLedger({
+        directory: root,
+        identity,
+        plan,
+        resume: true,
+      });
+
+      expect(resumed.stageExecutions).toEqual([]);
+      expect(lines(await readFile(join(root, "run-attempts.jsonl"), "utf8")))
+        .toHaveLength(1);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
 });
 
 async function pilotPlan() {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -56,7 +56,7 @@ const V8_STAGE_PROJECTION_SHA256 = {
 } as const;
 
 describe("Codex coding-effect C4 tracked evidence", () => {
-  it("keeps superseded v8 evidence out of the current v9 readiness boundary", async () => {
+  it("keeps v8 historical while replaying the canonical v9 evidence bundle", async () => {
     const [
       baselineBytes,
       coreBytes,
@@ -117,6 +117,15 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       }>;
     };
     const { assetLock, assetLockSha256 } = await loadC4AssetLock(DATASET_ROOT);
+    const [currentCoreBytes, currentReadinessBytes] = await Promise.all([
+      readFile(join(REPORT_ROOT, "c4-controlled-pilot-core.json"), "utf8"),
+      readFile(join(REPORT_ROOT, "c4-controlled-pilot-readiness.json"), "utf8"),
+    ]);
+    const currentReadiness = JSON.parse(currentReadinessBytes) as {
+      baselineCeiling: { reportSha256: string };
+      coreSha256: string;
+      status: string;
+    };
 
     expect(baseline).toMatchObject(V8_DECLARED_SHA256);
     for (const [path, expectedSha256] of Object.entries(
@@ -181,15 +190,44 @@ describe("Codex coding-effect C4 tracked evidence", () => {
     });
     expect(await Bun.file(
       join(REPORT_ROOT, "c4-baseline-ceiling-pilot/report.json"),
-    ).exists()).toBe(false);
+    ).exists()).toBe(true);
     expect(await Bun.file(
       join(REPORT_ROOT, "c4-controlled-pilot-core.json"),
-    ).exists()).toBe(false);
+    ).exists()).toBe(true);
     expect(await Bun.file(
       join(REPORT_ROOT, "c4-controlled-pilot-readiness.json"),
-    ).exists()).toBe(false);
+    ).exists()).toBe(true);
     expect(await Bun.file(join(DATASET_ROOT, "review/independent-review.json")).exists())
-      .toBe(false);
+      .toBe(true);
+    expect(currentReadiness).toMatchObject({
+      baselineCeiling: {
+        reportSha256: sha256(await readFile(
+          join(REPORT_ROOT, "c4-baseline-ceiling-pilot/report.json"),
+          "utf8",
+        )),
+      },
+      coreSha256: sha256(currentCoreBytes),
+      status: "accepted",
+    });
+    const currentBaseline = JSON.parse(await readFile(
+      join(REPORT_ROOT, "c4-baseline-ceiling-pilot/report.json"),
+      "utf8",
+    )) as typeof baseline;
+    expect((await readdir(join(
+      REPORT_ROOT,
+      "c4-baseline-ceiling-pilot/raw-stages",
+    ))).sort()).toEqual(currentBaseline.results.map((result) =>
+      `${result.episodeId}-${result.stageId}`
+    ).sort());
+    for (const result of currentBaseline.results) {
+      const rawBytes = await readFile(join(
+        REPORT_ROOT,
+        "c4-baseline-ceiling-pilot/raw-stages",
+        `${result.episodeId}-${result.stageId}`,
+        "stage-evidence.json",
+      ), "utf8");
+      expect(sha256(rawBytes)).toBe(result.stageEvidenceSha256);
+    }
     const regenerationRoot = await mkdtemp(
       join(tmpdir(), "goodmemory-c4-release-regeneration-"),
     );
@@ -203,20 +241,18 @@ describe("Codex coding-effect C4 tracked evidence", () => {
       expect(regenerated.core.leakage.candidateExtractionVersion).toBe(
         "semantic-documents-exact-relations-corpus-wide-v9",
       );
-      expect(regenerated.coreSha256).not.toBe(sha256(coreBytes));
+      expect(regenerated.coreBytes).toBe(currentCoreBytes);
     } finally {
       await rm(regenerationRoot, { force: true, recursive: true });
     }
 
-    expect(taskBoard).toContain(
-      "[SUPERSEDED] C4 live baseline and final readiness were accepted under v8.",
-    );
-    expect(taskBoard).toContain("[BLOCKED] C5 broader live pilot");
-    expect(plan).toContain("**V8 SUPERSEDED; V9 EVIDENCE");
+    expect(taskBoard).toContain("[DONE] Canonical C4 v9 is accepted.");
+    expect(taskBoard).toContain("[OPEN] C5 broader live pilot is unblocked");
+    expect(plan).toContain("**V8 SUPERSEDED; V9 ACCEPTED; C5");
     expect(currentStatus).toContain(
-      "C4's prior v8 acceptance is superseded by the v9 corpus-wide",
+      "the canonical v9",
     );
-    expect(currentStatus).toContain("does not unblock C5");
+    expect(currentStatus).toContain("C5 is unblocked for internal execution");
   }, 180_000);
 });
 

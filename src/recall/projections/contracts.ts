@@ -86,6 +86,7 @@ export interface EntityAdjacencyProjection extends MemoryScope {
   memoryId: string;
   aliases: string[];
   description?: string;
+  text?: string;
   validFrom?: string;
   validUntil?: string;
   updatedAt: string;
@@ -108,6 +109,7 @@ export interface ClaimProjection extends MemoryScope {
   subjectEntityId: string;
   predicateKey: string;
   objectText: string;
+  text?: string;
   objectEntityId?: string;
   polarity: MemoryClaimPolarity;
   modality: MemoryClaimModality;
@@ -163,8 +165,23 @@ export interface RecallProjectionSearchPort {
     query: string,
     limit: number,
   ): Promise<RecallIndexDocument[]>;
+  searchEntities(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+  ): Promise<EntityProjection[]>;
+  searchClaims(
+    scope: MemoryScope,
+    query: string,
+    limit: number,
+    history?: boolean,
+  ): Promise<ClaimProjection[]>;
   queryEntities(scope: MemoryScope): Promise<EntityProjection[]>;
   queryClaims(scope: MemoryScope): Promise<ClaimProjection[]>;
+  queryClaimsBySourceMemoryIds(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
 }
 

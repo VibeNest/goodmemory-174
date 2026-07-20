@@ -6,6 +6,7 @@ import type {
   VectorSearchResult,
   VectorStore,
 } from "./contracts";
+import { PROJECTION_BATCH_SEMANTICS } from "./contracts";
 
 interface SQLiteStoreOptions {
   readOnly?: boolean;
@@ -86,6 +87,7 @@ function createDeferredDocumentStore(
   resolveStore: () => Promise<DocumentStore>,
 ): ProjectionCapableDocumentStore {
   return {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set(collection, id, document) {
       const store = await resolveStore();
       return store.set(collection, id, document);

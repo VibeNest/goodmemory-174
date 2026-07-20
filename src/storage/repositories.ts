@@ -50,26 +50,31 @@ export interface MemoryRepositories {
   };
   preferences: {
     upsert(preference: PreferenceMemory): Promise<void>;
+    get(id: string): Promise<PreferenceMemory | null>;
     listByUser(userId: string): Promise<PreferenceMemory[]>;
     listByScope(scope: MemoryScope): Promise<PreferenceMemory[]>;
   };
   references: {
     add(reference: ReferenceMemory): Promise<void>;
+    get(id: string): Promise<ReferenceMemory | null>;
     listByUser(userId: string): Promise<ReferenceMemory[]>;
     listByScope(scope: MemoryScope): Promise<ReferenceMemory[]>;
   };
   facts: {
     add(fact: FactMemory): Promise<void>;
+    get(id: string): Promise<FactMemory | null>;
     listByUser(userId: string): Promise<FactMemory[]>;
     listByScope(scope: MemoryScope): Promise<FactMemory[]>;
   };
   episodes: {
     add(episode: EpisodeMemory): Promise<void>;
+    get(id: string): Promise<EpisodeMemory | null>;
     listByUser(userId: string): Promise<EpisodeMemory[]>;
     listByScope(scope: MemoryScope): Promise<EpisodeMemory[]>;
   };
   feedback: {
     upsert(feedback: FeedbackMemory): Promise<void>;
+    get(id: string): Promise<FeedbackMemory | null>;
     listByUser(userId: string): Promise<FeedbackMemory[]>;
     listByScope(scope: MemoryScope): Promise<FeedbackMemory[]>;
   };
@@ -217,6 +222,10 @@ export function createMemoryRepositories(
         await config.documentStore.set("preferences", preference.id, preference);
       },
 
+      async get(id: string): Promise<PreferenceMemory | null> {
+        return config.documentStore.get<PreferenceMemory>("preferences", id);
+      },
+
       async listByUser(userId: string): Promise<PreferenceMemory[]> {
         return config.documentStore.query<PreferenceMemory>("preferences", {
           userId,
@@ -234,6 +243,10 @@ export function createMemoryRepositories(
     references: {
       async add(reference: ReferenceMemory): Promise<void> {
         await config.documentStore.set("references", reference.id, reference);
+      },
+
+      async get(id: string): Promise<ReferenceMemory | null> {
+        return config.documentStore.get<ReferenceMemory>("references", id);
       },
 
       async listByUser(userId: string): Promise<ReferenceMemory[]> {
@@ -255,6 +268,10 @@ export function createMemoryRepositories(
         await config.documentStore.set("facts", fact.id, fact);
       },
 
+      async get(id: string): Promise<FactMemory | null> {
+        return config.documentStore.get<FactMemory>("facts", id);
+      },
+
       async listByUser(userId: string): Promise<FactMemory[]> {
         return config.documentStore.query<FactMemory>("facts", {
           userId,
@@ -269,6 +286,10 @@ export function createMemoryRepositories(
     episodes: {
       async add(episode: EpisodeMemory): Promise<void> {
         await config.documentStore.set("episodes", episode.id, episode);
+      },
+
+      async get(id: string): Promise<EpisodeMemory | null> {
+        return config.documentStore.get<EpisodeMemory>("episodes", id);
       },
 
       async listByUser(userId: string): Promise<EpisodeMemory[]> {
@@ -288,6 +309,10 @@ export function createMemoryRepositories(
     feedback: {
       async upsert(feedback: FeedbackMemory): Promise<void> {
         await config.documentStore.set("feedback", feedback.id, feedback);
+      },
+
+      async get(id: string): Promise<FeedbackMemory | null> {
+        return config.documentStore.get<FeedbackMemory>("feedback", id);
       },
 
       async listByUser(userId: string): Promise<FeedbackMemory[]> {

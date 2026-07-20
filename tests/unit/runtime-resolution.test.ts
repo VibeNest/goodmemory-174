@@ -724,6 +724,23 @@ describe("runtime resolution", () => {
     expect(overridden.explicitAdaptersConfigured).toBe(true);
   });
 
+  it("reports a query-only recall planner as an explicit runtime adapter", () => {
+    const resolved = resolveGoodMemoryRuntimeResolution({
+      config: {
+        adapters: {
+          recallPlanner: {
+            async plan() {
+              return {};
+            },
+          },
+        },
+      },
+      env: {},
+    });
+
+    expect(resolved.explicitAdaptersConfigured).toBe(true);
+  });
+
   it("rejects partial embedding env configuration", () => {
     expect(() =>
       resolveEmbeddingModelConfigFromEnv({

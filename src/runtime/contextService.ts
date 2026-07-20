@@ -152,10 +152,37 @@ function hasJournalSignal(journal: SessionJournal): boolean {
 function hasArchiveSignal(state: RuntimeContextState): boolean {
   return Boolean(
     state.buffer.summary ||
+      (state.buffer.compactedMessages?.length ?? 0) > 0 ||
       state.buffer.messages.length > 0 ||
       hasRuntimeSignal(state.workingMemory) ||
       hasJournalSignal(state.journal),
   );
+}
+
+function messagesForReplay(buffer: SessionBuffer): SessionMessage[] {
+  const compactedMessages = buffer.compactedMessages ?? [];
+  const compactedIds = new Set(
+    compactedMessages.flatMap(({ id }) => id === undefined ? [] : [id]),
+  );
+  return [
+    ...compactedMessages,
+    ...buffer.messages.filter(({ id }) =>
+      id === undefined || !compactedIds.has(id)
+    ),
+  ];
+}
+
+function appendCompactedMessages(
+  existing: readonly SessionMessage[],
+  evicted: readonly SessionMessage[],
+): SessionMessage[] {
+  const existingIds = new Set(
+    existing.flatMap(({ id }) => id === undefined ? [] : [id]),
+  );
+  return [
+    ...existing,
+    ...evicted.filter(({ id }) => id === undefined || !existingIds.has(id)),
+  ];
 }
 
 function renderNormalizedTranscript(messages: SessionMessage[]): string | undefined {
@@ -332,14 +359,22 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         content: message.content,
         ...(message.observedAt ? { observedAt: message.observedAt } : {}),
       };
+      const compactedMessages = state.buffer.compactedMessages ?? [];
+      const compactedIds = new Set(
+        compactedMessages.flatMap(({ id }) => id === undefined ? [] : [id]),
+      );
+      const liveMessages = state.buffer.messages.filter(({ id }) =>
+        id === undefined || !compactedIds.has(id)
+      );
       const nextMessages = [
-        ...state.buffer.messages,
+        ...liveMessages,
         nextMessage,
       ];
 
       const pendingBuffer = createSessionBuffer({
         ...state.buffer,
         messages: nextMessages,
+        compactedMessages,
         lastActiveAt: timestamp,
       });
 
@@ -350,6 +385,17 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
 
       const overflow = nextMessages.length - maxBufferedMessages;
       const evictedMessages = nextMessages.slice(0, overflow);
+      const durableCompactedMessages = appendCompactedMessages(
+        compactedMessages,
+        evictedMessages,
+      );
+      const durablePendingBuffer = createSessionBuffer({
+        ...pendingBuffer,
+        compactedMessages: durableCompactedMessages,
+        summary: state.buffer.summary ?? "Earlier messages compacted.",
+        summaryUpToIndex: state.buffer.summaryUpToIndex + overflow,
+      });
+      await config.sessionStore.saveBuffer(sessionScope, durablePendingBuffer);
       const onPreCompact = config.salvageHooks?.onPreCompact;
       if (onPreCompact) {
         await runBestEffortSalvage("pre-compact", async () => {
@@ -364,11 +410,8 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         });
       }
       const buffer = createSessionBuffer({
-        ...state.buffer,
+        ...durablePendingBuffer,
         messages: nextMessages.slice(overflow),
-        summary: state.buffer.summary ?? "Earlier messages compacted.",
-        summaryUpToIndex: state.buffer.summaryUpToIndex + overflow,
-        lastActiveAt: timestamp,
       });
 
       await config.sessionStore.saveBuffer(sessionScope, buffer);
@@ -500,7 +543,7 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
           sourceSessionIds: [sessionScope.sessionId],
           summary: buildArchiveSummary(state),
           normalizedTranscript: shouldIncludeNormalizedTranscript(options)
-            ? renderNormalizedTranscript(state.buffer.messages)
+            ? renderNormalizedTranscript(messagesForReplay(state.buffer))
             : undefined,
           keyDecisions: mergeUnique(
             state.workingMemory.temporaryDecisions ?? [],

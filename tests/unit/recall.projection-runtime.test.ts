@@ -60,6 +60,7 @@ function createOneShotProjectionFailureStore(
   let shouldFail = true;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     set: async <TDocument extends StorageDocument>(
       collection: string,
       id: string,
@@ -86,6 +87,7 @@ function createCountedProjectionFailureStore(
   let remainingFailures = failureCount;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,
@@ -115,6 +117,7 @@ function createContentTriggeredProjectionFailureStore(
   let shouldFail = true;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     async set<TDocument extends StorageDocument>(
       collection: string,
       id: string,
@@ -142,6 +145,7 @@ function createPostCommitReadFailureStore(inner: DocumentStore): DocumentStore {
   let failCanonicalRead = true;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     set: (collection, id, document) => inner.set(collection, id, document),
     async get<TDocument extends StorageDocument>(collection: string, id: string) {
       if (collection === "facts" && failCanonicalRead) {
@@ -163,6 +167,7 @@ function createOneShotProjectionDeleteFailureStore(
   let shouldFail = true;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     set: (collection, id, document) => inner.set(collection, id, document),
     get: (collection, id) => inner.get(collection, id),
     update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -197,6 +202,7 @@ function createDelayedOldProjectionStore(inner: DocumentStore): {
 
   return {
     documentStore: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       async set<TDocument extends StorageDocument>(
         collection: string,
         id: string,
@@ -266,6 +272,13 @@ describe("recall projection runtime", () => {
     expect(alice?.memoryIds).toContain("facts:fact-1");
     expect(alice?.validFrom).toBe(fact.validFrom);
 
+    const adjacency = await rawStore.query(ENTITIES_COLLECTION, {
+      scopeKey: scopeToKey(scope),
+    });
+    expect(adjacency.every((edge) =>
+      typeof (edge as { text?: string }).text === "string"
+    )).toBe(true);
+
     const catalogs = await rawStore.query<ScopeCatalogProjection>(
       SCOPE_CATALOG_COLLECTION,
       { scopeKey: scopeToKey(scope) },
@@ -279,6 +292,35 @@ describe("recall projection runtime", () => {
         schemaVersion: 1,
       }),
     ]);
+  });
+
+  it("searches entity adjacency through its unified indexed text field", async () => {
+    const inner = createInMemoryDocumentStore();
+    const searchedFields: string[] = [];
+    const store: DocumentStore = {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => inner.get(collection, id),
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => inner.query(collection, filter),
+      delete: (collection, id) => inner.delete(collection, id),
+      searchText: (collection, input) => {
+        searchedFields.push(input.field);
+        return inner.searchText!(collection, input);
+      },
+      writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
+    };
+    const runtime = createRecallProjectionRuntime({ documentStore: store });
+    const fact = buildFact({});
+    await runtime.documentStore.set("facts", fact.id, fact);
+    searchedFields.length = 0;
+
+    const matches = await runtime.searchEntities(scope, "Alice Atlas", 5);
+
+    expect(matches.some(({ canonicalKey }) => canonicalKey === "alice")).toBe(
+      true,
+    );
+    expect(searchedFields).toEqual(["text"]);
   });
 
   it("uses the earliest validity boundary when both validUntil and TTL exist", async () => {
@@ -696,6 +738,7 @@ describe("recall projection runtime", () => {
     let recallDocumentQueries = 0;
     let entityQueries = 0;
     const countingStore: DocumentStore = {
+      projectionBatchSemantics: rawStore.projectionBatchSemantics,
       set: (collection, id, document) => rawStore.set(collection, id, document),
       get: (collection, id) => rawStore.get(collection, id),
       update: (collection, id, patch) => rawStore.update(collection, id, patch),
@@ -831,6 +874,7 @@ describe("recall projection runtime", () => {
     const rawStore = createInMemoryDocumentStore();
     let recallDocumentQueries = 0;
     const countingStore: DocumentStore = {
+      projectionBatchSemantics: rawStore.projectionBatchSemantics,
       set: (collection, id, document) => rawStore.set(collection, id, document),
       get: (collection, id) => rawStore.get(collection, id),
       update: (collection, id, patch) => rawStore.update(collection, id, patch),

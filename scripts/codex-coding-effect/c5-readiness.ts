@@ -144,7 +144,6 @@ export async function loadC5PilotReadiness(
   input: C5PilotReadinessInput,
 ): Promise<C5PilotReadinessResult> {
   const baselineBytes = await readFile(input.baselineReportPath, "utf8");
-  const baselineRunId = readBaselineRunId(baselineBytes);
   const [
     c4ReadinessCoreBytes,
     c4ReadinessBytes,
@@ -165,11 +164,7 @@ export async function loadC5PilotReadiness(
     readFile(input.c4ReviewResponsePath, "utf8"),
     loadStageEvidenceFiles(
       input.baselineRawStageEvidenceRoot ??
-        resolve(
-          "reports/eval/research/codex-coding-effect",
-          baselineRunId,
-          "stages",
-        ),
+        resolve(dirname(input.baselineReportPath), "raw-stages"),
     ),
     loadStageEvidenceFiles(
       input.baselineStageEvidenceRoot ??
@@ -362,18 +357,6 @@ function parseC5PilotPrerequisiteEvidence(
     }
   }
   return parsed.data;
-}
-
-function readBaselineRunId(bytes: string): string {
-  try {
-    const value = JSON.parse(bytes) as { runId?: unknown };
-    if (typeof value.runId === "string" && /^[A-Za-z0-9._-]+$/u.test(value.runId)) {
-      return value.runId;
-    }
-  } catch {
-    // The canonical report validator below owns the public parse error.
-  }
-  throw new Error("invalid accepted C4 baseline report");
 }
 
 function validateAcceptedBaseline(

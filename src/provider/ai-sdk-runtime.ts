@@ -11,6 +11,12 @@ import { z } from "zod";
 import type { EmbeddingAdapter } from "../embedding/contracts";
 import { isModelProviderId } from "./model-provider";
 import type { ModelProviderId } from "./model-provider";
+import {
+  normalizeAISDKEmbeddingUsage,
+  normalizeOpenAICompatibleUsage,
+  runWithModelUsageAttempt,
+} from "./model-usage";
+import type { ModelTokenUsage, ModelUsageSink } from "./model-usage";
 
 export interface AISDKModelConfig {
   provider: ModelProviderId;
@@ -21,6 +27,7 @@ export interface AISDKModelConfig {
 
 interface EmbeddingAdapterDependencies {
   embedMany?: typeof embedMany;
+  modelUsageSink?: ModelUsageSink;
   requestTimeoutMs?: number;
   resolveEmbeddingModel?: typeof resolveAISDKEmbeddingModel;
   retryOptions?: AISDKRetryOptions;
@@ -447,7 +454,13 @@ async function withOpenAICompatibleTimeout<T>(input: {
   });
 }
 
-export async function requestOpenAICompatibleText(input: {
+export interface OpenAICompatibleTextResult {
+  text: string;
+  usage: ModelTokenUsage | null;
+}
+
+interface OpenAICompatibleTextInput {
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
   system?: string;
   prompt: string;
@@ -455,7 +468,28 @@ export async function requestOpenAICompatibleText(input: {
   fetch?: FetchLike;
   signal?: AbortSignal;
   timeoutMs?: number;
-}): Promise<string> {
+}
+
+function usageFromOpenAICompatiblePayload(
+  payload: unknown,
+): ModelTokenUsage | null {
+  if (
+    payload === null ||
+    typeof payload !== "object" ||
+    Array.isArray(payload) ||
+    !("usage" in payload) ||
+    payload.usage === null ||
+    typeof payload.usage !== "object" ||
+    Array.isArray(payload.usage)
+  ) {
+    return null;
+  }
+  return normalizeOpenAICompatibleUsage(payload);
+}
+
+async function requestOpenAICompatibleTextInternal(
+  input: OpenAICompatibleTextInput & { includeUsage: boolean },
+): Promise<OpenAICompatibleTextResult> {
   if (!input.model.baseURL) {
     throw new Error("OpenAI-compatible requests require a baseURL.");
   }
@@ -513,6 +547,12 @@ export async function requestOpenAICompatibleText(input: {
               ].filter(Boolean),
               stream: true,
               reasoning_effort: "medium",
+              ...(input.maxOutputTokens === undefined
+                ? {}
+                : { max_tokens: input.maxOutputTokens }),
+              ...(input.includeUsage
+                ? { stream_options: { include_usage: true } }
+                : {}),
               ...(input.temperature === undefined
                 ? {}
                 : { temperature: input.temperature }),
@@ -562,7 +602,10 @@ export async function requestOpenAICompatibleText(input: {
       );
     }
 
-    return extractOpenAICompatibleCompletionText(payload);
+    return {
+      text: extractOpenAICompatibleCompletionText(payload),
+      usage: usageFromOpenAICompatiblePayload(payload),
+    };
   }
 
   if (!response.ok) {
@@ -585,6 +628,7 @@ export async function requestOpenAICompatibleText(input: {
   const decoder = new TextDecoder();
   let buffer = "";
   let content = "";
+  let usage: ModelTokenUsage | null = null;
   let sawDone = false;
 
   while (true) {
@@ -619,7 +663,7 @@ export async function requestOpenAICompatibleText(input: {
 
       if (data === "[DONE]") {
         sawDone = true;
-        return content;
+        return { text: content, usage };
       }
 
       let payload: unknown;
@@ -633,6 +677,7 @@ export async function requestOpenAICompatibleText(input: {
       }
 
       content += extractOpenAICompatibleStreamText(payload);
+      usage = usageFromOpenAICompatiblePayload(payload) ?? usage;
     }
   }
 
@@ -646,10 +691,29 @@ export async function requestOpenAICompatibleText(input: {
     throw new Error("Malformed openai-compatible gateway response: stream ended before [DONE].");
   }
 
-  return content;
+  return { text: content, usage };
+}
+
+export async function requestOpenAICompatibleText(
+  input: OpenAICompatibleTextInput,
+): Promise<string> {
+  return (await requestOpenAICompatibleTextInternal({
+    ...input,
+    includeUsage: false,
+  })).text;
+}
+
+export async function requestOpenAICompatibleTextResult(
+  input: OpenAICompatibleTextInput,
+): Promise<OpenAICompatibleTextResult> {
+  return requestOpenAICompatibleTextInternal({
+    ...input,
+    includeUsage: true,
+  });
 }
 
 export async function requestOpenAICompatibleObject<T>(input: {
+  maxOutputTokens?: number;
   model: AISDKModelConfig;
   schema: z.ZodType<T>;
   system?: string;
@@ -663,6 +727,7 @@ export async function requestOpenAICompatibleObject<T>(input: {
   return parseStructuredModelObject(
     await requestOpenAICompatibleText({
       model: input.model,
+      maxOutputTokens: input.maxOutputTokens,
       system: input.system,
       prompt: input.prompt,
       temperature: input.temperature,
@@ -673,6 +738,40 @@ export async function requestOpenAICompatibleObject<T>(input: {
     input.schema,
     input.normalizePayload,
   );
+}
+
+export async function requestOpenAICompatibleObjectResult<T>(input: {
+  fetch?: FetchLike;
+  maxOutputTokens?: number;
+  model: AISDKModelConfig;
+  normalizePayload?: (payload: unknown) => unknown;
+  onUsage?: (usage: ModelTokenUsage | null) => void;
+  prompt: string;
+  schema: z.ZodType<T>;
+  signal?: AbortSignal;
+  system?: string;
+  temperature?: number;
+  timeoutMs?: number;
+}): Promise<{ object: T; usage: ModelTokenUsage | null }> {
+  const result = await requestOpenAICompatibleTextResult({
+    fetch: input.fetch,
+    maxOutputTokens: input.maxOutputTokens,
+    model: input.model,
+    prompt: input.prompt,
+    signal: input.signal,
+    system: input.system,
+    temperature: input.temperature,
+    timeoutMs: input.timeoutMs,
+  });
+  input.onUsage?.(result.usage);
+  return {
+    object: parseStructuredModelObject(
+      result.text,
+      input.schema,
+      input.normalizePayload,
+    ),
+    usage: result.usage,
+  };
 }
 
 export function parseAISDKModelConfigFromEnv(
@@ -782,29 +881,40 @@ export function createAISDKEmbeddingAdapter(input: {
       const batchEmbeddings = await mapEmbeddingBatches(
         batchEmbeddingTexts(texts),
         async (values) => {
+          let attempt = 0;
           const embeddings = await withAISDKRetries(async () => {
-            const controller = new AbortController();
-            const timeoutMs =
-              input.dependencies?.requestTimeoutMs ??
-              DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
-            const timeoutMessage = `AI SDK embedding timeout after ${timeoutMs}ms.`;
-            const result = await withOpenAICompatibleTimeout({
-              timeoutMs,
-              message: timeoutMessage,
-              onTimeout: () => controller.abort(new Error(timeoutMessage)),
-              operation: () =>
-                (input.dependencies?.embedMany ?? embedMany)({
-                  abortSignal: controller.signal,
-                  maxRetries: 0,
-                  model: (
-                    input.dependencies?.resolveEmbeddingModel ??
-                    resolveAISDKEmbeddingModel
-                  )(input.model),
-                  values,
-                }),
+            attempt += 1;
+            return runWithModelUsageAttempt({
+              attempt,
+              modelId: input.model.model,
+              operation: "embedding",
+              providerId: input.model.provider,
+              sink: input.dependencies?.modelUsageSink,
+              run: async (report) => {
+                const controller = new AbortController();
+                const timeoutMs =
+                  input.dependencies?.requestTimeoutMs ??
+                  DEFAULT_OPENAI_COMPATIBLE_REQUEST_TIMEOUT_MS;
+                const timeoutMessage = `AI SDK embedding timeout after ${timeoutMs}ms.`;
+                const result = await withOpenAICompatibleTimeout({
+                  timeoutMs,
+                  message: timeoutMessage,
+                  onTimeout: () => controller.abort(new Error(timeoutMessage)),
+                  operation: () =>
+                    (input.dependencies?.embedMany ?? embedMany)({
+                      abortSignal: controller.signal,
+                      maxRetries: 0,
+                      model: (
+                        input.dependencies?.resolveEmbeddingModel ??
+                        resolveAISDKEmbeddingModel
+                      )(input.model),
+                      values,
+                    }),
+                });
+                report(normalizeAISDKEmbeddingUsage(result.usage));
+                return result.embeddings;
+              },
             });
-
-            return result.embeddings;
           }, input.dependencies?.retryOptions);
           if (embeddings.length !== values.length) {
             throw new Error(

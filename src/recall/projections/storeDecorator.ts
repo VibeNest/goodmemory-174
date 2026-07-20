@@ -8,6 +8,7 @@ import type {
   ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
+import { PROJECTION_BATCH_SEMANTICS } from "../../storage/contracts";
 import {
   isRecallProjectionSourceCollection,
   type RecallProjectionSourceCollection,
@@ -195,6 +196,7 @@ export function createProjectionAwareDocumentStore(input: {
   }
 
   const decorated: ProjectionCapableDocumentStore = {
+    projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set(collection, id, document) {
       if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.set(collection, id, document);

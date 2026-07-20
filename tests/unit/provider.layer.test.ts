@@ -8,8 +8,12 @@ import {
   createFallbackAdapterDescriptor,
   createLiveAdapterDescriptor,
   createProviderEmbeddingAdapter,
+  createProviderConversationalMemoryExtractor,
   createProviderJudgeModel,
+  createProviderListwiseReranker,
   createProviderMemoryExtractor,
+  createProviderPointwiseReranker,
+  createProviderRecallPlanAssistant,
   createProviderRecallRouter,
   createProviderRuntimeMetadata,
   createProviderTextGenerator,
@@ -120,11 +124,13 @@ describe("provider layer contract", () => {
     const extractorCalls: Array<Record<string, unknown>> = [];
 
     const extractor = createProviderMemoryExtractor({
+      maxOutputTokens: 4_096,
       model: {
         provider: "openai",
         model: "gpt-5",
       },
       requestTimeoutMs: 1234,
+      temperature: 0,
       createMemoryExtractor: (input) => {
         extractorCalls.push(input as unknown as Record<string, unknown>);
         const memoryExtractor: MemoryExtractor = {
@@ -151,6 +157,8 @@ describe("provider layer contract", () => {
       model: "gpt-5",
     });
     expect(extractorCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
+    expect(extractorCalls[0]?.maxOutputTokens).toBe(4_096);
+    expect(extractorCalls[0]?.temperature).toBe(0);
   });
 
   it("routes provider-backed embedding creation through the same provider layer", async () => {
@@ -248,5 +256,107 @@ describe("provider layer contract", () => {
       model: "gpt-4o-mini",
     });
     expect(routerCalls[0]?.dependencies).toEqual({ requestTimeoutMs: 1234 });
+  });
+
+  it("forwards one usage sink to every provider-layer model adapter", () => {
+    const sink = { emit() {} };
+    const dependencies: Array<Record<string, unknown> | undefined> = [];
+    const capture = (value: unknown) => {
+      dependencies.push(value as Record<string, unknown> | undefined);
+    };
+    const model = { model: "gpt-5.6-terra", provider: "openai" } as const;
+
+    const createMemoryExtractor = (input: {
+      dependencies?: unknown;
+    }): MemoryExtractor => {
+      capture(input.dependencies);
+      return {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      };
+    };
+    createProviderMemoryExtractor({
+      createMemoryExtractor,
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderConversationalMemoryExtractor({
+      createMemoryExtractor,
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderEmbeddingAdapter({
+      createEmbeddingAdapter(input) {
+        capture(input.dependencies);
+        return { async embed() { return []; } };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderRecallRouter({
+      createRecallRouter(input) {
+        capture(input.dependencies);
+        return {
+          async plan() {
+            return { querySummary: "summary", rationale: "reason" };
+          },
+          async rerank() {
+            return { orderedCandidateIds: [], rationale: "reason" };
+          },
+        };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderRecallPlanAssistant({
+      createRecallPlanAssistant(input) {
+        capture(input.dependencies);
+        return { async plan() { return {}; } };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderPointwiseReranker({
+      createReranker(input) {
+        capture(input.dependencies);
+        return { async rerank() { return []; } };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderListwiseReranker({
+      createReranker(input) {
+        capture(input.dependencies);
+        return { async rerank() { return []; } };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderTextGenerator({
+      createTextGenerator(input) {
+        capture(input.dependencies);
+        return async () => ({ content: "answer" });
+      },
+      model,
+      modelUsageSink: sink,
+    });
+    createProviderJudgeModel({
+      createJudgeModel(input) {
+        capture(input.dependencies);
+        return {
+          async complete() {
+            return { content: "judge" };
+          },
+        };
+      },
+      model,
+      modelUsageSink: sink,
+    });
+
+    expect(dependencies).toHaveLength(9);
+    for (const dependency of dependencies) {
+      expect(dependency?.modelUsageSink).toBe(sink);
+    }
   });
 });

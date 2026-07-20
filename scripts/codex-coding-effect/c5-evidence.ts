@@ -38,6 +38,11 @@ import type {
 } from "./c4-leakage";
 import { loadCodexCodingEffectDataset } from "./dataset";
 import { buildC5StageLeakageInput } from "./c5-leakage-input";
+import {
+  C5_PRIOR_EXPORT_LINEAGE_REASON,
+  isC5StageWritebackRequired,
+  resolveC5PriorMemoryLineage,
+} from "./c5-memory-protocol";
 
 import type {
   C5PilotArm,
@@ -756,6 +761,11 @@ function verifyEvidenceGraph(input: {
         const key = stage.id;
         const execution = requiredMapValue(stageMap, key, "C5 stage execution");
         const stagePath = `${root}/${run.arm}/${stage.stageId}/stage-execution.sanitized.json`;
+        const writebackRequired = isC5StageWritebackRequired({
+          priorWritebackCommitted: priorWrittenMemoryIds.length > 0,
+          run,
+          stage,
+        });
         const writtenMemoryIds = verifyStageEvidence({
           codexExecutableSha256: hostBindings.codexExecutableSha256,
           expectedPriorMemoryIds: priorWrittenMemoryIds,
@@ -771,7 +781,7 @@ function verifyEvidenceGraph(input: {
           run,
           stage,
           stagePath,
-          writebackRequired: stageWritebackRequired(run, stage),
+          writebackRequired,
         });
         priorWrittenMemoryIds.push(...writtenMemoryIds);
       }
@@ -1372,6 +1382,7 @@ function verifyStageExecutions(
   ));
   const result = new Map<string, Record<string, unknown>>();
   const threadIds = new Set<string>();
+  const runsWithPriorWriteback = new Set<string>();
   for (const row of rows) {
     assertExactKeys(row, [
       "arm",
@@ -1433,23 +1444,32 @@ function verifyStageExecutions(
         throw new Error("C5 no-memory arm reported a memory channel");
       }
     } else {
-      const writebackRequired = stageWritebackRequired(run, stage);
+      const writebackRequired = isC5StageWritebackRequired({
+        priorWritebackCommitted: runsWithPriorWriteback.has(run.id),
+        run,
+        stage,
+      });
       if (
         row.memoryChannelStatus !== "passed" &&
         row.memoryChannelStatus !== "failed"
       ) {
         throw new Error(`C5 stage ${stageRunId} has an invalid memory channel`);
       }
-      if (row.memoryChannelStatus === "passed") {
-        verifyMemoryObservation(asRecord(
+      if (row.memoryObservation !== null) {
+        const observation = asRecord(
           row.memoryObservation,
-          "C5 installed memory observation",
-        ), stage, writebackRequired);
-      } else if (row.memoryObservation !== null) {
-        verifyFailedMemoryObservation(asRecord(
-          row.memoryObservation,
-          "C5 failed memory observation",
-        ));
+          row.memoryChannelStatus === "passed"
+            ? "C5 installed memory observation"
+            : "C5 failed memory observation",
+        );
+        if (row.memoryChannelStatus === "passed") {
+          verifyMemoryObservation(observation, stage, writebackRequired);
+        } else {
+          verifyFailedMemoryObservation(observation);
+        }
+        if (Number(observation.writtenMemoryCount) > 0) {
+          runsWithPriorWriteback.add(run.id);
+        }
       }
     }
     result.set(stageRunId, row);
@@ -2483,9 +2503,20 @@ function verifyHostCanary(input: {
     canary.recalledPriorMemoryIds,
     "C5 recalled memory IDs",
   );
-  const expectedPrior = [...new Set(input.expectedPriorMemoryIds)].sort();
-  const expectedRecalled = expectedPrior.filter((id) => injected.includes(id));
+  const lineage = resolveC5PriorMemoryLineage({
+    exportedMemoryIds: sourceReceipt.memoryRecordIds,
+    injectedMemoryIds: injected,
+    priorWritebackMemoryIds: input.expectedPriorMemoryIds,
+  });
+  const expectedPrior = lineage.expectedPriorMemoryIds;
+  const expectedRecalled = lineage.expectedRecalledMemoryIds;
   const reasons = stringArray(canary.reasons, "C5 host canary reasons");
+  if (
+    !lineage.containsPriorWritebackLineage &&
+    !reasons.includes(C5_PRIOR_EXPORT_LINEAGE_REASON)
+  ) {
+    throw new Error("C5 host canary omitted prior-memory lineage failure");
+  }
   for (const source of collectionFailures.keys()) {
     if (!reasons.includes(`source-collection-failed:${source}`)) {
       throw new Error("C5 host canary omitted a source collection failure");
@@ -2498,7 +2529,7 @@ function verifyHostCanary(input: {
     canary.writebackCommitted !== (written.length > 0) ||
     !sameStrings(written, sourceReceipt.writtenMemoryIds) ||
     !sameStrings(injected, sourceReceipt.injectedRecordIds) ||
-    expectedPrior.some((id) => !sourceReceipt.memoryRecordIds.includes(id)) ||
+    (passed && !lineage.containsPriorWritebackLineage) ||
     canary.stopCursorAdvanced !== sourceReceipt.stopCursorAdvanced ||
     canary.irrelevantInjection !==
       (input.stage.memoryExpectation === "irrelevant-control" &&
@@ -4821,16 +4852,6 @@ function runsForCluster(
   return plan.episodeArmRuns
     .filter((run) => run.clusterId === cluster.id)
     .sort((first, second) => first.armOrderPosition - second.armOrderPosition);
-}
-
-function stageWritebackRequired(
-  run: C5PilotEpisodeArmRun,
-  stage: C5PilotStageRun,
-): boolean {
-  const stageIndex = run.stages.findIndex(({ id }) => id === stage.id);
-  return run.stages.slice(stageIndex + 1).some(
-    ({ memoryExpectation }) => memoryExpectation === "required",
-  );
 }
 
 function trajectoryRoot(clusterId: string): string {

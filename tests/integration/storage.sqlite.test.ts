@@ -4,11 +4,14 @@ import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createGoodMemory } from "../../src";
+import { createFactMemory } from "../../src/domain/records";
 import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
+  ENTITIES_COLLECTION,
   PROJECTION_REPAIRS_COLLECTION,
 } from "../../src/recall/projections/contracts";
+import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
 import type { DocumentStore } from "../../src/storage/contracts";
 import { createInMemorySessionStore } from "../../src/storage/memory";
 import {
@@ -140,6 +143,7 @@ describe("sqlite document conditional batches", () => {
     try {
       const inner = createSQLiteDocumentStore(path);
       const store: DocumentStore = {
+        projectionBatchSemantics: inner.projectionBatchSemantics,
         set: async (collection, id, document) => {
           await inner.set(collection, id, document);
           if (collection === "facts" && !blocker) {
@@ -153,7 +157,16 @@ describe("sqlite document conditional batches", () => {
         delete: (collection, id) => inner.delete(collection, id),
         writeBatchIfUnchanged: async (input) => {
           try {
-            return await inner.writeBatchIfUnchanged(input);
+            const committed = await inner.writeBatchIfUnchanged(input);
+            if (
+              committed &&
+              input.set.some(({ collection }) => collection === "facts") &&
+              !blocker
+            ) {
+              blocker = new Database(path, { strict: true });
+              blocker.exec("BEGIN IMMEDIATE");
+            }
+            return committed;
           } catch (error) {
             blocker?.exec("ROLLBACK");
             blocker?.close();
@@ -189,6 +202,77 @@ describe("sqlite document conditional batches", () => {
       } finally {
         blocker?.close();
       }
+      await rm(path, { force: true });
+    }
+  });
+});
+
+describe("sqlite projection text index", () => {
+  it("indexes and searches claim and entity projections through FTS", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-projection-text-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      const runtime = createRecallProjectionRuntime({ documentStore: store });
+      const scope = { userId: "fts-user", workspaceId: "fts-workspace" };
+      const fact = createFactMemory({
+        ...scope,
+        id: "fact-atlas",
+        category: "project",
+        content: "Atlas rollout is active.",
+        subject: "Atlas",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-07-18T09:00:00.000Z",
+        },
+        createdAt: "2026-07-18T09:00:00.000Z",
+        updatedAt: "2026-07-18T09:00:00.000Z",
+      });
+      await runtime.documentStore.set("facts", fact.id, fact);
+      await runtime.appendClaim({
+        ...scope,
+        sourceMemoryId: fact.id,
+        subject: "Atlas",
+        claim: {
+          predicateKey: "project.status",
+          objectText: "completed",
+          polarity: "positive",
+          modality: "completed",
+        },
+        observedAt: "2026-07-18T10:00:00.000Z",
+        ingestedAt: "2026-07-18T10:00:00.000Z",
+        evidenceIds: ["evidence-atlas"],
+        sourceMessageIds: ["message-atlas"],
+        extractorVersion: "sqlite-fts-test-v1",
+      });
+
+      expect(await runtime.searchClaims(scope, "Atlas completed", 5)).toEqual([
+        expect.objectContaining({ objectText: "completed" }),
+      ]);
+      expect(
+        (await runtime.searchEntities(scope, "Atlas rollout", 5)).some(
+          ({ canonicalKey }) => canonicalKey === "atlas",
+        ),
+      ).toBe(true);
+
+      const database = new Database(path, { readonly: true, strict: true });
+      const indexedCollections = database
+        .query<{ collection: string }, []>(
+          `SELECT DISTINCT collection
+           FROM document_text_fts
+           WHERE collection IN ('claim_projections_v1', 'entities_v1')
+           ORDER BY collection`,
+        )
+        .all()
+        .map(({ collection }) => collection);
+      database.close();
+      expect(indexedCollections).toEqual([
+        CLAIM_PROJECTIONS_COLLECTION,
+        ENTITIES_COLLECTION,
+      ]);
+    } finally {
       await rm(path, { force: true });
     }
   });

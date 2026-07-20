@@ -1,3 +1,4 @@
+import { renderEvidenceLedgerContext } from "../answer/evidenceLedgerContext";
 import type {
   FeedbackKind,
   FeedbackMemory,
@@ -46,7 +47,7 @@ import {
 import { createRecallProjectionRuntime } from "../recall/projections/runtime";
 import { decomposedRecall } from "../recall/queryDecomposition";
 import {
-  buildDeterministicRecallPlan,
+  resolveRecallPlan,
   type RecallPlan,
 } from "../recall/recallPlan";
 import type { Reranker } from "../recall/reranker";
@@ -74,6 +75,7 @@ import {
   isProjectionCapableDocumentStore,
   type DocumentStore,
 } from "../storage/contracts";
+import type { ScopeDeletionCoordinator } from "../storage/scopeDeletion";
 import {
   createSQLiteDocumentStore,
   createSQLiteSessionStore,
@@ -356,6 +358,16 @@ function mergeRecallResults(
   const episodes = unionRecordsById(results, (result) => result.episodes);
   const archives = unionRecordsById(results, (result) => result.archives);
   const evidence = unionRecordsById(results, (result) => result.evidence);
+  const includesEvidenceLedger = results.some(
+    (result) => result.evidenceLedger !== undefined,
+  );
+  const evidenceLedger = includesEvidenceLedger
+    ? [...new Map(
+        results
+          .flatMap((result) => result.evidenceLedger ?? [])
+          .map((entry) => [JSON.stringify(entry), entry] as const),
+      ).values()]
+    : undefined;
   const packet = rebuildMemoryPacket(primary.packet, {
     profile: primary.profile,
     preferences,
@@ -379,6 +391,7 @@ function mergeRecallResults(
     feedback,
     archives,
     evidence,
+    ...(evidenceLedger ? { evidenceLedger } : {}),
     episodes,
     workingMemory: primary.workingMemory,
     journal: primary.journal,
@@ -802,6 +815,7 @@ class GoodMemoryImpl implements GoodMemory {
 
   private readonly documentStore;
   private readonly sessionStore;
+  private readonly scopeDeletion?: ScopeDeletionCoordinator;
   private readonly governanceRepositories: GovernanceRepositoryPort;
   private readonly governanceVectors: GovernanceVectorPort | null;
   private readonly revisionVectorIndex: RememberVectorPort | null;
@@ -853,6 +867,9 @@ class GoodMemoryImpl implements GoodMemory {
       (runtimeResolution.embeddingModelConfig
         ? createProviderEmbeddingAdapter({
             model: runtimeResolution.embeddingModelConfig,
+            ...(config.observability?.modelUsageSink
+              ? { modelUsageSink: config.observability.modelUsageSink }
+              : {}),
           })
         : undefined);
     const assistedExtractor =
@@ -866,9 +883,15 @@ class GoodMemoryImpl implements GoodMemory {
               model: runtimeResolution.assistedExtractorModelConfig,
               contextualDescriptor:
                 config.providers?.extraction?.contextualDescriptors,
+              ...(config.observability?.modelUsageSink
+                ? { modelUsageSink: config.observability.modelUsageSink }
+                : {}),
             })
           : createProviderMemoryExtractor({
               model: runtimeResolution.assistedExtractorModelConfig,
+              ...(config.observability?.modelUsageSink
+                ? { modelUsageSink: config.observability.modelUsageSink }
+                : {}),
             })
         : undefined);
     const reranker =
@@ -878,10 +901,16 @@ class GoodMemoryImpl implements GoodMemory {
           ? createProviderListwiseReranker({
               model: runtimeResolution.rerankerModelConfig,
               requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
+              ...(config.observability?.modelUsageSink
+                ? { modelUsageSink: config.observability.modelUsageSink }
+                : {}),
             })
           : createProviderPointwiseReranker({
               model: runtimeResolution.rerankerModelConfig,
               requestTimeoutMs: config.providers?.reranking?.requestTimeoutMs,
+              ...(config.observability?.modelUsageSink
+                ? { modelUsageSink: config.observability.modelUsageSink }
+                : {}),
             })
         : undefined);
     const rerankerTarget: RerankerExecutionTarget | undefined = reranker
@@ -932,6 +961,7 @@ class GoodMemoryImpl implements GoodMemory {
             internal?.projectionWriteThrough !== false,
         })
       : undefined;
+    this.scopeDeletion = projectionRuntime?.scopeDeletion;
     const documentStore = projectionRuntime?.documentStore ?? rawDocumentStore;
     const sessionStore =
       config.adapters?.sessionStore ??
@@ -998,6 +1028,7 @@ class GoodMemoryImpl implements GoodMemory {
         : undefined,
       language,
       policy: config.policy,
+      recallPlanner: config.adapters?.recallPlanner,
     });
     this.rememberEngine = createRememberEngine({
       repositories,
@@ -1078,9 +1109,9 @@ class GoodMemoryImpl implements GoodMemory {
       name: "memory.recall",
       scope: input.scope,
       attributes: {
+        decomposeOverride: input.decompose ?? "plan",
         ignoreMemory: Boolean(input.ignoreMemory),
-        multiHop: Boolean(input.multiHop),
-        decompose: Boolean(input.decompose),
+        multiHopOverride: input.multiHop ?? "plan",
         requestedRetrievalProfile: input.retrievalProfile ?? "default",
         requestedStrategy: input.strategy ?? "default",
       },
@@ -1091,16 +1122,41 @@ class GoodMemoryImpl implements GoodMemory {
         locale: input.locale,
         text: input.query,
       });
-      const recallPlan = buildDeterministicRecallPlan({
-        language: this.language,
-        locale: resolvedLanguage.locale,
-        query: input.query,
-        referenceTime: this.now().toISOString(),
-        scope: input.scope,
+      const planResolution = await resolveRecallPlan({
+        assistant: this.config.adapters?.recallPlanner,
+        input: {
+          language: this.language,
+          locale: resolvedLanguage.locale,
+          query: input.query,
+          referenceTime: this.now().toISOString(),
+          scope: input.scope,
+        },
       });
+      if (planResolution.fallbackReason) {
+        console.error(
+          "[goodmemory:recall-plan] assisted planning failed; using deterministic plan",
+          {
+            locale: resolvedLanguage.locale,
+            queryLength: input.query.length,
+          },
+        );
+      }
+      const recallPlan = planResolution.plan;
+      const recallPlanExecution =
+        this.config.retrieval?.recallPlanExecution === true;
       const multiHopMaxHops =
-        typeof input.multiHop === "number" ? input.multiHop : undefined;
-      const multiHopEnabled = Boolean(input.multiHop);
+        typeof input.multiHop === "number"
+          ? input.multiHop
+          : input.multiHop === undefined &&
+              recallPlanExecution &&
+              recallPlan.maxHops > 1
+            ? recallPlan.maxHops
+            : undefined;
+      const multiHopEnabled = input.multiHop === undefined
+        ? recallPlanExecution && recallPlan.maxHops > 1
+        : Boolean(input.multiHop);
+      const decompositionEnabled = input.decompose ??
+        (recallPlanExecution && recallPlan.facets.length > 0);
       const runQuery = async (context: {
         query: string;
         role: "primary" | "subquery";
@@ -1175,7 +1231,7 @@ class GoodMemoryImpl implements GoodMemory {
       let result: RecallResult;
       let subQueries: string[] = [];
       let executions: RecallQueryExecutionTrace[];
-      if (input.decompose) {
+      if (decompositionEnabled) {
         const executionsByQuery = new Map<string, RecallQueryExecutionTrace>();
         const decomposed = await decomposedRecall({
           query: input.query,
@@ -1214,9 +1270,11 @@ class GoodMemoryImpl implements GoodMemory {
               }),
             )
           : await applyFactRerankingToResult({
+              preRankLimit: recallPlan.preRankLimit,
               query: input.query,
               reranker: this.reranker,
               result,
+              selectedLimit: recallPlan.selectedLimit,
               target: this.rerankerTarget,
             });
       }
@@ -1232,6 +1290,22 @@ class GoodMemoryImpl implements GoodMemory {
               : "single_pass_complete",
         subQueries,
       });
+      if (planResolution.assistantApplied || planResolution.fallbackReason) {
+        result = {
+          ...result,
+          metadata: {
+            ...result.metadata,
+            policyApplied: [
+              ...new Set([
+                ...result.metadata.policyApplied,
+                planResolution.assistantApplied
+                  ? "recall_plan_assistant_applied"
+                  : "recall_plan_assistant_fallback",
+              ]),
+            ],
+          },
+        };
+      }
       await this.evolutionRuntime.handleRecall({
         scope: input.scope,
         result,
@@ -1239,7 +1313,10 @@ class GoodMemoryImpl implements GoodMemory {
       const traced = withRecallTrace(result, trace);
       await trace.succeeded({
         attributes: {
+          decompositionEnabled,
           hitCount: result.metadata.hits.length,
+          multiHopEnabled,
+          plannedMaxHops: recallPlan.maxHops,
           policyAppliedCount: result.metadata.policyApplied.length,
           tokenCount: result.metadata.tokenCount,
           verificationHintCount: result.metadata.verificationHints.length,
@@ -1271,8 +1348,18 @@ class GoodMemoryImpl implements GoodMemory {
     });
 
     try {
+      const packet = input.evidenceLedgerFormat && input.recall.evidenceLedger
+        ? {
+            ...input.recall.packet,
+            evidenceSummary: renderEvidenceLedgerContext(
+              input.recall.evidenceLedger,
+              input.evidenceLedgerFormat,
+              input.recall.metadata.locale,
+            ),
+          }
+        : input.recall.packet;
       const rendered = renderMemoryPacket(
-        input.recall.packet,
+        packet,
         output,
         input.maxTokens,
         input.recall.metadata.routingDecision.retrievalProfile,
@@ -1466,7 +1553,12 @@ class GoodMemoryImpl implements GoodMemory {
   }
 
   async deleteAllMemory(input: DeleteAllMemoryInput): Promise<DeleteAllMemoryResult> {
-    return deleteAllMemoryOperation(
+    if (!this.scopeDeletion) {
+      throw new Error(
+        "deleteAllMemory requires a projection-capable document store with atomic conditional batches.",
+      );
+    }
+    const operation = () => deleteAllMemoryOperation(
       {
         tracer: this.tracer,
         governanceRepositories: this.governanceRepositories,
@@ -1476,6 +1568,7 @@ class GoodMemoryImpl implements GoodMemory {
       },
       input,
     );
+    return this.scopeDeletion.runExclusive(input.scope, operation);
   }
 
   async feedback(input: FeedbackInput): Promise<FeedbackResult> {

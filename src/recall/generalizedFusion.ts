@@ -53,6 +53,7 @@ export interface GeneralizedFusionResult {
 }
 
 export interface GeneralizedFusionInput {
+  channels?: readonly GeneralizedFusionChannel[];
   claims?: readonly ClaimProjection[];
   query: string;
   documents: readonly RecallIndexDocument[];
@@ -432,12 +433,21 @@ function groupClaimsBySubjectPredicate(
 ): Map<string, ClaimProjection[]> {
   const grouped = new Map<string, ClaimProjection[]>();
   for (const claim of claims) {
-    const key = `${claim.scopeKey}\u0000${claim.subjectEntityId}\u0000${claim.predicateKey}`;
+    const key = claimProjectionGroupKey(claim);
     const group = grouped.get(key) ?? [];
     group.push(claim);
     grouped.set(key, group);
   }
   return grouped;
+}
+
+export function claimProjectionGroupKey(
+  claim: Pick<
+    ClaimProjection,
+    "predicateKey" | "scopeKey" | "subjectEntityId"
+  >,
+): string {
+  return `${claim.scopeKey}\u0000${claim.subjectEntityId}\u0000${claim.predicateKey}`;
 }
 
 function selectTemporalClaims(input: {
@@ -529,23 +539,41 @@ function filterChannelsToTemporalClaimBoundary(
     name: GeneralizedFusionChannel;
     candidates: RankedChannelCandidate[];
   }>,
+  relevance: ReadonlyMap<string, number>,
 ): void {
-  const bounded = input.plan?.temporalConstraints.some(
-    ({ kind }) => kind === "before" || kind === "after",
-  );
-  if (!bounded || !input.plan || !input.claims) {
+  if (!input.plan || !input.claims) {
     return;
   }
-  const claimSourceIds = new Set(input.claims.map(({ sourceMemoryId }) => sourceMemoryId));
-  const selectedSourceIds = new Set(selectTemporalClaims({
+  const constrained =
+    input.plan.aggregation === "count" ||
+    input.plan.aggregation === "current" ||
+    input.plan.temporalConstraints.some(
+      ({ kind }) =>
+        kind === "before" || kind === "after" || kind === "current",
+    );
+  if (!constrained) {
+    return;
+  }
+  const selectedClaims = selectTemporalClaims({
     claims: input.claims,
     plan: input.plan,
     referenceTime: input.referenceTime,
-  }).map(({ sourceMemoryId }) => sourceMemoryId));
+  }).filter((claim) => (relevance.get(claim.id) ?? 0) > 0);
+  const selectedGroupKeys = new Set(
+    selectedClaims.map(claimProjectionGroupKey),
+  );
+  const competingSourceIds = new Set(
+    input.claims
+      .filter((claim) => selectedGroupKeys.has(claimProjectionGroupKey(claim)))
+      .map(({ sourceMemoryId }) => sourceMemoryId),
+  );
+  const selectedSourceIds = new Set(
+    selectedClaims.map(({ sourceMemoryId }) => sourceMemoryId),
+  );
   for (const channel of channels) {
     channel.candidates = channel.candidates.filter((candidate) =>
       candidate.sourceCollection !== "facts" ||
-      !claimSourceIds.has(candidate.sourceMemoryId) ||
+      !competingSourceIds.has(candidate.sourceMemoryId) ||
       selectedSourceIds.has(candidate.sourceMemoryId)
     );
   }
@@ -572,6 +600,9 @@ function buildTemporalChannel(
   const bySource = new Map<string, RawChannelCandidate>();
   for (const claim of claims) {
     const rawScore = relevance.get(claim.id) ?? 0;
+    if (rawScore <= 0) {
+      continue;
+    }
     const existing = bySource.get(claim.sourceMemoryId);
     if (existing) {
       existing.evidenceDocumentIds.push(claim.id);
@@ -685,7 +716,10 @@ export function fuseGeneralizedRecallCandidates(
   const rrfK = Math.max(1, input.rrfK ?? DEFAULT_GENERALIZED_FUSION_RRF_K);
   const visibleSourceKeys = buildVisibleSourceKeys(input);
   const claimRelevance = buildClaimRelevance(input);
-  const channels: Array<{
+  const enabledChannels = input.channels
+    ? new Set(input.channels)
+    : undefined;
+  const allChannels: Array<{
     name: GeneralizedFusionChannel;
     candidates: RankedChannelCandidate[];
   }> = [
@@ -695,7 +729,10 @@ export function fuseGeneralizedRecallCandidates(
     { name: "temporal", candidates: buildTemporalChannel(input, claimRelevance) },
     { name: "relation", candidates: buildRelationChannel(input, claimRelevance) },
   ];
-  filterChannelsToTemporalClaimBoundary(input, channels);
+  const channels = allChannels.filter(
+    ({ name }) => enabledChannels?.has(name) ?? true,
+  );
+  filterChannelsToTemporalClaimBoundary(input, channels, claimRelevance);
   const fused = new Map<string, GeneralizedFusionCandidate>();
   for (const channel of channels) {
     for (const candidate of channel.candidates) {

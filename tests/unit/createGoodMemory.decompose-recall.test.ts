@@ -7,19 +7,18 @@ import {
 } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
 
-// The decompose recall option is opt-in: default recall stays a single query, and
-// decompose: true splits a compound query into sub-queries, recalls each, and
-// unions the results so each part's evidence is retrieved with a focused query
-// (a focused sub-query has higher lexical overlap than the long compound query).
+// A query-only RecallPlan drives decomposition by default. The public option
+// remains as an explicit override for callers that need a single-query replay.
 describe("GoodMemory.recall decompose option", () => {
   const scope = { userId: "u-1", workspaceId: "workspace-a" };
 
-  function buildMemory() {
+  function buildMemory(recallPlanExecution = true) {
     const documentStore = createInMemoryDocumentStore();
     const sessionStore = createInMemorySessionStore();
     const vectorStore = createInMemoryVectorStore();
     const memory = createGoodMemory({
       adapters: { documentStore, sessionStore, vectorStore },
+      retrieval: { recallPlanExecution },
       storage: { provider: "memory" },
     });
     const makeFact = (id: string, content: string) =>
@@ -36,7 +35,7 @@ describe("GoodMemory.recall decompose option", () => {
     return { documentStore, makeFact, memory };
   }
 
-  it("unions both topic facts and marks the recall as decomposed", async () => {
+  it("uses planned facets by default and keeps an explicit disable override", async () => {
     const { documentStore, makeFact, memory } = buildMemory();
     const facts = [
       makeFact("db", "My production database is PostgreSQL."),
@@ -49,14 +48,18 @@ describe("GoodMemory.recall decompose option", () => {
     }
     const query = "What database do I use and which code editor do I prefer?";
 
-    const single = await memory.recall({ scope, query, strategy: "rules-only" });
+    const single = await memory.recall({
+      scope,
+      query,
+      strategy: "rules-only",
+      decompose: false,
+    });
     const singleIds = single.facts.map((fact) => fact.id);
 
     const decomposed = await memory.recall({
       scope,
       query,
       strategy: "rules-only",
-      decompose: true,
     });
     const decomposedIds = decomposed.facts.map((fact) => fact.id);
 
@@ -64,6 +67,12 @@ describe("GoodMemory.recall decompose option", () => {
     expect(decomposedIds).toContain("db");
     expect(decomposedIds).toContain("editor");
     expect(decomposed.metadata.policyApplied).toContain("decomposed_recall");
+    expect(single.metadata.policyApplied).not.toContain("decomposed_recall");
+    expect(single.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "single_pass_complete",
+      subQueries: [],
+    });
     const retrievalTrace = decomposed.metadata.retrievalTrace;
     const recallPlan = retrievalTrace?.schemaVersion === 2
       ? retrievalTrace.plan
@@ -99,6 +108,29 @@ describe("GoodMemory.recall decompose option", () => {
     // The packet is re-rendered over the union, so it reflects the merged facts.
     expect(decomposed.packet).toBeDefined();
     expect(decomposed.packet.renderBudget).toEqual({ maxTokens: 6_000 });
+  });
+
+  it("keeps query-plan execution behind the experimental retrieval option", async () => {
+    const { documentStore, makeFact, memory } = buildMemory(false);
+    for (const fact of [
+      makeFact("db", "My production database is PostgreSQL."),
+      makeFact("editor", "My preferred code editor is Neovim."),
+    ]) {
+      await documentStore.set("facts", fact.id, fact);
+    }
+
+    const result = await memory.recall({
+      scope,
+      query: "What database do I use and which code editor do I prefer?",
+      strategy: "rules-only",
+    });
+
+    expect(result.metadata.policyApplied).not.toContain("decomposed_recall");
+    expect(result.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      stopReason: "single_pass_complete",
+      subQueries: [],
+    });
   });
 
   it("is a no-op for a single-part query (no decomposition marker)", async () => {

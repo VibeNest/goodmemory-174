@@ -8,6 +8,8 @@ import type { MemoryScope } from "../domain/scope";
 export type StorageDocument = object;
 export type StorageFilter = Record<string, unknown>;
 
+export const PROJECTION_BATCH_SEMANTICS = "unchanged-delete-v1" as const;
+
 export interface DocumentQueryPageInput {
   cursor?: string;
   filter?: StorageFilter;
@@ -49,7 +51,11 @@ export interface ConditionalDocumentWriteBatch {
     collection: string;
     id: string;
   }>;
-  expected: DocumentWriteOperation;
+  expected: {
+    collection: string;
+    document: StorageDocument | null;
+    id: string;
+  };
   set: DocumentWriteOperation[];
   unchanged?: Array<{
     collection: string;
@@ -59,6 +65,7 @@ export interface ConditionalDocumentWriteBatch {
 }
 
 export interface DocumentStore {
+  projectionBatchSemantics?: string;
   set<TDocument extends StorageDocument>(
     collection: string,
     id: string,
@@ -90,13 +97,15 @@ export interface DocumentStore {
 }
 
 export interface ProjectionCapableDocumentStore extends DocumentStore {
+  projectionBatchSemantics: typeof PROJECTION_BATCH_SEMANTICS;
   writeBatchIfUnchanged(input: ConditionalDocumentWriteBatch): Promise<boolean>;
 }
 
 export function isProjectionCapableDocumentStore(
   store: DocumentStore,
 ): store is ProjectionCapableDocumentStore {
-  return typeof store.writeBatchIfUnchanged === "function";
+  return store.projectionBatchSemantics === PROJECTION_BATCH_SEMANTICS &&
+    typeof store.writeBatchIfUnchanged === "function";
 }
 
 export function assertDocumentQueryPageInput(

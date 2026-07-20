@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import { createFactMemory } from "../../src/domain/records";
+import { buildClaimProjectionStatusId } from "../../src/recall/projections/claims";
 import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
@@ -8,8 +9,10 @@ import {
   type AppendClaimProjectionInput,
   type ClaimProjection,
   type ClaimProjectionStatus,
+  type ProjectionRepairRecord,
 } from "../../src/recall/projections/contracts";
 import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
+import { recallScopeKey } from "../../src/recall/projections/shared";
 import type { DocumentStore, StorageDocument } from "../../src/storage/contracts";
 import { createInMemoryDocumentStore } from "../../src/storage/memory";
 
@@ -64,6 +67,7 @@ function createOneShotClaimFailureStore(inner: DocumentStore): DocumentStore {
   let fail = true;
 
   return {
+    projectionBatchSemantics: inner.projectionBatchSemantics,
     async set<TDocument extends StorageDocument>(collection: string, id: string, document: TDocument) {
       if (collection === CLAIM_PROJECTIONS_COLLECTION && fail) {
         fail = false;
@@ -111,6 +115,7 @@ function createBlockedRepairStore(inner: DocumentStore): {
     releaseRepair,
     repairStarted,
     store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       async set<TDocument extends StorageDocument>(
         collection: string,
         id: string,
@@ -168,6 +173,7 @@ function createInterleavedRepairStore(inner: DocumentStore): {
     releaseOldRepair,
     oldRepairStarted,
     store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       set: (collection, id, document) => inner.set(collection, id, document),
       get: (collection, id) => inner.get(collection, id),
       update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -213,6 +219,7 @@ function createDelayedFailingAppendStore(inner: DocumentStore): {
     appendStarted,
     releaseAppend,
     store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       set: (collection, id, document) => inner.set(collection, id, document),
       get: (collection, id) => inner.get(collection, id),
       update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -258,6 +265,7 @@ function createDeleteRepairRaceStore(inner: DocumentStore): {
     deletionStarted,
     releaseDeletion,
     store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       set: (collection, id, document) => inner.set(collection, id, document),
       get: (collection, id) => inner.get(collection, id),
       update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -308,6 +316,7 @@ function createBlockedLifecycleStore(inner: DocumentStore): {
     lifecycleStarted,
     releaseLifecycle,
     store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       set: (collection, id, document) => inner.set(collection, id, document),
       get: (collection, id) => inner.get(collection, id),
       update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -320,6 +329,62 @@ function createBlockedLifecycleStore(inner: DocumentStore): {
           blockLifecycle = false;
           markLifecycleStarted();
           await lifecycleRelease;
+        }
+        return inner.writeBatchIfUnchanged!(input);
+      },
+    },
+  };
+}
+
+function createConcurrentAppendStore(inner: DocumentStore): {
+  newAppendStarted: Promise<void>;
+  oldAppendStarted: Promise<void>;
+  releaseNewAppend: () => void;
+  releaseOldAppend: () => void;
+  store: DocumentStore;
+} {
+  let claimBatchCount = 0;
+  let markNewAppendStarted = () => {};
+  let markOldAppendStarted = () => {};
+  let releaseNewAppend = () => {};
+  let releaseOldAppend = () => {};
+  const newAppendStarted = new Promise<void>((resolve) => {
+    markNewAppendStarted = resolve;
+  });
+  const oldAppendStarted = new Promise<void>((resolve) => {
+    markOldAppendStarted = resolve;
+  });
+  const newAppendRelease = new Promise<void>((resolve) => {
+    releaseNewAppend = resolve;
+  });
+  const oldAppendRelease = new Promise<void>((resolve) => {
+    releaseOldAppend = resolve;
+  });
+  return {
+    newAppendStarted,
+    oldAppendStarted,
+    releaseNewAppend,
+    releaseOldAppend,
+    store: {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => inner.get(collection, id),
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => inner.query(collection, filter),
+      delete: (collection, id) => inner.delete(collection, id),
+      queryPage: inner.queryPage,
+      writeBatchIfUnchanged: async (input) => {
+        if (input.set.some(({ collection }) =>
+          collection === CLAIM_PROJECTIONS_COLLECTION
+        )) {
+          claimBatchCount += 1;
+          if (claimBatchCount === 1) {
+            markOldAppendStarted();
+            await oldAppendRelease;
+          } else if (claimBatchCount === 2) {
+            markNewAppendStarted();
+            await newAppendRelease;
+          }
         }
         return inner.writeBatchIfUnchanged!(input);
       },
@@ -343,6 +408,7 @@ describe("claim projection runtime", () => {
   it("token-scores natural-language queries when an adapter has no native search", async () => {
     const inner = createInMemoryDocumentStore();
     const store: DocumentStore = {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
       set: (collection, id, document) => inner.set(collection, id, document),
       get: (collection, id) => inner.get(collection, id),
       update: (collection, id, patch) => inner.update(collection, id, patch),
@@ -380,6 +446,9 @@ describe("claim projection runtime", () => {
       polarity: "positive",
       modality: "asserted",
     });
+    expect(current[0]?.text).toContain("Atlas");
+    expect(current[0]?.text).toContain("project.status");
+    expect(current[0]?.text).toContain("completed");
     expect(history.map(({ objectText }) => objectText).sort()).toEqual([
       "completed",
       "planned",
@@ -392,6 +461,204 @@ describe("claim projection runtime", () => {
     expect(status).toEqual([
       expect.objectContaining({ state: "projected", claimIds: [current[0]!.id] }),
     ]);
+  });
+
+  it("loads current claims for selected memories without scanning the whole scope", async () => {
+    const inner = createInMemoryDocumentStore();
+    const projectionGets: Array<{ collection: string; id: string }> = [];
+    let projectionQueries = 0;
+    const store: DocumentStore = {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => {
+        if (
+          collection === CLAIM_PROJECTIONS_COLLECTION ||
+          collection === CLAIM_PROJECTION_STATUS_COLLECTION
+        ) {
+          projectionGets.push({ collection, id });
+        }
+        return inner.get(collection, id);
+      },
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => {
+        if (
+          collection === CLAIM_PROJECTIONS_COLLECTION ||
+          collection === CLAIM_PROJECTION_STATUS_COLLECTION
+        ) {
+          projectionQueries += 1;
+        }
+        return inner.query(collection, filter);
+      },
+      delete: (collection, id) => inner.delete(collection, id),
+      searchText: (collection, input) => inner.searchText!(collection, input),
+      writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged(input),
+    };
+    const runtime = createRecallProjectionRuntime({ documentStore: store });
+    const factOne = buildFact();
+    const factTwo = {
+      ...buildFact(),
+      id: "fact-2",
+      content: "Beacon is paused.",
+      subject: "Beacon",
+    };
+    await runtime.documentStore.set("facts", factOne.id, factOne);
+    await runtime.documentStore.set("facts", factTwo.id, factTwo);
+    await runtime.appendClaim(claimInput("planned", "2026-07-16T10:00:00.000Z"));
+    await runtime.appendClaim(claimInput("completed", "2026-07-16T11:00:00.000Z"));
+    await runtime.appendClaim({
+      ...claimInput("paused", "2026-07-16T11:30:00.000Z"),
+      sourceMemoryId: "fact-2",
+      subject: "Beacon",
+    });
+    projectionGets.length = 0;
+    projectionQueries = 0;
+
+    const selected = await runtime.queryClaimsBySourceMemoryIds(scope, [
+      "fact-1",
+      "missing-memory",
+    ]);
+
+    expect(selected).toEqual([
+      expect.objectContaining({
+        sourceMemoryId: "fact-1",
+        objectText: "completed",
+      }),
+    ]);
+    expect(projectionQueries).toBe(0);
+    expect(projectionGets.map(({ collection }) => collection)).toEqual([
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+      CLAIM_PROJECTIONS_COLLECTION,
+    ]);
+  });
+
+  it("searches one indexed claim text field and resolves status by deterministic id", async () => {
+    const inner = createInMemoryDocumentStore();
+    const searchedFields: string[] = [];
+    let projectionQueries = 0;
+    const store: DocumentStore = {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => inner.get(collection, id),
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => {
+        if (
+          collection === CLAIM_PROJECTIONS_COLLECTION ||
+          collection === CLAIM_PROJECTION_STATUS_COLLECTION
+        ) {
+          projectionQueries += 1;
+        }
+        return inner.query(collection, filter);
+      },
+      delete: (collection, id) => inner.delete(collection, id),
+      searchText: (collection, input) => {
+        searchedFields.push(input.field);
+        return inner.searchText!(collection, input);
+      },
+      writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged(input),
+    };
+    const runtime = createRecallProjectionRuntime({ documentStore: store });
+    const fact = buildFact();
+    await runtime.documentStore.set("facts", fact.id, fact);
+    await runtime.appendClaim(claimInput(
+      "completed",
+      "2026-07-16T11:00:00.000Z",
+    ));
+    searchedFields.length = 0;
+    projectionQueries = 0;
+
+    const matches = await runtime.searchClaims(
+      scope,
+      "Atlas completed project status",
+      5,
+    );
+
+    expect(matches).toEqual([
+      expect.objectContaining({ objectText: "completed" }),
+    ]);
+    expect(searchedFields).toEqual(["text"]);
+    expect(projectionQueries).toBe(0);
+  });
+
+  it("backfills indexed text onto legacy claim projections", async () => {
+    const store = createInMemoryDocumentStore();
+    const fact = buildFact();
+    const legacyClaim: ClaimProjection = {
+      id: "legacy-claim",
+      schemaVersion: 1,
+      ...scope,
+      scopeKey: recallScopeKey(scope),
+      sourceMemoryId: fact.id,
+      subjectEntityId: "legacy-entity-atlas",
+      predicateKey: "project.status",
+      objectText: "active",
+      polarity: "positive",
+      modality: "asserted",
+      observedAt: fact.updatedAt,
+      ingestedAt: fact.updatedAt,
+      evidenceIds: [],
+      sourceMessageIds: [],
+      extractorVersion: "legacy-v1",
+    };
+    const legacyStatus: ClaimProjectionStatus = {
+      id: buildClaimProjectionStatusId(scope, fact.id),
+      schemaVersion: 1,
+      ...scope,
+      scopeKey: legacyClaim.scopeKey,
+      sourceMemoryId: fact.id,
+      state: "projected",
+      claimIds: [legacyClaim.id],
+      extractorVersion: legacyClaim.extractorVersion,
+      sourceUpdatedAt: fact.updatedAt,
+      updatedAt: fact.updatedAt,
+    };
+    await store.set("facts", fact.id, fact);
+    await store.set(CLAIM_PROJECTIONS_COLLECTION, legacyClaim.id, legacyClaim);
+    await store.set(
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+      legacyStatus.id,
+      legacyStatus,
+    );
+    const runtime = createRecallProjectionRuntime({ documentStore: store });
+
+    await runtime.ensureScopeIndexed(scope);
+
+    expect(
+      await store.get<ClaimProjection>(
+        CLAIM_PROJECTIONS_COLLECTION,
+        legacyClaim.id,
+      ),
+    ).toMatchObject({
+      text: expect.stringContaining("Atlas"),
+    });
+  });
+
+  it("retries a concurrent claim append instead of silently dropping the newer value", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    await rawStore.set("facts", "fact-1", buildFact());
+    const concurrent = createConcurrentAppendStore(rawStore);
+    const oldRuntime = createRecallProjectionRuntime({ documentStore: concurrent.store });
+    const newRuntime = createRecallProjectionRuntime({ documentStore: concurrent.store });
+
+    const oldAppend = oldRuntime.appendClaim(
+      claimInput("planned", "2026-07-16T10:00:00.000Z"),
+    );
+    await concurrent.oldAppendStarted;
+    const newAppend = newRuntime.appendClaim(
+      claimInput("completed", "2026-07-16T11:00:00.000Z"),
+    );
+    await concurrent.newAppendStarted;
+    concurrent.releaseOldAppend();
+    await oldAppend;
+    concurrent.releaseNewAppend();
+    await newAppend;
+
+    expect(await newRuntime.queryClaims(scope)).toEqual([
+      expect.objectContaining({ objectText: "completed" }),
+    ]);
+    expect((await newRuntime.queryClaimHistory(scope)).map(({ objectText }) =>
+      objectText
+    ).sort()).toEqual(["completed", "planned"]);
   });
 
   it("backfills old facts with evidence and lets a structured claim replace the current fallback", async () => {
@@ -489,6 +756,41 @@ describe("claim projection runtime", () => {
       expect.objectContaining({ objectText: "completed" }),
     ]);
 
+    expect(await runtime.repairPending(scope)).toBe(1);
+    expect(await runtime.queryClaims(scope)).toEqual([
+      expect.objectContaining({ objectText: "completed" }),
+    ]);
+  });
+
+  it("does not delete a newer repair written under the same deterministic ID", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    await rawStore.set("facts", "fact-1", buildFact());
+    const blocked = createBlockedRepairStore(rawStore);
+    const runtime = createRecallProjectionRuntime({ documentStore: blocked.store });
+
+    await runtime.appendClaim(
+      claimInput("planned", "2026-07-16T10:00:00.000Z"),
+    );
+    const repairRun = runtime.repairPending(scope);
+    await blocked.repairStarted;
+    const [oldRepair] = await rawStore.query<ProjectionRepairRecord>(
+      PROJECTION_REPAIRS_COLLECTION,
+      {},
+    );
+    const nextInput = claimInput("completed", "2026-07-16T11:00:00.000Z");
+    await rawStore.set(PROJECTION_REPAIRS_COLLECTION, oldRepair!.id, {
+      ...oldRepair!,
+      claimInput: nextInput,
+      lastError: "new repair",
+      lastFailedAt: "2026-07-16T11:00:00.000Z",
+    });
+    blocked.releaseRepair();
+
+    expect(await repairRun).toBe(0);
+    expect(await rawStore.get<ProjectionRepairRecord>(
+      PROJECTION_REPAIRS_COLLECTION,
+      oldRepair!.id,
+    )).toMatchObject({ lastError: "new repair", claimInput: nextInput });
     expect(await runtime.repairPending(scope)).toBe(1);
     expect(await runtime.queryClaims(scope)).toEqual([
       expect.objectContaining({ objectText: "completed" }),
@@ -691,6 +993,7 @@ describe("claim projection runtime", () => {
     await rawStore.set("facts", "fact-1", buildFact());
     let failClaim = true;
     const store: DocumentStore = {
+      projectionBatchSemantics: rawStore.projectionBatchSemantics,
       set: async (collection, id, document) => {
         if (collection === PROJECTION_REPAIRS_COLLECTION) {
           throw new Error("repair persistence unavailable");
@@ -743,6 +1046,21 @@ describe("claim projection runtime", () => {
     } as unknown as DocumentStore;
 
     expect(() => createRecallProjectionRuntime({ documentStore: unsupported }))
+      .toThrow("atomic conditional batches");
+  });
+
+  it("does not infer current projection semantics from an old same-named method", () => {
+    const inner = createInMemoryDocumentStore();
+    const oldAdapter: DocumentStore = {
+      delete: inner.delete,
+      get: inner.get,
+      query: inner.query,
+      set: inner.set,
+      update: inner.update,
+      writeBatchIfUnchanged: async () => true,
+    };
+
+    expect(() => createRecallProjectionRuntime({ documentStore: oldAdapter }))
       .toThrow("atomic conditional batches");
   });
 });

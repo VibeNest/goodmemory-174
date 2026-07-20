@@ -245,6 +245,7 @@ export interface SessionBuffer {
   sessionId: string;
   userId: string;
   messages: SessionMessage[];
+  compactedMessages?: SessionMessage[];
   summary: string | null;
   summaryUpToIndex: number;
   createdAt: string;
@@ -482,6 +483,7 @@ export function createSessionBuffer(
     sessionId: input.sessionId,
     userId: input.userId,
     messages: input.messages ?? [],
+    compactedMessages: input.compactedMessages ?? [],
     summary: input.summary ?? null,
     summaryUpToIndex: input.summaryUpToIndex ?? 0,
     createdAt: input.createdAt ?? timestamp,

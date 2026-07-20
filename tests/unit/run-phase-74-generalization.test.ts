@@ -1,0 +1,230 @@
+import { describe, expect, it } from "bun:test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import {
+  buildPhase74FullRunIdentityConfiguration,
+  loadPhase74ModelUsageEvents,
+  parsePhase74GeneralizationCliOptions,
+  phase74BenchmarkScore,
+  runPhase74GeneralizationSmoke,
+} from "../../scripts/run-phase-74-generalization";
+
+describe("phase 74 generalization smoke runner", () => {
+  it("records every frozen provider object-call setting in full run identity", () => {
+    expect(buildPhase74FullRunIdentityConfiguration({
+      dataset: { datasetSha256: "dataset-sha" },
+      evaluatorSource: { commit: "head", sha256: "source-sha" },
+      replicate: 2,
+      selectedCaseIdsSha256: "case-ids-sha",
+    })).toMatchObject({
+      costBoundary: "query-only-comparison-with-shadow-ingestion",
+      providerObjectCalls: {
+        assistedExtraction: { maxOutputTokens: 4_096, temperature: 0 },
+        assistedRecallPlan: { maxOutputTokens: 1_024, temperature: 0 },
+        pointwiseReranker: { maxOutputTokens: 256, temperature: 0 },
+      },
+    });
+  });
+
+  it("keeps semantic accuracy and the frozen family metric separate", () => {
+    expect(phase74BenchmarkScore({
+      answer: "wrong",
+      benchmark: "longmemeval",
+      correct: false,
+      testCase: {
+        caseId: "long-1",
+        expectedAnswer: "Postgres",
+        goldEvidenceIds: [],
+        question: "Which database?",
+        rawEvidence: [],
+      },
+    })).toBe(0);
+    expect(phase74BenchmarkScore({
+      answer: "Pepper dog",
+      benchmark: "locomo",
+      correct: true,
+      testCase: {
+        caseId: "locomo-1",
+        expectedAnswer: "Pepper",
+        goldEvidenceIds: [],
+        protocolMetadata: { matchMode: "f1_token_overlap" },
+        question: "What is the dog's name?",
+        rawEvidence: [],
+      },
+    })).toBeCloseTo(2 / 3);
+  });
+
+  it("parses an explicit full-family stage and replicate without benchmark fallbacks", () => {
+    expect(parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark",
+      "locomo",
+      "--benchmark-root",
+      "/private/tmp/phase74/locomo",
+      "--output-dir",
+      "/tmp/reports",
+      "--run-id",
+      "locomo-r2",
+      "--stage",
+      "E3",
+      "--replicate",
+      "2",
+    ])).toEqual({
+      benchmark: "locomo",
+      benchmarkRoot: "/private/tmp/phase74/locomo",
+      mode: "full",
+      outputDir: "/tmp/reports",
+      replicate: 2,
+      runId: "locomo-r2",
+      stage: "E3",
+    });
+    expect(() => parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark",
+      "longmemeval",
+      "--stage",
+      "E1",
+      "--replicate",
+      "4",
+    ])).toThrow("--replicate must be 1, 2, or 3");
+  });
+
+  it("fails closed on missing flag values and run ids outside one path segment", () => {
+    expect(() => parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark-root",
+      "--output-dir",
+      "/tmp/reports",
+    ])).toThrow("--benchmark-root requires a value");
+    expect(() => parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark-root",
+      "/tmp/benchmark",
+      "--output-dir",
+      "/tmp/reports",
+      "--run-id",
+      "../outside",
+      "--stage",
+      "E1",
+      "--replicate",
+      "1",
+    ])).toThrow("--run-id must be a single path segment");
+  });
+
+  it("replays committed usage when a stage resumes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase74-usage-"));
+    const path = join(root, "e3-model-usage.jsonl");
+    try {
+      const event = {
+        attempt: 1,
+        branch: "candidate",
+        caseId: "case-1",
+        completeness: "complete",
+        modelId: "gpt-5.6-terra",
+        operation: "answer_generation",
+        outcome: "succeeded",
+        providerId: "openai",
+        schemaVersion: 1,
+        usage: {
+          cacheCreationInputTokens: 0,
+          cacheReadInputTokens: 0,
+          inputTokens: 10,
+          outputTokens: 2,
+          uncachedInputTokens: 10,
+        },
+      } as const;
+      await writeFile(path, `${JSON.stringify(event)}\n`, "utf8");
+      expect(await loadPhase74ModelUsageEvents(path)).toEqual([event]);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("fails closed on a truncated usage event during resume", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase74-usage-"));
+    const path = join(root, "e3-model-usage.jsonl");
+    try {
+      await writeFile(path, JSON.stringify({
+        branch: "candidate",
+        caseId: "case-1",
+        schemaVersion: 1,
+      }), "utf8");
+      await expect(loadPhase74ModelUsageEvents(path)).rejects.toThrow(
+        "Invalid Phase 74 model usage event",
+      );
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("runs the frozen three-case fixture and writes resumable non-promotion artifacts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "goodmemory-phase74-generalization-"));
+    try {
+      const result = await runPhase74GeneralizationSmoke({
+        datasetPath: join(
+          process.cwd(),
+          "fixtures/external-benchmarks/longmemeval/longmemeval_s_smoke.json",
+        ),
+        generatedAt: "2026-07-18T00:00:00.000Z",
+        outputDir: root,
+        runId: "smoke-run",
+      });
+
+      expect(result.report.status).toBe("not_evaluable");
+      expect(result.report.summary.caseCount).toBe(3);
+      expect(result.report.executions).toHaveLength(24);
+      expect(result.report.e4.cases).toHaveLength(12);
+      expect(result.report.oracle).toHaveLength(18);
+      expect(result.report.summary.renderedContextMaxTokens).toBeLessThanOrEqual(
+        6_000,
+      );
+      expect(JSON.parse(await readFile(
+        join(result.runDirectory, "promotion-gate.json"),
+        "utf8",
+      ))).toMatchObject({ status: "not_evaluable" });
+      expect(JSON.parse(await readFile(
+        join(result.runDirectory, "run-identity.json"),
+        "utf8",
+      ))).toMatchObject({
+        benchmark: "longmemeval-smoke",
+        runId: "smoke-run",
+      });
+      expect((await readFile(
+        join(result.runDirectory, "retrieval-packets.jsonl"),
+        "utf8",
+      )).trim().split("\n")).toHaveLength(24);
+
+      const resumed = await runPhase74GeneralizationSmoke({
+        datasetPath: join(
+          process.cwd(),
+          "fixtures/external-benchmarks/longmemeval/longmemeval_s_smoke.json",
+        ),
+        generatedAt: "2026-07-19T00:00:00.000Z",
+        outputDir: root,
+        runId: "smoke-run",
+      });
+      expect(resumed.report.identityHash).toBe(result.report.identityHash);
+      expect((await readFile(
+        join(result.runDirectory, "retrieval-packets.jsonl"),
+        "utf8",
+      )).trim().split("\n")).toHaveLength(24);
+      expect(resumed.report).toEqual(result.report);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+});
