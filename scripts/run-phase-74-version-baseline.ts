@@ -47,8 +47,12 @@ import {
 } from "../src/eval/oracleMatrix";
 import {
   appendPhase74ModelUsageEventSync,
+  appendPhase74ModelUsageIntentSync,
 } from "../src/eval/modelUsage";
-import type { AttributedModelUsageAttempt } from "../src/eval/modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+} from "../src/eval/modelUsage";
 import { createPhase74SelectedDatasetBundle } from "../src/eval/phase74Datasets";
 import type {
   Phase74BenchmarkFamily,
@@ -431,20 +435,29 @@ export async function runPhase74VersionBaseline(
   });
   await writeJson(join(runDirectory, "run-identity.json"), versionRunIdentity);
   const events: AttributedModelUsageAttempt[] = [];
+  const intents: AttributedModelUsageIntent[] = [];
   const usagePath = join(runDirectory, "model-usage.jsonl");
+  const usageIntentsPath = join(runDirectory, "model-usage-intents.jsonl");
   const onUsageEvent = (event: AttributedModelUsageAttempt) => {
     appendPhase74ModelUsageEventSync(usagePath, event);
   };
+  const onUsageIntent = (intent: AttributedModelUsageIntent) => {
+    appendPhase74ModelUsageIntentSync(usageIntentsPath, intent);
+  };
   const reader = createPhase74LiveReader({
     events,
+    intents,
     model: models.answer,
     onUsageEvent,
+    onUsageIntent,
   });
   const assessor = createPhase74ProtocolCompatibleAnswerAssessor({
     benchmark: options.benchmark,
     events,
+    intents,
     model: models.judge,
     onUsageEvent,
+    onUsageIntent,
   });
   const createGoodMemory = await loadPhase74VersionCreateGoodMemory(
     options.releaseSourceRoot,
@@ -544,6 +557,7 @@ export async function runPhase74VersionBaseline(
   const reportPath = join(runDirectory, "report.json");
   await Promise.all([
     writeFile(usagePath, "", { encoding: "utf8", flag: "a" }),
+    writeFile(usageIntentsPath, "", { encoding: "utf8", flag: "a" }),
     writeJson(reportPath, report),
   ]);
   return { reportPath, runDirectory };

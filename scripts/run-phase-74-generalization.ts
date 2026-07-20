@@ -1,8 +1,10 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
   mkdir,
   readFile,
+  rename,
+  rm,
   writeFile,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -47,7 +49,10 @@ import type {
   Phase74DatasetCase,
 } from "../src/eval/phase74Datasets";
 import {
+  buildPhase74IngestionUsageAllocation,
+  buildPhase74IngestionUsagePaths,
   createPhase74FullRetrievalRuntime,
+  verifyPhase74IngestionUsageManifest,
 } from "../src/eval/phase74FullRuntime";
 import {
   buildPhase74FullRunIdentityConfiguration,
@@ -76,10 +81,15 @@ import {
 } from "../src/eval/phase74Live";
 import {
   appendPhase74ModelUsageEventSync,
+  appendPhase74ModelUsageIntentSync,
   buildPhase74ModelUsageEvidence,
-  loadPhase74ModelUsageEvents,
+  loadPhase74ModelUsageLedger,
 } from "../src/eval/modelUsage";
-import type { AttributedModelUsageAttempt } from "../src/eval/modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+  Phase74IngestionUsageLedger,
+} from "../src/eval/modelUsage";
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
 import type { GeneralizedFusionChannel } from "../src/recall/generalizedFusion";
 import { validateLongMemEvalCases } from "../src/eval/longmemeval";
@@ -101,6 +111,85 @@ const DEFAULT_MAX_LANGUAGE_CALLS = 50_000;
 const OPENROUTER_EMBEDDING_USD_PER_MILLION_INPUT_TOKENS = 0.02;
 const PRE_RANK_LIMIT = PHASE74_PRE_RANK_LIMIT;
 const SELECTED_LIMIT = PHASE74_SELECTED_LIMIT;
+
+export const PHASE74_RUN_LOCK_FILENAME = ".phase74-run.lock";
+
+function phase74RunLockOwner(raw: string): { pid: number; token: string } {
+  const value = JSON.parse(raw) as { pid?: unknown; token?: unknown };
+  if (
+    !Number.isSafeInteger(value.pid) || Number(value.pid) <= 0 ||
+    typeof value.token !== "string" || value.token.length === 0
+  ) {
+    throw new Error("Phase 74 run lock is invalid.");
+  }
+  return { pid: Number(value.pid), token: value.token };
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+export async function acquirePhase74RunLock(
+  runDirectory: string,
+): Promise<() => Promise<void>> {
+  const path = join(runDirectory, PHASE74_RUN_LOCK_FILENAME);
+  const token = randomUUID();
+  const content = `${JSON.stringify({ pid: process.pid, token })}\n`;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await writeFile(path, content, { encoding: "utf8", flag: "wx" });
+      return async () => {
+        let ownerRaw: string;
+        try {
+          ownerRaw = await readFile(path, "utf8");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+            return;
+          }
+          throw error;
+        }
+        if (phase74RunLockOwner(ownerRaw).token !== token) {
+          throw new Error("Phase 74 run lock ownership drifted.");
+        }
+        await rm(path);
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
+    }
+    let ownerRaw: string;
+    try {
+      ownerRaw = await readFile(path, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+    const owner = phase74RunLockOwner(ownerRaw);
+    if (processIsAlive(owner.pid)) {
+      throw new Error(
+        `Phase 74 run is already active in process ${owner.pid}.`,
+      );
+    }
+    const stalePath = `${path}.stale-${token}`;
+    try {
+      await rename(path, stalePath);
+      await rm(stalePath, { force: true });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Phase 74 run lock could not be acquired.");
+}
 
 interface Phase74CallBudgetState {
   embeddingCalls: number;
@@ -848,6 +937,23 @@ async function persistRunIdentity(input: {
   return JSON.parse(await readFile(identityPath, "utf8"));
 }
 
+async function loadPhase74IngestionUsagePool(input: {
+  keys: readonly string[];
+  runDirectory: string;
+}): Promise<Phase74IngestionUsageLedger[]> {
+  return Promise.all(input.keys.map(async (key) => {
+    const ledger = await loadPhase74ModelUsageLedger(
+      buildPhase74IngestionUsagePaths(input.runDirectory, key),
+    );
+    await verifyPhase74IngestionUsageManifest({
+      ingestionKey: key,
+      ledger,
+      runDirectory: input.runDirectory,
+    });
+    return { key, ledger };
+  }));
+}
+
 export async function runPhase74GeneralizationFull(
   options: Phase74GeneralizationFullOptions,
   env: Record<string, string | undefined> = process.env,
@@ -874,6 +980,8 @@ export async function runPhase74GeneralizationFull(
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const runDirectory = join(resolve(options.outputDir), options.runId);
   await mkdir(runDirectory, { recursive: true });
+  const releaseRunLock = await acquirePhase74RunLock(runDirectory);
+  try {
   const selectedCaseIdsSha256 = sha256(
     JSON.stringify(selectedCases.map(({ caseId }) => caseId)),
   );
@@ -923,35 +1031,55 @@ export async function runPhase74GeneralizationFull(
     path: join(runDirectory, `${prefix}-call-budget.json`),
   });
   const usagePath = join(runDirectory, `${prefix}-model-usage.jsonl`);
-  const events = await loadPhase74ModelUsageEvents(usagePath);
+  const usageIntentsPath = join(
+    runDirectory,
+    `${prefix}-model-usage-intents.jsonl`,
+  );
+  const directUsage = await loadPhase74ModelUsageLedger({
+    eventsPath: usagePath,
+    intentsPath: usageIntentsPath,
+  });
+  const events = directUsage.events;
+  const intents = directUsage.intents;
   const onUsageEvent = (event: AttributedModelUsageAttempt) => {
     appendPhase74ModelUsageEventSync(usagePath, event);
+  };
+  const onUsageIntent = (intent: AttributedModelUsageIntent) => {
+    appendPhase74ModelUsageIntentSync(usageIntentsPath, intent);
   };
   const retrieval = createPhase74FullRetrievalRuntime({
     datasetSha256: dataset.manifest.datasetSha256,
     evaluatorSourceSha256: evaluatorSource.sha256,
     events,
+    intents,
     models,
     runDirectory,
     onUsageEvent,
+    onUsageIntent,
     promptSha256s,
     rerankerMode,
   });
   const reader = createPhase74LiveReader({
     events,
+    intents,
     model: models.answer,
     onUsageEvent,
+    onUsageIntent,
   });
   const judge = createPhase74LiveJudge({
     events,
+    intents,
     model: models.judge,
     onUsageEvent,
+    onUsageIntent,
   });
   const protocolCompatibleAssessment = createPhase74ProtocolCompatibleAnswerAssessor({
     benchmark: options.benchmark,
     events,
+    intents,
     model: models.judge,
     onUsageEvent,
+    onUsageIntent,
   });
   const countRenderedTokens = (content: string) =>
     Buffer.byteLength(content, "utf8");
@@ -992,16 +1120,39 @@ export async function runPhase74GeneralizationFull(
     globalThis.fetch = originalFetch;
   }
   const experimentIdentityHash = hashEvalExperimentIdentity(report.identity);
+  const ingestionAllocation = options.stage === "E4"
+    ? null
+    : buildPhase74IngestionUsageAllocation(snapshots);
   const modelUsage = options.stage === "E4"
     ? null
-    : buildPhase74ModelUsageEvidence(events, {
-        baselineCaseIds: selectedCases.map(
-          (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
-        ),
-        candidateCaseIds: selectedCases.map(
-          (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
-        ),
-        costBoundary: "query-only",
+    : buildPhase74ModelUsageEvidence({
+        direct: {
+          events,
+          intents,
+          pendingIntents: [],
+        },
+        expected: {
+          baselineCaseIds: selectedCases.map(
+            (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+          ),
+          candidateCaseIds: selectedCases.map(
+            (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+          ),
+        },
+        ingestion: {
+          baselineExclusive: await loadPhase74IngestionUsagePool({
+            keys: ingestionAllocation!.baselineExclusive,
+            runDirectory,
+          }),
+          candidateExclusive: await loadPhase74IngestionUsagePool({
+            keys: ingestionAllocation!.candidateExclusive,
+            runDirectory,
+          }),
+          shared: await loadPhase74IngestionUsagePool({
+            keys: ingestionAllocation!.shared,
+            runDirectory,
+          }),
+        },
       });
   const endToEndScores = Object.fromEntries(
     [...new Set(report.executions.map(({ arm }) => arm))].map((arm) => {
@@ -1037,6 +1188,7 @@ export async function runPhase74GeneralizationFull(
       snapshots,
     ),
     writeFile(usagePath, "", { encoding: "utf8", flag: "a" }),
+    writeFile(usageIntentsPath, "", { encoding: "utf8", flag: "a" }),
     writeJson(
       join(runDirectory, `${prefix}-model-usage-summary.json`),
       modelUsage ?? {
@@ -1086,6 +1238,9 @@ export async function runPhase74GeneralizationFull(
       : []),
   ]);
   return { dataset, report, runDirectory };
+  } finally {
+    await releaseRunLock();
+  }
 }
 
 export async function runPhase74GeneralizationSmoke(
@@ -1121,7 +1276,7 @@ export async function runPhase74GeneralizationSmoke(
         maxTokens: CONTEXT_TOKEN_BUDGET,
         tokenizer: "utf8-byte-upper-bound-v1",
       },
-      modelUsageAccounting: "phase74-model-usage-v1",
+      modelUsageAccounting: "not-applicable-deterministic-smoke-v1",
       preRankLimit: PRE_RANK_LIMIT,
       reader: "generic-label-free-v1",
       replicate: 1,

@@ -73,6 +73,11 @@ interface Phase74LabelFreeCaseBoundary {
 }
 
 export interface Phase74RetrievalSnapshot {
+  costTrace?: {
+    comparisonBranch: "baseline" | "candidate" | "shadow";
+    ingestionKey: string;
+    representation: string;
+  };
   evaluation?: Phase74RetrievalEvaluation;
   evidenceLedgers?: Partial<Record<EvidenceLedgerFormat, string>>;
   recallMetadata?: Pick<

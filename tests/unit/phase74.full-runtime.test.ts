@@ -1,13 +1,26 @@
 import { describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   assertPhase74IngestionRememberResult,
   assertPhase74RecallProviderIntegrity,
   assertPhase74RetrievedProvenance,
+  buildPhase74IngestionUsageAllocation,
   buildPhase74IngestionKey,
+  buildPhase74IngestionUsagePaths,
+  buildPhase74IngestionUsageFingerprint,
   buildPhase74LabelFreeScope,
   phase74ExecutionBranch,
+  verifyPhase74IngestionUsageManifest,
 } from "../../src/eval/phase74FullRuntime";
+import {
+  createAttributedModelUsageSink,
+  validatePhase74ModelUsageLedger,
+  type AttributedModelUsageAttempt,
+  type AttributedModelUsageIntent,
+} from "../../src/eval/modelUsage";
 
 const base = {
   datasetSha256: "dataset-sha",
@@ -38,6 +51,7 @@ const base = {
     role: "user",
     sourceIds: ["D1:1"],
   }],
+  referenceTime: "2024-01-01T00:00:00.000Z",
   representation: "atomic-contextual-raw-pointer",
 } as const;
 
@@ -135,11 +149,110 @@ describe("Phase 74 full ingestion identity", () => {
     expect(second).toBe(first);
   });
 
-  it("misses when evidence, representation, model, prompt, evaluator source, or descriptors change", () => {
+  it("allocates unique ingestion keys as baseline-exclusive, candidate-exclusive, or shared", () => {
+    const baselineKey = "a".repeat(64);
+    const candidateKey = "b".repeat(64);
+    const sharedKey = "c".repeat(64);
+    const shadowKey = "d".repeat(64);
+    const snapshot = (
+      comparisonBranch: "baseline" | "candidate" | "shadow",
+      ingestionKey: string,
+      representation: string,
+    ) => ({
+      costTrace: { comparisonBranch, ingestionKey, representation },
+      retrievedMemories: [],
+      snapshotId: ingestionKey,
+      storedMemories: [],
+    });
+
+    expect(buildPhase74IngestionUsageAllocation([
+      snapshot("baseline", baselineKey, "fact-only"),
+      snapshot("baseline", sharedKey, "atomic-contextual-raw-pointer"),
+      snapshot("candidate", candidateKey, "atomic-contextual-raw-pointer"),
+      snapshot("candidate", sharedKey, "atomic-contextual-raw-pointer"),
+      snapshot("candidate", sharedKey, "atomic-contextual-raw-pointer"),
+      snapshot("shadow", shadowKey, "raw-only"),
+    ])).toEqual({
+      baselineExclusive: [baselineKey],
+      candidateExclusive: [candidateKey],
+      shared: [sharedKey],
+    });
+
+    expect(buildPhase74IngestionUsagePaths("/run", sharedKey)).toEqual({
+      eventsPath: `/run/ingestion-usage/${sharedKey}/events.jsonl`,
+      intentsPath: `/run/ingestion-usage/${sharedKey}/intents.jsonl`,
+    });
+  });
+
+  it("revalidates the committed ingestion manifest against its physical WAL", async () => {
+    const root = await mkdtemp(join(tmpdir(), "phase74-ingestion-manifest-"));
+    const key = "a".repeat(64);
+    const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
+    createAttributedModelUsageSink({
+      branch: "shadow",
+      caseId: "group-1",
+      events,
+      intents,
+    }).emit({
+      attempt: 1,
+      completeness: "complete",
+      modelId: "gpt-5.6-terra",
+      operation: "assisted_extraction",
+      outcome: "succeeded",
+      providerId: "openai",
+      schemaVersion: 1,
+      usage: {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: 10,
+        outputTokens: 2,
+        uncachedInputTokens: 10,
+      },
+    });
+    const ledger = validatePhase74ModelUsageLedger({ events, intents });
+    const directory = join(root, "ingestion", key);
+    const manifestPath = join(directory, "manifest.json");
+    await mkdir(directory, { recursive: true });
+    try {
+      await writeFile(manifestPath, JSON.stringify({
+        key,
+        schemaVersion: 6,
+        usage: buildPhase74IngestionUsageFingerprint(ledger),
+      }));
+      await expect(verifyPhase74IngestionUsageManifest({
+        ingestionKey: key,
+        ledger,
+        runDirectory: root,
+      })).resolves.toBeUndefined();
+
+      await writeFile(manifestPath, JSON.stringify({
+        key,
+        schemaVersion: 6,
+        usage: {
+          ...buildPhase74IngestionUsageFingerprint(ledger),
+          eventCount: 0,
+        },
+      }));
+      await expect(verifyPhase74IngestionUsageManifest({
+        ingestionKey: key,
+        ledger,
+        runDirectory: root,
+      })).rejects.toThrow("manifest drift");
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("misses when evidence, time, representation, model, prompt, evaluator source, or descriptors change", () => {
     const key = buildPhase74IngestionKey(base);
     expect(buildPhase74IngestionKey({
       ...base,
       rawEvidence: [{ ...base.rawEvidence[0], content: "changed" }],
+    })).not.toBe(key);
+    expect(buildPhase74IngestionKey({
+      ...base,
+      referenceTime: "2025-01-01T00:00:00.000Z",
     })).not.toBe(key);
     expect(buildPhase74IngestionKey({
       ...base,

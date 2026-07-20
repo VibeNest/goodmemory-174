@@ -39,7 +39,8 @@ function passingInput(): Phase74PromotionGateInput {
       candidateP95LatencyMs: 1_250,
       executionFailures: 0,
       modelUsage: {
-        accountingVersion: "phase74-model-usage-v1",
+        accountingVersion: "phase74-model-usage-v2",
+        allocationPolicy: "standalone-full-shared-v1",
         baseline: {
           answerGenerationCaseCount: 3,
           caseIdsSha256: "same-case-cohort",
@@ -47,9 +48,11 @@ function passingInput(): Phase74PromotionGateInput {
           logicalCaseCount: 3,
           missingRequestCount: 0,
           partialRequestCount: 0,
+          pendingRequestCount: 0,
           operationCounts: {
             answer_generation: 3,
-            embedding: 3,
+            assisted_extraction: 1,
+            embedding: 2,
           },
           requestCount: 6,
           totalTokens: 3_000,
@@ -62,9 +65,11 @@ function passingInput(): Phase74PromotionGateInput {
           logicalCaseCount: 3,
           missingRequestCount: 0,
           partialRequestCount: 0,
+          pendingRequestCount: 0,
           operationCounts: {
             answer_generation: 3,
-            embedding: 3,
+            assisted_extraction: 1,
+            embedding: 2,
             reranker_pointwise: 6,
           },
           requestCount: 12,
@@ -72,6 +77,44 @@ function passingInput(): Phase74PromotionGateInput {
           unobservedCaseIds: [],
         },
         costBoundary: "full-product",
+        ingestion: {
+          baselineExclusive: {
+            completeRequestCount: 0,
+            keyCount: 0,
+            keysSha256: "empty-key-set",
+            missingRequestCount: 0,
+            operationCounts: {},
+            partialRequestCount: 0,
+            pendingRequestCount: 0,
+            requestCount: 0,
+            totalTokens: 0,
+          },
+          candidateExclusive: {
+            completeRequestCount: 0,
+            keyCount: 0,
+            keysSha256: "empty-key-set",
+            missingRequestCount: 0,
+            operationCounts: {},
+            partialRequestCount: 0,
+            pendingRequestCount: 0,
+            requestCount: 0,
+            totalTokens: 0,
+          },
+          shared: {
+            completeRequestCount: 3,
+            keyCount: 1,
+            keysSha256: "shared-key-set",
+            missingRequestCount: 0,
+            operationCounts: {
+              assisted_extraction: 1,
+              embedding: 2,
+            },
+            partialRequestCount: 0,
+            pendingRequestCount: 0,
+            requestCount: 3,
+            totalTokens: 300,
+          },
+        },
       },
       renderedContextMaxTokens: 6_000,
     },
@@ -259,6 +302,113 @@ describe("Phase 74 generalized-memory promotion gate", () => {
     );
   });
 
+  it("requires the standalone full shared allocation policy", () => {
+    const input = passingInput();
+    input.operations.modelUsage.allocationPolicy = "query-only" as never;
+
+    expect(evaluatePhase74PromotionGate(input).failures).toContain(
+      "model usage allocationPolicy must be standalone-full-shared-v1",
+    );
+  });
+
+  it("rejects pending branch requests and includes them in request accounting", () => {
+    const input = passingInput();
+    input.operations.modelUsage.baseline.pendingRequestCount = 1;
+
+    const failures = evaluatePhase74PromotionGate(input).failures;
+    expect(failures).toContain(
+      "baseline model usage request counts are inconsistent",
+    );
+    expect(failures).toContain(
+      "baseline model usage contains pending requests",
+    );
+  });
+
+  it("validates ingestion pool counts, operation totals, and key digests", () => {
+    const input = passingInput();
+    input.operations.modelUsage.ingestion.baselineExclusive = {
+      completeRequestCount: 1,
+      keyCount: -1,
+      keysSha256: "",
+      missingRequestCount: 0,
+      operationCounts: {
+        embedding: 2,
+      },
+      partialRequestCount: 0,
+      pendingRequestCount: 0,
+      requestCount: 1,
+      totalTokens: -1,
+    };
+
+    const failures = evaluatePhase74PromotionGate(input).failures;
+    expect(failures).toContain(
+      "baselineExclusive ingestion model usage counts must be non-negative integers",
+    );
+    expect(failures).toContain(
+      "baselineExclusive ingestion model usage keysSha256 is required",
+    );
+    expect(failures).toContain(
+      "baselineExclusive ingestion model usage operation counts are inconsistent",
+    );
+  });
+
+  it("rejects incomplete or pending ingestion requests", () => {
+    const input = passingInput();
+    input.operations.modelUsage.ingestion.shared = {
+      ...input.operations.modelUsage.ingestion.shared,
+      completeRequestCount: 1,
+      missingRequestCount: 1,
+      partialRequestCount: 1,
+      pendingRequestCount: 1,
+      requestCount: 3,
+    };
+
+    const failures = evaluatePhase74PromotionGate(input).failures;
+    expect(failures).toContain(
+      "shared ingestion model usage request counts are inconsistent",
+    );
+    expect(failures).toContain(
+      "shared ingestion model usage contains pending requests",
+    );
+    expect(failures).toContain(
+      "shared ingestion model usage contains incomplete requests",
+    );
+  });
+
+  it("requires every allocated ingestion key to have a physical extraction call", () => {
+    const noRequests = passingInput();
+    noRequests.operations.modelUsage.ingestion.shared = {
+      completeRequestCount: 0,
+      keyCount: 1,
+      keysSha256: "shared-key-digest",
+      missingRequestCount: 0,
+      operationCounts: {},
+      partialRequestCount: 0,
+      pendingRequestCount: 0,
+      requestCount: 0,
+      totalTokens: 0,
+    };
+    expect(evaluatePhase74PromotionGate(noRequests).failures).toContain(
+      "shared ingestion model usage must contain requests for every allocated key",
+    );
+
+    const noExtraction = passingInput();
+    noExtraction.operations.modelUsage.ingestion.shared = {
+      completeRequestCount: 1,
+      keyCount: 1,
+      keysSha256: "shared-key-digest",
+      missingRequestCount: 0,
+      operationCounts: { embedding: 1 },
+      partialRequestCount: 0,
+      pendingRequestCount: 0,
+      requestCount: 1,
+      totalTokens: 10,
+    };
+    expect(evaluatePhase74PromotionGate(noExtraction).failures).toContain(
+      "shared ingestion model usage must contain assisted extraction for every allocated key",
+    );
+  });
+
   it("does not allow zero-request or zero-token evidence to masquerade as free model usage", () => {
     const input = passingInput();
     input.operations.modelUsage.baseline = {
@@ -268,6 +418,7 @@ describe("Phase 74 generalized-memory promotion gate", () => {
       logicalCaseCount: 3,
       missingRequestCount: 0,
       partialRequestCount: 0,
+      pendingRequestCount: 0,
       operationCounts: {},
       requestCount: 0,
       totalTokens: 0,

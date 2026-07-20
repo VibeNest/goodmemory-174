@@ -25,10 +25,11 @@ import {
 import { RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT } from "../provider/recall-plan-assistant";
 import { POINTWISE_RERANKER_SYSTEM_PROMPT } from "../provider/reranker";
 import { PHASE74_PROTOCOL_READER_SYSTEM_PROMPT } from "./phase74ProtocolReader";
-import {
-  createAttributedModelUsageSink,
-  type AttributedModelUsageAttempt,
-  type Phase74ModelUsageBranch,
+import { createAttributedModelUsageSink } from "./modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+  Phase74ModelUsageBranch,
 } from "./modelUsage";
 import type {
   OracleMatrixJudge,
@@ -309,8 +310,10 @@ function readerBranch(purpose: string | undefined): Phase74ModelUsageBranch {
 export function createPhase74LiveReader(input: {
   events: AttributedModelUsageAttempt[];
   fetch?: FetchLike;
+  intents: AttributedModelUsageIntent[];
   model: AISDKModelConfig;
   onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+  onUsageIntent?: (intent: AttributedModelUsageIntent) => void;
 }): OracleMatrixReader {
   return async (payload) => {
     const caseId = payload.caseId ?? "unattributed";
@@ -318,7 +321,9 @@ export function createPhase74LiveReader(input: {
       branch: readerBranch(payload.purpose),
       caseId,
       events: input.events,
+      intents: input.intents,
       onEvent: input.onUsageEvent,
+      onIntent: input.onUsageIntent,
     });
     let attempt = 0;
     return withAISDKRetries(async () => {
@@ -358,15 +363,19 @@ const correctnessSchema = z.object({
 export function createPhase74LiveJudge(input: {
   events: AttributedModelUsageAttempt[];
   fetch?: FetchLike;
+  intents: AttributedModelUsageIntent[];
   model: AISDKModelConfig;
   onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+  onUsageIntent?: (intent: AttributedModelUsageIntent) => void;
 }): OracleMatrixJudge {
   return async (payload) => {
     const sink = createAttributedModelUsageSink({
       branch: "judge",
       caseId: payload.caseId ?? "unattributed",
       events: input.events,
+      intents: input.intents,
       onEvent: input.onUsageEvent,
+      onIntent: input.onUsageIntent,
     });
     let attempt = 0;
     return withAISDKRetries(async () => {

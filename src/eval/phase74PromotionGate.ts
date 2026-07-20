@@ -1,3 +1,5 @@
+import type { ModelUsageOperation } from "../provider/model-usage";
+
 export const PHASE74_MAX_AVERAGE_MODEL_TOKEN_INCREASE_RATIO = 0.15;
 export const PHASE74_MAX_P95_LATENCY_INCREASE_RATIO = 0.25;
 export const PHASE74_MAX_PROTECTION_REGRESSION = 0.01;
@@ -8,7 +10,9 @@ export const PHASE74_MIN_PRIMARY_FAMILY_DELTA = 0.03;
 export const PHASE74_MIN_SECONDARY_FAMILY_DELTA = 0.01;
 export const PHASE74_REQUIRED_CONFIDENCE_LEVEL = 0.95;
 export const PHASE74_MODEL_USAGE_ACCOUNTING_VERSION =
-  "phase74-model-usage-v1";
+  "phase74-model-usage-v2";
+export const PHASE74_MODEL_USAGE_ALLOCATION_POLICY =
+  "standalone-full-shared-v1";
 
 const COMPARISON_TOLERANCE = 1e-12;
 
@@ -37,18 +41,37 @@ export interface Phase74ModelUsageBranchEvidence {
   completeRequestCount: number;
   logicalCaseCount: number;
   missingRequestCount: number;
-  operationCounts: Partial<Record<import("../provider/model-usage").ModelUsageOperation, number>>;
+  operationCounts: Partial<Record<ModelUsageOperation, number>>;
   partialRequestCount: number;
+  pendingRequestCount: number;
   requestCount: number;
   totalTokens: number;
   unobservedCaseIds: string[];
 }
 
+export interface Phase74ModelUsagePoolEvidence {
+  completeRequestCount: number;
+  keyCount: number;
+  keysSha256: string;
+  missingRequestCount: number;
+  operationCounts: Partial<Record<ModelUsageOperation, number>>;
+  partialRequestCount: number;
+  pendingRequestCount: number;
+  requestCount: number;
+  totalTokens: number;
+}
+
 export interface Phase74ModelUsageEvidence {
   accountingVersion: typeof PHASE74_MODEL_USAGE_ACCOUNTING_VERSION;
+  allocationPolicy: typeof PHASE74_MODEL_USAGE_ALLOCATION_POLICY;
   baseline: Phase74ModelUsageBranchEvidence;
   candidate: Phase74ModelUsageBranchEvidence;
   costBoundary: "full-product" | "query-only" | "reader-only";
+  ingestion: {
+    baselineExclusive: Phase74ModelUsagePoolEvidence;
+    candidateExclusive: Phase74ModelUsagePoolEvidence;
+    shared: Phase74ModelUsagePoolEvidence;
+  };
 }
 
 export interface Phase74PromotionGateInput {
@@ -140,6 +163,7 @@ function validateModelUsageBranch(input: {
     evidence.logicalCaseCount,
     evidence.missingRequestCount,
     evidence.partialRequestCount,
+    evidence.pendingRequestCount,
     evidence.requestCount,
   ];
   if (countFields.some((value) => !Number.isSafeInteger(value) || value < 0)) {
@@ -188,10 +212,14 @@ function validateModelUsageBranch(input: {
   if (
     evidence.completeRequestCount +
         evidence.partialRequestCount +
-        evidence.missingRequestCount !==
+        evidence.missingRequestCount +
+        evidence.pendingRequestCount !==
       evidence.requestCount
   ) {
     failures.push(`${branch} model usage request counts are inconsistent`);
+  }
+  if (evidence.pendingRequestCount > 0) {
+    failures.push(`${branch} model usage contains pending requests`);
   }
   if (
     evidence.partialRequestCount > 0 ||
@@ -207,6 +235,74 @@ function validateModelUsageBranch(input: {
     return null;
   }
   return evidence.totalTokens / evidence.logicalCaseCount;
+}
+
+function validateModelUsagePool(input: {
+  evidence: Phase74ModelUsagePoolEvidence;
+  failures: string[];
+  pool: keyof Phase74ModelUsageEvidence["ingestion"];
+}): void {
+  const { evidence, failures, pool } = input;
+  const label = `${pool} ingestion model usage`;
+  const countFields = [
+    evidence.completeRequestCount,
+    evidence.keyCount,
+    evidence.missingRequestCount,
+    evidence.partialRequestCount,
+    evidence.pendingRequestCount,
+    evidence.requestCount,
+    evidence.totalTokens,
+  ];
+  if (countFields.some((value) => !Number.isSafeInteger(value) || value < 0)) {
+    failures.push(`${label} counts must be non-negative integers`);
+  }
+  if (evidence.keysSha256.trim() === "") {
+    failures.push(`${label} keysSha256 is required`);
+  }
+  const operationCounts = Object.values(evidence.operationCounts);
+  if (operationCounts.some((value) =>
+    value === undefined || !Number.isSafeInteger(value) || value < 0
+  )) {
+    failures.push(`${label} operation counts are invalid`);
+  }
+  const operationRequestCount = operationCounts.reduce(
+    (total, value) => total + (value ?? 0),
+    0,
+  );
+  if (operationRequestCount !== evidence.requestCount) {
+    failures.push(`${label} operation counts are inconsistent`);
+  }
+  if (
+    evidence.completeRequestCount +
+        evidence.partialRequestCount +
+        evidence.missingRequestCount +
+        evidence.pendingRequestCount !==
+      evidence.requestCount
+  ) {
+    failures.push(`${label} request counts are inconsistent`);
+  }
+  if (evidence.pendingRequestCount > 0) {
+    failures.push(`${label} contains pending requests`);
+  }
+  if (evidence.keyCount > 0 && evidence.requestCount === 0) {
+    failures.push(`${label} must contain requests for every allocated key`);
+  }
+  if (
+    evidence.keyCount > 0 &&
+    (evidence.operationCounts.assisted_extraction ?? 0) < evidence.keyCount
+  ) {
+    failures.push(
+      `${label} must contain assisted extraction for every allocated key`,
+    );
+  }
+  if (
+    evidence.partialRequestCount > 0 ||
+    evidence.missingRequestCount > 0 ||
+    evidence.pendingRequestCount > 0 ||
+    evidence.completeRequestCount !== evidence.requestCount
+  ) {
+    failures.push(`${label} contains incomplete requests`);
+  }
 }
 
 function resolveAverageModelTokens(input: {
@@ -225,8 +321,27 @@ function resolveAverageModelTokens(input: {
       `model usage accountingVersion must be ${PHASE74_MODEL_USAGE_ACCOUNTING_VERSION}`,
     );
   }
+  if (
+    input.modelUsage.allocationPolicy !==
+    PHASE74_MODEL_USAGE_ALLOCATION_POLICY
+  ) {
+    input.failures.push(
+      `model usage allocationPolicy must be ${PHASE74_MODEL_USAGE_ALLOCATION_POLICY}`,
+    );
+  }
   if (input.modelUsage.costBoundary !== "full-product") {
     input.failures.push("model usage costBoundary must be full-product");
+  }
+  for (const pool of [
+    "baselineExclusive",
+    "candidateExclusive",
+    "shared",
+  ] as const) {
+    validateModelUsagePool({
+      evidence: input.modelUsage.ingestion[pool],
+      failures: input.failures,
+      pool,
+    });
   }
   const baseline = validateModelUsageBranch({
     branch: "baseline",

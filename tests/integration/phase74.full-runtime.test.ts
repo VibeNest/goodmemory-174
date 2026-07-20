@@ -8,7 +8,11 @@ import {
   createPhase74FullRetrievalRuntime,
 } from "../../src/eval/phase74FullRuntime";
 import { buildPhase74LabelFreeCaseBoundary } from "../../src/eval/phase74Generalization";
-import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
+import {
+  loadPhase74ModelUsageLedger,
+  type AttributedModelUsageAttempt,
+  type AttributedModelUsageIntent,
+} from "../../src/eval/modelUsage";
 import { createSQLiteDocumentStore } from "../../src/storage/sqlite";
 
 const originalFetch = globalThis.fetch;
@@ -85,6 +89,7 @@ describe("Phase 74 full retrieval runtime", () => {
     const root = await mkdtemp(join(tmpdir(), "phase74-full-runtime-"));
     try {
       const events: AttributedModelUsageAttempt[] = [];
+      const intents: AttributedModelUsageIntent[] = [];
       const languageModel = {
         apiKey: "test-key",
         baseURL: "https://provider.test/v1",
@@ -96,6 +101,7 @@ describe("Phase 74 full retrieval runtime", () => {
         evaluatorSourceSha256:
           "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         events,
+        intents,
         models: {
           answer: languageModel,
           assistedExtraction: languageModel,
@@ -185,6 +191,18 @@ describe("Phase 74 full retrieval runtime", () => {
         stage: "E1",
         testCase: labelFreeCase,
       });
+      const e2Baseline = await runtime.execute({
+        arm: "claim-temporal-off",
+        configuration,
+        stage: "E2",
+        testCase: labelFreeCase,
+      });
+      const e2Candidate = await runtime.execute({
+        arm: "claim-temporal-on",
+        configuration,
+        stage: "E2",
+        testCase: labelFreeCase,
+      });
 
       expect(first.storedMemories.map(({ content }) => content)).toContain(
         "Caroline adopted a dog named Pepper.",
@@ -206,6 +224,43 @@ describe("Phase 74 full retrieval runtime", () => {
         "Caroline: Pepper likes long walks.",
       ]);
       expect(events.filter(
+        ({ operation }) => operation === "assisted_extraction",
+      )).toHaveLength(0);
+      expect(first.costTrace).toMatchObject({
+        comparisonBranch: "candidate",
+        representation: "atomic-contextual-raw-pointer",
+      });
+      expect(second.costTrace?.ingestionKey).toBe(
+        first.costTrace?.ingestionKey,
+      );
+      expect(e2Baseline.costTrace).toMatchObject({
+        comparisonBranch: "baseline",
+        ingestionKey: first.costTrace?.ingestionKey,
+      });
+      expect(e2Candidate.costTrace).toMatchObject({
+        comparisonBranch: "candidate",
+        ingestionKey: first.costTrace?.ingestionKey,
+      });
+      expect(factOnly.costTrace?.ingestionKey).not.toBe(
+        first.costTrace?.ingestionKey,
+      );
+      expect(rawOnly.costTrace?.ingestionKey).not.toBe(
+        first.costTrace?.ingestionKey,
+      );
+
+      const ingestionUsageDirectories = await readdir(
+        join(root, "ingestion-usage"),
+      );
+      expect(ingestionUsageDirectories).toHaveLength(3);
+      const ingestionLedgers = await Promise.all(
+        ingestionUsageDirectories.map((directory) =>
+          loadPhase74ModelUsageLedger({
+            eventsPath: join(root, "ingestion-usage", directory, "events.jsonl"),
+            intentsPath: join(root, "ingestion-usage", directory, "intents.jsonl"),
+          })
+        ),
+      );
+      expect(ingestionLedgers.flatMap(({ events }) => events).filter(
         ({ operation }) => operation === "assisted_extraction",
       )).toHaveLength(2);
       const ingestionDirectories = await readdir(join(root, "ingestion"));

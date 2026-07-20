@@ -33,8 +33,13 @@ import type { GeneralizedFusionChannel } from "../recall/generalizedFusion";
 import { createLexicalCoverageReranker } from "../recall/reranker";
 import type { EvidenceLedgerFormat } from "./evidenceLedgerFormats";
 import {
+  appendPhase74ModelUsageEventSync,
+  appendPhase74ModelUsageIntentSync,
   createAttributedModelUsageSink,
+  loadPhase74ModelUsageLedger,
   type AttributedModelUsageAttempt,
+  type AttributedModelUsageIntent,
+  type Phase74ModelUsageLedger,
 } from "./modelUsage";
 import { phase74ComparisonBranch } from "./phase74Generalization";
 import type {
@@ -107,6 +112,7 @@ export interface Phase74IngestionKeyInput {
   };
   memoryGroupId: string;
   rawEvidence: readonly Phase74RawEvidenceItem[];
+  referenceTime: string;
   representation: string;
 }
 
@@ -129,6 +135,7 @@ function canonicalJson(value: unknown): string {
 
 export function buildPhase74RetrievalSnapshotId(input: {
   arm: string;
+  costTrace?: Phase74RetrievalSnapshot["costTrace"];
   evidenceLedgers?: unknown;
   retrievedMemories: readonly unknown[];
   stage: string;
@@ -136,6 +143,7 @@ export function buildPhase74RetrievalSnapshotId(input: {
 }): string {
   return sha256(canonicalJson({
     arm: input.arm,
+    costTrace: input.costTrace,
     evidenceLedgers: input.evidenceLedgers,
     retrievedMemories: input.retrievedMemories,
     stage: input.stage,
@@ -148,8 +156,107 @@ export function buildPhase74IngestionKey(
 ): string {
   return sha256(canonicalJson({
     ...input,
-    schemaVersion: 4,
+    schemaVersion: 6,
   }));
+}
+
+export function buildPhase74IngestionUsagePaths(
+  runDirectory: string,
+  ingestionKey: string,
+): { eventsPath: string; intentsPath: string } {
+  const directory = join(runDirectory, "ingestion-usage", ingestionKey);
+  return {
+    eventsPath: join(directory, "events.jsonl"),
+    intentsPath: join(directory, "intents.jsonl"),
+  };
+}
+
+export function buildPhase74IngestionUsageFingerprint(
+  ledger: Phase74ModelUsageLedger,
+): {
+  eventCount: number;
+  eventsSha256: string;
+  intentCount: number;
+  intentsSha256: string;
+} {
+  return {
+    eventCount: ledger.events.length,
+    eventsSha256: sha256(canonicalJson(ledger.events)),
+    intentCount: ledger.intents.length,
+    intentsSha256: sha256(canonicalJson(ledger.intents)),
+  };
+}
+
+export async function verifyPhase74IngestionUsageManifest(input: {
+  ingestionKey: string;
+  ledger: Phase74ModelUsageLedger;
+  runDirectory: string;
+}): Promise<void> {
+  const manifestPath = join(
+    input.runDirectory,
+    "ingestion",
+    input.ingestionKey,
+    "manifest.json",
+  );
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+    key?: unknown;
+    schemaVersion?: unknown;
+    usage?: unknown;
+  };
+  if (
+    manifest.key !== input.ingestionKey ||
+    manifest.schemaVersion !== 6 ||
+    canonicalJson(manifest.usage) !== canonicalJson(
+      buildPhase74IngestionUsageFingerprint(input.ledger),
+    )
+  ) {
+    throw new Error(`Phase 74 ingestion manifest drift at ${manifestPath}.`);
+  }
+}
+
+export function buildPhase74IngestionUsageAllocation(
+  snapshots: readonly Phase74RetrievalSnapshot[],
+): {
+  baselineExclusive: string[];
+  candidateExclusive: string[];
+  shared: string[];
+} {
+  const branchesByKey = new Map<
+    string,
+    Set<"baseline" | "candidate" | "shadow">
+  >();
+  const representations = new Map<string, string>();
+  for (const snapshot of snapshots) {
+    const trace = snapshot.costTrace;
+    if (!trace || !/^[0-9a-f]{64}$/u.test(trace.ingestionKey)) {
+      throw new Error("Phase 74 retrieval snapshot lacks a valid ingestion cost trace.");
+    }
+    const representation = representations.get(trace.ingestionKey);
+    if (representation !== undefined && representation !== trace.representation) {
+      throw new Error("Phase 74 ingestion cost trace representation drifted.");
+    }
+    representations.set(trace.ingestionKey, trace.representation);
+    const branches = branchesByKey.get(trace.ingestionKey) ?? new Set();
+    branches.add(trace.comparisonBranch);
+    branchesByKey.set(trace.ingestionKey, branches);
+  }
+  const baselineExclusive: string[] = [];
+  const candidateExclusive: string[] = [];
+  const shared: string[] = [];
+  for (const [key, branches] of branchesByKey) {
+    if (branches.has("baseline") && branches.has("candidate")) {
+      shared.push(key);
+    } else if (branches.has("baseline")) {
+      baselineExclusive.push(key);
+    } else if (branches.has("candidate")) {
+      candidateExclusive.push(key);
+    }
+  }
+  return {
+    baselineExclusive: baselineExclusive.sort(),
+    candidateExclusive: candidateExclusive.sort(),
+    shared: shared.sort(),
+  };
 }
 
 export function phase74ExecutionBranch(
@@ -436,8 +543,10 @@ export function createPhase74FullRetrievalRuntime(input: {
   datasetSha256: string;
   evaluatorSourceSha256: string;
   events: AttributedModelUsageAttempt[];
+  intents: AttributedModelUsageIntent[];
   models: Phase74LiveModels;
   onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+  onUsageIntent?: (intent: AttributedModelUsageIntent) => void;
   promptSha256s: Readonly<Record<string, string>>;
   rerankerMode?: "deterministic" | "provider";
   runDirectory: string;
@@ -448,12 +557,20 @@ export function createPhase74FullRetrievalRuntime(input: {
     snapshot: Phase74RetrievalSnapshot;
   }): Promise<string>;
 } {
-  const ready = new Map<string, Promise<string>>();
+  const ready = new Map<string, Promise<{
+    ingestionKey: string;
+    representation: string;
+    sqlitePath: string;
+  }>>();
 
   const ensureIngested = (
     testCase: Phase74RecallCase,
     configuration: EvalRunJsonObject,
-  ): Promise<string> => {
+  ): Promise<{
+    ingestionKey: string;
+    representation: string;
+    sqlitePath: string;
+  }> => {
     const representation = readString(configuration.representation, "raw-only");
     const memoryGroupId = testCase.memoryGroupId ?? testCase.caseId;
     const contextualDescriptors = representation === "atomic-contextual-raw-pointer";
@@ -484,6 +601,7 @@ export function createPhase74FullRetrievalRuntime(input: {
       },
       memoryGroupId,
       rawEvidence: testCase.rawEvidence,
+      referenceTime: isoDate(testCase.referenceTime),
       representation,
     });
     const existing = ready.get(key);
@@ -494,13 +612,23 @@ export function createPhase74FullRetrievalRuntime(input: {
       const directory = join(input.runDirectory, "ingestion", key);
       const sqlitePath = join(directory, "memory.sqlite");
       const manifestPath = join(directory, "manifest.json");
+      const paths = buildPhase74IngestionUsagePaths(input.runDirectory, key);
+      const usageDirectory = join(input.runDirectory, "ingestion-usage", key);
+      const ledger = await loadPhase74ModelUsageLedger({
+        eventsPath: paths.eventsPath,
+        intentsPath: paths.intentsPath,
+      });
       try {
-        const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-        if (manifest.key !== key) {
-          throw new Error(`Phase 74 ingestion manifest drift at ${manifestPath}.`);
+        await verifyPhase74IngestionUsageManifest({
+          ingestionKey: key,
+          ledger,
+          runDirectory: input.runDirectory,
+        });
+        if (ledger.pendingIntents.length > 0) {
+          throw new Error(`Phase 74 ingestion usage has pending requests for ${key}.`);
         }
         await access(sqlitePath);
-        return sqlitePath;
+        return { ingestionKey: key, representation, sqlitePath };
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
           throw error;
@@ -508,11 +636,23 @@ export function createPhase74FullRetrievalRuntime(input: {
       }
       await rm(directory, { force: true, recursive: true });
       await mkdir(directory, { recursive: true });
+      await mkdir(usageDirectory, { recursive: true });
+      if (ledger.pendingIntents.length > 0) {
+        throw new Error(`Phase 74 ingestion usage has pending requests for ${key}.`);
+      }
       const sink = createAttributedModelUsageSink({
         branch: "shadow",
         caseId: memoryGroupId,
-        events: input.events,
-        onEvent: input.onUsageEvent,
+        events: ledger.events,
+        intents: ledger.intents,
+        onEvent: (event) => appendPhase74ModelUsageEventSync(
+          paths.eventsPath,
+          event,
+        ),
+        onIntent: (intent) => appendPhase74ModelUsageIntentSync(
+          paths.intentsPath,
+          intent,
+        ),
       });
       const runtime = createMemory({
         configuration,
@@ -528,14 +668,19 @@ export function createPhase74FullRetrievalRuntime(input: {
         memory: runtime.memory,
         testCase,
       });
+      const completedLedger = {
+        ...ledger,
+        pendingIntents: [],
+      };
       await writeFile(manifestPath, `${JSON.stringify({
         key,
         memoryGroupId,
         representation,
-        schemaVersion: 4,
+        schemaVersion: 6,
         sourceMessageCount: testCase.rawEvidence.length,
+        usage: buildPhase74IngestionUsageFingerprint(completedLedger),
       }, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
-      return sqlitePath;
+      return { ingestionKey: key, representation, sqlitePath };
     })();
     ready.set(key, pending);
     return pending;
@@ -543,14 +688,14 @@ export function createPhase74FullRetrievalRuntime(input: {
 
   return {
     async execute({ arm, configuration, stage, testCase }) {
-      const frozenSqlitePath = await ensureIngested(testCase, configuration);
+      const ingested = await ensureIngested(testCase, configuration);
       const queryPathStartedAt = performance.now();
       const queryRoot = join(input.runDirectory, "query-work");
       await mkdir(queryRoot, { recursive: true });
       const queryDirectory = await mkdtemp(join(queryRoot, "query-"));
       const sqlitePath = join(queryDirectory, "memory.sqlite");
       await copyFile(
-        frozenSqlitePath,
+        ingested.sqlitePath,
         sqlitePath,
         fsConstants.COPYFILE_FICLONE,
       );
@@ -559,7 +704,9 @@ export function createPhase74FullRetrievalRuntime(input: {
           branch: phase74ExecutionBranch(stage, arm),
           caseId: testCase.caseId,
           events: input.events,
+          intents: input.intents,
           onEvent: input.onUsageEvent,
+          onIntent: input.onUsageIntent,
         });
         const runtime = createMemory({
           configuration,
@@ -622,12 +769,22 @@ export function createPhase74FullRetrievalRuntime(input: {
             : undefined;
         const snapshotId = buildPhase74RetrievalSnapshotId({
           arm,
+          costTrace: {
+            comparisonBranch: phase74ExecutionBranch(stage, arm),
+            ingestionKey: ingested.ingestionKey,
+            representation: ingested.representation,
+          },
           evidenceLedgers,
           retrievedMemories,
           stage,
           storedMemories,
         });
         return {
+          costTrace: {
+            comparisonBranch: phase74ExecutionBranch(stage, arm),
+            ingestionKey: ingested.ingestionKey,
+            representation: ingested.representation,
+          },
           ...(evidenceLedgers === undefined ? {} : { evidenceLedgers }),
           recallMetadata: {
             candidateTraces: recall.metadata.candidateTraces,

@@ -30,7 +30,16 @@ export interface ModelUsageAttempt {
   usage: ModelTokenUsage;
 }
 
+export interface ModelUsageIntent {
+  attempt: number;
+  modelId: string;
+  operation: ModelUsageOperation;
+  providerId: string;
+  schemaVersion: 1;
+}
+
 export interface ModelUsageSink {
+  begin?(intent: ModelUsageIntent): (event: ModelUsageAttempt) => void;
   emit(event: ModelUsageAttempt): void;
   strict?: boolean;
 }
@@ -242,6 +251,50 @@ function emitUsage(
   }
 }
 
+function beginUsage(
+  sink: ModelUsageSink | undefined,
+  intent: ModelUsageIntent,
+): ((event: ModelUsageAttempt) => void) | undefined {
+  if (!sink?.begin) {
+    return undefined;
+  }
+  try {
+    return sink.begin(intent);
+  } catch (error) {
+    if (sink.strict) {
+      throw error;
+    }
+    console.error(
+      "[goodmemory:model-usage] sink begin failed",
+      error instanceof Error ? error.name : typeof error,
+    );
+    return undefined;
+  }
+}
+
+function commitUsage(
+  sink: ModelUsageSink | undefined,
+  commit: ((event: ModelUsageAttempt) => void) | undefined,
+  event: ModelUsageAttempt,
+): void {
+  if (!commit) {
+    emitUsage(sink, event);
+    return;
+  }
+  try {
+    commit(event);
+  } catch (error) {
+    if (sink?.strict) {
+      throw error;
+    }
+    console.error(
+      "[goodmemory:model-usage] sink commit failed",
+      error instanceof Error ? error.name : typeof error,
+    );
+    emitUsage(sink, event);
+  }
+}
+
 export async function runWithModelUsageAttempt<T>(input: {
   attempt: number;
   modelId: string;
@@ -250,6 +303,13 @@ export async function runWithModelUsageAttempt<T>(input: {
   run(report: (usage: ModelTokenUsage) => void): Promise<T>;
   sink?: ModelUsageSink;
 }): Promise<T> {
+  const commit = beginUsage(input.sink, {
+    attempt: input.attempt,
+    modelId: input.modelId,
+    operation: input.operation,
+    providerId: input.providerId,
+    schemaVersion: 1,
+  });
   let reportedUsage: ModelTokenUsage | undefined;
   const report = (usage: ModelTokenUsage) => {
     if (reportedUsage) {
@@ -259,7 +319,7 @@ export async function runWithModelUsageAttempt<T>(input: {
   };
   const emitOutcome = (outcome: ModelUsageAttempt["outcome"]) => {
     const usage = reportedUsage ?? { ...MISSING_MODEL_TOKEN_USAGE };
-    emitUsage(input.sink, {
+    commitUsage(input.sink, commit, {
       attempt: input.attempt,
       completeness: modelUsageCompleteness(usage),
       modelId: input.modelId,

@@ -27,7 +27,10 @@ import {
   parseLongMemEvalOfficialJudgeVerdict,
 } from "./longmemevalOfficialScorer";
 import { createAttributedModelUsageSink } from "./modelUsage";
-import type { AttributedModelUsageAttempt } from "./modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+} from "./modelUsage";
 import type { Phase74BenchmarkFamily } from "./phase74Datasets";
 import type {
   Phase74AnswerAssessment,
@@ -104,8 +107,10 @@ export function createPhase74ProtocolCompatibleAnswerAssessor(input: {
   benchmark: Phase74BenchmarkFamily;
   events: AttributedModelUsageAttempt[];
   fetch?: FetchLike;
+  intents: AttributedModelUsageIntent[];
   model: AISDKModelConfig;
   onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
+  onUsageIntent?: (intent: AttributedModelUsageIntent) => void;
 }): Phase74ProtocolCompatibleAnswerAssessor {
   if (input.benchmark === "locomo") {
     return async ({ answer, testCase }) => {
@@ -123,7 +128,9 @@ export function createPhase74ProtocolCompatibleAnswerAssessor(input: {
       branch: "judge",
       caseId: testCase.caseId,
       events: input.events,
+      intents: input.intents,
       onEvent: input.onUsageEvent,
+      onIntent: input.onUsageIntent,
     });
     const prompt = buildLongMemEvalOfficialJudgePrompt({
       abstention: isLongMemEvalOfficialAbstentionCase(testCase.caseId),

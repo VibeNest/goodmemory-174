@@ -4,7 +4,10 @@ import {
   buildPhase74ProtocolScoringIdentity,
   createPhase74ProtocolCompatibleAnswerAssessor,
 } from "../../src/eval/phase74ProtocolScoring";
-import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+} from "../../src/eval/modelUsage";
 
 const judgeModel = {
   apiKey: "judge-key",
@@ -64,9 +67,11 @@ describe("Phase 74 protocol-compatible scoring", () => {
 
   it("scores LoCoMo locally with the pinned category-aware scorer", async () => {
     const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
     const assess = createPhase74ProtocolCompatibleAnswerAssessor({
       benchmark: "locomo",
       events,
+      intents,
       model: judgeModel,
     });
 
@@ -85,15 +90,19 @@ describe("Phase 74 protocol-compatible scoring", () => {
 
     expect(result).toEqual({ correct: true, score: 1 });
     expect(events).toEqual([]);
+    expect(intents).toEqual([]);
   });
 
   it("judges LongMemEval with the pinned per-question-type prompt", async () => {
     const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
+    const usageOrder: string[] = [];
     let requestBody = "";
     const assess = createPhase74ProtocolCompatibleAnswerAssessor({
       benchmark: "longmemeval",
       events,
       fetch: async (_url, init) => {
+        usageOrder.push("provider");
         requestBody = String(init?.body);
         return new Response([
           'data: {"choices":[{"delta":{"content":"Yes"},"index":0}]}',
@@ -105,7 +114,10 @@ describe("Phase 74 protocol-compatible scoring", () => {
           status: 200,
         });
       },
+      intents,
       model: judgeModel,
+      onUsageEvent: () => usageOrder.push("terminal"),
+      onUsageIntent: () => usageOrder.push("intent"),
     });
 
     expect(await assess({
@@ -126,6 +138,15 @@ describe("Phase 74 protocol-compatible scoring", () => {
       model: "gpt-5.5",
       temperature: 0,
     });
+    expect(usageOrder).toEqual(["intent", "provider", "terminal"]);
+    expect(intents).toEqual([
+      expect.objectContaining({
+        branch: "judge",
+        caseId: "lme/q1",
+        operation: "judge",
+      }),
+    ]);
+    expect(intents[0]?.requestId).toBe(events[0]?.requestId);
     expect(events).toEqual([
       expect.objectContaining({
         branch: "judge",
@@ -140,6 +161,7 @@ describe("Phase 74 protocol-compatible scoring", () => {
     const assess = createPhase74ProtocolCompatibleAnswerAssessor({
       benchmark: "locomo",
       events: [],
+      intents: [],
       model: judgeModel,
     });
     await expect(assess({

@@ -15,21 +15,36 @@ import {
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
 import {
   buildPhase74ModelUsageEvidence,
-  loadPhase74ModelUsageEvents,
+  loadPhase74ModelUsageLedger,
+} from "../src/eval/modelUsage";
+import type {
+  Phase74IngestionUsageLedger,
+  Phase74ModelUsageLedger,
 } from "../src/eval/modelUsage";
 import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
 import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
 import { assertPhase74ExperimentIdentityContract } from "../src/eval/phase74ExperimentIdentity";
-import { buildPhase74RetrievalSnapshotId } from "../src/eval/phase74FullRuntime";
+import {
+  buildPhase74IngestionUsageAllocation,
+  buildPhase74IngestionUsagePaths,
+  buildPhase74RetrievalSnapshotId,
+  verifyPhase74IngestionUsageManifest,
+} from "../src/eval/phase74FullRuntime";
 import { buildPhase74StageConfigurations } from "../src/eval/phase74Generalization";
-import type { Phase74EvaluationAttribution } from "../src/eval/phase74Generalization";
+import type {
+  Phase74EvaluationAttribution,
+  Phase74RetrievalSnapshot,
+} from "../src/eval/phase74Generalization";
 import {
   evaluatePhase74PromotionGate,
   PHASE74_MAX_PROTECTION_REGRESSION,
+  PHASE74_MODEL_USAGE_ACCOUNTING_VERSION,
+  PHASE74_MODEL_USAGE_ALLOCATION_POLICY,
 } from "../src/eval/phase74PromotionGate";
 import type {
   Phase74ModelUsageBranchEvidence,
   Phase74ModelUsageEvidence,
+  Phase74ModelUsagePoolEvidence,
   Phase74PromotionGateInput,
   Phase74PromotionGateResult,
   Phase74ProtectionEvidence,
@@ -63,6 +78,17 @@ const EVIDENCE_LEDGER_FORMATS = [
   "json_locale_note",
 ] as const satisfies readonly EvidenceLedgerFormat[];
 const COMPARISON_TOLERANCE = 1e-12;
+const MODEL_USAGE_OPERATIONS = new Set([
+  "answer_generation",
+  "assisted_extraction",
+  "embedding",
+  "judge",
+  "recall_plan",
+  "recall_router_plan",
+  "recall_router_rerank",
+  "reranker_listwise",
+  "reranker_pointwise",
+]);
 
 type RetrievalStage = (typeof RETRIEVAL_STAGES)[number];
 type ExperimentStage = (typeof ALL_STAGES)[number];
@@ -597,6 +623,27 @@ async function readJsonLines(path: string, label: string): Promise<unknown[]> {
   });
 }
 
+async function loadRequiredModelUsageLedger(input: {
+  eventsPath: string;
+  intentsPath: string;
+  label: string;
+}): Promise<Phase74ModelUsageLedger> {
+  try {
+    await Promise.all([
+      readFile(input.eventsPath, "utf8"),
+      readFile(input.intentsPath, "utf8"),
+    ]);
+  } catch (error) {
+    throw new Error(`Phase 74 cannot read ${input.label} usage ledger.`, {
+      cause: error,
+    });
+  }
+  return loadPhase74ModelUsageLedger({
+    eventsPath: input.eventsPath,
+    intentsPath: input.intentsPath,
+  });
+}
+
 function parseDatasetManifest(value: unknown): DatasetManifestEvidence {
   const manifest = recordValue(value, "dataset manifest");
   const benchmark = stringValue(manifest.benchmark, "dataset benchmark");
@@ -653,6 +700,7 @@ function parseModelUsageBranch(
     "missingRequestCount",
     "operationCounts",
     "partialRequestCount",
+    "pendingRequestCount",
     "requestCount",
     "totalTokens",
     "unobservedCaseIds",
@@ -662,10 +710,17 @@ function parseModelUsageBranch(
     `${label} operationCounts`,
   );
   const operationCounts = Object.fromEntries(
-    Object.entries(operationCountsRecord).map(([operation, count]) => [
-      operation,
-      integerValue(count, `${label} operationCounts.${operation}`),
-    ]),
+    Object.entries(operationCountsRecord).map(([operation, count]) => {
+      if (!MODEL_USAGE_OPERATIONS.has(operation)) {
+        throw new Error(
+          `Phase 74 ${label} operationCounts contains unsupported operation ${operation}.`,
+        );
+      }
+      return [
+        operation,
+        integerValue(count, `${label} operationCounts.${operation}`),
+      ];
+    }),
   );
   if (!Array.isArray(branch.unobservedCaseIds)) {
     throw new Error(`Phase 74 ${label} unobservedCaseIds must be an array.`);
@@ -699,6 +754,10 @@ function parseModelUsageBranch(
       branch.partialRequestCount,
       `${label} partialRequestCount`,
     ),
+    pendingRequestCount: integerValue(
+      branch.pendingRequestCount,
+      `${label} pendingRequestCount`,
+    ),
     requestCount: integerValue(branch.requestCount, `${label} requestCount`),
     totalTokens: finiteValue(branch.totalTokens, `${label} totalTokens`),
     unobservedCaseIds,
@@ -713,7 +772,79 @@ function parseModelUsageBranch(
   if (
     operationRequestCount !== parsed.requestCount ||
     parsed.completeRequestCount + parsed.partialRequestCount +
-        parsed.missingRequestCount !== parsed.requestCount
+        parsed.missingRequestCount + parsed.pendingRequestCount !==
+      parsed.requestCount
+  ) {
+    throw new Error(`Phase 74 ${label} model usage counts are inconsistent.`);
+  }
+  return parsed;
+}
+
+function parseModelUsagePool(
+  value: unknown,
+  label: string,
+): Phase74ModelUsagePoolEvidence {
+  const pool = recordValue(value, `${label} model usage`);
+  assertExactKeys(pool, [
+    "completeRequestCount",
+    "keyCount",
+    "keysSha256",
+    "missingRequestCount",
+    "operationCounts",
+    "partialRequestCount",
+    "pendingRequestCount",
+    "requestCount",
+    "totalTokens",
+  ], `${label} model usage`);
+  const operationCountsRecord = recordValue(
+    pool.operationCounts,
+    `${label} operationCounts`,
+  );
+  const operationCounts = Object.fromEntries(
+    Object.entries(operationCountsRecord).map(([operation, count]) => {
+      if (!MODEL_USAGE_OPERATIONS.has(operation)) {
+        throw new Error(
+          `Phase 74 ${label} operationCounts contains unsupported operation ${operation}.`,
+        );
+      }
+      return [
+        operation,
+        integerValue(count, `${label} operationCounts.${operation}`),
+      ];
+    }),
+  );
+  const parsed: Phase74ModelUsagePoolEvidence = {
+    completeRequestCount: integerValue(
+      pool.completeRequestCount,
+      `${label} completeRequestCount`,
+    ),
+    keyCount: integerValue(pool.keyCount, `${label} keyCount`),
+    keysSha256: sha256Value(pool.keysSha256, `${label} keysSha256`),
+    missingRequestCount: integerValue(
+      pool.missingRequestCount,
+      `${label} missingRequestCount`,
+    ),
+    operationCounts,
+    partialRequestCount: integerValue(
+      pool.partialRequestCount,
+      `${label} partialRequestCount`,
+    ),
+    pendingRequestCount: integerValue(
+      pool.pendingRequestCount,
+      `${label} pendingRequestCount`,
+    ),
+    requestCount: integerValue(pool.requestCount, `${label} requestCount`),
+    totalTokens: integerValue(pool.totalTokens, `${label} totalTokens`),
+  };
+  const operationRequestCount = Object.values(parsed.operationCounts).reduce(
+    (total, count) => total + (count ?? 0),
+    0,
+  );
+  if (
+    operationRequestCount !== parsed.requestCount ||
+    parsed.completeRequestCount + parsed.partialRequestCount +
+        parsed.missingRequestCount + parsed.pendingRequestCount !==
+      parsed.requestCount
   ) {
     throw new Error(`Phase 74 ${label} model usage counts are inconsistent.`);
   }
@@ -724,27 +855,51 @@ function parseModelUsage(value: unknown): Phase74ModelUsageEvidence {
   const usage = recordValue(value, "model usage summary");
   assertExactKeys(usage, [
     "accountingVersion",
+    "allocationPolicy",
     "baseline",
     "candidate",
     "costBoundary",
+    "ingestion",
   ], "model usage summary");
-  if (usage.accountingVersion !== "phase74-model-usage-v1") {
+  if (usage.accountingVersion !== PHASE74_MODEL_USAGE_ACCOUNTING_VERSION) {
     throw new Error(
-      "Phase 74 model usage accountingVersion must be phase74-model-usage-v1.",
+      `Phase 74 model usage accountingVersion must be ${PHASE74_MODEL_USAGE_ACCOUNTING_VERSION}.`,
     );
   }
-  if (
-    usage.costBoundary !== "full-product" &&
-    usage.costBoundary !== "query-only" &&
-    usage.costBoundary !== "reader-only"
-  ) {
-    throw new Error("Phase 74 model usage costBoundary is invalid.");
+  if (usage.allocationPolicy !== PHASE74_MODEL_USAGE_ALLOCATION_POLICY) {
+    throw new Error(
+      `Phase 74 model usage allocationPolicy must be ${PHASE74_MODEL_USAGE_ALLOCATION_POLICY}.`,
+    );
   }
+  if (usage.costBoundary !== "full-product") {
+    throw new Error("Phase 74 model usage costBoundary must be full-product.");
+  }
+  const ingestion = recordValue(usage.ingestion, "ingestion model usage");
+  assertExactKeys(ingestion, [
+    "baselineExclusive",
+    "candidateExclusive",
+    "shared",
+  ], "ingestion model usage");
   return {
-    accountingVersion: "phase74-model-usage-v1",
+    accountingVersion: PHASE74_MODEL_USAGE_ACCOUNTING_VERSION,
+    allocationPolicy: PHASE74_MODEL_USAGE_ALLOCATION_POLICY,
     baseline: parseModelUsageBranch(usage.baseline, "baseline"),
     candidate: parseModelUsageBranch(usage.candidate, "candidate"),
-    costBoundary: usage.costBoundary,
+    costBoundary: "full-product",
+    ingestion: {
+      baselineExclusive: parseModelUsagePool(
+        ingestion.baselineExclusive,
+        "baselineExclusive ingestion",
+      ),
+      candidateExclusive: parseModelUsagePool(
+        ingestion.candidateExclusive,
+        "candidateExclusive ingestion",
+      ),
+      shared: parseModelUsagePool(
+        ingestion.shared,
+        "shared ingestion",
+      ),
+    },
   };
 }
 
@@ -1120,7 +1275,11 @@ function validateUsagePopulation(
     ["baseline", usage.baseline],
     ["candidate", usage.candidate],
   ] as const) {
-    if (evidence.missingRequestCount > 0 || evidence.partialRequestCount > 0) {
+    if (
+      evidence.missingRequestCount > 0 ||
+      evidence.partialRequestCount > 0 ||
+      evidence.pendingRequestCount > 0
+    ) {
       throw new Error(
         `Phase 74 ${input.stage} ${branch} has incomplete model usage.`,
       );
@@ -1146,11 +1305,12 @@ function validateUsagePopulation(
 }
 
 async function validateRetrievalPackets(input: {
+  comparison?: Phase74ReplicateComparison;
   expectedSnapshotIds: readonly string[];
   path: string;
   rows?: readonly RetrievalProgressRow[];
   stage: ExperimentStage;
-}): Promise<void> {
+}): Promise<Phase74RetrievalSnapshot[]> {
   const packets = await readJsonLines(
     input.path,
     `${input.stage} retrieval packets`,
@@ -1170,8 +1330,31 @@ async function validateRetrievalPackets(input: {
     throw new Error(`Phase 74 ${input.stage} retrieval packet population drift.`);
   }
   if (input.rows === undefined) {
-    return;
+    return packets.map((value, index) => {
+      const packet = recordValue(
+        value,
+        `${input.stage} retrieval packet ${index + 1}`,
+      );
+      if (!Array.isArray(packet.retrievedMemories) ||
+        !Array.isArray(packet.storedMemories)) {
+        throw new Error(
+          `Phase 74 ${input.stage} retrieval packet memories are invalid.`,
+        );
+      }
+      return {
+        retrievedMemories: packet.retrievedMemories,
+        snapshotId: observed[index]!,
+        storedMemories: packet.storedMemories,
+      };
+    });
   }
+  if (input.stage === "E4") {
+    throw new Error("Phase 74 E4 retrieval packets cannot contain paired rows.");
+  }
+  if (input.comparison === undefined) {
+    throw new Error(`Phase 74 ${input.stage} retrieval packet comparison is missing.`);
+  }
+  const snapshots: Phase74RetrievalSnapshot[] = [];
   for (const [index, packetValue] of packets.entries()) {
     const packet = recordValue(
       packetValue,
@@ -1186,8 +1369,49 @@ async function validateRetrievalPackets(input: {
         `Phase 74 ${input.stage} retrieval packet memories are invalid.`,
       );
     }
+    const costTraceRecord = recordValue(
+      packet.costTrace,
+      `${input.stage} retrieval packet cost trace`,
+    );
+    assertExactKeys(costTraceRecord, [
+      "comparisonBranch",
+      "ingestionKey",
+      "representation",
+    ], `${input.stage} retrieval packet cost trace`);
+    const parsedComparisonBranch = stringValue(
+      costTraceRecord.comparisonBranch,
+      `${input.stage} retrieval packet comparisonBranch`,
+    );
+    if (
+      parsedComparisonBranch !== "baseline" &&
+      parsedComparisonBranch !== "candidate" &&
+      parsedComparisonBranch !== "shadow"
+    ) {
+      throw new Error(`Phase 74 ${input.stage} retrieval packet cost trace branch is invalid.`);
+    }
+    const comparisonBranch = parsedComparisonBranch;
+    const expectedBranch = row.arm === input.comparison.baselineArm
+      ? "baseline"
+      : row.arm === input.comparison.candidateArm
+        ? "candidate"
+        : "shadow";
+    if (comparisonBranch !== expectedBranch) {
+      throw new Error(`Phase 74 ${input.stage} retrieval packet cost trace branch drift.`);
+    }
+    const costTrace: NonNullable<Phase74RetrievalSnapshot["costTrace"]> = {
+      comparisonBranch,
+      ingestionKey: sha256Value(
+        costTraceRecord.ingestionKey,
+        `${input.stage} retrieval packet ingestionKey`,
+      ),
+      representation: stringValue(
+        costTraceRecord.representation,
+        `${input.stage} retrieval packet representation`,
+      ),
+    };
     const expectedSnapshotId = buildPhase74RetrievalSnapshotId({
       arm: row.arm,
+      costTrace,
       evidenceLedgers: packet.evidenceLedgers,
       retrievedMemories,
       stage: input.stage,
@@ -1219,7 +1443,15 @@ async function validateRetrievalPackets(input: {
         `Phase 74 ${input.stage} retrieval packet evaluation drift.`,
       );
     }
+    snapshots.push({
+      costTrace,
+      evidenceLedgers: packet.evidenceLedgers as Phase74RetrievalSnapshot["evidenceLedgers"],
+      retrievedMemories,
+      snapshotId,
+      storedMemories,
+    });
   }
+  return snapshots;
 }
 
 function parseE4Progress(values: readonly unknown[]): E4ProgressRow[] {
@@ -1429,8 +1661,10 @@ async function loadRetrievalStageArtifact(
   const modelUsage = parseModelUsage(summary.modelUsage);
   if (
     base.identity.configuration.costBoundary !==
-      "query-only-comparison-with-shadow-ingestion" ||
-    modelUsage.costBoundary !== "query-only"
+      "full-product-standalone-shared-v1" ||
+    base.identity.configuration.modelUsageAccounting !==
+      PHASE74_MODEL_USAGE_ACCOUNTING_VERSION ||
+    modelUsage.costBoundary !== "full-product"
   ) {
     throw new Error(`Phase 74 ${stage} model usage cost boundary drift.`);
   }
@@ -1446,20 +1680,71 @@ async function loadRetrievalStageArtifact(
     selectedCaseKeysSha256: base.selectedCaseKeysSha256,
     stage,
   });
-  const usageEvents = await loadPhase74ModelUsageEvents(
-    join(base.runDirectory, `${prefix}-model-usage.jsonl`),
-  );
+  const snapshots = await validateRetrievalPackets({
+    comparison,
+    expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
+    path: join(base.runDirectory, `${prefix}-retrieval-packets.jsonl`),
+    rows,
+    stage,
+  });
+  const allocation = buildPhase74IngestionUsageAllocation(snapshots);
+  const directUsage = await loadRequiredModelUsageLedger({
+    eventsPath: join(base.runDirectory, `${prefix}-model-usage.jsonl`),
+    intentsPath: join(
+      base.runDirectory,
+      `${prefix}-model-usage-intents.jsonl`,
+    ),
+    label: `${stage} direct model`,
+  });
+  if (directUsage.pendingIntents.length > 0) {
+    throw new Error(`Phase 74 ${stage} direct model usage contains pending requests.`);
+  }
+  const loadIngestionPool = async (
+    keys: readonly string[],
+    label: string,
+  ): Promise<Phase74IngestionUsageLedger[]> => Promise.all(keys.map(
+    async (key) => {
+      const paths = buildPhase74IngestionUsagePaths(base.runDirectory, key);
+      const ledger = await loadRequiredModelUsageLedger({
+        ...paths,
+        label: `${stage} ${label} ingestion ${key}`,
+      });
+      await verifyPhase74IngestionUsageManifest({
+        ingestionKey: key,
+        ledger,
+        runDirectory: base.runDirectory,
+      });
+      if (ledger.pendingIntents.length > 0) {
+        throw new Error(
+          `Phase 74 ${stage} ${label} ingestion usage contains pending requests.`,
+        );
+      }
+      return { key, ledger };
+    },
+  ));
+  const [baselineExclusive, candidateExclusive, shared] = await Promise.all([
+    loadIngestionPool(allocation.baselineExclusive, "baselineExclusive"),
+    loadIngestionPool(allocation.candidateExclusive, "candidateExclusive"),
+    loadIngestionPool(allocation.shared, "shared"),
+  ]);
   const branchCaseIds = (branch: "baseline" | "candidate") =>
-    [...new Set(usageEvents
-      .filter((event) => event.branch === branch)
+    [...new Set(directUsage.intents
+      .filter((intent) => intent.branch === branch)
       .map(({ caseId }) => caseId))]
       .sort();
   const baselineCaseIds = branchCaseIds("baseline");
   const candidateCaseIds = branchCaseIds("candidate");
-  const rebuiltUsage = buildPhase74ModelUsageEvidence(usageEvents, {
-    baselineCaseIds,
-    candidateCaseIds,
-    costBoundary: "query-only",
+  const rebuiltUsage = buildPhase74ModelUsageEvidence({
+    direct: directUsage,
+    expected: {
+      baselineCaseIds,
+      candidateCaseIds,
+    },
+    ingestion: {
+      baselineExclusive,
+      candidateExclusive,
+      shared,
+    },
   });
   if (
     stableJson(rebuiltUsage) !== stableJson(modelUsage) ||
@@ -1470,12 +1755,6 @@ async function loadRetrievalStageArtifact(
   ) {
     throw new Error(`Phase 74 ${stage} raw model usage drift.`);
   }
-  await validateRetrievalPackets({
-    expectedSnapshotIds: rows.map(({ snapshotId }) => snapshotId),
-    path: join(base.runDirectory, `${prefix}-retrieval-packets.jsonl`),
-    rows,
-    stage,
-  });
   return {
     comparison,
     executionFailures: summary.executionFailures,
@@ -1600,11 +1879,11 @@ async function loadRunArtifact(runDirectory: string): Promise<RunArtifact> {
 }
 
 function sumOperationCounts(
-  branches: readonly Phase74ModelUsageBranchEvidence[],
+  evidence: readonly Pick<Phase74ModelUsageBranchEvidence, "operationCounts">[],
 ): Phase74ModelUsageBranchEvidence["operationCounts"] {
   const result: Record<string, number> = {};
-  for (const branch of branches) {
-    for (const [operation, count] of Object.entries(branch.operationCounts)) {
+  for (const item of evidence) {
+    for (const [operation, count] of Object.entries(item.operationCounts)) {
       result[operation] = (result[operation] ?? 0) + (count ?? 0);
     }
   }
@@ -1615,6 +1894,7 @@ function combineUsage(input: {
   artifacts: readonly {
     benchmark: Phase74BenchmarkFamily;
     caseIds: readonly string[];
+    identityHash: string;
     replicate: Replicate;
     usage: Phase74ModelUsageEvidence;
   }[];
@@ -1649,6 +1929,10 @@ function combineUsage(input: {
         (total, item) => total + item.partialRequestCount,
         0,
       ),
+      pendingRequestCount: evidence.reduce(
+        (total, item) => total + item.pendingRequestCount,
+        0,
+      ),
       requestCount: evidence.reduce(
         (total, item) => total + item.requestCount,
         0,
@@ -1665,11 +1949,60 @@ function combineUsage(input: {
       ),
     };
   };
+  const combinePool = (
+    pool: keyof Phase74ModelUsageEvidence["ingestion"],
+  ): Phase74ModelUsagePoolEvidence => {
+    const evidence = input.artifacts.map(({ usage }) => usage.ingestion[pool]);
+    const virtualKeys = input.artifacts.map((artifact) => ({
+      artifactIdentityHash: artifact.identityHash,
+      benchmark: artifact.benchmark,
+      keyCount: artifact.usage.ingestion[pool].keyCount,
+      keysSha256: artifact.usage.ingestion[pool].keysSha256,
+      replicate: artifact.replicate,
+    })).sort((left, right) =>
+      left.artifactIdentityHash.localeCompare(right.artifactIdentityHash)
+    );
+    return {
+      completeRequestCount: evidence.reduce(
+        (total, item) => total + item.completeRequestCount,
+        0,
+      ),
+      keyCount: evidence.reduce((total, item) => total + item.keyCount, 0),
+      keysSha256: sha256(stableJson(virtualKeys)),
+      missingRequestCount: evidence.reduce(
+        (total, item) => total + item.missingRequestCount,
+        0,
+      ),
+      operationCounts: sumOperationCounts(evidence),
+      partialRequestCount: evidence.reduce(
+        (total, item) => total + item.partialRequestCount,
+        0,
+      ),
+      pendingRequestCount: evidence.reduce(
+        (total, item) => total + item.pendingRequestCount,
+        0,
+      ),
+      requestCount: evidence.reduce(
+        (total, item) => total + item.requestCount,
+        0,
+      ),
+      totalTokens: evidence.reduce(
+        (total, item) => total + item.totalTokens,
+        0,
+      ),
+    };
+  };
   return {
-    accountingVersion: "phase74-model-usage-v1",
+    accountingVersion: PHASE74_MODEL_USAGE_ACCOUNTING_VERSION,
+    allocationPolicy: PHASE74_MODEL_USAGE_ALLOCATION_POLICY,
     baseline: combineBranch("baseline"),
     candidate: combineBranch("candidate"),
     costBoundary: input.artifacts[0]!.usage.costBoundary,
+    ingestion: {
+      baselineExclusive: combinePool("baselineExclusive"),
+      candidateExclusive: combinePool("candidateExclusive"),
+      shared: combinePool("shared"),
+    },
   };
 }
 
@@ -1797,6 +2130,7 @@ function buildStageAggregation(input: {
     artifacts: input.artifacts.map((artifact) => ({
       benchmark: input.benchmark,
       caseIds: runs[artifact.replicate - 1]!.baseline.map(({ caseId }) => caseId),
+      identityHash: artifact.identityHash,
       replicate: artifact.replicate,
       usage: artifact.retrieval.modelUsage,
     })),
@@ -2132,6 +2466,7 @@ function buildPromotionEvaluation(input: {
     artifacts: selectedArtifacts.map(({ artifact, baselineRows }) => ({
       benchmark: artifact.benchmark,
       caseIds: baselineRows.map(({ caseId }) => caseId),
+      identityHash: artifact.identityHash,
       replicate: artifact.replicate,
       usage: artifact.retrieval[stage].modelUsage,
     })),

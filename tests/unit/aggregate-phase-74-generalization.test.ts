@@ -23,9 +23,16 @@ import {
   type Phase74EvaluationAttribution,
 } from "../../src/eval/phase74Generalization";
 import {
+  buildPhase74IngestionUsageFingerprint,
+  buildPhase74IngestionUsagePaths,
   buildPhase74RetrievalSnapshotId,
+  phase74ExecutionBranch,
   PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
 } from "../../src/eval/phase74FullRuntime";
+import {
+  buildPhase74ModelUsageEvidence,
+  validatePhase74ModelUsageLedger,
+} from "../../src/eval/modelUsage";
 import { buildPhase74ProtocolScoringIdentity } from "../../src/eval/phase74ProtocolScoring";
 import { buildPhase74ReplicateComparison } from "../../src/eval/phase74Replicates";
 import {
@@ -85,57 +92,60 @@ function comparisonArms(stage: "E1" | "E2" | "E3") {
   };
 }
 
-function branchUsage(input: {
-  candidate: boolean;
-  caseIds: readonly string[];
-}) {
-  return {
-    answerGenerationCaseCount: input.caseIds.length,
-    caseIdsSha256: sha256(JSON.stringify([...input.caseIds].sort())),
-    completeRequestCount: input.caseIds.length,
-    logicalCaseCount: input.caseIds.length,
-    missingRequestCount: 0,
-    operationCounts: { answer_generation: input.caseIds.length },
-    partialRequestCount: 0,
-    requestCount: input.caseIds.length,
-    totalTokens: input.caseIds.length * (input.candidate ? 110 : 100),
-    unobservedCaseIds: [],
-  };
-}
-
-function usageEvidence(
-  caseIds: readonly string[],
-  costBoundary: "full-product" | "query-only",
-) {
-  return {
-    accountingVersion: "phase74-model-usage-v1",
-    baseline: branchUsage({ candidate: false, caseIds }),
-    candidate: branchUsage({ candidate: true, caseIds }),
-    costBoundary,
-  };
-}
-
-function usageEvents(caseIds: readonly string[]) {
-  return (["baseline", "candidate"] as const).flatMap((branch) =>
-    caseIds.map((caseId) => ({
+function directUsageRows(caseIds: readonly string[]) {
+  const intents = (["baseline", "candidate"] as const).flatMap((branch) =>
+    caseIds.map((caseId, index) => ({
       attempt: 1,
       branch,
       caseId,
-      completeness: "complete",
       modelId: "gpt-5.6-terra",
-      operation: "answer_generation",
-      outcome: "succeeded",
+      operation: "answer_generation" as const,
       providerId: "openai",
-      schemaVersion: 1,
+      requestId: `${branch}-${index}-${caseId}`,
+      schemaVersion: 1 as const,
+    }))
+  );
+  const events = intents.map((intent) => ({
+      ...intent,
+      completeness: "complete" as const,
+      outcome: "succeeded" as const,
       usage: {
         cacheCreationInputTokens: 0,
         cacheReadInputTokens: 0,
-        inputTokens: branch === "candidate" ? 90 : 80,
+        inputTokens: intent.branch === "candidate" ? 90 : 80,
         outputTokens: 20,
-        uncachedInputTokens: branch === "candidate" ? 90 : 80,
+        uncachedInputTokens: intent.branch === "candidate" ? 90 : 80,
       },
-    }))
-  );
+    }));
+  return { events, intents };
+}
+
+function ingestionUsageRows(key: string) {
+  const intent = {
+    attempt: 1,
+    branch: "shadow" as const,
+    caseId: `ingestion-${key}`,
+    modelId: "gpt-5.6-terra",
+    operation: "assisted_extraction" as const,
+    providerId: "openai",
+    requestId: `ingestion-${key}`,
+    schemaVersion: 1 as const,
+  };
+  return {
+    events: [{
+      ...intent,
+      completeness: "complete" as const,
+      outcome: "succeeded" as const,
+      usage: {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: 40,
+        outputTokens: 10,
+        uncachedInputTokens: 40,
+      },
+    }],
+    intents: [intent],
+  };
 }
 
 interface FixtureOptions {
@@ -214,7 +224,9 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           maxTokens: 6_000,
           tokenizer: "utf8-byte-upper-bound-v1",
         },
-        costBoundary: "query-only-comparison-with-shadow-ingestion",
+        costBoundary: options.costBoundary === "query-only"
+          ? "query-only-comparison-with-shadow-ingestion"
+          : "full-product-standalone-shared-v1",
         dataset: datasetManifest,
         ...(options.admission === "missing-embedding"
           ? {}
@@ -236,7 +248,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
         ...(options.admission === "missing-provider-object-calls"
           ? {}
           : { providerObjectCalls: PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION }),
-        modelUsageAccounting: "phase74-model-usage-v1",
+        modelUsageAccounting: "phase74-model-usage-v2",
         preRankLimit: 32,
         reader: "generic-label-free-v1",
         replicate,
@@ -450,7 +462,33 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             };
           })
         );
+        const ingestionRowsByKey = new Map<
+          string,
+          ReturnType<typeof ingestionUsageRows>
+        >();
         const packets = rows.map((row) => {
+          const comparisonBranch = phase74ExecutionBranch(stage, row.arm);
+          const ingestionKey = comparisonBranch === "shadow"
+            ? sha256(`${identity.runId}/${stage}/${row.arm}/ingestion`)
+            : stage === "E1"
+              ? sha256(`${identity.runId}/${stage}/${row.arm}/ingestion`)
+              : sha256(`${identity.runId}/${stage}/shared-ingestion`);
+          const representation = String(
+            stageConfigurations[row.arm]?.representation ??
+              identity.configuration.representation ??
+              "atomic-contextual-raw-pointer",
+          );
+          const costTrace = {
+            comparisonBranch,
+            ingestionKey,
+            representation,
+          };
+          if (comparisonBranch !== "shadow") {
+            ingestionRowsByKey.set(
+              ingestionKey,
+              ingestionUsageRows(ingestionKey),
+            );
+          }
           const retrievedMemories = [{
             content: `evidence for ${row.caseId}`,
             id: `${row.caseId}-${row.arm}`,
@@ -459,6 +497,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           const storedMemories: unknown[] = [];
           const snapshotId = buildPhase74RetrievalSnapshotId({
             arm: row.arm,
+            costTrace,
             evidenceLedgers: undefined,
             retrievedMemories,
             stage,
@@ -476,6 +515,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           };
           Object.assign(row, { evaluationAttribution: attribution });
           return {
+            costTrace,
             evaluation: {
               answer: row.answer,
               answerLatencyMs: row.answerLatencyMs,
@@ -493,10 +533,39 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             storedMemories,
           };
         });
-        const modelUsage = usageEvidence(
-          caseKeys,
-          options.costBoundary ?? "query-only",
+        const directUsage = directUsageRows(caseKeys);
+        const baselineIngestionKeys = [...new Set(packets
+          .filter(({ costTrace }) => costTrace.comparisonBranch === "baseline")
+          .map(({ costTrace }) => costTrace.ingestionKey))];
+        const candidateIngestionKeys = [...new Set(packets
+          .filter(({ costTrace }) => costTrace.comparisonBranch === "candidate")
+          .map(({ costTrace }) => costTrace.ingestionKey))];
+        const sharedKeys = baselineIngestionKeys.filter((key) =>
+          candidateIngestionKeys.includes(key)
         );
+        const ledgerForKey = (key: string) => {
+          const usage = ingestionRowsByKey.get(key)!;
+          return {
+            key,
+            ledger: validatePhase74ModelUsageLedger(usage),
+          };
+        };
+        const modelUsage = buildPhase74ModelUsageEvidence({
+          direct: validatePhase74ModelUsageLedger(directUsage),
+          expected: {
+            baselineCaseIds: caseKeys,
+            candidateCaseIds: caseKeys,
+          },
+          ingestion: {
+            baselineExclusive: baselineIngestionKeys
+              .filter((key) => !sharedKeys.includes(key))
+              .map(ledgerForKey),
+            candidateExclusive: candidateIngestionKeys
+              .filter((key) => !sharedKeys.includes(key))
+              .map(ledgerForKey),
+            shared: sharedKeys.map(ledgerForKey),
+          },
+        });
         const endToEndScores = Object.fromEntries(arms.map((arm) => {
           const armRows = rows.filter((row) => row.arm === arm);
           return [arm, {
@@ -513,7 +582,11 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           writeJson(join(runDirectory, `${prefix}-call-budget.json`), callBudget),
           writeJsonLines(
             join(runDirectory, `${prefix}-model-usage.jsonl`),
-            usageEvents(caseKeys),
+            directUsage.events,
+          ),
+          writeJsonLines(
+            join(runDirectory, `${prefix}-model-usage-intents.jsonl`),
+            directUsage.intents,
           ),
           writeJsonLines(join(runDirectory, `${prefix}-progress.jsonl`), rows),
           writeJsonLines(
@@ -538,6 +611,28 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             replicate,
             stage,
             status: "not_evaluable",
+          }),
+          ...[...ingestionRowsByKey].flatMap(([key, usage]) => {
+            const paths = buildPhase74IngestionUsagePaths(runDirectory, key);
+            const ledger = validatePhase74ModelUsageLedger(usage);
+            return [
+              mkdir(join(runDirectory, "ingestion-usage", key), {
+                recursive: true,
+              }).then(() => writeJsonLines(paths.eventsPath, usage.events)),
+              mkdir(join(runDirectory, "ingestion-usage", key), {
+                recursive: true,
+              }).then(() => writeJsonLines(paths.intentsPath, usage.intents)),
+              mkdir(join(runDirectory, "ingestion", key), {
+                recursive: true,
+              }).then(() => writeJson(
+                join(runDirectory, "ingestion", key, "manifest.json"),
+                {
+                  key,
+                  schemaVersion: 6,
+                  usage: buildPhase74IngestionUsageFingerprint(ledger),
+                },
+              )),
+            ];
           }),
         ]);
       }
@@ -604,7 +699,6 @@ describe("Phase 74 frozen artifact aggregation", () => {
   it("aggregates one deterministic stage from three frozen diagnostic replicates", async () => {
     const fixture = await createArtifactFixture({
       admission: "deterministic-reranker",
-      costBoundary: "query-only",
       subsetSelection: true,
     });
     const runDirectories = fixture.runDirectories.filter((path) =>
@@ -641,6 +735,59 @@ describe("Phase 74 frozen artifact aggregation", () => {
     });
     expect(report.inputs).toHaveLength(3);
     expect(report.aggregation.aggregate.inference.delta).toBeCloseTo(0.02);
+    expect(report.aggregation.modelUsage).toMatchObject({
+      accountingVersion: "phase74-model-usage-v2",
+      allocationPolicy: "standalone-full-shared-v1",
+      baseline: {
+        pendingRequestCount: 0,
+        requestCount: 12,
+        totalTokens: 1_050,
+      },
+      candidate: {
+        pendingRequestCount: 0,
+        requestCount: 12,
+        totalTokens: 1_140,
+      },
+      costBoundary: "full-product",
+      ingestion: {
+        shared: {
+          keyCount: 3,
+          operationCounts: { assisted_extraction: 3 },
+          pendingRequestCount: 0,
+          requestCount: 3,
+          totalTokens: 150,
+        },
+      },
+    });
+    expect(report.aggregation.modelUsage.ingestion.shared.keysSha256)
+      .toMatch(/^[a-f0-9]{64}$/);
+    const virtualSharedKeys = await Promise.all(runDirectories.map(
+      async (runDirectory) => {
+        const identity = JSON.parse(await readFile(
+          join(runDirectory, "run-identity.json"),
+          "utf8",
+        ));
+        const packets = (await readFile(
+          join(runDirectory, "e2-retrieval-packets.jsonl"),
+          "utf8",
+        )).trim().split("\n").map((line) => JSON.parse(line));
+        const sharedKey = packets.find(({ costTrace }) =>
+          costTrace.comparisonBranch === "baseline"
+        ).costTrace.ingestionKey;
+        return {
+          artifactIdentityHash: hashEvalRunIdentity(identity),
+          benchmark: "locomo",
+          keyCount: 1,
+          keysSha256: sha256(JSON.stringify([sharedKey])),
+          replicate: identity.configuration.replicate,
+        };
+      },
+    ));
+    virtualSharedKeys.sort((left, right) =>
+      left.artifactIdentityHash.localeCompare(right.artifactIdentityHash)
+    );
+    expect(report.aggregation.modelUsage.ingestion.shared.keysSha256)
+      .toBe(sha256(JSON.stringify(virtualSharedKeys)));
 
     await expect(aggregatePhase74StageDiagnosticArtifacts({
       runDirectories: runDirectories.slice(0, 2),
@@ -692,10 +839,166 @@ describe("Phase 74 frozen artifact aggregation", () => {
     })).rejects.toThrow("raw model usage drift");
   });
 
+  it("requires the exact v2 full-product usage schema", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const runDirectory = runDirectories[0]!;
+    const summaryPath = join(runDirectory, "e2-summary.json");
+    const persistedPath = join(runDirectory, "e2-model-usage-summary.json");
+    const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    summary.modelUsage.legacyAllocation = true;
+    await writeJson(summaryPath, summary);
+    await writeJson(persistedPath, summary.modelUsage);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("unsupported field");
+  });
+
+  it("fails closed on pending, orphan, and duplicate direct usage WAL rows", async () => {
+    for (const corruption of ["pending", "orphan", "duplicate"] as const) {
+      const fixture = await createArtifactFixture({
+        admission: "deterministic-reranker",
+        subsetSelection: true,
+      });
+      const runDirectories = fixture.runDirectories.filter((path) =>
+        path.includes("locomo-replicate-")
+      );
+      const runDirectory = runDirectories[0]!;
+      const intentsPath = join(runDirectory, "e2-model-usage-intents.jsonl");
+      const intents = (await readFile(intentsPath, "utf8"))
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      if (corruption === "pending") {
+        intents.push({
+          ...intents[0],
+          requestId: "pending-request",
+        });
+      } else if (corruption === "orphan") {
+        intents.shift();
+      } else {
+        intents.push({ ...intents[0] });
+      }
+      await writeJsonLines(intentsPath, intents);
+
+      await expect(aggregatePhase74StageDiagnosticArtifacts({
+        runDirectories,
+        stage: "E2",
+      })).rejects.toThrow(
+        corruption === "pending"
+          ? "pending requests"
+          : corruption === "orphan"
+            ? "terminal without intent"
+            : "duplicate intent",
+      );
+    }
+  });
+
+  it("fails closed when retrieval cost provenance or its ingestion ledger is missing", async () => {
+    const missingPacketFixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const missingPacketRuns = missingPacketFixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const missingPacketsPath = join(
+      missingPacketRuns[0]!,
+      "e2-retrieval-packets.jsonl",
+    );
+    const missingPackets = (await readFile(missingPacketsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    missingPackets.pop();
+    await writeJsonLines(missingPacketsPath, missingPackets);
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories: missingPacketRuns,
+      stage: "E2",
+    })).rejects.toThrow("retrieval packet population drift");
+
+    const missingTraceFixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const missingTraceRuns = missingTraceFixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const packetsPath = join(missingTraceRuns[0]!, "e2-retrieval-packets.jsonl");
+    const packets = (await readFile(packetsPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    delete packets[0].costTrace;
+    await writeJsonLines(packetsPath, packets);
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories: missingTraceRuns,
+      stage: "E2",
+    })).rejects.toThrow("cost trace");
+
+    const missingLedgerFixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const missingLedgerRuns = missingLedgerFixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const ledgerPackets = (await readFile(
+      join(missingLedgerRuns[0]!, "e2-retrieval-packets.jsonl"),
+      "utf8",
+    )).trim().split("\n").map((line) => JSON.parse(line));
+    const ingestionKey = ledgerPackets.find(({ costTrace }) =>
+      costTrace.comparisonBranch === "baseline"
+    ).costTrace.ingestionKey;
+    await rm(join(missingLedgerRuns[0]!, "ingestion-usage", ingestionKey), {
+      force: true,
+      recursive: true,
+    });
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories: missingLedgerRuns,
+      stage: "E2",
+    })).rejects.toThrow("usage ledger");
+
+    const driftFixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const driftRuns = driftFixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const driftPackets = (await readFile(
+      join(driftRuns[0]!, "e2-retrieval-packets.jsonl"),
+      "utf8",
+    )).trim().split("\n").map((line) => JSON.parse(line));
+    const driftKey = driftPackets.find(({ costTrace }) =>
+      costTrace.comparisonBranch === "baseline"
+    ).costTrace.ingestionKey;
+    const manifestPath = join(
+      driftRuns[0]!,
+      "ingestion",
+      driftKey,
+      "manifest.json",
+    );
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.usage.eventCount = 0;
+    await writeJson(manifestPath, manifest);
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories: driftRuns,
+      stage: "E2",
+    })).rejects.toThrow("ingestion manifest drift");
+  });
+
   it("binds the model usage cost boundary to the frozen run identity", async () => {
     const fixture = await createArtifactFixture({
       admission: "deterministic-reranker",
-      costBoundary: "full-product",
+      costBoundary: "query-only",
       subsetSelection: true,
     });
     const runDirectories = fixture.runDirectories.filter((path) =>
@@ -705,13 +1008,12 @@ describe("Phase 74 frozen artifact aggregation", () => {
     await expect(aggregatePhase74StageDiagnosticArtifacts({
       runDirectories,
       stage: "E2",
-    })).rejects.toThrow("cost boundary drift");
+    })).rejects.toThrow("costBoundary drift");
   });
 
   it("rejects incomplete baseline or candidate model usage", async () => {
     const fixture = await createArtifactFixture({
       admission: "deterministic-reranker",
-      costBoundary: "query-only",
       subsetSelection: true,
     });
     const runDirectories = fixture.runDirectories.filter((path) =>
@@ -770,7 +1072,6 @@ describe("Phase 74 frozen artifact aggregation", () => {
   it("accepts content-addressed snapshots shared by multiple cases", async () => {
     const fixture = await createArtifactFixture({
       admission: "deterministic-reranker",
-      costBoundary: "query-only",
       subsetSelection: true,
     });
     const runDirectories = fixture.runDirectories.filter((path) =>
@@ -1019,9 +1320,8 @@ describe("Phase 74 frozen artifact aggregation", () => {
     }
   });
 
-  it("reports explicit blockers for legacy E4 scores, query-only usage, and missing protection", async () => {
+  it("reports explicit blockers for legacy E4 scores and missing protection", async () => {
     const fixture = await createArtifactFixture({
-      costBoundary: "query-only",
       includeE4Scores: false,
     });
 
@@ -1034,7 +1334,6 @@ describe("Phase 74 frozen artifact aggregation", () => {
     expect(report.e4.gaps.join(" ")).toContain("per-case score");
     expect(report.e4.gaps.join(" ")).toContain("protection artifact");
     expect(report.promotion.status).toBe("not_evaluable");
-    expect(report.promotion.gaps.join(" ")).toContain("full-product");
     expect(report.promotion.gaps.join(" ")).toContain("seen-case");
     expect(report.promotion.gaps.join(" ")).toContain("protection artifact");
   });

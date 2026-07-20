@@ -5,12 +5,14 @@ import { join } from "node:path";
 
 import {
   buildPhase74FullRunIdentityConfiguration,
+  acquirePhase74RunLock,
   createPhase74DurableCallBudget,
+  PHASE74_RUN_LOCK_FILENAME,
   parsePhase74GeneralizationCliOptions,
   runPhase74GeneralizationSmoke,
   selectPhase74GeneralizationCases,
 } from "../../scripts/run-phase-74-generalization";
-import { loadPhase74ModelUsageEvents } from "../../src/eval/modelUsage";
+import { loadPhase74ModelUsageLedger } from "../../src/eval/modelUsage";
 import {
   buildEvalRunIdentity,
   hashEvalExperimentIdentity,
@@ -18,6 +20,26 @@ import {
 import { buildPhase74LabelFreeCaseBoundary } from "../../src/eval/phase74Generalization";
 
 describe("phase 74 generalization smoke runner", () => {
+  it("serializes one live run id and recovers a stale process lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "phase74-run-lock-"));
+    try {
+      const release = await acquirePhase74RunLock(root);
+      await expect(acquirePhase74RunLock(root)).rejects.toThrow(
+        "already active",
+      );
+      await release();
+
+      await writeFile(
+        join(root, PHASE74_RUN_LOCK_FILENAME),
+        JSON.stringify({ pid: 99_999_999, token: "stale-owner" }),
+      );
+      const releaseRecovered = await acquirePhase74RunLock(root);
+      await releaseRecovered();
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
   it("reserves language calls and OpenRouter spend durably before requests", async () => {
     const root = await mkdtemp(join(tmpdir(), "phase74-call-budget-"));
     const path = join(root, "budget.json");
@@ -109,7 +131,7 @@ describe("phase 74 generalization smoke runner", () => {
         embeddingSpendLimitUsd: 0.1,
         maxLanguageCalls: 80,
       },
-      costBoundary: "query-only-comparison-with-shadow-ingestion",
+      costBoundary: "full-product-standalone-shared-v1",
       embedding: {
         gateway: "https://openrouter.ai/api/v1",
         model: "text-embedding-3-small",
@@ -437,8 +459,19 @@ describe("phase 74 generalization smoke runner", () => {
 
   it("replays committed usage when a stage resumes", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-phase74-usage-"));
-    const path = join(root, "e3-model-usage.jsonl");
+    const eventsPath = join(root, "e3-model-usage.jsonl");
+    const intentsPath = join(root, "e3-model-usage-intents.jsonl");
     try {
+      const intent = {
+        attempt: 1,
+        branch: "candidate",
+        caseId: "case-1",
+        modelId: "gpt-5.6-terra",
+        operation: "answer_generation",
+        providerId: "openai",
+        requestId: "request-1",
+        schemaVersion: 1,
+      } as const;
       const event = {
         attempt: 1,
         branch: "candidate",
@@ -448,6 +481,7 @@ describe("phase 74 generalization smoke runner", () => {
         operation: "answer_generation",
         outcome: "succeeded",
         providerId: "openai",
+        requestId: "request-1",
         schemaVersion: 1,
         usage: {
           cacheCreationInputTokens: 0,
@@ -457,8 +491,10 @@ describe("phase 74 generalization smoke runner", () => {
           uncachedInputTokens: 10,
         },
       } as const;
-      await writeFile(path, `${JSON.stringify(event)}\n`, "utf8");
-      expect(await loadPhase74ModelUsageEvents(path)).toEqual([event]);
+      await writeFile(eventsPath, `${JSON.stringify(event)}\n`, "utf8");
+      await writeFile(intentsPath, `${JSON.stringify(intent)}\n`, "utf8");
+      expect(await loadPhase74ModelUsageLedger({ eventsPath, intentsPath }))
+        .toEqual({ events: [event], intents: [intent], pendingIntents: [] });
     } finally {
       await rm(root, { force: true, recursive: true });
     }
@@ -466,14 +502,17 @@ describe("phase 74 generalization smoke runner", () => {
 
   it("fails closed on a truncated usage event during resume", async () => {
     const root = await mkdtemp(join(tmpdir(), "goodmemory-phase74-usage-"));
-    const path = join(root, "e3-model-usage.jsonl");
+    const eventsPath = join(root, "e3-model-usage.jsonl");
+    const intentsPath = join(root, "e3-model-usage-intents.jsonl");
     try {
-      await writeFile(path, JSON.stringify({
+      await writeFile(eventsPath, JSON.stringify({
         branch: "candidate",
         caseId: "case-1",
         schemaVersion: 1,
       }), "utf8");
-      await expect(loadPhase74ModelUsageEvents(path)).rejects.toThrow(
+      await writeFile(intentsPath, "", "utf8");
+      await expect(loadPhase74ModelUsageLedger({ eventsPath, intentsPath }))
+        .rejects.toThrow(
         "Invalid Phase 74 model usage event",
       );
     } finally {
@@ -511,6 +550,9 @@ describe("phase 74 generalization smoke runner", () => {
         "utf8",
       ))).toMatchObject({
         benchmark: "longmemeval-smoke",
+        configuration: {
+          modelUsageAccounting: "not-applicable-deterministic-smoke-v1",
+        },
         runId: "smoke-run",
       });
       expect((await readFile(

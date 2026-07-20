@@ -13,7 +13,10 @@ import {
   resolvePhase74LiveModels,
   verifyPhase74EvaluatorSource,
 } from "../../src/eval/phase74Live";
-import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
+import type {
+  AttributedModelUsageAttempt,
+  AttributedModelUsageIntent,
+} from "../../src/eval/modelUsage";
 import {
   CONVERSATIONAL_MEMORY_EXTRACTION_SYSTEM_PROMPT,
   MEMORY_EXTRACTION_SYSTEM_PROMPT,
@@ -174,10 +177,13 @@ describe("Phase 74 live provider boundary", () => {
 
   it("uses one label-free reader prompt and attributes its exact charged request", async () => {
     const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
+    const usageOrder: string[] = [];
     let requestBody = "";
     const reader = createPhase74LiveReader({
       events,
       fetch: async (_url, init) => {
+        usageOrder.push("provider");
         requestBody = String(init?.body);
         return new Response([
           'data: {"choices":[{"delta":{"content":"Postgres"},"index":0}]}',
@@ -189,7 +195,10 @@ describe("Phase 74 live provider boundary", () => {
           status: 200,
         });
       },
+      intents,
       model: resolvePhase74LiveModels(env).answer,
+      onUsageEvent: () => usageOrder.push("terminal"),
+      onUsageIntent: () => usageOrder.push("intent"),
     });
 
     expect(await reader({
@@ -206,6 +215,15 @@ describe("Phase 74 live provider boundary", () => {
     });
     expect(requestBody).not.toContain("questionType");
     expect(requestBody).not.toContain("goldEvidence");
+    expect(usageOrder).toEqual(["intent", "provider", "terminal"]);
+    expect(intents).toEqual([
+      expect.objectContaining({
+        branch: "shadow",
+        caseId: "case-1",
+        operation: "answer_generation",
+      }),
+    ]);
+    expect(intents[0]?.requestId).toBe(events[0]?.requestId);
     expect(events).toEqual([
       expect.objectContaining({
         branch: "shadow",
@@ -218,6 +236,7 @@ describe("Phase 74 live provider boundary", () => {
 
   it("separates frozen baseline and candidate answer costs from shadow readers", async () => {
     const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
     const reader = createPhase74LiveReader({
       events,
       fetch: async () => new Response([
@@ -229,6 +248,7 @@ describe("Phase 74 live provider boundary", () => {
         headers: { "content-type": "text/event-stream" },
         status: 200,
       }),
+      intents,
       model: resolvePhase74LiveModels(env).answer,
     });
 
@@ -249,10 +269,15 @@ describe("Phase 74 live provider boundary", () => {
       "baseline",
       "candidate",
     ]);
+    expect(intents.map(({ branch }) => branch)).toEqual([
+      "baseline",
+      "candidate",
+    ]);
   });
 
   it("attributes correctness judging only to the independent judge branch", async () => {
     const events: AttributedModelUsageAttempt[] = [];
+    const intents: AttributedModelUsageIntent[] = [];
     const judge = createPhase74LiveJudge({
       events,
       fetch: async () => new Response(JSON.stringify({
@@ -266,6 +291,7 @@ describe("Phase 74 live provider boundary", () => {
         }],
         usage: { completion_tokens: 3, prompt_tokens: 15 },
       }), { headers: { "content-type": "application/json" } }),
+      intents,
       model: resolvePhase74LiveModels(env).judge,
     });
 
@@ -284,5 +310,13 @@ describe("Phase 74 live provider boundary", () => {
         operation: "judge",
       }),
     ]);
+    expect(intents).toEqual([
+      expect.objectContaining({
+        branch: "judge",
+        caseId: "case-1",
+        operation: "judge",
+      }),
+    ]);
+    expect(intents[0]?.requestId).toBe(events[0]?.requestId);
   });
 });
