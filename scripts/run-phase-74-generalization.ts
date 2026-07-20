@@ -128,6 +128,7 @@ export interface Phase74GeneralizationSmokeResult {
 export interface Phase74GeneralizationFullOptions {
   benchmark: Phase74BenchmarkFamily;
   benchmarkRoot: string;
+  caseConcurrency?: number;
   caseSelectionSeed?: number;
   caseSelectionSize?: number;
   embeddingSpendLimitUsd: number;
@@ -959,6 +960,7 @@ export async function runPhase74GeneralizationFull(
     answerModel: publicModelIdentity(models.answer),
     benchmark: `${options.benchmark}-full`,
     configuration: buildPhase74FullRunIdentityConfiguration({
+      caseConcurrency: options.caseConcurrency ?? 1,
       callBudget: {
         embeddingSpendLimitUsd: options.embeddingSpendLimitUsd,
         maxLanguageCalls: options.maxLanguageCalls,
@@ -1044,6 +1046,7 @@ export async function runPhase74GeneralizationFull(
   try {
     report = await runPhase74Generalization({
       assessAnswer: protocolCompatibleAssessment,
+      caseConcurrency: options.caseConcurrency ?? 1,
       cases: selectedCases,
       checkpoint: createPhase74FileCheckpoint(join(runDirectory, "checkpoints")),
       contextTokenBudget: CONTEXT_TOKEN_BUDGET,
@@ -1341,6 +1344,7 @@ export type Phase74GeneralizationCliOptions =
       benchmarkRoot: string;
       caseSelectionSeed?: number;
       caseSelectionSize?: number;
+      caseConcurrency?: number;
       embeddingSpendLimitUsd: number;
       maxLanguageCalls: number;
       mode: "full";
@@ -1386,6 +1390,7 @@ export function parsePhase74GeneralizationCliOptions(
   const runId = readFlag("--run-id");
   const rawCaseSelectionSeed = readFlag("--case-selection-seed");
   const rawCaseSelectionSize = readFlag("--case-selection-size");
+  const rawCaseConcurrency = readFlag("--case-concurrency");
   const rawEmbeddingSpendLimitUsd = readFlag("--embedding-spend-limit-usd") ??
     String(DEFAULT_EMBEDDING_SPEND_LIMIT_USD);
   const rawMaxLanguageCalls = readFlag("--max-language-calls") ??
@@ -1411,6 +1416,13 @@ export function parsePhase74GeneralizationCliOptions(
       !Number.isSafeInteger(Number(rawCaseSelectionSize)))
   ) {
     throw new Error("--case-selection-size must be a positive integer.");
+  }
+  if (
+    rawCaseConcurrency !== undefined &&
+    (!/^[1-9]\d*$/u.test(rawCaseConcurrency) ||
+      !Number.isSafeInteger(Number(rawCaseConcurrency)))
+  ) {
+    throw new Error("--case-concurrency must be a positive integer.");
   }
   const embeddingSpendLimitUsd = Number(rawEmbeddingSpendLimitUsd);
   if (
@@ -1450,6 +1462,9 @@ export function parsePhase74GeneralizationCliOptions(
   return {
     benchmark,
     benchmarkRoot,
+    ...(rawCaseConcurrency === undefined
+      ? {}
+      : { caseConcurrency: Number(rawCaseConcurrency) }),
     ...(rawCaseSelectionSeed === undefined
       ? {}
       : { caseSelectionSeed: Number(rawCaseSelectionSeed) }),

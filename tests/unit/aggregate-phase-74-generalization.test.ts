@@ -177,6 +177,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           embeddingSpendLimitUsd: 0.1,
           maxLanguageCalls: 80,
         },
+        caseConcurrency: 1,
         context: {
           maxTokens: 6_000,
           tokenizer: "utf8-byte-upper-bound-v1",

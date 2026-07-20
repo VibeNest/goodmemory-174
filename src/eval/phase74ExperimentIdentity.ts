@@ -29,6 +29,7 @@ const PHASE74_FULL_RUN_FIXED_CONFIGURATION = {
 } as const satisfies EvalRunJsonObject;
 
 export function buildPhase74FullRunIdentityConfiguration(input: {
+  caseConcurrency?: number;
   callBudget: {
     embeddingSpendLimitUsd: number;
     maxLanguageCalls: number;
@@ -43,9 +44,14 @@ export function buildPhase74FullRunIdentityConfiguration(input: {
   selectedCaseIdsSha256: string;
 }): EvalRunJsonObject {
   assertCallBudget(input.callBudget);
+  const caseConcurrency = input.caseConcurrency ?? 1;
+  if (!Number.isSafeInteger(caseConcurrency) || caseConcurrency <= 0) {
+    throw new Error("Phase 74 experiment identity caseConcurrency is invalid.");
+  }
   return {
     answer: PHASE74_FULL_RUN_FIXED_CONFIGURATION.answer,
     callBudget: input.callBudget,
+    caseConcurrency,
     context: PHASE74_FULL_RUN_FIXED_CONFIGURATION.context,
     costBoundary: PHASE74_FULL_RUN_FIXED_CONFIGURATION.costBoundary,
     dataset: input.dataset,
@@ -138,6 +144,12 @@ export function assertPhase74ExperimentIdentityContract(input: {
     assertEqual(input.configuration[field], expected, field);
   }
   assertCallBudget(input.configuration.callBudget);
+  if (
+    !Number.isSafeInteger(input.configuration.caseConcurrency) ||
+    Number(input.configuration.caseConcurrency) <= 0
+  ) {
+    throw new Error("Phase 74 experiment identity caseConcurrency is invalid.");
+  }
   assertEqual(input.configuration.dataset, input.dataset, "dataset manifest");
   assertModelIdentity(input.configuration.embedding, "embedding");
   assertEvaluatorSource(input.configuration.evaluatorSource);

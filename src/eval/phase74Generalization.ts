@@ -197,6 +197,7 @@ export interface RunPhase74GeneralizationInput {
     purpose: string;
     testCase: Phase74GeneralizationCase;
   }): Promise<Phase74AnswerAssessment>;
+  caseConcurrency?: number;
   cases: readonly Phase74GeneralizationCase[];
   checkpoint?: Phase74GeneralizationCheckpoint;
   contextTokenBudget?: number;
@@ -452,6 +453,27 @@ function checkpointKey(
   return JSON.stringify([identityHash, ...parts]);
 }
 
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  map: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, values.length) },
+    async () => {
+      while (nextIndex < values.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await map(values[index]!);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 async function assessAnswer(input: {
   answer: string;
   purpose: string;
@@ -502,131 +524,179 @@ export async function runPhase74Generalization(
     input.stages ?? (["E1", "E2", "E3", "E4"] as const),
   );
   const now = input.now ?? (() => performance.now());
-
-  for (const testCase of input.cases) {
-    const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
-    for (const stage of ["E1", "E2", "E3"] as const) {
-      if (!stages.has(stage)) {
-        continue;
-      }
-      const arms = PHASE74_EXPERIMENT_ARMS[stage] as readonly RetrievalArm[];
-      const stageConfigurations = configurations[stage] as Record<
-        RetrievalArm,
-        EvalRunJsonObject
-      >;
-      for (const arm of arms) {
-        const configuration = stageConfigurations[arm];
-        const clusterId = testCase.memoryGroupId ?? testCase.caseId;
-        const productStartedAt = now();
-        try {
-          const key = checkpointKey(
-            identityHash,
-            "retrieval",
-            testCase.caseId,
-            stage,
-            arm,
-          );
-          const cached = await input.checkpoint?.loadRetrieval(key) ?? null;
-          const retrievedSnapshot = cached ?? await input.executeRetrieval({
-            arm,
-            configuration,
-            stage,
-            testCase: labelFreeBoundary.recallCase,
-          });
-          const recallCompletedAt = now();
-          let snapshot = retrievedSnapshot;
-          if (snapshot.evaluation === undefined) {
-            if (cached !== null) {
-              throw new Error(
-                `Phase 74 retrieval checkpoint lacks end-to-end evaluation for ${testCase.caseId}/${stage}/${arm}.`,
-              );
-            }
-            const budgetedContext = truncateRenderedContext({
-              content: renderOracleMatrixContext(snapshot.retrievedMemories),
-              contextTokenBudget:
-                input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
-              countRenderedTokens: input.countRenderedTokens,
-            });
-            const branch = phase74ComparisonBranch(stage, arm);
-            const answerStartedAt = now();
-            const answer = await input.genericReader({
-              caseId: labelFreeBoundary.caseKey,
-              context: budgetedContext.content,
-              purpose: `final:${branch}:${stage}:${arm}`,
-              question: testCase.question,
-            });
-            const answerCompletedAt = now();
-            const assessment = await assessAnswer({
-              answer,
-              purpose: `final:${branch}:${stage}:${arm}`,
-              run: input,
-              testCase,
-            });
-            snapshot = {
-              ...snapshot,
-              evaluation: {
-                answer,
-                answerLatencyMs: Math.max(0, answerCompletedAt - answerStartedAt),
-                contextTokens: budgetedContext.renderedContextTokens,
-                contextTokensBeforeTruncation:
-                  budgetedContext.renderedContextTokensBeforeTruncation,
-                contextTruncated: budgetedContext.contextTruncated,
-                correct: assessment.correct,
-                productLatencyMs: Math.max(0, answerCompletedAt - productStartedAt),
-                recallLatencyMs: snapshot.recallMetadata?.latencyMs ??
-                  Math.max(0, recallCompletedAt - productStartedAt),
-                score: assessment.score,
-              },
-            };
-          }
-          if (cached === null) {
-            await input.checkpoint?.saveRetrieval(key, snapshot);
-          }
-          input.onRetrievalSnapshot?.(snapshot);
-          const metrics = measureOracleMatrixCoverage(
-            oracleCase(testCase, snapshot, labelFreeBoundary),
-          );
-          const evaluation = snapshot.evaluation;
-          if (evaluation === undefined) {
-            throw new Error(
-              `Phase 74 retrieval evaluation was not committed for ${testCase.caseId}/${stage}/${arm}.`,
-            );
-          }
-          executions.push({
-            answer: evaluation.answer,
-            answerLatencyMs: evaluation.answerLatencyMs,
-            arm,
-            caseId: testCase.caseId,
-            clusterId,
-            configuration,
-            contextTokens: evaluation.contextTokens,
-            contextTokensBeforeTruncation:
-              evaluation.contextTokensBeforeTruncation,
-            contextTruncated: evaluation.contextTruncated,
-            correct: evaluation.correct,
-            metrics,
-            productLatencyMs: evaluation.productLatencyMs,
-            recallLatencyMs: evaluation.recallLatencyMs,
-            score: evaluation.score,
-            snapshotId: snapshot.snapshotId,
-            stage,
-          });
-          if (stage === "E3" && arm === "recall-plan-deterministic") {
-            deterministicSnapshots.set(testCase.caseId, snapshot);
-          }
-        } catch (error) {
-          executions.push({
-            arm,
-            caseId: testCase.caseId,
-            clusterId,
-            configuration,
-            executionError: errorMessage(error),
-            productLatencyMs: Math.max(0, now() - productStartedAt),
-            stage,
-          });
-        }
-      }
+  const caseConcurrency = input.caseConcurrency ?? 1;
+  if (!Number.isSafeInteger(caseConcurrency) || caseConcurrency <= 0) {
+    throw new Error("Phase 74 caseConcurrency must be a positive integer.");
+  }
+  const groupedCases = new Map<
+    string,
+    Array<{ index: number; testCase: Phase74GeneralizationCase }>
+  >();
+  for (const [index, testCase] of input.cases.entries()) {
+    const groupId = testCase.memoryGroupId ?? testCase.caseId;
+    const group = groupedCases.get(groupId);
+    if (group === undefined) {
+      groupedCases.set(groupId, [{ index, testCase }]);
+    } else {
+      group.push({ index, testCase });
     }
+  }
+  const groupedResults = await mapWithConcurrency(
+    [...groupedCases.values()],
+    caseConcurrency,
+    async (group) => {
+      const results: Array<{
+        executions: Phase74GeneralizationExecutionResult[];
+        index: number;
+        snapshots: Phase74RetrievalSnapshot[];
+      }> = [];
+      for (const { index, testCase } of group) {
+        const caseExecutions: Phase74GeneralizationExecutionResult[] = [];
+        const caseSnapshots: Phase74RetrievalSnapshot[] = [];
+        const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
+        for (const stage of ["E1", "E2", "E3"] as const) {
+          if (!stages.has(stage)) {
+            continue;
+          }
+          const arms = PHASE74_EXPERIMENT_ARMS[stage] as readonly RetrievalArm[];
+          const stageConfigurations = configurations[stage] as Record<
+            RetrievalArm,
+            EvalRunJsonObject
+          >;
+          for (const arm of arms) {
+            const configuration = stageConfigurations[arm];
+            const clusterId = testCase.memoryGroupId ?? testCase.caseId;
+            const productStartedAt = now();
+            try {
+              const key = checkpointKey(
+                identityHash,
+                "retrieval",
+                testCase.caseId,
+                stage,
+                arm,
+              );
+              const cached = await input.checkpoint?.loadRetrieval(key) ?? null;
+              const retrievedSnapshot = cached ?? await input.executeRetrieval({
+                arm,
+                configuration,
+                stage,
+                testCase: labelFreeBoundary.recallCase,
+              });
+              const recallCompletedAt = now();
+              let snapshot = retrievedSnapshot;
+              if (snapshot.evaluation === undefined) {
+                if (cached !== null) {
+                  throw new Error(
+                    `Phase 74 retrieval checkpoint lacks end-to-end evaluation for ${testCase.caseId}/${stage}/${arm}.`,
+                  );
+                }
+                const budgetedContext = truncateRenderedContext({
+                  content: renderOracleMatrixContext(snapshot.retrievedMemories),
+                  contextTokenBudget:
+                    input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
+                  countRenderedTokens: input.countRenderedTokens,
+                });
+                const branch = phase74ComparisonBranch(stage, arm);
+                const answerStartedAt = now();
+                const answer = await input.genericReader({
+                  caseId: labelFreeBoundary.caseKey,
+                  context: budgetedContext.content,
+                  purpose: `final:${branch}:${stage}:${arm}`,
+                  question: testCase.question,
+                });
+                const answerCompletedAt = now();
+                const assessment = await assessAnswer({
+                  answer,
+                  purpose: `final:${branch}:${stage}:${arm}`,
+                  run: input,
+                  testCase,
+                });
+                snapshot = {
+                  ...snapshot,
+                  evaluation: {
+                    answer,
+                    answerLatencyMs: Math.max(
+                      0,
+                      answerCompletedAt - answerStartedAt,
+                    ),
+                    contextTokens: budgetedContext.renderedContextTokens,
+                    contextTokensBeforeTruncation:
+                      budgetedContext.renderedContextTokensBeforeTruncation,
+                    contextTruncated: budgetedContext.contextTruncated,
+                    correct: assessment.correct,
+                    productLatencyMs: Math.max(
+                      0,
+                      answerCompletedAt - productStartedAt,
+                    ),
+                    recallLatencyMs: snapshot.recallMetadata?.latencyMs ??
+                      Math.max(0, recallCompletedAt - productStartedAt),
+                    score: assessment.score,
+                  },
+                };
+              }
+              if (cached === null) {
+                await input.checkpoint?.saveRetrieval(key, snapshot);
+              }
+              caseSnapshots.push(snapshot);
+              const metrics = measureOracleMatrixCoverage(
+                oracleCase(testCase, snapshot, labelFreeBoundary),
+              );
+              const evaluation = snapshot.evaluation;
+              if (evaluation === undefined) {
+                throw new Error(
+                  `Phase 74 retrieval evaluation was not committed for ${testCase.caseId}/${stage}/${arm}.`,
+                );
+              }
+              caseExecutions.push({
+                answer: evaluation.answer,
+                answerLatencyMs: evaluation.answerLatencyMs,
+                arm,
+                caseId: testCase.caseId,
+                clusterId,
+                configuration,
+                contextTokens: evaluation.contextTokens,
+                contextTokensBeforeTruncation:
+                  evaluation.contextTokensBeforeTruncation,
+                contextTruncated: evaluation.contextTruncated,
+                correct: evaluation.correct,
+                metrics,
+                productLatencyMs: evaluation.productLatencyMs,
+                recallLatencyMs: evaluation.recallLatencyMs,
+                score: evaluation.score,
+                snapshotId: snapshot.snapshotId,
+                stage,
+              });
+              if (stage === "E3" && arm === "recall-plan-deterministic") {
+                deterministicSnapshots.set(testCase.caseId, snapshot);
+              }
+            } catch (error) {
+              caseExecutions.push({
+                arm,
+                caseId: testCase.caseId,
+                clusterId,
+                configuration,
+                executionError: errorMessage(error),
+                productLatencyMs: Math.max(0, now() - productStartedAt),
+                stage,
+              });
+            }
+          }
+        }
+        results.push({
+          executions: caseExecutions,
+          index,
+          snapshots: caseSnapshots,
+        });
+      }
+      return results;
+    },
+  );
+  const orderedResults = groupedResults.flat().sort(
+    (left, right) => left.index - right.index,
+  );
+  for (const result of orderedResults) {
+    executions.push(...result.executions);
+    result.snapshots.forEach((snapshot) => input.onRetrievalSnapshot?.(snapshot));
   }
 
   const e4Cases: Phase74E4CaseResult[] = [];

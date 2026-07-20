@@ -104,6 +104,7 @@ describe("phase 74 generalization smoke runner", () => {
       selectedCaseIdsSha256: "case-ids-sha",
     });
     expect(configuration).toMatchObject({
+      caseConcurrency: 1,
       callBudget: {
         embeddingSpendLimitUsd: 0.1,
         maxLanguageCalls: 80,
@@ -185,6 +186,8 @@ describe("phase 74 generalization smoke runner", () => {
       "74",
       "--case-selection-size",
       "25",
+      "--case-concurrency",
+      "10",
       "--max-language-calls",
       "80",
       "--embedding-spend-limit-usd",
@@ -192,6 +195,7 @@ describe("phase 74 generalization smoke runner", () => {
     ])).toEqual({
       benchmark: "locomo",
       benchmarkRoot: "/private/tmp/phase74/locomo",
+      caseConcurrency: 10,
       caseSelectionSeed: 74,
       caseSelectionSize: 25,
       embeddingSpendLimitUsd: 0.1,
@@ -203,6 +207,26 @@ describe("phase 74 generalization smoke runner", () => {
       runId: "locomo-r2",
       stage: "E3",
     });
+    expect(() => parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark",
+      "longmemeval",
+      "--benchmark-root",
+      "/private/tmp/phase74/longmemeval",
+      "--output-dir",
+      "/tmp/reports",
+      "--run-id",
+      "longmemeval-r1",
+      "--stage",
+      "E1",
+      "--replicate",
+      "1",
+      "--case-concurrency",
+      "0",
+    ])).toThrow("--case-concurrency must be a positive integer");
     expect(() => parsePhase74GeneralizationCliOptions([
       "bun",
       "run-phase-74-generalization.ts",

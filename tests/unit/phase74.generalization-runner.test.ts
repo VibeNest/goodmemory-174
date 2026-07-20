@@ -64,6 +64,74 @@ function identity() {
 }
 
 describe("Phase 74 generalization runner", () => {
+  it("runs independent memory groups concurrently while preserving group serialization and output order", async () => {
+    const concurrentCases: Phase74GeneralizationCase[] = [
+      {
+        ...cases[0]!,
+        caseId: "group-a-question-1",
+        memoryGroupId: "group-a",
+        question: "Question A1?",
+      },
+      {
+        ...cases[0]!,
+        caseId: "group-b-question-1",
+        memoryGroupId: "group-b",
+        question: "Question B1?",
+      },
+      {
+        ...cases[0]!,
+        caseId: "group-a-question-2",
+        memoryGroupId: "group-a",
+        question: "Question A2?",
+      },
+    ];
+    const activeByGroup = new Map<string, number>();
+    let maxActive = 0;
+    let active = 0;
+    let sameGroupOverlap = false;
+
+    const report = await runPhase74Generalization({
+      caseConcurrency: 2,
+      cases: concurrentCases,
+      countRenderedTokens: (content) => content.length,
+      executeRetrieval: async ({ arm, stage, testCase }) => {
+        const group = testCase.question.includes("A") ? "group-a" : "group-b";
+        const groupActive = (activeByGroup.get(group) ?? 0) + 1;
+        activeByGroup.set(group, groupActive);
+        sameGroupOverlap ||= groupActive > 1;
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await Bun.sleep(5);
+        active -= 1;
+        activeByGroup.set(group, groupActive - 1);
+        return {
+          retrievedMemories: [],
+          snapshotId: `${testCase.caseId}:${stage}:${arm}`,
+          storedMemories: [],
+        };
+      },
+      genericReader: async () => "Postgres",
+      identity: identity(),
+      includeOracle: false,
+      judge: async () => ({ correct: true }),
+      persistIdentity: async () => undefined,
+      protocolReader: async () => "Postgres",
+      renderEvidenceLedger: async () => "Postgres",
+      stages: ["E2"],
+    });
+
+    expect(maxActive).toBe(2);
+    expect(sameGroupOverlap).toBe(false);
+    expect(report.executions.map(({ caseId }) => caseId)).toEqual([
+      "group-a-question-1",
+      "group-a-question-1",
+      "group-b-question-1",
+      "group-b-question-1",
+      "group-a-question-2",
+      "group-a-question-2",
+    ]);
+  });
+
   it("hides LoCoMo source names without flattening session topology", () => {
     const boundary = buildPhase74LabelFreeCaseBoundary({
       caseId: "locomo/conversation-1/q1",
