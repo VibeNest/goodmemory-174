@@ -47,7 +47,7 @@ describe("Phase 74 replicate aggregation", () => {
 
     expect(result.caseCount).toBe(3);
     expect(result.clusterCount).toBe(2);
-    expect(result.inference.caseCount).toBe(2);
+    expect(result.inference.caseCount).toBe(3);
     expect(result.inference.delta).toBeCloseTo(0.2);
     expect(result.inference.replicateCount).toBe(3);
     expect(result.inference.samplingUnit).toBe("replicate-and-cluster");
@@ -55,6 +55,35 @@ describe("Phase 74 replicate aggregation", () => {
     expect(result.mcnemarByReplicate.map(({ inference }) =>
       inference.caseCount
     )).toEqual([3, 3, 3]);
+  });
+
+  it("keeps the LoCoMo headline delta question-weighted while bootstrapping clusters", () => {
+    const unequalClusters = (replicateId: 1 | 2 | 3) => {
+      const run = replicate(replicateId, 0);
+      run.baseline = [
+        { caseId: "conversation-a/q1", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-a/q2", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-a/q3", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-b/q1", clusterId: "conversation-b", passed: false, value: 0 },
+      ];
+      run.candidate = [
+        { caseId: "conversation-a/q1", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-a/q2", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-a/q3", clusterId: "conversation-a", passed: false, value: 0 },
+        { caseId: "conversation-b/q1", clusterId: "conversation-b", passed: true, value: 1 },
+      ];
+      return run;
+    };
+
+    const result = aggregatePhase74Replicates({
+      bootstrapSamples: 500,
+      runs: [unequalClusters(1), unequalClusters(2), unequalClusters(3)],
+      seed: 74,
+    });
+
+    expect(result.inference.delta).toBeCloseTo(0.25);
+    expect(result.inference.caseCount).toBe(4);
+    expect(result.replicateDeltas).toEqual([0.25, 0.25, 0.25]);
   });
 
   it("does not hide one negative independent run behind an averaged case bootstrap", () => {

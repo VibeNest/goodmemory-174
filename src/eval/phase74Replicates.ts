@@ -157,7 +157,12 @@ function percentile(sortedValues: readonly number[], probability: number): numbe
   return lower + (upper - lower) * (position - lowerIndex);
 }
 
-function runClusterDeltas(run: Phase74ReplicateRun): number[] {
+interface Phase74ClusterDelta {
+  count: number;
+  sum: number;
+}
+
+function runClusterDeltas(run: Phase74ReplicateRun): Phase74ClusterDelta[] {
   const grouped = new Map<string, number[]>();
   for (let index = 0; index < run.baseline.length; index += 1) {
     const baseline = run.baseline[index]!;
@@ -167,7 +172,16 @@ function runClusterDeltas(run: Phase74ReplicateRun): number[] {
       candidate.value - baseline.value,
     ]);
   }
-  return [...grouped.values()].map(mean);
+  return [...grouped.values()].map((values) => ({
+    count: values.length,
+    sum: values.reduce((total, value) => total + value, 0),
+  }));
+}
+
+function questionWeightedMean(deltas: readonly Phase74ClusterDelta[]): number {
+  const total = deltas.reduce((sum, cluster) => sum + cluster.sum, 0);
+  const count = deltas.reduce((sum, cluster) => sum + cluster.count, 0);
+  return total / count;
 }
 
 function inferHierarchicalDelta(input: {
@@ -189,20 +203,23 @@ function inferHierarchicalDelta(input: {
   const sampledMeans: number[] = [];
   for (let sample = 0; sample < bootstrapSamples; sample += 1) {
     let total = 0;
+    let caseCount = 0;
     for (let replicateDraw = 0; replicateDraw < deltas.length; replicateDraw += 1) {
       const replicate = deltas[Math.floor(random() * deltas.length)]!;
       for (let clusterDraw = 0; clusterDraw < clusterCount; clusterDraw += 1) {
-        total += replicate[Math.floor(random() * clusterCount)]!;
+        const cluster = replicate[Math.floor(random() * clusterCount)]!;
+        total += cluster.sum;
+        caseCount += cluster.count;
       }
     }
-    sampledMeans.push(total / (deltas.length * clusterCount));
+    sampledMeans.push(total / caseCount);
   }
   sampledMeans.sort((left, right) => left - right);
   return {
     bootstrapSamples,
-    caseCount: clusterCount,
+    caseCount: input.runs[0]!.baseline.length,
     confidenceLevel: 0.95,
-    delta: mean(deltas.flat()),
+    delta: mean(deltas.map(questionWeightedMean)),
     lower: percentile(sampledMeans, 0.025),
     method: "paired-bootstrap",
     replicateCount: deltas.length,
@@ -269,7 +286,9 @@ export function aggregatePhase74Replicates(input: {
     runs,
     ...(input.seed === undefined ? {} : { seed: input.seed }),
   });
-  const replicateDeltas = runs.map((run) => mean(runClusterDeltas(run)));
+  const replicateDeltas = runs.map((run) =>
+    questionWeightedMean(runClusterDeltas(run))
+  );
   return {
     caseCount: reference.length,
     clusterCount,
