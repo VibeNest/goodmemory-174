@@ -531,6 +531,7 @@ export function createPhase74FullRetrievalRuntime(input: {
   return {
     async execute({ arm, configuration, stage, testCase }) {
       const frozenSqlitePath = await ensureIngested(testCase, configuration);
+      const queryPathStartedAt = performance.now();
       const queryRoot = join(input.runDirectory, "query-work");
       await mkdir(queryRoot, { recursive: true });
       const queryDirectory = await mkdtemp(join(queryRoot, "query-"));
@@ -620,6 +621,10 @@ export function createPhase74FullRetrievalRuntime(input: {
             ...(recall.metadata.retrievalTrace === undefined
               ? {}
               : { retrievalTrace: recall.metadata.retrievalTrace }),
+            queryPathLatencyMs: Math.max(
+              0,
+              performance.now() - queryPathStartedAt,
+            ),
             routingDecision: recall.metadata.routingDecision,
           },
           retrievedMemories,

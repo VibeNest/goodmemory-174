@@ -190,6 +190,9 @@ describe("Phase 74 full retrieval runtime", () => {
         "Caroline adopted a dog named Pepper.",
       );
       expect(first.recallMetadata?.latencyMs).toBeGreaterThanOrEqual(0);
+      expect(first.recallMetadata?.queryPathLatencyMs).toBeGreaterThanOrEqual(
+        first.recallMetadata?.latencyMs ?? 0,
+      );
       expect(first.recallMetadata?.candidateTraces.length).toBeGreaterThan(0);
       expect(first.recallMetadata?.retrievalTrace).toBeDefined();
       expect(second.storedMemories.map(({ content }) => content)).toContain(

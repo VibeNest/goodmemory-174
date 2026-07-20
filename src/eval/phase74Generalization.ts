@@ -78,7 +78,9 @@ export interface Phase74RetrievalSnapshot {
   recallMetadata?: Pick<
     RecallResult["metadata"],
     "candidateTraces" | "latencyMs" | "retrievalTrace" | "routingDecision"
-  >;
+  > & {
+    queryPathLatencyMs?: number;
+  };
   retrievedMemories: readonly OracleMatrixContextItem[];
   snapshotId: string;
   storedMemories: readonly OracleMatrixContextItem[];
@@ -633,10 +635,14 @@ export async function runPhase74Generalization(
                       budgetedContext.renderedContextTokensBeforeTruncation,
                     contextTruncated: budgetedContext.contextTruncated,
                     correct: assessment.correct,
-                    productLatencyMs: Math.max(
-                      0,
-                      answerCompletedAt - productStartedAt,
-                    ),
+                    productLatencyMs:
+                      snapshot.recallMetadata?.queryPathLatencyMs === undefined
+                        ? Math.max(0, answerCompletedAt - productStartedAt)
+                        : Math.max(
+                            0,
+                            snapshot.recallMetadata.queryPathLatencyMs +
+                              answerCompletedAt - recallCompletedAt,
+                          ),
                     recallLatencyMs: snapshot.recallMetadata?.latencyMs ??
                       Math.max(0, recallCompletedAt - productStartedAt),
                     score: assessment.score,

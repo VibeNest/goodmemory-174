@@ -195,6 +195,50 @@ describe("Phase 74 generalization runner", () => {
       ]);
   });
 
+  it("excludes one-time ingestion from comparable query-path latency", async () => {
+    let clock = 0;
+    const report = await runPhase74Generalization({
+      assessAnswer: async () => ({ correct: true, score: 1 }),
+      cases,
+      countRenderedTokens: (content) => content.length,
+      executeRetrieval: async ({ arm, stage }) => {
+        clock += 1_000;
+        return {
+          recallMetadata: {
+            latencyMs: 8,
+            queryPathLatencyMs: 10,
+          } as Phase74RetrievalSnapshot["recallMetadata"] & {
+            queryPathLatencyMs: number;
+          },
+          retrievedMemories: [],
+          snapshotId: `${stage}:${arm}`,
+          storedMemories: [],
+        };
+      },
+      genericReader: async () => {
+        clock += 20;
+        return "Postgres";
+      },
+      identity: identity(),
+      includeOracle: false,
+      judge: async () => ({ correct: true }),
+      now: () => clock,
+      persistIdentity: async () => undefined,
+      protocolReader: async () => "unused",
+      renderEvidenceLedger: async () => "unused",
+      stages: ["E2"],
+    });
+
+    expect(report.executions.map((execution) => ({
+      answer: execution.answerLatencyMs,
+      product: execution.productLatencyMs,
+      recall: execution.recallLatencyMs,
+    }))).toEqual([
+      { answer: 20, product: 30, recall: 8 },
+      { answer: 20, product: 30, recall: 8 },
+    ]);
+  });
+
   it("persists identity first, isolates E1-E4, and reuses one E3 packet for every E4 format", async () => {
     const events: string[] = [];
     const executions: string[] = [];
