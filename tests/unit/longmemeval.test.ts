@@ -4714,8 +4714,8 @@ describe("LongMemEval adapter", () => {
       },
     );
 
-    expect(report.summary.evidenceSessionRecall).toBe(101 / 180);
-    expect(report.summary.missedRecallCases).toBe(4);
+    expect(report.summary.evidenceSessionRecall).toBeCloseTo(247 / 360, 12);
+    expect(report.summary.missedRecallCases).toBe(3);
     expect(report.summary.wrongRecallCases).toBe(0);
     expect(
       report.cases.map((testCase) => [...testCase.retrievedSessionIds].sort()),
@@ -4728,7 +4728,12 @@ describe("LongMemEval adapter", () => {
         "s-delivery-uber-eats",
       ],
       ["s-followers-facebook", "s-followers-tiktok", "s-followers-twitter"],
-      [expect.stringMatching(/^s-grocery-/u)],
+      [
+        "s-grocery-publix",
+        "s-grocery-thrive",
+        "s-grocery-trader-joes",
+        "s-grocery-walmart",
+      ],
       ["s-age-grandparents", "s-age-parents"],
     ]);
   });
