@@ -1453,6 +1453,29 @@ describe("public recall API", () => {
       result.metadata.verificationHints.find((hint) => hint.memoryId === "fact-1")?.evidenceIds,
     ).toEqual(["evidence-fact-1"]);
 
+    const resultWithEvidence = await memory.recall({
+      scope: { userId: "u-1", sessionId: "s-1", workspaceId: "workspace-a" },
+      query: "Which runbook should I use and what is the current blocker before I proceed?",
+      retrievalProfile: "coding_agent",
+      includeEvidence: true,
+    });
+
+    expect(resultWithEvidence.evidence.map((record) => record.id)).toEqual([
+      "evidence-ref-1",
+      "evidence-ref-2",
+      "evidence-ref-3",
+      "evidence-fact-1",
+    ]);
+    expect(resultWithEvidence.evidenceLedger?.map(({ evidenceId }) => evidenceId)).toEqual([
+      "evidence-fact-1",
+      "evidence-ref-1",
+      "evidence-ref-2",
+      "evidence-ref-3",
+    ]);
+    expect(resultWithEvidence.packet.evidenceSummary).not.toContain(
+      "vendor approval",
+    );
+
   });
 
   it("keeps evidenceIds on suppressed candidate traces", async () => {
