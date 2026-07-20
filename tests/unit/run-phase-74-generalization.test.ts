@@ -9,23 +9,102 @@ import {
   parsePhase74GeneralizationCliOptions,
   phase74BenchmarkScore,
   runPhase74GeneralizationSmoke,
+  selectPhase74GeneralizationCases,
 } from "../../scripts/run-phase-74-generalization";
+import {
+  buildEvalRunIdentity,
+  hashEvalExperimentIdentity,
+} from "../../src/eval/runIdentity";
 
 describe("phase 74 generalization smoke runner", () => {
   it("records every frozen provider object-call setting in full run identity", () => {
-    expect(buildPhase74FullRunIdentityConfiguration({
+    const configuration = buildPhase74FullRunIdentityConfiguration({
       dataset: { datasetSha256: "dataset-sha" },
+      embedding: {
+        credentialSha256: "credential-sha",
+        gateway: "https://openrouter.ai/api/v1",
+        model: "text-embedding-3-small",
+        provider: "openai",
+      },
       evaluatorSource: { commit: "head", sha256: "source-sha" },
       replicate: 2,
+      reranker: {
+        implementation: "lexical-coverage-v1",
+        mode: "deterministic",
+      },
+      scoring: {
+        binaryCorrectRule: "official-yes-no",
+        primaryMetric: "accuracy",
+        scorer: "longmemeval-official-qa-accuracy-v1",
+      },
+      selection: {
+        mode: "all",
+        populationContentSha256: "population-content-sha",
+        populationSize: 500,
+        selectedCaseIdsSha256: "case-ids-sha",
+        selectedSize: 500,
+      },
       selectedCaseIdsSha256: "case-ids-sha",
-    })).toMatchObject({
+    });
+    expect(configuration).toMatchObject({
       costBoundary: "query-only-comparison-with-shadow-ingestion",
+      embedding: {
+        credentialSha256: "credential-sha",
+        gateway: "https://openrouter.ai/api/v1",
+        model: "text-embedding-3-small",
+        provider: "openai",
+      },
       providerObjectCalls: {
         assistedExtraction: { maxOutputTokens: 4_096, temperature: 0 },
         assistedRecallPlan: { maxOutputTokens: 1_024, temperature: 0 },
         pointwiseReranker: { maxOutputTokens: 256, temperature: 0 },
       },
+      reranker: {
+        implementation: "lexical-coverage-v1",
+        mode: "deterministic",
+      },
+      scoring: {
+        binaryCorrectRule: "official-yes-no",
+        primaryMetric: "accuracy",
+        scorer: "longmemeval-official-qa-accuracy-v1",
+      },
+      selection: {
+        mode: "all",
+        populationContentSha256: "population-content-sha",
+        selectedCaseIdsSha256: "case-ids-sha",
+      },
     });
+
+    const changedCredential = {
+      ...configuration,
+      embedding: {
+        ...(configuration.embedding as Record<string, unknown>),
+        credentialSha256: "different-credential-sha",
+      },
+    };
+    const identity = (nextConfiguration: typeof configuration) =>
+      buildEvalRunIdentity({
+        answerModel: {
+          gateway: "https://ai.gurkiai.com/v1",
+          model: "gpt-5.6-terra",
+          provider: "openai",
+        },
+        benchmark: "longmemeval-full",
+        configuration: nextConfiguration,
+        datasetSha256: "dataset-sha",
+        generatedAt: "2026-07-19T00:00:00.000Z",
+        generatedBy: "test",
+        judgeModel: {
+          gateway: "https://ai.gurkiai.com/v1",
+          model: "gpt-5.5",
+          provider: "openai",
+        },
+        promptSha256s: { reader: "reader-sha" },
+        runId: "run-1",
+      });
+    expect(hashEvalExperimentIdentity(identity(configuration))).not.toBe(
+      hashEvalExperimentIdentity(identity(changedCredential)),
+    );
   });
 
   it("keeps semantic accuracy and the frozen family metric separate", () => {
@@ -72,14 +151,23 @@ describe("phase 74 generalization smoke runner", () => {
       "locomo-r2",
       "--stage",
       "E3",
+      "--reranker-mode",
+      "deterministic",
       "--replicate",
       "2",
+      "--case-selection-seed",
+      "74",
+      "--case-selection-size",
+      "25",
     ])).toEqual({
       benchmark: "locomo",
       benchmarkRoot: "/private/tmp/phase74/locomo",
+      caseSelectionSeed: 74,
+      caseSelectionSize: 25,
       mode: "full",
       outputDir: "/tmp/reports",
       replicate: 2,
+      rerankerMode: "deterministic",
       runId: "locomo-r2",
       stage: "E3",
     });
@@ -95,6 +183,123 @@ describe("phase 74 generalization smoke runner", () => {
       "--replicate",
       "4",
     ])).toThrow("--replicate must be 1, 2, or 3");
+    expect(() => parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark",
+      "longmemeval",
+      "--benchmark-root",
+      "/private/tmp/phase74/longmemeval",
+      "--output-dir",
+      "/tmp/reports",
+      "--run-id",
+      "longmemeval-r1",
+      "--stage",
+      "E1",
+      "--replicate",
+      "1",
+      "--case-selection-size",
+      "25",
+    ])).toThrow("--case-selection-seed and --case-selection-size must be provided together");
+  });
+
+  it("keeps the complete frozen population as the full-run default", () => {
+    expect(parsePhase74GeneralizationCliOptions([
+      "bun",
+      "run-phase-74-generalization.ts",
+      "--mode",
+      "full",
+      "--benchmark",
+      "longmemeval",
+      "--benchmark-root",
+      "/private/tmp/phase74/longmemeval",
+      "--output-dir",
+      "/tmp/reports",
+      "--run-id",
+      "longmemeval-r1",
+      "--stage",
+      "E1",
+      "--replicate",
+      "1",
+    ])).toEqual({
+      benchmark: "longmemeval",
+      benchmarkRoot: "/private/tmp/phase74/longmemeval",
+      mode: "full",
+      outputDir: "/tmp/reports",
+      replicate: 1,
+      runId: "longmemeval-r1",
+      stage: "E1",
+    });
+  });
+
+  it("selects a deterministic content-bound subset without reading labels", () => {
+    const cases = Array.from({ length: 6 }, (_, index) => ({
+      caseId: `case-${index + 1}`,
+      expectedAnswer: `gold-${index + 1}`,
+      goldEvidenceIds: [`gold-evidence-${index + 1}`],
+      locale: "en",
+      memoryGroupId: `group-${Math.floor(index / 2)}`,
+      protocolMetadata: { questionType: `type-${index + 1}` },
+      question: `Question ${index + 1}?`,
+      rawEvidence: [{
+        content: `Evidence ${index + 1}`,
+        id: `message-${index + 1}`,
+        role: "user" as const,
+        sourceIds: [`source-${index + 1}`],
+      }],
+      referenceTime: "2026-07-19T00:00:00.000Z",
+      unresolvedGoldEvidenceIds: [],
+    }));
+
+    const selected = selectPhase74GeneralizationCases({
+      cases,
+      seed: 74,
+      size: 3,
+    });
+    const relabeled = selectPhase74GeneralizationCases({
+      cases: cases.map((testCase) => ({
+        ...testCase,
+        expectedAnswer: `changed-${testCase.caseId}`,
+        goldEvidenceIds: ["changed-gold"],
+        protocolMetadata: { benchmarkLabel: "changed" },
+      })),
+      seed: 74,
+      size: 3,
+    });
+
+    expect(selected.cases.map(({ caseId }) => caseId)).toEqual(
+      relabeled.cases.map(({ caseId }) => caseId),
+    );
+    expect(selected.identity).toEqual(relabeled.identity);
+    const changedContent = selectPhase74GeneralizationCases({
+      cases: cases.map((testCase, index) =>
+        index === 0
+          ? {
+              ...testCase,
+              rawEvidence: [{
+                ...testCase.rawEvidence[0]!,
+                content: "Changed label-free evidence",
+              }],
+            }
+          : testCase
+      ),
+      seed: 74,
+      size: 3,
+    });
+    expect(changedContent.identity.populationContentSha256).not.toBe(
+      selected.identity.populationContentSha256,
+    );
+    expect(selected.identity).toMatchObject({
+      mode: "deterministic-content-hash",
+      populationSize: 6,
+      seed: 74,
+      selectedSize: 3,
+    });
+    expect(selected.identity.populationContentSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(selected.identity.selectedCaseIdsSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(selectPhase74GeneralizationCases({ cases }).cases).toEqual(cases);
   });
 
   it("fails closed on missing flag values and run ids outside one path segment", () => {

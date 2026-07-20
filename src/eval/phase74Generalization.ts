@@ -86,6 +86,11 @@ export interface Phase74RetrievalEvaluation {
   score: number;
 }
 
+export interface Phase74AnswerAssessment {
+  correct: boolean;
+  score: number;
+}
+
 export interface Phase74RetrievalExecutionInput {
   arm: RetrievalArm;
   configuration: EvalRunJsonObject;
@@ -177,6 +182,11 @@ export interface Phase74GeneralizationReport {
 }
 
 export interface RunPhase74GeneralizationInput {
+  assessAnswer?(input: {
+    answer: string;
+    purpose: string;
+    testCase: Phase74GeneralizationCase;
+  }): Promise<Phase74AnswerAssessment>;
   cases: readonly Phase74GeneralizationCase[];
   checkpoint?: Phase74GeneralizationCheckpoint;
   contextTokenBudget?: number;
@@ -382,6 +392,43 @@ function checkpointKey(
   return JSON.stringify([identityHash, ...parts]);
 }
 
+async function assessAnswer(input: {
+  answer: string;
+  purpose: string;
+  run: RunPhase74GeneralizationInput;
+  testCase: Phase74GeneralizationCase;
+}): Promise<Phase74AnswerAssessment> {
+  const assessment = input.run.assessAnswer === undefined
+    ? await (async () => {
+        const judgment = await input.run.judge({
+          answer: input.answer,
+          caseId: input.testCase.caseId,
+          expectedAnswer: input.testCase.expectedAnswer,
+          purpose: input.purpose,
+          question: input.testCase.question,
+        });
+        return {
+          correct: judgment.correct,
+          score: input.run.scoreAnswer?.({
+            answer: input.answer,
+            correct: judgment.correct,
+            testCase: input.testCase,
+          }) ?? Number(judgment.correct),
+        };
+      })()
+    : await input.run.assessAnswer({
+        answer: input.answer,
+        purpose: input.purpose,
+        testCase: input.testCase,
+      });
+  if (!Number.isFinite(assessment.score) || assessment.score < 0 || assessment.score > 1) {
+    throw new Error(
+      `Phase 74 answer score must be between 0 and 1 for ${input.testCase.caseId}/${input.purpose}.`,
+    );
+  }
+  return assessment;
+}
+
 export async function runPhase74Generalization(
   input: RunPhase74GeneralizationInput,
 ): Promise<Phase74GeneralizationReport> {
@@ -448,23 +495,12 @@ export async function runPhase74Generalization(
               question: testCase.question,
             });
             const answerCompletedAt = now();
-            const judgment = await input.judge({
+            const assessment = await assessAnswer({
               answer,
-              caseId: testCase.caseId,
-              expectedAnswer: testCase.expectedAnswer,
               purpose: `final:${branch}:${stage}:${arm}`,
-              question: testCase.question,
-            });
-            const score = input.scoreAnswer?.({
-              answer,
-              correct: judgment.correct,
+              run: input,
               testCase,
-            }) ?? Number(judgment.correct);
-            if (!Number.isFinite(score) || score < 0 || score > 1) {
-              throw new Error(
-                `Phase 74 answer score must be between 0 and 1 for ${testCase.caseId}/${stage}/${arm}.`,
-              );
-            }
+            });
             snapshot = {
               ...snapshot,
               evaluation: {
@@ -474,11 +510,11 @@ export async function runPhase74Generalization(
                 contextTokensBeforeTruncation:
                   budgetedContext.renderedContextTokensBeforeTruncation,
                 contextTruncated: budgetedContext.contextTruncated,
-                correct: judgment.correct,
+                correct: assessment.correct,
                 productLatencyMs: Math.max(0, answerCompletedAt - productStartedAt),
                 recallLatencyMs: snapshot.recallMetadata?.latencyMs ??
                   Math.max(0, recallCompletedAt - productStartedAt),
-                score,
+                score: assessment.score,
               },
             };
           }
@@ -593,23 +629,12 @@ export async function runPhase74Generalization(
             purpose: `e4:${format}`,
             question: testCase.question,
           });
-          const judgment = await input.judge({
+          const assessment = await assessAnswer({
             answer,
-            caseId: testCase.caseId,
-            expectedAnswer: testCase.expectedAnswer,
             purpose: `e4:${format}`,
-            question: testCase.question,
-          });
-          const score = input.scoreAnswer?.({
-            answer,
-            correct: judgment.correct,
+            run: input,
             testCase,
-          }) ?? Number(judgment.correct);
-          if (!Number.isFinite(score) || score < 0 || score > 1) {
-            throw new Error(
-              `Phase 74 answer score must be between 0 and 1 for ${testCase.caseId}/E4/${format}.`,
-            );
-          }
+          });
           const result: Phase74E4CaseResult = {
             answer,
             caseId: testCase.caseId,
@@ -617,9 +642,9 @@ export async function runPhase74Generalization(
             contextTokens: input.countRenderedTokens(context),
             contextTokensBeforeTruncation,
             contextTruncated,
-            correct: judgment.correct,
+            correct: assessment.correct,
             format,
-            score,
+            score: assessment.score,
             snapshotId: snapshot.snapshotId,
           };
           e4Cases.push(result);

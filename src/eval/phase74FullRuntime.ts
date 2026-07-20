@@ -30,6 +30,7 @@ import {
 } from "../provider/layer";
 import type { ModelUsageSink } from "../provider/model-usage";
 import type { GeneralizedFusionChannel } from "../recall/generalizedFusion";
+import { createLexicalCoverageReranker } from "../recall/reranker";
 import type { EvidenceLedgerFormat } from "./evidenceLedgerFormats";
 import {
   createAttributedModelUsageSink,
@@ -244,6 +245,7 @@ function createMemory(input: {
   includeExtractor: boolean;
   models: Phase74LiveModels;
   now: string;
+  rerankerMode: "deterministic" | "provider";
   sqlitePath: string;
   usageSink: ModelUsageSink;
 }): {
@@ -277,11 +279,13 @@ function createMemory(input: {
         model: input.models.embedding,
         modelUsageSink: input.usageSink,
       }),
-      reranker: createProviderPointwiseReranker({
-        ...PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION.pointwiseReranker,
-        model: input.models.reranker,
-        modelUsageSink: input.usageSink,
-      }),
+      reranker: input.rerankerMode === "deterministic"
+        ? createLexicalCoverageReranker()
+        : createProviderPointwiseReranker({
+            ...PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION.pointwiseReranker,
+            model: input.models.reranker,
+            modelUsageSink: input.usageSink,
+          }),
       ...(plannerMode === "assisted"
         ? {
             recallPlanner: createProviderRecallPlanAssistant({
@@ -369,6 +373,27 @@ export function assertPhase74IngestionRememberResult(input: {
   }
 }
 
+export function assertPhase74RecallProviderIntegrity(input: {
+  plannerMode: string;
+  policyApplied: readonly string[];
+  reranker?: {
+    fallbackReason?: string;
+    status: "applied" | "fallback" | "skipped";
+  };
+}): void {
+  if (input.reranker?.status === "fallback") {
+    throw new Error(
+      `Phase 74 provider reranker fell back (${input.reranker.fallbackReason ?? "unknown"}).`,
+    );
+  }
+  if (
+    input.plannerMode === "assisted" &&
+    input.policyApplied.includes("recall_plan_assistant_fallback")
+  ) {
+    throw new Error("Phase 74 assisted recall plan fell back.");
+  }
+}
+
 export function createPhase74FullRetrievalRuntime(input: {
   datasetSha256: string;
   evaluatorSourceSha256: string;
@@ -376,6 +401,7 @@ export function createPhase74FullRetrievalRuntime(input: {
   models: Phase74LiveModels;
   onUsageEvent?: (event: AttributedModelUsageAttempt) => void;
   promptSha256s: Readonly<Record<string, string>>;
+  rerankerMode?: "deterministic" | "provider";
   runDirectory: string;
 }): {
   execute(value: Phase74RetrievalExecutionInput): Promise<Phase74RetrievalSnapshot>;
@@ -455,6 +481,7 @@ export function createPhase74FullRetrievalRuntime(input: {
         includeExtractor: true,
         models: input.models,
         now: isoDate(testCase.referenceTime),
+        rerankerMode: input.rerankerMode ?? "provider",
         sqlitePath,
         usageSink: sink,
       });
@@ -500,6 +527,7 @@ export function createPhase74FullRetrievalRuntime(input: {
           includeExtractor: false,
           models: input.models,
           now: isoDate(testCase.referenceTime),
+          rerankerMode: input.rerankerMode ?? "provider",
           sqlitePath,
           usageSink: sink,
         });
@@ -510,6 +538,16 @@ export function createPhase74FullRetrievalRuntime(input: {
           query: testCase.question,
           scope,
           strategy: "hybrid",
+        });
+        assertPhase74RecallProviderIntegrity({
+          plannerMode: readString(
+            objectValue(configuration.planner).mode,
+            "off",
+          ),
+          policyApplied: recall.metadata.policyApplied,
+          ...(recall.metadata.retrievalTrace?.reranker === undefined
+            ? {}
+            : { reranker: recall.metadata.retrievalTrace.reranker }),
         });
         const exported = await runtime.memory.exportMemory({ scope });
         const sourceIdsByMessageId = new Map(

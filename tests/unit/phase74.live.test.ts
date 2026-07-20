@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "bun:test";
 
 import {
+  buildPhase74EmbeddingIdentity,
   createPhase74LiveJudge,
   createPhase74LiveReader,
   PHASE74_GENERIC_READER_SYSTEM_PROMPT,
@@ -23,8 +24,8 @@ import { PHASE74_PROTOCOL_READER_SYSTEM_PROMPT } from "../../src/eval/phase74Pro
 
 const env = {
   GOODMEMORY_EMBEDDING_API_KEY: "embedding-key",
-  GOODMEMORY_EMBEDDING_BASE_URL: "https://ai.gurkiai.com/v1",
-  GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-large",
+  GOODMEMORY_EMBEDDING_BASE_URL: "https://openrouter.ai/api/v1",
+  GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-small",
   GOODMEMORY_EMBEDDING_PROVIDER: "openai",
   GOODMEMORY_EVAL_API_KEY: "answer-key",
   GOODMEMORY_EVAL_BASE_URL: "https://ai.gurkiai.com/v1",
@@ -117,7 +118,7 @@ describe("Phase 74 live provider boundary", () => {
     })).rejects.toThrow("source snapshot SHA-256 does not match");
   });
 
-  it("pins every non-judge language call to Terra/GurkiAI and keeps the judge independent", () => {
+  it("pins language calls to Terra/GurkiAI, the judge independently, and embeddings to OpenRouter", () => {
     const models = resolvePhase74LiveModels(env);
     expect(models.answer).toMatchObject({
       baseURL: "https://ai.gurkiai.com/v1",
@@ -129,7 +130,8 @@ describe("Phase 74 live provider boundary", () => {
     expect(models.reranker).toEqual(models.answer);
     expect(models.judge).toMatchObject({ model: "gpt-5.5" });
     expect(models.embedding).toMatchObject({
-      model: "text-embedding-3-large",
+      baseURL: "https://openrouter.ai/api/v1",
+      model: "text-embedding-3-small",
       provider: "openai",
     });
 
@@ -141,6 +143,30 @@ describe("Phase 74 live provider boundary", () => {
       ...env,
       GOODMEMORY_EVAL_BASE_URL: "https://api.openai.com/v1",
     })).toThrow("gpt-5.6-terra through https://ai.gurkiai.com/v1");
+    expect(() => resolvePhase74LiveModels({
+      ...env,
+      GOODMEMORY_EMBEDDING_BASE_URL: "https://ai.gurkiai.com/v1",
+    })).toThrow("text-embedding-3-small through https://openrouter.ai/api/v1");
+    expect(() => resolvePhase74LiveModels({
+      ...env,
+      GOODMEMORY_EMBEDDING_MODEL: "text-embedding-3-large",
+    })).toThrow("text-embedding-3-small through https://openrouter.ai/api/v1");
+  });
+
+  it("records a complete non-secret embedding identity", () => {
+    const identity = buildPhase74EmbeddingIdentity(
+      resolvePhase74LiveModels(env).embedding,
+    );
+
+    expect(identity).toEqual({
+      credentialSha256: createHash("sha256")
+        .update("embedding-key")
+        .digest("hex"),
+      gateway: "https://openrouter.ai/api/v1",
+      model: "text-embedding-3-small",
+      provider: "openai",
+    });
+    expect(JSON.stringify(identity)).not.toContain("embedding-key");
   });
 
   it("uses one label-free reader prompt and attributes its exact charged request", async () => {

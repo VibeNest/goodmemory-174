@@ -287,6 +287,401 @@ export function scoreLocomoAnswer(input: {
   return locomoTokenF1(input.answer, input.goldAnswer) >= LOCOMO_F1_PASS_THRESHOLD;
 }
 
+export const LOCOMO_OFFICIAL_QA_SCORER_V1 =
+  `snap-research/locomo@${LOCOMO_UPSTREAM_COMMIT}:task_eval/evaluation.py:v1` as const;
+
+export type LocomoOfficialQaMethodV1 =
+  | "single-answer-f1"
+  | "multi-answer-f1"
+  | "adversarial-abstention";
+
+export interface LocomoOfficialQaScoreV1 {
+  category: LocomoQaCategory;
+  method: LocomoOfficialQaMethodV1;
+  score: number;
+  scorerVersion: typeof LOCOMO_OFFICIAL_QA_SCORER_V1;
+}
+
+const LOCOMO_OFFICIAL_ASCII_PUNCTUATION = new Set(
+  Array.from("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"),
+);
+
+const LOCOMO_PORTER_IRREGULAR_FORMS = new Map([
+  ["sky", "sky"],
+  ["skies", "sky"],
+  ["dying", "die"],
+  ["lying", "lie"],
+  ["tying", "tie"],
+  ["news", "news"],
+  ["innings", "inning"],
+  ["inning", "inning"],
+  ["outings", "outing"],
+  ["outing", "outing"],
+  ["cannings", "canning"],
+  ["canning", "canning"],
+  ["howe", "howe"],
+  ["proceed", "proceed"],
+  ["exceed", "exceed"],
+  ["succeed", "succeed"],
+]);
+
+const LOCOMO_PORTER_VOWELS = new Set(["a", "e", "i", "o", "u"]);
+
+function isLocomoPorterConsonant(word: string, index: number): boolean {
+  const character = word[index] ?? "";
+  if (LOCOMO_PORTER_VOWELS.has(character)) {
+    return false;
+  }
+  if (character === "y") {
+    return index === 0 || !isLocomoPorterConsonant(word, index - 1);
+  }
+  return true;
+}
+
+function locomoPorterMeasure(word: string): number {
+  let measure = 0;
+  for (let index = 1; index < word.length; index += 1) {
+    if (
+      !isLocomoPorterConsonant(word, index - 1) &&
+      isLocomoPorterConsonant(word, index)
+    ) {
+      measure += 1;
+    }
+  }
+  return measure;
+}
+
+function locomoPorterContainsVowel(word: string): boolean {
+  for (let index = 0; index < word.length; index += 1) {
+    if (!isLocomoPorterConsonant(word, index)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function locomoPorterEndsDoubleConsonant(word: string): boolean {
+  return (
+    word.length >= 2 &&
+    word.at(-1) === word.at(-2) &&
+    isLocomoPorterConsonant(word, word.length - 1)
+  );
+}
+
+function locomoPorterEndsCvc(word: string): boolean {
+  return (
+    (
+      word.length >= 3 &&
+      isLocomoPorterConsonant(word, word.length - 3) &&
+      !isLocomoPorterConsonant(word, word.length - 2) &&
+      isLocomoPorterConsonant(word, word.length - 1) &&
+      !["w", "x", "y"].includes(word.at(-1) ?? "")
+    ) ||
+    (
+      word.length === 2 &&
+      !isLocomoPorterConsonant(word, 0) &&
+      isLocomoPorterConsonant(word, 1)
+    )
+  );
+}
+
+interface LocomoPorterRule {
+  condition?: (stem: string) => boolean;
+  replacement: string;
+  suffix: string;
+}
+
+function applyLocomoPorterRules(
+  word: string,
+  rules: readonly LocomoPorterRule[],
+): string {
+  for (const rule of rules) {
+    if (!word.endsWith(rule.suffix)) {
+      continue;
+    }
+    const stem = rule.suffix.length === 0
+      ? word
+      : word.slice(0, -rule.suffix.length);
+    return rule.condition === undefined || rule.condition(stem)
+      ? `${stem}${rule.replacement}`
+      : word;
+  }
+  return word;
+}
+
+function locomoPorterStep1a(word: string): string {
+  if (word.endsWith("ies") && word.length === 4) {
+    return `${word.slice(0, -3)}ie`;
+  }
+  return applyLocomoPorterRules(word, [
+    { suffix: "sses", replacement: "ss" },
+    { suffix: "ies", replacement: "i" },
+    { suffix: "ss", replacement: "ss" },
+    { suffix: "s", replacement: "" },
+  ]);
+}
+
+function locomoPorterStep1b(word: string): string {
+  if (word.endsWith("ied")) {
+    return `${word.slice(0, -3)}${word.length === 4 ? "ie" : "i"}`;
+  }
+  if (word.endsWith("eed")) {
+    const stem = word.slice(0, -3);
+    return locomoPorterMeasure(stem) > 0 ? `${stem}ee` : word;
+  }
+
+  let stem: string | undefined;
+  for (const suffix of ["ed", "ing"] as const) {
+    if (word.endsWith(suffix)) {
+      const candidate = word.slice(0, -suffix.length);
+      if (locomoPorterContainsVowel(candidate)) {
+        stem = candidate;
+        break;
+      }
+    }
+  }
+  if (stem === undefined) {
+    return word;
+  }
+  if (stem.endsWith("at")) {
+    return `${stem}e`;
+  }
+  if (stem.endsWith("bl")) {
+    return `${stem}e`;
+  }
+  if (stem.endsWith("iz")) {
+    return `${stem}e`;
+  }
+  if (
+    locomoPorterEndsDoubleConsonant(stem) &&
+    !["l", "s", "z"].includes(stem.at(-1) ?? "")
+  ) {
+    return stem.slice(0, -1);
+  }
+  if (locomoPorterMeasure(stem) === 1 && locomoPorterEndsCvc(stem)) {
+    return `${stem}e`;
+  }
+  return stem;
+}
+
+function locomoPorterStep1c(word: string): string {
+  if (!word.endsWith("y")) {
+    return word;
+  }
+  const stem = word.slice(0, -1);
+  return stem.length > 1 && isLocomoPorterConsonant(stem, stem.length - 1)
+    ? `${stem}i`
+    : word;
+}
+
+function locomoPorterStep2(word: string): string {
+  if (word.endsWith("alli")) {
+    const stem = word.slice(0, -4);
+    if (locomoPorterMeasure(stem) > 0) {
+      return locomoPorterStep2(`${stem}al`);
+    }
+  }
+  const positiveMeasure = (stem: string): boolean =>
+    locomoPorterMeasure(stem) > 0;
+  return applyLocomoPorterRules(word, [
+    { suffix: "ational", replacement: "ate", condition: positiveMeasure },
+    { suffix: "tional", replacement: "tion", condition: positiveMeasure },
+    { suffix: "enci", replacement: "ence", condition: positiveMeasure },
+    { suffix: "anci", replacement: "ance", condition: positiveMeasure },
+    { suffix: "izer", replacement: "ize", condition: positiveMeasure },
+    { suffix: "bli", replacement: "ble", condition: positiveMeasure },
+    { suffix: "alli", replacement: "al", condition: positiveMeasure },
+    { suffix: "entli", replacement: "ent", condition: positiveMeasure },
+    { suffix: "eli", replacement: "e", condition: positiveMeasure },
+    { suffix: "ousli", replacement: "ous", condition: positiveMeasure },
+    { suffix: "ization", replacement: "ize", condition: positiveMeasure },
+    { suffix: "ation", replacement: "ate", condition: positiveMeasure },
+    { suffix: "ator", replacement: "ate", condition: positiveMeasure },
+    { suffix: "alism", replacement: "al", condition: positiveMeasure },
+    { suffix: "iveness", replacement: "ive", condition: positiveMeasure },
+    { suffix: "fulness", replacement: "ful", condition: positiveMeasure },
+    { suffix: "ousness", replacement: "ous", condition: positiveMeasure },
+    { suffix: "aliti", replacement: "al", condition: positiveMeasure },
+    { suffix: "iviti", replacement: "ive", condition: positiveMeasure },
+    { suffix: "biliti", replacement: "ble", condition: positiveMeasure },
+    { suffix: "fulli", replacement: "ful", condition: positiveMeasure },
+    {
+      suffix: "logi",
+      replacement: "log",
+      condition: () => locomoPorterMeasure(word.slice(0, -3)) > 0,
+    },
+  ]);
+}
+
+function locomoPorterStep3(word: string): string {
+  const positiveMeasure = (stem: string): boolean =>
+    locomoPorterMeasure(stem) > 0;
+  return applyLocomoPorterRules(word, [
+    { suffix: "icate", replacement: "ic", condition: positiveMeasure },
+    { suffix: "ative", replacement: "", condition: positiveMeasure },
+    { suffix: "alize", replacement: "al", condition: positiveMeasure },
+    { suffix: "iciti", replacement: "ic", condition: positiveMeasure },
+    { suffix: "ical", replacement: "ic", condition: positiveMeasure },
+    { suffix: "ful", replacement: "", condition: positiveMeasure },
+    { suffix: "ness", replacement: "", condition: positiveMeasure },
+  ]);
+}
+
+function locomoPorterStep4(word: string): string {
+  const measureGreaterThanOne = (stem: string): boolean =>
+    locomoPorterMeasure(stem) > 1;
+  return applyLocomoPorterRules(word, [
+    { suffix: "al", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ance", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ence", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "er", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ic", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "able", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ible", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ant", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ement", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ment", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ent", replacement: "", condition: measureGreaterThanOne },
+    {
+      suffix: "ion",
+      replacement: "",
+      condition: (stem) =>
+        locomoPorterMeasure(stem) > 1 && ["s", "t"].includes(stem.at(-1) ?? ""),
+    },
+    { suffix: "ou", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ism", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ate", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "iti", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ous", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ive", replacement: "", condition: measureGreaterThanOne },
+    { suffix: "ize", replacement: "", condition: measureGreaterThanOne },
+  ]);
+}
+
+function locomoPorterStep5a(word: string): string {
+  if (!word.endsWith("e")) {
+    return word;
+  }
+  const stem = word.slice(0, -1);
+  const measure = locomoPorterMeasure(stem);
+  return measure > 1 || (measure === 1 && !locomoPorterEndsCvc(stem))
+    ? stem
+    : word;
+}
+
+function locomoPorterStep5b(word: string): string {
+  return word.endsWith("ll") && locomoPorterMeasure(word.slice(0, -1)) > 1
+    ? word.slice(0, -1)
+    : word;
+}
+
+function stemLocomoOfficialToken(value: string): string {
+  const word = value.toLowerCase();
+  const irregular = LOCOMO_PORTER_IRREGULAR_FORMS.get(word);
+  if (irregular !== undefined) {
+    return irregular;
+  }
+  if (word.length <= 2) {
+    return word;
+  }
+  return locomoPorterStep5b(
+    locomoPorterStep5a(
+      locomoPorterStep4(
+        locomoPorterStep3(
+          locomoPorterStep2(
+            locomoPorterStep1c(
+              locomoPorterStep1b(locomoPorterStep1a(word)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+function normalizeLocomoOfficialAnswerV1(value: string): string {
+  const withoutPunctuation = Array.from(value.replaceAll(",", "").toLowerCase())
+    .filter((character) => !LOCOMO_OFFICIAL_ASCII_PUNCTUATION.has(character))
+    .join("");
+  return withoutPunctuation
+    .replace(/\b(?:a|an|the|and)\b/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function locomoOfficialTokenF1V1(answer: string, gold: string): number {
+  const answerNormalized = normalizeLocomoOfficialAnswerV1(answer);
+  const goldNormalized = normalizeLocomoOfficialAnswerV1(gold);
+  const answerTokens = answerNormalized.length === 0
+    ? []
+    : answerNormalized.split(" ").map(stemLocomoOfficialToken);
+  const goldTokens = goldNormalized.length === 0
+    ? []
+    : goldNormalized.split(" ").map(stemLocomoOfficialToken);
+  const goldCounts = new Map<string, number>();
+  for (const token of goldTokens) {
+    goldCounts.set(token, (goldCounts.get(token) ?? 0) + 1);
+  }
+  let overlap = 0;
+  for (const token of answerTokens) {
+    const remaining = goldCounts.get(token) ?? 0;
+    if (remaining > 0) {
+      overlap += 1;
+      goldCounts.set(token, remaining - 1);
+    }
+  }
+  if (overlap === 0) {
+    return 0;
+  }
+  const precision = overlap / answerTokens.length;
+  const recall = overlap / goldTokens.length;
+  return (2 * precision * recall) / (precision + recall);
+}
+
+function locomoOfficialMultiAnswerF1V1(answer: string, gold: string): number {
+  const answers = answer.split(",");
+  const goldAnswers = gold.split(",");
+  const scores = goldAnswers.map((goldAnswer) =>
+    Math.max(...answers.map((candidate) =>
+      locomoOfficialTokenF1V1(candidate, goldAnswer))),
+  );
+  return scores.reduce((total, score) => total + score, 0) / scores.length;
+}
+
+// Exact, versioned port of the category-aware QA scorer at the pinned upstream
+// revision. The legacy boolean scorer above remains unchanged for compatibility.
+export function scoreLocomoOfficialQaV1(input: {
+  answer: string;
+  category: LocomoQaCategory;
+  goldAnswer: string;
+}): LocomoOfficialQaScoreV1 {
+  let method: LocomoOfficialQaMethodV1;
+  let score: number;
+  if (input.category === "adversarial") {
+    const answer = input.answer.toLowerCase();
+    method = "adversarial-abstention";
+    score = answer.includes("no information available") ||
+      answer.includes("not mentioned")
+      ? 1
+      : 0;
+  } else if (input.category === "multi_hop") {
+    method = "multi-answer-f1";
+    score = locomoOfficialMultiAnswerF1V1(input.answer, input.goldAnswer);
+  } else {
+    method = "single-answer-f1";
+    const goldAnswer = input.category === "open_domain"
+      ? input.goldAnswer.split(";", 1)[0] ?? ""
+      : input.goldAnswer;
+    score = locomoOfficialTokenF1V1(input.answer, goldAnswer);
+  }
+  return {
+    category: input.category,
+    method,
+    score,
+    scorerVersion: LOCOMO_OFFICIAL_QA_SCORER_V1,
+  };
+}
+
 // Synthetic smoke fixture: one small multi-session conversation per QA category,
 // following the LoCoMo turn/QA shape. No upstream data is vendored.
 export function buildLocomoSmokeCases(): LocomoCase[] {

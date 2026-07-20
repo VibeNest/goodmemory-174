@@ -63,6 +63,47 @@ function identity() {
 }
 
 describe("Phase 74 generalization runner", () => {
+  it("uses one family assessment as the source of both score and correctness", async () => {
+    const purposes: string[] = [];
+    let legacyJudgeCalls = 0;
+    const report = await runPhase74Generalization({
+      assessAnswer: async ({ purpose, testCase }) => {
+        purposes.push(purpose);
+        expect(testCase.protocolMetadata?.questionType).toBe("knowledge-update");
+        return { correct: false, score: 0.25 };
+      },
+      cases,
+      countRenderedTokens: (content) => content.length,
+      executeRetrieval: async ({ arm, stage }) => ({
+        retrievedMemories: [],
+        snapshotId: `${stage}:${arm}`,
+        storedMemories: [],
+      }),
+      genericReader: async () => "candidate",
+      identity: identity(),
+      includeOracle: false,
+      judge: async () => {
+        legacyJudgeCalls += 1;
+        return { correct: true };
+      },
+      persistIdentity: async () => undefined,
+      protocolReader: async () => "unused",
+      renderEvidenceLedger: async () => "unused",
+      stages: ["E2"],
+    });
+
+    expect(legacyJudgeCalls).toBe(0);
+    expect(purposes).toEqual([
+      "final:baseline:E2:claim-temporal-off",
+      "final:candidate:E2:claim-temporal-on",
+    ]);
+    expect(report.executions.map(({ correct, score }) => ({ correct, score })))
+      .toEqual([
+        { correct: false, score: 0.25 },
+        { correct: false, score: 0.25 },
+      ]);
+  });
+
   it("persists identity first, isolates E1-E4, and reuses one E3 packet for every E4 format", async () => {
     const events: string[] = [];
     const executions: string[] = [];

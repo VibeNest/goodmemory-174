@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import {
   assertPhase74IngestionRememberResult,
+  assertPhase74RecallProviderIntegrity,
   buildPhase74IngestionKey,
   buildPhase74LabelFreeScope,
   phase74ExecutionBranch,
@@ -40,6 +41,29 @@ const base = {
 } as const;
 
 describe("Phase 74 full ingestion identity", () => {
+  it("fails closed when a paid retrieval arm falls back from its provider", () => {
+    expect(() => assertPhase74RecallProviderIntegrity({
+      plannerMode: "deterministic",
+      policyApplied: [],
+      reranker: {
+        fallbackReason: "provider_error",
+        status: "fallback",
+      },
+    })).toThrow("provider reranker fell back");
+
+    expect(() => assertPhase74RecallProviderIntegrity({
+      plannerMode: "assisted",
+      policyApplied: ["recall_plan_assistant_fallback"],
+      reranker: { status: "applied" },
+    })).toThrow("assisted recall plan fell back");
+
+    expect(() => assertPhase74RecallProviderIntegrity({
+      plannerMode: "deterministic",
+      policyApplied: [],
+      reranker: { status: "skipped" },
+    })).not.toThrow();
+  });
+
   it("fails closed when assisted extraction silently degrades to rules-only", () => {
     expect(() => assertPhase74IngestionRememberResult({
       extractionStrategy: "llm-assisted",

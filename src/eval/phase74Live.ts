@@ -38,6 +38,8 @@ import type {
 export const PHASE74_LANGUAGE_MODEL = "gpt-5.6-terra";
 export const PHASE74_JUDGE_MODEL = "gpt-5.5";
 export const PHASE74_GATEWAY = "https://ai.gurkiai.com/v1";
+export const PHASE74_EMBEDDING_GATEWAY = "https://openrouter.ai/api/v1";
+export const PHASE74_EMBEDDING_MODEL = "text-embedding-3-small";
 export const PHASE74_READER_MAX_OUTPUT_TOKENS = 512;
 export const PHASE74_READER_TEMPERATURE = 0;
 
@@ -107,6 +109,28 @@ export interface Phase74LiveModels {
   judge: AISDKModelConfig;
   planner: AISDKModelConfig;
   reranker: AISDKModelConfig;
+}
+
+export interface Phase74EmbeddingIdentity {
+  readonly [key: string]: string;
+  credentialSha256: string;
+  gateway: string;
+  model: string;
+  provider: string;
+}
+
+export function buildPhase74EmbeddingIdentity(
+  model: AISDKModelConfig,
+): Phase74EmbeddingIdentity {
+  if (!model.apiKey || !model.baseURL) {
+    throw new Error("Phase 74 embedding identity requires a credential and base URL.");
+  }
+  return {
+    credentialSha256: createHash("sha256").update(model.apiKey).digest("hex"),
+    gateway: model.baseURL,
+    model: model.model,
+    provider: model.provider,
+  };
 }
 
 export function resolvePhase74EvaluatorSource(
@@ -251,10 +275,11 @@ export function resolvePhase74LiveModels(
   }
   if (
     embedding.provider !== "openai" ||
-    embedding.baseURL !== PHASE74_GATEWAY
+    embedding.model !== PHASE74_EMBEDDING_MODEL ||
+    embedding.baseURL !== PHASE74_EMBEDDING_GATEWAY
   ) {
     throw new Error(
-      `Phase 74 embedding calls require an OpenAI-compatible model through ${PHASE74_GATEWAY}.`,
+      `Phase 74 embedding calls require ${PHASE74_EMBEDDING_MODEL} through ${PHASE74_EMBEDDING_GATEWAY}.`,
     );
   }
   return {

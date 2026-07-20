@@ -36,6 +36,7 @@ import {
   createPhase74LocomoDataset,
   createPhase74LongMemEvalDataset,
   type Phase74BenchmarkFamily,
+  type Phase74DatasetCase,
   type Phase74DatasetBundle,
 } from "../src/eval/phase74Datasets";
 import {
@@ -45,13 +46,21 @@ import {
 import { buildPhase74ReplicateComparison } from "../src/eval/phase74Replicates";
 import { createPhase74ProtocolReader } from "../src/eval/phase74ProtocolReader";
 import {
+  buildPhase74OfficialScoringIdentity,
+  createPhase74OfficialAnswerAssessor,
+} from "../src/eval/phase74OfficialScoring";
+import type {
+  Phase74EmbeddingIdentity,
+  Phase74LiveModels,
+} from "../src/eval/phase74Live";
+import {
+  buildPhase74EmbeddingIdentity,
   createPhase74LiveJudge,
   createPhase74LiveReader,
   phase74LivePromptSha256s,
   resolvePhase74EvaluatorSource,
   resolvePhase74LiveModels,
   verifyPhase74EvaluatorSource,
-  type Phase74LiveModels,
 } from "../src/eval/phase74Live";
 import {
   appendPhase74ModelUsageEventSync,
@@ -103,9 +112,12 @@ export interface Phase74GeneralizationSmokeResult {
 export interface Phase74GeneralizationFullOptions {
   benchmark: Phase74BenchmarkFamily;
   benchmarkRoot: string;
+  caseSelectionSeed?: number;
+  caseSelectionSize?: number;
   generatedAt?: string;
   outputDir: string;
   replicate: 1 | 2 | 3;
+  rerankerMode?: "deterministic" | "provider";
   runId: string;
   stage: "E1" | "E2" | "E3" | "E4";
 }
@@ -118,8 +130,12 @@ export interface Phase74GeneralizationFullResult {
 
 export function buildPhase74FullRunIdentityConfiguration(input: {
   dataset: EvalRunJsonObject;
+  embedding: Phase74EmbeddingIdentity;
   evaluatorSource: EvalRunJsonObject;
   replicate: 1 | 2 | 3;
+  reranker: EvalRunJsonObject;
+  scoring: EvalRunJsonObject;
+  selection: EvalRunJsonObject;
   selectedCaseIdsSha256: string;
 }): EvalRunJsonObject {
   return {
@@ -134,12 +150,16 @@ export function buildPhase74FullRunIdentityConfiguration(input: {
     },
     costBoundary: "query-only-comparison-with-shadow-ingestion",
     dataset: input.dataset,
+    embedding: input.embedding,
     evaluatorSource: input.evaluatorSource,
     modelUsageAccounting: "phase74-model-usage-v1",
     preRankLimit: PRE_RANK_LIMIT,
     providerObjectCalls: PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
     reader: "generic-label-free-v1",
     replicate: input.replicate,
+    reranker: input.reranker,
+    scoring: input.scoring,
+    selection: input.selection,
     selectedCaseIdsSha256: input.selectedCaseIdsSha256,
     selectedLimit: SELECTED_LIMIT,
     seenCasesOnly: true,
@@ -148,6 +168,98 @@ export function buildPhase74FullRunIdentityConfiguration(input: {
 
 function sha256(content: string): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+function labelFreeCaseContent(testCase: Phase74DatasetCase): string {
+  return JSON.stringify({
+    caseId: testCase.caseId,
+    locale: testCase.locale ?? null,
+    memoryGroupId: testCase.memoryGroupId ?? null,
+    question: testCase.question,
+    rawEvidence: testCase.rawEvidence.map((item) => ({
+      content: item.content,
+      id: item.id,
+      observedAt: item.observedAt ?? null,
+      role: item.role ?? null,
+      sourceIds: [...item.sourceIds],
+    })),
+    referenceTime: testCase.referenceTime ?? null,
+  });
+}
+
+export function selectPhase74GeneralizationCases(input: {
+  cases: readonly Phase74DatasetCase[];
+  seed?: number;
+  size?: number;
+}): {
+  cases: Phase74DatasetCase[];
+  identity: EvalRunJsonObject;
+} {
+  if ((input.seed === undefined) !== (input.size === undefined)) {
+    throw new Error(
+      "Phase 74 case selection seed and size must be provided together.",
+    );
+  }
+  const contentHashes = input.cases.map((testCase) =>
+    sha256(labelFreeCaseContent(testCase))
+  );
+  const populationContentSha256 = sha256(JSON.stringify(contentHashes));
+  if (input.seed === undefined || input.size === undefined) {
+    const cases = [...input.cases];
+    return {
+      cases,
+      identity: {
+        mode: "all",
+        populationContentSha256,
+        populationSize: cases.length,
+        selectedCaseIdsSha256: sha256(
+          JSON.stringify(cases.map(({ caseId }) => caseId)),
+        ),
+        selectedSize: cases.length,
+      },
+    };
+  }
+  if (!Number.isSafeInteger(input.seed) || input.seed < 0) {
+    throw new Error("Phase 74 case selection seed must be a non-negative integer.");
+  }
+  if (
+    !Number.isSafeInteger(input.size) ||
+    input.size <= 0 ||
+    input.size > input.cases.length
+  ) {
+    throw new Error(
+      `Phase 74 case selection size must be between 1 and ${input.cases.length}.`,
+    );
+  }
+  const selectedIndexes = new Set(
+    input.cases
+      .map((testCase, index) => ({
+        caseId: testCase.caseId,
+        index,
+        rank: sha256(JSON.stringify([input.seed, contentHashes[index]])),
+      }))
+      .sort((left, right) =>
+        left.rank.localeCompare(right.rank) ||
+        left.caseId.localeCompare(right.caseId) ||
+        left.index - right.index
+      )
+      .slice(0, input.size)
+      .map(({ index }) => index),
+  );
+  const cases = input.cases.filter((_, index) => selectedIndexes.has(index));
+  return {
+    cases,
+    identity: {
+      mode: "deterministic-content-hash",
+      populationContentSha256,
+      populationSize: input.cases.length,
+      seed: input.seed,
+      selectedCaseIdsSha256: sha256(
+        JSON.stringify(cases.map(({ caseId }) => caseId)),
+      ),
+      selectedSize: cases.length,
+    },
+  };
 }
 
 function isoDate(value: string): string {
@@ -762,7 +874,14 @@ export async function runPhase74GeneralizationFull(
 ): Promise<Phase74GeneralizationFullResult> {
   assertCliPathSegmentValue({ flag: "--run-id", value: options.runId });
   const dataset = await loadPhase74PreparedDataset(options);
+  const selection = selectPhase74GeneralizationCases({
+    cases: dataset.cases,
+    seed: options.caseSelectionSeed,
+    size: options.caseSelectionSize,
+  });
+  const selectedCases = selection.cases;
   const models = resolvePhase74LiveModels(env);
+  const rerankerMode = options.rerankerMode ?? "provider";
   const evaluatorSource = await verifyPhase74EvaluatorSource({
     declared: resolvePhase74EvaluatorSource(env),
     repoRoot: process.cwd(),
@@ -772,15 +891,28 @@ export async function runPhase74GeneralizationFull(
   const runDirectory = join(resolve(options.outputDir), options.runId);
   await mkdir(runDirectory, { recursive: true });
   const selectedCaseIdsSha256 = sha256(
-    JSON.stringify(dataset.cases.map(({ caseId }) => caseId)),
+    JSON.stringify(selectedCases.map(({ caseId }) => caseId)),
   );
   const identity = buildEvalRunIdentity({
     answerModel: publicModelIdentity(models.answer),
     benchmark: `${options.benchmark}-full`,
     configuration: buildPhase74FullRunIdentityConfiguration({
       dataset: dataset.manifest as unknown as EvalRunJsonObject,
+      embedding: buildPhase74EmbeddingIdentity(models.embedding),
       evaluatorSource,
       replicate: options.replicate,
+      reranker: rerankerMode === "deterministic"
+        ? {
+            implementation: "lexical-coverage-v1",
+            mode: "deterministic",
+          }
+        : {
+            ...publicModelIdentity(models.reranker),
+            implementation: "provider-pointwise-v1",
+            mode: "provider",
+          },
+      scoring: buildPhase74OfficialScoringIdentity(options.benchmark),
+      selection: selection.identity,
       selectedCaseIdsSha256,
     }),
     datasetSha256: dataset.manifest.datasetSha256,
@@ -804,6 +936,7 @@ export async function runPhase74GeneralizationFull(
     runDirectory,
     onUsageEvent,
     promptSha256s,
+    rerankerMode,
   });
   const reader = createPhase74LiveReader({
     events,
@@ -811,6 +944,12 @@ export async function runPhase74GeneralizationFull(
     onUsageEvent,
   });
   const judge = createPhase74LiveJudge({
+    events,
+    model: models.judge,
+    onUsageEvent,
+  });
+  const officialAssessment = createPhase74OfficialAnswerAssessor({
+    benchmark: options.benchmark,
     events,
     model: models.judge,
     onUsageEvent,
@@ -824,7 +963,8 @@ export async function runPhase74GeneralizationFull(
   });
   const snapshots: Phase74RetrievalSnapshot[] = [];
   const report = await runPhase74Generalization({
-    cases: dataset.cases,
+    assessAnswer: officialAssessment,
+    cases: selectedCases,
     checkpoint: createPhase74FileCheckpoint(join(runDirectory, "checkpoints")),
     contextTokenBudget: CONTEXT_TOKEN_BUDGET,
     countRenderedTokens,
@@ -842,20 +982,14 @@ export async function runPhase74GeneralizationFull(
     }),
     protocolReader,
     renderEvidenceLedger: retrieval.render,
-    scoreAnswer: ({ answer, correct, testCase }) => phase74BenchmarkScore({
-      answer,
-      benchmark: options.benchmark,
-      correct,
-      testCase,
-    }),
     stages: [options.stage],
   });
   const experimentIdentityHash = hashEvalExperimentIdentity(report.identity);
   const modelUsage = options.stage === "E4"
     ? null
     : buildPhase74ModelUsageEvidence(events, {
-        baselineCaseIds: dataset.cases.map(({ caseId }) => caseId),
-        candidateCaseIds: dataset.cases.map(({ caseId }) => caseId),
+        baselineCaseIds: selectedCases.map(({ caseId }) => caseId),
+        candidateCaseIds: selectedCases.map(({ caseId }) => caseId),
         costBoundary: "query-only",
       });
   const endToEndScores = Object.fromEntries(
@@ -1117,9 +1251,12 @@ export type Phase74GeneralizationCliOptions =
   | {
       benchmark: "locomo" | "longmemeval";
       benchmarkRoot: string;
+      caseSelectionSeed?: number;
+      caseSelectionSize?: number;
       mode: "full";
       outputDir: string;
       replicate: 1 | 2 | 3;
+      rerankerMode?: "deterministic" | "provider";
       runId: string;
       stage: "E1" | "E2" | "E3" | "E4";
     };
@@ -1157,6 +1294,30 @@ export function parsePhase74GeneralizationCliOptions(
   const benchmarkRoot = readFlag("--benchmark-root");
   const outputDir = readFlag("--output-dir");
   const runId = readFlag("--run-id");
+  const rawCaseSelectionSeed = readFlag("--case-selection-seed");
+  const rawCaseSelectionSize = readFlag("--case-selection-size");
+  if (
+    (rawCaseSelectionSeed === undefined) !==
+      (rawCaseSelectionSize === undefined)
+  ) {
+    throw new Error(
+      "--case-selection-seed and --case-selection-size must be provided together.",
+    );
+  }
+  if (
+    rawCaseSelectionSeed !== undefined &&
+    (!/^\d+$/u.test(rawCaseSelectionSeed) ||
+      !Number.isSafeInteger(Number(rawCaseSelectionSeed)))
+  ) {
+    throw new Error("--case-selection-seed must be a non-negative integer.");
+  }
+  if (
+    rawCaseSelectionSize !== undefined &&
+    (!/^[1-9]\d*$/u.test(rawCaseSelectionSize) ||
+      !Number.isSafeInteger(Number(rawCaseSelectionSize)))
+  ) {
+    throw new Error("--case-selection-size must be a positive integer.");
+  }
   const rawReplicate = readFlag("--replicate");
   if (rawReplicate !== "1" && rawReplicate !== "2" && rawReplicate !== "3") {
     throw new Error("--replicate must be 1, 2, or 3.");
@@ -1164,6 +1325,14 @@ export function parsePhase74GeneralizationCliOptions(
   const stage = readFlag("--stage");
   if (stage !== "E1" && stage !== "E2" && stage !== "E3" && stage !== "E4") {
     throw new Error("--stage must be E1, E2, E3, or E4.");
+  }
+  const rerankerMode = readFlag("--reranker-mode");
+  if (
+    rerankerMode !== undefined &&
+    rerankerMode !== "deterministic" &&
+    rerankerMode !== "provider"
+  ) {
+    throw new Error("--reranker-mode must be deterministic or provider.");
   }
   if (!benchmarkRoot || !outputDir || !runId) {
     throw new Error(
@@ -1174,9 +1343,16 @@ export function parsePhase74GeneralizationCliOptions(
   return {
     benchmark,
     benchmarkRoot,
+    ...(rawCaseSelectionSeed === undefined
+      ? {}
+      : { caseSelectionSeed: Number(rawCaseSelectionSeed) }),
+    ...(rawCaseSelectionSize === undefined
+      ? {}
+      : { caseSelectionSize: Number(rawCaseSelectionSize) }),
     mode,
     outputDir,
     replicate: Number(rawReplicate) as 1 | 2 | 3,
+    ...(rerankerMode === undefined ? {} : { rerankerMode }),
     runId,
     stage,
   };

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildLocomoSmokeCases,
   deriveLocomoMatchMode,
+  LOCOMO_OFFICIAL_QA_SCORER_V1,
   LOCOMO_QA_CATEGORIES,
   locomoExactMatch,
   locomoTokenF1,
@@ -11,6 +12,7 @@ import {
   normalizeLocomoCategoryCode,
   parseLocomoSession,
   scoreLocomoAnswer,
+  scoreLocomoOfficialQaV1,
   summarizeLocomoResults,
 } from "../../src/eval/locomo";
 
@@ -145,6 +147,78 @@ describe("LoCoMo smoke contract", () => {
         matchMode: "adversarial_abstention",
       }),
     ).toBe(false);
+  });
+
+  it("pins the official QA scorer to the upstream source revision", () => {
+    expect(LOCOMO_OFFICIAL_QA_SCORER_V1).toBe(
+      "snap-research/locomo@cbfbc1dba6bc53d00625212a0f22d55ffee7c1fc:task_eval/evaluation.py:v1",
+    );
+  });
+
+  it("reproduces upstream Porter stemming and article normalization", () => {
+    expect(scoreLocomoOfficialQaV1({
+      answer: "running",
+      category: "single_hop",
+      goldAnswer: "runs",
+    })).toEqual({
+      category: "single_hop",
+      method: "single-answer-f1",
+      score: 1,
+      scorerVersion: LOCOMO_OFFICIAL_QA_SCORER_V1,
+    });
+    expect(scoreLocomoOfficialQaV1({
+      answer: "Tea and coffee",
+      category: "temporal",
+      goldAnswer: "tea coffee",
+    }).score).toBe(1);
+  });
+
+  it("uses the upstream comma-wise multi-hop scorer", () => {
+    expect(scoreLocomoOfficialQaV1({
+      answer: "Seattle",
+      category: "multi_hop",
+      goldAnswer: "Seattle, pottery",
+    })).toMatchObject({
+      method: "multi-answer-f1",
+      score: 0.5,
+    });
+    expect(scoreLocomoOfficialQaV1({
+      answer: "pottery, Seattle",
+      category: "multi_hop",
+      goldAnswer: "Seattle, pottery",
+    }).score).toBe(1);
+  });
+
+  it("truncates open-domain gold at the first semicolon", () => {
+    expect(scoreLocomoOfficialQaV1({
+      answer: "Golden Gate Park",
+      category: "open_domain",
+      goldAnswer: "Golden Gate Park; because it is nearby",
+    })).toMatchObject({
+      method: "single-answer-f1",
+      score: 1,
+    });
+  });
+
+  it("uses the upstream adversarial substring contract", () => {
+    for (const answer of [
+      "No information available in the conversation.",
+      "That detail was not mentioned anywhere.",
+    ]) {
+      expect(scoreLocomoOfficialQaV1({
+        answer,
+        category: "adversarial",
+        goldAnswer: "No information available",
+      })).toMatchObject({
+        method: "adversarial-abstention",
+        score: 1,
+      });
+    }
+    expect(scoreLocomoOfficialQaV1({
+      answer: "I do not know",
+      category: "adversarial",
+      goldAnswer: "No information available",
+    }).score).toBe(0);
   });
 
   it("summarizes per-category accuracy, recall, and noise", () => {
