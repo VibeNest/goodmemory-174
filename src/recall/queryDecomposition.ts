@@ -26,6 +26,10 @@ const DEFAULT_MIN_SUB_QUERY_WORDS = 2;
 const CLAUSE_BOUNDARY_PATTERN = /[?.;!。？；！\n]+/u;
 const QUERY_FACET_BOUNDARY_PATTERN =
   /\s+(?:and|&|as well as|along with|with)\s+|(?:以及|并且|而且|同时|还有)/iu;
+const ENGLISH_QUESTION_PATTERN =
+  /^(?:what|which|who|where|when|why|how|do|does|did|is|are|was|were|has|have|had|can|could|should|would|will)\b/iu;
+const ENGLISH_QUESTION_FACET_BOUNDARY_PATTERN =
+  /\s+(?:and|&|as well as|along with)\s+(?=(?:what|which|who|where|when|why|how|do|does|did|is|are|was|were|has|have|had|can|could|should|would|will)\b)|\s+with\s+|(?:以及|并且|而且|同时|还有)/iu;
 
 function countTerms(
   text: string,
@@ -76,7 +80,10 @@ export function splitQueryIntoSubQueries(
     ? options.language.splitClauses(normalized, options.locale ?? "und")
     : normalized.split(CLAUSE_BOUNDARY_PATTERN);
   for (const clause of clauses) {
-    for (const piece of clause.split(QUERY_FACET_BOUNDARY_PATTERN)) {
+    const facetBoundary = ENGLISH_QUESTION_PATTERN.test(clause.trim())
+      ? ENGLISH_QUESTION_FACET_BOUNDARY_PATTERN
+      : QUERY_FACET_BOUNDARY_PATTERN;
+    for (const piece of clause.split(facetBoundary)) {
       const trimmed = piece.replace(/[?.;!。？；！]+$/u, "").trim();
       if (trimmed.length > 0) {
         fragments.push(trimmed);

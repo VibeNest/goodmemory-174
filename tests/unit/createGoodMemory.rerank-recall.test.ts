@@ -169,6 +169,73 @@ describe("GoodMemory.recall reranker adapter", () => {
     );
   });
 
+  it("includes supplementary RecallPlan candidates in the global reranker pool", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        recallPlanner: {
+          async plan() {
+            return { facets: ["needle facet"] };
+          },
+        },
+        reranker: {
+          async rerank({ documents }) {
+            return documents.map(({ id }) => ({
+              id,
+              score: id === "supplementary-target" ? 1 : 0,
+            }));
+          },
+        },
+      },
+      retrieval: {
+        preset: "recommended",
+        recallPlanExecution: true,
+      },
+      testing: { now: () => new Date("2026-01-02T00:00:00.000Z") },
+    });
+    for (let index = 1; index <= 40; index += 1) {
+      const id = `primary-${String(index).padStart(2, "0")}`;
+      await documentStore.set("facts", id, createFactMemory({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: `overview alpha distractor ${index}`,
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }));
+    }
+    await documentStore.set("facts", "supplementary-target", createFactMemory({
+      id: "supplementary-target",
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      category: "project",
+      content: "needle facet singular answer",
+      source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }));
+
+    const result = await memory.recall({
+      scope,
+      query: "overview alpha",
+      strategy: "hybrid",
+    });
+
+    expect(result.metadata.policyApplied).toContain("decomposed_recall");
+    expect(result.metadata.retrievalTrace?.reranker?.candidateCount).toBe(32);
+    expect(result.metadata.retrievalTrace?.reranker?.scores).toContainEqual(
+      expect.objectContaining({
+        memoryId: "supplementary-target",
+        rankAfter: 1,
+      }),
+    );
+    expect(result.facts[0]?.id).toBe("supplementary-target");
+  });
+
   it("keeps complete requested evidence without letting duplicate excerpts consume packet slots", async () => {
     const { documentStore, makeFact, memory } = buildMemory(promoteBReranker);
     await seed(documentStore, makeFact);

@@ -13,6 +13,19 @@ describe("splitQueryIntoSubQueries", () => {
     ).toEqual(["What database do I use", "which editor did I switch to"]);
   });
 
+  it("does not split coordinated people as if they were independent facets", () => {
+    expect(
+      splitQueryIntoSubQueries(
+        "Which activity do Rowan and Priya plan on doing together next month?",
+      ),
+    ).toEqual([]);
+    expect(
+      splitQueryIntoSubQueries(
+        "What project will Priya and Rowan complete together next quarter?",
+      ),
+    ).toEqual([]);
+  });
+
   it("returns [] for a single-part query (no spurious decomposition)", () => {
     expect(splitQueryIntoSubQueries("Where do I live?")).toEqual([]);
     expect(splitQueryIntoSubQueries("")).toEqual([]);

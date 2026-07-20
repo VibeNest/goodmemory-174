@@ -236,6 +236,37 @@ function unionRecordsById<T extends { id: string }>(
   return merged;
 }
 
+const RECALL_PASS_FUSION_RRF_K = 60;
+
+function fuseFactsAcrossRecallPasses(
+  results: readonly RecallResult[],
+): RecallResult["facts"] {
+  const fused = new Map<string, {
+    fact: RecallResult["facts"][number];
+    firstSeen: number;
+    score: number;
+  }>();
+  let firstSeen = 0;
+  for (const result of results) {
+    for (const [index, fact] of result.facts.entries()) {
+      const existing = fused.get(fact.id);
+      const score = 1 / (RECALL_PASS_FUSION_RRF_K + index + 1);
+      if (existing) {
+        existing.score += score;
+      } else {
+        fused.set(fact.id, { fact, firstSeen, score });
+        firstSeen += 1;
+      }
+    }
+  }
+  return [...fused.values()]
+    .sort(
+      (left, right) =>
+        right.score - left.score || left.firstSeen - right.firstSeen,
+    )
+    .map(({ fact }) => fact);
+}
+
 function unionMetadataList<T>(
   results: readonly RecallResult[],
   select: (metadata: RecallResult["metadata"]) => readonly T[],
@@ -353,7 +384,7 @@ function mergeRecallResults(
     return primary;
   }
   const results = [primary, ...supplementary];
-  const facts = unionRecordsById(results, (result) => result.facts);
+  const facts = fuseFactsAcrossRecallPasses(results);
   const preferences = unionRecordsById(results, (result) => result.preferences);
   const references = unionRecordsById(results, (result) => result.references);
   const feedback = unionRecordsById(results, (result) => result.feedback);
