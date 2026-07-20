@@ -274,6 +274,7 @@ export interface RememberResult {
   accepted: number;
   rejected: number;
   events: RememberPipelineResult["events"];
+  outcome?: RememberPipelineResult["outcome"];
   // Non-fatal degradation codes (present only when non-empty): e.g.
   // "no_durable_facts_extracted" or "assisted_extraction_failed". See the
   // remember engine's RememberResult for the full list.

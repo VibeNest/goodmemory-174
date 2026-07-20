@@ -2358,6 +2358,7 @@ describe("installed host writeback runtime", () => {
 // always win, and the per-session cursor keeps per-turn work incremental.
 describe("installed host writeback transcript hydration", () => {
   async function writeClaudeHostConfig(input: {
+    assistedExtractor?: boolean;
     homeRoot: string;
     mode: "off" | "observe" | "selective";
   }): Promise<void> {
@@ -2376,6 +2377,17 @@ describe("installed host writeback transcript hydration", () => {
           },
           userId: "hydration-user",
           version: 1,
+          ...(input.assistedExtractor
+            ? {
+                providers: {
+                  assistedExtractor: {
+                    apiKey: "test-key",
+                    model: "gpt-4o-mini",
+                    provider: "openai",
+                  },
+                },
+              }
+            : {}),
           writeback: {
             allowAssistantOutput: "confirmed_or_verified",
             dryRun: false,
@@ -2731,6 +2743,246 @@ describe("installed host writeback transcript hydration", () => {
     }
   });
 
+  it("does not let an older concurrent Stop regress the transcript cursor", async () => {
+    const homeRoot = await createWorkspace(
+      "goodmemory-hydration-concurrent-cursor-home-",
+    );
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-concurrent-cursor-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+    let releaseFirstExtraction: (() => void) | undefined;
+    let signalFirstExtraction: (() => void) | undefined;
+    const firstExtractionStarted = new Promise<void>((resolve) => {
+      signalFirstExtraction = resolve;
+    });
+    const firstExtractionReleased = new Promise<void>((resolve) => {
+      releaseFirstExtraction = resolve;
+    });
+    let extractionAttempt = 0;
+    const dependencies = {
+      createMemory: createHydrationMemory({ rememberCalls }),
+      createWritebackExtractor: () => ({
+        async extract() {
+          extractionAttempt += 1;
+          if (extractionAttempt !== 1) {
+            return { candidates: [], ignoredMessageCount: 0 };
+          }
+          signalFirstExtraction?.();
+          await firstExtractionReleased;
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      }),
+    };
+
+    try {
+      await writeClaudeHostConfig({
+        assistedExtractor: true,
+        homeRoot,
+        mode: "selective",
+      });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is the slower first cursor commit.") + "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-concurrent-session",
+        transcript_path: transcriptPath,
+      };
+
+      const older = executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      await firstExtractionStarted;
+
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is the newer complete cursor commit.") + "\n",
+        { flag: "a" },
+      );
+      const newer = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(newer.trace).toMatchObject({
+        transcriptCursorAdvanced: true,
+        transcriptDeltaMessageCount: 2,
+      });
+
+      releaseFirstExtraction?.();
+      const stale = await older;
+      expect(stale.trace.transcriptCursorAdvanced).toBe(false);
+
+      const consumed = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(consumed).toMatchObject({
+        reason: "empty_transcript",
+        trace: { transcriptDeltaMessageCount: 0 },
+      });
+    } finally {
+      releaseFirstExtraction?.();
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not advance past a candidate owned by an in-flight Stop", async () => {
+    const homeRoot = await createWorkspace(
+      "goodmemory-hydration-pending-candidate-home-",
+    );
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-pending-candidate-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+    let releaseFirstRemember: (() => void) | undefined;
+    let signalFirstRemember: (() => void) | undefined;
+    const firstRememberStarted = new Promise<void>((resolve) => {
+      signalFirstRemember = resolve;
+    });
+    const firstRememberReleased = new Promise<void>((resolve) => {
+      releaseFirstRemember = resolve;
+    });
+    let rememberAttempt = 0;
+    const dependencies = {
+      createMemory: createHydrationMemory({
+        async onRemember() {
+          rememberAttempt += 1;
+          if (rememberAttempt !== 1) {
+            return;
+          }
+          signalFirstRemember?.();
+          await firstRememberReleased;
+          throw new Error("the original Stop failed after reserving its candidate");
+        },
+        rememberCalls,
+      }),
+    };
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      const firstContent = "Next step is the in-flight candidate that must retry.";
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine(firstContent) + "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-pending-candidate-session",
+        transcript_path: transcriptPath,
+      };
+
+      const original = executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      await firstRememberStarted;
+
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine("Next step is the later candidate that can commit.") + "\n",
+        { flag: "a" },
+      );
+      const overlapping = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(overlapping.trace.transcriptCursorAdvanced).toBe(false);
+
+      releaseFirstRemember?.();
+      expect((await original).reason).toBe("write_failed");
+
+      const retried = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(retried.trace.transcriptCursorAdvanced).toBe(true);
+      expect(
+        rememberCalls.filter((call) => call.messages[0]?.content === firstContent),
+      ).toHaveLength(2);
+
+      const consumed = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(consumed.trace.transcriptDeltaMessageCount).toBe(0);
+    } finally {
+      releaseFirstRemember?.();
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("does not reuse a session cursor across different transcript files", async () => {
+    const homeRoot = await createWorkspace(
+      "goodmemory-hydration-transcript-identity-home-",
+    );
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-transcript-identity-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+    const dependencies = { createMemory: createHydrationMemory({ rememberCalls }) };
+
+    try {
+      await writeClaudeHostConfig({ homeRoot, mode: "selective" });
+      const firstPath = join(homeRoot, "first-session.jsonl");
+      const replacementPath = join(homeRoot, "replacement-session.jsonl");
+      const replacementContent =
+        `Next step is to read the replacement transcript from byte zero. ${
+          "context ".repeat(80)
+        }`;
+      await writeFile(
+        firstPath,
+        transcriptUserLine("Next step is the original transcript.") + "\n",
+        "utf8",
+      );
+      await writeFile(
+        replacementPath,
+        transcriptUserLine(replacementContent) + "\n",
+        "utf8",
+      );
+      const commonPayload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-reused-session-id",
+      };
+
+      await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: { ...commonPayload, transcript_path: firstPath },
+        },
+        dependencies,
+      );
+      const replacement = await executeInstalledHostWriteback(
+        {
+          command: "turn-end",
+          homeRoot,
+          host: "claude",
+          payload: { ...commonPayload, transcript_path: replacementPath },
+        },
+        dependencies,
+      );
+
+      expect(replacement.trace.transcriptCursorAdvanced).toBe(true);
+      expect(rememberCalls).toHaveLength(2);
+      expect(rememberCalls[1]?.messages[0]?.content).toBe(
+        replacementContent.trim(),
+      );
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("does not advance the cursor on write failure so the delta is retried", async () => {
     const homeRoot = await createWorkspace("goodmemory-hydration-retry-home-");
     const workspaceRoot = await createWorkspace(
@@ -2774,6 +3026,97 @@ describe("installed host writeback transcript hydration", () => {
       expect(
         rememberCalls.at(-1)?.messages?.[0]?.content,
       ).toBe("Next step is to survive a transient write failure.");
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("retries the same transcript delta when assisted extraction fails", async () => {
+    const homeRoot = await createWorkspace("goodmemory-hydration-extract-retry-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-hydration-extract-retry-workspace-",
+    );
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+    let extractionCalls = 0;
+
+    try {
+      await writeClaudeHostConfig({
+        assistedExtractor: true,
+        homeRoot,
+        mode: "selective",
+      });
+      const transcriptPath = join(homeRoot, "session.jsonl");
+      await writeFile(
+        transcriptPath,
+        transcriptUserLine(
+          "Next step is to preserve the retry. The staging database is postgres 16.",
+        ) + "\n",
+        "utf8",
+      );
+      const payload = {
+        cwd: workspaceRoot,
+        session_id: "hydration-session",
+        transcript_path: transcriptPath,
+      };
+      const dependencies = {
+        createMemory: createHydrationMemory({ rememberCalls }),
+        createWritebackExtractor: () => ({
+          async extract() {
+            extractionCalls += 1;
+            if (extractionCalls === 1) {
+              throw new Error("provider unavailable");
+            }
+            return {
+              candidates: [{
+                content: "The staging database is postgres 16.",
+                explicitness: "explicit" as const,
+                id: "assisted-only",
+                kindHint: "fact" as const,
+                sourceMessageIndex: 0,
+                sourceRole: "user" as const,
+              }],
+              ignoredMessageCount: 0,
+            };
+          },
+        }),
+      };
+
+      const failedExtraction = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(failedExtraction).toMatchObject({
+        reason: "written",
+        trace: {
+          batchExtraction: "extractor_failed",
+          extractionOutcome: "failed",
+          transcriptCursorAdvanced: false,
+        },
+      });
+
+      const retried = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(retried).toMatchObject({
+        reason: "written",
+        trace: {
+          batchExtraction: "ok",
+          extractionOutcome: "committed",
+          transcriptCursorAdvanced: true,
+        },
+      });
+      expect(extractionCalls).toBe(2);
+      expect(
+        rememberCalls.map((call) => call.messages[0]?.content),
+      ).toContain("The staging database is postgres 16.");
+
+      const consumed = await executeInstalledHostWriteback(
+        { command: "turn-end", homeRoot, host: "claude", payload },
+        dependencies,
+      );
+      expect(consumed.reason).toBe("empty_transcript");
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

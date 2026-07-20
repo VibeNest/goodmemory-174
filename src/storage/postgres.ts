@@ -341,6 +341,7 @@ function createPostgresSessionStateStore<TValue>(
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteIfUnchanged(scope: MemoryScope, expectedValue: TValue): Promise<boolean>;
   deleteByScope(scope: MemoryScope): Promise<number>;
 } {
   return {
@@ -391,6 +392,25 @@ function createPostgresSessionStateStore<TValue>(
       const row = rows[0];
 
       return row ? parseJson<TValue>(row.payload_json) : null;
+    },
+
+    async deleteIfUnchanged(scope, expectedValue) {
+      if (options?.readOnly) {
+        throw createReadOnlyMutationError("session");
+      }
+
+      await runtime.ensureSessionStore();
+      const rows = await runtime.sql.unsafe<Array<{ count: number }>>(
+        `
+          DELETE FROM ${runtime.sessionStateTable}
+          WHERE scope_key = $1
+            AND state_kind = $2
+            AND payload = $3::text::jsonb
+          RETURNING 1 AS count
+        `,
+        [scopeToKey(scope), stateKind, bindJson(expectedValue)],
+      );
+      return rows.length === 1;
     },
 
     async deleteByScope(scope) {
@@ -813,6 +833,10 @@ export function createPostgresSessionStore(
 
     getBuffer(scope) {
       return buffers.get(scope);
+    },
+
+    deleteBufferIfUnchanged(scope, expectedBuffer) {
+      return buffers.deleteIfUnchanged(scope, expectedBuffer);
     },
 
     deleteBuffersByScope(scope) {

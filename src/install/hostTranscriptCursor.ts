@@ -9,8 +9,13 @@ import { resolveInstallRoot } from "./hostRuntimeConfig";
 // the file bounded across many sessions. Mirrors the writeback ledger's
 // state-file conventions (0600, version field, wx-open lock).
 
-interface TranscriptCursorEntry {
+export interface InstalledHostTranscriptCursorCheckpoint {
   offset: number;
+  revision: number;
+  transcriptIdentity?: string;
+}
+
+interface TranscriptCursorEntry extends InstalledHostTranscriptCursorCheckpoint {
   updatedAt: string;
 }
 
@@ -33,24 +38,94 @@ export interface TranscriptCursorKeyInput {
 export async function readInstalledHostTranscriptCursor(
   input: TranscriptCursorKeyInput,
 ): Promise<number | undefined> {
-  const state = await readState(input.host, input.homeRoot);
-  return state.cursors[input.sessionDigest]?.offset;
+  return (await readInstalledHostTranscriptCursorCheckpoint(input))?.offset;
+}
+
+export async function readInstalledHostTranscriptCursorCheckpoint(
+  input: TranscriptCursorKeyInput,
+): Promise<InstalledHostTranscriptCursorCheckpoint | null> {
+  const entry = (await readState(input.host, input.homeRoot))
+    .cursors[input.sessionDigest];
+  if (!entry) {
+    return null;
+  }
+  return {
+    offset: entry.offset,
+    revision: entry.revision,
+    ...(entry.transcriptIdentity
+      ? { transcriptIdentity: entry.transcriptIdentity }
+      : {}),
+  };
 }
 
 export async function writeInstalledHostTranscriptCursor(
   input: TranscriptCursorKeyInput & { now: string; offset: number },
 ): Promise<void> {
   const state = await readState(input.host, input.homeRoot);
+  const current = state.cursors[input.sessionDigest];
   state.cursors[input.sessionDigest] = {
     offset: input.offset,
+    revision: (current?.revision ?? 0) + 1,
+    ...(current?.transcriptIdentity
+      ? { transcriptIdentity: current.transcriptIdentity }
+      : {}),
     updatedAt: input.now,
   };
 
+  await persistState(input.host, input.homeRoot, state);
+}
+
+export async function commitInstalledHostTranscriptCursor(
+  input: TranscriptCursorKeyInput & {
+    expected: InstalledHostTranscriptCursorCheckpoint | null;
+    now: string;
+    offset: number;
+    transcriptIdentity: string;
+  },
+): Promise<boolean> {
+  return withInstalledHostTranscriptCursorLock(
+    input.host,
+    input.homeRoot,
+    async () => {
+      const state = await readState(input.host, input.homeRoot);
+      const current = state.cursors[input.sessionDigest];
+      if (!matchesCheckpoint(current, input.expected)) {
+        return false;
+      }
+      state.cursors[input.sessionDigest] = {
+        offset: input.offset,
+        revision: (current?.revision ?? 0) + 1,
+        transcriptIdentity: input.transcriptIdentity,
+        updatedAt: input.now,
+      };
+      await persistState(input.host, input.homeRoot, state);
+      return true;
+    },
+  );
+}
+
+function matchesCheckpoint(
+  current: TranscriptCursorEntry | undefined,
+  expected: InstalledHostTranscriptCursorCheckpoint | null,
+): boolean {
+  if (!current || !expected) {
+    return current === undefined && expected === null;
+  }
+  return current.offset === expected.offset &&
+    current.revision === expected.revision &&
+    current.transcriptIdentity === expected.transcriptIdentity;
+}
+
+async function persistState(
+  host: InstalledHostKind,
+  homeRoot: string | undefined,
+  state: TranscriptCursorState,
+): Promise<void> {
   const entries = Object.entries(state.cursors)
     .sort((left, right) => left[1].updatedAt.localeCompare(right[1].updatedAt))
     .slice(-MAX_TRACKED_SESSIONS);
 
-  const path = transcriptCursorPath(input.host, input.homeRoot);
+  const path = transcriptCursorPath(host, homeRoot);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(
     path,
@@ -138,7 +213,21 @@ async function readState(
       value.offset >= 0 &&
       typeof value.updatedAt === "string"
     ) {
-      cursors[key] = { offset: value.offset, updatedAt: value.updatedAt };
+      const revision = typeof value.revision === "number" &&
+        Number.isSafeInteger(value.revision) &&
+        value.revision >= 0
+        ? value.revision
+        : 0;
+      const transcriptIdentity = typeof value.transcriptIdentity === "string" &&
+        value.transcriptIdentity.length > 0
+        ? value.transcriptIdentity
+        : undefined;
+      cursors[key] = {
+        offset: value.offset,
+        revision,
+        ...(transcriptIdentity ? { transcriptIdentity } : {}),
+        updatedAt: value.updatedAt,
+      };
     }
   }
   return { cursors, version: TRANSCRIPT_CURSOR_VERSION };

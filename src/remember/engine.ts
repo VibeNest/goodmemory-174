@@ -23,6 +23,7 @@ import type {
   MemoryExtractionStrategy,
 } from "./candidates";
 import type {
+  ExtractionOutcome,
   RememberEngineConfig,
   RememberResult,
   RememberWriteState,
@@ -38,6 +39,8 @@ import {
 } from "./normalization";
 import { commitRememberVectors, rollbackRememberWrites } from "./vectorOps";
 import { createRememberWriteCoordinator } from "./writeOwnership";
+
+type EngineRememberResult = RememberResult & { outcome: ExtractionOutcome };
 
 export type {
   ClassifiedCandidate,
@@ -609,7 +612,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
       return extraction;
     },
 
-    async remember(input: MemoryExtractionInput): Promise<RememberResult> {
+    async remember(input: MemoryExtractionInput): Promise<EngineRememberResult> {
       const resolvedLanguage = language.resolveFromMessages({
         locale: input.locale,
         messages: input.messages,
@@ -799,6 +802,11 @@ export function createRememberEngine(config: RememberEngineConfig) {
           accepted: state.accepted,
           rejected: state.rejected,
           events: state.events,
+          outcome: extractionWarning
+            ? "failed"
+            : state.accepted > 0
+              ? "committed"
+              : "no_admissible_candidate",
           ...(warnings.length > 0 ? { warnings } : {}),
           metadata: {
             locale: resolvedLanguage.locale,

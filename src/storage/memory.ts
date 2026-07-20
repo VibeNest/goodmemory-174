@@ -33,7 +33,7 @@ function clone<TValue>(value: TValue): TValue {
   return structuredClone(value);
 }
 
-function documentsEqual(left: StorageDocument, right: StorageDocument): boolean {
+function documentsEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
@@ -172,6 +172,7 @@ export function createInMemoryDocumentStore(): ProjectionCapableDocumentStore {
 interface SessionStateStore<TValue> {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteIfUnchanged(scope: MemoryScope, expectedValue: TValue): Promise<boolean>;
   deleteByScope(scope: MemoryScope): Promise<number>;
 }
 
@@ -186,6 +187,17 @@ function createScopedMapStore<TValue>(): SessionStateStore<TValue> {
     async get(scope) {
       const record = records.get(scopeToKey(scope));
       return record ? clone(record) : null;
+    },
+
+    async deleteIfUnchanged(scope, expectedValue) {
+      const key = scopeToKey(scope);
+      const current = records.get(key);
+      if (current === undefined || !documentsEqual(current, expectedValue)) {
+        return false;
+      }
+
+      records.delete(key);
+      return true;
     },
 
     async deleteByScope(scope) {
@@ -218,6 +230,10 @@ export function createInMemorySessionStore(): SessionStore {
 
     getBuffer(scope) {
       return buffers.get(scope);
+    },
+
+    deleteBufferIfUnchanged(scope, expectedBuffer) {
+      return buffers.deleteIfUnchanged(scope, expectedBuffer);
     },
 
     deleteBuffersByScope(scope) {

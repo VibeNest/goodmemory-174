@@ -1,12 +1,16 @@
 import type { GoodMemoryTracer } from "../observability/tracer";
 import {
-  createRuntimeArchiveStore,
   createRuntimeContextService,
-} from "../runtime/public";
+  type RuntimeExtractionHooks,
+} from "../runtime/contextService";
+import { createRuntimeArchiveStore } from "../runtime/public";
+import type { MemoryExtractionStrategy } from "../remember/candidates";
+import { createExtractionCursorStore } from "../remember/extractionCursor";
 import type {
   DocumentStore,
   SessionStore,
 } from "../storage/contracts";
+import { isProjectionCapableDocumentStore } from "../storage/contracts";
 import type {
   GoodMemoryRuntimeAppendMessageInput,
   GoodMemoryRuntimeBufferResult,
@@ -21,13 +25,47 @@ import type {
   GoodMemoryRuntimeUpdateWorkingMemoryInput,
   GoodMemoryRuntimeSessionJournalResult,
   GoodMemoryRuntimeWorkingMemoryResult,
+  RememberInput,
+  RememberResult,
 } from "./contracts";
 
 export interface GoodMemoryRuntimeFacadeConfig {
   documentStore: DocumentStore;
   sessionStore: SessionStore;
   now: () => Date;
+  runtimeCompactionExtraction?: {
+    extractionStrategy: MemoryExtractionStrategy;
+    remember(input: RememberInput): Promise<RememberResult>;
+  };
   tracer: GoodMemoryTracer;
+}
+
+function createRuntimeExtractionHooks(
+  config: GoodMemoryRuntimeFacadeConfig,
+): RuntimeExtractionHooks | undefined {
+  const runtimeExtraction = config.runtimeCompactionExtraction;
+  if (!runtimeExtraction) {
+    return undefined;
+  }
+  if (!isProjectionCapableDocumentStore(config.documentStore)) {
+    throw new Error(
+      "Runtime compaction extraction requires an atomic document store.",
+    );
+  }
+  return {
+    cursorStore: createExtractionCursorStore({
+      documentStore: config.documentStore,
+      now: () => config.now().toISOString(),
+    }),
+    async extract({ messages, scope }) {
+      const result = await runtimeExtraction.remember({
+        extractionStrategy: runtimeExtraction.extractionStrategy,
+        messages,
+        scope,
+      });
+      return result.outcome ?? "failed";
+    },
+  };
 }
 
 function resolveEndSessionArchiveOptions(
@@ -53,6 +91,7 @@ export function createGoodMemoryRuntimeFacade(
     archiveStore: createRuntimeArchiveStore({
       documentStore: config.documentStore,
     }),
+    extraction: createRuntimeExtractionHooks(config),
     now: () => config.now().toISOString(),
   });
 
@@ -148,6 +187,8 @@ export function createGoodMemoryRuntimeFacade(
       const archiveMode =
         archive === "off"
           ? "off"
+          : archive === "auto"
+            ? "auto"
           : archive?.mode ?? "off";
       const trace = await config.tracer.start({
         name: "runtime.session.end",

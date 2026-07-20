@@ -182,6 +182,7 @@ export interface InternalGoodMemoryOptions {
   projectionWriteThrough?: boolean;
   providerRerankingStrategy?: "listwise" | "pointwise";
   retrievalStrategyRollout?: RetrievalStrategyRolloutConfig;
+  runtimeCompactionExtraction?: boolean;
 }
 
 const ASSISTED_REVIEWER_PREFIX = "[assisted reviewer] ";
@@ -1008,6 +1009,16 @@ class GoodMemoryImpl implements GoodMemory {
       documentStore,
       sessionStore,
       now: this.now,
+      ...(internal?.runtimeCompactionExtraction
+        ? {
+            runtimeCompactionExtraction: {
+              extractionStrategy: assistedExtractor
+                ? "llm-assisted" as const
+                : "rules-only" as const,
+              remember: (input: RememberInput) => this.remember(input),
+            },
+          }
+        : {}),
       tracer: this.tracer,
     });
     this.recallEngine = createRecallEngine({
@@ -1399,11 +1410,23 @@ class GoodMemoryImpl implements GoodMemory {
 
     try {
       const result = await this.rememberEngine.remember(input);
+      const traced = withRememberTrace(result, trace.traceId);
+      if (result.outcome === "failed") {
+        await trace.failed({
+          error: new Error("Memory extraction remains retryable."),
+          attributes: {
+            accepted: result.accepted,
+            eventCount: result.events.length,
+            rejected: result.rejected,
+          },
+          links: buildRememberTraceLinks(result.events),
+        });
+        return traced;
+      }
       await this.evolutionRuntime.handleRemember({
         scope: input.scope,
         result,
       });
-      const traced = withRememberTrace(result, trace.traceId);
       await trace.succeeded({
         attributes: {
           accepted: result.accepted,

@@ -147,6 +147,53 @@ describe("public background memory jobs API", () => {
     expect(await documentStore.query("facts", { userId: "retry-user" })).toHaveLength(1);
   });
 
+  it("keeps assisted-extraction fallback jobs retryable after a partial rules write", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    let assistedAttempts = 0;
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract() {
+            assistedAttempts += 1;
+            if (assistedAttempts === 1) {
+              throw new Error("assisted extractor unavailable");
+            }
+            return { candidates: [], ignoredMessageCount: 0 };
+          },
+        },
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+    });
+    const queued = await memory.jobs.enqueueRemember({
+      extractionStrategy: "llm-assisted",
+      idempotencyKey: "assisted-retry-turn-1",
+      messages: [{
+        content: "Remember that the durable extraction cursor must retry failures.",
+        role: "user",
+      }],
+      scope: { userId: "assisted-retry-user", sessionId: "retry-session" },
+    });
+
+    const firstDrain = await memory.jobs.drain();
+    expect(firstDrain.jobs[0]).toMatchObject({
+      attempts: 1,
+      lastError: { code: "remember_failed" },
+      status: "failed",
+    });
+    expect(
+      await documentStore.query("facts", { userId: "assisted-retry-user" }),
+    ).toHaveLength(1);
+
+    expect((await memory.jobs.retryJob({ jobId: queued.jobId }))?.status).toBe(
+      "queued",
+    );
+    const secondDrain = await memory.jobs.drain();
+    expect(secondDrain.jobs[0]).toMatchObject({ attempts: 2, status: "succeeded" });
+    expect(assistedAttempts).toBe(2);
+  });
+
   it("marks fully rejected remember jobs as blocked instead of failed", async () => {
     const memory = createGoodMemory({
       storage: { provider: "memory" },

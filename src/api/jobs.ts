@@ -246,9 +246,11 @@ export function createGoodMemoryJobsFacade(
 
       const result = await config.remember(record.rememberInput);
       const linked = extractRememberLinks(result);
+      const extractionFailed = result.outcome === "failed";
+      const blocked = !extractionFailed && isRememberBlocked(result);
       record.job = {
         ...record.job,
-        status: isRememberBlocked(result) ? "blocked" : "succeeded",
+        status: extractionFailed ? "failed" : blocked ? "blocked" : "succeeded",
         updatedAt: timestamp(config.now),
         linkedEvidenceIds: linked.evidenceIds,
         linkedMemoryIds: linked.memoryIds,
@@ -256,14 +258,21 @@ export function createGoodMemoryJobsFacade(
           record.job.linkedTraceIds,
           result.metadata?.traceId,
         ),
-        lastError: isRememberBlocked(result)
+        lastError: extractionFailed
           ? {
+              code: "remember_failed",
+              message: "Assisted memory extraction failed and must be retried.",
+            }
+          : blocked
+            ? {
               code: "write_blocked",
               message: "Remember job was blocked before writing memory.",
             }
-          : undefined,
+            : undefined,
       };
-      record.rememberInput = null;
+      if (!extractionFailed) {
+        record.rememberInput = null;
+      }
 
       const completion = {
         attributes: {
@@ -272,7 +281,12 @@ export function createGoodMemoryJobsFacade(
         },
         links: [{ type: "job" as const, id: record.job.jobId }, ...linked.links],
       };
-      if (record.job.status === "blocked") {
+      if (record.job.status === "failed") {
+        await trace.failed({
+          ...completion,
+          error: new Error("assisted_extraction_failed"),
+        });
+      } else if (record.job.status === "blocked") {
         await trace.blocked(completion);
       } else {
         await trace.succeeded(completion);

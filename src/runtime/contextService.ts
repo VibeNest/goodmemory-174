@@ -11,6 +11,8 @@ import type {
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
+import type { ExtractionOutcome } from "../remember/contracts";
+import type { ExtractionCursorStore } from "../remember/extractionCursor";
 import {
   createSessionArchive,
 } from "../domain/evolutionRecords";
@@ -40,9 +42,23 @@ export interface RuntimeSalvageHooks {
   onSessionEnd?(input: SessionEndSalvageInput): Promise<void>;
 }
 
+export interface RuntimeExtractionInput {
+  from: number;
+  messages: SessionMessage[];
+  scope: MemoryScope;
+  sourceId: string;
+  through: number;
+}
+
+export interface RuntimeExtractionHooks {
+  cursorStore: ExtractionCursorStore;
+  extract(input: RuntimeExtractionInput): Promise<ExtractionOutcome>;
+}
+
 export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
   archiveStore?: RuntimeArchiveStore;
+  extraction?: RuntimeExtractionHooks;
   salvageHooks?: RuntimeSalvageHooks;
   now?: () => string;
   createMessageId?: () => string;
@@ -261,6 +277,98 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
   const createArchiveId = config.createArchiveId ?? (() => crypto.randomUUID());
   const maxBufferedMessages = Math.max(config.maxBufferedMessages ?? 24, 1);
   const lifecycle = new Map<string, SessionLifecycleStatus>();
+  const sessionLocks = new Map<string, Promise<void>>();
+
+  async function withSessionLock<TResult>(
+    scope: MemoryScope,
+    operation: () => Promise<TResult>,
+  ): Promise<TResult> {
+    const key = scopeToKey(scope);
+    const previous = sessionLocks.get(key) ?? Promise.resolve();
+    let release: () => void = () => undefined;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.then(() => current);
+    sessionLocks.set(key, tail);
+    await previous;
+
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (sessionLocks.get(key) === tail) {
+        sessionLocks.delete(key);
+      }
+    }
+  }
+
+  async function extractDurableMessages(
+    scope: MemoryScope,
+    buffer: SessionBuffer,
+    messages: SessionMessage[],
+  ): Promise<ExtractionOutcome | undefined> {
+    const extraction = config.extraction;
+    if (!extraction) {
+      return undefined;
+    }
+    const sourceId = `session:${buffer.sessionId}:${buffer.createdAt}`;
+    let from: number;
+    try {
+      const cursor = await extraction.cursorStore.get(scope, sourceId);
+      from = Math.min(cursor?.committedThrough ?? 0, messages.length);
+    } catch (error) {
+      console.error("[goodmemory:runtime-extraction] cursor read failed", {
+        error: error instanceof Error ? error.message : "unknown error",
+      });
+      return "failed";
+    }
+    if (from >= messages.length) {
+      return "committed";
+    }
+
+    let outcome: ExtractionOutcome;
+    let errorCode: string | undefined;
+    try {
+      outcome = await extraction.extract({
+        from,
+        messages: messages.slice(from),
+        scope,
+        sourceId,
+        through: messages.length,
+      });
+    } catch (error) {
+      outcome = "failed";
+      errorCode = "runtime_extraction_failed";
+      console.error("[goodmemory:runtime-extraction] extraction failed", {
+        error: error instanceof Error ? error.message : "unknown error",
+        from,
+        through: messages.length,
+      });
+    }
+
+    try {
+      const cursor = await extraction.cursorStore.record({
+        ...(errorCode ? { errorCode } : {}),
+        outcome,
+        scope,
+        sourceId,
+        through: messages.length,
+      });
+      if (cursor.committedThrough < messages.length) {
+        return "failed";
+      }
+    } catch (error) {
+      console.error("[goodmemory:runtime-extraction] cursor commit failed", {
+        error: error instanceof Error ? error.message : "unknown error",
+        from,
+        outcome,
+        through: messages.length,
+      });
+      return "failed";
+    }
+    return outcome === "failed" ? "committed" : outcome;
+  }
 
   function requireSessionScope(scope: MemoryScope): Required<
     Pick<MemoryScope, "sessionId" | "userId">
@@ -337,9 +445,23 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
     };
   }
 
-  return {
+  const unlocked = {
     async startSession(scope: MemoryScope): Promise<RuntimeContextState> {
-      return createFreshState(requireSessionScope(scope));
+      const sessionScope = requireSessionScope(scope);
+      if (config.extraction) {
+        const pending = await config.sessionStore.getBuffer(sessionScope);
+        if (pending) {
+          const outcome = await extractDurableMessages(
+            sessionScope,
+            pending,
+            messagesForReplay(pending),
+          );
+          if (outcome === "failed") {
+            throw new Error("Runtime session has pending memory extraction.");
+          }
+        }
+      }
+      return createFreshState(sessionScope);
     },
 
     async getRuntimeState(scope: MemoryScope): Promise<RuntimeContextState> {
@@ -396,6 +518,11 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         summaryUpToIndex: state.buffer.summaryUpToIndex + overflow,
       });
       await config.sessionStore.saveBuffer(sessionScope, durablePendingBuffer);
+      await extractDurableMessages(
+        sessionScope,
+        durablePendingBuffer,
+        durableCompactedMessages,
+      );
       const onPreCompact = config.salvageHooks?.onPreCompact;
       if (onPreCompact) {
         await runBestEffortSalvage("pre-compact", async () => {
@@ -530,6 +657,15 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       const state = await ensureActiveState(sessionScope);
       const archivedAt = now();
 
+      const extractionOutcome = await extractDurableMessages(
+        sessionScope,
+        state.buffer,
+        messagesForReplay(state.buffer),
+      );
+      if (extractionOutcome === "failed") {
+        throw new Error("Runtime session has pending memory extraction.");
+      }
+
       let archive: SessionArchive | undefined;
 
       if (config.archiveStore && shouldArchiveSession(state, options)) {
@@ -566,7 +702,6 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         await config.archiveStore.add(archive);
       }
 
-      lifecycle.set(scopeToKey(sessionScope), "ended");
       const onSessionEnd = config.salvageHooks?.onSessionEnd;
 
       if (archive && onSessionEnd) {
@@ -578,13 +713,51 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
         });
       }
 
+      const bufferDeleted = await config.sessionStore.deleteBufferIfUnchanged(
+        sessionScope,
+        state.buffer,
+      );
+      if (!bufferDeleted) {
+        throw new Error("Runtime session changed during close.");
+      }
+
       await Promise.all([
-        config.sessionStore.deleteBuffersByScope(sessionScope),
         config.sessionStore.deleteWorkingMemoryByScope(sessionScope),
         config.sessionStore.deleteJournalsByScope(sessionScope),
       ]);
+      lifecycle.set(scopeToKey(sessionScope), "ended");
 
       return state;
+    },
+  };
+
+  return {
+    startSession(scope: MemoryScope) {
+      return withSessionLock(scope, () => unlocked.startSession(scope));
+    },
+    getRuntimeState(scope: MemoryScope) {
+      return withSessionLock(scope, () => unlocked.getRuntimeState(scope));
+    },
+    appendToSession(scope: MemoryScope, message: SessionMessage) {
+      return withSessionLock(scope, () => unlocked.appendToSession(scope, message));
+    },
+    setSessionSummary(scope: MemoryScope, input: SessionSummaryInput) {
+      return withSessionLock(scope, () => unlocked.setSessionSummary(scope, input));
+    },
+    updateWorkingMemory(scope: MemoryScope, patch: WorkingMemoryPatch) {
+      return withSessionLock(scope, () => unlocked.updateWorkingMemory(scope, patch));
+    },
+    updateSessionJournal(scope: MemoryScope, patch: SessionJournalPatch) {
+      return withSessionLock(scope, () => unlocked.updateSessionJournal(scope, patch));
+    },
+    getRuntimeRecall(
+      scope: MemoryScope,
+      profile: "general_chat" | "coding_agent",
+    ) {
+      return withSessionLock(scope, () => unlocked.getRuntimeRecall(scope, profile));
+    },
+    endSession(scope: MemoryScope, options?: RuntimeEndSessionOptions) {
+      return withSessionLock(scope, () => unlocked.endSession(scope, options));
     },
   };
 }

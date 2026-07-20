@@ -2,8 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { createInMemoryDocumentStore, createInMemorySessionStore } from "../../src/storage/memory";
 import {
   createRuntimeContextService,
+  type RuntimeExtractionHooks,
   type RuntimeSalvageHooks,
 } from "../../src/runtime/contextService";
+import { createExtractionCursorStore } from "../../src/remember/extractionCursor";
+import type { ExtractionCursorStore } from "../../src/remember/extractionCursor";
 import {
   createMemoryRepositories,
 } from "../../src/storage/repositories";
@@ -16,6 +19,7 @@ import {
 function createService(
   maxBufferedMessages = 3,
   input?: {
+    extraction?: RuntimeExtractionHooks;
     salvageHooks?: RuntimeSalvageHooks;
     sessionStore?: SessionStore;
   },
@@ -30,6 +34,7 @@ function createService(
   const service = createRuntimeContextService({
     sessionStore,
     archiveStore: repositories.archives,
+    extraction: input?.extraction,
     salvageHooks: input?.salvageHooks,
     now: () => clock.now().toISOString(),
     createMessageId: createDeterministicIdGenerator("msg"),
@@ -207,6 +212,208 @@ describe("runtime context service", () => {
     } finally {
       console.error = originalConsoleError;
     }
+  });
+
+  it("retries failed compacted-message extraction from the durable cursor", async () => {
+    const cursorDocuments = createInMemoryDocumentStore();
+    const cursorStore = createExtractionCursorStore({
+      documentStore: cursorDocuments,
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const extracted: string[][] = [];
+    let attempt = 0;
+    const extraction: RuntimeExtractionHooks = {
+      cursorStore,
+      async extract({ messages }) {
+        extracted.push(messages.map(({ content }) => content));
+        attempt += 1;
+        return attempt === 1 ? "failed" : "committed";
+      },
+    };
+    const first = createService(2, { extraction, sessionStore });
+    const scope = { userId: "u-cursor", sessionId: "s-cursor" };
+
+    await first.service.startSession(scope);
+    await first.service.appendToSession(scope, { role: "user", content: "m1" });
+    await first.service.appendToSession(scope, { role: "assistant", content: "m2" });
+    await first.service.appendToSession(scope, { role: "user", content: "m3" });
+
+    const reconstructed = createService(2, { extraction, sessionStore });
+    await reconstructed.service.appendToSession(scope, {
+      role: "assistant",
+      content: "m4",
+    });
+
+    expect(extracted).toEqual([["m1"], ["m1", "m2"]]);
+    expect(
+      await cursorDocuments.query("extraction_cursors_v1"),
+    ).toEqual([
+      expect.objectContaining({
+        committedThrough: 2,
+        lastAttempt: expect.objectContaining({ outcome: "committed", through: 2 }),
+      }),
+    ]);
+  });
+
+  it("keeps the exact session replay source until end-session extraction succeeds", async () => {
+    const cursorDocuments = createInMemoryDocumentStore();
+    const cursorStore = createExtractionCursorStore({
+      documentStore: cursorDocuments,
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    let outcome: "committed" | "failed" = "failed";
+    const extracted: string[][] = [];
+    const extraction: RuntimeExtractionHooks = {
+      cursorStore,
+      async extract({ messages }) {
+        extracted.push(messages.map(({ content }) => content));
+        return outcome;
+      },
+    };
+    const first = createService(3, { extraction, sessionStore });
+    const scope = { userId: "u-end-cursor", sessionId: "s-end-cursor" };
+
+    await first.service.startSession(scope);
+    await first.service.appendToSession(scope, { role: "user", content: "m1" });
+    await first.service.appendToSession(scope, { role: "assistant", content: "m2" });
+    await expect(first.service.endSession(scope)).rejects.toThrow(
+      "pending memory extraction",
+    );
+    expect((await sessionStore.getBuffer(scope))?.messages).toHaveLength(2);
+
+    outcome = "committed";
+    await first.service.endSession(scope);
+
+    expect(extracted).toEqual([["m1", "m2"], ["m1", "m2"]]);
+    expect(await sessionStore.getBuffer(scope)).toBeNull();
+  });
+
+  it("does not delete a session until the durable cursor confirms its snapshot", async () => {
+    const sessionStore = createInMemorySessionStore();
+    const cursorStore: ExtractionCursorStore = {
+      async get() {
+        return null;
+      },
+      async record({ outcome, sourceId, through }) {
+        return {
+          committedThrough: 0,
+          id: "cursor-1",
+          lastAttempt: {
+            attempts: 1,
+            outcome,
+            through,
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          schemaVersion: 1,
+          scopeKey: "user:u-cursor-confirmation",
+          sourceId,
+        };
+      },
+    };
+    const { service } = createService(3, {
+      extraction: {
+        cursorStore,
+        async extract() {
+          return "committed";
+        },
+      },
+      sessionStore,
+    });
+    const scope = {
+      userId: "u-cursor-confirmation",
+      sessionId: "s-cursor-confirmation",
+    };
+
+    await service.startSession(scope);
+    await service.appendToSession(scope, { role: "user", content: "m1" });
+
+    await expect(service.endSession(scope)).rejects.toThrow(
+      "pending memory extraction",
+    );
+    expect((await sessionStore.getBuffer(scope))?.messages).toHaveLength(1);
+  });
+
+  it("serializes session close against an append to protect the extracted snapshot", async () => {
+    const cursorStore = createExtractionCursorStore({
+      documentStore: createInMemoryDocumentStore(),
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    let extractionStarted: (() => void) | undefined;
+    let releaseExtraction: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      extractionStarted = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseExtraction = resolve;
+    });
+    const { service } = createService(3, {
+      extraction: {
+        cursorStore,
+        async extract() {
+          extractionStarted?.();
+          await release;
+          return "committed";
+        },
+      },
+    });
+    const scope = { userId: "u-close-race", sessionId: "s-close-race" };
+    await service.startSession(scope);
+    await service.appendToSession(scope, { role: "user", content: "m1" });
+
+    const closing = service.endSession(scope);
+    await started;
+    const appending = service.appendToSession(scope, {
+      role: "assistant",
+      content: "m2",
+    });
+    releaseExtraction?.();
+
+    await closing;
+    await expect(appending).rejects.toThrow("ended");
+  });
+
+  it("rejects a cross-runtime close when the persisted buffer changed", async () => {
+    const sessionStore = createInMemorySessionStore();
+    const cursorStore = createExtractionCursorStore({
+      documentStore: createInMemoryDocumentStore(),
+      now: () => "2026-01-01T00:00:00.000Z",
+    });
+    let extractionStarted: (() => void) | undefined;
+    let releaseExtraction: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      extractionStarted = resolve;
+    });
+    const release = new Promise<void>((resolve) => {
+      releaseExtraction = resolve;
+    });
+    const extraction: RuntimeExtractionHooks = {
+      cursorStore,
+      async extract() {
+        extractionStarted?.();
+        await release;
+        return "committed";
+      },
+    };
+    const first = createService(3, { extraction, sessionStore });
+    const second = createService(3, { extraction, sessionStore });
+    const scope = { userId: "u-cross-close", sessionId: "s-cross-close" };
+    await first.service.startSession(scope);
+    await first.service.appendToSession(scope, { role: "user", content: "m1" });
+
+    const closing = first.service.endSession(scope);
+    await started;
+    await second.service.appendToSession(scope, {
+      role: "assistant",
+      content: "m2",
+    });
+    releaseExtraction?.();
+
+    await expect(closing).rejects.toThrow("changed during close");
+    expect(
+      (await sessionStore.getBuffer(scope))?.messages.map(({ content }) => content),
+    ).toEqual(["m1", "m2"]);
   });
 
   it("reconstructs the exact compacted transcript in the session archive", async () => {

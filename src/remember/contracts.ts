@@ -60,10 +60,18 @@ export interface RememberEvent {
   evidenceIds?: string[];
 }
 
+export type ExtractionOutcome =
+  | "committed"
+  | "no_admissible_candidate"
+  | "failed";
+
 export interface RememberResult {
   accepted: number;
   rejected: number;
   events: RememberEvent[];
+  // Optional on the exported compatibility shape. The built-in engine always
+  // sets it; older typed adapters may omit it and are treated as retryable.
+  outcome?: ExtractionOutcome;
   // Non-fatal degradation codes (present only when non-empty), mirroring the
   // ReviseMemoryResult.warnings convention. Codes: "no_durable_facts_extracted"
   // (a batch produced zero durable memories — extraction may be misconfigured)

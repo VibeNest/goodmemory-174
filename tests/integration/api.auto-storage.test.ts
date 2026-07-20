@@ -187,6 +187,9 @@ describe("auto storage runtime", () => {
           async getBuffer() {
             return null;
           },
+          async deleteBufferIfUnchanged() {
+            return false;
+          },
           async deleteBuffersByScope() {
             return 0;
           },

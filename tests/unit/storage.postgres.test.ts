@@ -219,6 +219,17 @@ describe("postgres storage adapter", () => {
     await expect(store.deleteBuffersByScope(scope)).rejects.toThrow(
       "Postgres session store is read-only in this context.",
     );
+    await expect(
+      store.deleteBufferIfUnchanged(scope, {
+        sessionId: "s-1",
+        userId: "u-1",
+        messages: [],
+        summary: null,
+        summaryUpToIndex: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        lastActiveAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow("Postgres session store is read-only in this context.");
   });
 
   it("rejects vector mutations in read-only mode before touching postgres", async () => {

@@ -133,6 +133,11 @@ function createDeferredSessionStore(
       return store.getBuffer(scope);
     },
 
+    async deleteBufferIfUnchanged(scope, expectedBuffer) {
+      const store = await resolveStore();
+      return store.deleteBufferIfUnchanged(scope, expectedBuffer);
+    },
+
     async deleteBuffersByScope(scope) {
       const store = await resolveStore();
       return store.deleteBuffersByScope(scope);

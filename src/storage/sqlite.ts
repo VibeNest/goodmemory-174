@@ -926,6 +926,7 @@ function createSQLiteScopedStore<TValue>(
 ): {
   set(scope: MemoryScope, value: TValue): Promise<void>;
   get(scope: MemoryScope): Promise<TValue | null>;
+  deleteIfUnchanged(scope: MemoryScope, expectedValue: TValue): Promise<boolean>;
   deleteByScope(scope: MemoryScope): Promise<number>;
 } {
   if (options?.readOnly && !hasTable(database, tableName)) {
@@ -936,6 +937,10 @@ function createSQLiteScopedStore<TValue>(
 
       async get() {
         return null;
+      },
+
+      async deleteIfUnchanged() {
+        throw createReadOnlyMutationError("session");
       },
 
       async deleteByScope() {
@@ -955,6 +960,9 @@ function createSQLiteScopedStore<TValue>(
   const deleteExactStatement = database.query(
     `DELETE FROM ${tableName} WHERE scope_key = ?1`,
   );
+  const deleteIfUnchangedStatement = database.query(
+    `DELETE FROM ${tableName} WHERE scope_key = ?1 AND json = ?2`,
+  );
   const deletePrefixStatement = database.query(
     `DELETE FROM ${tableName} WHERE scope_key LIKE ?1`,
   );
@@ -967,6 +975,16 @@ function createSQLiteScopedStore<TValue>(
     async get(scope) {
       const row = getStatement.get(scopeToKey(scope));
       return row ? parseJson<TValue>(row.json) : null;
+    },
+
+    async deleteIfUnchanged(scope, expectedValue) {
+      return runSQLiteImmediateTransaction(database, () => {
+        const result = deleteIfUnchangedStatement.run(
+          scopeToKey(scope),
+          JSON.stringify(expectedValue),
+        );
+        return Number(result.changes ?? 0) === 1;
+      });
     },
 
     async deleteByScope(scope) {
@@ -1013,6 +1031,10 @@ export function createSQLiteSessionStore(
 
     getBuffer(scope) {
       return buffers.get(scope);
+    },
+
+    deleteBufferIfUnchanged(scope, expectedBuffer) {
+      return buffers.deleteIfUnchanged(scope, expectedBuffer);
     },
 
     deleteBuffersByScope(scope) {

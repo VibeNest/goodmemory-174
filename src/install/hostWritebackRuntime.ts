@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
+import { stat } from "node:fs/promises";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
-import type { RememberEvent } from "../remember/contracts";
+import type {
+  ExtractionOutcome,
+  RememberEvent,
+} from "../remember/contracts";
 import type {
   MessageAnnotation,
   MemoryExtractionStrategy,
@@ -42,9 +46,9 @@ import {
 } from "./hostExecutionContext";
 import type { InstalledHostKind } from "./hostInstall";
 import {
-  readInstalledHostTranscriptCursor,
-  withInstalledHostTranscriptCursorLock,
-  writeInstalledHostTranscriptCursor,
+  commitInstalledHostTranscriptCursor,
+  readInstalledHostTranscriptCursorCheckpoint,
+  type InstalledHostTranscriptCursorCheckpoint,
 } from "./hostTranscriptCursor";
 import {
   readClaudeTranscriptDelta,
@@ -285,6 +289,7 @@ async function executeResolvedWriteback(args: {
       mode: config.mode,
       reason: "no_candidates",
       trace: {
+        batchExtraction: batch.status,
         command: input.command,
         messageCount: messages.length,
         rawTranscriptPersisted: false,
@@ -319,6 +324,7 @@ async function executeResolvedWriteback(args: {
       mode: "review",
       reason: "review_queued",
       trace: {
+        batchExtraction: batch.status,
         command: input.command,
         durableCandidateCount: durableForReview.length,
         messageCount: messages.length,
@@ -367,6 +373,7 @@ async function executeResolvedWriteback(args: {
       mode: "selective",
       reason: "no_candidates",
       trace: {
+        batchExtraction: batch.status,
         command: input.command,
         durableCandidateCount: 0,
         messageCount: messages.length,
@@ -438,6 +445,7 @@ async function executeResolvedWriteback(args: {
         durableCandidateCount: durableCandidates.length,
         extractionStrategy,
         failedCandidateCount: writeResult.failedKeys.size,
+        pendingCandidateCount: writeResult.pendingCandidateCount,
         rawTranscriptPersisted: false,
         rejectedCandidateCount: writeResult.rejectedKeys.size,
         resolvedExtractionStrategies: [...writeResult.resolvedExtractionStrategies],
@@ -453,6 +461,7 @@ async function executeResolvedWriteback(args: {
       mode: "selective",
       reason: "write_failed",
       trace: {
+        batchExtraction: batch.status,
         command: input.command,
         rawTranscriptPersisted: false,
       },
@@ -496,20 +505,62 @@ function buildSkippedWritebackResult(input: {
   };
 }
 
-// Cursor advance only after outcomes that fully consumed the delta; failed
-// writes leave the cursor so the next turn retries the same window (the
-// ledger's scoped content-key dedupe keeps retries idempotent).
-const CURSOR_ADVANCE_REASONS: ReadonlySet<InstalledHostWritebackResult["reason"]> =
-  new Set(["empty_transcript", "no_candidates", "observed", "review_queued", "written"]);
+function resolveWritebackExtractionOutcome(
+  result: InstalledHostWritebackResult,
+): ExtractionOutcome {
+  if (
+    result.trace.batchExtraction === "extractor_failed" ||
+    result.trace.pendingCandidateCount
+  ) {
+    return "failed";
+  }
+  if (
+    result.reason === "write_failed" ||
+    result.reason === "audit_failed" ||
+    result.reason === "transcript_read_failed"
+  ) {
+    return "failed";
+  }
+  if (result.reason === "empty_transcript" || result.reason === "no_candidates") {
+    return "no_admissible_candidate";
+  }
+  if (
+    result.reason === "observed" ||
+    result.reason === "review_queued" ||
+    result.reason === "written"
+  ) {
+    return "committed";
+  }
+  return "failed";
+}
 
 interface TranscriptHydration {
   attempted: boolean;
+  cursorCheckpoint: InstalledHostTranscriptCursorCheckpoint | null | undefined;
   deltaMessageCount: number;
   formatDrift?: HostTranscriptFormatDrift;
   nextOffset: number;
   payload: Record<string, unknown>;
   readStatus: HostTranscriptReadStatus | undefined;
   sessionDigest: string | undefined;
+  transcriptIdentity: string | undefined;
+}
+
+async function buildTranscriptIdentity(transcriptPath: string): Promise<string> {
+  let fileIdentity = "unavailable";
+  try {
+    const metadata = await stat(transcriptPath);
+    fileIdentity = `${metadata.dev}:${metadata.ino}`;
+  } catch {
+    // The transcript reader reports the concrete read failure. A path-bound
+    // identity still keeps a failed lookup from colliding with another file.
+  }
+  return `transcript:${createHash("sha256")
+    .update(transcriptPath)
+    .update("\0")
+    .update(fileIdentity)
+    .digest("hex")
+    .slice(0, 32)}`;
 }
 
 async function hydrateTranscriptPayload(input: {
@@ -519,11 +570,13 @@ async function hydrateTranscriptPayload(input: {
 }): Promise<TranscriptHydration> {
   const skipped: TranscriptHydration = {
     attempted: false,
+    cursorCheckpoint: undefined,
     deltaMessageCount: 0,
     nextOffset: 0,
     payload: input.payload,
     readStatus: undefined,
     sessionDigest: undefined,
+    transcriptIdentity: undefined,
   };
   const hasInlineContent =
     Array.isArray(input.payload.messages) || input.payload.transcript !== undefined;
@@ -535,12 +588,16 @@ async function hydrateTranscriptPayload(input: {
   const sessionDigest = buildWritebackSessionDigest(
     readOptionalText(input.payload, "session_id"),
   );
-  const fromOffset = sessionDigest
-    ? await readInstalledHostTranscriptCursor({
+  const transcriptIdentity = await buildTranscriptIdentity(transcriptPath);
+  const cursorCheckpoint = sessionDigest
+    ? await readInstalledHostTranscriptCursorCheckpoint({
         homeRoot: input.homeRoot,
         host: input.host,
         sessionDigest,
       })
+    : undefined;
+  const fromOffset = cursorCheckpoint?.transcriptIdentity === transcriptIdentity
+    ? cursorCheckpoint.offset
     : undefined;
   // Host-specific transcript formats: Claude Stop payloads reference Claude
   // session JSONL; native Codex Stop and --from-rollout both point at rollout
@@ -554,12 +611,14 @@ async function hydrateTranscriptPayload(input: {
 
   return {
     attempted: true,
+    cursorCheckpoint,
     deltaMessageCount: delta.messages.length,
     ...(delta.formatDrift ? { formatDrift: delta.formatDrift } : {}),
     nextOffset: delta.nextOffset,
     payload: { ...input.payload, messages: delta.messages },
     readStatus: delta.status,
     sessionDigest,
+    transcriptIdentity,
   };
 }
 
@@ -574,27 +633,25 @@ async function applyTranscriptHydrationOutcome(args: {
   }
 
   const sessionDigest = hydration.sessionDigest;
+  const extractionOutcome = resolveWritebackExtractionOutcome(result);
   let cursorAdvanced = false;
   if (
     sessionDigest &&
+    hydration.cursorCheckpoint !== undefined &&
     hydration.readStatus === "ok" &&
-    CURSOR_ADVANCE_REASONS.has(result.reason)
+    hydration.transcriptIdentity &&
+    extractionOutcome !== "failed"
   ) {
     try {
-      await withInstalledHostTranscriptCursorLock(
-        input.host,
-        input.homeRoot,
-        async () => {
-          await writeInstalledHostTranscriptCursor({
-            homeRoot: input.homeRoot,
-            host: input.host,
-            now: new Date().toISOString(),
-            offset: hydration.nextOffset,
-            sessionDigest,
-          });
-        },
-      );
-      cursorAdvanced = true;
+      cursorAdvanced = await commitInstalledHostTranscriptCursor({
+        expected: hydration.cursorCheckpoint,
+        homeRoot: input.homeRoot,
+        host: input.host,
+        now: new Date().toISOString(),
+        offset: hydration.nextOffset,
+        sessionDigest,
+        transcriptIdentity: hydration.transcriptIdentity,
+      });
     } catch {
       // Fail open: a lost cursor write only means the next turn re-reads the
       // same delta, which the ledger dedupe absorbs.
@@ -605,6 +662,7 @@ async function applyTranscriptHydrationOutcome(args: {
     ...result,
     trace: {
       ...result.trace,
+      extractionOutcome,
       transcriptCursorAdvanced: cursorAdvanced,
       transcriptDeltaMessageCount: hydration.deltaMessageCount,
       transcriptPathUsed: true,
@@ -1233,6 +1291,7 @@ async function writeNewCandidates(input: {
   duplicateCount: number;
   failed: boolean;
   failedKeys: Set<string>;
+  pendingCandidateCount: number;
   rejectedKeys: Set<string>;
   resolvedExtractionStrategies: Set<MemoryExtractionStrategy>;
   uncommittedKeys: Set<string>;
@@ -1262,6 +1321,7 @@ async function writeNewCandidates(input: {
   const failedKeys = new Set<string>();
   const resolvedExtractionStrategies = new Set<MemoryExtractionStrategy>();
   let duplicateCount = 0;
+  let pendingCandidateCount = 0;
 
   for (const [index, record] of records.entries()) {
     const { candidate, eventId, legacyKey, scopedKey } = record;
@@ -1273,7 +1333,7 @@ async function writeNewCandidates(input: {
     seenInBatch.add(legacyKey);
 
     try {
-      const reserved = await reserveWritebackCandidate({
+      const reservation = await reserveWritebackCandidate({
         candidate,
         command: input.command,
         eventId,
@@ -1284,8 +1344,11 @@ async function writeNewCandidates(input: {
         scopeDigest,
         sessionDigest: input.sessionDigest,
       });
-      if (!reserved) {
+      if (reservation !== "reserved") {
         duplicateCount += 1;
+        if (reservation === "pending") {
+          pendingCandidateCount += 1;
+        }
         continue;
       }
     } catch {
@@ -1293,6 +1356,7 @@ async function writeNewCandidates(input: {
       return buildWritebackFailureResult({
         duplicateCount,
         failedKeys,
+        pendingCandidateCount,
         records: records.slice(index + 1),
         rejectedKeys,
         resolvedExtractionStrategies,
@@ -1362,6 +1426,7 @@ async function writeNewCandidates(input: {
       return buildWritebackFailureResult({
         duplicateCount,
         failedKeys,
+        pendingCandidateCount,
         records: records.slice(index + 1),
         rejectedKeys,
         resolvedExtractionStrategies,
@@ -1375,6 +1440,7 @@ async function writeNewCandidates(input: {
     duplicateCount,
     failed: false,
     failedKeys: new Set<string>(),
+    pendingCandidateCount,
     rejectedKeys: new Set(rejectedKeys),
     resolvedExtractionStrategies,
     uncommittedKeys: new Set<string>(),
@@ -1393,15 +1459,23 @@ async function reserveWritebackCandidate(input: {
   scopedKey: string;
   scopeDigest: string;
   sessionDigest?: string;
-}): Promise<boolean> {
+}): Promise<"committed" | "pending" | "reserved"> {
   return await withInstalledHostWritebackLedgerLock(
     input.host,
     input.homeRoot,
     async () => {
       let ledger = await readInstalledHostWritebackLedger(input.host, input.homeRoot);
-      const existing = new Set([...ledger.events, ...ledger.pending]);
-      if (existing.has(input.scopedKey) || existing.has(input.legacyKey)) {
-        return false;
+      if (
+        ledger.events.includes(input.scopedKey) ||
+        ledger.events.includes(input.legacyKey)
+      ) {
+        return "committed";
+      }
+      if (
+        ledger.pending.includes(input.scopedKey) ||
+        ledger.pending.includes(input.legacyKey)
+      ) {
+        return "pending";
       }
       ledger = markWritebackAuditPending(ledger, {
         candidateKey: input.scopedKey,
@@ -1418,7 +1492,7 @@ async function reserveWritebackCandidate(input: {
         ...(input.sessionDigest ? { sessionDigest: input.sessionDigest } : {}),
       });
       await writeInstalledHostWritebackLedger(input.host, input.homeRoot, ledger);
-      return true;
+      return "reserved";
     },
   );
 }
@@ -1569,6 +1643,7 @@ async function failWritebackCandidate(input: {
 function buildWritebackFailureResult(input: {
   duplicateCount: number;
   failedKeys: Set<string>;
+  pendingCandidateCount: number;
   records: Array<{ scopedKey: string }>;
   rejectedKeys: string[];
   resolvedExtractionStrategies: Set<MemoryExtractionStrategy>;
@@ -1578,6 +1653,7 @@ function buildWritebackFailureResult(input: {
   duplicateCount: number;
   failed: boolean;
   failedKeys: Set<string>;
+  pendingCandidateCount: number;
   rejectedKeys: Set<string>;
   resolvedExtractionStrategies: Set<MemoryExtractionStrategy>;
   uncommittedKeys: Set<string>;
@@ -1591,6 +1667,7 @@ function buildWritebackFailureResult(input: {
     duplicateCount: input.duplicateCount,
     failed: true,
     failedKeys: input.failedKeys,
+    pendingCandidateCount: input.pendingCandidateCount,
     rejectedKeys: new Set(input.rejectedKeys),
     resolvedExtractionStrategies: input.resolvedExtractionStrategies,
     uncommittedKeys: new Set(input.uncommittedKeys),

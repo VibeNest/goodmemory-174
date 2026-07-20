@@ -157,6 +157,10 @@ export interface VectorStore {
 export interface SessionStore {
   saveBuffer(scope: MemoryScope, buffer: SessionBuffer): Promise<void>;
   getBuffer(scope: MemoryScope): Promise<SessionBuffer | null>;
+  deleteBufferIfUnchanged(
+    scope: MemoryScope,
+    expectedBuffer: SessionBuffer,
+  ): Promise<boolean>;
   deleteBuffersByScope(scope: MemoryScope): Promise<number>;
   saveWorkingMemory(
     scope: MemoryScope,

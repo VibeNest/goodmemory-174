@@ -243,6 +243,7 @@ describe("remember engine", () => {
     expect(await repositories.facts.listByUser("u-1")).toHaveLength(0);
     expect(await repositories.feedback.listByUser("u-1")).toHaveLength(1);
     expect(result.accepted).toBe(1);
+    expect(result.outcome).toBe("committed");
   });
 
   it("merges multi-field profile updates into one durable profile", async () => {
@@ -763,6 +764,7 @@ describe("remember engine", () => {
     expect(result.events[0]?.extractionSources).toEqual(["rules-only"]);
     expect(facts).toHaveLength(1);
     expect(facts[0]?.subject).toBe("runtime launch");
+    expect(result.outcome).toBe("failed");
     // The assisted extractor threw and was silently swallowed to rules-only;
     // surface it so the caller is not left thinking assisted extraction ran.
     expect(result.warnings ?? []).toContain("assisted_extraction_failed");
@@ -786,6 +788,7 @@ describe("remember engine", () => {
     });
 
     expect(result.accepted).toBe(0);
+    expect(result.outcome).toBe("no_admissible_candidate");
     expect(result.warnings ?? []).toContain("no_durable_facts_extracted");
   });
 
@@ -822,6 +825,7 @@ describe("remember engine", () => {
     expect(result.accepted).toBe(0);
     expect(result.rejected).toBe(1);
     expect(result.events[0]?.outcome).toBe("rejected");
+    expect(result.outcome).toBe("no_admissible_candidate");
     expect(result.warnings ?? []).not.toContain("no_durable_facts_extracted");
   });
 

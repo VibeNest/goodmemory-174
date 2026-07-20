@@ -3,6 +3,10 @@ import {
   createGoodMemory,
   type GoodMemoryTraceSpan,
 } from "../../src";
+import {
+  createInMemoryDocumentStore,
+  createInMemorySessionStore,
+} from "../../src/storage/memory";
 
 describe("observability trace sink", () => {
   it("uses a private per-instance scope digest secret by default", async () => {
@@ -223,6 +227,46 @@ describe("observability trace sink", () => {
       "memory.remember:failed",
     ]);
     expect(JSON.stringify(spans)).not.toContain("raw failure payload");
+  });
+
+  it("marks assisted fallback as retryable failure without learning from it", async () => {
+    const spans: GoodMemoryTraceSpan[] = [];
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      storage: { provider: "memory" },
+      adapters: {
+        assistedExtractor: {
+          async extract() {
+            throw new Error("provider unavailable");
+          },
+        },
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      observability: {
+        traceSink: {
+          emit(span) {
+            spans.push(span);
+          },
+        },
+      },
+    });
+
+    const result = await memory.remember({
+      extractionStrategy: "llm-assisted",
+      messages: [{
+        role: "user",
+        content: "Remember that the launch is blocked on review.",
+      }],
+      scope: { userId: "retryable-extraction-user" },
+    });
+
+    expect(result.outcome).toBe("failed");
+    expect(spans.map((span) => `${span.name}:${span.status}`)).toEqual([
+      "memory.remember:started",
+      "memory.remember:failed",
+    ]);
+    expect(await documentStore.query("experiences")).toEqual([]);
   });
 
   it("fails open when the trace sink throws", async () => {

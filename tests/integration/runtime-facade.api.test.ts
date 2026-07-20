@@ -3,8 +3,49 @@ import {
   createGoodMemory,
   type GoodMemoryTraceSpan,
 } from "../../src";
+import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 
 describe("public memory.runtime facade", () => {
+  it("retries internal compaction extraction before advancing its durable cursor", async () => {
+    let assistedAttempts = 0;
+    const memory = createInternalGoodMemory(
+      {
+        adapters: {
+          assistedExtractor: {
+            async extract() {
+              assistedAttempts += 1;
+              if (assistedAttempts === 1) {
+                throw new Error("transient assisted extraction failure");
+              }
+              return { candidates: [], ignoredMessageCount: 0 };
+            },
+          },
+        },
+        storage: { provider: "memory" },
+      },
+      { runtimeCompactionExtraction: true },
+    );
+    const scope = {
+      sessionId: "runtime-cursor-session",
+      userId: "runtime-cursor-user",
+    };
+
+    await memory.runtime.startSession({ scope });
+    for (let index = 1; index <= 26; index += 1) {
+      await memory.runtime.appendMessage({
+        message: {
+          content: `Remember that runtime compaction checkpoint ${index} uses SQLite.`,
+          role: "user",
+        },
+        scope,
+      });
+    }
+
+    expect(assistedAttempts).toBe(2);
+    const exported = await memory.exportMemory({ scope });
+    expect(exported.durable.facts.length).toBeGreaterThan(0);
+  });
+
   it("manages session runtime through the createGoodMemory result", async () => {
     const spans: GoodMemoryTraceSpan[] = [];
     const memory = createGoodMemory({

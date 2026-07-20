@@ -204,6 +204,31 @@ export function runSessionStoreContract(
         await fixture.store.saveBuffer(scope, buffer);
         expect(await fixture.store.getBuffer(scope)).toEqual(buffer);
 
+        const appendedBuffer = {
+          ...buffer,
+          messages: [
+            {
+              role: "user" as const,
+              content: "arrived while endSession was finishing",
+            },
+          ],
+          lastActiveAt: "2026-01-01T00:01:00.000Z",
+        };
+        await fixture.store.saveBuffer(scope, appendedBuffer);
+        expect(
+          await fixture.store.deleteBufferIfUnchanged(scope, buffer),
+        ).toBe(false);
+        expect(await fixture.store.getBuffer(scope)).toEqual(appendedBuffer);
+        expect(
+          await fixture.store.deleteBufferIfUnchanged(scope, appendedBuffer),
+        ).toBe(true);
+        expect(await fixture.store.getBuffer(scope)).toBeNull();
+        expect(
+          await fixture.store.deleteBufferIfUnchanged(scope, appendedBuffer),
+        ).toBe(false);
+
+        await fixture.store.saveBuffer(scope, buffer);
+
         await fixture.store.saveWorkingMemory(scope, workingMemory);
         expect(await fixture.store.getWorkingMemory(scope)).toEqual(workingMemory);
 

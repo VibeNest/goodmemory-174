@@ -118,6 +118,12 @@ function createAutoSessionStore(
       return resolveBackend().then((backend) => backend.sessionStore.getBuffer(scope));
     },
 
+    deleteBufferIfUnchanged(scope: MemoryScope, expectedBuffer: SessionBuffer) {
+      return resolveBackend().then((backend) =>
+        backend.sessionStore.deleteBufferIfUnchanged(scope, expectedBuffer),
+      );
+    },
+
     deleteBuffersByScope(scope: MemoryScope) {
       return resolveBackend().then((backend) =>
         backend.sessionStore.deleteBuffersByScope(scope),

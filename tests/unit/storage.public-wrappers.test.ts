@@ -139,6 +139,13 @@ function createTrackedSessionStore(log: string[]): SessionStore {
       return buffer;
     },
 
+    async deleteBufferIfUnchanged(nextScope, expectedBuffer) {
+      log.push(
+        `session.deleteBufferIfUnchanged:${nextScope.sessionId}:${expectedBuffer.summary}`,
+      );
+      return true;
+    },
+
     async deleteBuffersByScope(nextScope) {
       log.push(`session.deleteBuffersByScope:${nextScope.sessionId}`);
       return 1;
@@ -282,6 +289,7 @@ describe("public storage wrappers", () => {
 
     await sessionStore.saveBuffer(scope, buffer);
     expect(await sessionStore.getBuffer(scope)).toEqual(buffer);
+    expect(await sessionStore.deleteBufferIfUnchanged(scope, buffer)).toBe(true);
     expect(await sessionStore.deleteBuffersByScope(scope)).toBe(1);
     await sessionStore.saveWorkingMemory(scope, workingMemory);
     expect(await sessionStore.getWorkingMemory(scope)).toEqual(workingMemory);
@@ -309,6 +317,7 @@ describe("public storage wrappers", () => {
       "createSQLiteSessionStore:/tmp/test.sqlite:false",
       "session.saveBuffer:session-1:summary",
       "session.getBuffer:session-1",
+      "session.deleteBufferIfUnchanged:session-1:summary",
       "session.deleteBuffersByScope:session-1",
       "session.saveWorkingMemory:session-1:ship the package boundary",
       "session.getWorkingMemory:session-1",
@@ -448,6 +457,7 @@ describe("public storage wrappers", () => {
 
     await sessionStore.saveBuffer(scope, buffer);
     expect(await sessionStore.getBuffer(scope)).toEqual(buffer);
+    expect(await sessionStore.deleteBufferIfUnchanged(scope, buffer)).toBe(true);
     expect(await sessionStore.deleteBuffersByScope(scope)).toBe(1);
     await sessionStore.saveWorkingMemory(scope, workingMemory);
     expect(await sessionStore.getWorkingMemory(scope)).toEqual(workingMemory);
@@ -476,6 +486,7 @@ describe("public storage wrappers", () => {
       "createPostgresSessionStore:postgres://localhost:5432/goodmemory:false",
       "session.saveBuffer:session-1:summary",
       "session.getBuffer:session-1",
+      "session.deleteBufferIfUnchanged:session-1:summary",
       "session.deleteBuffersByScope:session-1",
       "session.saveWorkingMemory:session-1:ship the package boundary",
       "session.getWorkingMemory:session-1",

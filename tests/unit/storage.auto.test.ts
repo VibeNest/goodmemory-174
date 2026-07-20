@@ -41,7 +41,7 @@ describe("auto storage adapters", () => {
           },
         ]);
 
-      await adapters.sessionStore.saveBuffer(scope, {
+      const buffer = {
         sessionId: scope.sessionId,
         userId: scope.userId,
         messages: [
@@ -54,7 +54,8 @@ describe("auto storage adapters", () => {
         summaryUpToIndex: 0,
         createdAt: "2026-04-21T00:00:00.000Z",
         lastActiveAt: "2026-04-21T00:00:00.000Z",
-      });
+      };
+      await adapters.sessionStore.saveBuffer(scope, buffer);
       await adapters.sessionStore.saveWorkingMemory(scope, {
         sessionId: scope.sessionId,
         userId: scope.userId,
@@ -76,6 +77,13 @@ describe("auto storage adapters", () => {
       expect((await adapters.sessionStore.getBuffer(scope))?.messages).toHaveLength(
         1,
       );
+      expect(
+        await adapters.sessionStore.deleteBufferIfUnchanged(scope, {
+          ...buffer,
+          summary: "stale snapshot",
+        }),
+      ).toBe(false);
+      expect(await adapters.sessionStore.getBuffer(scope)).toEqual(buffer);
       expect((await adapters.sessionStore.getWorkingMemory(scope))?.currentGoal)
         .toBe("Ship env isolation");
       expect((await adapters.sessionStore.getJournal(scope))?.currentState).toBe(
