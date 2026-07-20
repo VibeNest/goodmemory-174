@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildRecallPlanAssistantPrompt,
   createLLMRecallPlanAssistant,
+  RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT,
   recallPlanAssistanceSchema,
 } from "../../src/provider/recall-plan-assistant";
 import type { AISDKModelConfig } from "../../src/provider/ai-sdk-runtime";
@@ -122,6 +123,38 @@ describe("provider recall plan assistant", () => {
     expect(prompt).not.toContain("benchmarkCaseId");
     expect(prompt).not.toContain("goldAnswer");
     expect(prompt).not.toContain("private");
+  });
+
+  it("states the exact structured-output vocabulary accepted by the planner", () => {
+    for (const value of [
+      "change",
+      "count",
+      "current",
+      "history",
+      "aggregation",
+      "direct",
+      "multi_facet",
+      "relation",
+      "temporal",
+      "runtime",
+      "semantic",
+      "episodic",
+      "procedural",
+      "derived",
+      "after",
+      "before",
+      "high",
+      "low",
+      "medium",
+    ]) {
+      expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(value);
+    }
+    expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
+      '{"kind":"before","referenceTime":"<ISO-8601>"}',
+    );
+    expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
+      "Omit a field instead of returning null or an unlisted value.",
+    );
   });
 
   it("rejects provider attempts to override fixed retrieval budgets", () => {

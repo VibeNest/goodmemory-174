@@ -78,6 +78,12 @@ export const RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT = [
   "Use only the request-local query, scope, reference time, and deterministic plan.",
   "Do not invent user facts or infer facts outside the supplied query.",
   "Return only a JSON object containing useful changes to entities, facets, temporalConstraints, aggregation, evidenceNeeds, planes, maxHops, or uncertainty.",
+  "Allowed aggregation values: change, count, current, history.",
+  "Allowed evidenceNeeds values: aggregation, direct, multi_facet, relation, temporal.",
+  "Allowed planes values: runtime, semantic, episodic, procedural, derived.",
+  "Allowed temporalConstraints kind values: after, before, current, history; each entry must have exactly this shape: {\"kind\":\"before\",\"referenceTime\":\"<ISO-8601>\"}.",
+  "Allowed uncertainty values: high, low, medium; maxHops must be an integer from 1 through 3.",
+  "Omit a field instead of returning null or an unlisted value.",
   "Do not return preRankLimit, selectedLimit, or maxRenderedTokens.",
 ].join(" ");
 
