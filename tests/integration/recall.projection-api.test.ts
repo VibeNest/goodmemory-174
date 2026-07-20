@@ -340,6 +340,9 @@ describe("recall projections through the public API", () => {
     });
     const memoryId = remembered.events.find(({ memoryType }) => memoryType === "fact")
       ?.memoryId;
+    if (!memoryId) {
+      throw new Error("Expected the claim fixture to create a fact memory.");
+    }
 
     const recalled = await memory.recall({
       scope,
@@ -352,6 +355,12 @@ describe("recall projections through the public API", () => {
 
     expect(traceCandidate?.channels.temporal).toBeDefined();
     expect(traceCandidate?.channels.relation).toBeDefined();
+    expect(recalled.facts).toEqual([
+      expect.objectContaining({
+        id: memoryId,
+        content: "Atlas currently deploys through Lisbon.",
+      }),
+    ]);
     expect("evidenceLedger" in recalled).toBe(false);
 
     const withEvidence = await memory.recall({
@@ -361,9 +370,24 @@ describe("recall projections through the public API", () => {
       includeEvidence: true,
     });
 
+    expect(withEvidence.facts.map(({ id }) => id)).toEqual([memoryId]);
     expect(withEvidence.evidence[0]?.sourceRecordIds).toEqual([
       expect.any(String),
     ]);
+    expect(withEvidence.metadata.candidateTraces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ memoryId, returned: true }),
+      ]),
+    );
+    expect(withEvidence.metadata.hits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: memoryId,
+          evidenceIds: [withEvidence.evidence[0]?.id],
+          type: "fact",
+        }),
+      ]),
+    );
     expect(withEvidence.evidenceLedger).toEqual([
       expect.objectContaining({
         evidenceId: withEvidence.evidence[0]?.id,

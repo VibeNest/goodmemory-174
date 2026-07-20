@@ -506,7 +506,7 @@ describe("generalized fusion through the recall engine", () => {
       id: sourceMemoryId,
       ...scope,
       category: "project",
-      content: "Opaque Atlas status record.",
+      content: "Atlas project status changed from planned to completed.",
       source: { method: "explicit", extractedAt: "2026-07-08T00:00:00.000Z" },
       createdAt: "2026-07-08T00:00:00.000Z",
       updatedAt: "2026-07-08T00:00:00.000Z",
@@ -544,9 +544,8 @@ describe("generalized fusion through the recall engine", () => {
       retrievalProfile: "general_chat",
     });
 
-    expect(result.facts.map(({ content }) => content).sort()).toEqual([
-      "completed",
-      "planned",
+    expect(result.facts.map(({ content }) => content)).toEqual([
+      "Atlas project status changed from planned to completed.",
     ]);
     expect(result.metadata.retrievalTrace?.fusionRuns?.[0]?.candidates).toEqual(
       expect.arrayContaining([
@@ -557,7 +556,7 @@ describe("generalized fusion through the recall engine", () => {
     );
   });
 
-  it("materializes only the latest source in a current claim group", async () => {
+  it("selects only the latest canonical source in a current claim group", async () => {
     const rawStore = createInMemoryDocumentStore();
     const projectionIndex = createRecallProjectionRuntime({
       documentStore: rawStore,
@@ -618,7 +617,68 @@ describe("generalized fusion through the recall engine", () => {
       retrievalProfile: "general_chat",
     });
 
-    expect(result.facts.map(({ content }) => content)).toEqual(["completed"]);
+    expect(result.facts.map(({ content }) => content)).toEqual([
+      "Opaque completion record.",
+    ]);
+  });
+
+  it("uses a claim for current selection without rewriting canonical fact content", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    const fact = createFactMemory({
+      id: "fact-canonical-status",
+      ...scope,
+      category: "project",
+      content: "Atlas completed its deployment through Lisbon.",
+      source: { method: "explicit", extractedAt: "2026-07-09T00:00:00.000Z" },
+      createdAt: "2026-07-09T00:00:00.000Z",
+      updatedAt: "2026-07-09T00:00:00.000Z",
+    });
+    await repositories.facts.add(fact);
+    await projectionIndex.appendClaim({
+      ...scope,
+      sourceMemoryId: fact.id,
+      subject: "Atlas",
+      claim: {
+        predicateKey: "project.status",
+        objectText: "completed",
+      },
+      observedAt: "2026-07-09T00:00:00.000Z",
+      ingestedAt: "2026-07-09T00:00:00.000Z",
+      evidenceIds: [],
+      sourceMessageIds: [],
+      extractorVersion: "claim-test-v1",
+    });
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, maxTotalFacts: 8 },
+      projectionIndex,
+      referenceTime: () => "2026-07-10T00:00:00.000Z",
+    });
+
+    const result = await engine.recall({
+      scope,
+      query: "What is Atlas's current project status?",
+      retrievalProfile: "general_chat",
+    });
+
+    expect(result.facts).toEqual([
+      expect.objectContaining({
+        id: fact.id,
+        content: fact.content,
+      }),
+    ]);
+    expect(result.facts[0]?.attributes?.claimProjectionId).toBeUndefined();
   });
 
   it("queries claim history and selects the status before an explicit boundary", async () => {
@@ -636,7 +696,7 @@ describe("generalized fusion through the recall engine", () => {
       id: "fact-status",
       ...scope,
       category: "project",
-      content: "Opaque Atlas status.",
+      content: "Atlas project status was old before 2025.",
       source: { method: "explicit", extractedAt: "2024-12-01T00:00:00.000Z" },
       createdAt: "2024-12-01T00:00:00.000Z",
       updatedAt: "2024-12-01T00:00:00.000Z",
@@ -683,7 +743,9 @@ describe("generalized fusion through the recall engine", () => {
     expect(temporal?.evidenceDocumentIds).not.toContain(
       (await projectionIndex.queryClaims(scope))[0]?.id,
     );
-    expect(result.facts.map(({ content }) => content)).toEqual(["old"]);
+    expect(result.facts.map(({ content }) => content)).toEqual([
+      "Atlas project status was old before 2025.",
+    ]);
   });
 
   it("does not mix a post-boundary current fact into another source's historical answer", async () => {

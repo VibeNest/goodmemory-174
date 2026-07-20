@@ -241,34 +241,6 @@ export interface RecallGeneralizedFusionConfig {
   rrfK?: number;
 }
 
-function materializeClaimFact(
-  claim: ClaimProjection,
-  source: FactMemory,
-): FactMemory {
-  return {
-    ...source,
-    id: claim.id,
-    content: claim.objectText,
-    attributes: {
-      ...source.attributes,
-      claimProjectionId: claim.id,
-      sourceMemoryId: claim.sourceMemoryId,
-    },
-    confidence: claim.confidence ?? source.confidence,
-    source: {
-      ...source.source,
-      extractedAt: claim.ingestedAt,
-    },
-    validFrom: claim.validFrom ?? claim.observedAt,
-    validUntil: claim.validUntil,
-    supersededBy: null,
-    lifecycle: "active",
-    isActive: true,
-    createdAt: claim.observedAt,
-    updatedAt: claim.ingestedAt,
-  };
-}
-
 function canonicalFactMemoryId(fact: FactMemory): string {
   const sourceMemoryId = fact.attributes?.sourceMemoryId;
   return typeof sourceMemoryId === "string" ? sourceMemoryId : fact.id;
@@ -1204,7 +1176,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
 
       let generalizedFusion: GeneralizedFusionSelectionInput | undefined;
       let generalizedFusionCandidates: GeneralizedFusionCandidate[] = [];
-      let materializedClaimFacts: FactMemory[] = [];
+      let selectedClaimSourceFacts: FactMemory[] = [];
       let claimReplacementSourceIds = new Set<string>();
       let retrievalTrace: RecallRetrievalTrace | undefined;
       if (
@@ -1368,13 +1340,12 @@ export function createRecallEngine(config: RecallEngineConfig) {
               const factsById = new Map(
                 factsRaw.map((fact) => [fact.id, fact] as const),
               );
-              materializedClaimFacts = selectedClaims
-                .flatMap((claim) => {
-                  const source = factsById.get(claim.sourceMemoryId);
-                  return source
-                    ? [materializeClaimFact(claim, source)]
-                    : [];
-                });
+              selectedClaimSourceFacts = [...new Set(
+                selectedClaims.map(({ sourceMemoryId }) => sourceMemoryId),
+              )].flatMap((sourceMemoryId) => {
+                const source = factsById.get(sourceMemoryId);
+                return source ? [source] : [];
+              });
             }
             retrievalTrace = {
               fusionRuns: [
@@ -1389,14 +1360,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
             generalizedFusion = {
               candidates: fused.candidates
                 .filter((candidate) => candidate.sourceCollection === "facts")
-                .flatMap((candidate) => {
-                  const claimFacts = materializedClaimFacts.filter((fact) =>
-                    fact.attributes?.sourceMemoryId === candidate.sourceMemoryId
-                  );
-                  return (claimFacts.length > 0 ? claimFacts : [{
-                    id: candidate.sourceMemoryId,
-                  }]).map(({ id }) => ({ id, score: candidate.score }));
-                }),
+                .map((candidate) => ({
+                  id: candidate.sourceMemoryId,
+                  score: candidate.score,
+                })),
               maxAdditions: fused.budget,
               maxTotalFacts: generalizedFusionBudget?.maxTotalFacts,
             };
@@ -1505,7 +1472,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
       const factSelectionPool = claimReplacementSourceIds.size > 0
         ? [
             ...factsRaw.filter((fact) => !claimReplacementSourceIds.has(fact.id)),
-            ...materializedClaimFacts,
+            ...selectedClaimSourceFacts,
           ]
         : factsRaw;
       const selectedFacts = selectFacts(
