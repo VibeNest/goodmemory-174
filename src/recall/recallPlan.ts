@@ -65,6 +65,21 @@ export interface RecallPlanResolution {
   plan: RecallPlan;
 }
 
+export function buildUnplannedRecallPlan(): RecallPlan {
+  return {
+    entities: [],
+    facets: [],
+    temporalConstraints: [],
+    evidenceNeeds: ["direct"],
+    planes: ["semantic"],
+    maxHops: 1,
+    preRankLimit: RECALL_PLAN_PRE_RANK_LIMIT,
+    selectedLimit: RECALL_PLAN_SELECTED_LIMIT,
+    maxRenderedTokens: RECALL_PLAN_MAX_RENDERED_TOKENS,
+    uncertainty: "low",
+  };
+}
+
 const CURRENT_QUERY_PATTERN =
   /\b(?:current|currently|latest|now|present)\b|(?:当前|目前|现在|最新|如今)/iu;
 const HISTORY_QUERY_PATTERN =

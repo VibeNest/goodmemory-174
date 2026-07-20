@@ -143,9 +143,10 @@ export interface GoodMemoryRetrievalConfig {
   preset?: GoodMemoryRetrievalPresetId;
   // Experimental E2 ablation hook. Omit to run all five fusion channels.
   generalizedFusionChannels?: readonly GeneralizedFusionChannel[];
-  // Experimental Phase 74 execution path. When enabled, RecallPlan facets and
-  // maxHops drive decomposition and iterative retrieval unless a call supplies
-  // an explicit decompose or multiHop override. Off until promotion gates pass.
+  // Experimental Phase 74 execution path. When enabled, the query-derived
+  // RecallPlan drives retrieval, decomposition, and iterative recall unless a
+  // call supplies an explicit override. Off uses the unplanned baseline until
+  // promotion gates pass.
   recallPlanExecution?: boolean;
   // Opt-in: use Okapi BM25 (IDF + document-length normalization) as the additive
   // lexical ranking signal for hybrid/llm-assisted strategies, populating the

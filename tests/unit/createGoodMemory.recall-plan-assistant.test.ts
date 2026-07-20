@@ -11,6 +11,59 @@ const scope = { userId: "user-1", workspaceId: "workspace-1" };
 const now = new Date("2026-07-18T12:00:00.000Z");
 
 describe("GoodMemory.recall query-only planner adapter", () => {
+  it("does not resolve or apply a query plan when execution is disabled", async () => {
+    let plannerCalls = 0;
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: createInMemoryDocumentStore(),
+        sessionStore: createInMemorySessionStore(),
+        recallPlanner: {
+          async plan() {
+            plannerCalls += 1;
+            return {
+              aggregation: "count",
+              entities: ["atlas"],
+              facets: ["Atlas current status"],
+              maxHops: 3,
+              temporalConstraints: [{
+                kind: "current",
+                referenceTime: now.toISOString(),
+              }],
+            };
+          },
+        },
+      },
+      retrieval: { recallPlanExecution: false },
+      storage: { provider: "memory" },
+      testing: { now: () => now },
+    });
+
+    const result = await memory.recall({
+      query: "How many current Atlas projects are active and what changed?",
+      scope,
+      strategy: "rules-only",
+    });
+
+    expect(plannerCalls).toBe(0);
+    expect(result.metadata.policyApplied).not.toContain(
+      "recall_plan_assistant_applied",
+    );
+    expect(result.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      plan: {
+        entities: [],
+        evidenceNeeds: ["direct"],
+        facets: [],
+        maxHops: 1,
+        planes: ["semantic"],
+        temporalConstraints: [],
+        uncertainty: "low",
+      },
+      stopReason: "single_pass_complete",
+      subQueries: [],
+    });
+  });
+
   it("uses the assisted plan in the public retrieval trace while preserving fixed budgets", async () => {
     const memory = createGoodMemory({
       adapters: {
@@ -81,6 +134,7 @@ describe("GoodMemory.recall query-only planner adapter", () => {
           },
         },
       },
+      retrieval: { recallPlanExecution: true },
       storage: { provider: "memory" },
       testing: { now: () => now },
     });

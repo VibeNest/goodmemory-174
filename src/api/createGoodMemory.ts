@@ -48,6 +48,7 @@ import {
 import { createRecallProjectionRuntime } from "../recall/projections/runtime";
 import { decomposedRecall } from "../recall/queryDecomposition";
 import {
+  buildUnplannedRecallPlan,
   resolveRecallPlan,
   type RecallPlan,
 } from "../recall/recallPlan";
@@ -1165,16 +1166,20 @@ class GoodMemoryImpl implements GoodMemory {
         locale: input.locale,
         text: input.query,
       });
-      const planResolution = await resolveRecallPlan({
-        assistant: this.config.adapters?.recallPlanner,
-        input: {
-          language: this.language,
-          locale: resolvedLanguage.locale,
-          query: input.query,
-          referenceTime: this.now().toISOString(),
-          scope: input.scope,
-        },
-      });
+      const recallPlanExecution =
+        this.config.retrieval?.recallPlanExecution === true;
+      const planResolution = recallPlanExecution
+        ? await resolveRecallPlan({
+            assistant: this.config.adapters?.recallPlanner,
+            input: {
+              language: this.language,
+              locale: resolvedLanguage.locale,
+              query: input.query,
+              referenceTime: this.now().toISOString(),
+              scope: input.scope,
+            },
+          })
+        : { assistantApplied: false, plan: buildUnplannedRecallPlan() };
       if (planResolution.fallbackReason) {
         console.error(
           "[goodmemory:recall-plan] assisted planning failed; using deterministic plan",
@@ -1185,8 +1190,6 @@ class GoodMemoryImpl implements GoodMemory {
         );
       }
       const recallPlan = planResolution.plan;
-      const recallPlanExecution =
-        this.config.retrieval?.recallPlanExecution === true;
       const multiHopMaxHops =
         typeof input.multiHop === "number"
           ? input.multiHop
