@@ -130,6 +130,30 @@ describe("language service", () => {
     expect(service.isAnswerCompositionQuery("Please summarize the current rollout status.", "en-US")).toBe(
       true,
     );
+    expect(
+      service.isAggregateCountQuery(
+        "How much total money have I spent on repairs?",
+        "en-US",
+      ),
+    ).toBe(true);
+    expect(
+      service.isAggregateCountQuery(
+        "How did Rowan describe the time spent restoring telescopes with volunteers?",
+        "en-US",
+      ),
+    ).toBe(false);
+    expect(
+      service.isAggregateCountQuery(
+        "What did I spend in total on the workshop?",
+        "en-US",
+      ),
+    ).toBe(true);
+    expect(
+      service.isAggregateCountQuery(
+        "Add up what I spent on the two prototypes.",
+        "en-US",
+      ),
+    ).toBe(true);
     expect(service.isActionDrivingQuery("Which workflow doc should I use?", "en-US")).toBe(
       false,
     );

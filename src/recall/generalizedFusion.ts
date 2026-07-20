@@ -81,6 +81,17 @@ interface RankedChannelCandidate extends RawChannelCandidate {
   rank: number;
 }
 
+interface RankedFusionChannel {
+  name: GeneralizedFusionChannel;
+  candidates: RankedChannelCandidate[];
+}
+
+interface TemporalClaimSelection {
+  claims: ClaimProjection[];
+  groupClaims: ReadonlyMap<string, readonly ClaimProjection[]>;
+  groupScores: ReadonlyMap<string, number>;
+}
+
 export const DEFAULT_GENERALIZED_FUSION_RRF_K = 60;
 const DEFAULT_MAX_CANDIDATES = 8;
 export const DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH = 0.35;
@@ -428,6 +439,23 @@ function isClaimCurrent(
   return !Number.isFinite(validUntil) || validUntil > reference;
 }
 
+function selectCurrentClaimsByGroup(
+  claims: readonly ClaimProjection[],
+  referenceTime: string | undefined,
+): ClaimProjection[] {
+  const selected: ClaimProjection[] = [];
+  for (const group of groupClaimsBySubjectPredicate(claims).values()) {
+    const current = group.filter((claim) =>
+      isClaimCurrent(claim, referenceTime),
+    );
+    const latestTime = Math.max(...current.map(claimTime));
+    selected.push(
+      ...current.filter((claim) => claimTime(claim) === latestTime),
+    );
+  }
+  return selected;
+}
+
 function groupClaimsBySubjectPredicate(
   claims: readonly ClaimProjection[],
 ): Map<string, ClaimProjection[]> {
@@ -533,13 +561,72 @@ function selectTemporalClaims(input: {
   );
 }
 
+function collectBaseFactScores(
+  channels: readonly RankedFusionChannel[],
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const channel of channels) {
+    for (const candidate of channel.candidates) {
+      if (candidate.sourceCollection !== "facts") {
+        continue;
+      }
+      scores.set(
+        candidate.sourceMemoryId,
+        Math.max(
+          scores.get(candidate.sourceMemoryId) ?? 0,
+          candidate.normalizedScore,
+        ),
+      );
+    }
+  }
+  return scores;
+}
+
+function buildTemporalClaimSelection(input: {
+  baseScoresBySource: ReadonlyMap<string, number>;
+  fusion: GeneralizedFusionInput;
+  relevance: ReadonlyMap<string, number>;
+}): TemporalClaimSelection {
+  if (!input.fusion.plan || !input.fusion.claims) {
+    return { claims: [], groupClaims: new Map(), groupScores: new Map() };
+  }
+  const groupClaims = groupClaimsBySubjectPredicate(input.fusion.claims);
+  const anchoredGroupClaims = new Map<string, readonly ClaimProjection[]>();
+  const groupScores = new Map<string, number>();
+  const hasBaseCandidates = input.baseScoresBySource.size > 0;
+  for (const [groupKey, claims] of groupClaims) {
+    if (claims.length < 2) {
+      continue;
+    }
+    let score = 0;
+    for (const claim of claims) {
+      const baseScore = input.baseScoresBySource.get(claim.sourceMemoryId) ?? 0;
+      const claimRelevance = input.relevance.get(claim.id) ?? 0;
+      if (claimRelevance > 0 && (baseScore > 0 || !hasBaseCandidates)) {
+        score = Math.max(score, baseScore, claimRelevance);
+      }
+    }
+    if (score <= 0) {
+      continue;
+    }
+    anchoredGroupClaims.set(groupKey, claims);
+    groupScores.set(groupKey, score);
+  }
+  return {
+    claims: selectTemporalClaims({
+      claims: [...anchoredGroupClaims.values()].flat(),
+      plan: input.fusion.plan,
+      referenceTime: input.fusion.referenceTime,
+    }),
+    groupClaims: anchoredGroupClaims,
+    groupScores,
+  };
+}
+
 function filterChannelsToTemporalClaimBoundary(
   input: GeneralizedFusionInput,
-  channels: Array<{
-    name: GeneralizedFusionChannel;
-    candidates: RankedChannelCandidate[];
-  }>,
-  relevance: ReadonlyMap<string, number>,
+  channels: RankedFusionChannel[],
+  selection: TemporalClaimSelection,
 ): void {
   if (!input.plan || !input.claims) {
     return;
@@ -554,21 +641,13 @@ function filterChannelsToTemporalClaimBoundary(
   if (!constrained) {
     return;
   }
-  const selectedClaims = selectTemporalClaims({
-    claims: input.claims,
-    plan: input.plan,
-    referenceTime: input.referenceTime,
-  }).filter((claim) => (relevance.get(claim.id) ?? 0) > 0);
-  const selectedGroupKeys = new Set(
-    selectedClaims.map(claimProjectionGroupKey),
-  );
   const competingSourceIds = new Set(
-    input.claims
-      .filter((claim) => selectedGroupKeys.has(claimProjectionGroupKey(claim)))
+    [...selection.groupClaims.values()]
+      .flat()
       .map(({ sourceMemoryId }) => sourceMemoryId),
   );
   const selectedSourceIds = new Set(
-    selectedClaims.map(({ sourceMemoryId }) => sourceMemoryId),
+    selection.claims.map(({ sourceMemoryId }) => sourceMemoryId),
   );
   for (const channel of channels) {
     channel.candidates = channel.candidates.filter((candidate) =>
@@ -582,6 +661,7 @@ function filterChannelsToTemporalClaimBoundary(
 function buildTemporalChannel(
   input: GeneralizedFusionInput,
   relevance: ReadonlyMap<string, number>,
+  selection: TemporalClaimSelection,
 ): RankedChannelCandidate[] {
   if (
     !input.plan ||
@@ -592,14 +672,12 @@ function buildTemporalChannel(
   ) {
     return [];
   }
-  const claims = selectTemporalClaims({
-    claims: input.claims,
-    plan: input.plan,
-    referenceTime: input.referenceTime,
-  });
   const bySource = new Map<string, RawChannelCandidate>();
-  for (const claim of claims) {
-    const rawScore = relevance.get(claim.id) ?? 0;
+  for (const claim of selection.claims) {
+    const rawScore = Math.max(
+      relevance.get(claim.id) ?? 0,
+      selection.groupScores.get(claimProjectionGroupKey(claim)) ?? 0,
+    );
     if (rawScore <= 0) {
       continue;
     }
@@ -622,6 +700,7 @@ function buildTemporalChannel(
 function buildRelationChannel(
   input: GeneralizedFusionInput,
   relevance: ReadonlyMap<string, number>,
+  baseScoresBySource: ReadonlyMap<string, number>,
 ): RankedChannelCandidate[] {
   if (
     !input.plan?.evidenceNeeds.includes("relation") ||
@@ -630,29 +709,40 @@ function buildRelationChannel(
     return [];
   }
   const matchedEntityIds = matchedQueryEntityIds(input);
-  return rankChannel(
-    input.claims
-      .filter((claim) => isClaimCurrent(claim, input.referenceTime))
-      .map((claim) => {
-        const endpointMatches = Number(matchedEntityIds.has(claim.subjectEntityId)) +
-          Number(
-            claim.objectEntityId !== undefined &&
-              matchedEntityIds.has(claim.objectEntityId),
-          );
-        const lexicalRelevance = relevance.get(claim.id) ?? 0;
-        return {
-          evidenceDocumentIds: [claim.id],
-          rawScore:
-            lexicalRelevance > 0 &&
-            (matchedEntityIds.size === 0 || endpointMatches > 0)
-              ? lexicalRelevance + endpointMatches
-              : 0,
-          sourceCollection: "facts" as const,
-          sourceMemoryId: claim.sourceMemoryId,
-        };
-      })
-      .filter(({ rawScore }) => rawScore > 0),
-  );
+  const bySource = new Map<string, RawChannelCandidate>();
+  for (const claim of selectCurrentClaimsByGroup(
+    input.claims,
+    input.referenceTime,
+  )) {
+    if (claim.objectEntityId === undefined) {
+      continue;
+    }
+    const endpointMatches = Number(matchedEntityIds.has(claim.subjectEntityId)) +
+      Number(matchedEntityIds.has(claim.objectEntityId));
+    const baseScore = baseScoresBySource.get(claim.sourceMemoryId) ?? 0;
+    const fullySpecifiedEdge = matchedEntityIds.size >= 2 && endpointMatches === 2;
+    const lexicalRelevance = relevance.get(claim.id) ?? 0;
+    if (
+      endpointMatches === 0 ||
+      (!fullySpecifiedEdge && baseScore <= 0 && lexicalRelevance <= 0)
+    ) {
+      continue;
+    }
+    const rawScore = endpointMatches + baseScore + lexicalRelevance;
+    const existing = bySource.get(claim.sourceMemoryId);
+    if (existing) {
+      existing.evidenceDocumentIds.push(claim.id);
+      existing.rawScore = Math.max(existing.rawScore, rawScore);
+    } else {
+      bySource.set(claim.sourceMemoryId, {
+        evidenceDocumentIds: [claim.id],
+        rawScore,
+        sourceCollection: "facts",
+        sourceMemoryId: claim.sourceMemoryId,
+      });
+    }
+  }
+  return rankChannel([...bySource.values()]);
 }
 
 function clampUnit(value: number): number {
@@ -719,20 +809,45 @@ export function fuseGeneralizedRecallCandidates(
   const enabledChannels = input.channels
     ? new Set(input.channels)
     : undefined;
-  const allChannels: Array<{
-    name: GeneralizedFusionChannel;
-    candidates: RankedChannelCandidate[];
-  }> = [
+  const baseChannels: RankedFusionChannel[] = [
     { name: "lexical", candidates: buildLexicalChannel(input) },
     { name: "dense", candidates: buildDenseChannel(input, visibleSourceKeys) },
     { name: "entity", candidates: buildEntityChannel(input, visibleSourceKeys) },
-    { name: "temporal", candidates: buildTemporalChannel(input, claimRelevance) },
-    { name: "relation", candidates: buildRelationChannel(input, claimRelevance) },
+  ];
+  const enabledBaseChannels = baseChannels.filter(
+    ({ name }) => enabledChannels?.has(name) ?? true,
+  );
+  const baseScoresBySource = collectBaseFactScores(enabledBaseChannels);
+  const temporalSelection = buildTemporalClaimSelection({
+    baseScoresBySource,
+    fusion: input,
+    relevance: claimRelevance,
+  });
+  const allChannels: RankedFusionChannel[] = [
+    ...enabledBaseChannels,
+    {
+      name: "temporal",
+      candidates: buildTemporalChannel(
+        input,
+        claimRelevance,
+        temporalSelection,
+      ),
+    },
+    {
+      name: "relation",
+      candidates: buildRelationChannel(
+        input,
+        claimRelevance,
+        baseScoresBySource,
+      ),
+    },
   ];
   const channels = allChannels.filter(
     ({ name }) => enabledChannels?.has(name) ?? true,
   );
-  filterChannelsToTemporalClaimBoundary(input, channels, claimRelevance);
+  if (channels.some(({ name }) => name === "temporal")) {
+    filterChannelsToTemporalClaimBoundary(input, channels, temporalSelection);
+  }
   const fused = new Map<string, GeneralizedFusionCandidate>();
   for (const channel of channels) {
     for (const candidate of channel.candidates) {

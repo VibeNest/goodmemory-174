@@ -153,7 +153,7 @@ function createQueryPatterns(locale: string) {
       actionDriving:
         /\b(proceed|send|ship|deploy|decide|rollout|execute|migration plan|next step|do next)\b/i,
     aggregateCount:
-      /\bhow many\b|\bhow much\b|\b(?:total money|spent|spend|cost|costs|paid|price|dollars?)\b/i,
+      /\bhow many\b|\bhow much\b|\b(?:total money|cost|costs|paid|price|dollars?)\b|\b(?:spend|spent)\b[^.!?]{0,80}\b(?:in total|altogether)\b|\b(?:add up|sum|total)\b[^.!?]{0,80}\b(?:spend|spent)\b/i,
     assistantEvidenceRecall:
       /\b(?:previous|earlier|last time|talked about|discussed|you (?:told|said|suggested|recommended|provided)|list you provided|remind me)\b/i,
     continuation:

@@ -352,6 +352,7 @@ export function buildConversationalMemoryExtractionPrompt(
     '- Set explicitness to "explicit" when the fact is directly stated and "inferred" when you reasonably deduced it.',
     "- Put the primary entity the fact is about in metadata.subject.",
     '- For every kindHint "fact", populate metadata.claim with predicateKey and objectText; also set polarity and modality, and set validFrom/validUntil only when grounded in the conversation.',
+    "- When claim.objectText names a distinct named entity, also set metadata.claim.objectEntity to that entity's canonical name; omit it for literal values, descriptions, and self-relations.",
     "- Use a stable domain description for metadata.claim.predicateKey (for example project.status or integration.partner_api), derived only from the conversation and never from external labels or answer hints.",
     "- When one claim requires multiple originating messages, include all their indices in sourceMessageIndexes while retaining the primary sourceMessageIndex.",
     `- Use kindHint "profile" only when metadata.profileField is one of: ${MEMORY_CANDIDATE_PROFILE_FIELD_VALUES.join(", ")}; use kindHint "fact" for other durable personal attributes.`,

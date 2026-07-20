@@ -37,6 +37,8 @@ describe("conversational atomic-fact extraction prompt", () => {
     expect(prompt).toContain("snake_case");
     expect(prompt).toContain("Preserve relational meaning");
     expect(prompt).toContain("never reduce the relation to a generic attribute");
+    expect(prompt).toContain("metadata.claim.objectEntity");
+    expect(prompt).toContain("distinct named entity");
     // The transcript is included with stable message indices.
     expect(prompt).toContain(
       "[1] user: I adopted a dog named Biscuit last weekend.",
