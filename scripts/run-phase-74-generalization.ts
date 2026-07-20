@@ -48,8 +48,13 @@ import type {
 } from "../src/eval/phase74Datasets";
 import {
   createPhase74FullRetrievalRuntime,
-  PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
 } from "../src/eval/phase74FullRuntime";
+import {
+  buildPhase74FullRunIdentityConfiguration,
+  PHASE74_CONTEXT_TOKEN_BUDGET,
+  PHASE74_PRE_RANK_LIMIT,
+  PHASE74_SELECTED_LIMIT,
+} from "../src/eval/phase74ExperimentIdentity";
 import { buildPhase74ReplicateComparison } from "../src/eval/phase74Replicates";
 import { createPhase74ProtocolReader } from "../src/eval/phase74ProtocolReader";
 import {
@@ -89,12 +94,12 @@ const DEFAULT_DATASET_PATH =
   "fixtures/external-benchmarks/longmemeval/longmemeval_s_smoke.json";
 const DEFAULT_OUTPUT_DIR =
   "reports/eval/research/phase-74/generalization";
-const CONTEXT_TOKEN_BUDGET = 6_000;
+const CONTEXT_TOKEN_BUDGET = PHASE74_CONTEXT_TOKEN_BUDGET;
 const DEFAULT_EMBEDDING_SPEND_LIMIT_USD = 1;
 const DEFAULT_MAX_LANGUAGE_CALLS = 50_000;
 const OPENROUTER_EMBEDDING_USD_PER_MILLION_INPUT_TOKENS = 0.02;
-const PRE_RANK_LIMIT = 32;
-const SELECTED_LIMIT = 12;
+const PRE_RANK_LIMIT = PHASE74_PRE_RANK_LIMIT;
+const SELECTED_LIMIT = PHASE74_SELECTED_LIMIT;
 
 interface Phase74CallBudgetState {
   embeddingCalls: number;
@@ -141,48 +146,7 @@ export interface Phase74GeneralizationFullResult {
   runDirectory: string;
 }
 
-export function buildPhase74FullRunIdentityConfiguration(input: {
-  callBudget: {
-    embeddingSpendLimitUsd: number;
-    maxLanguageCalls: number;
-  };
-  dataset: EvalRunJsonObject;
-  embedding: Phase74EmbeddingIdentity;
-  evaluatorSource: EvalRunJsonObject;
-  replicate: 1 | 2 | 3;
-  reranker: EvalRunJsonObject;
-  scoring: EvalRunJsonObject;
-  selection: EvalRunJsonObject;
-  selectedCaseIdsSha256: string;
-}): EvalRunJsonObject {
-  return {
-    answer: {
-      maxTokens: 512,
-      reasoningEffort: "medium",
-      temperature: 0,
-    },
-    callBudget: input.callBudget,
-    context: {
-      maxTokens: CONTEXT_TOKEN_BUDGET,
-      tokenizer: "utf8-byte-upper-bound-v1",
-    },
-    costBoundary: "query-only-comparison-with-shadow-ingestion",
-    dataset: input.dataset,
-    embedding: input.embedding,
-    evaluatorSource: input.evaluatorSource,
-    modelUsageAccounting: "phase74-model-usage-v1",
-    preRankLimit: PRE_RANK_LIMIT,
-    providerObjectCalls: PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
-    reader: "generic-label-free-v1",
-    replicate: input.replicate,
-    reranker: input.reranker,
-    scoring: input.scoring,
-    selection: input.selection,
-    selectedCaseIdsSha256: input.selectedCaseIdsSha256,
-    selectedLimit: SELECTED_LIMIT,
-    seenCasesOnly: true,
-  };
-}
+export { buildPhase74FullRunIdentityConfiguration };
 
 function phase74RequestUrl(request: RequestInfo | URL): string {
   if (typeof request === "string") {
@@ -306,15 +270,28 @@ export function selectPhase74GeneralizationCases(input: {
       "Phase 74 case selection seed and size must be provided together.",
     );
   }
-  const caseKeys = input.cases.map(
+  const occurrences = new Map<string, number>();
+  const casesWithKeys = input.cases.map((testCase) => {
+    const baseKey = buildPhase74LabelFreeCaseBoundary({
+      ...testCase,
+      labelFreeCaseKey: undefined,
+    }).caseKey;
+    const occurrence = occurrences.get(baseKey) ?? 0;
+    occurrences.set(baseKey, occurrence + 1);
+    if (occurrence === 0) {
+      return { ...testCase };
+    }
+    return {
+      ...testCase,
+      labelFreeCaseKey: `case-${sha256(JSON.stringify([baseKey, occurrence]))}`,
+    };
+  });
+  const caseKeys = casesWithKeys.map(
     (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
   );
-  if (new Set(caseKeys).size !== caseKeys.length) {
-    throw new Error("Phase 74 label-free case keys must be unique.");
-  }
   const populationContentSha256 = sha256(JSON.stringify(caseKeys));
   if (input.seed === undefined || input.size === undefined) {
-    const cases = [...input.cases];
+    const cases = casesWithKeys;
     return {
       cases,
       identity: {
@@ -342,7 +319,7 @@ export function selectPhase74GeneralizationCases(input: {
     );
   }
   const selectedIndexes = new Set(
-    input.cases
+    casesWithKeys
       .map((_, index) => ({
         index,
         rank: sha256(JSON.stringify([input.seed, caseKeys[index]])),
@@ -354,7 +331,7 @@ export function selectPhase74GeneralizationCases(input: {
       .slice(0, input.size)
       .map(({ index }) => index),
   );
-  const cases = input.cases.filter((_, index) => selectedIndexes.has(index));
+  const cases = casesWithKeys.filter((_, index) => selectedIndexes.has(index));
   const selectedCaseKeys = caseKeys.filter((_, index) => selectedIndexes.has(index));
   return {
     cases,
@@ -1002,7 +979,7 @@ export async function runPhase74GeneralizationFull(
           },
       scoring: buildPhase74ProtocolScoringIdentity(
         options.benchmark,
-        models.judge.model,
+        publicModelIdentity(models.judge),
       ),
       selection: selection.identity,
       selectedCaseIdsSha256,

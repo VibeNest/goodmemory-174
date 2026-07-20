@@ -15,6 +15,7 @@ import {
   buildEvalRunIdentity,
   hashEvalExperimentIdentity,
 } from "../../src/eval/runIdentity";
+import { buildPhase74LabelFreeCaseBoundary } from "../../src/eval/phase74Generalization";
 
 describe("phase 74 generalization smoke runner", () => {
   it("reserves language calls and OpenRouter spend durably before requests", async () => {
@@ -338,7 +339,48 @@ describe("phase 74 generalization smoke runner", () => {
     });
     expect(selected.identity.populationContentSha256).toMatch(/^[a-f0-9]{64}$/u);
     expect(selected.identity.selectedCaseIdsSha256).toMatch(/^[a-f0-9]{64}$/u);
-    expect(selectPhase74GeneralizationCases({ cases }).cases).toEqual(cases);
+    expect(selectPhase74GeneralizationCases({ cases }).cases.map(
+      ({ labelFreeCaseKey: _labelFreeCaseKey, ...testCase }) => testCase,
+    )).toEqual(cases);
+  });
+
+  it("assigns unique opaque keys to repeated label-free inputs without case IDs", () => {
+    const repeated = Array.from({ length: 2 }, (_, index) => ({
+      caseId: `benchmark-case-${index + 1}`,
+      expectedAnswer: `gold-${index + 1}`,
+      goldEvidenceIds: [],
+      memoryGroupId: "conversation-1",
+      protocolMetadata: { category: index + 1 },
+      question: "What happened?",
+      rawEvidence: [{
+        content: "The same conversation evidence.",
+        id: "message-1",
+        sourceIds: ["D1:1"],
+      }],
+      unresolvedGoldEvidenceIds: [],
+    }));
+
+    const selected = selectPhase74GeneralizationCases({ cases: repeated });
+    const baseKey = buildPhase74LabelFreeCaseBoundary(repeated[0]!).caseKey;
+    const opaqueKeys = selected.cases.map(
+      (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+    );
+    const relabeled = selectPhase74GeneralizationCases({
+      cases: repeated.map((testCase) => ({
+        ...testCase,
+        caseId: `changed-${testCase.caseId}`,
+        expectedAnswer: "changed",
+        goldEvidenceIds: ["changed"],
+        protocolMetadata: { category: "changed" },
+      })),
+    });
+
+    expect(new Set(opaqueKeys).size).toBe(2);
+    expect(selected.cases[0]).not.toHaveProperty("labelFreeCaseKey");
+    expect(opaqueKeys[0]).toBe(baseKey);
+    expect(relabeled.cases.map(
+      (testCase) => buildPhase74LabelFreeCaseBoundary(testCase).caseKey,
+    )).toEqual(opaqueKeys);
   });
 
   it("fails closed on missing flag values and run ids outside one path segment", () => {

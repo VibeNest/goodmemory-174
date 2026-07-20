@@ -139,7 +139,7 @@ export async function createOrMatchEvalRunIdentity(
 function validateEvalRunIdentity(
   value: unknown,
 ): asserts value is EvalRunIdentity {
-  rejectApiKeys(value);
+  rejectIdentityCredentials(value);
   if (!isJsonObject(value) || value.schemaVersion !== 1) {
     throw new Error("Invalid eval run identity");
   }
@@ -196,10 +196,10 @@ function validateModelIdentity(
   }
 }
 
-function rejectApiKeys(value: unknown): void {
+function rejectIdentityCredentials(value: unknown): void {
   if (Array.isArray(value)) {
     for (const item of value) {
-      rejectApiKeys(item);
+      rejectIdentityCredentials(item);
     }
     return;
   }
@@ -207,11 +207,100 @@ function rejectApiKeys(value: unknown): void {
     return;
   }
   for (const [key, child] of Object.entries(value)) {
-    if (key.replace(/[-_\s]/g, "").toLowerCase().endsWith("apikey")) {
+    const normalizedKey = normalizeIdentityKey(key);
+    if (normalizedKey.endsWith("apikey")) {
       throw new Error("Eval run identity must not contain API keys");
     }
-    rejectApiKeys(child);
+    if (isCredentialFingerprintKey(normalizedKey)) {
+      throw new Error(
+        "Eval run identity must not contain credential-derived fingerprints",
+      );
+    }
+    if (
+      typeof child === "string" &&
+      isProviderEndpointKey(normalizedKey) &&
+      isCredentialBearingUrl(child)
+    ) {
+      throw new Error(
+        "Eval run identity must not contain credential-bearing URLs",
+      );
+    }
+    rejectIdentityCredentials(child);
   }
+}
+
+function normalizeIdentityKey(value: string): string {
+  return value.replace(/[^a-z0-9]/giu, "").toLowerCase();
+}
+
+function isCredentialFingerprintKey(normalizedKey: string): boolean {
+  const hasCredentialName = [
+    "accesstoken",
+    "apikey",
+    "authtoken",
+    "bearertoken",
+    "clientsecret",
+    "credential",
+    "idtoken",
+    "password",
+    "privatekey",
+    "refreshtoken",
+    "secretkey",
+  ].some((name) => normalizedKey.includes(name));
+  const hasFingerprintName =
+    normalizedKey.includes("digest") ||
+    normalizedKey.includes("fingerprint") ||
+    normalizedKey.includes("hash") ||
+    /sha(?:1|224|256|384|512)/u.test(normalizedKey);
+  return hasCredentialName && hasFingerprintName;
+}
+
+function isProviderEndpointKey(normalizedKey: string): boolean {
+  return ["baseurl", "gateway", "provider"].some(
+    (suffix) =>
+      normalizedKey === suffix || normalizedKey.endsWith(suffix),
+  );
+}
+
+function isCredentialBearingUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.username !== "" || url.password !== "") {
+    return true;
+  }
+  return [...url.searchParams.keys()].some((key) =>
+    isSensitiveUrlParameter(key)
+  );
+}
+
+function isSensitiveUrlParameter(value: string): boolean {
+  const words = value
+    .replace(/([a-z0-9])([A-Z])/gu, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/u)
+    .filter((word) => word !== "");
+  if (
+    words.some((word) =>
+      ["key", "password", "secret", "token"].includes(word)
+    )
+  ) {
+    return true;
+  }
+  return [
+    "accesstoken",
+    "apikey",
+    "authtoken",
+    "bearertoken",
+    "clientsecret",
+    "idtoken",
+    "privatekey",
+    "refreshtoken",
+    "secretkey",
+  ].includes(normalizeIdentityKey(value));
 }
 
 function cloneJsonObject(value: EvalRunJsonObject): EvalRunJsonObject {

@@ -308,9 +308,13 @@ describe("Phase 74 frozen dataset adapters", () => {
       raw,
       source: { ...source, sourceSha256: sha256(raw) },
     });
+    const selectedCase = {
+      ...full.cases[1]!,
+      labelFreeCaseKey: "case-derived-selection-key",
+    };
     const selected = createPhase74SelectedDatasetBundle({
       bundle: full,
-      cases: [full.cases[1]!],
+      cases: [selectedCase],
     });
 
     expect(selected.cases.map(({ caseId }) => caseId)).toEqual(["question-1"]);
@@ -322,7 +326,7 @@ describe("Phase 74 frozen dataset adapters", () => {
       unresolvedGoldEvidenceCount: 0,
     });
     expect(selected.manifest.adaptedCasesSha256).toBe(
-      sha256(JSON.stringify(selected.cases)),
+      sha256(JSON.stringify([full.cases[1]!])),
     );
   });
 });

@@ -17,6 +17,7 @@ import {
   runPhase74GeneralizationAggregation,
 } from "../../scripts/aggregate-phase-74-generalization";
 import { PHASE74_EXPERIMENT_ARMS } from "../../src/eval/phase74ExperimentDesign";
+import { PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION } from "../../src/eval/phase74FullRuntime";
 import { buildPhase74ProtocolScoringIdentity } from "../../src/eval/phase74ProtocolScoring";
 import { buildPhase74ReplicateComparison } from "../../src/eval/phase74Replicates";
 import {
@@ -107,14 +108,20 @@ function usageEvidence(
 }
 
 interface FixtureOptions {
-  admission?: "canonical" | "deterministic-reranker" | "legacy" | "noncanonical-scorer";
+  admission?:
+    | "canonical"
+    | "deterministic-reranker"
+    | "legacy"
+    | "missing-embedding"
+    | "missing-evaluator-source"
+    | "missing-provider-object-calls"
+    | "noncanonical-scorer";
   costBoundary?: "full-product" | "query-only";
   includeE4Scores?: boolean;
   negativeE3Replicate?: {
     benchmark: "locomo" | "longmemeval";
     replicate: 1 | 2 | 3;
   };
-  seenCasesOnly?: boolean;
   subsetSelection?: boolean;
 }
 
@@ -161,8 +168,43 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
         unresolvedGoldEvidenceCount: 0,
       };
       const canonicalConfiguration = {
-        costBoundary: "diagnostic-all-live-calls",
+        answer: {
+          maxTokens: 512,
+          reasoningEffort: "medium",
+          temperature: 0,
+        },
+        callBudget: {
+          embeddingSpendLimitUsd: 0.1,
+          maxLanguageCalls: 80,
+        },
+        context: {
+          maxTokens: 6_000,
+          tokenizer: "utf8-byte-upper-bound-v1",
+        },
+        costBoundary: "query-only-comparison-with-shadow-ingestion",
         dataset: datasetManifest,
+        ...(options.admission === "missing-embedding"
+          ? {}
+          : {
+              embedding: {
+                gateway: "https://openrouter.ai/api/v1",
+                model: "text-embedding-3-small",
+                provider: "openai",
+              },
+            }),
+        ...(options.admission === "missing-evaluator-source"
+          ? {}
+          : {
+              evaluatorSource: {
+                commit: "a".repeat(40),
+                sha256: "b".repeat(64),
+              },
+            }),
+        ...(options.admission === "missing-provider-object-calls"
+          ? {}
+          : { providerObjectCalls: PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION }),
+        modelUsageAccounting: "phase74-model-usage-v1",
+        preRankLimit: 32,
         reader: "generic-label-free-v1",
         replicate,
         reranker: {
@@ -172,7 +214,11 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           model: "gpt-5.6-terra",
           provider: "openai",
         },
-        scoring: buildPhase74ProtocolScoringIdentity(benchmark, "gpt-5.5"),
+        scoring: buildPhase74ProtocolScoringIdentity(benchmark, {
+          gateway: "https://judge.example/v1",
+          model: "gpt-5.5",
+          provider: "openai",
+        }),
         selection: {
           mode: options.subsetSelection
             ? "deterministic-content-hash-v2"
@@ -185,7 +231,8 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
           selectedSize: cases.length,
         },
         selectedCaseIdsSha256,
-        seenCasesOnly: options.seenCasesOnly ?? false,
+        selectedLimit: 12,
+        seenCasesOnly: true,
       };
       const admission = options.admission ?? "canonical";
       const identity = buildEvalRunIdentity({
@@ -200,7 +247,7 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
               costBoundary: "diagnostic-all-live-calls",
               reader: "generic-label-free-v1",
               replicate,
-              seenCasesOnly: options.seenCasesOnly ?? false,
+              seenCasesOnly: true,
             }
           : {
               ...canonicalConfiguration,
@@ -438,7 +485,7 @@ async function writeProtectionArtifact(root: string): Promise<string> {
 }
 
 describe("Phase 74 frozen artifact aggregation", () => {
-  it("derives repeated statistics, E4 selection, latency, usage, and promotion input", async () => {
+  it("derives repeated statistics and blocks seen-case evidence from promotion", async () => {
     const fixture = await createArtifactFixture();
     const protectionArtifactPath = await writeProtectionArtifact(fixture.root);
 
@@ -477,16 +524,8 @@ describe("Phase 74 frozen artifact aggregation", () => {
     });
     expect(report.e4.formats.find(({ format }) => format === "chronology"))
       .toMatchObject({ averageTokens: 80, macroScore: 0.835 });
-    expect(report.promotion.status).toBe("evaluated");
-    expect(report.promotion.result?.status).toBe("passed");
-    expect(report.promotion.input?.operations).toMatchObject({
-      baselineP95LatencyMs: 100,
-      candidateP95LatencyMs: 110,
-      executionFailures: 0,
-      renderedContextMaxTokens: 120,
-    });
-    expect(report.promotion.input?.operations.modelUsage.costBoundary)
-      .toBe("full-product");
+    expect(report.promotion.status).toBe("not_evaluable");
+    expect(report.promotion.gaps.join(" ")).toContain("seen-case");
   });
 
   it("fails closed on comparison drift, missing cluster identity, and missing latency", async () => {
@@ -523,8 +562,11 @@ describe("Phase 74 frozen artifact aggregation", () => {
   it("rejects identities that do not satisfy scoring, reranker, and selection admission", async () => {
     for (const [admission, message] of [
       ["legacy", "admission"],
-      ["deterministic-reranker", "provider reranker"],
+      ["deterministic-reranker", "reranker"],
       ["noncanonical-scorer", "scoring"],
+      ["missing-embedding", "missing embedding"],
+      ["missing-evaluator-source", "missing evaluatorSource"],
+      ["missing-provider-object-calls", "missing providerObjectCalls"],
     ] as const) {
       const fixture = await createArtifactFixture({ admission });
       await expect(aggregatePhase74GeneralizationArtifacts({
@@ -537,7 +579,6 @@ describe("Phase 74 frozen artifact aggregation", () => {
     const fixture = await createArtifactFixture({
       costBoundary: "query-only",
       includeE4Scores: false,
-      seenCasesOnly: true,
     });
 
     const report = await aggregatePhase74GeneralizationArtifacts({

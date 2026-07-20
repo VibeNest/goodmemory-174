@@ -13,24 +13,49 @@ const judgeModel = {
   provider: "openai" as const,
 };
 
+const officialGpt4oJudge = {
+  gateway: "https://api.openai.com/v1",
+  model: "gpt-4o-2024-08-06",
+  provider: "openai",
+};
+
 describe("Phase 74 protocol-compatible scoring", () => {
   it("publishes benchmark-specific scoring and comparability identities", () => {
-    expect(buildPhase74ProtocolScoringIdentity("longmemeval", "gpt-5.5"))
+    expect(buildPhase74ProtocolScoringIdentity("longmemeval", {
+      gateway: judgeModel.baseURL,
+      model: judgeModel.model,
+      provider: judgeModel.provider,
+    }))
       .toMatchObject({
       binaryCorrectRule: "yes-substring",
       comparability: "official-prompt-compatible-only",
-      metricModel: "gpt-5.5",
+      evaluator: {
+        gateway: "https://ai.gurkiai.com/v1",
+        model: "gpt-5.5",
+        provider: "openai",
+      },
+      evaluatorAlias: null,
       primaryMetric: "paired-accuracy",
       publishedScoreComparable: false,
-      scorer: "longmemeval-official-prompt-compatible-qa-accuracy-v1",
+      scorer: "longmemeval-pinned-prompt-compatible-qa-accuracy-v2",
     });
-    expect(buildPhase74ProtocolScoringIdentity("longmemeval", "gpt-4o"))
+    expect(buildPhase74ProtocolScoringIdentity("longmemeval", officialGpt4oJudge))
       .toMatchObject({
-      comparability: "pinned-official-evaluator-model",
-      metricModel: "gpt-4o",
+      comparability: "pinned-upstream-evaluator-identity",
+      evaluator: officialGpt4oJudge,
+      evaluatorAlias: "gpt-4o",
       publishedScoreComparable: true,
     });
-    expect(buildPhase74ProtocolScoringIdentity("locomo")).toMatchObject({
+    expect(buildPhase74ProtocolScoringIdentity("longmemeval", {
+      gateway: "https://gateway.example/v1",
+      model: "gpt-4o",
+      provider: "openai",
+    })).toMatchObject({
+      comparability: "official-prompt-compatible-only",
+      publishedScoreComparable: false,
+    });
+    expect(buildPhase74ProtocolScoringIdentity("locomo", officialGpt4oJudge))
+      .toMatchObject({
       binaryCorrectRule: "score-equals-one",
       primaryMetric: "macro-mean-category-aware-f1",
       scorer: expect.stringContaining("snap-research/locomo@"),

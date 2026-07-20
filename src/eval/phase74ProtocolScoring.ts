@@ -19,8 +19,10 @@ import {
 import type { LocomoQaCategory } from "./locomo";
 import {
   buildLongMemEvalOfficialJudgePrompt,
+  findLongMemEvalOfficialEvaluatorAlias,
   isLongMemEvalOfficialAbstentionCase,
-  LONGMEMEVAL_OFFICIAL_METRIC_MODELS,
+  LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES,
+  LONGMEMEVAL_OFFICIAL_PROMPT_SHA256,
   LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY,
   parseLongMemEvalOfficialJudgeVerdict,
 } from "./longmemevalOfficialScorer";
@@ -31,7 +33,10 @@ import type {
   Phase74AnswerAssessment,
   Phase74GeneralizationCase,
 } from "./phase74Generalization";
-import type { EvalRunJsonObject } from "./runIdentity";
+import type {
+  EvalRunJsonObject,
+  EvalRunModelIdentity,
+} from "./runIdentity";
 
 export type Phase74ProtocolCompatibleAnswerAssessor = (input: {
   answer: string;
@@ -41,23 +46,25 @@ export type Phase74ProtocolCompatibleAnswerAssessor = (input: {
 
 export function buildPhase74ProtocolScoringIdentity(
   benchmark: Phase74BenchmarkFamily,
-  metricModel = "gpt-5.5",
+  evaluator: EvalRunModelIdentity,
 ): EvalRunJsonObject {
   if (benchmark === "longmemeval") {
-    const publishedScoreComparable =
-      LONGMEMEVAL_OFFICIAL_METRIC_MODELS.some(
-        (model) => model === metricModel,
-      );
+    const evaluatorAlias = findLongMemEvalOfficialEvaluatorAlias(evaluator);
+    const publishedScoreComparable = evaluatorAlias !== null;
     return {
       binaryCorrectRule: "yes-substring",
       comparability: publishedScoreComparable
-        ? "pinned-official-evaluator-model"
+        ? "pinned-upstream-evaluator-identity"
         : "official-prompt-compatible-only",
-      metricModel,
-      officialMetricModels: [...LONGMEMEVAL_OFFICIAL_METRIC_MODELS],
+      evaluator: { ...evaluator },
+      evaluatorAlias,
+      officialEvaluatorModels: LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES.map(
+        (identity) => ({ ...identity }),
+      ),
       primaryMetric: "paired-accuracy",
+      promptSha256: LONGMEMEVAL_OFFICIAL_PROMPT_SHA256,
       publishedScoreComparable,
-      scorer: "longmemeval-official-prompt-compatible-qa-accuracy-v1",
+      scorer: "longmemeval-pinned-prompt-compatible-qa-accuracy-v2",
       scorerCommit: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.commit,
       scorerFileSha256: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.fileSha256,
     };

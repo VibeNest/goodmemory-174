@@ -7,11 +7,39 @@ export const LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY = {
   repository: "https://github.com/xiaowu0162/LongMemEval",
 } as const;
 
-export const LONGMEMEVAL_OFFICIAL_METRIC_MODELS = [
-  "gpt-4o",
-  "gpt-4o-mini",
-  "llama-3.1-70b-instruct",
+export const LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES = [
+  {
+    alias: "gpt-4o",
+    gateway: "https://api.openai.com/v1",
+    model: "gpt-4o-2024-08-06",
+    provider: "openai",
+  },
+  {
+    alias: "gpt-4o-mini",
+    gateway: "https://api.openai.com/v1",
+    model: "gpt-4o-mini-2024-07-18",
+    provider: "openai",
+  },
+  {
+    alias: "llama-3.1-70b-instruct",
+    gateway: "http://localhost:8001/v1",
+    model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+    provider: "openai",
+  },
 ] as const;
+
+export const LONGMEMEVAL_OFFICIAL_METRIC_MODELS =
+  LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES.map(({ alias }) => alias);
+
+export function findLongMemEvalOfficialEvaluatorAlias(
+  evaluator: EvalRunModelIdentity,
+): (typeof LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES)[number]["alias"] | null {
+  return LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES.find((identity) =>
+    identity.gateway === evaluator.gateway &&
+    identity.model === evaluator.model &&
+    identity.provider === evaluator.provider
+  )?.alias ?? null;
+}
 
 const DEFAULT_TEMPLATE =
   "I will give you a question, a correct answer, and a response from a model. Please answer yes if the response contains the correct answer. Otherwise, answer no. If the response is equivalent to the correct answer or contains all the intermediate steps to get the correct answer, you should also answer yes. If the response only contains a subset of the information required by the answer, answer no. \n\nQuestion: {q}\n\nCorrect Answer: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
@@ -23,6 +51,16 @@ const PREFERENCE_TEMPLATE =
   "I will give you a question, a rubric for desired personalized response, and a response from a model. Please answer yes if the response satisfies the desired response. Otherwise, answer no. The model does not need to reflect all the points in the rubric. The response is correct as long as it recalls and utilizes the user's personal information correctly.\n\nQuestion: {q}\n\nRubric: {a}\n\nModel Response: {r}\n\nIs the model response correct? Answer yes or no only.";
 const ABSTENTION_TEMPLATE =
   "I will give you an unanswerable question, an explanation, and a response from a model. Please answer yes if the model correctly identifies the question as unanswerable. The model could say that the information is incomplete, or some other information is given but the asked information is not.\n\nQuestion: {q}\n\nExplanation: {a}\n\nModel Response: {r}\n\nDoes the model correctly identify the question as unanswerable? Answer yes or no only.";
+
+export const LONGMEMEVAL_OFFICIAL_PROMPT_SHA256 = createHash("sha256")
+  .update([
+    DEFAULT_TEMPLATE,
+    TEMPORAL_TEMPLATE,
+    KNOWLEDGE_UPDATE_TEMPLATE,
+    PREFERENCE_TEMPLATE,
+    ABSTENTION_TEMPLATE,
+  ].join("\0"))
+  .digest("hex");
 
 const DEFAULT_QUESTION_TYPES = new Set([
   "multi-session",
@@ -80,3 +118,6 @@ export function buildLongMemEvalOfficialJudgePrompt(input: {
 export function parseLongMemEvalOfficialJudgeVerdict(raw: string): boolean {
   return raw.toLowerCase().includes("yes");
 }
+import { createHash } from "node:crypto";
+
+import type { EvalRunModelIdentity } from "./runIdentity";

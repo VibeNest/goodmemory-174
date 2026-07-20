@@ -1,0 +1,173 @@
+import { PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION } from "./phase74FullRuntime";
+import { buildPhase74ProtocolScoringIdentity } from "./phase74ProtocolScoring";
+import type { Phase74BenchmarkFamily } from "./phase74Datasets";
+import type {
+  EvalRunJsonObject,
+  EvalRunModelIdentity,
+} from "./runIdentity";
+
+export const PHASE74_CONTEXT_TOKEN_BUDGET = 6_000;
+export const PHASE74_PRE_RANK_LIMIT = 32;
+export const PHASE74_SELECTED_LIMIT = 12;
+
+const PHASE74_FULL_RUN_FIXED_CONFIGURATION = {
+  answer: {
+    maxTokens: 512,
+    reasoningEffort: "medium",
+    temperature: 0,
+  },
+  context: {
+    maxTokens: PHASE74_CONTEXT_TOKEN_BUDGET,
+    tokenizer: "utf8-byte-upper-bound-v1",
+  },
+  costBoundary: "query-only-comparison-with-shadow-ingestion",
+  modelUsageAccounting: "phase74-model-usage-v1",
+  preRankLimit: PHASE74_PRE_RANK_LIMIT,
+  reader: "generic-label-free-v1",
+  selectedLimit: PHASE74_SELECTED_LIMIT,
+  seenCasesOnly: true,
+} as const satisfies EvalRunJsonObject;
+
+export function buildPhase74FullRunIdentityConfiguration(input: {
+  callBudget: {
+    embeddingSpendLimitUsd: number;
+    maxLanguageCalls: number;
+  };
+  dataset: EvalRunJsonObject;
+  embedding: EvalRunJsonObject;
+  evaluatorSource: EvalRunJsonObject;
+  replicate: 1 | 2 | 3;
+  reranker: EvalRunJsonObject;
+  scoring: EvalRunJsonObject;
+  selection: EvalRunJsonObject;
+  selectedCaseIdsSha256: string;
+}): EvalRunJsonObject {
+  assertCallBudget(input.callBudget);
+  return {
+    answer: PHASE74_FULL_RUN_FIXED_CONFIGURATION.answer,
+    callBudget: input.callBudget,
+    context: PHASE74_FULL_RUN_FIXED_CONFIGURATION.context,
+    costBoundary: PHASE74_FULL_RUN_FIXED_CONFIGURATION.costBoundary,
+    dataset: input.dataset,
+    embedding: input.embedding,
+    evaluatorSource: input.evaluatorSource,
+    modelUsageAccounting: PHASE74_FULL_RUN_FIXED_CONFIGURATION.modelUsageAccounting,
+    preRankLimit: PHASE74_FULL_RUN_FIXED_CONFIGURATION.preRankLimit,
+    providerObjectCalls: PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
+    reader: PHASE74_FULL_RUN_FIXED_CONFIGURATION.reader,
+    replicate: input.replicate,
+    reranker: input.reranker,
+    scoring: input.scoring,
+    selection: input.selection,
+    selectedCaseIdsSha256: input.selectedCaseIdsSha256,
+    selectedLimit: PHASE74_FULL_RUN_FIXED_CONFIGURATION.selectedLimit,
+    seenCasesOnly: PHASE74_FULL_RUN_FIXED_CONFIGURATION.seenCasesOnly,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJson).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    return `{${Object.keys(value).sort().map((key) =>
+      `${JSON.stringify(key)}:${stableJson(value[key])}`
+    ).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function assertEqual(actual: unknown, expected: unknown, label: string): void {
+  if (stableJson(actual) !== stableJson(expected)) {
+    throw new Error(`Phase 74 experiment identity ${label} drifted.`);
+  }
+}
+
+function assertModelIdentity(value: unknown, label: string): void {
+  if (
+    !isRecord(value) ||
+    typeof value.gateway !== "string" || value.gateway.length === 0 ||
+    typeof value.model !== "string" || value.model.length === 0 ||
+    typeof value.provider !== "string" || value.provider.length === 0
+  ) {
+    throw new Error(`Phase 74 experiment identity ${label} is missing.`);
+  }
+}
+
+function assertEvaluatorSource(value: unknown): void {
+  if (
+    !isRecord(value) ||
+    typeof value.commit !== "string" || !/^[0-9a-f]{40}$/u.test(value.commit) ||
+    typeof value.sha256 !== "string" || !/^[0-9a-f]{64}$/u.test(value.sha256)
+  ) {
+    throw new Error("Phase 74 experiment identity evaluatorSource is missing or invalid.");
+  }
+}
+
+function assertCallBudget(value: unknown): void {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).length !== 2 ||
+    typeof value.embeddingSpendLimitUsd !== "number" ||
+    !Number.isFinite(value.embeddingSpendLimitUsd) ||
+    value.embeddingSpendLimitUsd <= 0 ||
+    typeof value.maxLanguageCalls !== "number" ||
+    !Number.isSafeInteger(value.maxLanguageCalls) ||
+    value.maxLanguageCalls <= 0
+  ) {
+    throw new Error("Phase 74 experiment identity callBudget is missing or invalid.");
+  }
+}
+
+export function assertPhase74ExperimentIdentityContract(input: {
+  benchmark: Phase74BenchmarkFamily;
+  configuration: EvalRunJsonObject;
+  dataset: unknown;
+  expectedEmbedding?: EvalRunJsonObject;
+  expectedEvaluatorSource?: EvalRunJsonObject;
+  expectedReranker: EvalRunJsonObject;
+  judgeModel: EvalRunModelIdentity;
+}): void {
+  for (const [field, expected] of Object.entries(
+    PHASE74_FULL_RUN_FIXED_CONFIGURATION,
+  )) {
+    assertEqual(input.configuration[field], expected, field);
+  }
+  assertCallBudget(input.configuration.callBudget);
+  assertEqual(input.configuration.dataset, input.dataset, "dataset manifest");
+  assertModelIdentity(input.configuration.embedding, "embedding");
+  assertEvaluatorSource(input.configuration.evaluatorSource);
+  assertEqual(
+    input.configuration.providerObjectCalls,
+    PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
+    "providerObjectCalls",
+  );
+  assertEqual(
+    input.configuration.reranker,
+    input.expectedReranker,
+    "reranker",
+  );
+  assertEqual(
+    input.configuration.scoring,
+    buildPhase74ProtocolScoringIdentity(input.benchmark, input.judgeModel),
+    "scoring",
+  );
+  if (input.expectedEmbedding !== undefined) {
+    assertEqual(
+      input.configuration.embedding,
+      input.expectedEmbedding,
+      "embedding",
+    );
+  }
+  if (input.expectedEvaluatorSource !== undefined) {
+    assertEqual(
+      input.configuration.evaluatorSource,
+      input.expectedEvaluatorSource,
+      "evaluatorSource",
+    );
+  }
+}

@@ -208,8 +208,13 @@ export function buildPhase74LabelFreeScope(
   };
 }
 
+type Phase74EvidenceLink = Pick<
+  RecallResult["evidence"][number],
+  "linkedArchiveIds" | "linkedMemoryIds" | "sourceMessageIds"
+>;
+
 function sourceIdsForMemory(input: {
-  evidence: RecallResult["evidence"];
+  evidence: readonly Phase74EvidenceLink[];
   memoryId: string;
   sourceIdsByMessageId: ReadonlyMap<string, readonly string[]>;
 }): string[] {
@@ -224,9 +229,13 @@ function sourceIdsForMemory(input: {
   )];
 }
 
-function contextItems(input: {
-  evidence: RecallResult["evidence"];
-  records: readonly { content: string; id: string }[];
+export function buildPhase74ContextItems(input: {
+  evidence: readonly Phase74EvidenceLink[];
+  records: readonly {
+    content: string;
+    id: string;
+    sourceMemoryId?: string;
+  }[];
   sourceIdsByMessageId: ReadonlyMap<string, readonly string[]>;
 }) {
   return input.records.map((record) => ({
@@ -234,7 +243,7 @@ function contextItems(input: {
     id: record.id,
     sourceIds: sourceIdsForMemory({
       evidence: input.evidence,
-      memoryId: record.id,
+      memoryId: record.sourceMemoryId ?? record.id,
       sourceIdsByMessageId: input.sourceIdsByMessageId,
     }),
   }));
@@ -553,14 +562,20 @@ export function createPhase74FullRetrievalRuntime(input: {
         const sourceIdsByMessageId = new Map(
           testCase.rawEvidence.map((item) => [item.id, item.sourceIds] as const),
         );
-        const storedMemories = contextItems({
+        const storedMemories = buildPhase74ContextItems({
           evidence: exported.durable.evidence,
           records: exported.durable.facts.map(({ content, id }) => ({ content, id })),
           sourceIdsByMessageId,
         });
-        const retrievedMemories = contextItems({
+        const retrievedMemories = buildPhase74ContextItems({
           evidence: recall.evidence,
-          records: recall.facts.map(({ content, id }) => ({ content, id })),
+          records: recall.facts.map(({ attributes, content, id }) => ({
+            content,
+            id,
+            ...(typeof attributes?.sourceMemoryId === "string"
+              ? { sourceMemoryId: attributes.sourceMemoryId }
+              : {}),
+          })),
           sourceIdsByMessageId,
         });
         const evidenceLedgers =

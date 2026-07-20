@@ -210,4 +210,95 @@ describe("eval run identity", () => {
       })
     ).toThrow("Eval run identity must not contain API keys");
   });
+
+  it("rejects credential-derived fingerprints anywhere in identity metadata", () => {
+    expect(() =>
+      createIdentity({
+        configuration: {
+          audit: {
+            apiKeySha256: "rotated-key-fingerprint",
+          },
+        },
+      })
+    ).toThrow(
+      "Eval run identity must not contain credential-derived fingerprints",
+    );
+    expect(() =>
+      createIdentity({
+        configuration: {
+          providers: [
+            {
+              accessTokenHash: "token-fingerprint",
+            },
+          ],
+        },
+      })
+    ).toThrow(
+      "Eval run identity must not contain credential-derived fingerprints",
+    );
+  });
+
+  it("allows ordinary source and scorer content hashes", () => {
+    const identity = createIdentity({
+      configuration: {
+        scorerDigest: "scorer-digest",
+        scorerSha256: "scorer-sha",
+        sourceFingerprint: "source-fingerprint",
+        sourceSha256: "source-sha",
+      },
+    });
+
+    expect(identity.configuration).toEqual({
+      scorerDigest: "scorer-digest",
+      scorerSha256: "scorer-sha",
+      sourceFingerprint: "source-fingerprint",
+      sourceSha256: "source-sha",
+    });
+  });
+
+  it("rejects credentials embedded in provider endpoint URLs", () => {
+    expect(() =>
+      createIdentity({
+        answerModel: {
+          gateway: "https://reader:password@ai.example/v1",
+          model: "gpt-5.6-terra",
+          provider: "openai",
+        },
+      })
+    ).toThrow("Eval run identity must not contain credential-bearing URLs");
+    expect(() =>
+      createIdentity({
+        configuration: {
+          assistedExtractor: {
+            baseURL: "https://ai.example/v1?access_token=secret",
+          },
+        },
+      })
+    ).toThrow("Eval run identity must not contain credential-bearing URLs");
+    expect(() =>
+      createIdentity({
+        configuration: {
+          embeddingProvider: "https://embed.example/v1?key=secret",
+        },
+      })
+    ).toThrow("Eval run identity must not contain credential-bearing URLs");
+  });
+
+  it("allows credential-free provider endpoint URLs", () => {
+    const identity = createIdentity({
+      configuration: {
+        assistedExtractor: {
+          baseURL: "https://ai.example/v1?region=us-east-1",
+        },
+        embeddingProvider: "https://embed.example/v1",
+      },
+    });
+
+    expect(identity.configuration).toEqual({
+      assistedExtractor: {
+        baseURL: "https://ai.example/v1?region=us-east-1",
+      },
+      embeddingProvider: "https://embed.example/v1",
+    });
+  });
 });

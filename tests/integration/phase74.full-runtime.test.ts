@@ -3,7 +3,10 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createPhase74FullRetrievalRuntime } from "../../src/eval/phase74FullRuntime";
+import {
+  buildPhase74ContextItems,
+  createPhase74FullRetrievalRuntime,
+} from "../../src/eval/phase74FullRuntime";
 import { buildPhase74LabelFreeCaseBoundary } from "../../src/eval/phase74Generalization";
 import type { AttributedModelUsageAttempt } from "../../src/eval/modelUsage";
 import { createSQLiteDocumentStore } from "../../src/storage/sqlite";
@@ -15,6 +18,26 @@ afterEach(() => {
 });
 
 describe("Phase 74 full retrieval runtime", () => {
+  it("joins materialized claim provenance through the canonical source memory", () => {
+    expect(buildPhase74ContextItems({
+      evidence: [{
+        linkedArchiveIds: [],
+        linkedMemoryIds: ["fact-1"],
+        sourceMessageIds: ["message-1"],
+      }],
+      records: [{
+        content: "The user fixed the mountain bike.",
+        id: "claim-1",
+        sourceMemoryId: "fact-1",
+      }],
+      sourceIdsByMessageId: new Map([["message-1", ["D1:1"]]]),
+    })).toEqual([{
+      content: "The user fixed the mountain bike.",
+      id: "claim-1",
+      sourceIds: ["D1:1"],
+    }]);
+  });
+
   it("seeds one content-addressed SQLite snapshot per memory group and representation", async () => {
     globalThis.fetch = (async (request, init) => {
       const url = typeof request === "string"

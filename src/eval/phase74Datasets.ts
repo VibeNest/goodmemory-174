@@ -185,6 +185,11 @@ function caseBoundManifest(input: {
   normalizedFingerprint: string;
   source: Phase74DatasetSourcePin;
 }): Phase74DatasetManifest {
+  const manifestCases = input.cases.map((testCase) => {
+    const manifestCase = { ...testCase };
+    delete manifestCase.labelFreeCaseKey;
+    return manifestCase;
+  });
   const unresolvedGoldEvidence = input.cases.flatMap((testCase) =>
     testCase.unresolvedGoldEvidenceIds.length === 0
       ? []
@@ -194,7 +199,7 @@ function caseBoundManifest(input: {
       }]
   );
   return {
-    adaptedCasesSha256: sha256(JSON.stringify(input.cases)),
+    adaptedCasesSha256: sha256(JSON.stringify(manifestCases)),
     benchmark: input.benchmark,
     caseCount: input.cases.length,
     datasetSha256: input.datasetSha256,

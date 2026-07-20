@@ -1,18 +1,159 @@
-import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { describe, expect, it } from "bun:test";
+
 import {
   buildPhase74ReleaseWorkerInput,
   buildPhase74VersionComparison,
+  buildPhase74VersionRunIdentity,
   createPhase74FreshVersionRunDirectory,
   parsePhase74VersionBaselineCliOptions,
   preparePhase74VersionDataset,
 } from "../../scripts/run-phase-74-version-baseline";
 import type { Phase74DatasetBundle } from "../../src/eval/phase74Datasets";
+import {
+  assertPhase74ExperimentIdentityContract,
+  buildPhase74FullRunIdentityConfiguration,
+} from "../../src/eval/phase74ExperimentIdentity";
+import { buildPhase74ProtocolScoringIdentity } from "../../src/eval/phase74ProtocolScoring";
+
+const JUDGE_MODEL = {
+  gateway: "https://judge.example/v1",
+  model: "gpt-5.5",
+  provider: "openai",
+};
+
+function fullRunConfiguration() {
+  const scoring = buildPhase74ProtocolScoringIdentity(
+    "longmemeval",
+    JUDGE_MODEL,
+  );
+  const configuration = buildPhase74FullRunIdentityConfiguration({
+    callBudget: {
+      embeddingSpendLimitUsd: 0.1,
+      maxLanguageCalls: 80,
+    },
+    dataset: { datasetSha256: "dataset-sha" },
+    embedding: {
+      gateway: "https://openrouter.ai/api/v1",
+      model: "text-embedding-3-small",
+      provider: "openai",
+    },
+    evaluatorSource: {
+      commit: "a".repeat(40),
+      sha256: "b".repeat(64),
+    },
+    replicate: 1,
+    reranker: {
+      implementation: "lexical-coverage-v1",
+      mode: "deterministic",
+    },
+    scoring,
+    selection: { mode: "all" },
+    selectedCaseIdsSha256: "c".repeat(64),
+  });
+  return { configuration, scoring };
+}
+
+function assertFullRunConfiguration(configuration: ReturnType<
+  typeof buildPhase74FullRunIdentityConfiguration
+>) {
+  assertPhase74ExperimentIdentityContract({
+    benchmark: "longmemeval",
+    configuration,
+    dataset: { datasetSha256: "dataset-sha" },
+    expectedReranker: {
+      implementation: "lexical-coverage-v1",
+      mode: "deterministic",
+    },
+    judgeModel: JUDGE_MODEL,
+  });
+}
 
 describe("Phase 74 release baseline runner", () => {
+  it("fails closed on every frozen full-run identity field and malformed budgets", () => {
+    const { configuration } = fullRunConfiguration();
+
+    expect({
+      answer: configuration.answer,
+      context: configuration.context,
+      costBoundary: configuration.costBoundary,
+      modelUsageAccounting: configuration.modelUsageAccounting,
+      preRankLimit: configuration.preRankLimit,
+      reader: configuration.reader,
+      selectedLimit: configuration.selectedLimit,
+      seenCasesOnly: configuration.seenCasesOnly,
+    }).toEqual({
+      answer: {
+        maxTokens: 512,
+        reasoningEffort: "medium",
+        temperature: 0,
+      },
+      context: {
+        maxTokens: 6_000,
+        tokenizer: "utf8-byte-upper-bound-v1",
+      },
+      costBoundary: "query-only-comparison-with-shadow-ingestion",
+      modelUsageAccounting: "phase74-model-usage-v1",
+      preRankLimit: 32,
+      reader: "generic-label-free-v1",
+      selectedLimit: 12,
+      seenCasesOnly: true,
+    });
+    expect(() => assertFullRunConfiguration(configuration)).not.toThrow();
+
+    for (const [field, value] of [
+      ["answer", { maxTokens: 511, reasoningEffort: "medium", temperature: 0 }],
+      ["context", { maxTokens: 5_999, tokenizer: "utf8-byte-upper-bound-v1" }],
+      ["costBoundary", "full-product"],
+      ["modelUsageAccounting", "phase74-model-usage-v2"],
+      ["preRankLimit", 31],
+      ["reader", "benchmark-aware-reader"],
+      ["selectedLimit", 11],
+      ["seenCasesOnly", false],
+    ] as const) {
+      expect(() => assertFullRunConfiguration({
+        ...configuration,
+        [field]: value,
+      })).toThrow(field);
+    }
+
+    const invalidCallBudgets: readonly Record<string, number | boolean>[] = [
+      { embeddingSpendLimitUsd: 0, maxLanguageCalls: 80 },
+      { embeddingSpendLimitUsd: 0.1, maxLanguageCalls: 0 },
+      { embeddingSpendLimitUsd: 0.1, maxLanguageCalls: 1.5 },
+      { embeddingSpendLimitUsd: Number.POSITIVE_INFINITY, maxLanguageCalls: 80 },
+      { embeddingSpendLimitUsd: 0.1, extra: true, maxLanguageCalls: 80 },
+      { maxLanguageCalls: 80 },
+    ];
+    for (const callBudget of invalidCallBudgets) {
+      expect(() => assertFullRunConfiguration({
+        ...configuration,
+        callBudget,
+      })).toThrow("callBudget");
+    }
+  });
+
+  it("records both hard budgets in the pre-call version run identity", () => {
+    expect(buildPhase74VersionRunIdentity({
+      embeddingSpendLimitUsd: 0.1,
+      identity: {
+        benchmark: "longmemeval",
+        runId: "release-vs-candidate-r1",
+      },
+      maxLanguageCalls: 80,
+    })).toEqual({
+      benchmark: "longmemeval",
+      callBudget: {
+        embeddingSpendLimitUsd: 0.1,
+        maxLanguageCalls: 80,
+      },
+      runId: "release-vs-candidate-r1",
+    });
+  });
+
   it("refuses to reuse a partial version-comparison run directory", async () => {
     const root = await mkdtemp(join(tmpdir(), "phase74-version-run-"));
     try {

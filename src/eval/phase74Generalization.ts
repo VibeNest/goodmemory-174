@@ -41,6 +41,7 @@ export interface Phase74GeneralizationCase {
   expectedAnswer: string;
   family?: "locomo" | "longmemeval";
   goldEvidenceIds: readonly string[];
+  labelFreeCaseKey?: string;
   locale?: string;
   memoryGroupId?: string;
   protocolMetadata?: Readonly<Record<string, unknown>>;
@@ -398,12 +399,13 @@ export function buildPhase74LabelFreeCaseBoundary(
     rawEvidence,
     referenceTime: testCase.referenceTime ?? null,
   }))}`;
-  const caseKey = `case-${sha256(JSON.stringify({
+  const derivedCaseKey = `case-${sha256(JSON.stringify({
     locale: testCase.locale ?? null,
     memoryGroupId,
     question: testCase.question,
     referenceTime: testCase.referenceTime ?? null,
   }))}`;
+  const caseKey = testCase.labelFreeCaseKey ?? derivedCaseKey;
   const aliasGoldSource = (sourceId: string) =>
     sourceAliases.get(sourceId) ?? `unresolved-source-${sha256(sourceId)}`;
   return {

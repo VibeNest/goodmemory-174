@@ -22,10 +22,12 @@ import {
   resolvePhase74LiveModels,
 } from "../src/eval/phase74Live";
 import { buildPhase74LabelFreeCaseBoundary } from "../src/eval/phase74Generalization";
+import { assertPhase74ExperimentIdentityContract } from "../src/eval/phase74ExperimentIdentity";
 import {
-  buildPhase74OfficialScoringIdentity,
-  createPhase74OfficialAnswerAssessor,
-} from "../src/eval/phase74OfficialScoring";
+  buildPhase74ProtocolScoringIdentity,
+  createPhase74ProtocolCompatibleAnswerAssessor,
+} from "../src/eval/phase74ProtocolScoring";
+import type { EvalRunJsonObject } from "../src/eval/runIdentity";
 import {
   inferExactMcNemar,
   inferPairedMeanDelta,
@@ -80,6 +82,20 @@ export interface Phase74VersionScoredOutcome {
   caseId: string;
   correct: boolean;
   score: number;
+}
+
+export function buildPhase74VersionRunIdentity(input: {
+  embeddingSpendLimitUsd: number;
+  identity: EvalRunJsonObject;
+  maxLanguageCalls: number;
+}): EvalRunJsonObject {
+  return {
+    ...input.identity,
+    callBudget: {
+      embeddingSpendLimitUsd: input.embeddingSpendLimitUsd,
+      maxLanguageCalls: input.maxLanguageCalls,
+    },
+  };
 }
 
 export function preparePhase74VersionDataset(input: {
@@ -348,25 +364,21 @@ export async function runPhase74VersionBaseline(
   const configuration = jsonObject(candidateIdentity.configuration);
   assertEqualIdentity(candidateIdentity.benchmark, `${options.benchmark}-full`, "benchmark");
   assertEqualIdentity(candidateIdentity.datasetSha256, dataset.manifest.datasetSha256, "dataset SHA-256");
-  assertEqualIdentity(configuration.dataset, dataset.manifest, "dataset manifest");
   assertEqualIdentity(configuration.selection, selection.identity, "selection identity");
-  assertEqualIdentity(
-    configuration.scoring,
-    buildPhase74OfficialScoringIdentity(options.benchmark),
-    "scoring identity",
-  );
-  assertEqualIdentity(
-    configuration.embedding,
-    buildPhase74EmbeddingIdentity(models.embedding),
-    "embedding identity",
-  );
-  assertEqualIdentity(configuration.reranker, {
-    implementation: "lexical-coverage-v1",
-    mode: "deterministic",
-  }, "reranker identity");
   assertEqualIdentity(candidateIdentity.answerModel, publicModelIdentity(models.answer), "reader model");
   assertEqualIdentity(candidateIdentity.judgeModel, publicModelIdentity(models.judge), "judge model");
   assertEqualIdentity(candidateIdentity.promptSha256s, phase74LivePromptSha256s(), "prompt identity");
+  assertPhase74ExperimentIdentityContract({
+    benchmark: options.benchmark,
+    configuration: configuration as EvalRunJsonObject,
+    dataset: dataset.manifest,
+    expectedEmbedding: buildPhase74EmbeddingIdentity(models.embedding),
+    expectedReranker: {
+      implementation: "lexical-coverage-v1",
+      mode: "deterministic",
+    },
+    judgeModel: publicModelIdentity(models.judge),
+  });
   const candidateSource = parsePhase74VersionCandidateSource(
     configuration.evaluatorSource,
   );
@@ -395,21 +407,28 @@ export async function runPhase74VersionBaseline(
     workerSha256: await sha256File(join(process.cwd(), "scripts/phase74-version-worker.ts")),
   });
   const candidateRunIdentitySha256 = sha256(candidateIdentityRaw);
-  const scoring = buildPhase74OfficialScoringIdentity(options.benchmark);
-  const versionRunIdentity = {
-    answerModel: publicModelIdentity(models.answer),
-    benchmark: options.benchmark,
-    candidateRunIdentitySha256,
-    candidateSource,
-    embedding: buildPhase74EmbeddingIdentity(models.embedding),
-    judgeModel: publicModelIdentity(models.judge),
-    promptSha256s: phase74LivePromptSha256s(),
-    releaseSource,
-    reranker: { implementation: "lexical-coverage-v1", mode: "deterministic" },
-    runId: options.runId,
-    scoring,
-    selection: selection.identity,
-  };
+  const scoring = buildPhase74ProtocolScoringIdentity(
+    options.benchmark,
+    publicModelIdentity(models.judge),
+  );
+  const versionRunIdentity = buildPhase74VersionRunIdentity({
+    embeddingSpendLimitUsd: options.embeddingSpendLimitUsd,
+    identity: {
+      answerModel: publicModelIdentity(models.answer),
+      benchmark: options.benchmark,
+      candidateRunIdentitySha256,
+      candidateSource,
+      embedding: buildPhase74EmbeddingIdentity(models.embedding),
+      judgeModel: publicModelIdentity(models.judge),
+      promptSha256s: phase74LivePromptSha256s(),
+      releaseSource: { ...releaseSource },
+      reranker: { implementation: "lexical-coverage-v1", mode: "deterministic" },
+      runId: options.runId,
+      scoring,
+      selection: selection.identity,
+    },
+    maxLanguageCalls: options.maxLanguageCalls,
+  });
   await writeJson(join(runDirectory, "run-identity.json"), versionRunIdentity);
   const events: AttributedModelUsageAttempt[] = [];
   const usagePath = join(runDirectory, "model-usage.jsonl");
@@ -421,7 +440,7 @@ export async function runPhase74VersionBaseline(
     model: models.answer,
     onUsageEvent,
   });
-  const assessor = createPhase74OfficialAnswerAssessor({
+  const assessor = createPhase74ProtocolCompatibleAnswerAssessor({
     benchmark: options.benchmark,
     events,
     model: models.judge,

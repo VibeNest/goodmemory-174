@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  buildPhase74LabelFreeCaseBoundary,
   runPhase74Generalization,
   type Phase74GeneralizationCase,
   type Phase74RetrievalSnapshot,
@@ -63,6 +64,28 @@ function identity() {
 }
 
 describe("Phase 74 generalization runner", () => {
+  it("hides LoCoMo source names without flattening session topology", () => {
+    const boundary = buildPhase74LabelFreeCaseBoundary({
+      caseId: "locomo/conversation-1/q1",
+      expectedAnswer: "answer",
+      goldEvidenceIds: ["D1:1"],
+      question: "question",
+      rawEvidence: [
+        { content: "first", id: "raw-1", sourceIds: ["D1:1"] },
+        { content: "second", id: "raw-2", sourceIds: ["D1:2"] },
+        { content: "third", id: "raw-3", sourceIds: ["D2:1"] },
+      ],
+    });
+    const sourceIds = boundary.recallCase.rawEvidence.map(
+      (evidence) => evidence.sourceIds[0],
+    );
+
+    expect(sourceIds[0]?.split(":")[0]).toBe(sourceIds[1]?.split(":")[0]);
+    expect(sourceIds[2]?.split(":")[0]).not.toBe(sourceIds[0]?.split(":")[0]);
+    expect(JSON.stringify(boundary.recallCase)).not.toContain("D1");
+    expect(JSON.stringify(boundary.recallCase)).not.toContain("D2");
+  });
+
   it("uses one family assessment as the source of both score and correctness", async () => {
     const purposes: string[] = [];
     let legacyJudgeCalls = 0;

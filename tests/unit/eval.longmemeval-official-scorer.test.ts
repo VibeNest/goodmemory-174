@@ -2,7 +2,11 @@ import { describe, expect, it } from "bun:test";
 
 import {
   buildLongMemEvalOfficialJudgePrompt,
+  findLongMemEvalOfficialEvaluatorAlias,
   isLongMemEvalOfficialAbstentionCase,
+  LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES,
+  LONGMEMEVAL_OFFICIAL_METRIC_MODELS,
+  LONGMEMEVAL_OFFICIAL_PROMPT_SHA256,
   LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY,
   parseLongMemEvalOfficialJudgeVerdict,
 } from "../../src/eval/longmemevalOfficialScorer";
@@ -17,6 +21,45 @@ describe("LongMemEval official scorer", () => {
       path: "src/evaluation/evaluate_qa.py",
       repository: "https://github.com/xiaowu0162/LongMemEval",
     });
+    expect(LONGMEMEVAL_OFFICIAL_PROMPT_SHA256).toMatch(/^[0-9a-f]{64}$/u);
+    expect(LONGMEMEVAL_OFFICIAL_EVALUATOR_IDENTITIES).toEqual([
+      {
+        alias: "gpt-4o",
+        gateway: "https://api.openai.com/v1",
+        model: "gpt-4o-2024-08-06",
+        provider: "openai",
+      },
+      {
+        alias: "gpt-4o-mini",
+        gateway: "https://api.openai.com/v1",
+        model: "gpt-4o-mini-2024-07-18",
+        provider: "openai",
+      },
+      {
+        alias: "llama-3.1-70b-instruct",
+        gateway: "http://localhost:8001/v1",
+        model: "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        provider: "openai",
+      },
+    ]);
+    expect(LONGMEMEVAL_OFFICIAL_METRIC_MODELS).toEqual([
+      "gpt-4o",
+      "gpt-4o-mini",
+      "llama-3.1-70b-instruct",
+    ]);
+  });
+
+  it("requires the resolved model, provider, and gateway for comparability", () => {
+    expect(findLongMemEvalOfficialEvaluatorAlias({
+      gateway: "https://api.openai.com/v1",
+      model: "gpt-4o-2024-08-06",
+      provider: "openai",
+    })).toBe("gpt-4o");
+    expect(findLongMemEvalOfficialEvaluatorAlias({
+      gateway: "https://gateway.example/v1",
+      model: "gpt-4o",
+      provider: "openai",
+    })).toBeNull();
   });
 
   it("routes temporal, update, preference, and default question types", () => {

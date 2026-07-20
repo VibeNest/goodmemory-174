@@ -15,7 +15,7 @@ import {
 import type { EvidenceLedgerFormat } from "../src/eval/evidenceLedgerFormats";
 import type { Phase74BenchmarkFamily } from "../src/eval/phase74Datasets";
 import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
-import { buildPhase74ProtocolScoringIdentity } from "../src/eval/phase74ProtocolScoring";
+import { assertPhase74ExperimentIdentityContract } from "../src/eval/phase74ExperimentIdentity";
 import {
   evaluatePhase74PromotionGate,
   PHASE74_MAX_PROTECTION_REGRESSION,
@@ -314,7 +314,16 @@ function assertAggregationAdmission(input: {
   selectionMode: "all" | "deterministic-content-hash-v2";
 } {
   const configuration = input.identity.configuration;
-  const missing = ["dataset", "reranker", "scoring", "selection", "selectedCaseIdsSha256"]
+  const missing = [
+    "dataset",
+    "embedding",
+    "evaluatorSource",
+    "providerObjectCalls",
+    "reranker",
+    "scoring",
+    "selection",
+    "selectedCaseIdsSha256",
+  ]
     .filter((field) => configuration[field] === undefined);
   if (missing.length > 0) {
     throw new Error(
@@ -333,24 +342,17 @@ function assertAggregationAdmission(input: {
     throw new Error("Phase 74 aggregation admission selected population drifted.");
   }
 
-  const expectedReranker = {
-    ...input.identity.answerModel,
-    implementation: "provider-pointwise-v1",
-    mode: "provider",
-  };
-  if (stableJson(configuration.reranker) !== stableJson(expectedReranker)) {
-    throw new Error(
-      "Phase 74 aggregation admission requires the frozen provider reranker.",
-    );
-  }
-  const expectedScoring = buildPhase74ProtocolScoringIdentity(
-    input.benchmark,
-    input.identity.judgeModel.model,
-  );
-  if (stableJson(configuration.scoring) !== stableJson(expectedScoring)) {
-    throw new Error("Phase 74 aggregation admission scoring identity drifted.");
-  }
-
+  assertPhase74ExperimentIdentityContract({
+    benchmark: input.benchmark,
+    configuration,
+    dataset: input.datasetManifest,
+    expectedReranker: {
+      ...input.identity.answerModel,
+      implementation: "provider-pointwise-v1",
+      mode: "provider",
+    },
+    judgeModel: input.identity.judgeModel,
+  });
   const selection = recordValue(
     configuration.selection,
     "aggregation admission selection",
