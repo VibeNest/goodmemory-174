@@ -89,6 +89,7 @@ export interface Phase74RetrievalSnapshot {
 export interface Phase74RetrievalEvaluation {
   answer: string;
   answerLatencyMs: number;
+  attribution: Phase74EvaluationAttribution;
   contextTokens: number;
   contextTokensBeforeTruncation: number;
   contextTruncated: boolean;
@@ -96,6 +97,16 @@ export interface Phase74RetrievalEvaluation {
   productLatencyMs: number;
   recallLatencyMs: number;
   score: number;
+}
+
+export interface Phase74EvaluationAttribution {
+  inputSha256: string;
+  observedAnswer: string;
+  observedCorrect: boolean;
+  observedScore: number;
+  reused: boolean;
+  sourceArm: string;
+  sourceSnapshotId: string;
 }
 
 export interface Phase74AnswerAssessment {
@@ -121,6 +132,7 @@ export interface Phase74GeneralizationExecutionResult {
   contextTokensBeforeTruncation?: number;
   contextTruncated?: boolean;
   correct?: boolean;
+  evaluationAttribution?: Phase74EvaluationAttribution;
   executionError?: string;
   metrics?: ReturnType<typeof measureOracleMatrixCoverage>;
   productLatencyMs?: number;
@@ -562,6 +574,12 @@ export async function runPhase74Generalization(
         snapshots: Phase74RetrievalSnapshot[];
       }> = [];
       for (const { index, testCase } of group) {
+        const assessmentsByInput = new Map<string, {
+          answer: string;
+          assessment: Phase74AnswerAssessment;
+          sourceArm: RetrievalArm;
+          sourceSnapshotId: string;
+        }>();
         const caseExecutions: Phase74GeneralizationExecutionResult[] = [];
         const caseSnapshots: Phase74RetrievalSnapshot[] = [];
         const labelFreeBoundary = buildPhase74LabelFreeCaseBoundary(testCase);
@@ -595,33 +613,51 @@ export async function runPhase74Generalization(
               });
               const recallCompletedAt = now();
               let snapshot = retrievedSnapshot;
+              const budgetedContext = truncateRenderedContext({
+                content: renderOracleMatrixContext(snapshot.retrievedMemories),
+                contextTokenBudget:
+                  input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
+                countRenderedTokens: input.countRenderedTokens,
+              });
+              const evaluationInputSha256 = sha256(JSON.stringify({
+                context: budgetedContext.content,
+                question: testCase.question,
+                stage,
+              }));
               if (snapshot.evaluation === undefined) {
                 if (cached !== null) {
                   throw new Error(
                     `Phase 74 retrieval checkpoint lacks end-to-end evaluation for ${testCase.caseId}/${stage}/${arm}.`,
                   );
                 }
-                const budgetedContext = truncateRenderedContext({
-                  content: renderOracleMatrixContext(snapshot.retrievedMemories),
-                  contextTokenBudget:
-                    input.contextTokenBudget ?? PHASE74_CONTEXT_TOKEN_BUDGET,
-                  countRenderedTokens: input.countRenderedTokens,
-                });
                 const branch = phase74ComparisonBranch(stage, arm);
                 const answerStartedAt = now();
-                const answer = await input.genericReader({
+                const observedAnswer = await input.genericReader({
                   caseId: labelFreeBoundary.caseKey,
                   context: budgetedContext.content,
                   purpose: `final:${branch}:${stage}:${arm}`,
                   question: testCase.question,
                 });
                 const answerCompletedAt = now();
-                const assessment = await assessAnswer({
-                  answer,
+                const observedAssessment = await assessAnswer({
+                  answer: observedAnswer,
                   purpose: `final:${branch}:${stage}:${arm}`,
                   run: input,
                   testCase,
                 });
+                const shared = assessmentsByInput.get(evaluationInputSha256);
+                const answer = shared?.answer ?? observedAnswer;
+                const assessment = shared?.assessment ?? observedAssessment;
+                const sourceArm = shared?.sourceArm ?? arm;
+                const sourceSnapshotId = shared?.sourceSnapshotId ?? snapshot.snapshotId;
+                if (!shared) {
+                  assessmentsByInput.set(evaluationInputSha256, {
+                    answer,
+                    assessment,
+                    sourceArm,
+                    sourceSnapshotId,
+                  });
+                }
                 snapshot = {
                   ...snapshot,
                   evaluation: {
@@ -630,6 +666,15 @@ export async function runPhase74Generalization(
                       0,
                       answerCompletedAt - answerStartedAt,
                     ),
+                    attribution: {
+                      inputSha256: evaluationInputSha256,
+                      observedAnswer,
+                      observedCorrect: observedAssessment.correct,
+                      observedScore: observedAssessment.score,
+                      reused: shared !== undefined,
+                      sourceArm,
+                      sourceSnapshotId,
+                    },
                     contextTokens: budgetedContext.renderedContextTokens,
                     contextTokensBeforeTruncation:
                       budgetedContext.renderedContextTokensBeforeTruncation,
@@ -648,6 +693,39 @@ export async function runPhase74Generalization(
                     score: assessment.score,
                   },
                 };
+              } else if (snapshot.evaluation.attribution === undefined) {
+                throw new Error(
+                  `Phase 74 retrieval checkpoint lacks evaluation attribution for ${testCase.caseId}/${stage}/${arm}.`,
+                );
+              } else {
+                const attribution = snapshot.evaluation.attribution;
+                if (attribution.inputSha256 !== evaluationInputSha256) {
+                  throw new Error(
+                    `Phase 74 retrieval checkpoint evaluation input drifted for ${testCase.caseId}/${stage}/${arm}.`,
+                  );
+                }
+                const shared = assessmentsByInput.get(evaluationInputSha256);
+                if (shared) {
+                  if (
+                    snapshot.evaluation.answer !== shared.answer ||
+                    snapshot.evaluation.correct !== shared.assessment.correct ||
+                    snapshot.evaluation.score !== shared.assessment.score
+                  ) {
+                    throw new Error(
+                      `Phase 74 retrieval checkpoint disagrees for identical reader input ${testCase.caseId}/${stage}/${arm}.`,
+                    );
+                  }
+                } else {
+                  assessmentsByInput.set(evaluationInputSha256, {
+                    answer: snapshot.evaluation.answer,
+                    assessment: {
+                      correct: snapshot.evaluation.correct,
+                      score: snapshot.evaluation.score,
+                    },
+                    sourceArm: arm,
+                    sourceSnapshotId: snapshot.snapshotId,
+                  });
+                }
               }
               if (cached === null) {
                 await input.checkpoint?.saveRetrieval(key, snapshot);
@@ -674,6 +752,7 @@ export async function runPhase74Generalization(
                   evaluation.contextTokensBeforeTruncation,
                 contextTruncated: evaluation.contextTruncated,
                 correct: evaluation.correct,
+                evaluationAttribution: evaluation.attribution,
                 metrics,
                 productLatencyMs: evaluation.productLatencyMs,
                 recallLatencyMs: evaluation.recallLatencyMs,

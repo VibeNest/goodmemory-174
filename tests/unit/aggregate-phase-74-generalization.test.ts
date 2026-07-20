@@ -18,7 +18,10 @@ import {
   runPhase74GeneralizationAggregation,
 } from "../../scripts/aggregate-phase-74-generalization";
 import { PHASE74_EXPERIMENT_ARMS } from "../../src/eval/phase74ExperimentDesign";
-import { buildPhase74StageConfigurations } from "../../src/eval/phase74Generalization";
+import {
+  buildPhase74StageConfigurations,
+  type Phase74EvaluationAttribution,
+} from "../../src/eval/phase74Generalization";
 import {
   buildPhase74RetrievalSnapshotId,
   PHASE74_PROVIDER_OBJECT_CALL_CONFIGURATION,
@@ -462,10 +465,21 @@ async function createArtifactFixture(options: FixtureOptions = {}) {
             storedMemories,
           });
           row.snapshotId = snapshotId;
+          const attribution: Phase74EvaluationAttribution = {
+            inputSha256: sha256(`${row.caseId}/${stage}/${row.arm}/reader-input`),
+            observedAnswer: row.answer,
+            observedCorrect: row.correct,
+            observedScore: row.score,
+            reused: false,
+            sourceArm: row.arm,
+            sourceSnapshotId: snapshotId,
+          };
+          Object.assign(row, { evaluationAttribution: attribution });
           return {
             evaluation: {
               answer: row.answer,
               answerLatencyMs: row.answerLatencyMs,
+              attribution,
               contextTokens: row.contextTokens,
               contextTokensBeforeTruncation: row.contextTokensBeforeTruncation,
               contextTruncated: row.contextTruncated,
@@ -774,6 +788,7 @@ describe("Phase 74 frozen artifact aggregation", () => {
     );
     const secondSnapshotId = second.snapshotId;
     second.snapshotId = first.snapshotId;
+    second.evaluationAttribution.sourceSnapshotId = first.snapshotId;
     await writeJsonLines(progressPath, rows);
 
     const packetsPath = join(runDirectory, "e2-retrieval-packets.jsonl");
@@ -790,6 +805,7 @@ describe("Phase 74 frozen artifact aggregation", () => {
     secondPacket.retrievedMemories = firstPacket.retrievedMemories;
     secondPacket.storedMemories = firstPacket.storedMemories;
     secondPacket.snapshotId = firstPacket.snapshotId;
+    secondPacket.evaluation.attribution.sourceSnapshotId = firstPacket.snapshotId;
     await writeJsonLines(packetsPath, packets);
 
     const report = await aggregatePhase74StageDiagnosticArtifacts({
@@ -797,6 +813,38 @@ describe("Phase 74 frozen artifact aggregation", () => {
       stage: "E2",
     });
     expect(report.aggregation.caseCount).toBe(3);
+  });
+
+  it("rejects different scores attributed to an identical reader input", async () => {
+    const fixture = await createArtifactFixture({
+      admission: "deterministic-reranker",
+      subsetSelection: true,
+    });
+    const runDirectories = fixture.runDirectories.filter((path) =>
+      path.includes("locomo-replicate-")
+    );
+    const progressPath = join(runDirectories[0]!, "e2-progress.jsonl");
+    const rows = (await readFile(progressPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const baseline = rows.find(({ arm }) => arm === "claim-temporal-off");
+    const candidate = rows.find(({ arm, caseId }) =>
+      arm === "claim-temporal-on" && caseId === baseline.caseId
+    );
+    candidate.evaluationAttribution = {
+      ...candidate.evaluationAttribution,
+      inputSha256: baseline.evaluationAttribution.inputSha256,
+      reused: true,
+      sourceArm: baseline.arm,
+      sourceSnapshotId: baseline.snapshotId,
+    };
+    await writeJsonLines(progressPath, rows);
+
+    await expect(aggregatePhase74StageDiagnosticArtifacts({
+      runDirectories,
+      stage: "E2",
+    })).rejects.toThrow("identical reader input assessment drift");
   });
 
   it("rejects score and correctness pairs that violate the frozen family scorer", async () => {

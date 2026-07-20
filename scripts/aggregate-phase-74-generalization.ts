@@ -22,6 +22,7 @@ import { PHASE74_EXPERIMENT_ARMS } from "../src/eval/phase74ExperimentDesign";
 import { assertPhase74ExperimentIdentityContract } from "../src/eval/phase74ExperimentIdentity";
 import { buildPhase74RetrievalSnapshotId } from "../src/eval/phase74FullRuntime";
 import { buildPhase74StageConfigurations } from "../src/eval/phase74Generalization";
+import type { Phase74EvaluationAttribution } from "../src/eval/phase74Generalization";
 import {
   evaluatePhase74PromotionGate,
   PHASE74_MAX_PROTECTION_REGRESSION,
@@ -93,6 +94,7 @@ interface RetrievalProgressRow {
   contextTokensBeforeTruncation: number;
   contextTruncated: boolean;
   correct: boolean;
+  evaluationAttribution?: Phase74EvaluationAttribution;
   productLatencyMs: number;
   recallLatencyMs: number;
   score: number;
@@ -354,6 +356,56 @@ function assertExactKeys(
       `Phase 74 ${label} contains unsupported field(s): ${unexpected.join(", ")}.`,
     );
   }
+}
+
+function parseEvaluationAttribution(
+  value: unknown,
+  input: {
+    expectedArms: ReadonlySet<string>;
+    label: string;
+  },
+): Phase74EvaluationAttribution {
+  const attribution = recordValue(value, input.label);
+  assertExactKeys(attribution, [
+    "inputSha256",
+    "observedAnswer",
+    "observedCorrect",
+    "observedScore",
+    "reused",
+    "sourceArm",
+    "sourceSnapshotId",
+  ], input.label);
+  const sourceArm = stringValue(
+    attribution.sourceArm,
+    `${input.label} sourceArm`,
+  );
+  if (!input.expectedArms.has(sourceArm)) {
+    throw new Error(`Phase 74 ${input.label} contains unknown source arm ${sourceArm}.`);
+  }
+  return {
+    inputSha256: sha256Value(
+      attribution.inputSha256,
+      `${input.label} inputSha256`,
+    ),
+    observedAnswer: stringValue(
+      attribution.observedAnswer,
+      `${input.label} observedAnswer`,
+    ),
+    observedCorrect: booleanValue(
+      attribution.observedCorrect,
+      `${input.label} observedCorrect`,
+    ),
+    observedScore: unitValue(
+      attribution.observedScore,
+      `${input.label} observedScore`,
+    ),
+    reused: booleanValue(attribution.reused, `${input.label} reused`),
+    sourceArm,
+    sourceSnapshotId: sha256Value(
+      attribution.sourceSnapshotId,
+      `${input.label} sourceSnapshotId`,
+    ),
+  };
 }
 
 function sha256(value: string): string {
@@ -886,6 +938,17 @@ function parseRetrievalProgress(
         `${input.stage} progress contextTruncated`,
       ),
       correct: booleanValue(row.correct, `${input.stage} progress correct`),
+      ...(row.evaluationAttribution === undefined
+        ? {}
+        : {
+            evaluationAttribution: parseEvaluationAttribution(
+              row.evaluationAttribution,
+              {
+                expectedArms,
+                label: `${input.stage} progress evaluationAttribution`,
+              },
+            ),
+          }),
       productLatencyMs: finiteValue(
         row.productLatencyMs,
         `${input.stage} progress productLatencyMs`,
@@ -917,6 +980,53 @@ function parseRetrievalProgress(
       throw new Error(`Phase 74 ${input.stage} progress contains duplicate ${row.caseId}/${row.arm}.`);
     }
     seen.add(key);
+  }
+  const attributedRows = rows.filter(
+    ({ evaluationAttribution }) => evaluationAttribution !== undefined,
+  );
+  if (attributedRows.length !== 0 && attributedRows.length !== rows.length) {
+    throw new Error(
+      `Phase 74 ${input.stage} progress evaluation attribution population drift.`,
+    );
+  }
+  if (attributedRows.length > 0) {
+    const byInput = new Map<string, RetrievalProgressRow[]>();
+    for (const row of attributedRows) {
+      const attribution = row.evaluationAttribution!;
+      const key = `${row.caseId}\0${attribution.inputSha256}`;
+      byInput.set(key, [...(byInput.get(key) ?? []), row]);
+    }
+    for (const group of byInput.values()) {
+      const source = group.find(({ evaluationAttribution }) =>
+        evaluationAttribution?.reused === false
+      );
+      if (
+        !source ||
+        group.filter(({ evaluationAttribution }) =>
+          evaluationAttribution?.reused === false
+        ).length !== 1 ||
+        source.evaluationAttribution?.sourceArm !== source.arm ||
+        source.evaluationAttribution.sourceSnapshotId !== source.snapshotId
+      ) {
+        throw new Error(
+          `Phase 74 ${input.stage} progress evaluation attribution source drift.`,
+        );
+      }
+      for (const row of group) {
+        const attribution = row.evaluationAttribution!;
+        if (
+          attribution.sourceArm !== source.arm ||
+          attribution.sourceSnapshotId !== source.snapshotId ||
+          row.answer !== source.answer ||
+          row.correct !== source.correct ||
+          row.score !== source.score
+        ) {
+          throw new Error(
+            `Phase 74 ${input.stage} progress identical reader input assessment drift.`,
+          );
+        }
+      }
+    }
   }
   const baselineRows = rows.filter(
     ({ arm }) => arm === input.comparison.baselineArm,
@@ -1093,6 +1203,9 @@ async function validateRetrievalPackets(input: {
     const expectedEvaluation = {
       answer: row.answer,
       answerLatencyMs: row.answerLatencyMs,
+      ...(row.evaluationAttribution === undefined
+        ? {}
+        : { attribution: row.evaluationAttribution }),
       contextTokens: row.contextTokens,
       contextTokensBeforeTruncation: row.contextTokensBeforeTruncation,
       contextTruncated: row.contextTruncated,

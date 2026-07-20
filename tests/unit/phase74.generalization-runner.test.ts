@@ -195,6 +195,69 @@ describe("Phase 74 generalization runner", () => {
       ]);
   });
 
+  it("binds identical reader inputs to one assessment without hiding actual model calls", async () => {
+    let readerCalls = 0;
+    let assessmentCalls = 0;
+    const report = await runPhase74Generalization({
+      assessAnswer: async ({ answer }) => {
+        assessmentCalls += 1;
+        return {
+          correct: answer === "answer-1",
+          score: answer === "answer-1" ? 1 : 0,
+        };
+      },
+      cases,
+      countRenderedTokens: (content) => content.length,
+      executeRetrieval: async ({ arm, stage }) => ({
+        retrievedMemories: [{
+          content: "Current database is Postgres.",
+          id: "fact-postgres",
+          sourceIds: ["opaque-source"],
+        }],
+        snapshotId: `${stage}:${arm}`,
+        storedMemories: [],
+      }),
+      genericReader: async () => {
+        readerCalls += 1;
+        return `answer-${readerCalls}`;
+      },
+      identity: identity(),
+      includeOracle: false,
+      judge: async () => ({ correct: true }),
+      persistIdentity: async () => undefined,
+      protocolReader: async () => "unused",
+      renderEvidenceLedger: async () => "unused",
+      stages: ["E2"],
+    });
+
+    expect(readerCalls).toBe(2);
+    expect(assessmentCalls).toBe(2);
+    expect(report.executions.map(({ answer, correct, score }) => ({
+      answer,
+      correct,
+      score,
+    }))).toEqual([
+      { answer: "answer-1", correct: true, score: 1 },
+      { answer: "answer-1", correct: true, score: 1 },
+    ]);
+    expect(report.executions.map(({ evaluationAttribution }) =>
+      evaluationAttribution
+    )).toEqual([
+      expect.objectContaining({
+        observedAnswer: "answer-1",
+        observedScore: 1,
+        reused: false,
+        sourceArm: "claim-temporal-off",
+      }),
+      expect.objectContaining({
+        observedAnswer: "answer-2",
+        observedScore: 0,
+        reused: true,
+        sourceArm: "claim-temporal-off",
+      }),
+    ]);
+  });
+
   it("excludes one-time ingestion from comparable query-path latency", async () => {
     let clock = 0;
     const report = await runPhase74Generalization({
