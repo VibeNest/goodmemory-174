@@ -265,6 +265,19 @@ export function buildPhase74ContextItems(input: {
   }));
 }
 
+export function assertPhase74RetrievedProvenance(
+  records: readonly { id: string; sourceIds: readonly string[] }[],
+): void {
+  const missing = records
+    .filter(({ sourceIds }) => sourceIds.length === 0)
+    .map(({ id }) => id);
+  if (missing.length > 0) {
+    throw new Error(
+      `Phase 74 retrieved memories missing immutable source ids: ${missing.join(", ")}.`,
+    );
+  }
+}
+
 function createMemory(input: {
   configuration: EvalRunJsonObject;
   includeExtractor: boolean;
@@ -595,6 +608,7 @@ export function createPhase74FullRetrievalRuntime(input: {
           })),
           sourceIdsByMessageId,
         });
+        assertPhase74RetrievedProvenance(retrievedMemories);
         const evidenceLedgers =
           stage === "E3" && arm === "recall-plan-deterministic"
             ? Object.fromEntries(await Promise.all(EVIDENCE_LEDGER_FORMATS.map(

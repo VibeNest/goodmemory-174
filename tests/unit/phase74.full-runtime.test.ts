@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import {
   assertPhase74IngestionRememberResult,
   assertPhase74RecallProviderIntegrity,
+  assertPhase74RetrievedProvenance,
   buildPhase74IngestionKey,
   buildPhase74LabelFreeScope,
   phase74ExecutionBranch,
@@ -41,6 +42,18 @@ const base = {
 } as const;
 
 describe("Phase 74 full ingestion identity", () => {
+  it("fails closed when a retrieved memory loses its immutable source pointer", () => {
+    expect(() => assertPhase74RetrievedProvenance([{
+      id: "fact-1",
+      sourceIds: ["D1:1"],
+    }])).not.toThrow();
+
+    expect(() => assertPhase74RetrievedProvenance([{
+      id: "fact-1",
+      sourceIds: [],
+    }])).toThrow("missing immutable source ids");
+  });
+
   it("fails closed when a paid retrieval arm falls back from its provider", () => {
     expect(() => assertPhase74RecallProviderIntegrity({
       plannerMode: "deterministic",

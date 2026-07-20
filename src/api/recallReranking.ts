@@ -1,4 +1,5 @@
 import { rebuildMemoryPacket } from "../recall/contextBuilder";
+import { selectEvidence } from "../recall/evidence";
 import { applyRerankingWithScores } from "../recall/reranker";
 import type { Reranker } from "../recall/reranker";
 import type { RecallRerankerTrace } from "../recall/retrievalTrace";
@@ -143,7 +144,7 @@ function rebuildRerankedResult(input: {
     facts: input.facts,
     feedback: input.result.feedback,
     archives: input.result.archives,
-    evidence,
+    evidence: selectEvidence(evidence),
     episodes: input.result.episodes,
     workingMemory: input.result.workingMemory,
     journal: input.result.journal,

@@ -40,6 +40,7 @@ import {
   renderMemoryPacket,
 } from "../recall/contextBuilder";
 import { createRecallEngine } from "../recall/engine";
+import { selectEvidence } from "../recall/evidence";
 import {
   iterativeRecall,
   type IterativeRecallStep,
@@ -375,7 +376,7 @@ function mergeRecallResults(
     facts,
     feedback,
     archives,
-    evidence,
+    evidence: selectEvidence(evidence),
     episodes,
     workingMemory: primary.workingMemory,
     journal: primary.journal,

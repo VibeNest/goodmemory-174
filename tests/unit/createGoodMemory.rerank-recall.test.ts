@@ -7,6 +7,7 @@ import {
   type Reranker,
 } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
 import {
   mergeDurableCandidateOrder,
   resolveRerankerTopK,
@@ -166,6 +167,39 @@ describe("GoodMemory.recall reranker adapter", () => {
     expect(result.metadata.retrievalTrace?.reranker?.scores).toContainEqual(
       expect.objectContaining({ memoryId: "fact-15", rankAfter: 1 }),
     );
+  });
+
+  it("keeps complete requested evidence without letting duplicate excerpts consume packet slots", async () => {
+    const { documentStore, makeFact, memory } = buildMemory(promoteBReranker);
+    await seed(documentStore, makeFact);
+    for (const [id, linkedMemoryId, excerpt, extractedAt] of [
+      ["evidence-a-new", "fact-a", "Repeated alpha evidence.", "2026-01-05T00:00:00.000Z"],
+      ["evidence-a-old", "fact-a", "Repeated alpha evidence.", "2026-01-04T00:00:00.000Z"],
+      ["evidence-b", "fact-b", "Unique beta evidence.", "2026-01-03T00:00:00.000Z"],
+      ["evidence-c", "fact-c", "Unique gamma evidence.", "2026-01-02T00:00:00.000Z"],
+    ] as const) {
+      await documentStore.set("evidence", id, createEvidenceRecord({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        kind: "conversation_excerpt",
+        excerpt,
+        source: { method: "explicit", extractedAt },
+        linkedMemoryIds: [linkedMemoryId],
+      }));
+    }
+
+    const result = await memory.recall({
+      scope,
+      query,
+      strategy: "rules-only",
+      includeEvidence: true,
+    });
+
+    expect(result.evidence).toHaveLength(4);
+    expect(result.packet.evidenceSummary?.match(/Repeated alpha evidence\./gu)).toHaveLength(1);
+    expect(result.packet.evidenceSummary).toContain("Unique beta evidence.");
+    expect(result.packet.evidenceSummary).toContain("Unique gamma evidence.");
   });
 
   it("is a no-op when no reranker is configured", async () => {

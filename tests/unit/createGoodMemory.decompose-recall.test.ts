@@ -6,6 +6,7 @@ import {
   createInMemoryVectorStore,
 } from "../../src";
 import { createFactMemory } from "../../src/domain/records";
+import { createEvidenceRecord } from "../../src/evidence/contracts";
 
 // A query-only RecallPlan drives decomposition by default. The public option
 // remains as an explicit override for callers that need a single-query replay.
@@ -131,6 +132,44 @@ describe("GoodMemory.recall decompose option", () => {
       stopReason: "single_pass_complete",
       subQueries: [],
     });
+  });
+
+  it("keeps merged evidence complete while deduping excerpts in the rebuilt packet", async () => {
+    const { documentStore, makeFact, memory } = buildMemory();
+    for (const fact of [
+      makeFact("db", "My production database is PostgreSQL."),
+      makeFact("editor", "My preferred code editor is Neovim."),
+    ]) {
+      await documentStore.set("facts", fact.id, fact);
+    }
+    for (const [id, linkedMemoryId, excerpt, extractedAt] of [
+      ["evidence-db-repeat", "db", "Repeated preference evidence.", "2026-01-05T00:00:00.000Z"],
+      ["evidence-editor-repeat", "editor", "Repeated preference evidence.", "2026-01-04T00:00:00.000Z"],
+      ["evidence-db", "db", "PostgreSQL is the production database.", "2026-01-03T00:00:00.000Z"],
+      ["evidence-editor", "editor", "Neovim is the preferred editor.", "2026-01-02T00:00:00.000Z"],
+    ] as const) {
+      await documentStore.set("evidence", id, createEvidenceRecord({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        kind: "conversation_excerpt",
+        excerpt,
+        source: { method: "explicit", extractedAt },
+        linkedMemoryIds: [linkedMemoryId],
+      }));
+    }
+
+    const result = await memory.recall({
+      scope,
+      query: "What database do I use and which code editor do I prefer?",
+      strategy: "rules-only",
+      includeEvidence: true,
+    });
+
+    expect(result.evidence).toHaveLength(4);
+    expect(result.packet.evidenceSummary?.match(/Repeated preference evidence\./gu)).toHaveLength(1);
+    expect(result.packet.evidenceSummary).toContain("PostgreSQL is the production database.");
+    expect(result.packet.evidenceSummary).toContain("Neovim is the preferred editor.");
   });
 
   it("is a no-op for a single-part query (no decomposition marker)", async () => {
