@@ -313,6 +313,7 @@ function buildConfigurations(base: EvalRunJsonObject): {
     ]),
   ) as Record<(typeof PHASE74_EXPERIMENT_ARMS.E1)[number], EvalRunJsonObject>;
   const claimBase = retrievalConfiguration(base, {
+    recallPlanExecution: true,
     representation: "atomic-contextual-raw-pointer",
   });
   const e2 = {

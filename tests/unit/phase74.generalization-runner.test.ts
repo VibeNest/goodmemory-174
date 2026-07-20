@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import {
   buildPhase74LabelFreeCaseBoundary,
+  buildPhase74StageConfigurations,
   runPhase74Generalization,
   type Phase74GeneralizationCase,
   type Phase74RetrievalSnapshot,
@@ -64,6 +65,30 @@ function identity() {
 }
 
 describe("Phase 74 generalization runner", () => {
+  it("freezes deterministic planning across E2 and reserves the true off switch for E3", () => {
+    const e2 = buildPhase74StageConfigurations(
+      identity().configuration,
+      "E2",
+    );
+    const e3 = buildPhase74StageConfigurations(
+      identity().configuration,
+      "E3",
+    );
+
+    expect(e2["claim-temporal-off"]?.retrieval).toMatchObject({
+      recallPlanExecution: true,
+    });
+    expect(e2["claim-temporal-on"]?.retrieval).toMatchObject({
+      recallPlanExecution: true,
+    });
+    expect(e3["recall-plan-off"]?.retrieval).toMatchObject({
+      recallPlanExecution: false,
+    });
+    expect(e3["recall-plan-deterministic"]?.retrieval).toMatchObject({
+      recallPlanExecution: true,
+    });
+  });
+
   it("runs independent memory groups concurrently while preserving group serialization and output order", async () => {
     const concurrentCases: Phase74GeneralizationCase[] = [
       {
