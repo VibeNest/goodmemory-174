@@ -112,6 +112,38 @@ describe("evidence ledger", () => {
     });
   });
 
+  it("does not mark a selected older claim current when its newer group peer was not selected", () => {
+    const entries = buildEvidenceLedger({
+      aggregation: "current",
+      claims: [
+        claim({
+          id: "claim-project-old",
+          sourceMemoryId: "project-old",
+          predicateKey: "profile.current_project",
+          objectText: "Beacon",
+          observedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        claim({
+          id: "claim-project-new",
+          sourceMemoryId: "project-new",
+          predicateKey: "profile.current_project",
+          objectText: "Atlas",
+          observedAt: "2026-07-08T00:00:00.000Z",
+        }),
+      ],
+      evidence: [evidence("project-old")],
+      referenceTime,
+      selectedMemoryIds: ["project-old"],
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      relation: "contradicts",
+      sourceMemoryId: "project-old",
+      temporalStatus: "superseded",
+    });
+  });
+
   it("keeps multiple active values current for count aggregation", () => {
     const entries = buildEvidenceLedger({
       aggregation: "count",

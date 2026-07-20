@@ -37,6 +37,10 @@ export interface ClaimProjectionIndex {
     scope: MemoryScope,
     sourceMemoryIds: readonly string[],
   ): Promise<ClaimProjection[]>;
+  queryForSourceMemoryGroups(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
   search(
     scope: MemoryScope,
@@ -161,6 +165,71 @@ export function createClaimProjectionIndex(
       .sort((left, right) =>
         left.ingestedAt.localeCompare(right.ingestedAt) || left.id.localeCompare(right.id),
       );
+  }
+
+  async function queryBySourceMemoryIds(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]> {
+    const ids = [...new Set(sourceMemoryIds)];
+    const statuses = (
+      await Promise.all(ids.map((sourceMemoryId) =>
+        documentStore.get<ClaimProjectionStatus>(
+          CLAIM_PROJECTION_STATUS_COLLECTION,
+          buildClaimProjectionStatusId(scope, sourceMemoryId),
+        )
+      ))
+    ).filter((status): status is ClaimProjectionStatus =>
+      status !== null && matchesScopeFilter(status, scope)
+    );
+    const claimIds = [...new Set(statuses.flatMap(({ claimIds }) => claimIds))];
+    const history = (
+      await Promise.all(claimIds.map((claimId) =>
+        documentStore.get<ClaimProjection>(
+          CLAIM_PROJECTIONS_COLLECTION,
+          claimId,
+        )
+      ))
+    ).filter((claim): claim is ClaimProjection =>
+      claim !== null && matchesScopeFilter(claim, scope)
+    );
+    return selectedClaims(statuses, history);
+  }
+
+  async function queryForSourceMemoryGroups(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]> {
+    const selected = await queryBySourceMemoryIds(scope, sourceMemoryIds);
+    const groups = [...new Map(selected.map((claim) => [
+      `${claim.subjectEntityId}\u0000${claim.predicateKey}`,
+      {
+        predicateKey: claim.predicateKey,
+        subjectEntityId: claim.subjectEntityId,
+      },
+    ])).values()];
+    const history = [...new Map((await Promise.all(groups.map((group) =>
+      documentStore.query<ClaimProjection>(CLAIM_PROJECTIONS_COLLECTION, {
+        scopeKey: recallScopeKey(scope),
+        ...group,
+      })
+    ))).flat()
+      .filter((claim) => matchesScopeFilter(claim, scope))
+      .map((claim) => [claim.id, claim])).values()];
+    const peerSourceMemoryIds = [
+      ...new Set(history.map(({ sourceMemoryId }) => sourceMemoryId)),
+    ];
+    const statuses = (
+      await Promise.all(peerSourceMemoryIds.map((sourceMemoryId) =>
+        documentStore.get<ClaimProjectionStatus>(
+          CLAIM_PROJECTION_STATUS_COLLECTION,
+          buildClaimProjectionStatusId(scope, sourceMemoryId),
+        )
+      ))
+    ).filter((status): status is ClaimProjectionStatus =>
+      status !== null && matchesScopeFilter(status, scope)
+    );
+    return selectedClaims(statuses, history);
   }
 
   async function backfillClaimSearchText(
@@ -548,34 +617,8 @@ export function createClaimProjectionIndex(
       ]);
       return selectedClaims(statuses, history);
     },
-    async queryBySourceMemoryIds(scope, sourceMemoryIds) {
-      const ids = [...new Set(sourceMemoryIds)];
-      const statuses = (
-        await Promise.all(ids.map((sourceMemoryId) =>
-          documentStore.get<ClaimProjectionStatus>(
-            CLAIM_PROJECTION_STATUS_COLLECTION,
-            buildClaimProjectionStatusId(scope, sourceMemoryId),
-          )
-        ))
-      ).filter((status): status is ClaimProjectionStatus =>
-        status !== null && matchesScopeFilter(status, scope)
-      );
-      const claimIds = [...new Set(statuses.flatMap(({ claimIds }) => claimIds))];
-      const history = (
-        await Promise.all(claimIds.map((claimId) =>
-          documentStore.get<ClaimProjection>(
-            CLAIM_PROJECTIONS_COLLECTION,
-            claimId,
-          )
-        ))
-      ).filter((claim): claim is ClaimProjection =>
-        claim !== null && matchesScopeFilter(claim, scope)
-      );
-      return selectedClaims(
-        statuses,
-        history,
-      );
-    },
+    queryBySourceMemoryIds,
+    queryForSourceMemoryGroups,
     queryHistory,
     async search(scope, query, limit, history) {
       if (!documentStore.searchText) {

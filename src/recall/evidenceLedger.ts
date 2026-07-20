@@ -123,16 +123,16 @@ export function buildEvidenceLedger(
   input: BuildEvidenceLedgerInput,
 ): EvidenceLedgerEntry[] {
   const selected = new Set(input.selectedMemoryIds);
-  const claims = input.claims.filter((claim) =>
+  const selectedClaims = input.claims.filter((claim) =>
     selected.has(claim.sourceMemoryId),
   );
   const statuses = resolveTemporalStatus({
     aggregation: input.aggregation,
-    claims,
+    claims: input.claims,
     referenceTime: input.referenceTime,
   });
   const claimsByMemory = new Map<string, ClaimProjection[]>();
-  for (const claim of claims) {
+  for (const claim of selectedClaims) {
     claimsByMemory.set(claim.sourceMemoryId, [
       ...(claimsByMemory.get(claim.sourceMemoryId) ?? []),
       claim,
@@ -175,7 +175,7 @@ export function buildEvidenceLedger(
           temporalStatus,
           relation: resolveRelation({
             claim,
-            claims,
+            claims: input.claims,
             status: temporalStatus,
             statuses,
           }),

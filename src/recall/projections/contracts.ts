@@ -182,6 +182,10 @@ export interface RecallProjectionSearchPort {
     scope: MemoryScope,
     sourceMemoryIds: readonly string[],
   ): Promise<ClaimProjection[]>;
+  queryClaimsForSourceMemoryGroups(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
 }
 

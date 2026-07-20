@@ -532,6 +532,57 @@ describe("claim projection runtime", () => {
     ]);
   });
 
+  it("loads current peers for the selected memories' subject and predicate groups", async () => {
+    const inner = createInMemoryDocumentStore();
+    const claimQueries: Array<Record<string, unknown> | undefined> = [];
+    const store: DocumentStore = {
+      projectionBatchSemantics: inner.projectionBatchSemantics,
+      set: (collection, id, document) => inner.set(collection, id, document),
+      get: (collection, id) => inner.get(collection, id),
+      update: (collection, id, patch) => inner.update(collection, id, patch),
+      query: (collection, filter) => {
+        if (collection === CLAIM_PROJECTIONS_COLLECTION) {
+          claimQueries.push(filter);
+        }
+        return inner.query(collection, filter);
+      },
+      delete: (collection, id) => inner.delete(collection, id),
+      searchText: (collection, input) => inner.searchText!(collection, input),
+      writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged(input),
+    };
+    const runtime = createRecallProjectionRuntime({ documentStore: store });
+    const factOne = buildFact();
+    const factTwo = {
+      ...buildFact(),
+      id: "fact-2",
+      content: "Atlas is paused.",
+    };
+    await runtime.documentStore.set("facts", factOne.id, factOne);
+    await runtime.documentStore.set("facts", factTwo.id, factTwo);
+    await runtime.appendClaim(claimInput("active", "2026-07-16T10:00:00.000Z"));
+    await runtime.appendClaim({
+      ...claimInput("paused", "2026-07-16T11:00:00.000Z"),
+      sourceMemoryId: "fact-2",
+    });
+    claimQueries.length = 0;
+
+    const grouped = await runtime.queryClaimsForSourceMemoryGroups(scope, [
+      "fact-1",
+    ]);
+
+    expect(grouped.map(({ sourceMemoryId }) => sourceMemoryId).sort()).toEqual([
+      "fact-1",
+      "fact-2",
+    ]);
+    expect(claimQueries).toEqual([
+      {
+        predicateKey: "project.status",
+        scopeKey: recallScopeKey(scope),
+        subjectEntityId: grouped[0]!.subjectEntityId,
+      },
+    ]);
+  });
+
   it("searches one indexed claim text field and resolves status by deterministic id", async () => {
     const inner = createInMemoryDocumentStore();
     const searchedFields: string[] = [];

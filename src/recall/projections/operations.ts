@@ -47,6 +47,10 @@ export interface RecallProjectionOperations {
     scope: MemoryScope,
     sourceMemoryIds: readonly string[],
   ): Promise<ClaimProjection[]>;
+  queryClaimsForSourceMemoryGroups(
+    scope: MemoryScope,
+    sourceMemoryIds: readonly string[],
+  ): Promise<ClaimProjection[]>;
   queryClaimHistory(scope: MemoryScope): Promise<ClaimProjection[]>;
   queryDocuments(scope: MemoryScope): Promise<RecallIndexDocument[]>;
   searchDocuments(
@@ -261,6 +265,9 @@ export function createRecallProjectionOperations(input: {
     },
     queryClaimsBySourceMemoryIds(scope, sourceMemoryIds) {
       return claimIndex.queryBySourceMemoryIds(scope, sourceMemoryIds);
+    },
+    queryClaimsForSourceMemoryGroups(scope, sourceMemoryIds) {
+      return claimIndex.queryForSourceMemoryGroups(scope, sourceMemoryIds);
     },
     queryClaimHistory(scope) {
       return claimIndex.queryHistory(scope);

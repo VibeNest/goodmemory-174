@@ -1764,7 +1764,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         config.projectionIndex
       ) {
         try {
-          ledgerClaims = await config.projectionIndex.queryClaimsBySourceMemoryIds(
+          ledgerClaims = await config.projectionIndex.queryClaimsForSourceMemoryGroups(
             input.scope,
             selectedMemoryIds,
           );

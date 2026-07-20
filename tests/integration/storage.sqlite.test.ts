@@ -275,6 +275,50 @@ describe("sqlite filtered document queries", () => {
       await rm(path, { force: true });
     }
   });
+
+  it("uses the claim-group index for temporal peer lookups", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-claim-group-plan-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const store = createSQLiteDocumentStore(path);
+      const claim = {
+        id: "claim-1",
+        scopeKey: "user-1::::workspace-1::::",
+        subjectEntityId: "entity-atlas",
+        predicateKey: "project.status",
+      };
+      await store.set("claim_projections_v1", claim.id, claim);
+
+      const database = new Database(path, { readonly: true, strict: true });
+      const plan = database
+        .query<{ detail: string }, []>(
+          `EXPLAIN QUERY PLAN
+           SELECT json
+           FROM documents
+           WHERE collection = 'claim_projections_v1'
+             AND json_valid(json)
+             AND json_extract(json, '$.scopeKey') = 'user-1::::workspace-1::::'
+             AND json_extract(json, '$.subjectEntityId') = 'entity-atlas'
+             AND json_extract(json, '$.predicateKey') = 'project.status'`,
+        )
+        .all();
+      database.close();
+
+      expect(plan.some(({ detail }) =>
+        detail.includes("documents_collection_claim_group_idx") &&
+        detail.includes("<expr>=?"),
+      )).toBe(true);
+      await expect(store.query("claim_projections_v1", {
+        scopeKey: claim.scopeKey,
+        subjectEntityId: claim.subjectEntityId,
+        predicateKey: claim.predicateKey,
+      })).resolves.toEqual([claim]);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
 });
 
 describe("sqlite projection text index", () => {

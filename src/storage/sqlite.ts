@@ -123,6 +123,7 @@ let sqliteRuntimeResolution: SQLiteRuntimeResolution | null = null;
 const DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT = "document_filter_indexes";
 const DOCUMENT_TEXT_KEY_SCHEMA_COMPONENT = "document_text_fts_keys";
 const DOCUMENT_SCHEMA_VERSION = 1;
+const DOCUMENT_FILTER_INDEX_SCHEMA_VERSION = 2;
 
 function ensureSQLiteCustomLibraryConfigured(): SQLiteCustomLibraryConfig {
   if (!sqliteCustomLibraryConfig) {
@@ -236,12 +237,13 @@ function ensureDocumentSchema(database: Database): void {
     }
     if (
       versionStatement.get(DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT)?.version !==
-        DOCUMENT_SCHEMA_VERSION
+        DOCUMENT_FILTER_INDEX_SCHEMA_VERSION
     ) {
       database.exec(`
         DROP INDEX IF EXISTS documents_collection_scope_key_idx;
         DROP INDEX IF EXISTS documents_collection_memory_id_idx;
         DROP INDEX IF EXISTS documents_collection_source_memory_id_idx;
+        DROP INDEX IF EXISTS documents_collection_claim_group_idx;
 
         CREATE INDEX documents_collection_scope_key_idx
           ON documents (collection, json_extract(json, '$.scopeKey'))
@@ -254,6 +256,15 @@ function ensureDocumentSchema(database: Database): void {
         CREATE INDEX documents_collection_source_memory_id_idx
           ON documents (collection, json_extract(json, '$.sourceMemoryId'))
           WHERE json_valid(json);
+
+        CREATE INDEX documents_collection_claim_group_idx
+          ON documents (
+            collection,
+            json_extract(json, '$.scopeKey'),
+            json_extract(json, '$.subjectEntityId'),
+            json_extract(json, '$.predicateKey')
+          )
+          WHERE json_valid(json);
       `);
       database
         .query(
@@ -261,7 +272,10 @@ function ensureDocumentSchema(database: Database): void {
            VALUES (?1, ?2)
            ON CONFLICT(component) DO UPDATE SET version = excluded.version`,
         )
-        .run(DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT, DOCUMENT_SCHEMA_VERSION);
+        .run(
+          DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT,
+          DOCUMENT_FILTER_INDEX_SCHEMA_VERSION,
+        );
     }
     database.exec("COMMIT");
   } catch (error) {
@@ -353,10 +367,14 @@ function readIndexedDocumentJsonPath(key: string): string | undefined {
   switch (key) {
     case "memoryId":
       return "$.memoryId";
+    case "predicateKey":
+      return "$.predicateKey";
     case "scopeKey":
       return "$.scopeKey";
     case "sourceMemoryId":
       return "$.sourceMemoryId";
+    case "subjectEntityId":
+      return "$.subjectEntityId";
     default:
       return undefined;
   }

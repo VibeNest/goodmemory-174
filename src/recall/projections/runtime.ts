@@ -122,6 +122,9 @@ export function createRecallProjectionRuntime(
     queryClaimsBySourceMemoryIds(scope, sourceMemoryIds) {
       return operations.queryClaimsBySourceMemoryIds(scope, sourceMemoryIds);
     },
+    queryClaimsForSourceMemoryGroups(scope, sourceMemoryIds) {
+      return operations.queryClaimsForSourceMemoryGroups(scope, sourceMemoryIds);
+    },
     queryClaimHistory(scope) {
       return operations.queryClaimHistory(scope);
     },
