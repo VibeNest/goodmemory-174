@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
+  createChineseLanguagePack,
+  createJapaneseLanguagePack,
   createLanguageService,
   createNeutralLanguagePack,
 } from "../../../src/language";
@@ -74,6 +76,35 @@ describe("language service", () => {
 
     expect(resolved.locale).toBe("zh-CN");
     expect(resolved.languagePackId).toBe("zh-Hans");
+  });
+
+  it("keeps built-in CJK detection signals disjoint and script-aware", () => {
+    const simplified = createChineseLanguagePack("Hans");
+    const traditional = createChineseLanguagePack("Hant");
+    const japanese = createJapaneseLanguagePack();
+    const simplifiedQuery = "应该参考哪份文档？";
+    const traditionalQuery = "應該參考哪份文檔？";
+
+    expect(japanese.detect({ texts: ["田中東京大学"] })).toBe("compatible");
+    expect(japanese.detect({ texts: ["現在の状態"] })).toBe("distinctive");
+    expect(simplified.detect({ texts: [simplifiedQuery] })).toBe("distinctive");
+    expect(traditional.detect({ texts: [simplifiedQuery] })).toBe("compatible");
+    expect(traditional.detect({ texts: [traditionalQuery] })).toBe("distinctive");
+    expect(simplified.detect({ texts: [traditionalQuery] })).toBe("compatible");
+  });
+
+  it("uses a Chinese default for Han-only Chinese without script signals", () => {
+    const service = createLanguageService({ defaultLocale: "zh-CN" });
+
+    const resolved = service.resolveFromText({
+      text: "知识图谱",
+    });
+
+    expect(resolved).toMatchObject({
+      languagePackId: "zh-Hans",
+      locale: "zh-CN",
+      localeSource: "default",
+    });
   });
 
   it("resolves Traditional Chinese and Japanese without central heuristics", () => {
@@ -185,7 +216,7 @@ describe("language service", () => {
     expect(
       manifest.packs.find(({ id }) => id === "zh-Hant"),
     ).toMatchObject({
-      analyzerVersion: "5-opencc-t2cn-1.4.1",
+      analyzerVersion: "6-opencc-t2cn-1.4.1",
       apiVersion: 1,
       compatibilityGroup: "zh",
       defaultLocale: "zh-Hant",

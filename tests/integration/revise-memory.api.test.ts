@@ -1,8 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import {
-  createGoodMemory,
-  type GoodMemoryTraceSpan,
-} from "../../src";
+import type { GoodMemoryTraceSpan } from "../../src";
+import { createGoodMemory, createLanguageService } from "../../src";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
@@ -11,6 +9,16 @@ import {
 import type { DocumentStore, VectorStore } from "../../src/storage/contracts";
 import { createMemoryRepositories } from "../../src/storage/repositories";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
+
+function builtinAnalyzerVersion(packId: string): string {
+  const pack = createLanguageService()
+    .getAnalyzerManifest()
+    .packs.find(({ id }) => id === packId);
+  if (!pack) {
+    throw new Error(`Missing built-in language pack ${packId}.`);
+  }
+  return pack.analyzerVersion;
+}
 
 function createRevisionRaceDocumentStore(
   base: DocumentStore,
@@ -314,13 +322,14 @@ describe("public reviseMemory API", () => {
     const evidence = exported.durable.evidence.find(
       (record) => record.id === result.evidenceIds?.[0],
     );
+    const englishAnalyzerVersion = builtinAnalyzerVersion("en");
 
     expect(oldPreference?.lifecycle).toBe("superseded");
     expect(oldPreference?.supersededBy).toBe(newMemoryId);
     expect(newPreference?.lifecycle).toBe("active");
     expect(newPreference?.source).toMatchObject({
       languagePackId: "en",
-      languagePackVersion: "1",
+      languagePackVersion: englishAnalyzerVersion,
       locale: "en-US",
       localeSource: "detected",
     });
@@ -332,7 +341,7 @@ describe("public reviseMemory API", () => {
       },
       source: {
         languagePackId: "en",
-        languagePackVersion: "1",
+        languagePackVersion: englishAnalyzerVersion,
         locale: "en-US",
         localeSource: "detected",
       },

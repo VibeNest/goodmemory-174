@@ -409,7 +409,7 @@ describe("generalized production selection", () => {
         source: {
           extractedAt: "2026-01-01T00:00:00.000Z",
           languagePackId: "zh-Hant",
-          languagePackVersion: "5-opencc-t2cn-1.4.1",
+          languagePackVersion: "6-opencc-t2cn-1.4.1",
           locale: "zh-TW",
           method: "explicit",
         },
@@ -425,7 +425,7 @@ describe("generalized production selection", () => {
         source: {
           extractedAt: TIMESTAMP,
           languagePackId: "zh-Hans",
-          languagePackVersion: "5-opencc-t2cn-1.4.1",
+          languagePackVersion: "6-opencc-t2cn-1.4.1",
           locale: "zh-CN",
           method: "explicit",
         },
