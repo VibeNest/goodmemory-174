@@ -212,4 +212,29 @@ describe("public memory.runtime facade", () => {
       "This message should not appear as a normalized transcript.",
     );
   });
+
+  it("uses the configured language service when resolving archive locale", async () => {
+    const memory = createGoodMemory({
+      language: { defaultLocale: "ja-JP" },
+      storage: { provider: "memory" },
+    });
+    const scope = {
+      userId: "runtime-ja-archive-user",
+      workspaceId: "language-pack",
+      sessionId: "runtime-ja-session",
+    };
+    await memory.runtime.startSession({ scope });
+    await memory.runtime.appendMessage({
+      scope,
+      message: { role: "user", content: "承認" },
+    });
+
+    await memory.runtime.endSession({
+      scope,
+      archive: { mode: "summary_only", includeNormalizedTranscript: false },
+    });
+    const exported = await memory.exportMemory({ scope });
+
+    expect(exported.durable.archives[0]?.locale).toBe("ja-JP");
+  });
 });

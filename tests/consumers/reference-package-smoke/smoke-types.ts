@@ -1,5 +1,13 @@
-import type { GoodMemory, GoodMemoryRuntimeInfo } from "goodmemory";
-import { inspectGoodMemoryRuntime } from "goodmemory";
+import type {
+  GoodMemory,
+  GoodMemoryRuntimeInfo,
+  LanguagePack,
+  LanguageSourceOfTruthDirective,
+} from "goodmemory";
+import {
+  createJapaneseLanguagePack,
+  inspectGoodMemoryRuntime,
+} from "goodmemory";
 import type {
   AgentEventStructuredValue,
   AgentInputEvent,
@@ -35,6 +43,15 @@ const toolPayload: AgentEventStructuredValue = {
 };
 
 declare const memory: GoodMemory;
+
+const japaneseBase = createJapaneseLanguagePack();
+const customJapanese = {
+  ...japaneseBase,
+  analyzerVersion: "consumer-ja-v1",
+} satisfies LanguagePack;
+const sourceOfTruthDirective: LanguageSourceOfTruthDirective = {
+  currentPointer: "docs/current.md",
+};
 
 const runtimeInfo: GoodMemoryRuntimeInfo | undefined = inspectGoodMemoryRuntime(memory);
 const httpBridge = createGoodMemoryHttpMemoryBridge({ memory });
@@ -180,3 +197,5 @@ void httpBridgeCaller;
 void httpBridgeOperation;
 void lifeCoachScope;
 void runtimeInfo;
+void customJapanese;
+void sourceOfTruthDirective;

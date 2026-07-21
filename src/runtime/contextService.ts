@@ -11,6 +11,10 @@ import type {
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../language";
 import type { ExtractionOutcome } from "../remember/contracts";
 import type { ExtractionCursorStore } from "../remember/extractionCursor";
 import {
@@ -59,6 +63,7 @@ export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
   archiveStore?: RuntimeArchiveStore;
   extraction?: RuntimeExtractionHooks;
+  language?: LanguageService;
   salvageHooks?: RuntimeSalvageHooks;
   now?: () => string;
   createMessageId?: () => string;
@@ -273,6 +278,7 @@ async function runBestEffortSalvage(
 
 export function createRuntimeContextService(config: RuntimeContextServiceConfig) {
   const now = config.now ?? (() => new Date().toISOString());
+  const language = config.language ?? createLanguageService();
   const createMessageId = config.createMessageId ?? (() => crypto.randomUUID());
   const createArchiveId = config.createArchiveId ?? (() => crypto.randomUUID());
   const maxBufferedMessages = Math.max(config.maxBufferedMessages ?? 24, 1);
@@ -656,11 +662,12 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       const sessionScope = requireSessionScope(scope);
       const state = await ensureActiveState(sessionScope);
       const archivedAt = now();
+      const replayMessages = messagesForReplay(state.buffer);
 
       const extractionOutcome = await extractDurableMessages(
         sessionScope,
         state.buffer,
-        messagesForReplay(state.buffer),
+        replayMessages,
       );
       if (extractionOutcome === "failed") {
         throw new Error("Runtime session has pending memory extraction.");
@@ -669,6 +676,9 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
       let archive: SessionArchive | undefined;
 
       if (config.archiveStore && shouldArchiveSession(state, options)) {
+        const archiveLanguage = language.resolveFromMessages({
+          messages: replayMessages,
+        });
         archive = createSessionArchive({
           id: createArchiveId(),
           userId: sessionScope.userId,
@@ -679,7 +689,7 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
           sourceSessionIds: [sessionScope.sessionId],
           summary: buildArchiveSummary(state),
           normalizedTranscript: shouldIncludeNormalizedTranscript(options)
-            ? renderNormalizedTranscript(messagesForReplay(state.buffer))
+            ? renderNormalizedTranscript(replayMessages)
             : undefined,
           keyDecisions: mergeUnique(
             state.workingMemory.temporaryDecisions ?? [],
@@ -695,6 +705,7 @@ export function createRuntimeContextService(config: RuntimeContextServiceConfig)
             sessionScope.workspaceId,
             sessionScope.agentId,
           ].filter((segment): segment is string => Boolean(segment)),
+          locale: archiveLanguage.locale,
           createdAt: state.buffer.createdAt,
           archivedAt,
         });

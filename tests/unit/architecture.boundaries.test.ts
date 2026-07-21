@@ -291,8 +291,30 @@ describe("architecture boundaries", () => {
       "language/chinese.ts",
       "language/english.ts",
       "language/generic.ts",
+      "language/japanese.ts",
       "language/service.ts",
     ]);
+  });
+
+  it("keeps concrete language packs behind the language module boundary", async () => {
+    const files = await collectTypeScriptFiles(SRC_ROOT);
+    const concretePackImport = /language\/(?:chinese|english|generic|japanese)(?:Semantics|Temporal)?["']/u;
+    const offenders: string[] = [];
+    const legacyAdapters: string[] = [];
+
+    for (const file of files) {
+      const relativePath = toSourceRelativePath(file);
+      const source = await readSource(file);
+      if (!relativePath.startsWith("language/") && concretePackImport.test(source)) {
+        offenders.push(relativePath);
+      }
+      if (source.includes("LanguageAdapter")) {
+        legacyAdapters.push(relativePath);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+    expect(legacyAdapters).toEqual([]);
   });
 
   it("normalizes internal paths before boundary checks", () => {

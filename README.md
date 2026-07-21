@@ -662,6 +662,34 @@ The core memory loop is intentionally small:
 - `feedback()` records explicit corrections and procedural preferences.
 - `forget()` deletes wrong or obsolete memory.
 
+### Locale and LanguagePack
+
+Built-in packs cover English, Simplified Chinese, Traditional Chinese
+(`zh-TW`/`zh-HK`/`zh-MO`), and Japanese. Set a host-known locale explicitly;
+otherwise auto-detection falls back to `defaultLocale` for ambiguous Han-only
+text.
+
+```ts
+const multilingualMemory = createGoodMemory({
+  language: {
+    defaultLocale: "zh-TW",
+    detection: "auto",
+  },
+});
+
+await multilingualMemory.remember({
+  locale: "ja-JP",
+  scope,
+  messages: [{ role: "user", content: "現在の役割はリリース責任者です。" }],
+});
+```
+
+Adding a language means implementing one complete `LanguagePack`, not adding
+module-local regex branches. See the
+[LanguagePack extension guide](./docs/GoodMemory-LanguagePack-Extension-Guide.md)
+for the contract, custom registration, analyzer versioning, and projection
+migration rules.
+
 For production app integrations, the recommended turn loop adds the governed
 runtime layer around that core:
 
@@ -1281,6 +1309,8 @@ Installed-package guides:
   [docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)
 - Reference integration guide:
   [docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
+- LanguagePack extension guide:
+  [docs/GoodMemory-LanguagePack-Extension-Guide.md](./docs/GoodMemory-LanguagePack-Extension-Guide.md)
 - Codex handoff setup guide:
   [docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
 - Claude Code setup guide:

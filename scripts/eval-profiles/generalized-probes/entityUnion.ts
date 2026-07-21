@@ -1,11 +1,76 @@
-import {
-  buildEntityDocumentFrequency,
-  extractEntityKeys,
-} from "../../../src/recall/entityExtraction";
-import type { EntityDocument } from "../../../src/recall/entityExtraction";
-
 // Embedding-free candidate-admission probe retained for historical eval
 // comparison. Production retrieval uses generalizedFusion.ts instead.
+
+const ENTITY_STOPWORDS = new Set([
+  "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+  "and", "or", "but", "of", "to", "in", "on", "at", "for", "with", "by",
+  "from", "as", "that", "this", "these", "those", "it", "its", "they",
+  "them", "their", "i", "my", "me", "we", "our", "you", "your", "he",
+  "she", "his", "her", "do", "does", "did", "has", "have", "had",
+  "will", "would", "can", "could", "what", "when", "where", "which",
+  "who", "whom", "whose", "why", "how", "not", "no", "yes", "if",
+  "then", "than", "so", "such", "there", "here", "about",
+]);
+const ENTITY_TOKEN_PATTERN = /[A-Za-z0-9][A-Za-z0-9'-]*/gu;
+
+export type EntityKind = "proper" | "numeric";
+
+export interface ExtractedEntity {
+  kind: EntityKind;
+  normalized: string;
+  surface: string;
+}
+
+export interface EntityDocument {
+  content: string;
+  id: string;
+}
+
+function normalizeEntityToken(raw: string): string {
+  return raw.toLowerCase().replace(/'s$/u, "");
+}
+
+function classifyEntityToken(raw: string): EntityKind | null {
+  const normalized = normalizeEntityToken(raw);
+  if (normalized.length < 2 || ENTITY_STOPWORDS.has(normalized)) {
+    return null;
+  }
+  if (/\d/u.test(raw)) {
+    return "numeric";
+  }
+  return /^[A-Z]/u.test(raw) ? "proper" : null;
+}
+
+export function extractEntities(text: string): ExtractedEntity[] {
+  const seen = new Map<string, ExtractedEntity>();
+  for (const raw of text.match(ENTITY_TOKEN_PATTERN) ?? []) {
+    const kind = classifyEntityToken(raw);
+    if (!kind) {
+      continue;
+    }
+    const normalized = normalizeEntityToken(raw);
+    if (!seen.has(normalized)) {
+      seen.set(normalized, { kind, normalized, surface: raw });
+    }
+  }
+  return [...seen.values()];
+}
+
+export function extractEntityKeys(text: string): Set<string> {
+  return new Set(extractEntities(text).map(({ normalized }) => normalized));
+}
+
+export function buildEntityDocumentFrequency(
+  documents: readonly EntityDocument[],
+): Map<string, number> {
+  const frequency = new Map<string, number>();
+  for (const document of documents) {
+    for (const key of extractEntityKeys(document.content)) {
+      frequency.set(key, (frequency.get(key) ?? 0) + 1);
+    }
+  }
+  return frequency;
+}
 
 export type EntityUnionDocument = EntityDocument;
 

@@ -6,6 +6,7 @@ import {
   isActiveMemoryLifecycle,
   normalizeFeedbackAppliesTo,
 } from "../domain/records";
+import type { MemorySource } from "../domain/provenance";
 import {
   buildFactEmbeddingWrite,
   buildReferenceEmbeddingWrite,
@@ -27,6 +28,7 @@ import {
   getProfileWriteReason,
   resolveCandidateObservedAt,
   resolveReferenceSubject,
+  type SourceLanguageMetadata,
 } from "./builders";
 import { EVIDENCE_COLLECTION, SOURCE_MESSAGES_COLLECTION } from "../evidence/contracts";
 import type { SourceMessageRecord } from "../evidence/contracts";
@@ -36,6 +38,43 @@ import type {
   RememberWriteState,
 } from "./contracts";
 import { extractCanonicalReferencePointer } from "./normalization";
+
+function languageMetadata(
+  resolved: ReturnType<RememberWriteContext["language"]["resolveFromText"]>,
+): SourceLanguageMetadata {
+  return {
+    locale: resolved.locale,
+    localeSource: resolved.localeSource,
+    languagePackId: resolved.languagePackId,
+    languagePackVersion: resolved.languagePackVersion,
+  };
+}
+
+function resolveStoredTextLanguage(
+  context: RememberWriteContext,
+  text: string,
+  source: MemorySource,
+) {
+  return context.language.resolveFromText({
+    locale: source.locale,
+    text,
+  });
+}
+
+function storedSourceLanguage(
+  context: RememberWriteContext,
+  text: string,
+  source: MemorySource,
+): SourceLanguageMetadata {
+  const resolved = resolveStoredTextLanguage(context, text, source);
+  return {
+    locale: source.locale ?? resolved.locale,
+    localeSource: source.localeSource ?? resolved.localeSource,
+    languagePackId: source.languagePackId ?? resolved.languagePackId,
+    languagePackVersion:
+      source.languagePackVersion ?? resolved.languagePackVersion,
+  };
+}
 
 function pushAcceptedEvent(
   state: RememberWriteState,
@@ -98,7 +137,7 @@ async function persistCandidateEvidence(input: {
       input.memoryId,
       input.evidenceId,
       input.timestamp,
-      input.context.resolvedLanguage.locale,
+      languageMetadata(input.context.candidateLanguage),
       sourceMessages,
     ),
   );
@@ -149,6 +188,8 @@ export async function writeRememberCandidate(input: {
 }): Promise<void> {
   const { candidateId, candidate, context, state } = input;
   const timestamp = context.now();
+  const candidateLanguage = context.candidateLanguage;
+  const candidateSourceLanguage = languageMetadata(candidateLanguage);
 
   if (candidate.memoryType === "profile") {
     const existing = await context.repositories.profiles.get(context.input.scope.userId);
@@ -206,10 +247,26 @@ export async function writeRememberCandidate(input: {
     const value = String(
       candidate.metadata?.preferenceValue ?? candidate.content,
     ).trim();
+    const normalizedValue = context.language.normalizeForEquality(
+      value,
+      candidateLanguage,
+    );
     const duplicate = scopedPreferences.find(
-      (preference) =>
-        preference.category === category &&
-        String(preference.value).trim().toLowerCase() === value.toLowerCase(),
+      (preference) => {
+        const preferenceValue = String(preference.value).trim();
+        const preferenceLanguage = resolveStoredTextLanguage(
+          context,
+          preferenceValue,
+          preference.source,
+        );
+        return (
+          preference.category === category &&
+          context.language.normalizeForEquality(
+            preferenceValue,
+            preferenceLanguage,
+          ) === normalizedValue
+        );
+      },
     );
 
     if (duplicate) {
@@ -217,7 +274,11 @@ export async function writeRememberCandidate(input: {
         duplicate,
         candidate,
         timestamp,
-        context.resolvedLanguage.locale,
+        storedSourceLanguage(
+          context,
+          String(duplicate.value),
+          duplicate.source,
+        ),
       );
       if (enrichedDuplicate) {
         await context.setDocumentWithRollback(
@@ -248,7 +309,7 @@ export async function writeRememberCandidate(input: {
         candidate,
         current.id,
         timestamp,
-        context.resolvedLanguage.locale,
+        candidateSourceLanguage,
       );
 
       await context.setDocumentWithRollback(
@@ -276,7 +337,7 @@ export async function writeRememberCandidate(input: {
       candidate,
       context.createId(),
       timestamp,
-      context.resolvedLanguage.locale,
+      candidateSourceLanguage,
     );
     await context.setDocumentWithRollback("preferences", preference.id, preference);
     pushAcceptedEvent(state, {
@@ -325,7 +386,7 @@ export async function writeRememberCandidate(input: {
         duplicate,
         referenceCandidate,
         timestamp,
-        context.resolvedLanguage.locale,
+        storedSourceLanguage(context, duplicate.pointer, duplicate.source),
       );
       if (enrichedDuplicate) {
         await context.setDocumentWithRollback(
@@ -389,7 +450,7 @@ export async function writeRememberCandidate(input: {
       referenceCandidate,
       context.createId(),
       timestamp,
-      context.resolvedLanguage.locale,
+      candidateSourceLanguage,
     );
     const referenceEmbeddingWrite = buildReferenceEmbeddingWrite(reference);
     const supersededReferenceVector =
@@ -445,13 +506,21 @@ export async function writeRememberCandidate(input: {
     const facts = await context.repositories.facts.listByScope(context.input.scope);
     const normalizedContent = context.language.normalizeForEquality(
       candidate.content,
-      context.resolvedLanguage,
+      candidateLanguage,
     );
     const duplicate = facts.find(
-      (fact) =>
-        fact.lifecycle === "active" &&
-        context.language.normalizeForEquality(fact.content, context.resolvedLanguage) ===
-          normalizedContent,
+      (fact) => {
+        const factLanguage = resolveStoredTextLanguage(
+          context,
+          fact.content,
+          fact.source,
+        );
+        return (
+          fact.lifecycle === "active" &&
+          context.language.normalizeForEquality(fact.content, factLanguage) ===
+            normalizedContent
+        );
+      },
     );
 
     if (duplicate) {
@@ -459,7 +528,7 @@ export async function writeRememberCandidate(input: {
         duplicate,
         candidate,
         timestamp,
-        context.resolvedLanguage.locale,
+        storedSourceLanguage(context, duplicate.content, duplicate.source),
       );
       const evidenceId = context.createId();
       const sourceMessages = await persistCandidateEvidence({
@@ -495,17 +564,27 @@ export async function writeRememberCandidate(input: {
       return;
     }
 
-    const superseded = facts.find(
-      (fact) =>
+    const superseded = facts.find((fact) => {
+      const factLanguage = resolveStoredTextLanguage(
+        context,
+        fact.content,
+        fact.source,
+      );
+      return (
         fact.lifecycle === "active" &&
         fact.source.method !== "explicit" &&
         candidate.explicitness === "explicit" &&
+        context.language.localesCompatible(
+          factLanguage.locale,
+          candidateLanguage.locale,
+        ) &&
         context.language.tokenOverlap(
           fact.content,
           candidate.content,
-          context.resolvedLanguage,
-        ) >= 0.4,
-    );
+          candidateLanguage,
+        ) >= 0.4
+      );
+    });
 
     if (superseded && context.policy?.resolveConflict) {
       const resolution = await context.policy.resolveConflict(
@@ -533,7 +612,7 @@ export async function writeRememberCandidate(input: {
       candidate,
       context.createId(),
       timestamp,
-      context.resolvedLanguage.locale,
+      candidateSourceLanguage,
       resolveCandidateObservedAt(candidate, context.input.messages),
     );
     const factEmbeddingWrite = buildFactEmbeddingWrite(fact);
@@ -600,7 +679,7 @@ export async function writeRememberCandidate(input: {
   const scopedFeedback = await context.repositories.feedback.listByScope(context.input.scope);
   const normalizedRule = context.language.normalizeForEquality(
     candidate.content,
-    context.resolvedLanguage,
+    candidateLanguage,
   );
   const candidateIdentityKey = buildFeedbackIdentityKey({
     kind: candidate.metadata?.feedbackKind ?? "do",
@@ -608,16 +687,24 @@ export async function writeRememberCandidate(input: {
     appliesTo: candidate.metadata?.appliesTo,
   });
   const duplicate = scopedFeedback.find(
-    (feedback) =>
-      feedback.lifecycle === "active" &&
-      buildFeedbackIdentityKey({
-        kind: feedback.kind,
-        normalizedRule: context.language.normalizeForEquality(
-          feedback.rule,
-          context.resolvedLanguage,
-        ),
-        appliesTo: feedback.appliesTo,
-      }) === candidateIdentityKey,
+    (feedback) => {
+      const feedbackLanguage = resolveStoredTextLanguage(
+        context,
+        feedback.rule,
+        feedback.source,
+      );
+      return (
+        feedback.lifecycle === "active" &&
+        buildFeedbackIdentityKey({
+          kind: feedback.kind,
+          normalizedRule: context.language.normalizeForEquality(
+            feedback.rule,
+            feedbackLanguage,
+          ),
+          appliesTo: feedback.appliesTo,
+        }) === candidateIdentityKey
+      );
+    },
   );
 
   if (duplicate) {
@@ -625,7 +712,7 @@ export async function writeRememberCandidate(input: {
       duplicate,
       candidate,
       timestamp,
-      context.resolvedLanguage.locale,
+      storedSourceLanguage(context, duplicate.rule, duplicate.source),
     );
     if (enrichedDuplicate) {
       await context.setDocumentWithRollback(
@@ -677,7 +764,7 @@ export async function writeRememberCandidate(input: {
     candidate,
     context.createId(),
     timestamp,
-    context.resolvedLanguage.locale,
+    candidateSourceLanguage,
   );
 
   if (superseded) {

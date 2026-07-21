@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import { isActiveMemoryLifecycle } from "../../domain/records";
 import type { FactMemory } from "../../domain/records";
@@ -9,9 +10,11 @@ import type {
   ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
+import type { LanguageService } from "../../language";
 import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
+  PROJECTION_SEARCH_SCHEMA_VERSION,
 } from "./contracts";
 import type {
   AppendClaimProjectionInput,
@@ -47,11 +50,16 @@ export interface ClaimProjectionIndex {
     query: string,
     limit: number,
     history: boolean,
+    locale?: string,
   ): Promise<ClaimProjection[]>;
   rebuildScope(input: {
     scope: MemoryScope;
     sources: readonly ClaimProjectionCanonicalSource[];
     timestamp: string;
+  }): Promise<void>;
+  reconcileScope(input: {
+    canonicalSourceIds: ReadonlySet<string>;
+    scope: MemoryScope;
   }): Promise<void>;
   synchronizeFact(input: {
     document: StorageDocument | null;
@@ -72,10 +80,6 @@ export interface ClaimProjectionCanonicalSource {
 function stableId(prefix: string, value: string): string {
   const digest = createHash("sha256").update(value).digest("hex").slice(0, 32);
   return `${prefix}:${digest}`;
-}
-
-function canonicalEntity(value: string): string {
-  return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
 }
 
 export function buildClaimProjectionStatusId(
@@ -109,10 +113,10 @@ function projectionId(input: Omit<ClaimProjection, "id">): string {
   return stableId("claim", JSON.stringify({
     scopeKey: input.scopeKey,
     sourceMemoryId: input.sourceMemoryId,
-    subjectEntityId: input.subjectEntityId,
+    subject: input.subjectText ?? input.subjectEntityId,
     predicateKey: input.predicateKey,
     objectText: input.objectText,
-    objectEntityId: input.objectEntityId,
+    objectEntity: input.objectEntityText ?? input.objectEntityId,
     polarity: input.polarity,
     modality: input.modality,
     validFrom: input.validFrom,
@@ -146,7 +150,32 @@ function selectedClaims(
 
 export function createClaimProjectionIndex(
   documentStore: ProjectionCapableDocumentStore,
+  language: LanguageService,
 ): ClaimProjectionIndex {
+  function analyzeSearchText(
+    text: string,
+    locale?: string,
+  ): Pick<
+    ClaimProjection,
+    | "languagePackId"
+    | "searchAnalyzerVersion"
+    | "searchLocale"
+    | "searchSchemaVersion"
+    | "searchText"
+  > {
+    const context = language.resolveFromText({
+      ...(locale ? { locale } : {}),
+      text,
+    });
+    return {
+      languagePackId: context.languagePackId,
+      searchAnalyzerVersion: language.analyzerVersion(context),
+      searchLocale: context.locale,
+      searchText: [...new Set(language.buildSearchTerms(text, context))].join(" "),
+      searchSchemaVersion: PROJECTION_SEARCH_SCHEMA_VERSION,
+    };
+  }
+
   async function queryStatuses(scope: MemoryScope): Promise<ClaimProjectionStatus[]> {
     const queried = await documentStore.query<ClaimProjectionStatus>(
       CLAIM_PROJECTION_STATUS_COLLECTION,
@@ -232,35 +261,265 @@ export function createClaimProjectionIndex(
     return selectedClaims(statuses, history);
   }
 
-  async function backfillClaimSearchText(
-    statuses: readonly ClaimProjectionStatus[],
-    subject: string,
-  ): Promise<void> {
-    const claimIds = [...new Set(statuses.flatMap(({ claimIds }) => claimIds))];
-    for (const claimId of claimIds) {
-      const claim = await documentStore.get<ClaimProjection>(
-        CLAIM_PROJECTIONS_COLLECTION,
-        claimId,
+  async function rebuildClaimAnalysis(
+    fact: FactMemory,
+    scope: MemoryScope,
+  ): Promise<ClaimProjectionStatus | null> {
+    const statusId = buildClaimProjectionStatusId(scope, fact.id);
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const [status, queriedClaims] = await Promise.all([
+        documentStore.get<ClaimProjectionStatus>(
+          CLAIM_PROJECTION_STATUS_COLLECTION,
+          statusId,
+        ),
+        documentStore.query<ClaimProjection>(CLAIM_PROJECTIONS_COLLECTION, {
+          sourceMemoryId: fact.id,
+        }),
+      ]);
+      const claims = queriedClaims.filter((claim) =>
+        matchesScopeFilter(claim, scope)
       );
-      if (!claim || claim.text) {
-        continue;
-      }
-      await documentStore.set(CLAIM_PROJECTIONS_COLLECTION, claim.id, {
-        ...claim,
-        text: buildClaimProjectionSearchText({
-          subject,
+      const fallbackSubject = fact.subject && fact.subject !== "unknown"
+        ? fact.subject
+        : fact.userId;
+      const replacements = claims.map((claim) => {
+        const subjectText = claim.subjectText?.trim() ||
+          (claim.predicateKey.startsWith("fact.") ? fallbackSubject : undefined);
+        if (!subjectText) {
+          throw new Error(
+            `Claim projection ${claim.id} cannot rebuild its subject entity without raw text.`,
+          );
+        }
+        const objectEntityText = claim.objectEntityText?.trim();
+        if (claim.objectEntityId && !objectEntityText) {
+          throw new Error(
+            `Claim projection ${claim.id} cannot rebuild its object entity without raw text.`,
+          );
+        }
+        const text = buildClaimProjectionSearchText({
+          subject: subjectText,
           predicateKey: claim.predicateKey,
           objectText: claim.objectText,
+          objectEntity: objectEntityText,
           polarity: claim.polarity,
           modality: claim.modality,
           contextualDescriptor: claim.contextualDescriptor,
-        }),
+        });
+        const languageContext = language.resolveFromText({
+          ...(fact.source.locale ? { locale: fact.source.locale } : {}),
+          text,
+        });
+        const subjectEntityId = buildEntityProjectionId(
+          claim.scopeKey,
+          language.normalizeForEquality(subjectText, languageContext),
+        );
+        const objectEntityId = objectEntityText
+          ? buildEntityProjectionId(
+            claim.scopeKey,
+            language.normalizeForEquality(objectEntityText, languageContext),
+          )
+          : undefined;
+        const { id: _id, objectEntityId: _oldObjectEntityId, ...base } = claim;
+        const projectionWithoutId: Omit<ClaimProjection, "id"> = {
+          ...base,
+          subjectText,
+          subjectEntityId,
+          text,
+          ...analyzeSearchText(text, fact.source.locale),
+          ...(objectEntityText
+            ? { objectEntityId, objectEntityText }
+            : {}),
+        };
+        return {
+          previous: claim,
+          projection: {
+            id: projectionId(projectionWithoutId),
+            ...projectionWithoutId,
+          },
+        };
       });
+      const changed = replacements.filter(({ previous, projection }) =>
+        !isDeepStrictEqual(previous, projection)
+      );
+      if (changed.length === 0) {
+        return status;
+      }
+      const nextIds = new Map(
+        replacements.map(({ previous, projection }) => [previous.id, projection.id]),
+      );
+      const nextStatus = status
+        ? {
+            ...status,
+            claimIds: status.claimIds.map((claimId) =>
+              nextIds.get(claimId) ?? claimId
+            ),
+          }
+        : null;
+      const replacementIds = new Set(
+        replacements.map(({ projection }) => projection.id),
+      );
+      const committed = await documentStore.writeBatchIfUnchanged({
+        delete: changed
+          .filter(({ previous, projection }) =>
+            previous.id !== projection.id && !replacementIds.has(previous.id)
+          )
+          .map(({ previous }) => ({
+            collection: CLAIM_PROJECTIONS_COLLECTION,
+            id: previous.id,
+          })),
+        expected: {
+          collection: "facts",
+          document: fact,
+          id: fact.id,
+        },
+        set: [
+          ...changed.map(({ projection }) => ({
+            collection: CLAIM_PROJECTIONS_COLLECTION,
+            document: projection,
+            id: projection.id,
+          })),
+          ...(nextStatus && !isDeepStrictEqual(status, nextStatus)
+            ? [{
+                collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+                document: nextStatus,
+                id: nextStatus.id,
+              }]
+            : []),
+        ],
+        unchanged: [
+          {
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            document: status,
+            id: statusId,
+          },
+          ...claims.map((claim) => ({
+            collection: CLAIM_PROJECTIONS_COLLECTION,
+            document: claim,
+            id: claim.id,
+          })),
+        ],
+      });
+      if (committed) {
+        return nextStatus;
+      }
     }
+    throw new Error(
+      `Claim analysis changed repeatedly during rebuild: ${fact.id}`,
+    );
   }
 
   function normalizeClaimObjectText(value: string): string {
     return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
+  }
+
+  async function reconcileStructuredSupersession(
+    scope: MemoryScope,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const [statuses, history] = await Promise.all([
+        queryStatuses(scope),
+        queryHistory(scope),
+      ]);
+      const selected = selectedClaims(statuses, history)
+        .filter((claim) =>
+          !claim.predicateKey.startsWith("fact.") &&
+          claim.polarity === "positive" &&
+          claim.modality === "asserted"
+        )
+        .sort((left, right) =>
+          left.observedAt.localeCompare(right.observedAt) ||
+          left.id.localeCompare(right.id)
+        );
+      const openBySlot = new Map<string, ClaimProjection[]>();
+      const closures = new Map<string, ClaimProjection>();
+      for (const claim of selected) {
+        const slot = `${claim.subjectEntityId}\u0000${claim.predicateKey}`;
+        const open = openBySlot.get(slot) ?? [];
+        const nextOpen: ClaimProjection[] = [];
+        const value = normalizeClaimObjectText(claim.objectText);
+        for (const older of open) {
+          if (
+            older.sourceMemoryId !== claim.sourceMemoryId &&
+            older.observedAt.localeCompare(claim.observedAt) < 0 &&
+            normalizeClaimObjectText(older.objectText) !== value
+          ) {
+            const { id: _id, ...projectionWithoutId } = older;
+            const closedWithoutId: Omit<ClaimProjection, "id"> = {
+              ...projectionWithoutId,
+              validUntil: claim.observedAt,
+              ingestedAt: claim.ingestedAt,
+            };
+            closures.set(older.id, {
+              id: projectionId(closedWithoutId),
+              ...closedWithoutId,
+            });
+          } else {
+            nextOpen.push(older);
+          }
+        }
+        if (!claim.validUntil) {
+          nextOpen.push(claim);
+        }
+        openBySlot.set(slot, nextOpen);
+      }
+      if (closures.size === 0) {
+        return;
+      }
+      const nextStatuses = statuses.map((status) => ({
+        previous: status,
+        status: {
+          ...status,
+          claimIds: status.claimIds.map((claimId) =>
+            closures.get(claimId)?.id ?? claimId
+          ),
+        },
+      }));
+      const changedStatuses = nextStatuses.filter(({ previous, status }) =>
+        !isDeepStrictEqual(previous, status)
+      );
+      const snapshots = [
+        ...statuses.map((status) => ({
+          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+          document: status,
+          id: status.id,
+        })),
+        ...history.map((claim) => ({
+          collection: CLAIM_PROJECTIONS_COLLECTION,
+          document: claim,
+          id: claim.id,
+        })),
+      ];
+      const expected = snapshots[0];
+      if (!expected) {
+        return;
+      }
+      const committed = await documentStore.writeBatchIfUnchanged({
+        delete: [...closures.keys()].map((id) => ({
+          collection: CLAIM_PROJECTIONS_COLLECTION,
+          id,
+        })),
+        expected,
+        set: [
+          ...[...closures.values()].map((claim) => ({
+            collection: CLAIM_PROJECTIONS_COLLECTION,
+            document: claim,
+            id: claim.id,
+          })),
+          ...changedStatuses.map(({ status }) => ({
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            document: status,
+            id: status.id,
+          })),
+        ],
+        unchanged: snapshots.slice(1),
+      });
+      if (committed) {
+        return;
+      }
+    }
+    throw new Error(
+      `Claim supersession changed repeatedly during rebuild: ${recallScopeKey(scope)}`,
+    );
   }
 
   // Structural bi-temporal supersession: when a newly projected claim occupies
@@ -432,29 +691,52 @@ export function createClaimProjectionIndex(
         }
       }
       const scopeKey = recallScopeKey(normalized);
-      const subjectKey = canonicalEntity(input.subject);
+      const sourceLocale = sourceFact.source.locale;
+      const claimText = buildClaimProjectionSearchText({
+        subject: input.subject,
+        predicateKey: input.claim.predicateKey,
+        objectText: input.claim.objectText,
+        objectEntity: input.claim.objectEntity,
+        polarity: input.claim.polarity ?? "positive",
+        modality: input.claim.modality ?? "asserted",
+        contextualDescriptor: input.contextualDescriptor,
+      });
+      const languageContext = language.resolveFromText({
+        ...(sourceLocale ? { locale: sourceLocale } : {}),
+        text: claimText,
+      });
+      const subjectKey = language.normalizeForEquality(
+        input.subject,
+        languageContext,
+      );
       const objectEntityKey = input.claim.objectEntity
-        ? canonicalEntity(input.claim.objectEntity)
+        ? language.normalizeForEquality(
+          input.claim.objectEntity,
+          languageContext,
+        )
         : undefined;
       const projectionWithoutId: Omit<ClaimProjection, "id"> = {
         schemaVersion: 1,
         ...normalized,
         scopeKey,
         sourceMemoryId: input.sourceMemoryId,
+        subjectText: input.subject.trim(),
         subjectEntityId: buildEntityProjectionId(scopeKey, subjectKey),
         predicateKey: input.claim.predicateKey.trim(),
         objectText: input.claim.objectText.trim(),
-        text: buildClaimProjectionSearchText({
-          subject: input.subject,
-          predicateKey: input.claim.predicateKey,
-          objectText: input.claim.objectText,
-          objectEntity: input.claim.objectEntity,
-          polarity: input.claim.polarity ?? "positive",
-          modality: input.claim.modality ?? "asserted",
-          contextualDescriptor: input.contextualDescriptor,
-        }),
+        text: claimText,
+        searchText: [...new Set(
+          language.buildSearchTerms(claimText, languageContext),
+        )].join(" "),
+        searchLocale: languageContext.locale,
+        languagePackId: languageContext.languagePackId,
+        searchAnalyzerVersion: language.analyzerVersion(languageContext),
+        searchSchemaVersion: PROJECTION_SEARCH_SCHEMA_VERSION,
         ...(objectEntityKey
-          ? { objectEntityId: buildEntityProjectionId(scopeKey, objectEntityKey) }
+          ? {
+              objectEntityId: buildEntityProjectionId(scopeKey, objectEntityKey),
+              objectEntityText: input.claim.objectEntity?.trim(),
+            }
           : {}),
         polarity: input.claim.polarity ?? "positive",
         modality: input.claim.modality ?? "asserted",
@@ -544,6 +826,73 @@ export function createClaimProjectionIndex(
     }
   }
 
+  async function removeSourceFromScope(input: {
+    expectedFact?: FactMemory;
+    scope: MemoryScope;
+    sourceMemoryId: string;
+  }): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const [queriedClaims, queriedStatuses] = await Promise.all([
+        documentStore.query<ClaimProjection>(CLAIM_PROJECTIONS_COLLECTION, {
+          sourceMemoryId: input.sourceMemoryId,
+        }),
+        documentStore.query<ClaimProjectionStatus>(
+          CLAIM_PROJECTION_STATUS_COLLECTION,
+          {
+          sourceMemoryId: input.sourceMemoryId,
+          },
+        ),
+      ]);
+      const claims = queriedClaims.filter((claim) =>
+        matchesScopeFilter(claim, input.scope)
+      );
+      const statuses = queriedStatuses.filter((status) =>
+        matchesScopeFilter(status, input.scope)
+      );
+      const projections = [
+        ...claims.map((claim) => ({
+          collection: CLAIM_PROJECTIONS_COLLECTION,
+          document: claim,
+          id: claim.id,
+        })),
+        ...statuses.map((status) => ({
+          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+          document: status,
+          id: status.id,
+        })),
+      ];
+      if (projections.length === 0) {
+        return;
+      }
+      const sourceFact = input.expectedFact ??
+        await documentStore.get<FactMemory>("facts", input.sourceMemoryId);
+      if (
+        !input.expectedFact &&
+        sourceFact &&
+        isFactMemory(sourceFact) &&
+        matchesScopeFilter(sourceFact, input.scope)
+      ) {
+        return;
+      }
+      const committed = await documentStore.writeBatchIfUnchanged({
+        delete: projections.map(({ collection, id }) => ({ collection, id })),
+        expected: {
+          collection: "facts",
+          document: sourceFact,
+          id: input.sourceMemoryId,
+        },
+        set: [],
+        unchanged: projections,
+      });
+      if (committed) {
+        return;
+      }
+    }
+    throw new Error(
+      `Claim scope changed repeatedly during cleanup: ${input.sourceMemoryId}`,
+    );
+  }
+
   async function synchronizeFact(input: {
     document: StorageDocument | null;
     evidence?: readonly EvidenceRecord[];
@@ -563,18 +912,21 @@ export function createClaimProjectionIndex(
     if (!factScope) {
       return;
     }
-    const existingStatus = await documentStore.get<ClaimProjectionStatus>(
-      CLAIM_PROJECTION_STATUS_COLLECTION,
-      buildClaimProjectionStatusId(factScope, input.sourceMemoryId),
-    );
+    if (
+      input.fallbackScope &&
+      recallScopeKey(input.fallbackScope) !== recallScopeKey(factScope)
+    ) {
+      await removeSourceFromScope({
+        expectedFact: fact,
+        scope: input.fallbackScope,
+        sourceMemoryId: input.sourceMemoryId,
+      });
+    }
+    const existingStatus = await rebuildClaimAnalysis(fact, factScope);
     const existingStatuses = existingStatus &&
       matchesScopeFilter(existingStatus, factScope)
       ? [existingStatus]
       : [];
-    await backfillClaimSearchText(
-      existingStatuses,
-      fact.subject && fact.subject !== "unknown" ? fact.subject : fact.userId,
-    );
     const evidence = input.evidence ?? [];
     const evidenceIds = evidence.map(({ id }) => id);
     const sourceMessageIds = [
@@ -608,6 +960,9 @@ export function createClaimProjectionIndex(
     });
 
     if (isActiveMemoryLifecycle(fact) && fact.isActive !== false) {
+      if (existingStatuses.some(({ state }) => state === "failed")) {
+        return;
+      }
       const existingStatus = existingStatuses.find(
         (status) => status.claimIds.length > 0,
       );
@@ -646,6 +1001,26 @@ export function createClaimProjectionIndex(
     );
     for (const status of existingStatuses) {
       const current = allClaims.filter((claim) => status.claimIds.includes(claim.id));
+      if (status.state === "failed" && current.length === 0) {
+        await documentStore.writeBatchIfUnchanged({
+          delete: [{
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            id: status.id,
+          }],
+          expected: {
+            collection: "facts",
+            document: fact,
+            id: fact.id,
+          },
+          set: [],
+          unchanged: [{
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            document: status,
+            id: status.id,
+          }],
+        });
+        continue;
+      }
       const closed = current.map((claim): ClaimProjection => {
         if (claim.validUntil) return claim;
         const { id: _id, ...projectionWithoutId } = claim;
@@ -656,8 +1031,13 @@ export function createClaimProjectionIndex(
         };
         return { id: projectionId(projection), ...projection };
       });
+      const { lastError: _lastError, ...statusWithoutError } = status;
       const nextStatus: ClaimProjectionStatus = {
-        ...status,
+        ...statusWithoutError,
+        state: current.every((claim) => claim.predicateKey.startsWith("fact."))
+          ? "unstructured"
+          : "projected",
+        extractorVersion: current[0]?.extractorVersion ?? status.extractorVersion,
         claimIds: closed.map(({ id }) => id),
         sourceUpdatedAt: fact.updatedAt,
         updatedAt: input.timestamp,
@@ -758,18 +1138,26 @@ export function createClaimProjectionIndex(
     queryBySourceMemoryIds,
     queryForSourceMemoryGroups,
     queryHistory,
-    async search(scope, query, limit, history) {
+    async search(scope, query, limit, history, locale) {
       if (!documentStore.searchText) {
         return (history ? await queryHistory(scope) : await this.query(scope))
           .slice(0, limit);
       }
+      const queryContext = language.resolveFromText({
+        ...(locale ? { locale } : {}),
+        text: query,
+      });
+      const searchQuery = language.buildSearchTerms(query, queryContext).join(" ");
+      if (!searchQuery) {
+        return [];
+      }
       const results = await documentStore.searchText<ClaimProjection>(
         CLAIM_PROJECTIONS_COLLECTION,
         {
-          field: "text",
+          field: "searchText",
           filter: scopeFilter(scope),
           limit,
-          query,
+          query: searchQuery,
         },
       );
       const ranked = new Map<string, { claim: ClaimProjection; score: number }>();
@@ -823,11 +1211,26 @@ export function createClaimProjectionIndex(
           timestamp,
         });
       }
-      for (const status of await queryStatuses(scope)) {
-        if (!canonicalIds.has(status.sourceMemoryId)) {
-          await removeSource(status.sourceMemoryId);
+      await this.reconcileScope({ canonicalSourceIds: canonicalIds, scope });
+    },
+    async reconcileScope({ canonicalSourceIds, scope }) {
+      const [statuses, history] = await Promise.all([
+        queryStatuses(scope),
+        queryHistory(scope),
+      ]);
+      const sourceMemoryIds = new Set([
+        ...statuses.map(({ sourceMemoryId }) => sourceMemoryId),
+        ...history.map(({ sourceMemoryId }) => sourceMemoryId),
+      ]);
+      for (const sourceMemoryId of sourceMemoryIds) {
+        if (!canonicalSourceIds.has(sourceMemoryId)) {
+          await removeSourceFromScope({
+            scope,
+            sourceMemoryId,
+          });
         }
       }
+      await reconcileStructuredSupersession(scope);
     },
     synchronizeFact,
   };

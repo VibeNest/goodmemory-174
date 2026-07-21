@@ -41,8 +41,8 @@ import type { RecallRouterStrategy } from "./recall/router";
 import type { MemoryExtractionStrategy } from "./remember/candidates";
 import { createDeterministicMemoryExtractor } from "./remember/deterministicExtractor";
 import {
-  type LanguageAdapter,
   type LanguageConfig,
+  type LanguagePack,
   type LocaleDetector,
 } from "./language";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "./storage/memory";
@@ -283,12 +283,34 @@ export type {
 } from "./remember/profiles";
 export { rememberRules } from "./remember/profiles";
 export type {
-  LanguageAdapter,
+  LanguageCandidateExtractionInput,
+  LanguageAnalyzerManifest,
+  LanguageAnalyzerManifestPack,
   LanguageConfig,
+  LanguageContentAnalysis,
+  LanguageDetectionInput,
+  LanguageDetectionMode,
+  LanguageDetectionStrength,
+  LanguageEntityCandidateInput,
+  LanguageEntityMention,
+  LanguagePack,
+  LanguageQueryAnalysis,
+  LanguageRenderInput,
+  LanguageRenderKey,
+  LanguageService,
+  LanguageSourceOfTruthDirective,
+  LanguageTemporalExpression,
   LocaleDetector,
   LocaleDetectorInput,
   LocaleResolutionSource,
   ResolvedLanguageContext,
+} from "./language";
+export {
+  createChineseLanguagePack,
+  createEnglishLanguagePack,
+  createJapaneseLanguagePack,
+  createLanguageService,
+  createNeutralLanguagePack,
 } from "./language";
 export type {
   ClassifiedCandidate,

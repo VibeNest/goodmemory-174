@@ -8,6 +8,10 @@ import {
   createMaintenanceRunner,
 } from "../../src/maintenance/runner";
 import {
+  createLanguageService,
+  type LanguageService,
+} from "../../src/language";
+import {
   buildMemoryQualityRepairAttributes,
 } from "../../src/maintenance/qualityRepairSignals";
 import {
@@ -20,7 +24,10 @@ import {
 } from "../../src/storage/repositories";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
 
-function createFixture(input?: { withEmbeddings?: boolean }) {
+function createFixture(input?: {
+  language?: LanguageService;
+  withEmbeddings?: boolean;
+}) {
   const documentStore = createInMemoryDocumentStore();
   const embeddingAdapter = input?.withEmbeddings
     ? createFakeEmbeddingAdapter()
@@ -32,6 +39,7 @@ function createFixture(input?: { withEmbeddings?: boolean }) {
   });
   const runner = createMaintenanceRunner({
     embedding: embeddingAdapter,
+    language: input?.language,
     repositories,
     vectorIndex: repositories.vectorIndex,
     now: () => "2026-04-02T00:00:00.000Z",
@@ -303,7 +311,11 @@ describe("maintenance runner", () => {
         workspaceId: "workspace-a",
         category: "project",
         content: "迁移流程目前仍然被审批阻塞。",
-        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "zh-CN",
+        },
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
       }),
@@ -315,7 +327,11 @@ describe("maintenance runner", () => {
         workspaceId: "workspace-a",
         category: "project",
         content: "迁移流程目前仍然被审批阻塞。",
-        source: { method: "explicit", extractedAt: "2026-01-02T00:00:00.000Z" },
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-02T00:00:00.000Z",
+          locale: "zh-CN",
+        },
         createdAt: "2026-01-02T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
       }),
@@ -327,7 +343,11 @@ describe("maintenance runner", () => {
         workspaceId: "workspace-a",
         category: "project",
         content: "迁移流程已经稳定。",
-        source: { method: "explicit", extractedAt: "2026-01-03T00:00:00.000Z" },
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-03T00:00:00.000Z",
+          locale: "zh-CN",
+        },
         confidence: 0.95,
         createdAt: "2026-01-03T00:00:00.000Z",
         updatedAt: "2026-01-03T00:00:00.000Z",
@@ -339,6 +359,54 @@ describe("maintenance runner", () => {
 
     const contradiction = await runner.run(scope, ["contradiction"]);
     expect(contradiction.jobs[0]?.applied).toBe(1);
+  });
+
+  it("uses persisted fact locales instead of re-detecting maintenance text", async () => {
+    const language = createLanguageService({
+      detector: () => "en-US",
+      detectorVersion: "forced-english-for-regression",
+    });
+    const { repositories, runner } = createFixture({ language });
+    const scope = { userId: "u-ja", workspaceId: "workspace-a" };
+
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-ja-negative",
+        userId: "u-ja",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "ワークフローの移行は未完了です。",
+        source: {
+          method: "inferred",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "ja-JP",
+        },
+        confidence: 0.6,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-ja-positive",
+        userId: "u-ja",
+        workspaceId: "workspace-a",
+        category: "project",
+        content: "ワークフローの移行は完了しました。",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-03-20T00:00:00.000Z",
+          locale: "ja-JP",
+        },
+        confidence: 0.95,
+        createdAt: "2026-03-20T00:00:00.000Z",
+        updatedAt: "2026-03-20T00:00:00.000Z",
+      }),
+    );
+
+    const report = await runner.run(scope, ["contradiction"]);
+
+    expect(report.jobs[0]?.applied).toBe(1);
   });
 
   it("repairs missing fact, reference, and episode embeddings through maintenance hooks", async () => {
@@ -472,6 +540,41 @@ describe("maintenance runner", () => {
         filter: { userId: "u-consolidate", workspaceId: "workspace-a" },
       }),
     ).toContainEqual(expect.objectContaining({ id: consolidated?.id }));
+  });
+
+  it("does not consolidate episodes whose persisted locales are incompatible", async () => {
+    const { repositories, runner } = createFixture();
+    const scope = { userId: "u-multilingual", workspaceId: "workspace-a" };
+
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-ja",
+        userId: "u-multilingual",
+        workspaceId: "workspace-a",
+        summary: "Japanese API rollout discussion.",
+        topics: ["API rollout"],
+        locale: "ja-JP",
+      }),
+    );
+    await repositories.episodes.add(
+      createEpisodeMemory({
+        id: "ep-zh",
+        userId: "u-multilingual",
+        workspaceId: "workspace-a",
+        summary: "Traditional Chinese API rollout discussion.",
+        topics: ["API rollout"],
+        locale: "zh-TW",
+      }),
+    );
+
+    const report = await runner.run(scope, ["consolidation"]);
+
+    expect(report.jobs[0]?.applied).toBe(0);
+    expect(
+      (await repositories.episodes.listByScope(scope)).filter(
+        (episode) => !episode.archivedAt,
+      ),
+    ).toHaveLength(2);
   });
 
   it("uses repositories.vectorIndex by default so legacy maintenance wiring still cleans stale vectors", async () => {

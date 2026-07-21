@@ -15,11 +15,16 @@ import {
   DeterministicClock,
   createDeterministicIdGenerator,
 } from "../../src/testing/utils";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../../src/language";
 
 function createService(
   maxBufferedMessages = 3,
   input?: {
     extraction?: RuntimeExtractionHooks;
+    language?: LanguageService;
     salvageHooks?: RuntimeSalvageHooks;
     sessionStore?: SessionStore;
   },
@@ -35,6 +40,7 @@ function createService(
     sessionStore,
     archiveStore: repositories.archives,
     extraction: input?.extraction,
+    language: input?.language,
     salvageHooks: input?.salvageHooks,
     now: () => clock.now().toISOString(),
     createMessageId: createDeterministicIdGenerator("msg"),
@@ -51,6 +57,23 @@ function createService(
 }
 
 describe("runtime context service", () => {
+  it("persists the resolved session locale on archives", async () => {
+    const { repositories, service } = createService(3, {
+      language: createLanguageService({ defaultLocale: "ja-JP" }),
+    });
+    const scope = { userId: "u-ja-archive", sessionId: "s-ja-archive" };
+    await service.startSession(scope);
+    await service.appendToSession(scope, {
+      role: "user",
+      content: "現在のブロッカーは承認待ちです。",
+    });
+
+    await service.endSession(scope);
+
+    const archives = await repositories.archives.listByScope(scope);
+    expect(archives[0]?.locale).toBe("ja-JP");
+  });
+
   it("starts isolated sessions and enforces lifecycle boundaries", async () => {
     const { clock, service } = createService();
     const sessionOne = { userId: "u-1", sessionId: "s-1" };

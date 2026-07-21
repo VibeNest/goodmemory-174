@@ -25,6 +25,8 @@ bulk-load. Start here, then open only the file that matches the question.
 ## Public Integration Docs
 
 - `GoodMemory-15-Minute-App-Integration.md` - shortest app integration path.
+- `GoodMemory-LanguagePack-Extension-Guide.md` - built-in locale behavior,
+  custom language-pack contract, analyzer versioning, and projection migration.
 - `GoodMemory-Reference-Integration-Guide.md` - reference consumer pattern.
 - `GoodMemory-Inspector-and-Admin-API.md` - local React Inspector, `/admin/v1`
   contract, security boundary, and operator workflows.

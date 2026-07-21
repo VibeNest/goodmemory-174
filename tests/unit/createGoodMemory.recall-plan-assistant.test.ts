@@ -114,7 +114,7 @@ describe("GoodMemory.recall query-only planner adapter", () => {
       plan: {
         entities: ["atlas", "beacon"],
         facets: ["Atlas 当前状态", "Beacon 当前状态"],
-        maxHops: 2,
+        maxHops: 1,
         preRankLimit: 32,
         selectedLimit: 12,
         maxRenderedTokens: 6_000,
@@ -140,7 +140,7 @@ describe("GoodMemory.recall query-only planner adapter", () => {
     });
 
     try {
-      const query = "Where does private-project-codename live?";
+      const query = "What changed about private-project-codename over time?";
       const result = await memory.recall({
         locale: "en",
         query,

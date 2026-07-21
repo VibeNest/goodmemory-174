@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 import { normalizeScope, scopeToKey } from "../domain/scope";
 import type { MemoryScope } from "../domain/scope";
 import type {
@@ -9,8 +11,10 @@ import { PROJECTION_BATCH_SEMANTICS } from "./contracts";
 export const SCOPE_DELETION_LOCKS_COLLECTION = "scope_deletion_locks_v1";
 
 interface ScopeDeletionLock extends StorageDocument {
+  generation?: string;
   id: string;
-  operationId: string;
+  operationId?: string;
+  state?: "deleting" | "open";
 }
 
 const OPTIONAL_SCOPE_KEYS = [
@@ -77,59 +81,134 @@ export interface ScopeDeletionCoordinator {
 
 export function createScopeDeletionAwareDocumentStore(
   documentStore: ProjectionCapableDocumentStore,
+  config: {
+    allowLockedBatchSet?: (input: {
+      batch: import("./contracts").ConditionalDocumentWriteBatch;
+      operation: import("./contracts").DocumentWriteOperation;
+    }) => boolean;
+  } = {},
 ): ProjectionCapableDocumentStore {
-  async function activeDeletionLock(
-    document: StorageDocument,
+  function isActiveLock(lock: ScopeDeletionLock | null): boolean {
+    return lock !== null && lock.state !== "open";
+  }
+
+  async function addGuardSnapshots(
+    snapshots: Map<string, ScopeDeletionLock | null>,
+    documents: readonly StorageDocument[],
+  ): Promise<void> {
+    const ids = new Set(
+      documents.flatMap((document) => scopeDeletionLockIdsForDocument(document)),
+    );
+    for (const id of ids) {
+      if (snapshots.has(id)) {
+        continue;
+      }
+      const lock = await documentStore.get<ScopeDeletionLock>(
+        SCOPE_DELETION_LOCKS_COLLECTION,
+        id,
+      );
+      if (isActiveLock(lock)) {
+        throw new Error(`Memory deletion is in progress for scope ${id}`);
+      }
+      snapshots.set(id, lock);
+    }
+  }
+
+  function guardConstraints(
+    snapshots: ReadonlyMap<string, ScopeDeletionLock | null>,
+  ) {
+    return [...snapshots].map(([id, document]) => ({
+      collection: SCOPE_DELETION_LOCKS_COLLECTION,
+      document,
+      id,
+    }));
+  }
+
+  async function changedGuardId(
+    snapshots: ReadonlyMap<string, ScopeDeletionLock | null>,
   ): Promise<string | null> {
-    for (const id of scopeDeletionLockIdsForDocument(document)) {
-      if (await documentStore.get(SCOPE_DELETION_LOCKS_COLLECTION, id)) {
+    for (const [id, snapshot] of snapshots) {
+      const current = await documentStore.get<ScopeDeletionLock>(
+        SCOPE_DELETION_LOCKS_COLLECTION,
+        id,
+      );
+      if (!isDeepStrictEqual(current, snapshot)) {
         return id;
       }
     }
     return null;
   }
 
-  async function assertScopeWritable(document: StorageDocument): Promise<void> {
-    const lockId = await activeDeletionLock(document);
-    if (lockId) {
-      throw new Error(`Memory deletion is in progress for scope ${lockId}`);
-    }
-  }
-
-  async function setAndRejectLateDeletion(
+  async function setWithGuards(
     collection: string,
     id: string,
     document: StorageDocument,
   ): Promise<void> {
-    await assertScopeWritable(document);
-    await documentStore.set(collection, id, document);
-    const lockId = await activeDeletionLock(document);
-    if (lockId) {
-      await documentStore.delete(collection, id);
-      throw new Error(`Memory deletion is in progress for scope ${lockId}`);
+    const guards = new Map<string, ScopeDeletionLock | null>();
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = await documentStore.get<StorageDocument>(collection, id);
+      await addGuardSnapshots(
+        guards,
+        existing ? [existing, document] : [document],
+      );
+      const committed = await documentStore.writeBatchIfUnchanged({
+        expected: { collection, document: existing, id },
+        set: [{ collection, document, id }],
+        unchanged: guardConstraints(guards),
+      });
+      if (committed) {
+        return;
+      }
+      const changed = await changedGuardId(guards);
+      if (changed) {
+        throw new Error(
+          `Memory deletion generation changed for scope ${changed}`,
+        );
+      }
     }
+    throw new Error(`Document changed repeatedly while setting ${collection}/${id}`);
   }
 
   return {
     projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
-    set: setAndRejectLateDeletion,
+    set: setWithGuards,
     get(collection, id) {
       return documentStore.get(collection, id);
     },
     async update(collection, id, patch) {
-      const existing = await documentStore.get<StorageDocument>(collection, id);
-      if (!existing) {
-        await documentStore.update(collection, id, patch);
-        return;
+      const guards = new Map<string, ScopeDeletionLock | null>();
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const existing = await documentStore.get<StorageDocument>(collection, id);
+        if (!existing) {
+          const unchanged = await documentStore.writeBatchIfUnchanged({
+            expected: { collection, document: null, id },
+            set: [],
+          });
+          if (unchanged) {
+            return;
+          }
+          continue;
+        }
+        const updated = { ...existing, ...patch };
+        await addGuardSnapshots(guards, [existing, updated]);
+        const committed = await documentStore.writeBatchIfUnchanged({
+          expected: { collection, document: existing, id },
+          set: [{ collection, document: updated, id }],
+          unchanged: guardConstraints(guards),
+        });
+        if (committed) {
+          return;
+        }
+        const changed = await changedGuardId(guards);
+        if (changed) {
+          throw new Error(
+            `Memory deletion generation changed for scope ${changed}`,
+          );
+        }
       }
-      const updated = { ...existing, ...patch };
-      await assertScopeWritable(updated);
-      await documentStore.update(collection, id, patch);
-      const lockId = await activeDeletionLock(updated);
-      if (lockId) {
-        await documentStore.delete(collection, id);
-        throw new Error(`Memory deletion is in progress for scope ${lockId}`);
-      }
+      throw new Error(
+        `Document changed repeatedly while updating ${collection}/${id}`,
+      );
     },
     query(collection, filter) {
       return documentStore.query(collection, filter);
@@ -149,24 +228,42 @@ export function createScopeDeletionAwareDocumentStore(
         }
       : {}),
     async writeBatchIfUnchanged(input) {
+      const guards = new Map<string, ScopeDeletionLock | null>();
+      const predecessorConstraints = [];
       for (const operation of input.set) {
-        await assertScopeWritable(operation.document);
-      }
-      const committed = await documentStore.writeBatchIfUnchanged(input);
-      if (!committed) {
-        return false;
-      }
-      let blockedScope: string | null = null;
-      for (const operation of input.set) {
-        const lockId = await activeDeletionLock(operation.document);
-        if (!lockId) {
+        const existing = await documentStore.get<StorageDocument>(
+          operation.collection,
+          operation.id,
+        );
+        predecessorConstraints.push({
+          collection: operation.collection,
+          document: existing,
+          id: operation.id,
+        });
+        if (config.allowLockedBatchSet?.({ batch: input, operation })) {
           continue;
         }
-        blockedScope ??= lockId;
-        await documentStore.delete(operation.collection, operation.id);
+        await addGuardSnapshots(
+          guards,
+          existing ? [existing, operation.document] : [operation.document],
+        );
       }
-      if (blockedScope) {
-        throw new Error(`Memory deletion is in progress for scope ${blockedScope}`);
+      const committed = await documentStore.writeBatchIfUnchanged({
+        ...input,
+        unchanged: [
+          ...(input.unchanged ?? []),
+          ...predecessorConstraints,
+          ...guardConstraints(guards),
+        ],
+      });
+      if (!committed) {
+        const changed = await changedGuardId(guards);
+        if (changed) {
+          throw new Error(
+            `Memory deletion generation changed for scope ${changed}`,
+          );
+        }
+        return false;
       }
       return true;
     },
@@ -186,8 +283,10 @@ export function createScopeDeletionCoordinator(
     ): Promise<T> {
       const id = scopeDeletionLockId(scope);
       const lock: ScopeDeletionLock = {
+        generation: crypto.randomUUID(),
         id,
         operationId: crypto.randomUUID(),
+        state: "deleting",
       };
       let acquired = false;
       for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -195,10 +294,15 @@ export function createScopeDeletionCoordinator(
           SCOPE_DELETION_LOCKS_COLLECTION,
           id,
         );
+        if (existing && existing.state !== "open") {
+          throw new Error(
+            `Memory deletion is already in progress for scope ${id}`,
+          );
+        }
         acquired = await documentStore.writeBatchIfUnchanged({
           expected: {
             collection: SCOPE_DELETION_LOCKS_COLLECTION,
-            document: existing,
+            document: null,
             id,
           },
           set: [{
@@ -218,15 +322,25 @@ export function createScopeDeletionCoordinator(
       try {
         return await operation();
       } finally {
-        await documentStore.writeBatchIfUnchanged({
+        const released = await documentStore.writeBatchIfUnchanged({
           expected: {
             collection: SCOPE_DELETION_LOCKS_COLLECTION,
             document: lock,
             id,
           },
-          set: [],
-          delete: [{ collection: SCOPE_DELETION_LOCKS_COLLECTION, id }],
+          set: [{
+            collection: SCOPE_DELETION_LOCKS_COLLECTION,
+            document: {
+              generation: crypto.randomUUID(),
+              id,
+              state: "open",
+            } satisfies ScopeDeletionLock,
+            id,
+          }],
         });
+        if (!released) {
+          throw new Error(`Memory deletion lock changed before release for ${id}`);
+        }
       }
     },
   };

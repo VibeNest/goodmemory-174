@@ -518,6 +518,31 @@ async function callYourModel(input: {
 - `feedback()` 记录显式纠正和过程偏好。
 - `forget()` 删除错误或过期记忆。
 
+### Locale 与 LanguagePack
+
+内置语言包覆盖英文、简体中文、繁体中文（`zh-TW`/`zh-HK`/`zh-MO`）和日文。
+host 已知 locale 时应显式传入；未传入时会自动检测，而纯汉字等歧义文本会回退到
+`defaultLocale`，不会猜测脚本。
+
+```ts
+const multilingualMemory = createGoodMemory({
+  language: {
+    defaultLocale: "zh-TW",
+    detection: "auto",
+  },
+});
+
+await multilingualMemory.remember({
+  locale: "ja-JP",
+  scope,
+  messages: [{ role: "user", content: "現在の役割はリリース責任者です。" }],
+});
+```
+
+新增语言需要实现一个完整的 `LanguagePack`，不能在各模块继续添加 locale 分支。
+完整契约、自定义注册、analyzer 版本与 projection 迁移规则见
+[LanguagePack 扩展指南](./docs/GoodMemory-LanguagePack-Extension-Guide.md)。
+
 生产应用接入时，推荐的 turn loop 会在这个核心闭环外增加受治理的
 runtime 层：
 
@@ -1029,6 +1054,7 @@ installed-package guides：
 
 - 15 分钟应用集成指南：[docs/GoodMemory-15-Minute-App-Integration.md](./docs/GoodMemory-15-Minute-App-Integration.md)
 - Reference integration guide：[docs/GoodMemory-Reference-Integration-Guide.md](./docs/GoodMemory-Reference-Integration-Guide.md)
+- LanguagePack 扩展指南：[docs/GoodMemory-LanguagePack-Extension-Guide.md](./docs/GoodMemory-LanguagePack-Extension-Guide.md)
 - Codex handoff setup guide：[docs/GoodMemory-Codex-Handoff-Setup-Guide.md](./docs/GoodMemory-Codex-Handoff-Setup-Guide.md)
 - Claude Code setup guide：[docs/GoodMemory-Claude-Code-Setup-Guide.md](./docs/GoodMemory-Claude-Code-Setup-Guide.md)
 

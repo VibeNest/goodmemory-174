@@ -1,7 +1,7 @@
 import { buildEpisodeEmbeddingWrite } from "../embedding/vectorWrites";
 import { createLanguageService } from "../language";
 import type { PolicyContext } from "../policy/hooks";
-import { createDeterministicMemoryExtractor } from "./deterministicExtractor";
+import { createDeterministicMemoryExtractorWithLanguage } from "./deterministicExtractor";
 import { maybeBuildEpisode } from "./episodes";
 import {
   annotateExtractionResult,
@@ -55,18 +55,12 @@ export function createRememberEngine(config: RememberEngineConfig) {
   const USER_ANSWER_TAG = "user_answer";
   const ASSISTANT_ANSWER_TAG = "assistant_answer";
   const DATED_EVENT_TAG = "dated_event";
-  const SOURCE_TEMPORAL_MARKER_PATTERN =
-    /\b(?:\d{4}[/-]\d{1,2}[/-]\d{1,2}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[-/ ]\d{1,2}[-/ ]\d{2,4}|time\s*=\s*(?!unknown\b)[^\]\s]+)\b/iu;
   const AUTO_EXTRACTION_COMPLEXITY_CHAR_THRESHOLD = 220;
   const AUTO_EXTRACTION_COMPLEX_BATCH_THRESHOLD = 4;
-  const AUTO_EXTRACTION_DURABLE_CUE_PATTERN =
-    /\b(remember that|source of truth|runbook|current blocker|blocked|blocking|prefer|please keep|my current role|my role|my timezone|preferred language|current focus|current project|use .+ instead of|instead of)\b|记住|以.+为准|阻塞|卡点|不再/u;
   const language = config.language ?? createLanguageService();
   const extractor =
     config.extractor ??
-    createDeterministicMemoryExtractor({
-      service: language,
-    });
+    createDeterministicMemoryExtractorWithLanguage(language);
   const assistedExtractor = config.assistedExtractor;
   const now = config.now ?? (() => new Date().toISOString());
   const createId = config.createId ?? (() => crypto.randomUUID());
@@ -80,6 +74,29 @@ export function createRememberEngine(config: RememberEngineConfig) {
     messageIndex: number,
   ): MessageAnnotation | undefined =>
     input.annotations?.find((annotation) => annotation.messageIndex === messageIndex);
+
+  const resolveCandidateLanguage = (
+    input: MemoryExtractionInput,
+    candidate: MemoryCandidate,
+  ) => {
+    const sourceIndexes = [
+      ...new Set([
+        candidate.sourceMessageIndex,
+        ...(candidate.sourceMessageIndexes ?? []),
+      ]),
+    ];
+    const messages = sourceIndexes.flatMap((index) => {
+      const message = input.messages[index];
+      return message ? [message] : [];
+    });
+
+    return language.resolveFromMessages({
+      locale: input.locale,
+      messages: messages.length > 0
+        ? messages
+        : [{ role: candidate.sourceRole, content: candidate.content }],
+    });
+  };
 
   const appendTag = (tags: string[], tag: string): void => {
     if (!tags.includes(tag)) {
@@ -126,6 +143,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
   const buildPreservedSourceMetadata = (
     annotation: MessageAnnotation,
     message: { content: string; role: string },
+    locale?: string,
   ): MemoryCandidateMetadata => {
     const metadataPatch = annotation.metadataPatch ?? {};
     const tags = [...(metadataPatch.tags ?? [])];
@@ -149,7 +167,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
     } else if (originalRole === "assistant") {
       appendTag(tags, ASSISTANT_ANSWER_TAG);
     }
-    if (SOURCE_TEMPORAL_MARKER_PATTERN.test(message.content)) {
+    const languageContext = language.resolveFromText({
+      ...(locale ? { locale } : {}),
+      text: message.content,
+    });
+    if (
+      language.parseTemporalExpressions(message.content, languageContext).length > 0
+    ) {
       appendTag(tags, DATED_EVENT_TAG);
     }
 
@@ -302,10 +326,14 @@ export function createRememberEngine(config: RememberEngineConfig) {
             : candidate.explicitness;
         const preserveSource = shouldPreserveAnnotatedSourceMessage(annotation);
         const annotationMetadata = preserveSource
-          ? buildPreservedSourceMetadata(annotation, input.messages[candidate.sourceMessageIndex] ?? {
-              content: candidate.content,
-              role: candidate.sourceRole,
-            })
+          ? buildPreservedSourceMetadata(
+              annotation,
+              input.messages[candidate.sourceMessageIndex] ?? {
+                content: candidate.content,
+                role: candidate.sourceRole,
+              },
+              input.locale,
+            )
           : annotation.metadataPatch;
 
         return {
@@ -365,7 +393,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
         sourceMessageIndex: annotation.messageIndex,
         sourceRole: message.role,
         metadata: preserveSource
-          ? buildPreservedSourceMetadata(annotation, message)
+          ? buildPreservedSourceMetadata(annotation, message, input.locale)
           : annotation.metadataPatch,
       });
     }
@@ -391,6 +419,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
       .map((message) => message.content.trim())
       .filter((content) => content.length > 0)
       .join("\n");
+    const contentAnalyses = userMessages.map((message) => {
+      const context = language.resolveFromText({
+        locale: input.request.locale,
+        text: message.content,
+      });
+      return language.analyzeContent(message.content, context);
+    });
     const durableCandidateKinds = new Set(
       input.baselineExtraction.candidates
         .filter((candidate) => candidate.kindHint !== "noise")
@@ -399,13 +434,10 @@ export function createRememberEngine(config: RememberEngineConfig) {
     const durableCandidateCount = input.baselineExtraction.candidates.filter(
       (candidate) => candidate.kindHint !== "noise",
     ).length;
-    const hasCorrectionCue =
-      /\b(correction|replace|replaced|supersede|superseded|instead of|use .+ as the source of truth|not .+ source of truth)\b|不再|改成|更正|以.+为准/u.test(
-        combinedUserContent,
-      );
-    const hasDurableCue = AUTO_EXTRACTION_DURABLE_CUE_PATTERN.test(
-      combinedUserContent,
+    const hasCorrectionCue = contentAnalyses.some(({ correctionCue }) =>
+      correctionCue
     );
+    const hasDurableCue = contentAnalyses.some(({ durableCue }) => durableCue);
     const hasUnderspecifiedReferenceState = input.baselineExtraction.candidates.some(
       (candidate) =>
         candidate.kindHint === "reference" &&
@@ -447,12 +479,14 @@ export function createRememberEngine(config: RememberEngineConfig) {
   ): MemoryExtractionResult => {
     return {
       ...result,
-      candidates: result.candidates.map((candidate) =>
-        normalizeMemoryCandidate(
+      candidates: result.candidates.map((candidate) => {
+        const resolved = resolveCandidateLanguage(request, candidate);
+        return normalizeMemoryCandidate(
           candidate,
           request.messages[candidate.sourceMessageIndex]?.content,
-        )
-      ),
+          { language, resolved },
+        );
+      }),
     };
   };
 
@@ -635,12 +669,6 @@ export function createRememberEngine(config: RememberEngineConfig) {
         pendingVectorDeletes: [],
       };
       const episodeCandidates: MemoryCandidate[] = [];
-      const policyContext: PolicyContext = {
-        scope: input.scope,
-        phase: "remember",
-        locale: resolvedLanguage.locale,
-        localeSource: resolvedLanguage.localeSource,
-      };
       const setDocumentWithRollback = writeCoordinator.setDocument;
       const deleteDocumentWithRollback = writeCoordinator.deleteDocument;
 
@@ -676,6 +704,13 @@ export function createRememberEngine(config: RememberEngineConfig) {
           }
 
           let effectiveCandidate = classified;
+          const candidateLanguage = resolveCandidateLanguage(input, classified);
+          const policyContext: PolicyContext = {
+            scope: input.scope,
+            phase: "remember",
+            locale: candidateLanguage.locale,
+            localeSource: candidateLanguage.localeSource,
+          };
 
           if (config.policy?.redact) {
             const redacted = await config.policy.redact(effectiveCandidate, policyContext);
@@ -726,7 +761,7 @@ export function createRememberEngine(config: RememberEngineConfig) {
             candidate: effectiveCandidate,
             context: {
               input,
-              resolvedLanguage,
+              candidateLanguage,
               language,
               policyContext,
               repositories: config.repositories,
@@ -811,7 +846,8 @@ export function createRememberEngine(config: RememberEngineConfig) {
           metadata: {
             locale: resolvedLanguage.locale,
             localeSource: resolvedLanguage.localeSource,
-            adapterId: resolvedLanguage.adapterId,
+            languagePackId: resolvedLanguage.languagePackId,
+            languagePackVersion: resolvedLanguage.languagePackVersion,
             analysisMode: resolvedLanguage.analysisMode,
             requestedExtractionStrategy,
             resolvedExtractionStrategy,

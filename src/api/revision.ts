@@ -24,7 +24,10 @@ import {
   EVIDENCE_COLLECTION,
   type EvidenceRecord,
 } from "../evidence/contracts";
-import type { LanguageService } from "../language";
+import type {
+  LanguageService,
+  ResolvedLanguageContext,
+} from "../language";
 import {
   passesDefaultScopeGuard,
   type GoodMemoryPolicyHooks,
@@ -301,7 +304,7 @@ function buildRevisedRecords(input: {
   record: RevisableRecord;
   timestamp: string;
   memoryType: RevisableMemoryType;
-  locale: string;
+  language: ResolvedLanguageContext;
   scope: MemoryScope;
 }): {
   previous: RevisableRecord;
@@ -310,7 +313,10 @@ function buildRevisedRecords(input: {
   const source = createMemorySource({
     method: "confirmed",
     extractedAt: input.timestamp,
-    locale: input.locale,
+    locale: input.language.locale,
+    localeSource: input.language.localeSource,
+    languagePackId: input.language.languagePackId,
+    languagePackVersion: input.language.languagePackVersion,
     sessionId: input.scope.sessionId,
   });
 
@@ -413,7 +419,7 @@ function buildEvidence(input: {
   previousMemoryId: string;
   requestDigest: string;
   timestamp: string;
-  locale: string;
+  language: ResolvedLanguageContext;
 }): EvidenceRecord {
   return createEvidenceRecord({
     id: input.evidenceId,
@@ -426,7 +432,10 @@ function buildEvidence(input: {
     source: createMemorySource({
       method: "confirmed",
       extractedAt: input.timestamp,
-      locale: input.locale,
+      locale: input.language.locale,
+      localeSource: input.language.localeSource,
+      languagePackId: input.language.languagePackId,
+      languagePackVersion: input.language.languagePackVersion,
       sessionId: input.input.scope.sessionId,
     }),
     sourceUri: input.input.evidence?.sourceUri,
@@ -743,7 +752,7 @@ export async function reviseMemory(input: {
     record: target.record,
     timestamp,
     memoryType: target.memoryType,
-    locale: resolvedLanguage.locale,
+    language: resolvedLanguage,
     scope: input.input.scope,
   });
   const evidence = buildEvidence({
@@ -754,7 +763,7 @@ export async function reviseMemory(input: {
     previousMemoryId: target.record.id,
     requestDigest,
     timestamp,
-    locale: resolvedLanguage.locale,
+    language: resolvedLanguage,
   });
   const committed = await writeBatchIfUnchanged({
     expected: {

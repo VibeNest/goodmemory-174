@@ -28,6 +28,7 @@ describe("phase 74 storage scale gate", () => {
     );
     expect(report.audit.usesFtsVirtualTableIndex).toBe(true);
     expect(report.audit.nonMatchingSentinelDidNotBreakSearch).toBe(true);
+    expect(report.audit.sentinelJsonValid).toBe(false);
     expect(report.audit.ftsKeyCount).toBe(report.syntheticDocumentCount);
     expect(report.audit.ftsIndexedDocumentCount).toBe(
       report.audit.ftsKeyCount,

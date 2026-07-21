@@ -185,7 +185,10 @@ function isActionDrivingFact(
     return false;
   }
 
-  const locale = language.resolveFromText({ text: fact.content }).locale;
+  const locale = language.resolveFromText({
+    locale: fact.source.locale,
+    text: fact.content,
+  }).locale;
   return (
     language.isBlockerFact(fact.content, locale) ||
     language.isOpenLoopFact(fact.content, locale) ||
@@ -361,6 +364,7 @@ async function runDedupeCleanup(
 
   for (const fact of facts) {
     const locale = language.resolveFromText({
+      locale: fact.source.locale,
       text: fact.content,
     }).locale;
     const key = language.normalizeForEquality(fact.content, locale);
@@ -415,9 +419,11 @@ async function runContradictionRepair(
       }
 
       const leftLocale = language.resolveFromText({
+        locale: left.source.locale,
         text: left.content,
       }).locale;
       const rightLocale = language.resolveFromText({
+        locale: right.source.locale,
         text: right.content,
       }).locale;
       if (!language.localesCompatible(leftLocale, rightLocale)) {
@@ -592,9 +598,11 @@ async function runEpisodeConsolidation(
       }
 
       const leftLocale = language.resolveFromText({
+        locale: left.locale,
         text: left.topics.join(" "),
       }).locale;
       const rightLocale = language.resolveFromText({
+        locale: right.locale,
         text: right.topics.join(" "),
       }).locale;
       if (!language.localesCompatible(leftLocale, rightLocale)) {

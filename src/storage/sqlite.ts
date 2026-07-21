@@ -122,7 +122,7 @@ let sqliteRuntimeResolution: SQLiteRuntimeResolution | null = null;
 
 const DOCUMENT_FILTER_INDEX_SCHEMA_COMPONENT = "document_filter_indexes";
 const DOCUMENT_TEXT_KEY_SCHEMA_COMPONENT = "document_text_fts_keys";
-const DOCUMENT_SCHEMA_VERSION = 1;
+const DOCUMENT_SCHEMA_VERSION = 2;
 const DOCUMENT_FILTER_INDEX_SCHEMA_VERSION = 2;
 
 function ensureSQLiteCustomLibraryConfigured(): SQLiteCustomLibraryConfig {
@@ -181,6 +181,7 @@ function ensureDocumentSchema(database: Database): void {
       collection UNINDEXED,
       id UNINDEXED,
       text,
+      searchText,
       tokenize = 'unicode61 remove_diacritics 2'
     );
 
@@ -209,20 +210,41 @@ function ensureDocumentSchema(database: Database): void {
         DOCUMENT_SCHEMA_VERSION
     ) {
       database.exec(`
-        DELETE FROM document_text_fts;
+        DROP TABLE document_text_fts;
+
+        CREATE VIRTUAL TABLE document_text_fts USING fts5(
+          collection UNINDEXED,
+          id UNINDEXED,
+          text,
+          searchText,
+          tokenize = 'unicode61 remove_diacritics 2'
+        );
+
         DELETE FROM document_text_fts_keys;
 
         INSERT INTO document_text_fts_keys (collection, id)
         SELECT collection, id
         FROM documents
         WHERE CASE WHEN json_valid(json)
-          THEN json_type(json, '$.text') = 'text'
+          THEN json_type(json, '$.text') = 'text' OR
+            json_type(json, '$.searchText') = 'text'
           ELSE 0
         END;
 
-        INSERT INTO document_text_fts (rowid, collection, id, text)
+        INSERT INTO document_text_fts (
+          rowid,
+          collection,
+          id,
+          text,
+          searchText
+        )
         SELECT keys.rowid, documents.collection, documents.id,
-          json_extract(documents.json, '$.text')
+          CASE WHEN json_type(documents.json, '$.text') = 'text'
+            THEN json_extract(documents.json, '$.text')
+          END,
+          CASE WHEN json_type(documents.json, '$.searchText') = 'text'
+            THEN json_extract(documents.json, '$.searchText')
+          END
         FROM documents
         JOIN document_text_fts_keys AS keys
           ON keys.collection = documents.collection AND keys.id = documents.id;
@@ -337,6 +359,18 @@ function hasTable(database: Database, tableName: string): boolean {
   ).get(tableName);
 
   return row !== null && row !== undefined;
+}
+
+function hasTableColumn(
+  database: Database,
+  tableName: string,
+  columnName: string,
+): boolean {
+  const escapedTableName = tableName.replaceAll('"', '""');
+  return database
+    .query<{ name: string }, []>(`PRAGMA table_info("${escapedTableName}")`)
+    .all()
+    .some(({ name }) => name === columnName);
 }
 
 function createReadOnlyMutationError(store: string): Error {
@@ -586,6 +620,8 @@ export function createSQLiteDocumentStore(
   );
   const hasTextIndex = hasTable(database, "document_text_fts");
   const hasTextKeys = hasTable(database, "document_text_fts_keys");
+  const hasSearchTextIndex = hasTextIndex &&
+    hasTableColumn(database, "document_text_fts", "searchText");
   const insertSearchKeyStatement = hasTextKeys
     ? database.query(
         `INSERT OR IGNORE INTO document_text_fts_keys (collection, id)
@@ -603,10 +639,16 @@ export function createSQLiteDocumentStore(
         `DELETE FROM document_text_fts WHERE rowid = ?1`,
       )
     : null;
-  const insertSearchStatement = hasTextIndex
+  const insertSearchStatement = hasTextIndex && hasSearchTextIndex
     ? database.query(
-        `INSERT INTO document_text_fts (rowid, collection, id, text)
-         VALUES (?1, ?2, ?3, ?4)`,
+        `INSERT INTO document_text_fts (
+           rowid,
+           collection,
+           id,
+           text,
+           searchText
+         )
+         VALUES (?1, ?2, ?3, ?4, ?5)`,
       )
     : null;
   const deleteSearchKeyStatement = hasTextKeys
@@ -641,8 +683,9 @@ export function createSQLiteDocumentStore(
     if (existing) {
       deleteSearchStatement.run(existing.rowid);
     }
+    const searchText = readDocumentSearchText(document, "searchText");
     const text = readDocumentSearchText(document, "text");
-    if (text === undefined) {
+    if (text === undefined && searchText === undefined) {
       if (existing) {
         deleteSearchKeyStatement?.run(existing.rowid);
       }
@@ -650,7 +693,13 @@ export function createSQLiteDocumentStore(
     }
     insertSearchKeyStatement.run(collection, id);
     const key = getSearchKeyStatement.get(collection, id)!;
-    insertSearchStatement.run(key.rowid, collection, id, text);
+    insertSearchStatement.run(
+      key.rowid,
+      collection,
+      id,
+      text ?? null,
+      searchText ?? null,
+    );
   }
 
   function buildSearchFilter(input: {
@@ -850,7 +899,12 @@ export function createSQLiteDocumentStore(
 
       const values: SQLiteBindingValue[] = [];
       let sql: string;
-      if (hasTextIndex && input.field === "text") {
+      const indexedField = input.field === "text"
+        ? input.field
+        : input.field === "searchText" && hasSearchTextIndex
+          ? input.field
+          : null;
+      if (hasTextIndex && indexedField) {
         values.push(query, collection);
         const filterClauses = buildSearchFilter({
           alias: "documents",
@@ -863,7 +917,7 @@ export function createSQLiteDocumentStore(
           JOIN documents
             ON documents.collection = document_text_fts.collection
            AND documents.id = document_text_fts.id
-          WHERE document_text_fts MATCH ?1
+          WHERE document_text_fts.${indexedField} MATCH ?1
             AND document_text_fts.collection = ?2
             ${filterClauses.length > 0 ? `AND ${filterClauses.join(" AND ")}` : ""}
           ORDER BY score ASC, documents.id ASC

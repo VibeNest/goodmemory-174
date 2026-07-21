@@ -1,4 +1,4 @@
-import type { LanguageService } from "../language";
+import { createLanguageService, type LanguageService } from "../language";
 
 // Query decomposition for multi-part questions.
 //
@@ -20,34 +20,22 @@ import type { LanguageService } from "../language";
 
 const DEFAULT_MAX_SUB_QUERIES = 4;
 const DEFAULT_MIN_SUB_QUERY_WORDS = 2;
-
-// Split on sentence / clause boundaries, then on coordination or an explicit
-// `with` facet that can stand as a useful secondary retrieval query.
-const CLAUSE_BOUNDARY_PATTERN = /[?.;!。？；！\n]+/u;
-const QUERY_FACET_BOUNDARY_PATTERN =
-  /\s+(?:and|&|as well as|along with|with)\s+|(?:以及|并且|而且|同时|还有)/iu;
-const ENGLISH_QUESTION_PATTERN =
-  /^(?:what|which|who|where|when|why|how|do|does|did|is|are|was|were|has|have|had|can|could|should|would|will)\b/iu;
-const ENGLISH_QUESTION_FACET_BOUNDARY_PATTERN =
-  /\s+(?:and|&|as well as|along with)\s+(?=(?:what|which|who|where|when|why|how|do|does|did|is|are|was|were|has|have|had|can|could|should|would|will)\b)|\s+with\s+|(?:以及|并且|而且|同时|还有)/iu;
+const DEFAULT_LANGUAGE = createLanguageService();
 
 function countTerms(
   text: string,
-  options: QueryDecompositionOptions | undefined,
+  language: QueryDecompositionOptions["language"],
+  locale: string,
 ): number {
-  if (options?.language) {
-    return options.language.tokenize(text, options.locale ?? "und").length;
-  }
-  const hanCount = text.match(/\p{Script=Han}/gu)?.length ?? 0;
-  if (hanCount > 0) {
-    return hanCount;
-  }
-  return text.split(/\s+/u).filter((token) => token.length > 0).length;
+  return (language ?? DEFAULT_LANGUAGE).tokenize(text, locale).length;
 }
 
 export interface QueryDecompositionOptions {
   /** Locale-aware tokenizer/sentence splitter used by the recall planner. */
-  language?: Pick<LanguageService, "splitClauses" | "tokenize">;
+  language?: Pick<
+    LanguageService,
+    "decomposeQuery" | "normalizeForEquality" | "resolveFromText" | "tokenize"
+  >;
   locale?: string;
   /** Maximum number of sub-queries to keep (excludes the original query). Default 4. */
   maxSubQueries?: number;
@@ -70,35 +58,23 @@ export function splitQueryIntoSubQueries(
   if (normalized.length === 0) {
     return [];
   }
-  const original = normalized
-    .replace(/[?.;!。？；！]+$/u, "")
-    .trim()
-    .toLowerCase();
-
-  const fragments: string[] = [];
-  const clauses = options?.language
-    ? options.language.splitClauses(normalized, options.locale ?? "und")
-    : normalized.split(CLAUSE_BOUNDARY_PATTERN);
-  for (const clause of clauses) {
-    const facetBoundary = ENGLISH_QUESTION_PATTERN.test(clause.trim())
-      ? ENGLISH_QUESTION_FACET_BOUNDARY_PATTERN
-      : QUERY_FACET_BOUNDARY_PATTERN;
-    for (const piece of clause.split(facetBoundary)) {
-      const trimmed = piece.replace(/[?.;!。？；！]+$/u, "").trim();
-      if (trimmed.length > 0) {
-        fragments.push(trimmed);
-      }
-    }
-  }
+  const language = options?.language ?? DEFAULT_LANGUAGE;
+  const locale = options?.locale ??
+    language.resolveFromText({ text: normalized }).locale;
+  const original = language.normalizeForEquality(
+    normalized.replace(/[?.;!。？；！]+$/u, "").trim(),
+    locale,
+  );
+  const fragments = language.decomposeQuery(normalized, locale);
 
   const seen = new Set<string>();
   const subQueries: string[] = [];
   for (const fragment of fragments) {
-    const key = fragment.toLowerCase();
+    const key = language.normalizeForEquality(fragment, locale);
     if (
       key === original ||
       seen.has(key) ||
-      countTerms(fragment, options) < minWords
+      countTerms(fragment, language, locale) < minWords
     ) {
       continue;
     }
@@ -139,12 +115,15 @@ export async function decomposedRecall<TResult>(input: {
     splitQueryIntoSubQueries(query, input.options));
   const rawSubQueries = await decompose(input.query);
 
-  const originalKey = input.query.trim().toLowerCase();
+  const language = input.options?.language ?? DEFAULT_LANGUAGE;
+  const locale = input.options?.locale ??
+    language.resolveFromText({ text: input.query }).locale;
+  const originalKey = language.normalizeForEquality(input.query.trim(), locale);
   const seen = new Set<string>();
   const subQueries: string[] = [];
   for (const candidate of rawSubQueries) {
     const trimmed = candidate.trim();
-    const key = trimmed.toLowerCase();
+    const key = language.normalizeForEquality(trimmed, locale);
     if (trimmed.length === 0 || key === originalKey || seen.has(key)) {
       continue;
     }

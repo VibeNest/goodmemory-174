@@ -779,6 +779,7 @@ describe("release metadata and docs", () => {
       "docs/GoodMemory-First-Principles-and-Reference-Architecture.md",
       "docs/GoodMemory-Gemini-CLI-Setup-Guide.md",
       "docs/GoodMemory-Inspector-and-Admin-API.md",
+      "docs/GoodMemory-LanguagePack-Extension-Guide.md",
       "docs/GoodMemory-MCP-Registry-Publishing.md",
       "docs/GoodMemory-OpenCode-Setup-Guide.md",
       "docs/GoodMemory-PRD.md",
@@ -1234,6 +1235,7 @@ describe("release metadata and docs", () => {
       ).toBe(false);
       expect(entries).toContain("package/docs/GoodMemory-15-Minute-App-Integration.md");
       expect(entries).toContain("package/docs/GoodMemory-Inspector-and-Admin-API.md");
+      expect(entries).toContain("package/docs/GoodMemory-LanguagePack-Extension-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Reference-Integration-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Codex-Handoff-Setup-Guide.md");
       expect(entries).toContain("package/docs/GoodMemory-Claude-Code-Setup-Guide.md");
@@ -1302,6 +1304,11 @@ describe("release metadata and docs", () => {
     expect(rootModule.resolveGoodMemoryRuntimeInfo).toBeDefined();
     expect(rootModule.createRuntimeArchiveStore).toBeDefined();
     expect(rootModule.createRuntimeContextService).toBeDefined();
+    expect(rootModule.createChineseLanguagePack).toBeDefined();
+    expect(rootModule.createEnglishLanguagePack).toBeDefined();
+    expect(rootModule.createJapaneseLanguagePack).toBeDefined();
+    expect(rootModule.createLanguageService).toBeDefined();
+    expect(rootModule.createNeutralLanguagePack).toBeDefined();
     expect(rootModule.createHostAdapter).toBeUndefined();
     expect(rootModule.createGoodMemoryAISDK).toBeUndefined();
     expect(rootModule.createGoodMemoryHttpMemoryBridge).toBeUndefined();
@@ -2130,6 +2137,8 @@ describe("release metadata and docs", () => {
         recallHitCount: number;
         serverRecallApplied: boolean;
         serverRememberSucceeded: boolean;
+        traditionalChinesePackId: string;
+        traditionalChineseSearchTerms: string[];
         validatedFileEditPath?: string;
         validatedToolPayloadShape?: string;
       }>(smoke.stdout);
@@ -2144,6 +2153,8 @@ describe("release metadata and docs", () => {
       expect(smokeJson.recallHitCount).toBeGreaterThan(0);
       expect(smokeJson.serverRecallApplied).toBe(true);
       expect(smokeJson.serverRememberSucceeded).toBe(true);
+      expect(smokeJson.traditionalChinesePackId).toBe("zh-Hant");
+      expect(smokeJson.traditionalChineseSearchTerms).toContain("繁体");
       expect(smokeJson.artifactPaths).toContain("MEMORY.md");
       expect(smokeJson.validatedToolPayloadShape).toBe("object");
       expect(smokeJson.validatedFileEditPath).toBe(

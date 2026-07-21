@@ -47,6 +47,7 @@
     "docs/GoodMemory-First-Principles-and-Reference-Architecture.md",
     "docs/GoodMemory-Gemini-CLI-Setup-Guide.md",
     "docs/GoodMemory-Inspector-and-Admin-API.md",
+    "docs/GoodMemory-LanguagePack-Extension-Guide.md",
     "docs/GoodMemory-MCP-Registry-Publishing.md",
     "docs/GoodMemory-OpenCode-Setup-Guide.md",
     "docs/GoodMemory-PRD.md",
@@ -344,6 +345,7 @@
     "@ai-sdk/provider-utils": "^4.0.21",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ai": "^6.0.143",
+    "opencc-js": "1.4.1",
     "sqlite-vss": "0.1.2",
     "zod": "^4.3.6"
   }

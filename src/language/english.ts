@@ -4,8 +4,8 @@ import type {
   ProfileField,
 } from "../domain/memoryCandidate";
 import type {
-  LanguageAdapter,
   LanguageCandidateExtractionInput,
+  LanguagePack,
 } from "./contracts";
 import type {
   FactKind,
@@ -17,9 +17,24 @@ import {
   normalizeUnicodeForEquality,
   tokenizeUnicodeText,
 } from "./generic";
+import {
+  acceptsEnglishEntityCandidate,
+  analyzeEnglishContent,
+  analyzeEnglishQuery,
+  decomposeEnglishQuery,
+  extractEnglishEntityMentions,
+  parseEnglishTemporalExpressions,
+  renderEnglish,
+} from "./englishSemantics";
+import { resolveEnglishTemporalReference } from "./englishTemporal";
+import {
+  matchesNormalizedEntityAlias,
+  splitSentencesGeneric,
+} from "./packHelpers";
 
 const GREETING_PATTERN = /^(hi|hello|hey|thanks|thank you|ok|okay)[.!]?$/i;
-const PROFILE_NAME_PATTERN = /my name is\s+([a-z][a-z -]*)/i;
+const PROFILE_NAME_PATTERN =
+  /\b[Mm]y\s+[Nn]ame\s+[Ii]s\s+((?:\p{Lu}\.|[\p{Lu}][\p{L}\p{M}'’-]*)(?:\s+(?:\p{Lu}\.|[\p{Lu}][\p{L}\p{M}'’-]*)){0,2})(?=\s*(?:[,.!?]|\band\b|$))/u;
 const PROFILE_ROLE_WITH_ORGANIZATION_AND_LOCATION_PATTERN =
   /(?:remember that\s+)?i(?:'m| am)\s+(?:an?|the)\s+(.+?)\s+at\s+([A-Z][A-Za-z0-9&.,' -]*?)\s+in\s+([A-Z][A-Za-z.-]*(?:\s+[A-Z][A-Za-z.-]*)*(?:,\s*[A-Z][A-Za-z.-]*(?:\s+[A-Z][A-Za-z.-]*)*)?)(?=\.|$)/i;
 const PROFILE_ROLE_WITH_ORGANIZATION_PATTERN =
@@ -1499,11 +1514,18 @@ function maybeExtractCrossClauseCandidatesFromMessage(
   return candidates;
 }
 
-export function createEnglishLanguageAdapter(): LanguageAdapter {
+export function createEnglishLanguagePack(): LanguagePack {
   return {
+    analyzerVersion: "3",
+    apiVersion: 1,
+    compatibilityGroup: "en",
+    defaultLocale: "en-US",
     id: "en",
-    supportsLocale(locale: string): boolean {
-      return locale.toLowerCase().startsWith("en");
+    locales: ["en"],
+    detect({ texts }) {
+      return /\p{Script=Latin}/u.test(texts.join(" "))
+        ? "compatible"
+        : "none";
     },
     splitClauses(text: string): string[] {
       return splitClausesGeneric(text);
@@ -1511,16 +1533,15 @@ export function createEnglishLanguageAdapter(): LanguageAdapter {
     normalizeForEquality(text: string): string {
       return normalizeUnicodeForEquality(text);
     },
-    tokenize(
+    splitSentences(text: string): string[] {
+      return splitSentencesGeneric(text);
+    },
+    tokenizeForScoring(
       text: string,
-      options?: { excludeStopwords?: boolean; minTokenLength?: number },
+      mode: "bm25" | "overlap",
+      options?: { excludeStopwords?: boolean },
     ): string[] {
-      // Default floor of 2 keeps discriminative short tokens (acronyms, codes,
-      // "AI", "RL") that the previous >= 4 floor silently dropped from the
-      // lexical index; the expanded stopword list handles short function
-      // words. Callers whose signal degrades with short tokens (the naive
-      // Jaccard overlap) pass an explicit higher floor.
-      const minTokenLength = options?.minTokenLength ?? 2;
+      const minTokenLength = mode === "overlap" ? 4 : 2;
       const tokens = tokenizeUnicodeText(text, "en-US").filter(
         (token) => token.length >= minTokenLength,
       );
@@ -1529,6 +1550,25 @@ export function createEnglishLanguageAdapter(): LanguageAdapter {
       }
       return tokens;
     },
+    buildSearchTerms(text: string): string[] {
+      return tokenizeUnicodeText(text, "en-US")
+        .filter((token) => token.length >= 2 && !TOKEN_STOPWORDS.has(token));
+    },
+    decomposeQuery: decomposeEnglishQuery,
+    analyzeQuery: analyzeEnglishQuery,
+    analyzeContent: analyzeEnglishContent,
+    parseTemporalExpressions: parseEnglishTemporalExpressions,
+    resolveTemporalReference: resolveEnglishTemporalReference,
+    extractEntityMentions: extractEnglishEntityMentions,
+    matchesEntityAlias(query, alias) {
+      return matchesNormalizedEntityAlias(
+        query,
+        alias,
+        normalizeUnicodeForEquality,
+      );
+    },
+    acceptsEntityCandidate: acceptsEnglishEntityCandidate,
+    render: renderEnglish,
     extractCandidates(input: LanguageCandidateExtractionInput): MemoryCandidate[] {
       const candidates: MemoryCandidate[] = [];
       const storeName = resolveUniqueStoreNameFromMessages(input.messages);

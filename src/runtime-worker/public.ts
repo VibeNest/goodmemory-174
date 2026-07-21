@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { estimateTextTokens } from "../tokenEstimator";
 import type {
   CreateRuntimeWorkerJobEnvelopeInput,
   CreateRuntimeWorkerQueueInput,
@@ -26,10 +27,6 @@ const MAX_PREVIEW_CHARS = 240;
 
 function timestamp(now: () => Date): string {
   return now().toISOString();
-}
-
-function estimateTokens(value: string): number {
-  return Math.ceil(value.length / 4);
 }
 
 function clipText(value: string, maxChars: number): string {
@@ -256,7 +253,7 @@ export function createRuntimeWorkerJobEnvelope(
     kind: "remember_candidate",
     operation: input.boundedJob.operation,
     payload: {
-      estimatedTokens: estimateTokens(redactedPreview),
+      estimatedTokens: estimateTextTokens(redactedPreview),
       fullAssistantOutputPersisted: false,
       rawTranscriptPersisted: false,
       redactedPreview,

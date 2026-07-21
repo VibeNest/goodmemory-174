@@ -324,8 +324,13 @@ function createBlockedLifecycleStore(inner: DocumentStore): {
       delete: (collection, id) => inner.delete(collection, id),
       queryPage: inner.queryPage,
       writeBatchIfUnchanged: async (input) => {
-        const fact = input.expected.document as Partial<ReturnType<typeof buildFact>>;
-        if (blockLifecycle && fact.lifecycle === "superseded") {
+        const expected = input.expected.document;
+        if (
+          blockLifecycle &&
+          expected &&
+          "lifecycle" in expected &&
+          expected.lifecycle === "superseded"
+        ) {
           blockLifecycle = false;
           markLifecycleStarted();
           await lifecycleRelease;
@@ -627,7 +632,7 @@ describe("claim projection runtime", () => {
     expect(matches).toEqual([
       expect.objectContaining({ objectText: "completed" }),
     ]);
-    expect(searchedFields).toEqual(["text"]);
+    expect(searchedFields).toEqual(["searchText"]);
     expect(projectionQueries).toBe(0);
   });
 
@@ -641,7 +646,7 @@ describe("claim projection runtime", () => {
       scopeKey: recallScopeKey(scope),
       sourceMemoryId: fact.id,
       subjectEntityId: "legacy-entity-atlas",
-      predicateKey: "project.status",
+      predicateKey: `fact.unstructured.${fact.id}`,
       objectText: "active",
       polarity: "positive",
       modality: "asserted",
@@ -649,7 +654,7 @@ describe("claim projection runtime", () => {
       ingestedAt: fact.updatedAt,
       evidenceIds: [],
       sourceMessageIds: [],
-      extractorVersion: "legacy-v1",
+      extractorVersion: "deterministic-fact-v1",
     };
     const legacyStatus: ClaimProjectionStatus = {
       id: buildClaimProjectionStatusId(scope, fact.id),
@@ -657,7 +662,7 @@ describe("claim projection runtime", () => {
       ...scope,
       scopeKey: legacyClaim.scopeKey,
       sourceMemoryId: fact.id,
-      state: "projected",
+      state: "unstructured",
       claimIds: [legacyClaim.id],
       extractorVersion: legacyClaim.extractorVersion,
       sourceUpdatedAt: fact.updatedAt,
@@ -674,14 +679,11 @@ describe("claim projection runtime", () => {
 
     await runtime.ensureScopeIndexed(scope);
 
-    expect(
-      await store.get<ClaimProjection>(
-        CLAIM_PROJECTIONS_COLLECTION,
-        legacyClaim.id,
-      ),
-    ).toMatchObject({
-      text: expect.stringContaining("Atlas"),
-    });
+    expect(await runtime.queryClaims(scope)).toEqual([
+      expect.objectContaining({
+        text: expect.stringContaining("Atlas"),
+      }),
+    ]);
   });
 
   it("retries a concurrent claim append instead of silently dropping the newer value", async () => {
@@ -772,6 +774,230 @@ describe("claim projection runtime", () => {
     expect(await store.query<ClaimProjectionStatus>(CLAIM_PROJECTION_STATUS_COLLECTION, {})).toEqual([]);
   });
 
+  it("removes old-scope claims when a canonical fact moves scope", async () => {
+    const store = createInMemoryDocumentStore();
+    const runtime = createRecallProjectionRuntime({
+      documentStore: store,
+      now: () => NOW,
+      persistentScopeProof: { buildId: "projection-build-a" },
+    });
+    const fact = buildFact();
+    await runtime.documentStore.set("facts", fact.id, fact);
+    await runtime.appendClaim(
+      claimInput("active", "2026-07-16T11:00:00.000Z"),
+    );
+    await runtime.ensureScopeIndexed(scope);
+    const nextScope = { ...scope, workspaceId: "workspace-2" };
+
+    await runtime.documentStore.set("facts", fact.id, {
+      ...fact,
+      workspaceId: nextScope.workspaceId,
+      updatedAt: NOW,
+    });
+
+    expect(await runtime.queryClaims(scope)).toEqual([]);
+    expect(await runtime.queryClaimHistory(scope)).toEqual([]);
+    expect(await runtime.queryClaims(nextScope)).toEqual([
+      expect.objectContaining({
+        objectText: fact.content,
+        sourceMemoryId: fact.id,
+        workspaceId: nextScope.workspaceId,
+      }),
+    ]);
+    expect(
+      await store.get(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        buildClaimProjectionStatusId(scope, fact.id),
+      ),
+    ).toBeNull();
+    expect(
+      (await store.query<ClaimProjection>(CLAIM_PROJECTIONS_COLLECTION, {
+        sourceMemoryId: fact.id,
+      })).every(({ workspaceId }) => workspaceId === nextScope.workspaceId),
+    ).toBe(true);
+    expect(
+      (await store.query<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        { sourceMemoryId: fact.id },
+      )).every(({ workspaceId }) => workspaceId === nextScope.workspaceId),
+    ).toBe(true);
+  });
+
+  it("removes old-scope claims after a conditional scope move", async () => {
+    const store = createInMemoryDocumentStore();
+    const runtime = createRecallProjectionRuntime({
+      documentStore: store,
+      now: () => NOW,
+    });
+    const fact = buildFact();
+    await runtime.documentStore.set("facts", fact.id, fact);
+    await runtime.appendClaim(
+      claimInput("active", "2026-07-16T11:00:00.000Z"),
+    );
+    const nextScope = { ...scope, workspaceId: "workspace-2" };
+    const moved = {
+      ...fact,
+      workspaceId: nextScope.workspaceId,
+      updatedAt: NOW,
+    };
+
+    expect(await runtime.documentStore.writeBatchIfUnchanged({
+      expected: { collection: "facts", document: fact, id: fact.id },
+      set: [{ collection: "facts", document: moved, id: fact.id }],
+    })).toBe(true);
+
+    expect(await runtime.queryClaims(scope)).toEqual([]);
+    expect(await runtime.queryClaims(nextScope)).toEqual([
+      expect.objectContaining({
+        sourceMemoryId: fact.id,
+        workspaceId: nextScope.workspaceId,
+      }),
+    ]);
+  });
+
+  it("rejects a conditional scope move when its source snapshot changed", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const writer = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => NOW,
+    });
+    const fact = buildFact();
+    await writer.documentStore.set("facts", fact.id, fact);
+    await writer.appendClaim(
+      claimInput("active", "2026-07-16T11:00:00.000Z"),
+    );
+    const gate = { id: "gate-1", value: "open" };
+    await rawStore.set("gates", gate.id, gate);
+    let releaseSourceRead = () => {};
+    let signalSourceRead = () => {};
+    const sourceRead = new Promise<void>((resolve) => {
+      signalSourceRead = resolve;
+    });
+    const sourceRelease = new Promise<void>((resolve) => {
+      releaseSourceRead = resolve;
+    });
+    let pauseSourceRead = true;
+    const delayedStore: DocumentStore = {
+      projectionBatchSemantics: rawStore.projectionBatchSemantics,
+      set: (collection, id, document) => rawStore.set(collection, id, document),
+      async get<TDocument extends StorageDocument>(collection: string, id: string) {
+        const document = await rawStore.get<TDocument>(collection, id);
+        if (pauseSourceRead && collection === "facts" && id === fact.id) {
+          pauseSourceRead = false;
+          signalSourceRead();
+          await sourceRelease;
+        }
+        return document;
+      },
+      update: (collection, id, patch) => rawStore.update(collection, id, patch),
+      query: (collection, filter) => rawStore.query(collection, filter),
+      delete: (collection, id) => rawStore.delete(collection, id),
+      writeBatchIfUnchanged: (input) => rawStore.writeBatchIfUnchanged(input),
+    };
+    const conditionalRuntime = createRecallProjectionRuntime({
+      documentStore: delayedStore,
+      now: () => NOW,
+    });
+    const workspaceTwo = { ...fact, workspaceId: "workspace-2", updatedAt: NOW };
+    const workspaceThree = { ...fact, workspaceId: "workspace-3", updatedAt: NOW };
+
+    const conditional = conditionalRuntime.documentStore.writeBatchIfUnchanged({
+      expected: { collection: "gates", document: gate, id: gate.id },
+      set: [{ collection: "facts", document: workspaceThree, id: fact.id }],
+    });
+    await sourceRead;
+    await writer.documentStore.set("facts", fact.id, workspaceTwo);
+    releaseSourceRead();
+
+    expect(await conditional).toBe(false);
+    expect(await writer.queryClaims(scope)).toEqual([]);
+    expect(await writer.queryClaims({ ...scope, workspaceId: "workspace-2" }))
+      .not.toEqual([]);
+    expect(await writer.queryClaims({ ...scope, workspaceId: "workspace-3" }))
+      .toEqual([]);
+  });
+
+  it("retries a proof-off set from the actual predecessor scope", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const writer = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => NOW,
+    });
+    const fact = buildFact();
+    await writer.documentStore.set("facts", fact.id, fact);
+    await writer.appendClaim(
+      claimInput("active", "2026-07-16T11:00:00.000Z"),
+    );
+    let releaseWorkspaceThree = () => {};
+    let signalWorkspaceThree = () => {};
+    const workspaceThreeStarted = new Promise<void>((resolve) => {
+      signalWorkspaceThree = resolve;
+    });
+    const workspaceThreeRelease = new Promise<void>((resolve) => {
+      releaseWorkspaceThree = resolve;
+    });
+    let pauseWorkspaceThree = true;
+    const shouldPause = (document: StorageDocument) =>
+      "id" in document &&
+      "workspaceId" in document &&
+      document.id === fact.id &&
+      document.workspaceId === "workspace-3";
+    const delayedStore: DocumentStore = {
+      projectionBatchSemantics: rawStore.projectionBatchSemantics,
+      async set(collection, id, document) {
+        if (
+          pauseWorkspaceThree &&
+          collection === "facts" &&
+          shouldPause(document)
+        ) {
+          pauseWorkspaceThree = false;
+          signalWorkspaceThree();
+          await workspaceThreeRelease;
+        }
+        await rawStore.set(collection, id, document);
+      },
+      get: (collection, id) => rawStore.get(collection, id),
+      update: (collection, id, patch) => rawStore.update(collection, id, patch),
+      query: (collection, filter) => rawStore.query(collection, filter),
+      delete: (collection, id) => rawStore.delete(collection, id),
+      async writeBatchIfUnchanged(input) {
+        if (
+          pauseWorkspaceThree &&
+          input.set.some(({ collection, document }) =>
+            collection === "facts" && shouldPause(document)
+          )
+        ) {
+          pauseWorkspaceThree = false;
+          signalWorkspaceThree();
+          await workspaceThreeRelease;
+        }
+        return rawStore.writeBatchIfUnchanged(input);
+      },
+    };
+    const delayedRuntime = createRecallProjectionRuntime({
+      documentStore: delayedStore,
+      now: () => NOW,
+    });
+    const workspaceTwo = { ...fact, workspaceId: "workspace-2", updatedAt: NOW };
+    const workspaceThree = { ...fact, workspaceId: "workspace-3", updatedAt: NOW };
+
+    const finalWrite = delayedRuntime.documentStore.set(
+      "facts",
+      fact.id,
+      workspaceThree,
+    );
+    await workspaceThreeStarted;
+    await writer.documentStore.set("facts", fact.id, workspaceTwo);
+    releaseWorkspaceThree();
+    await finalWrite;
+
+    expect(await writer.queryClaims(scope)).toEqual([]);
+    expect(await writer.queryClaims({ ...scope, workspaceId: "workspace-2" }))
+      .toEqual([]);
+    expect(await writer.queryClaims({ ...scope, workspaceId: "workspace-3" }))
+      .not.toEqual([]);
+  });
+
   it("queues a failed append and replays the exact structured input through repair", async () => {
     const rawStore = createInMemoryDocumentStore();
     const fact = buildFact();
@@ -790,6 +1016,52 @@ describe("claim projection runtime", () => {
       expect.objectContaining({ predicateKey: "project.status", objectText: "active" }),
     ]);
     expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION, {})).toEqual([]);
+  });
+
+  it("resolves an obsolete failed claim before consuming its repair", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const fact = buildFact();
+    await rawStore.set("facts", fact.id, fact);
+    const runtime = createRecallProjectionRuntime({
+      documentStore: createOneShotClaimFailureStore(rawStore),
+      now: () => NOW,
+      persistentScopeProof: { buildId: "projection-build-a" },
+    });
+
+    await runtime.appendClaim(
+      claimInput("active", "2026-07-16T11:00:00.000Z"),
+    );
+    expect(
+      await rawStore.get<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        buildClaimProjectionStatusId(scope, fact.id),
+      ),
+    ).toMatchObject({ state: "failed" });
+
+    await runtime.documentStore.set("facts", fact.id, {
+      ...fact,
+      lifecycle: "superseded",
+      isActive: false,
+      updatedAt: NOW,
+    });
+
+    expect(await runtime.repairPending(scope)).toBe(1);
+    expect(await rawStore.query(PROJECTION_REPAIRS_COLLECTION, {})).toEqual([]);
+    expect(
+      await rawStore.get<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        buildClaimProjectionStatusId(scope, fact.id),
+      ),
+    ).toBeNull();
+    expect(await runtime.ensureScopeIndexed(scope)).toMatchObject({
+      complete: true,
+      skipped: false,
+    });
+    expect(await runtime.ensureScopeIndexed(scope)).toEqual({
+      complete: true,
+      indexedSources: 0,
+      skipped: true,
+    });
   });
 
   it("does not let an older repair replace a newer selected claim", async () => {

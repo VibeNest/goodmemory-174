@@ -205,7 +205,8 @@ export interface RecallResult {
     policyApplied: string[];
     locale?: string;
     localeSource?: "explicit" | "detected" | "default";
-    adapterId?: string;
+    languagePackId?: string;
+    languagePackVersion?: string;
     analysisMode?: "rules-only";
     retrievalTrace?: RecallRetrievalTrace;
   };
@@ -773,6 +774,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
           workingMemory: null,
           journal: null,
           maxRenderedTokens: recallPlan.maxRenderedTokens,
+          language,
           locale: resolvedLanguage.locale,
           routingDecision,
         });
@@ -801,7 +803,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
             policyApplied: [...policyApplied],
             locale: resolvedLanguage.locale,
             localeSource: resolvedLanguage.localeSource,
-            adapterId: resolvedLanguage.adapterId,
+            languagePackId: resolvedLanguage.languagePackId,
+            languagePackVersion: resolvedLanguage.languagePackVersion,
             analysisMode: resolvedLanguage.analysisMode,
           },
         };
@@ -1243,17 +1246,20 @@ export function createRecallEngine(config: RecallEngineConfig) {
                 input.scope,
                 input.query,
                 recallPlan.preRankLimit * 4,
+                resolvedLanguage.locale,
               ),
               config.projectionIndex.searchEntities(
                 input.scope,
                 input.query,
                 recallPlan.preRankLimit,
+                resolvedLanguage.locale,
               ),
               config.projectionIndex.searchClaims(
                 input.scope,
                 input.query,
                 recallPlan.preRankLimit * 4,
                 needsClaimHistory,
+                resolvedLanguage.locale,
               ),
             ]);
             const contentDocuments = documents.filter(
@@ -1339,6 +1345,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
               // (no trimming) so existing profiles keep their behavior until
               // a profile opts in after measurement.
               minRelativeStrength: generalizedFusionConfig.minRelativeStrength ?? 0,
+              acceptsEntityCandidate: (input) =>
+                language.acceptsEntityCandidate(input, resolvedLanguage),
+              matchesEntityAlias: (query, alias) =>
+                language.matchesEntityAlias(query, alias, resolvedLanguage),
               referenceTime: temporalReferenceTime,
               rrfK: generalizedFusionConfig.rrfK,
               tokenize: (text) =>
@@ -1828,6 +1838,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         workingMemory,
         journal,
         maxRenderedTokens: recallPlan.maxRenderedTokens,
+        language,
         durableCandidateOrder: assistantInfluence?.rerankApplied
           ? assistantInfluence.rerankedCandidateIds
           : undefined,
@@ -1869,7 +1880,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
           policyApplied: [...policyApplied],
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
-          adapterId: resolvedLanguage.adapterId,
+          languagePackId: resolvedLanguage.languagePackId,
+          languagePackVersion: resolvedLanguage.languagePackVersion,
           analysisMode: resolvedLanguage.analysisMode,
           ...(retrievalTrace ? { retrievalTrace } : {}),
           hits: buildHits({

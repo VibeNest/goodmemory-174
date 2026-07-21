@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { createGoodMemory } from "../../src";
 import { createInternalGoodMemory } from "../../src/api/createGoodMemory";
 import {
+  PROJECTION_MANIFESTS_COLLECTION,
   PROJECTION_REPAIRS_COLLECTION,
   RECALL_DOCUMENTS_COLLECTION,
   type RecallIndexDocument,
@@ -35,7 +36,18 @@ function createOneShotProjectionFailureStore(inner: DocumentStore): DocumentStor
     update: (collection, id, patch) => inner.update(collection, id, patch),
     query: (collection, filter) => inner.query(collection, filter),
     delete: (collection, id) => inner.delete(collection, id),
-    writeBatchIfUnchanged: (input) => inner.writeBatchIfUnchanged!(input),
+    async writeBatchIfUnchanged(input) {
+      if (
+        shouldFail &&
+        input.set.some(({ collection }) =>
+          collection === RECALL_DOCUMENTS_COLLECTION
+        )
+      ) {
+        shouldFail = false;
+        throw new Error("injected projection failure");
+      }
+      return inner.writeBatchIfUnchanged!(input);
+    },
   };
 }
 
@@ -61,6 +73,34 @@ function createOneShotProjectionDeleteFailureStore(
 }
 
 describe("recall projections through the public API", () => {
+  it("does not persist projection trust proof for caller-owned stores", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+    });
+    const scope = {
+      userId: "custom-proof-user",
+      workspaceId: "custom-proof-workspace",
+    };
+    await memory.remember({
+      scope,
+      messages: [{
+        role: "user",
+        content: "Remember that Atlas rollout is active.",
+      }],
+    });
+
+    await memory.recall({ scope, query: "What is the Atlas rollout status?" });
+
+    expect(
+      await documentStore.query(PROJECTION_MANIFESTS_COLLECTION),
+    ).toEqual([]);
+  });
+
   it("lets internal bulk ingestion defer projections until first recall", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createInternalGoodMemory(
@@ -298,7 +338,7 @@ describe("recall projections through the public API", () => {
         documentStore,
         sessionStore: createInMemorySessionStore(),
       },
-      retrieval: { preset: "recommended" },
+      retrieval: { preset: "recommended", recallPlanExecution: true },
       testing: {
         extractor: {
           async extract() {

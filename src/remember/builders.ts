@@ -29,6 +29,19 @@ import { extractCanonicalReferencePointer } from "./normalization";
 
 const EVIDENCE_MAX_EXCERPT_CHARS = 280;
 
+export interface SourceLanguageMetadata {
+  locale: string;
+  localeSource?: "explicit" | "detected" | "default";
+  languagePackId?: string;
+  languagePackVersion?: string;
+}
+
+function sourceLanguageMetadata(
+  input: SourceLanguageMetadata | string,
+): SourceLanguageMetadata {
+  return typeof input === "string" ? { locale: input } : input;
+}
+
 export function buildProfile(
   userId: string,
   existing: UserProfile | null,
@@ -91,7 +104,7 @@ export function buildPreference(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ) {
   return createPreferenceMemory({
     id,
@@ -107,7 +120,7 @@ export function buildPreference(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
-      locale,
+      ...sourceLanguageMetadata(language),
     }),
     updatedAt: timestamp,
   });
@@ -118,7 +131,7 @@ export function buildReference(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): ReferenceMemory {
   const resolvedPointer =
     extractCanonicalReferencePointer(candidate.metadata?.referencePointer) ??
@@ -142,7 +155,7 @@ export function buildReference(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
-      locale,
+      ...sourceLanguageMetadata(language),
     }),
     referenceKind: candidate.metadata?.referenceKind,
     subject: candidate.metadata?.subject ?? "unknown",
@@ -211,7 +224,7 @@ export function buildFact(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
   observedAt?: string,
 ): FactMemory {
   return createFactMemory({
@@ -228,7 +241,7 @@ export function buildFact(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
-      locale,
+      ...sourceLanguageMetadata(language),
     }),
     factKind: candidate.metadata?.factKind,
     scopeKind: candidate.metadata?.scopeKind,
@@ -311,17 +324,17 @@ function strengthenSourceMethod(
   source: FactMemory["source"] | ReferenceMemory["source"],
   candidate: ClassifiedCandidate,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): FactMemory["source"] | ReferenceMemory["source"] {
   if (sourceMethodStrength(candidate.explicitness) <= sourceMethodStrength(source.method)) {
     return source;
   }
 
   return createMemorySource({
+    ...sourceLanguageMetadata(language),
     ...source,
     method: candidate.explicitness,
     extractedAt: timestamp,
-    locale,
   });
 }
 
@@ -374,7 +387,7 @@ export function enrichDuplicatePreference(
   preference: PreferenceMemory,
   candidate: ClassifiedCandidate,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): PreferenceMemory | null {
   const tags = mergeTags(preference.tags, candidate.metadata?.tags);
   const attributes = mergeAttributes(
@@ -385,7 +398,7 @@ export function enrichDuplicatePreference(
     preference.source,
     candidate,
     timestamp,
-    locale,
+    language,
   ) as PreferenceMemory["source"];
 
   if (
@@ -409,7 +422,7 @@ export function enrichDuplicateFact(
   fact: FactMemory,
   candidate: ClassifiedCandidate,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): FactMemory | null {
   const category = resolveFactCategory(fact.category, candidate);
   const factKind = resolveFactKind(fact.factKind, candidate);
@@ -419,7 +432,7 @@ export function enrichDuplicateFact(
     fact.source,
     candidate,
     timestamp,
-    locale,
+    language,
   ) as FactMemory["source"];
   const tags = mergeTags(fact.tags, candidate.metadata?.tags);
   const attributes = mergeAttributes(fact.attributes, candidate.metadata?.attributes);
@@ -503,7 +516,7 @@ export function enrichDuplicateReference(
   reference: ReferenceMemory,
   candidate: ClassifiedCandidate,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): ReferenceMemory | null {
   const referenceKind = resolveDuplicateReferenceKind(
     reference.referenceKind,
@@ -514,7 +527,7 @@ export function enrichDuplicateReference(
     reference.source,
     candidate,
     timestamp,
-    locale,
+    language,
   ) as ReferenceMemory["source"];
   const tags = mergeTags(reference.tags, candidate.metadata?.tags);
   const attributes = mergeAttributes(
@@ -548,7 +561,7 @@ export function buildFeedback(
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): FeedbackMemory {
   return createFeedbackMemory({
     id,
@@ -565,7 +578,7 @@ export function buildFeedback(
     source: createMemorySource({
       method: candidate.explicitness,
       extractedAt: timestamp,
-      locale,
+      ...sourceLanguageMetadata(language),
     }),
     updatedAt: timestamp,
   });
@@ -575,7 +588,7 @@ export function enrichDuplicateFeedback(
   feedback: FeedbackMemory,
   candidate: ClassifiedCandidate,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
 ): FeedbackMemory | null {
   const tags = mergeTags(feedback.tags, candidate.metadata?.tags);
   const attributes = mergeAttributes(
@@ -586,7 +599,7 @@ export function enrichDuplicateFeedback(
     feedback.source,
     candidate,
     timestamp,
-    locale,
+    language,
   ) as FeedbackMemory["source"];
 
   if (
@@ -671,7 +684,7 @@ export function buildCandidateEvidence(
   memoryId: string,
   evidenceId: string,
   timestamp: string,
-  locale: string,
+  language: SourceLanguageMetadata | string,
   sourceMessages: readonly SourceMessageRecord[] = [],
 ): EvidenceRecord {
   return createEvidenceRecord({
@@ -687,7 +700,7 @@ export function buildCandidateEvidence(
       method: candidate.explicitness,
       extractedAt: timestamp,
       sessionId: scope.sessionId,
-      locale,
+      ...sourceLanguageMetadata(language),
     }),
     sourceUri: sourceMessages[0]
       ? sourceMessageRecordUri(sourceMessages[0])

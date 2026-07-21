@@ -6,6 +6,10 @@ import type {
 } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
 import { scopeToKey } from "../domain/scope";
+import {
+  estimateTextTokens,
+  truncateTextToEstimatedTokens,
+} from "../tokenEstimator";
 
 const DEFAULT_INDEX_LIMIT = 24;
 const DEFAULT_DETAIL_PREVIEW_CHARS = 1_200;
@@ -406,7 +410,7 @@ export function createProgressiveRecallService(
         title: candidate.title,
         summary: candidate.summary,
         detail: candidate.detail,
-        estimatedTokens: estimateTokens(JSON.stringify(candidate.detail)),
+        estimatedTokens: estimateTextTokens(JSON.stringify(candidate.detail)),
       };
       records.push(detail);
     }
@@ -461,7 +465,7 @@ export function createProgressiveRecallService(
 
       return {
         content: budgetedContent,
-        estimatedTokens: estimateTokens(budgetedContent),
+        estimatedTokens: estimateTextTokens(budgetedContent),
         omittedRecordCount,
       };
     },
@@ -797,7 +801,7 @@ function wouldExceedTokenBudget(input: {
     return false;
   }
 
-  return estimateTokens([
+  return estimateTextTokens([
     ...input.header,
     ...input.lines,
     ...(input.footer ?? []),
@@ -805,18 +809,20 @@ function wouldExceedTokenBudget(input: {
 }
 
 function enforceTokenBudget(content: string, maxTokens: number | undefined): string {
-  if (!maxTokens || estimateTokens(content) <= maxTokens) {
+  if (!maxTokens || estimateTextTokens(content) <= maxTokens) {
     return content;
   }
 
-  const maxChars = Math.max(1, maxTokens * 4);
-  if (content.length <= maxChars) {
-    return content;
+  const ellipsis = "...";
+  const ellipsisTokens = estimateTextTokens(ellipsis);
+  if (maxTokens <= ellipsisTokens) {
+    return truncateTextToEstimatedTokens(content, maxTokens);
   }
-  if (maxChars <= 3) {
-    return content.slice(0, maxChars);
-  }
-  return `${content.slice(0, maxChars - 3).trimEnd()}...`;
+  const truncated = truncateTextToEstimatedTokens(
+    content,
+    maxTokens - ellipsisTokens,
+  ).trimEnd();
+  return `${truncated}${ellipsis}`;
 }
 
 function toIndexRecord(input: {
@@ -834,8 +840,10 @@ function toIndexRecord(input: {
   const indexText = [title, summary].join(" ");
 
   return {
-    estimatedDetailTokens: estimateTokens(JSON.stringify(input.candidate.detail)),
-    estimatedIndexTokens: estimateTokens(indexText),
+    estimatedDetailTokens: estimateTextTokens(
+      JSON.stringify(input.candidate.detail),
+    ),
+    estimatedIndexTokens: estimateTextTokens(indexText),
     occurredAt: input.candidate.occurredAt,
     recordKind: input.candidate.recordKind,
     recordRef,
@@ -984,10 +992,6 @@ function clipText(value: string, maxLength: number): string {
   }
 
   return `${trimmed.slice(0, maxLength - 3).trimEnd()}...`;
-}
-
-function estimateTokens(value: string): number {
-  return Math.max(1, Math.ceil(value.length / 4));
 }
 
 function scoreText(text: string, query: string | undefined): number {

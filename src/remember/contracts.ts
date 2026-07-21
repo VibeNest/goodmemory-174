@@ -81,7 +81,8 @@ export interface RememberResult {
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";
-    adapterId: string;
+    languagePackId: string;
+    languagePackVersion?: string;
     analysisMode: "rules-only";
     requestedExtractionStrategy: MemoryExtractionStrategy;
     resolvedExtractionStrategy: MemoryExtractionStrategy;
@@ -126,7 +127,7 @@ export interface RememberWriteState {
 
 export interface RememberWriteContext {
   input: MemoryExtractionInput;
-  resolvedLanguage: ResolvedLanguageContext;
+  candidateLanguage: ResolvedLanguageContext;
   language: LanguageService;
   policyContext: PolicyContext;
   repositories: RememberRepositoryPort;

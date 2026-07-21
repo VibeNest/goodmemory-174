@@ -1,5 +1,6 @@
 import type { MemoryScope } from "../domain/scope";
 import type { RecallResult } from "../api/contracts";
+import { estimateTextTokens } from "../tokenEstimator";
 import {
   normalizeText,
   readOptionalText,
@@ -310,7 +311,7 @@ export async function executeInstalledHostHook(
             ? "session-start"
             : "user-prompt-submit",
           decision: "injected",
-          estimatedTokens: Math.ceil(boundedContext.length / 4),
+          estimatedTokens: estimateTextTokens(boundedContext),
           recallLatencyMs,
           recordIds: built.recalledRecordIds,
         },

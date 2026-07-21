@@ -1,5 +1,5 @@
 import { computeBm25Scores } from "./bm25";
-import { extractEntityKeys } from "./entityExtraction";
+import type { LanguageEntityCandidateInput } from "../language";
 import {
   isRecallProjectionSourceCollection,
 } from "./projections/contracts";
@@ -62,6 +62,8 @@ export interface GeneralizedFusionInput {
   denseCandidates?: readonly DenseFusionCandidate[];
   maxCandidates?: number;
   maxEntityMemoryFrequency?: number;
+  acceptsEntityCandidate?: (input: LanguageEntityCandidateInput) => boolean;
+  matchesEntityAlias?: (query: string, alias: string) => boolean;
   minRelativeStrength?: number;
   plan?: RecallPlan;
   referenceTime?: string;
@@ -294,47 +296,27 @@ function queryContainsAlias(normalizedQuery: string, alias: string): boolean {
   );
 }
 
-function escapeRegExpLiteral(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function entityMatchesQuery(
+  input: GeneralizedFusionInput,
+  normalizedQuery: string,
+  entity: EntityProjection,
+): boolean {
+  const matches = (alias: string) =>
+    input.matchesEntityAlias?.(input.query, alias) ??
+    queryContainsAlias(normalizedQuery, alias);
+  return matches(entity.canonicalKey) || entity.aliases.some(matches);
 }
 
-// Deterministic truecasing check for the entity channel. Capitalization-based
-// entity extraction turns sentence-initial common words ("Evenings include...")
-// into entity mentions, and a singleton entity then gets maximal rarity in the
-// channel. When the scope's own documents use the same word all-lowercase, the
-// capitalized surface is sentence position or title casing, not a name — the
-// entity carries no adjacency signal for this scope. All-caps acronyms,
-// multi-word spans, and lowercase-native aliases are never treated as common
-// words.
-function isCommonWordEntity(
+function acceptsEntity(
+  input: GeneralizedFusionInput,
   entity: EntityProjection,
-  documents: readonly RecallIndexDocument[],
+  documentTexts: readonly string[],
 ): boolean {
-  const surfaces = entity.aliases.length > 0
-    ? entity.aliases
-    : [entity.canonicalKey];
-  const titleCaseSurfaces = surfaces.filter((surface) => {
-    const trimmed = surface.trim();
-    if (trimmed.length < 2 || /\s/.test(trimmed)) {
-      return false;
-    }
-    // TitleCase single word: initial uppercase followed by lowercase letters.
-    return /^\p{Lu}[\p{Ll}\p{N}]+$/u.test(trimmed);
-  });
-  if (
-    titleCaseSurfaces.length === 0 ||
-    titleCaseSurfaces.length !== surfaces.length
-  ) {
-    return false;
-  }
-  return titleCaseSurfaces.every((surface) => {
-    const lower = surface.trim().normalize("NFKC").toLocaleLowerCase("en-US");
-    const pattern = new RegExp(
-      `(?:^|[^\\p{L}\\p{N}])${escapeRegExpLiteral(lower)}(?:$|[^\\p{L}\\p{N}])`,
-      "u",
-    );
-    return documents.some((document) => pattern.test(document.text));
-  });
+  return input.acceptsEntityCandidate?.({
+    aliases: entity.aliases,
+    canonicalKey: entity.canonicalKey,
+    documentTexts,
+  }) ?? true;
 }
 
 function buildEntityChannel(
@@ -342,7 +324,6 @@ function buildEntityChannel(
   visibleSourceKeys: ReadonlySet<string>,
 ): RankedChannelCandidate[] {
   const normalizedQuery = normalizeEntityValue(input.query);
-  const queryEntityKeys = extractEntityKeys(input.query);
   const temporalConstraint = enforceDocumentVisibility(input);
   const sourceMemoryCount = temporalConstraint
     ? visibleSourceKeys.size
@@ -354,6 +335,7 @@ function buildEntityChannel(
         Math.max(2, Math.ceil(Math.sqrt(Math.max(1, sourceMemoryCount)))),
     ),
   );
+  const documentTexts = input.documents.map(({ text }) => text);
   const matchedEntities = input.entities
     .map((entity) => ({
       ...entity,
@@ -365,12 +347,8 @@ function buildEntityChannel(
       (entity) =>
         entity.memoryIds.length > 0 &&
         entity.memoryIds.length <= maxEntityMemoryFrequency &&
-        (queryEntityKeys.has(entity.canonicalKey) ||
-          queryContainsAlias(normalizedQuery, entity.canonicalKey) ||
-          entity.aliases.some((alias) =>
-            queryContainsAlias(normalizedQuery, alias),
-          )) &&
-        !isCommonWordEntity(entity, input.documents),
+        entityMatchesQuery(input, normalizedQuery, entity) &&
+        acceptsEntity(input, entity, documentTexts),
     );
   if (matchedEntities.length === 0) {
     return [];
@@ -437,16 +415,13 @@ function buildClaimRelevance(
 
 function matchedQueryEntityIds(input: GeneralizedFusionInput): Set<string> {
   const normalizedQuery = normalizeEntityValue(input.query);
-  const queryEntityKeys = extractEntityKeys(input.query);
+  const documentTexts = input.documents.map(({ text }) => text);
   return new Set(
     input.entities
       .filter(
         (entity) =>
-          queryEntityKeys.has(entity.canonicalKey) ||
-          queryContainsAlias(normalizedQuery, entity.canonicalKey) ||
-          entity.aliases.some((alias) =>
-            queryContainsAlias(normalizedQuery, alias),
-          ),
+          entityMatchesQuery(input, normalizedQuery, entity) &&
+          acceptsEntity(input, entity, documentTexts),
       )
       .map((entity) => entity.id),
   );

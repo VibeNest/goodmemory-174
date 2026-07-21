@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 
-import { selectEntityUnionCandidates } from "../../scripts/eval-profiles/generalized-probes/entityUnion";
+import {
+  buildEntityDocumentFrequency,
+  extractEntities,
+  extractEntityKeys,
+  selectEntityUnionCandidates,
+} from "../../scripts/eval-profiles/generalized-probes/entityUnion";
 import type { EntityUnionDocument } from "../../scripts/eval-profiles/generalized-probes/entityUnion";
 
 // Pool document frequencies (per-document presence):
@@ -11,6 +16,35 @@ const POOL: EntityUnionDocument[] = [
   { id: "d3", content: "Bob visited Skellig" },
   { id: "d4", content: "the weather was nice" },
 ];
+
+describe("historical entity-union extraction", () => {
+  it("extracts proper nouns and numeric entities but skips common words", () => {
+    expect(
+      extractEntities("Where did Alice visit Paris in 2019?").map(
+        ({ kind, normalized }) => ({ kind, normalized }),
+      ),
+    ).toEqual([
+      { kind: "proper", normalized: "alice" },
+      { kind: "proper", normalized: "paris" },
+      { kind: "numeric", normalized: "2019" },
+    ]);
+  });
+
+  it("normalizes possessives and splits dotted or colon-delimited identifiers", () => {
+    const keys = extractEntityKeys("Alice's turn D11:26 upgraded to v18.15.0");
+    expect([...keys]).toEqual(["alice", "d11", "26", "v18", "15"]);
+  });
+
+  it("counts each entity once per document", () => {
+    const frequency = buildEntityDocumentFrequency([
+      { id: "d1", content: "Alice met Alice near Paris" },
+      { id: "d2", content: "Bob visited Paris" },
+    ]);
+    expect(frequency.get("alice")).toBe(1);
+    expect(frequency.get("paris")).toBe(2);
+    expect(frequency.get("bob")).toBe(1);
+  });
+});
 
 describe("selectEntityUnionCandidates", () => {
   it("returns nothing when the query has no entities", () => {

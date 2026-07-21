@@ -165,4 +165,23 @@ describe("answer evidence-ledger context", () => {
       /caseId|expectedAnswer|goldEvidence|questionType|rubric/u,
     );
   });
+
+  it("localizes Traditional Chinese and Japanese evidence guidance", () => {
+    const traditional = JSON.parse(
+      renderEvidenceLedgerContext(entries, "json_locale_note", "zh-TW"),
+    ) as { note: string };
+    const japanese = JSON.parse(
+      renderEvidenceLedgerContext(entries, "json_locale_note", "ja-JP"),
+    ) as { note: string };
+
+    expect(traditional.note).toBe(
+      "請按時間狀態和證據關係閱讀以下條目。",
+    );
+    expect(japanese.note).toBe(
+      "各項目を時間状態と根拠関係に従って読んでください。",
+    );
+    expect(
+      renderEvidenceLedgerContext(entries, "prose", "ja-JP"),
+    ).toContain("時間状態:");
+  });
 });

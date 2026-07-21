@@ -22,10 +22,14 @@ import {
   LOCOMO_QA_CATEGORIES,
 } from "../src/eval/locomo";
 import type { LocomoCase, LocomoQaCategory } from "../src/eval/locomo";
-import { buildEntityDocumentFrequency } from "../src/recall/entityExtraction";
-import type { EntityDocument } from "../src/recall/entityExtraction";
-import { selectEntityUnionCandidates } from "./eval-profiles/generalized-probes/entityUnion";
-import type { EntityUnionGates } from "./eval-profiles/generalized-probes/entityUnion";
+import {
+  buildEntityDocumentFrequency,
+  selectEntityUnionCandidates,
+} from "./eval-profiles/generalized-probes/entityUnion";
+import type {
+  EntityDocument,
+  EntityUnionGates,
+} from "./eval-profiles/generalized-probes/entityUnion";
 
 // SQuAD-ish tokenization for the lexical floor: lower-case, split on
 // non-alphanumerics, drop short tokens and a small function-word set.

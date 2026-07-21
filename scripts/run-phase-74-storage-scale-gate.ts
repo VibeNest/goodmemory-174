@@ -42,6 +42,10 @@ interface QueryPlanRow {
   detail: string;
 }
 
+interface JsonValidityRow {
+  valid: number;
+}
+
 interface StoreMethodCalls {
   get: number;
   query: number;
@@ -71,6 +75,7 @@ export interface Phase74StorageScaleGateReport {
     methodCalls: StoreMethodCalls;
     nonMatchingSentinelDidNotBreakSearch: boolean;
     projectionCounts: ProjectionCounts;
+    sentinelJsonValid: boolean;
     sqlQueryPlan: string[];
     storedRowCount: number;
     usesFtsVirtualTableIndex: boolean;
@@ -164,6 +169,13 @@ function createClaim(index: number): ClaimProjection {
   const sourceMemoryId = `memory-${suffix}`;
   const predicateKey = "project.status";
   const objectText = `Durable claim shard${index % QUERY_SHARD_COUNT} sequence${index}`;
+  const text = buildClaimProjectionSearchText({
+    subject: "Phase 74 scale project",
+    predicateKey,
+    objectText,
+    polarity: "positive",
+    modality: "asserted",
+  });
   return {
     id: `claim-${suffix}`,
     schemaVersion: 1,
@@ -173,13 +185,8 @@ function createClaim(index: number): ClaimProjection {
     subjectEntityId: "entity:phase-74-scale-project",
     predicateKey,
     objectText,
-    text: buildClaimProjectionSearchText({
-      subject: "Phase 74 scale project",
-      predicateKey,
-      objectText,
-      polarity: "positive",
-      modality: "asserted",
-    }),
+    text,
+    searchText: text,
     polarity: "positive",
     modality: "asserted",
     observedAt: TIMESTAMP,
@@ -210,6 +217,11 @@ function createEntity(index: number): EntityAdjacencyProjection {
   const canonicalKey = `entity shard${index % QUERY_SHARD_COUNT}`;
   const aliases = [`Entity ${index}`];
   const description = `Durable entity projection sequence${index}`;
+  const text = buildEntityProjectionSearchText({
+    aliases,
+    canonicalKey,
+    description,
+  });
   return {
     id: `entity-edge-${suffix}`,
     schemaVersion: 1,
@@ -220,11 +232,8 @@ function createEntity(index: number): EntityAdjacencyProjection {
     memoryId: `facts:entity-memory-${suffix}`,
     aliases,
     description,
-    text: buildEntityProjectionSearchText({
-      aliases,
-      canonicalKey,
-      description,
-    }),
+    text,
+    searchText: text,
     updatedAt: TIMESTAMP,
   };
 }
@@ -237,6 +246,7 @@ function seedProjectionDocuments(input: {
   ftsIndexedDocumentCount: number;
   ftsKeyCount: number;
   projectionCounts: ProjectionCounts;
+  sentinelJsonValid: boolean;
   storedRowCount: number;
 } {
   const claims = Math.ceil(input.syntheticDocumentCount / 2);
@@ -252,8 +262,8 @@ function seedProjectionDocuments(input: {
      RETURNING rowid`,
   );
   const insertFts = database.query(
-    `INSERT INTO document_text_fts (rowid, collection, id, text)
-     VALUES (?1, ?2, ?3, ?4)`,
+    `INSERT INTO document_text_fts (rowid, collection, id, text, searchText)
+     VALUES (?1, ?2, ?3, ?4, ?5)`,
   );
 
   function insertSearchDocument(
@@ -262,7 +272,7 @@ function seedProjectionDocuments(input: {
     text: string,
   ): void {
     const key = insertFtsKey.get(collection, id)!;
-    insertFts.run(key.rowid, collection, id, text);
+    insertFts.run(key.rowid, collection, id, text, text);
   }
 
   database.exec("PRAGMA synchronous = OFF");
@@ -296,7 +306,7 @@ function seedProjectionDocuments(input: {
     }
 
     for (const collection of [CLAIM_PROJECTIONS_COLLECTION, ENTITIES_COLLECTION]) {
-      insertDocument.run(collection, SENTINEL_ID, "null");
+      insertDocument.run(collection, SENTINEL_ID, "{invalid-json");
     }
     database.exec("COMMIT");
   } catch (error) {
@@ -326,11 +336,18 @@ function seedProjectionDocuments(input: {
        WHERE collection IN (?1, ?2)`,
     )
     .get(CLAIM_PROJECTIONS_COLLECTION, ENTITIES_COLLECTION)!.count;
+  const sentinelJsonValid = database
+    .query<JsonValidityRow, [string, string]>(
+      `SELECT json_valid(json) AS valid FROM documents
+       WHERE collection = ?1 AND id = ?2`,
+    )
+    .get(CLAIM_PROJECTIONS_COLLECTION, SENTINEL_ID)?.valid === 1;
   database.close();
   return {
     ftsIndexedDocumentCount,
     ftsKeyCount,
     projectionCounts,
+    sentinelJsonValid,
     storedRowCount,
   };
 }
@@ -345,7 +362,7 @@ function readFtsQueryPlan(databasePath: string, collection: string): string[] {
        JOIN documents
          ON documents.collection = document_text_fts.collection
         AND documents.id = document_text_fts.id
-       WHERE document_text_fts MATCH ?1
+       WHERE document_text_fts.searchText MATCH ?1
          AND document_text_fts.collection = ?2
          AND json_valid(documents.json)
          AND json_extract(documents.json, '$.scopeKey') = ?3
@@ -452,7 +469,8 @@ export async function runPhase74StorageScaleGate(
     const expectedStoredRows = syntheticDocumentCount +
       seedAudit.projectionCounts.statuses + 2;
     const nonMatchingSentinelDidNotBreakSearch =
-      seedAudit.storedRowCount === expectedStoredRows;
+      seedAudit.storedRowCount === expectedStoredRows &&
+      !seedAudit.sentinelJsonValid;
     const maximumStatusGets =
       (warmupQueryCount + measuredQueryCount) * SELECTED_LIMIT;
     const passed = latencyMs.p95 <= thresholdMs &&

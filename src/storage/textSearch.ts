@@ -3,7 +3,7 @@ import type { StorageDocument } from "./contracts";
 const WORD_PATTERN = /[\p{L}\p{N}]+/gu;
 
 export function tokenizeDocumentSearch(value: string): string[] {
-  return (value.normalize("NFKC").toLocaleLowerCase("en-US").match(WORD_PATTERN) ?? [])
+  return (value.normalize("NFKC").toLowerCase().match(WORD_PATTERN) ?? [])
     .filter((token) => token.length > 0);
 }
 

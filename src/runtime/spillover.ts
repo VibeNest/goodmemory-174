@@ -148,7 +148,19 @@ export function createArtifactSpilloverService(
         ARTIFACT_SPILL_PAYLOAD_COLLECTION,
         payloadId,
       );
-      return payload?.content ?? null;
+      if (!payload) {
+        return null;
+      }
+      if (
+        buildPayloadId(scope, payload.contentHash) !== payloadId ||
+        buildContentHash(payload.content) !== payload.contentHash
+      ) {
+        console.error("[goodmemory:spillover] payload integrity check failed", {
+          payloadId,
+        });
+        return null;
+      }
+      return payload.content;
     },
   };
 }

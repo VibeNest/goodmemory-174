@@ -978,7 +978,7 @@ async function applyPlaybookWrite(input: {
   const policyApplied: string[] = [];
   const policyContext = {
     locale: existing.source.locale ?? "en-US",
-    localeSource: "default" as const,
+    localeSource: existing.source.localeSource ?? "default",
     phase: "remember" as const,
     scope: input.writeInput.scope,
   };

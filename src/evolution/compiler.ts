@@ -6,8 +6,21 @@ import type { EvolutionRepositoryPort } from "../storage/ports";
 import { readCompiledGuidance } from "./behavioralTelemetry";
 import { attachBehavioralPolicyAttributes } from "./behavioralPolicy";
 
-function feedbackLocale(feedback: Pick<FeedbackMemory, "source">): string | undefined {
-  return feedback.source.locale;
+function resolveFeedbackLanguageSource(
+  feedback: Pick<FeedbackMemory, "rule" | "source">,
+  language: LanguageService,
+) {
+  const resolved = language.resolveFromText({
+    ...(feedback.source.locale ? { locale: feedback.source.locale } : {}),
+    text: feedback.rule,
+  });
+  return {
+    locale: feedback.source.locale ?? resolved.locale,
+    localeSource: feedback.source.localeSource ?? resolved.localeSource,
+    languagePackId: feedback.source.languagePackId ?? resolved.languagePackId,
+    languagePackVersion:
+      feedback.source.languagePackVersion ?? resolved.languagePackVersion,
+  };
 }
 
 function feedbackMatchesScope(
@@ -32,13 +45,8 @@ function normalizeRule(
   feedback: Pick<FeedbackMemory, "rule" | "source">,
   language: LanguageService,
 ): string {
-  const locale =
-    feedbackLocale(feedback) ??
-    language.resolveFromText({
-      text: feedback.rule,
-    }).locale;
-
-  return language.normalizeForEquality(feedback.rule, locale);
+  const source = resolveFeedbackLanguageSource(feedback, language);
+  return language.normalizeForEquality(feedback.rule, source.locale);
 }
 
 export interface ProceduralPatternCompilerConfig {
@@ -152,7 +160,7 @@ export function createProceduralPatternCompiler(
             method: "confirmed",
             extractedAt: timestamp,
             sessionId: proposal.sessionId,
-            locale: feedbackLocale(feedbackSeed),
+            ...resolveFeedbackLanguageSource(feedbackSeed, config.language),
           }),
           lastUsedAt: sourceFeedback?.lastUsedAt,
           updatedAt: timestamp,

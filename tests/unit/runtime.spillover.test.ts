@@ -1,8 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { createInMemoryDocumentStore } from "../../src/storage/memory";
 import {
+  ARTIFACT_SPILL_PAYLOAD_COLLECTION,
   createArtifactSpilloverService,
 } from "../../src/runtime/spillover";
+import type { ArtifactSpillPayloadRecord } from "../../src/runtime/spillover";
 
 describe("artifact spillover service", () => {
   it("creates previews for oversized content and persists a spill record", async () => {
@@ -96,5 +98,28 @@ describe("artifact spillover service", () => {
     );
 
     expect(second.replacementText).not.toBe(first.replacementText);
+  });
+
+  it("refuses to replay a payload whose content no longer matches its hash", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const service = createArtifactSpilloverService({ documentStore });
+    const scope = { userId: "u-1", sessionId: "s-1" };
+    const record = await service.spill(scope, {
+      kind: "tool_result",
+      sourceId: "tool-corrupted",
+      content: "Original immutable payload",
+    });
+    const [payload] = await documentStore.query<ArtifactSpillPayloadRecord>(
+      ARTIFACT_SPILL_PAYLOAD_COLLECTION,
+    );
+    if (!payload) {
+      throw new Error("Expected the spill payload to be persisted.");
+    }
+    await documentStore.set(ARTIFACT_SPILL_PAYLOAD_COLLECTION, payload.id, {
+      ...payload,
+      content: "Corrupted payload",
+    });
+
+    expect(await service.resolve(scope, record.storageUri)).toBeNull();
   });
 });

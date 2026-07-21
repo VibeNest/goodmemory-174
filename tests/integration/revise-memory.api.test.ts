@@ -318,11 +318,23 @@ describe("public reviseMemory API", () => {
     expect(oldPreference?.lifecycle).toBe("superseded");
     expect(oldPreference?.supersededBy).toBe(newMemoryId);
     expect(newPreference?.lifecycle).toBe("active");
+    expect(newPreference?.source).toMatchObject({
+      languagePackId: "en",
+      languagePackVersion: "1",
+      locale: "en-US",
+      localeSource: "detected",
+    });
     expect(evidence?.kind).toBe("correction_context");
     expect(evidence).toMatchObject({
       attributes: {
         revisionEvidenceSource: "user_message",
         revisionReason: "user_correction",
+      },
+      source: {
+        languagePackId: "en",
+        languagePackVersion: "1",
+        locale: "en-US",
+        localeSource: "detected",
       },
     });
     expect(evidence?.linkedMemoryIds).toEqual([

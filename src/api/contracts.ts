@@ -245,7 +245,8 @@ export interface RecallResult {
     policyApplied: string[];
     locale?: string;
     localeSource?: "explicit" | "detected" | "default";
-    adapterId?: string;
+    languagePackId?: string;
+    languagePackVersion?: string;
     analysisMode?: "rules-only";
     retrievalTrace?: RecallRetrievalTrace;
     traceId?: string;
@@ -292,7 +293,8 @@ export interface RememberResult {
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";
-    adapterId: string;
+    languagePackId: string;
+    languagePackVersion?: string;
     analysisMode: "rules-only";
     requestedExtractionStrategy: MemoryExtractionStrategy;
     resolvedExtractionStrategy: MemoryExtractionStrategy;
@@ -450,7 +452,8 @@ export interface FeedbackResult {
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";
-    adapterId: string;
+    languagePackId: string;
+    languagePackVersion?: string;
     analysisMode: "rules-only";
     traceId?: string;
   };

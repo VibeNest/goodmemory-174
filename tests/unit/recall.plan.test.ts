@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 
-import { createLanguageService } from "../../src/language";
+import {
+  createEnglishLanguagePack,
+  createLanguageService,
+} from "../../src/language";
 import {
   buildDeterministicRecallPlan,
   resolveRecallPlan,
@@ -39,6 +42,50 @@ describe("deterministic recall plan", () => {
     expect(result.uncertainty).toBe("high");
   });
 
+  it("plans Traditional Chinese and Japanese through their language packs", () => {
+    const traditional = plan(
+      "2026年5月之後，資料庫改成什麼，現在的阻礙是什麼？",
+      "zh-TW",
+    );
+    expect(traditional).toMatchObject({
+      aggregation: "change",
+      maxHops: 1,
+    });
+    expect(traditional.temporalConstraints).toEqual([
+      { kind: "current", referenceTime },
+      { kind: "after", referenceTime: "2026-05-01T00:00:00.000Z" },
+    ]);
+
+    const japanese = plan(
+      "先月以降、データベースは何に変更されましたか？",
+      "ja-JP",
+    );
+    expect(japanese.aggregation).toBe("change");
+    expect(japanese.temporalConstraints).toEqual([
+      { kind: "after", referenceTime: "2026-06-01T00:00:00.000Z" },
+    ]);
+
+    const relation = plan("田中さんは何で知られていますか？", "ja-JP");
+    expect(relation.maxHops).toBe(2);
+    expect(relation.evidenceNeeds).toContain("relation");
+    expect(relation.entities).toContain("田中さん");
+  });
+
+  it("does not mistake Chinese current markers for a before constraint", () => {
+    for (const [query, locale] of [
+      ["目前项目的阻塞是什么？", "zh-CN"],
+      ["當前專案的阻礙是什麼？", "zh-TW"],
+    ] as const) {
+      expect(plan(query, locale).temporalConstraints).toEqual([
+        { kind: "current", referenceTime },
+      ]);
+    }
+
+    expect(plan("发布前的阻塞是什么？", "zh-CN").temporalConstraints).toEqual([
+      { kind: "before", referenceTime },
+    ]);
+  });
+
   it("does not reinterpret a commercial partner query as a relationship facet", () => {
     const result = plan("Which partner API did Acme use?");
 
@@ -66,6 +113,30 @@ describe("deterministic recall plan", () => {
     expect(plan("What changed after 2025-06-01?").temporalConstraints).toEqual([
       { kind: "after", referenceTime: "2025-06-01T00:00:00.000Z" },
     ]);
+  });
+
+  it("resolves slash dates consistently across English, Chinese, and Japanese", () => {
+    for (const [query, locale] of [
+      ["What happened before 2026/07/01?", "en"],
+      ["2026/07/01之前发生了什么？", "zh-CN"],
+      ["2026/07/01より前に何が起きましたか？", "ja-JP"],
+    ] as const) {
+      expect(plan(query, locale).temporalConstraints).toEqual([
+        { kind: "before", referenceTime: "2026-07-01T00:00:00.000Z" },
+      ]);
+    }
+  });
+
+  it("uses tomorrow as a real before/after boundary in every built-in pack", () => {
+    for (const [query, locale] of [
+      ["What happens after tomorrow?", "en"],
+      ["明天之后有什么变化？", "zh-CN"],
+      ["明日以降に何が変わりますか？", "ja-JP"],
+    ] as const) {
+      expect(plan(query, locale).temporalConstraints).toEqual([
+        { kind: "after", referenceTime: "2026-07-17T00:00:00.000Z" },
+      ]);
+    }
   });
 
   it("resolves month-name, quarter, season, and relative anchors deterministically", () => {
@@ -230,6 +301,39 @@ describe("deterministic recall plan", () => {
       expect.arrayContaining(["semantic", "episodic"]),
     );
     expect(result.plan.maxHops).toBe(1);
+  });
+
+  it("anchors assisted facets with the request LanguagePack equality semantics", async () => {
+    const english = createEnglishLanguagePack();
+    const language = createLanguageService({
+      packs: [{
+        ...english,
+        analyzerVersion: "sentinel-equality-v1",
+        normalizeForEquality(text) {
+          return english.normalizeForEquality(text).replaceAll("colour", "color");
+        },
+      }],
+    });
+
+    const result = await resolveRecallPlan({
+      input: {
+        language,
+        locale: "en",
+        query: "What database do I use and which editor did I switch to?",
+        referenceTime,
+        scope,
+      },
+      assistant: {
+        async plan() {
+          return {
+            entities: ["colour"],
+            facets: ["color preference"],
+          };
+        },
+      },
+    });
+
+    expect(result.plan.facets).toContain("color preference");
   });
 
   it("falls back to the deterministic plan when the optional assistant fails", async () => {

@@ -1,4 +1,9 @@
 import type { MemoryScope } from "../../domain/scope";
+import { EVIDENCE_COLLECTION } from "../../evidence/contracts";
+import {
+  createLanguageService,
+  type LanguageService,
+} from "../../language";
 import {
   createScopeDeletionAwareDocumentStore,
   createScopeDeletionCoordinator,
@@ -14,10 +19,16 @@ import type {
   ClaimProjectionWritePort,
   RecallProjectionSearchPort,
 } from "./contracts";
+import {
+  isRecallProjectionSourceCollection,
+  PROJECTION_MANIFESTS_COLLECTION,
+} from "./contracts";
+import { createProjectionManifestTracker } from "./manifest";
 import { createKeyedMutationLock } from "./mutationLock";
 import { createRecallProjectionOperations } from "./operations";
 import { createRecallProjectionRepairs } from "./repairs";
 import { createProjectionAwareDocumentStore } from "./storeDecorator";
+import { createProjectionValidationFence } from "./validationFence";
 import { errorMessage, sourceMutationKey } from "./shared";
 
 export interface RecallProjectionRuntime extends
@@ -31,7 +42,11 @@ export interface RecallProjectionRuntime extends
 export interface RecallProjectionRuntimeConfig {
   bulkBackfill?: boolean;
   documentStore: DocumentStore;
+  language?: LanguageService;
   now?: () => string;
+  persistentScopeProof?: {
+    buildId: string;
+  };
   writeThrough?: boolean;
 }
 
@@ -44,11 +59,32 @@ export function createRecallProjectionRuntime(
     );
   }
   const rawDocumentStore = config.documentStore;
-  const documentStore = createScopeDeletionAwareDocumentStore(rawDocumentStore);
+  const scopeAwareDocumentStore = createScopeDeletionAwareDocumentStore(
+    rawDocumentStore,
+    {
+    allowLockedBatchSet: ({ batch, operation }) =>
+      operation.collection === PROJECTION_MANIFESTS_COLLECTION &&
+      (batch.delete ?? []).some(({ collection }) =>
+        collection === EVIDENCE_COLLECTION ||
+        isRecallProjectionSourceCollection(collection)
+      ),
+    },
+  );
   const now = config.now ?? (() => new Date().toISOString());
+  const language = config.language ?? createLanguageService();
   const mutationLock = createKeyedMutationLock();
+  const manifests = createProjectionManifestTracker({
+    buildId: config.persistentScopeProof?.buildId,
+    documentStore: scopeAwareDocumentStore,
+    now,
+  });
+  const validationFence = createProjectionValidationFence(
+    scopeAwareDocumentStore,
+  );
+  const documentStore = validationFence.documentStore;
   const operations = createRecallProjectionOperations({
     documentStore,
+    language,
     now,
   });
   const repairs = createRecallProjectionRepairs({
@@ -64,6 +100,8 @@ export function createRecallProjectionRuntime(
     now,
     operations,
     repairs,
+    manifests,
+    validationFence,
   });
 
   return {
@@ -73,6 +111,7 @@ export function createRecallProjectionRuntime(
       now,
       operations,
       repairs,
+      manifests,
       writeThrough: config.writeThrough ?? true,
     }),
     scopeDeletion: createScopeDeletionCoordinator(rawDocumentStore),
@@ -81,6 +120,7 @@ export function createRecallProjectionRuntime(
       await mutationLock.runExclusive(
         [sourceMutationKey("facts", claimInput.sourceMemoryId)],
         async () => {
+          await manifests.invalidate(claimInput);
           try {
             await operations.appendClaimUnsafe(claimInput);
           } catch (error) {

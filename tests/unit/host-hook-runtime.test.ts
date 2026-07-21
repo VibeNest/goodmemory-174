@@ -42,7 +42,7 @@ function createRecallResult(overrides: Partial<RecallResult> = {}): RecallResult
     references: [],
     workingMemory: null,
     metadata: {
-      adapterId: "rules",
+      languagePackId: "en",
       analysisMode: "rules-only",
       candidateTraces: [],
       hits: [],
@@ -1475,7 +1475,7 @@ describe("installed host hook runtime", () => {
                   accepted: 1,
                   events: [],
                   metadata: {
-                    adapterId: "test",
+                    languagePackId: "en",
                     analysisMode: "rules-only",
                     locale: "en",
                     localeSource: "default",

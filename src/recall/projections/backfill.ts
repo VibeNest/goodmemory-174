@@ -9,23 +9,34 @@ import type {
 import {
   RECALL_DOCUMENTS_COLLECTION,
   RECALL_PROJECTION_SOURCE_COLLECTIONS,
+  CLAIM_PROJECTION_STATUS_COLLECTION,
+  PROJECTION_REPAIRS_COLLECTION,
+  PROJECTION_SEARCH_SCHEMA_VERSION,
   SCOPE_CATALOG_COLLECTION,
 } from "./contracts";
 import type {
   RecallIndexDocument,
+  ClaimProjectionStatus,
+  ProjectionRepairRecord,
   RecallProjectionSearchPort,
   RecallProjectionSourceCollection,
   ScopeCatalogProjection,
 } from "./contracts";
 import type { KeyedMutationLock } from "./mutationLock";
+import type { ProjectionManifestTracker } from "./manifest";
 import type { RecallProjectionOperations } from "./operations";
 import type { RecallProjectionCanonicalSource } from "./operations";
 import { resolveProjectionScope } from "./projector";
 import type { RecallProjectionRepairs } from "./repairs";
 import {
+  isProjectionValidationChangedError,
+  type ProjectionValidationFence,
+} from "./validationFence";
+import {
   errorMessage,
   matchesScopeFilter,
   memoryProjectionId,
+  normalizeRecallScope,
   recallScopeKey,
   scopeFilter,
   sourceMutationKey,
@@ -40,24 +51,71 @@ export function createEnsureScopeIndexed(input: {
   now: () => string;
   operations: RecallProjectionOperations;
   repairs: RecallProjectionRepairs;
+  manifests: ProjectionManifestTracker;
+  validationFence: ProjectionValidationFence;
 }): EnsureScopeIndexed {
-  const { documentStore, mutationLock, now, operations, repairs } = input;
+  const {
+    documentStore,
+    manifests,
+    mutationLock,
+    now,
+    operations,
+    repairs,
+    validationFence,
+  } = input;
   const verifiedScopeKeys = new Set<string>();
+
+  async function hasPendingProjectionWork(scope: MemoryScope): Promise<boolean> {
+    const [queriedRepairs, queriedStatuses] = await Promise.all([
+      documentStore.query<ProjectionRepairRecord>(
+        PROJECTION_REPAIRS_COLLECTION,
+        scopeFilter(scope),
+      ),
+      documentStore.query<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        scopeFilter(scope),
+      ),
+    ]);
+    return queriedRepairs.some((repair) => matchesScopeFilter(repair, scope)) ||
+      queriedStatuses.some((status) =>
+        status.state === "failed" && matchesScopeFilter(status, scope)
+      );
+  }
+
+  async function sealValidation(
+    scope: MemoryScope,
+    manifest: Awaited<ReturnType<ProjectionManifestTracker["beginValidation"]>>,
+  ): Promise<boolean> {
+    const sealed = await manifests.completeValidation(manifest);
+    if (!sealed && manifest) {
+      await manifests.invalidate(scope);
+    }
+    return sealed;
+  }
 
   return async function ensureScopeIndexed(scope: MemoryScope) {
     const normalized = normalizeScope(scope);
+    const recallScope = normalizeRecallScope(normalized);
     const requestedScopeKey = recallScopeKey(normalized);
-    const requestedCatalog = await documentStore.get<ScopeCatalogProjection>(
-      SCOPE_CATALOG_COLLECTION,
-      `scope:${requestedScopeKey}`,
-    );
-    if (
-      requestedCatalog?.coverage === "complete" &&
-      verifiedScopeKeys.has(requestedScopeKey)
-    ) {
+    if (await manifests.hasValidProof(normalized)) {
       return { complete: true, indexedSources: 0, skipped: true };
     }
+    const validationManifest = await manifests.beginValidation(normalized);
+    if (!validationManifest) {
+      const requestedCatalog = await documentStore.get<ScopeCatalogProjection>(
+        SCOPE_CATALOG_COLLECTION,
+        `scope:${requestedScopeKey}`,
+      );
+      if (
+        requestedCatalog?.coverage === "complete" &&
+        requestedCatalog.searchSchemaVersion === PROJECTION_SEARCH_SCHEMA_VERSION &&
+        verifiedScopeKeys.has(requestedScopeKey)
+      ) {
+        return { complete: true, indexedSources: 0, skipped: true };
+      }
+    }
 
+    const indexScope = async () => {
     const canonicalSources: RecallProjectionCanonicalSource[] = [];
     const queriedEvidence = await documentStore.query<EvidenceRecord>(
       EVIDENCE_COLLECTION,
@@ -74,6 +132,14 @@ export function createEnsureScopeIndexed(input: {
       }
     }
     for (const collection of RECALL_PROJECTION_SOURCE_COLLECTIONS) {
+      if (
+        collection === "profiles" &&
+        (recallScope.tenantId !== undefined ||
+          recallScope.workspaceId !== undefined ||
+          recallScope.agentId !== undefined)
+      ) {
+        continue;
+      }
       const queriedDocuments = await documentStore.query<StorageDocument>(
         collection,
         collection === "profiles"
@@ -114,9 +180,24 @@ export function createEnsureScopeIndexed(input: {
           normalized,
           canonicalSources,
         );
+        if (
+          validationManifest &&
+          await hasPendingProjectionWork(normalized)
+        ) {
+          await operations.registerScope(normalized, now(), "partial");
+          verifiedScopeKeys.delete(requestedScopeKey);
+          return { complete: false, indexedSources, skipped: false };
+        }
+        if (!await sealValidation(normalized, validationManifest)) {
+          verifiedScopeKeys.delete(requestedScopeKey);
+          return { complete: false, indexedSources, skipped: false };
+        }
         verifiedScopeKeys.add(requestedScopeKey);
         return { complete: true, indexedSources, skipped: false };
       } catch (error) {
+        if (isProjectionValidationChangedError(error)) {
+          throw error;
+        }
         console.error(
           "[goodmemory:recall-projection] bulk scope backfill failed; retrying incrementally",
           {
@@ -150,6 +231,9 @@ export function createEnsureScopeIndexed(input: {
         );
         indexedSources += 1;
       } catch (error) {
+        if (isProjectionValidationChangedError(error)) {
+          throw error;
+        }
         complete = false;
         console.error(
           "[goodmemory:recall-projection] lazy scope backfill failed",
@@ -212,6 +296,9 @@ export function createEnsureScopeIndexed(input: {
             ),
         );
       } catch (error) {
+        if (isProjectionValidationChangedError(error)) {
+          throw error;
+        }
         complete = false;
         await repairs.queue({
           collection: source.collection,
@@ -221,14 +308,55 @@ export function createEnsureScopeIndexed(input: {
         });
       }
     }
+    try {
+      await operations.reconcileClaimScopeUnsafe(normalized, canonicalSources);
+    } catch (error) {
+      if (isProjectionValidationChangedError(error)) {
+        throw error;
+      }
+      complete = false;
+      console.error(
+        "[goodmemory:claim-projection] scope reconciliation failed",
+        {
+          error: errorMessage(error),
+          scopeKey: requestedScopeKey,
+        },
+      );
+    }
 
     if (complete) {
       const timestamp = now();
-      await operations.registerScope(normalized, timestamp, "complete");
-      verifiedScopeKeys.add(requestedScopeKey);
+      if (
+        validationManifest &&
+        await hasPendingProjectionWork(normalized)
+      ) {
+        complete = false;
+        await operations.registerScope(normalized, timestamp, "partial");
+      } else {
+        await operations.registerScope(normalized, timestamp, "complete");
+        complete = await sealValidation(normalized, validationManifest);
+      }
+      if (complete) {
+        verifiedScopeKeys.add(requestedScopeKey);
+      } else {
+        verifiedScopeKeys.delete(requestedScopeKey);
+      }
     } else {
       verifiedScopeKeys.delete(requestedScopeKey);
     }
     return { complete, indexedSources, skipped: false };
+    };
+    if (!validationManifest) {
+      return indexScope();
+    }
+    try {
+      return await validationFence.run(validationManifest, indexScope);
+    } catch (error) {
+      if (!isProjectionValidationChangedError(error)) {
+        throw error;
+      }
+      verifiedScopeKeys.delete(requestedScopeKey);
+      return { complete: false, indexedSources: 0, skipped: false };
+    }
   };
 }

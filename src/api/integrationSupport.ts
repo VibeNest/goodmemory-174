@@ -29,7 +29,8 @@ export interface AgentEventCorrectionResult {
   metadata?: {
     locale: string;
     localeSource: "explicit" | "detected" | "default";
-    adapterId: string;
+    languagePackId: string;
+    languagePackVersion?: string;
     analysisMode: "rules-only";
   };
   proposalReceipts?: AgentEventProposalReceipt[];

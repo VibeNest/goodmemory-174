@@ -303,7 +303,13 @@ export function createLongMemEvalAnswerJudge(
 
 export function createLongMemEvalMemoryFactory(
   createMemory: typeof createGoodMemory,
-  options: { requestTimeoutMs?: number; runNamespace?: string } = {},
+  options: {
+    // Generalized-fusion dynamic-budget floor for fusion-capable profiles;
+    // undefined keeps the preset default (no trimming).
+    fusionMinRelativeStrength?: number;
+    requestTimeoutMs?: number;
+    runNamespace?: string;
+  } = {},
 ): (
   profile:
     | "goodmemory-hybrid"
@@ -351,6 +357,12 @@ export function createLongMemEvalMemoryFactory(
         },
         remember: LONGMEMEVAL_REMEMBER_CONFIG,
         retrieval: {
+          ...(options.fusionMinRelativeStrength !== undefined
+            ? {
+                generalizedFusionMinRelativeStrength:
+                  options.fusionMinRelativeStrength,
+              }
+            : {}),
           preset: "recommended",
         },
         storage: {

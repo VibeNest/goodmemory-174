@@ -20,6 +20,10 @@ import {
   createDeterministicIdGenerator,
 } from "../../src/testing/utils";
 import { createFakeEmbeddingAdapter } from "../../src/testing/fakes";
+import {
+  createLanguageService,
+  createNeutralLanguagePack,
+} from "../../src/language";
 
 function createEngine(overrides: Partial<RememberEngineConfig> = {}) {
   const clock = new DeterministicClock("2026-01-01T00:00:00.000Z");
@@ -517,6 +521,75 @@ describe("remember engine", () => {
       sourceMessageIndex: 0,
       sourceOrder: 42,
     });
+  });
+
+  it("uses LanguagePack temporal expressions when tagging preserved source events", async () => {
+    const neutral = createNeutralLanguagePack();
+    const language = createLanguageService({
+      defaultLocale: "xx",
+      packs: [{
+        ...neutral,
+        analyzerVersion: "sentinel-v1",
+        compatibilityGroup: "xx",
+        defaultLocale: "xx",
+        detect: () => "distinctive",
+        id: "xx-sentinel",
+        locales: ["xx"],
+        parseTemporalExpressions: (text) =>
+          text.includes("zor")
+            ? [{ kind: "absolute", raw: "zor" }]
+            : [],
+      }],
+    });
+    const scope = { userId: "u-sentinel-temporal" };
+    const { engine, repositories } = createEngine({
+      language,
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    await engine.remember({
+      annotations: [{
+        messageIndex: 0,
+        metadataPatch: { category: "event" },
+        remember: "always",
+        verified: true,
+      }],
+      locale: "xx",
+      messages: [{ role: "user", content: "zor" }],
+      scope,
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts[0]?.tags).toContain("dated_event");
+  });
+
+  it("keeps structured source time markers in the language temporal contract", async () => {
+    const scope = { userId: "u-source-time-marker" };
+    const { engine, repositories } = createEngine({
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    await engine.remember({
+      annotations: [{
+        messageIndex: 0,
+        metadataPatch: { category: "event" },
+        remember: "always",
+        verified: true,
+      }],
+      messages: [{ role: "user", content: "[time=Jan] source event" }],
+      scope,
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+    expect(facts[0]?.tags).toContain("dated_event");
   });
 
   it("merges source-message provenance into exact extracted remember-always candidates", async () => {
@@ -1104,6 +1177,137 @@ describe("remember engine", () => {
     expect(assistedCalls).toBe(0);
   });
 
+  it("uses LanguagePack durable cues for auto-assisted extraction", async () => {
+    const neutral = createNeutralLanguagePack();
+    const language = createLanguageService({
+      defaultLocale: "xx",
+      packs: [{
+        ...neutral,
+        analyzerVersion: "sentinel-v1",
+        compatibilityGroup: "xx",
+        defaultLocale: "xx",
+        detect: () => "distinctive",
+        id: "xx-sentinel",
+        locales: ["xx"],
+        analyzeContent: (text) => ({
+          ...neutral.analyzeContent(text),
+          durableCue: text.includes("zor"),
+        }),
+      }],
+    });
+    let assistedCalls = 0;
+    const { engine } = createEngine({
+      language,
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          assistedCalls += 1;
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    const result = await engine.remember({
+      locale: "xx",
+      messages: [{ role: "user", content: "zor" }],
+      scope: { userId: "u-sentinel-durable" },
+    });
+
+    expect(assistedCalls).toBe(1);
+    expect(result.metadata?.resolvedExtractionStrategy).toBe("llm-assisted");
+  });
+
+  it("uses LanguagePack source-of-truth semantics when normalizing assisted candidates", async () => {
+    const scope = { userId: "u-sentinel-reference" };
+    const neutral = createNeutralLanguagePack();
+    const language = createLanguageService({
+      defaultLocale: "xx",
+      packs: [{
+        ...neutral,
+        analyzerVersion: "sentinel-v1",
+        compatibilityGroup: "xx",
+        defaultLocale: "xx",
+        detect: () => "distinctive",
+        id: "xx-sentinel",
+        locales: ["xx"],
+        analyzeContent: (text) => ({
+          ...neutral.analyzeContent(text),
+          sourceOfTruthDirective: text.includes("zor")
+            ? {
+                currentPointer: "docs/current.md",
+                supersededPointer: "docs/old.md",
+              }
+            : undefined,
+        }),
+      }],
+    });
+    const { engine, repositories } = createEngine({
+      language,
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [{
+              content: "zor docs/current.md zed docs/old.md",
+              explicitness: "explicit",
+              id: "sentinel-reference",
+              kindHint: "preference",
+              metadata: {
+                preferenceCategory: "workflow",
+                preferenceValue: "zor docs/current.md zed docs/old.md",
+              },
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            }],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+    });
+    await repositories.references.add(
+      createReferenceMemory({
+        createdAt: "2025-12-31T00:00:00.000Z",
+        id: "sentinel-old-reference",
+        lifecycle: "active",
+        pointer: "docs/old.md",
+        referenceKind: "source_of_truth",
+        source: {
+          extractedAt: "2025-12-31T00:00:00.000Z",
+          method: "explicit",
+        },
+        title: "old.md",
+        updatedAt: "2025-12-31T00:00:00.000Z",
+        userId: scope.userId,
+      }),
+    );
+
+    await engine.remember({
+      extractionStrategy: "llm-assisted",
+      locale: "xx",
+      messages: [{
+        role: "user",
+        content: "zor docs/current.md zed docs/old.md",
+      }],
+      scope,
+    });
+
+    const references = await repositories.references.listByScope(scope);
+    expect(
+      references.find((reference) => reference.lifecycle === "active"),
+    ).toMatchObject({ pointer: "docs/current.md" });
+    expect(
+      references.find((reference) => reference.lifecycle === "superseded"),
+    ).toMatchObject({ pointer: "docs/old.md" });
+  });
+
   it("canonicalizes llm-assisted profile names and reference pointers before durable write", async () => {
     const scope = {
       userId: "u-llm-canonical",
@@ -1304,6 +1508,80 @@ describe("remember engine", () => {
 
     const profile = await repositories.profiles.get(scope.userId);
     expect(profile?.identity.name).toBe("Theo");
+  });
+
+  it("does not replace a canonical Japanese name with the source sentence", async () => {
+    const scope = { userId: "u-ja-assisted-name" };
+    const { engine, repositories } = createEngine({
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [{
+              content: "太郎",
+              explicitness: "explicit",
+              id: "ja-profile-name",
+              kindHint: "profile",
+              metadata: { profileField: "name" },
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            }],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    await engine.remember({
+      extractionStrategy: "llm-assisted",
+      locale: "ja-JP",
+      messages: [{ role: "user", content: "私の名前は太郎です" }],
+      scope,
+    });
+
+    const profile = await repositories.profiles.get(scope.userId);
+    expect(profile?.identity.name).toBe("太郎");
+  });
+
+  it("does not replace a canonical Chinese name with the source sentence", async () => {
+    const scope = { userId: "u-zh-assisted-name" };
+    const { engine, repositories } = createEngine({
+      assistedExtractor: {
+        async extract() {
+          return {
+            candidates: [{
+              content: "李雷",
+              explicitness: "explicit",
+              id: "zh-profile-name",
+              kindHint: "profile",
+              metadata: { profileField: "name" },
+              sourceMessageIndex: 0,
+              sourceRole: "user",
+            }],
+            ignoredMessageCount: 0,
+          };
+        },
+      },
+      extractor: {
+        async extract() {
+          return { candidates: [], ignoredMessageCount: 0 };
+        },
+      },
+    });
+
+    await engine.remember({
+      extractionStrategy: "llm-assisted",
+      locale: "zh-CN",
+      messages: [{ role: "user", content: "我叫李雷" }],
+      scope,
+    });
+
+    const profile = await repositories.profiles.get(scope.userId);
+    expect(profile?.identity.name).toBe("李雷");
   });
 
   it("matches superseded source-of-truth references by canonical pointer even when the old pointer was stored as a sentence", async () => {
@@ -1995,6 +2273,36 @@ describe("remember engine", () => {
 
     expect(facts).toHaveLength(1);
     expect(facts[0]?.source.method).toBe("explicit");
+  });
+
+  it("persists locale and analyzer identity on memories and their evidence", async () => {
+    const scope = {
+      userId: "u-language-provenance",
+      sessionId: "s-language-provenance",
+    };
+    const { engine, repositories } = createEngine();
+
+    await engine.remember({
+      locale: "ja-JP",
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "覚えておいて、現在のブロッカーは承認待ちです。",
+        },
+      ],
+    });
+
+    const facts = await repositories.facts.listByScope(scope);
+    const evidence = await repositories.evidence.listByScope(scope);
+    const expectedLanguage = {
+      locale: "ja-JP",
+      localeSource: "explicit",
+      languagePackId: "ja",
+      languagePackVersion: "3",
+    };
+    expect(facts[0]?.source).toMatchObject(expectedLanguage);
+    expect(evidence[0]?.source).toMatchObject(expectedLanguage);
   });
 
   it("strengthens duplicate references with assisted referenceKind and provenance", async () => {

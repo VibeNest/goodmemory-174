@@ -32,9 +32,12 @@ import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
   ENTITIES_COLLECTION,
+  PROJECTION_MANIFESTS_COLLECTION,
   PROJECTION_REPAIRS_COLLECTION,
   RECALL_DOCUMENTS_COLLECTION,
   SCOPE_CATALOG_COLLECTION,
+  type EntityAdjacencyProjection,
+  type RecallIndexDocument,
 } from "../../src/recall/projections/contracts";
 
 describe("public governance API", () => {
@@ -624,6 +627,7 @@ describe("public governance API", () => {
       RECALL_DOCUMENTS_COLLECTION,
       ENTITIES_COLLECTION,
       SCOPE_CATALOG_COLLECTION,
+      PROJECTION_MANIFESTS_COLLECTION,
       PROJECTION_REPAIRS_COLLECTION,
       CLAIM_PROJECTIONS_COLLECTION,
       CLAIM_PROJECTION_STATUS_COLLECTION,
@@ -640,6 +644,90 @@ describe("public governance API", () => {
     expect(JSON.stringify(await Promise.all(projectionCollections.map((collection) =>
       documentStore.query(collection, {})
     )))).not.toContain("sensitive-object-text");
+  });
+
+  it("deletes legacy session entity edges through their projected memory IDs", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+      testing: {
+        extractor: {
+          async extract(input) {
+            return {
+              candidates: [{
+                id: "candidate-sensitive-northwind",
+                kindHint: "fact" as const,
+                explicitness: "explicit" as const,
+                content: input.messages[0]?.content ?? "",
+                sourceMessageIndex: 0,
+                sourceRole: "user",
+                extractorIds: ["test-entity-delete-v1"],
+                metadata: {
+                  subject: "Northwind API",
+                  tags: ["Northwind", "Paris"],
+                  claim: {
+                    predicateKey: "project.status",
+                    objectText: "blocked in Paris",
+                  },
+                },
+              }],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+      },
+    });
+    const scope = {
+      userId: "u-legacy-entity-delete",
+      workspaceId: "workspace-a",
+      sessionId: "s-1",
+    };
+    await memory.remember({
+      scope,
+      messages: [{
+        id: "message-sensitive-northwind",
+        role: "user",
+        content: "Sensitive Northwind API is blocked in Paris.",
+      }],
+    });
+    const recallDocuments = await documentStore.query<RecallIndexDocument>(
+      RECALL_DOCUMENTS_COLLECTION,
+      scope,
+    );
+    const memoryIds = new Set(recallDocuments.map((document) =>
+      `${document.sourceCollection}:${document.sourceMemoryId}`
+    ));
+    const entityEdges = (
+      await documentStore.query<EntityAdjacencyProjection>(ENTITIES_COLLECTION, {
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+      })
+    ).filter((edge) => memoryIds.has(edge.memoryId));
+    expect(recallDocuments.length).toBeGreaterThan(0);
+    expect(entityEdges.length).toBeGreaterThan(0);
+
+    for (const edge of entityEdges) {
+      const { sessionId: _sessionId, ...legacyEdge } = edge;
+      await documentStore.set(ENTITIES_COLLECTION, edge.id, legacyEdge);
+    }
+    for (const fact of await documentStore.query<{ id: string }>("facts", scope)) {
+      await documentStore.delete("facts", fact.id);
+    }
+
+    await memory.deleteAllMemory({ scope });
+
+    const remainingEdges = await documentStore.query<EntityAdjacencyProjection>(
+      ENTITIES_COLLECTION,
+      { userId: scope.userId, workspaceId: scope.workspaceId },
+    );
+    expect(
+      remainingEdges.filter((edge) => memoryIds.has(edge.memoryId)),
+    ).toEqual([]);
+    expect(JSON.stringify(remainingEdges)).not.toContain("Sensitive Northwind");
   });
 
   it("rejects a cross-runtime scoped write while deleteAllMemory is in progress", async () => {

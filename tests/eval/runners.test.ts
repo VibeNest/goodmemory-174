@@ -164,7 +164,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "rules-only" as const,
@@ -330,7 +330,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "rules-only" as const,
@@ -543,7 +543,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "rules-only" as const,
@@ -896,7 +896,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "rules-only" as const,
@@ -1195,7 +1195,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "rules-only" as const,
@@ -1346,7 +1346,7 @@ describe("eval runners", () => {
           metadata: {
             locale: "en-US",
             localeSource: "default" as const,
-            adapterId: "english",
+            languagePackId: "en",
             analysisMode: "rules-only" as const,
             requestedExtractionStrategy: "auto" as const,
             resolvedExtractionStrategy: "llm-assisted" as const,
@@ -1479,7 +1479,7 @@ describe("eval runners", () => {
     expect(result.trace.rememberEvents[0]?.metadata).toEqual({
       locale: "en-US",
       localeSource: "default",
-      adapterId: "english",
+      languagePackId: "en",
       analysisMode: "rules-only",
       requestedExtractionStrategy: "auto",
       resolvedExtractionStrategy: "llm-assisted",
@@ -1517,7 +1517,7 @@ describe("eval runners", () => {
             metadata: {
               locale: "en-US",
               localeSource: "default" as const,
-              adapterId: "english",
+              languagePackId: "en",
               analysisMode: "rules-only" as const,
               requestedExtractionStrategy: "auto" as const,
               resolvedExtractionStrategy: "rules-only" as const,

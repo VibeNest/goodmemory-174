@@ -8,6 +8,17 @@ import {
 import { planRecall } from "../../src/recall/router";
 
 describe("context builder output modes", () => {
+  it("keeps CJK-only sections within per-call token budgets", () => {
+    const rendered = renderMemoryPacket(
+      { factSummary: "記憶".repeat(20) },
+      "markdown",
+      10,
+    );
+
+    expect(rendered.estimatedTokens).toBeLessThanOrEqual(10);
+    expect(rendered.content).toStartWith("## Facts\n");
+  });
+
   it("enforces the packet maxRenderedTokens limit even for one oversized section", () => {
     const packet = buildMemoryPacket({
       profile: null,
@@ -814,5 +825,79 @@ describe("context builder output modes", () => {
     expect(markdown.content).toContain("当前可立即推进的下一步:");
     expect(markdown.content).toContain("后续待跟进事项:");
     expect(markdown.content).not.toContain("Immediate next-step support:");
+  });
+
+  it("renders Traditional Chinese and Japanese human-readable packet labels", () => {
+    const traditional = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [{
+        id: "fact-hant",
+        userId: "u-hant",
+        category: "project",
+        content: "目前的阻礙是供應商審批。",
+        confidence: 1,
+        importance: 1,
+        source: {
+          method: "explicit",
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          locale: "zh-TW",
+        },
+        factKind: "blocker",
+        scopeKind: "project",
+        accessCount: 0,
+        lifecycle: "active",
+        isActive: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: null,
+      journal: null,
+      locale: "zh-TW",
+    });
+    const traditionalMarkdown = renderMemoryPacket(traditional, "markdown");
+    expect(traditionalMarkdown.content).toContain("## 事實");
+    expect(traditionalMarkdown.content).toContain("目前的阻礙是供應商審批。");
+
+    const japanese = buildMemoryPacket({
+      profile: null,
+      preferences: [],
+      references: [],
+      facts: [],
+      feedback: [],
+      archives: [],
+      evidence: [],
+      episodes: [],
+      workingMemory: {
+        sessionId: "s-ja",
+        userId: "u-ja",
+        currentGoal: "移行を完了する",
+        openLoops: ["最終確認"],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      journal: {
+        sessionId: "s-ja",
+        userId: "u-ja",
+        currentState: "レビュー中",
+        worklog: [],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      locale: "ja-JP",
+    });
+    const japaneseMarkdown = renderMemoryPacket(japanese, "markdown");
+    expect(japaneseMarkdown.content).toContain("## 作業メモリ");
+    expect(japaneseMarkdown.content).toContain("現在の目標: 移行を完了する");
+    expect(japaneseMarkdown.content).toContain("## セッションジャーナル");
+    const japaneseJson = JSON.parse(
+      renderMemoryPacket(japanese, "json").content,
+    ) as Record<string, unknown>;
+    expect(japaneseJson.locale).toBe("ja-JP");
+    expect(japaneseJson.languagePackId).toBe("ja");
+    expect(japaneseJson.renderLabels).toBeUndefined();
   });
 });

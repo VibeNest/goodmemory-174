@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { createFactMemory, type FactMemory } from "../../src/domain/records";
 import type { RecallResult } from "../../src/api/contracts";
-import { iterativeRecall } from "../../src/recall/iterativeRecall";
+import {
+  extractBridgeEntities,
+  iterativeRecall,
+} from "../../src/recall/iterativeRecall";
+import { createLanguageService } from "../../src/language";
 
 function fact(id: string, content: string): FactMemory {
   return createFactMemory({
@@ -50,6 +54,46 @@ describe("iterativeRecall multi-hop upgrade", () => {
   const distractor = fact("d", "The cafeteria menu changes weekly.");
   const corpus = [start, mid, end, distractor];
   const query = "Tell me about the project leadership";
+
+  it("does not turn timestamps, contractions, or a query possessive into bridges", () => {
+    const bridges = extractBridgeEntities({
+      facts: [{
+        content:
+          "[2022-10-06T11:00:00.000Z] Joanna's book names Redemption as its central theme. I'm writing about it.",
+      }],
+      query: "What themes are explored in Joanna's book?",
+    });
+
+    expect(bridges).toContain("Redemption");
+    expect(bridges).not.toContain("Joanna's");
+    expect(bridges).not.toContain("I'm");
+    expect(
+      bridges.some((bridge) => /^(?:00|000Z|\d{4}-\d{2})/u.test(bridge)),
+    ).toBe(false);
+  });
+
+  it("accepts LanguagePack analysis for Japanese bridge entities", () => {
+    const language = createLanguageService({ defaultLocale: "ja-JP" });
+    const context = language.resolveFromText({
+      locale: "ja-JP",
+      text: "田中さんは佐藤さんに報告します。",
+    });
+
+    const bridges = extractBridgeEntities({
+      analyzeBridgeText(text) {
+        return {
+          entities: language.extractEntityMentions(text, context).map(
+            (mention) => mention.surface,
+          ),
+          tokens: language.tokenize(text, context, { excludeStopwords: true }),
+        };
+      },
+      facts: [{ content: "プロジェクト責任者は田中さんです。" }],
+      query: "プロジェクト責任者は誰ですか？",
+    });
+
+    expect(bridges).toContain("田中さん");
+  });
 
   it("default two passes reach the first bridge but not the second", async () => {
     const outcome = await iterativeRecall({ query, recall: lexicalRecall(corpus) });

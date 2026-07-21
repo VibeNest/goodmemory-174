@@ -1,11 +1,47 @@
 import { describe, expect, it } from "bun:test";
-import { createGoodMemory } from "../../src";
+import {
+  createGoodMemory,
+  createNeutralLanguagePack,
+  type LanguagePack,
+} from "../../src";
 import {
   createInMemoryDocumentStore,
   createInMemorySessionStore,
 } from "../../src/storage/memory";
 
 describe("public feedback API", () => {
+  it("normalizes persisted feedback with its own language pack", async () => {
+    const base = createNeutralLanguagePack();
+    const sourcePack: LanguagePack = {
+      ...base,
+      compatibilityGroup: "test-canonical",
+      defaultLocale: "eo",
+      id: "test-source",
+      locales: ["eo"],
+      normalizeForEquality: (text) => text.toLowerCase().replaceAll("colour", "color"),
+    };
+    const incomingPack: LanguagePack = {
+      ...base,
+      compatibilityGroup: "test-canonical",
+      defaultLocale: "vo",
+      id: "test-incoming",
+      locales: ["vo"],
+      normalizeForEquality: (text) => text.toLowerCase(),
+    };
+    const memory = createGoodMemory({
+      language: { packs: [sourcePack, incomingPack] },
+      storage: { provider: "memory" },
+    });
+    const scope = { userId: "u-language-pack", workspaceId: "workspace-a" };
+
+    const first = await memory.feedback({ locale: "eo", scope, signal: "colour" });
+    const second = await memory.feedback({ locale: "vo", scope, signal: "color" });
+
+    expect(first.outcome).toBe("written");
+    expect(second.outcome).toBe("merged");
+    expect(second.memoryId).toBe(first.memoryId);
+  });
+
   it("writes procedural memory without going through remember()", async () => {
     const documentStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

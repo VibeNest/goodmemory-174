@@ -14,7 +14,10 @@ import {
   EXPERIENCES_COLLECTION,
   type ExperienceRecord,
 } from "../evolution/contracts";
-import type { LanguageService } from "../language";
+import type {
+  LanguageService,
+  ResolvedLanguageContext,
+} from "../language";
 import { scopeToKey, type MemoryScope } from "../domain/scope";
 import type {
   AgentEventCorrectionResult,
@@ -257,7 +260,7 @@ async function applyAgentEventPolicy(input: {
   text: string;
 }): Promise<{
   content: string;
-  locale: string;
+  language: ResolvedLanguageContext;
   policyApplied: string[];
   shouldPersist: boolean;
 }> {
@@ -293,7 +296,7 @@ async function applyAgentEventPolicy(input: {
   if (candidate.content.length === 0) {
     return {
       content: "",
-      locale: resolvedLanguage.locale,
+      language: resolvedLanguage,
       policyApplied: buildPolicyApplied(input.event, redacted),
       shouldPersist: false,
     };
@@ -305,7 +308,7 @@ async function applyAgentEventPolicy(input: {
   ) {
     return {
       content: candidate.content,
-      locale: resolvedLanguage.locale,
+      language: resolvedLanguage,
       policyApplied: buildPolicyApplied(input.event, redacted),
       shouldPersist: false,
     };
@@ -313,7 +316,7 @@ async function applyAgentEventPolicy(input: {
 
   return {
     content: candidate.content,
-    locale: resolvedLanguage.locale,
+    language: resolvedLanguage,
     policyApplied: buildPolicyApplied(input.event, redacted),
     shouldPersist: true,
   };
@@ -386,7 +389,7 @@ function resolveUserCorrectionAppliesTo(
 function buildEvidence(input: {
   event: ExternalAgentEvent;
   excerpt: string;
-  locale: string;
+  language: ResolvedLanguageContext;
   now: string;
 }): EvidenceRecord | undefined {
   const kind = resolveEvidenceKind(input.event);
@@ -407,7 +410,10 @@ function buildEvidence(input: {
       method: "explicit",
       extractedAt: input.now,
       sessionId: input.event.scope.sessionId,
-      locale: input.locale,
+      locale: input.language.locale,
+      localeSource: input.language.localeSource,
+      languagePackId: input.language.languagePackId,
+      languagePackVersion: input.language.languagePackVersion,
     }),
     ...(input.event.kind === "file_edit"
       ? { sourceUri: input.event.relativePath }
@@ -489,7 +495,7 @@ export function createAgentEventIngestor(
       const evidence = buildEvidence({
         event,
         excerpt: policyResult.content,
-        locale: policyResult.locale,
+        language: policyResult.language,
         now: timestamp,
       });
       const persistedArtifacts = await readPersistedEventArtifacts(input.documentStore, {
@@ -522,7 +528,7 @@ export function createAgentEventIngestor(
               appliesTo: resolveUserCorrectionAppliesTo(event),
               scope: event.scope,
               signal: policyResult.content,
-              locale: policyResult.locale,
+              locale: policyResult.language.locale,
               ...(evidence ? { evidenceIds: [evidence.id] } : {}),
               traceId: event.eventId,
             });

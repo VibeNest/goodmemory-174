@@ -292,6 +292,12 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
           to_tsvector('simple', COALESCE(document ->> 'text', ''))
         )
       `);
+      await sql.unsafe(`
+        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_search_text_search_idx")}
+        ON ${documentTable} USING GIN (
+          to_tsvector('simple', COALESCE(document ->> 'searchText', ''))
+        )
+      `);
     }),
     ensureSessionStore: createInitializer(async () => {
       await ensureSchema();
@@ -617,7 +623,12 @@ export function createPostgresDocumentStore(
         await runtime.ensureDocumentStore();
       }
       const searchTerms = buildPostgresDocumentSearchTerms(input.query);
-      if (input.field === "text") {
+      const indexedSearchExpression = input.field === "text"
+        ? "to_tsvector('simple', COALESCE(document ->> 'text', ''))"
+        : input.field === "searchText"
+          ? "to_tsvector('simple', COALESCE(document ->> 'searchText', ''))"
+          : null;
+      if (indexedSearchExpression) {
         const values: unknown[] = [collection, searchTerms.tsQuery];
         const filterClause = buildJsonbFilterClause(
           "document",
@@ -631,15 +642,12 @@ export function createPostgresDocumentStore(
               id,
               document::text AS document_json,
               ts_rank(
-                to_tsvector('simple', COALESCE(document ->> 'text', '')),
+                ${indexedSearchExpression},
                 to_tsquery('simple', $2)
               ) AS score
             FROM ${runtime.documentTable}
             WHERE collection = $1${filterClause}
-              AND to_tsvector(
-                'simple',
-                COALESCE(document ->> 'text', '')
-              ) @@ to_tsquery('simple', $2)
+              AND ${indexedSearchExpression} @@ to_tsquery('simple', $2)
             ORDER BY score DESC, id ASC
             LIMIT $${values.length}
           `,

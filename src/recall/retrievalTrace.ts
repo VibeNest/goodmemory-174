@@ -88,6 +88,7 @@ export interface RecallRetrievalTraceV1 extends RecallRetrievalTraceBase {
 
 export interface RecallQueryExecutionTrace {
   hops: IterativeRecallStep[];
+  plan?: RecallPlan;
   query: string;
   role: "primary" | "subquery";
   stopReason: IterativeRecallStopReason | "single_pass_complete";

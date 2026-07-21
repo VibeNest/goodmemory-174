@@ -155,6 +155,15 @@ describe("provider recall plan assistant", () => {
     expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
       "Omit a field instead of returning null or an unlisted value.",
     );
+    expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
+      "complete standalone retrieval query",
+    );
+    expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
+      "never a bare noun label",
+    );
+    expect(RECALL_PLAN_ASSISTANT_SYSTEM_PROMPT).toContain(
+      "Do not raise maxHops above the deterministic plan",
+    );
   });
 
   it("rejects provider attempts to override fixed retrieval budgets", () => {

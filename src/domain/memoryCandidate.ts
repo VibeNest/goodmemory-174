@@ -1,5 +1,5 @@
 // The memory-candidate / extraction contract. These types live in domain/ (a
-// dependency leaf) so language adapters and policy hooks can reference the
+// dependency leaf) so language packs and policy hooks can reference the
 // candidate shape without importing remember/ — keeping language ↛ remember and
 // policy ↛ remember acyclic. The remember pipeline re-exports them from
 // remember/candidates for backward compatibility. See

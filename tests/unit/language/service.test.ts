@@ -1,5 +1,41 @@
 import { describe, expect, it } from "bun:test";
-import { createLanguageService } from "../../../src/language";
+import {
+  createLanguageService,
+  createNeutralLanguagePack,
+} from "../../../src/language";
+import type {
+  LanguagePack,
+  LanguageQueryAnalysis,
+} from "../../../src/language";
+
+function emptyQueryAnalysis(): LanguageQueryAnalysis {
+  return {
+    actionDriving: false,
+    after: false,
+    aggregateCount: false,
+    answerComposition: false,
+    assistantEvidenceRecall: false,
+    before: false,
+    blocker: false,
+    change: false,
+    continuation: false,
+    current: false,
+    directFactualLookup: false,
+    exhaustiveList: false,
+    factConfirmation: false,
+    focus: false,
+    guidanceSeeking: false,
+    history: false,
+    openLoop: false,
+    procedural: false,
+    projectState: false,
+    recommendationStyle: false,
+    relation: false,
+    referenceSeeking: false,
+    role: false,
+    userGroundedEventOrder: false,
+  };
+}
 
 describe("language service", () => {
   it("prefers explicit locale over detection", () => {
@@ -14,7 +50,7 @@ describe("language service", () => {
 
     expect(resolved.locale).toBe("zh-CN");
     expect(resolved.localeSource).toBe("explicit");
-    expect(resolved.adapterId).toBe("zh");
+    expect(resolved.languagePackId).toBe("zh-Hans");
   });
 
   it("detects Chinese automatically when no locale is provided", () => {
@@ -26,7 +62,7 @@ describe("language service", () => {
 
     expect(resolved.locale).toBe("zh-CN");
     expect(resolved.localeSource).toBe("detected");
-    expect(resolved.adapterId).toBe("zh");
+    expect(resolved.languagePackId).toBe("zh-Hans");
   });
 
   it("keeps Chinese locale when the sentence mixes Han text with ASCII paths", () => {
@@ -37,7 +73,431 @@ describe("language service", () => {
     });
 
     expect(resolved.locale).toBe("zh-CN");
-    expect(resolved.adapterId).toBe("zh");
+    expect(resolved.languagePackId).toBe("zh-Hans");
+  });
+
+  it("resolves Traditional Chinese and Japanese without central heuristics", () => {
+    const service = createLanguageService();
+
+    const traditional = service.resolveFromText({
+      text: "請記住我偏好繁體中文回覆。",
+    });
+    expect(traditional.locale).toBe("zh-Hant");
+    expect(traditional.languagePackId).toBe("zh-Hant");
+    expect(traditional.localeSource).toBe("detected");
+
+    const japanese = service.resolveFromText({
+      text: "現在のブロッカーは何ですか？",
+    });
+    expect(japanese.locale).toBe("ja-JP");
+    expect(japanese.languagePackId).toBe("ja");
+    expect(japanese.localeSource).toBe("detected");
+  });
+
+  it("uses the configured default for Han-only ambiguous text", () => {
+    const service = createLanguageService({
+      defaultLocale: "ja-JP",
+    });
+
+    const resolved = service.resolveFromText({
+      text: "田中東京大学",
+    });
+
+    expect(resolved.locale).toBe("ja-JP");
+    expect(resolved.localeSource).toBe("default");
+    expect(resolved.languagePackId).toBe("ja");
+  });
+
+  it("maps explicit Chinese region locales to the correct script pack", () => {
+    const service = createLanguageService();
+
+    expect(service.resolveFromText({ locale: "zh-TW", text: "中文" })).toMatchObject({
+      languagePackId: "zh-Hant",
+      locale: "zh-TW",
+      localeSource: "explicit",
+    });
+    expect(service.resolveFromText({ locale: "zh-SG", text: "中文" })).toMatchObject({
+      languagePackId: "zh-Hans",
+      locale: "zh-SG",
+      localeSource: "explicit",
+    });
+  });
+
+  it("uses neutral semantics for unsupported locales instead of English", () => {
+    const service = createLanguageService();
+    const resolved = service.resolveFromText({
+      locale: "fr-FR",
+      text: "What is the current blocker?",
+    });
+
+    expect(resolved.languagePackId).toBe("neutral");
+    expect(service.isBlockerQuery("What is the current blocker?", resolved)).toBe(
+      false,
+    );
+  });
+
+  it("keeps a custom neutral fallback identity consistent with its manifest", () => {
+    const neutral: LanguagePack = {
+      ...createNeutralLanguagePack(),
+      analyzerVersion: "2-custom-neutral",
+    };
+    const service = createLanguageService({ packs: [neutral] });
+    const resolved = service.resolveFromText({
+      locale: "fr-FR",
+      text: "mémoire durable",
+    });
+
+    expect(resolved).toMatchObject({
+      languagePackId: "neutral",
+      languagePackVersion: "2-custom-neutral",
+    });
+    expect(service.analyzerVersion(resolved)).toBe("2-custom-neutral");
+    expect(
+      service.getAnalyzerManifest().packs.filter(({ id }) => id === "neutral"),
+    ).toEqual([
+      expect.objectContaining({ analyzerVersion: "2-custom-neutral" }),
+    ]);
+  });
+
+  it("exposes a stable, sorted analyzer manifest for persistent projections", () => {
+    const service = createLanguageService({
+      defaultLocale: "zh-TW",
+      detection: "default_only",
+    });
+
+    const manifest = service.getAnalyzerManifest();
+
+    expect(manifest).toMatchObject({
+      defaultLocale: "zh-TW",
+      detection: "default_only",
+      persistable: true,
+      resolutionOrder: ["en", "zh-Hans", "zh-Hant", "ja", "neutral"],
+      resolverVersion: "1",
+      schemaVersion: 1,
+    });
+    expect(manifest.packs.map(({ id }) => id)).toEqual([
+      "en",
+      "ja",
+      "neutral",
+      "zh-Hans",
+      "zh-Hant",
+    ]);
+    expect(
+      manifest.packs.find(({ id }) => id === "zh-Hant"),
+    ).toMatchObject({
+      analyzerVersion: "5-opencc-t2cn-1.4.1",
+      apiVersion: 1,
+      compatibilityGroup: "zh",
+      defaultLocale: "zh-Hant",
+      locales: ["zh-Hant", "zh-HK", "zh-MO", "zh-TW"],
+    });
+    expect(JSON.stringify(service.getAnalyzerManifest())).toBe(
+      JSON.stringify(manifest),
+    );
+  });
+
+  it("fails persistent manifest eligibility for an unversioned custom detector", () => {
+    const detector = () => "ja-JP";
+
+    expect(
+      createLanguageService({ detector }).getAnalyzerManifest(),
+    ).toMatchObject({ persistable: false });
+    expect(
+      createLanguageService({
+        detector,
+        detectorVersion: "host-locale-router-v2",
+      }).getAnalyzerManifest(),
+    ).toMatchObject({
+      detectorVersion: "host-locale-router-v2",
+      persistable: true,
+    });
+    expect(
+      createLanguageService({
+        detection: "default_only",
+        detector,
+      }).getAnalyzerManifest(),
+    ).toMatchObject({ persistable: true });
+  });
+
+  it("snapshots detector identity together with detector behavior", () => {
+    const config = {
+      detector: () => "ja-JP",
+      detectorVersion: "detector-v1",
+    };
+    const service = createLanguageService(config);
+    const originalManifest = JSON.stringify(service.getAnalyzerManifest());
+
+    config.detector = () => "zh-TW";
+    config.detectorVersion = "detector-v2";
+
+    expect(service.resolveFromText({ text: "ambiguous" })).toMatchObject({
+      languagePackId: "ja",
+      locale: "ja-JP",
+    });
+    expect(service.getAnalyzerManifest().detectorVersion).toBe("detector-v1");
+    expect(JSON.stringify(service.getAnalyzerManifest())).toBe(originalManifest);
+  });
+
+  it("canonicalizes custom pack locales for both runtime and manifest", () => {
+    const pack: LanguagePack = {
+      ...createNeutralLanguagePack(),
+      analyzerVersion: "custom-v1",
+      compatibilityGroup: "eo",
+      defaultLocale: "eo-latn-us",
+      detect: () => "distinctive",
+      id: "eo-test",
+      locales: ["eo-latn-us"],
+    };
+    const service = createLanguageService({ packs: [pack] });
+
+    expect(service.resolveFromText({ text: "saluton" })).toMatchObject({
+      languagePackId: "eo-test",
+      locale: "eo-Latn-US",
+    });
+    expect(
+      service.getAnalyzerManifest().packs.find(({ id }) => id === "eo-test"),
+    ).toMatchObject({
+      defaultLocale: "eo-Latn-US",
+      locales: ["eo-Latn-US"],
+    });
+  });
+
+  it("rejects empty custom pack identity instead of proving it as und", () => {
+    expect(() =>
+      createLanguageService({
+        packs: [{
+          ...createNeutralLanguagePack(),
+          defaultLocale: " ",
+          id: "empty-default-locale",
+          locales: ["eo"],
+        }],
+      })
+    ).toThrow("defaultLocale");
+  });
+
+  it("rejects custom pack locales shadowed by the final registry order", () => {
+    expect(() =>
+      createLanguageService({
+        packs: [{
+          ...createNeutralLanguagePack(),
+          compatibilityGroup: "ja-region",
+          defaultLocale: "ja-JP",
+          id: "ja-region",
+          locales: ["ja-JP"],
+        }],
+      })
+    ).toThrow("ja-region");
+  });
+
+  it("rejects a pack default locale that does not route back to that pack", () => {
+    expect(() =>
+      createLanguageService({
+        packs: [{
+          ...createNeutralLanguagePack(),
+          compatibilityGroup: "eo",
+          defaultLocale: "fr-FR",
+          id: "eo-test",
+          locales: ["eo"],
+        }],
+      })
+    ).toThrow("eo-test");
+  });
+
+  it("rejects built-in overrides that drop required locale ownership", () => {
+    expect(() =>
+      createLanguageService({
+        packs: [{
+          ...createNeutralLanguagePack(),
+          compatibilityGroup: "zh",
+          defaultLocale: "xx",
+          id: "zh-Hans",
+          locales: ["xx"],
+        }],
+      })
+    ).toThrow("zh-Hans");
+  });
+
+  it("rejects malformed required locales before exposing a manifest", () => {
+    expect(() => createLanguageService({ defaultLocale: "also_bad" })).toThrow(
+      "defaultLocale",
+    );
+    expect(() =>
+      createLanguageService({
+        packs: [{
+          ...createNeutralLanguagePack(),
+          defaultLocale: "not a locale",
+          id: "invalid-locale",
+          locales: ["not a locale"],
+        }],
+      })
+    ).toThrow("invalid-locale");
+  });
+
+  it("registers a complete custom pack without changing the service", () => {
+    const pack: LanguagePack = {
+      analyzerVersion: "1",
+      apiVersion: 1,
+      compatibilityGroup: "xx",
+      defaultLocale: "xx-Test",
+      detect({ texts }) {
+        return texts.some((text) => text.includes("zor"))
+          ? "distinctive"
+          : "none";
+      },
+      id: "xx-test",
+      locales: ["xx-Test"],
+      analyzeContent() {
+        return {
+          assistantAcknowledgement: false,
+          assistantContinuity: false,
+          blockerFact: false,
+          correctionCue: false,
+          durableCue: false,
+          factPolarity: "unknown",
+          feedbackKind: "do",
+          focusFact: false,
+          openLoopFact: false,
+          personalEvidence: false,
+          preferenceEvidence: false,
+          projectStateFact: false,
+          roleFact: false,
+          unresolved: false,
+        };
+      },
+      analyzeQuery(text) {
+        return {
+          ...emptyQueryAnalysis(),
+          blocker: text.includes("zor"),
+        };
+      },
+      buildSearchTerms(text) {
+        return text.toLowerCase().split(/\s+/u).filter(Boolean);
+      },
+      decomposeQuery() {
+        return [];
+      },
+      extractCandidates() {
+        return [];
+      },
+      extractEntityMentions() {
+        return [];
+      },
+      matchesEntityAlias(query, alias) {
+        return query.toLowerCase().includes(alias.toLowerCase());
+      },
+      acceptsEntityCandidate() {
+        return true;
+      },
+      normalizeForEquality(text) {
+        return text.toLowerCase();
+      },
+      parseTemporalExpressions() {
+        return [];
+      },
+      resolveTemporalReference() {
+        return undefined;
+      },
+      render({ key }) {
+        return key;
+      },
+      splitClauses(text) {
+        return [text];
+      },
+      splitSentences(text) {
+        return [text];
+      },
+      tokenizeForScoring(text) {
+        return text.toLowerCase().split(/\s+/u).filter(Boolean);
+      },
+    };
+    const service = createLanguageService({ packs: [pack] });
+    const resolved = service.resolveFromText({ text: "zor blocker" });
+
+    expect(resolved.languagePackId).toBe("xx-test");
+    expect(service.isBlockerQuery("zor blocker", resolved)).toBe(true);
+    expect(service.getAnalyzerManifest().resolutionOrder).toEqual([
+      "en",
+      "zh-Hans",
+      "zh-Hant",
+      "ja",
+      "neutral",
+      "xx-test",
+    ]);
+  });
+
+  it("supports custom language packs whose methods live on a prototype", () => {
+    const neutral = createNeutralLanguagePack();
+    class PrototypeLanguagePack {
+      readonly analyzerVersion = "prototype-v1";
+      readonly apiVersion = 1 as const;
+      readonly compatibilityGroup = "eo";
+      readonly defaultLocale = "eo";
+      readonly id = "prototype-pack";
+      readonly locales = ["eo"];
+    }
+    interface PrototypeLanguagePack extends LanguagePack {}
+    Object.assign(PrototypeLanguagePack.prototype, neutral, {
+      analyzeQuery(text: string) {
+        return {
+          ...emptyQueryAnalysis(),
+          blocker: text.includes("blokita"),
+        };
+      },
+      detect: () => "distinctive",
+    });
+
+    const service = createLanguageService({
+      packs: [new PrototypeLanguagePack()],
+    });
+    const context = service.resolveFromText({ text: "blokita" });
+
+    expect(context.languagePackId).toBe("prototype-pack");
+    expect(service.isBlockerQuery("blokita", context)).toBe(true);
+  });
+
+  it("runs captured pack methods against the frozen analyzer snapshot", () => {
+    const pack: LanguagePack = {
+      ...createNeutralLanguagePack(),
+      analyzerVersion: "snapshot-v1",
+      compatibilityGroup: "eo",
+      defaultLocale: "eo",
+      id: "snapshot-pack",
+      locales: ["eo"],
+      normalizeForEquality(text) {
+        return `${this.analyzerVersion}:${text}`;
+      },
+    };
+    const service = createLanguageService({ packs: [pack] });
+
+    (pack as { analyzerVersion: string }).analyzerVersion = "snapshot-v2";
+
+    expect(service.normalizeForEquality("value", "eo")).toBe(
+      "snapshot-v1:value",
+    );
+    expect(
+      service.getAnalyzerManifest().packs.find(({ id }) => id === "snapshot-pack")
+        ?.analyzerVersion,
+    ).toBe("snapshot-v1");
+  });
+
+  it("captures enumerable custom pack state used by a method", () => {
+    const pack = {
+      ...createNeutralLanguagePack(),
+      analyzerVersion: "state-v1",
+      compatibilityGroup: "eo",
+      defaultLocale: "eo",
+      id: "state-pack",
+      locales: ["eo"],
+      normalizeForEquality(text: string) {
+        return `${this.prefix}:${text}`;
+      },
+      prefix: "stable",
+    };
+    const service = createLanguageService({ packs: [pack] });
+
+    pack.prefix = "mutated";
+
+    expect(service.normalizeForEquality("value", "eo")).toBe("stable:value");
   });
 
   it("keeps Chinese content during normalization and tokenization", () => {
@@ -50,6 +510,120 @@ describe("language service", () => {
       "请记住我喜欢中文回复",
     );
     expect(service.tokenize("请记住我喜欢中文回复。", resolved)).not.toHaveLength(0);
+  });
+
+  it("resolves the day-relative markers advertised by each built-in pack", () => {
+    const service = createLanguageService();
+    const reference = "2026-07-16T15:30:00.000Z";
+    const cases = [
+      ["today", "en", "2026-07-16T00:00:00.000Z"],
+      ["yesterday", "en", "2026-07-15T00:00:00.000Z"],
+      ["tomorrow", "en", "2026-07-17T00:00:00.000Z"],
+      ["前天", "zh-CN", "2026-07-14T00:00:00.000Z"],
+      ["后天", "zh-CN", "2026-07-18T00:00:00.000Z"],
+      ["一昨日", "ja-JP", "2026-07-14T00:00:00.000Z"],
+      ["明後日", "ja-JP", "2026-07-18T00:00:00.000Z"],
+    ] as const;
+
+    for (const [text, locale, expected] of cases) {
+      expect(service.resolveTemporalReference(text, reference, locale)).toBe(
+        expected,
+      );
+    }
+  });
+
+  it("resolves the period-relative markers advertised by each built-in pack", () => {
+    const service = createLanguageService();
+    const reference = "2026-07-16T15:30:00.000Z";
+    const cases = [
+      ["next week", "en", "2026-07-23T00:00:00.000Z"],
+      ["this quarter", "en", "2026-07-01T00:00:00.000Z"],
+      ["下季度", "zh-CN", "2026-10-01T00:00:00.000Z"],
+      ["来月", "ja-JP", "2026-08-01T00:00:00.000Z"],
+      ["来年", "ja-JP", "2027-01-01T00:00:00.000Z"],
+    ] as const;
+
+    for (const [text, locale, expected] of cases) {
+      expect(service.resolveTemporalReference(text, reference, locale)).toBe(
+        expected,
+      );
+    }
+  });
+
+  it("delegates entity alias matching to the active language pack", () => {
+    const service = createLanguageService();
+
+    expect(
+      service.matchesEntityAlias(
+        "資料庫移行の現在の状態は？",
+        "資料庫移行",
+        "ja-JP",
+      ),
+    ).toBe(true);
+    expect(
+      service.matchesEntityAlias(
+        "What changed for Atlas?",
+        "art",
+        "en-US",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps localized recommendation and source-of-truth semantics inside packs", () => {
+    const service = createLanguageService();
+    const cases = [
+      {
+        content: "I am interested in research papers about memory systems.",
+        locale: "en-US",
+        query: "Can you recommend research papers?",
+      },
+      {
+        content: "我對記憶系統研究論文感興趣。",
+        locale: "zh-TW",
+        query: "請推薦記憶系統研究論文。",
+      },
+      {
+        content: "メモリシステムの研究論文に興味があります。",
+        locale: "ja-JP",
+        query: "メモリシステムの研究論文をおすすめしてください。",
+      },
+    ];
+
+    for (const value of cases) {
+      expect(service.analyzeQuery(value.query, value.locale).recommendationStyle)
+        .toBe(true);
+      expect(service.analyzeContent(value.content, value.locale).preferenceEvidence)
+        .toBe(true);
+    }
+
+    expect(
+      service.analyzeContent(
+        "現在以 docs/current.md 為準，不再以 docs/old.md 為準。",
+        "zh-TW",
+      ).sourceOfTruthDirective,
+    ).toEqual({
+      currentPointer: "docs/current.md",
+      supersededPointer: "docs/old.md",
+    });
+    expect(
+      service.analyzeContent("docs/current.mdを正とする。", "ja-JP")
+        .sourceOfTruthDirective,
+    ).toEqual({ currentPointer: "docs/current.md" });
+  });
+
+  it("uses one canonical identity and symmetric search terms across Chinese scripts", () => {
+    const service = createLanguageService();
+    const simplified = "数据库迁移";
+    const traditional = "資料庫遷移";
+
+    expect(service.normalizeForEquality(simplified, "zh-CN")).toBe(
+      service.normalizeForEquality(traditional, "zh-TW"),
+    );
+    expect(
+      service.buildSearchTerms(simplified, "zh-CN").some((term) =>
+        service.buildSearchTerms(traditional, "zh-TW").includes(term)
+      ),
+    ).toBe(true);
   });
 
   it("keeps short English content tokens such as acronyms and codes", () => {

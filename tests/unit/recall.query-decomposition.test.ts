@@ -3,6 +3,10 @@ import {
   decomposedRecall,
   splitQueryIntoSubQueries,
 } from "../../src/recall/queryDecomposition";
+import {
+  createEnglishLanguagePack,
+  createLanguageService,
+} from "../../src/language";
 
 describe("splitQueryIntoSubQueries", () => {
   it("splits a compound question on coordinating conjunctions", () => {
@@ -37,15 +41,17 @@ describe("splitQueryIntoSubQueries", () => {
     ).toEqual(["What is my role", "What is my current focus"]);
   });
 
-  it("splits a multi-constraint question into its main and with-facet queries", () => {
+  it("keeps a with-complement inside its original proposition", () => {
     expect(
       splitQueryIntoSubQueries(
         "Did the team launch Atlas with vendor approval in 2025?",
       ),
-    ).toEqual([
-      "Did the team launch Atlas",
-      "vendor approval in 2025",
-    ]);
+    ).toEqual([]);
+    expect(
+      splitQueryIntoSubQueries(
+        "How did Rowan describe the time restoring telescopes with volunteers?",
+      ),
+    ).toEqual([]);
   });
 
   it("does not split a with-phrase when it cannot form two useful queries", () => {
@@ -58,6 +64,25 @@ describe("splitQueryIntoSubQueries", () => {
     expect(
       splitQueryIntoSubQueries("我用什么数据库以及后来换成了哪个编辑器？"),
     ).toEqual(["我用什么数据库", "后来换成了哪个编辑器"]);
+  });
+
+  it("delegates Traditional Chinese and Japanese facets to language packs", () => {
+    const language = createLanguageService();
+    expect(
+      splitQueryIntoSubQueries(
+        "目前的資料庫是什麼？同時阻礙是什麼？",
+        { language, locale: "zh-TW" },
+      ),
+    ).toEqual(["目前的資料庫是什麼", "阻礙是什麼"]);
+    expect(
+      splitQueryIntoSubQueries(
+        "現在のデータベースは何ですか？そしてブロッカーは何ですか？",
+        { language, locale: "ja-JP" },
+      ),
+    ).toEqual([
+      "現在のデータベースは何ですか",
+      "ブロッカーは何ですか",
+    ]);
   });
 
   it("does not reinterpret a commercial partner term as a relationship facet", () => {
@@ -154,5 +179,33 @@ describe("decomposedRecall", () => {
     expect(outcome.subQueries).toEqual(["sub one", "sub two"]);
     expect(calls).toEqual(["q", "sub one", "sub two"]);
     expect(outcome.queriesRun).toBe(3);
+  });
+
+  it("deduplicates provider facets with LanguagePack equality semantics", async () => {
+    const english = createEnglishLanguagePack();
+    const language = createLanguageService({
+      packs: [{
+        ...english,
+        analyzerVersion: "sentinel-equality-v1",
+        normalizeForEquality(text) {
+          return english.normalizeForEquality(text).replaceAll("colour", "color");
+        },
+      }],
+    });
+    const calls: string[] = [];
+
+    const outcome = await decomposedRecall<string>({
+      query: "palette advice",
+      decompose: () => ["colour choice", "color choice", "shade choice"],
+      recall: async (query) => {
+        calls.push(query);
+        return query;
+      },
+      merge: (primary, supplementary) => [primary, ...supplementary].join(","),
+      options: { language, locale: "en" },
+    });
+
+    expect(outcome.subQueries).toEqual(["colour choice", "shade choice"]);
+    expect(calls).toEqual(["palette advice", "colour choice", "shade choice"]);
   });
 });

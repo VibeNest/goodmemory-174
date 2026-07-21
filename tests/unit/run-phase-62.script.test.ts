@@ -424,6 +424,64 @@ describe("run-phase-62 LongMemEval script", () => {
     ]);
   });
 
+  it("wires the recall diagnostic fusion floor honestly", () => {
+    // Without the flag the recommended profile records the floor it actually
+    // runs (0 — the preset default), not an aspirational constant.
+    const unset = buildPhase62RecallDiagnosticOptions("/tmp/goodmemory", {
+      benchmarkRoot: "/tmp/LongMemEval",
+      mode: "full",
+      profiles: ["goodmemory-recommended"],
+    });
+    expect(unset.runConfiguration?.generalizedFusion?.minRelativeStrength).toBe(
+      0,
+    );
+
+    const swept = buildPhase62RecallDiagnosticOptions("/tmp/goodmemory", {
+      benchmarkRoot: "/tmp/LongMemEval",
+      fusionMinRelativeStrength: 0.35,
+      mode: "full",
+      profiles: ["goodmemory-recommended"],
+    });
+    expect(swept.runConfiguration?.generalizedFusion?.minRelativeStrength).toBe(
+      0.35,
+    );
+
+    expect(() =>
+      buildPhase62RecallDiagnosticOptions("/tmp/goodmemory", {
+        benchmarkRoot: "/tmp/LongMemEval",
+        fusionMinRelativeStrength: 0.35,
+        mode: "full",
+        profiles: ["goodmemory-rules-only"],
+      }),
+    ).toThrow(
+      "--fusion-min-relative-strength requires a generalized-fusion profile",
+    );
+  });
+
+  it("parses and validates the fusion floor flag", () => {
+    expect(
+      parsePhase62CliOptions([
+        "bun",
+        "script",
+        "--fusion-min-relative-strength",
+        "0.35",
+      ]).fusionMinRelativeStrength,
+    ).toBe(0.35);
+    expect(
+      parsePhase62CliOptions(["bun", "script"]).fusionMinRelativeStrength,
+    ).toBeUndefined();
+    for (const bad of ["1.5", "-0.1", "abc", " 0.35"]) {
+      expect(() =>
+        parsePhase62CliOptions([
+          "bun",
+          "script",
+          "--fusion-min-relative-strength",
+          bad,
+        ]),
+      ).toThrow();
+    }
+  });
+
   it("rejects recall diagnostics that combine all-cases with explicit case ids", () => {
     expect(() =>
       buildPhase62RecallDiagnosticOptions(

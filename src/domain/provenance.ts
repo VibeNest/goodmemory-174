@@ -9,6 +9,9 @@ export interface MemorySource {
   extractedAt: string;
   sessionId?: string;
   locale?: string;
+  localeSource?: "explicit" | "detected" | "default";
+  languagePackId?: string;
+  languagePackVersion?: string;
 }
 
 export type MemoryLifecycleState = "active" | "superseded" | "inactive";

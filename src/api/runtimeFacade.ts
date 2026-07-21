@@ -5,6 +5,7 @@ import {
 } from "../runtime/contextService";
 import { createRuntimeArchiveStore } from "../runtime/public";
 import type { MemoryExtractionStrategy } from "../remember/candidates";
+import type { LanguageService } from "../language";
 import { createExtractionCursorStore } from "../remember/extractionCursor";
 import type {
   DocumentStore,
@@ -31,6 +32,7 @@ import type {
 
 export interface GoodMemoryRuntimeFacadeConfig {
   documentStore: DocumentStore;
+  language?: LanguageService;
   sessionStore: SessionStore;
   now: () => Date;
   runtimeCompactionExtraction?: {
@@ -92,6 +94,7 @@ export function createGoodMemoryRuntimeFacade(
       documentStore: config.documentStore,
     }),
     extraction: createRuntimeExtractionHooks(config),
+    language: config.language,
     now: () => config.now().toISOString(),
   });
 

@@ -1,7 +1,11 @@
-import type {
-  LanguageAdapter,
-  LanguageCandidateExtractionInput,
-} from "./contracts";
+import type { LanguagePack } from "./contracts";
+import {
+  emptyContentAnalysis,
+  emptyQueryAnalysis,
+  matchesNormalizedEntityAlias,
+  parseTechnicalTemporalExpressions,
+  splitSentencesGeneric,
+} from "./packHelpers";
 
 const GENERIC_SEGMENTER_CACHE = new Map<string, Intl.Segmenter>();
 
@@ -112,18 +116,25 @@ export function tokenizeUnicodeText(
 
 export function splitClausesGeneric(content: string): string[] {
   const clauses = content
-    .split(/(?:\r?\n+)|(?<=[。！？；!?;])\s*|(?<=\.)\s+(?=[A-Z])/u)
+    .split(
+      /(?:\r?\n+)|(?<=[。！？；!?;])\s*|(?<=\.)(?<!\b[A-Z]\.)\s+(?=[A-Z])/u,
+    )
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
   return clauses.length > 0 ? clauses : [content.trim()].filter(Boolean);
 }
 
-export function createGenericLanguageAdapter(): LanguageAdapter {
+export function createNeutralLanguagePack(): LanguagePack {
   return {
-    id: "generic",
-    supportsLocale() {
-      return true;
+    analyzerVersion: "2",
+    apiVersion: 1,
+    compatibilityGroup: "neutral",
+    defaultLocale: "und",
+    id: "neutral",
+    locales: [],
+    detect() {
+      return "none";
     },
     splitClauses(text: string): string[] {
       return splitClausesGeneric(text);
@@ -131,11 +142,48 @@ export function createGenericLanguageAdapter(): LanguageAdapter {
     normalizeForEquality(text: string): string {
       return normalizeUnicodeForEquality(text);
     },
-    tokenize(text: string): string[] {
+    splitSentences(text: string): string[] {
+      return splitSentencesGeneric(text);
+    },
+    tokenizeForScoring(text: string): string[] {
       return tokenizeUnicodeText(text, "und");
     },
-    extractCandidates(_input: LanguageCandidateExtractionInput) {
+    buildSearchTerms(text: string): string[] {
+      return tokenizeUnicodeText(text, "und");
+    },
+    decomposeQuery() {
       return [];
+    },
+    analyzeQuery() {
+      return emptyQueryAnalysis();
+    },
+    analyzeContent() {
+      return emptyContentAnalysis();
+    },
+    parseTemporalExpressions(text) {
+      return parseTechnicalTemporalExpressions(text);
+    },
+    resolveTemporalReference() {
+      return undefined;
+    },
+    extractEntityMentions() {
+      return [];
+    },
+    matchesEntityAlias(query, alias) {
+      return matchesNormalizedEntityAlias(
+        query,
+        alias,
+        normalizeUnicodeForEquality,
+      );
+    },
+    acceptsEntityCandidate() {
+      return true;
+    },
+    extractCandidates() {
+      return [];
+    },
+    render({ key }) {
+      return key;
     },
   };
 }

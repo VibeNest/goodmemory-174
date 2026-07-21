@@ -37,7 +37,14 @@ describe("procedural pattern compiler", () => {
         rule: "Use bullet points in summaries.",
         kind: "do",
         appliesTo: "general_response",
-        source: { method: "explicit", extractedAt: "2026-04-01T00:00:00.000Z" },
+        source: {
+          method: "explicit",
+          extractedAt: "2026-04-01T00:00:00.000Z",
+          locale: "en-US",
+          localeSource: "explicit",
+          languagePackId: "en",
+          languagePackVersion: "1",
+        },
         updatedAt: "2026-04-01T00:00:00.000Z",
       }),
     );
@@ -114,6 +121,12 @@ describe("procedural pattern compiler", () => {
     expect(validatedPattern.sessionId).toBeUndefined();
     expect(validatedPattern.appliesTo).toBe("general_response");
     expect(validatedPattern.source.method).toBe("confirmed");
+    expect(validatedPattern.source).toMatchObject({
+      locale: "en-US",
+      localeSource: "explicit",
+      languagePackId: "en",
+      languagePackVersion: "1",
+    });
     expect(sourceGuidance?.lifecycle).toBe("superseded");
     expect(sourceGuidance?.supersededBy).toBe(validatedPattern.id);
     expect(

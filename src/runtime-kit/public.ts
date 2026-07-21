@@ -47,6 +47,7 @@ import { createHostAdapter } from "../host/public";
 import { resolveHostActionExecutionPlan } from "../host/actionExecution";
 import { createGoodMemoryTracer } from "../observability/tracer";
 import { createProgressiveRecallService } from "../progressive/recall";
+import { estimateTextTokens } from "../tokenEstimator";
 
 const DEFAULT_MAX_MEMORY_TOKENS = 160;
 const DEFAULT_PROGRESSIVE_RECORD_LIMIT = 10;
@@ -55,10 +56,6 @@ const MAX_PREVIEW_CHARS = 240;
 function normalizeText(value: string | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
-}
-
-function estimateTokens(value: string): number {
-  return Math.ceil(value.length / 4);
 }
 
 function extractTextFromMessages(messages: readonly { content: string; role: string }[]): string | null {
@@ -249,7 +246,9 @@ function applyBehavioralSteeringToFragment(input: {
     return {
       mode: "fragment",
       content: input.rawCarryover.packet.promptPayload,
-      estimatedTokens: estimateTokens(input.rawCarryover.packet.promptPayload),
+      estimatedTokens: estimateTextTokens(
+        input.rawCarryover.packet.promptPayload,
+      ),
       omittedSections: [],
     };
   }
@@ -281,7 +280,7 @@ function applyBehavioralSteeringToFragment(input: {
   return {
     mode: "fragment",
     content,
-    estimatedTokens: estimateTokens(content),
+    estimatedTokens: estimateTextTokens(content),
     omittedSections: [...input.builtContext.omittedSections],
   };
 }

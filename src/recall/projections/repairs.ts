@@ -13,13 +13,17 @@ import type {
 } from "../../storage/contracts";
 import {
   PROJECTION_REPAIRS_COLLECTION,
+  CLAIM_PROJECTION_STATUS_COLLECTION,
 } from "./contracts";
 import type {
   AppendClaimProjectionInput,
+  ClaimProjectionStatus,
   ProjectionRepairRecord,
   RecallProjectionSourceCollection,
 } from "./contracts";
+import { buildClaimProjectionStatusId } from "./claims";
 import type { KeyedMutationLock } from "./mutationLock";
+import type { ProjectionManifestMutation } from "./manifest";
 import type { RecallProjectionOperations } from "./operations";
 import { resolveProjectionScope } from "./projector";
 import {
@@ -44,6 +48,7 @@ export interface RecallProjectionRepairs {
     collection: RecallProjectionSourceCollection,
     sourceMemoryId: string,
     canonical: StorageDocument,
+    manifestMutation?: ProjectionManifestMutation,
   ): Promise<boolean>;
   discardSource(
     collection: RecallProjectionSourceCollection,
@@ -175,7 +180,12 @@ export function createRecallProjectionRepairs(input: {
   }
 
   return {
-    async deleteCanonicalAndRepairs(collection, sourceMemoryId, canonical) {
+    async deleteCanonicalAndRepairs(
+      collection,
+      sourceMemoryId,
+      canonical,
+      manifestMutation,
+    ) {
       const persisted = await documentStore.query<ProjectionRepairRecord>(
         PROJECTION_REPAIRS_COLLECTION,
         { sourceCollection: collection, sourceMemoryId },
@@ -198,12 +208,15 @@ export function createRecallProjectionRepairs(input: {
           })),
         ],
         expected: { collection, document: canonical, id: sourceMemoryId },
-        set: [],
-        unchanged: [...repairs].map(([id, repair]) => ({
-          collection: PROJECTION_REPAIRS_COLLECTION,
-          document: repair,
-          id,
-        })),
+        set: manifestMutation?.set ?? [],
+        unchanged: [
+          ...[...repairs].map(([id, repair]) => ({
+            collection: PROJECTION_REPAIRS_COLLECTION,
+            document: repair,
+            id,
+          })),
+          ...(manifestMutation?.unchanged ?? []),
+        ],
       });
     },
     async discardSource(collection, sourceMemoryId) {
@@ -244,9 +257,27 @@ export function createRecallProjectionRepairs(input: {
                   !isActiveMemoryLifecycle(fact) ||
                   fact.isActive === false
                 ) {
-                  return;
+                  await operations.synchronizeUnsafe(
+                    repair.sourceCollection,
+                    repair.sourceMemoryId,
+                    resolveProjectionScope(repair) ?? undefined,
+                    true,
+                  );
+                } else {
+                  await operations.appendClaimUnsafe(repair.claimInput);
                 }
-                await operations.appendClaimUnsafe(repair.claimInput);
+                const status = await documentStore.get<ClaimProjectionStatus>(
+                  CLAIM_PROJECTION_STATUS_COLLECTION,
+                  buildClaimProjectionStatusId(
+                    repair.claimInput,
+                    repair.sourceMemoryId,
+                  ),
+                );
+                if (status?.state === "failed") {
+                  throw new Error(
+                    `Claim repair ${repair.id} did not resolve its failed status.`,
+                  );
+                }
                 return;
               }
               await operations.synchronizeUnsafe(

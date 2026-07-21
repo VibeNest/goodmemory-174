@@ -8,13 +8,17 @@ import {
 } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
 import type { StorageDocument } from "../../storage/contracts";
-import { extractEntities } from "../entityExtraction";
+import type {
+  LanguageService,
+  ResolvedLanguageContext,
+} from "../../language";
 import type {
   RecallDocumentGranularity,
   RecallEntityMention,
   RecallIndexDocument,
   RecallProjectionSourceCollection,
 } from "./contracts";
+import { PROJECTION_SEARCH_SCHEMA_VERSION } from "./contracts";
 import { recallScopeKey } from "./shared";
 
 const MAX_MEMORY_TEXT_LENGTH = 32_000;
@@ -22,6 +26,7 @@ const MAX_FIELD_DOCUMENTS = 24;
 const MAX_SENTENCE_DOCUMENTS = 64;
 const MAX_SOURCE_ENTITIES = 128;
 const MIN_SENTENCE_LENGTH = 8;
+const STRUCTURED_ENTITY_FIELDS = new Set(["entities", "subject", "tags"]);
 
 interface ProjectionTextField {
   name: string;
@@ -187,17 +192,6 @@ function isProjectionActive(
   return isActiveMemoryLifecycle(record);
 }
 
-function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+|(?<=[。！？])|\n+/u)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length >= MIN_SENTENCE_LENGTH);
-}
-
-function normalizeCanonicalEntityKey(value: string): string {
-  return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
-}
-
 export function buildEntityProjectionId(
   scopeKey: string,
   canonicalKey: string,
@@ -212,12 +206,44 @@ export function buildEntityAdjacencyProjectionId(
   return stableId("entity_edge", `${entityId}\u0000${memoryId}`);
 }
 
-function buildEntityMentions(text: string, scopeKey: string): RecallEntityMention[] {
-  return extractEntities(text).map((entity) => ({
-    canonicalKey: normalizeCanonicalEntityKey(entity.normalized),
-    entityId: buildEntityProjectionId(scopeKey, entity.normalized),
-    surface: entity.surface,
-  }));
+function buildEntityMentions(input: {
+  context: ResolvedLanguageContext;
+  field?: string;
+  language: LanguageService;
+  scopeKey: string;
+  text: string;
+}): RecallEntityMention[] {
+  const mentions = input.language.extractEntityMentions(
+    input.text,
+    input.context,
+  );
+  if (
+    input.field &&
+    STRUCTURED_ENTITY_FIELDS.has(input.field) &&
+    input.text.trim().toLowerCase() !== "unknown"
+  ) {
+    mentions.unshift({
+      kind: "term",
+      normalized: input.text,
+      surface: input.text,
+    });
+  }
+  const seen = new Set<string>();
+  return mentions.flatMap((mention) => {
+    const canonicalKey = input.language.normalizeForEquality(
+      mention.normalized,
+      input.context,
+    );
+    if (!canonicalKey || seen.has(canonicalKey)) {
+      return [];
+    }
+    seen.add(canonicalKey);
+    return [{
+      canonicalKey,
+      entityId: buildEntityProjectionId(input.scopeKey, canonicalKey),
+      surface: mention.surface,
+    }];
+  });
 }
 
 function resolveMemoryType(
@@ -238,6 +264,13 @@ function resolveProvenance(record: Record<string, unknown>): RecallIndexDocument
     ...(source?.extractedAt ? { extractedAt: source.extractedAt } : {}),
     ...(source?.sessionId ? { sessionId: source.sessionId } : {}),
     ...(source?.locale ? { locale: source.locale } : {}),
+    ...(source?.localeSource ? { localeSource: source.localeSource } : {}),
+    ...(source?.languagePackId
+      ? { languagePackId: source.languagePackId }
+      : {}),
+    ...(source?.languagePackVersion
+      ? { languagePackVersion: source.languagePackVersion }
+      : {}),
   };
 }
 
@@ -248,16 +281,31 @@ function buildIndexDocument(input: {
   indexedAt: string;
   ordinal: number;
   record: Record<string, unknown>;
+  language: LanguageService;
   sourceMemoryId: string;
   scope: MemoryScope;
   text: string;
 }): RecallIndexDocument {
   const text = input.text.slice(0, MAX_MEMORY_TEXT_LENGTH);
   const scopeKey = scopeToKey(input.scope);
-  const entityMentions = buildEntityMentions(
+  const source = isRecord(input.record.source)
+    ? input.record.source
+    : undefined;
+  const sourceLocale = source ? optionalString(source, "locale") : undefined;
+  const languageContext = input.language.resolveFromText({
+    ...(sourceLocale ? { locale: sourceLocale } : {}),
     text,
-    recallScopeKey(input.scope),
-  );
+  });
+  const entityMentions = buildEntityMentions({
+    context: languageContext,
+    field: input.field,
+    language: input.language,
+    scopeKey: recallScopeKey(input.scope),
+    text,
+  });
+  const searchText = [...new Set(
+    input.language.buildSearchTerms(text, languageContext),
+  )].join(" ").slice(0, MAX_MEMORY_TEXT_LENGTH);
   const effectiveUntil = earliestOptionalTimestamp(input.record, [
     "validUntil",
     "expiresAt",
@@ -281,6 +329,11 @@ function buildIndexDocument(input: {
     granularity: input.granularity,
     ...(input.field ? { field: input.field } : {}),
     text,
+    searchText,
+    searchLocale: languageContext.locale,
+    languagePackId: languageContext.languagePackId,
+    searchAnalyzerVersion: input.language.analyzerVersion(languageContext),
+    searchSchemaVersion: PROJECTION_SEARCH_SCHEMA_VERSION,
     entityIds: entityMentions.map((mention) => mention.entityId),
     entityMentions,
     ...(optionalString(input.record, "validFrom")
@@ -308,6 +361,7 @@ export function buildRecallIndexDocuments(input: {
   collection: RecallProjectionSourceCollection;
   document: StorageDocument;
   indexedAt: string;
+  language: LanguageService;
   sourceMemoryId: string;
 }): RecallIndexDocument[] {
   if (!isRecord(input.document) || !isProjectionActive(input.collection, input.document)) {
@@ -336,6 +390,7 @@ export function buildRecallIndexDocuments(input: {
       indexedAt: input.indexedAt,
       ordinal: 0,
       record,
+      language: input.language,
       sourceMemoryId: input.sourceMemoryId,
       scope,
       text: memoryText,
@@ -351,6 +406,7 @@ export function buildRecallIndexDocuments(input: {
         indexedAt: input.indexedAt,
         ordinal,
         record,
+        language: input.language,
         sourceMemoryId: input.sourceMemoryId,
         scope,
         text: field.text,
@@ -359,7 +415,16 @@ export function buildRecallIndexDocuments(input: {
   });
 
   const sentences = fields
-    .flatMap((field) => splitSentences(field.text))
+    .flatMap((field) => {
+      const source = isRecord(record.source) ? record.source : undefined;
+      const locale = source ? optionalString(source, "locale") : undefined;
+      const context = input.language.resolveFromText({
+        ...(locale ? { locale } : {}),
+        text: field.text,
+      });
+      return input.language.splitSentences(field.text, context);
+    })
+    .filter((sentence) => sentence.length >= MIN_SENTENCE_LENGTH)
     .filter((sentence, index, all) => all.indexOf(sentence) === index)
     .slice(0, MAX_SENTENCE_DOCUMENTS);
   sentences.forEach((sentence, ordinal) => {
@@ -370,6 +435,7 @@ export function buildRecallIndexDocuments(input: {
         indexedAt: input.indexedAt,
         ordinal,
         record,
+        language: input.language,
         sourceMemoryId: input.sourceMemoryId,
         scope,
         text: sentence,
@@ -378,7 +444,10 @@ export function buildRecallIndexDocuments(input: {
   });
 
   const sourceEntityIds = new Set(
-    documents[0]?.entityIds.slice(0, MAX_SOURCE_ENTITIES) ?? [],
+    documents.flatMap((document) => document.entityIds).slice(
+      0,
+      MAX_SOURCE_ENTITIES,
+    ),
   );
   return documents.map((document) => ({
     ...document,

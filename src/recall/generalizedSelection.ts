@@ -1,5 +1,5 @@
 import type { FactMemory, UserProfile } from "../domain/records";
-import type { LanguageService } from "../language";
+import type { LanguageQueryAnalysis, LanguageService } from "../language";
 import type { RecallCandidateTrace } from "./engine";
 import type { RecallSlot, RetrievalProfile, RoutingDecision } from "./router";
 import {
@@ -22,7 +22,6 @@ import {
   hasGenericFactSelectionSignal,
   slotMatchesFact,
 } from "./selectors/selectionContext";
-import { isUserBroughtUpEventOrderQuery } from "./selectors/temporal";
 
 const GENERAL_FACT_RECALL_LIMIT = 6;
 const AGGREGATE_OPEN_LOOP_LIMIT = 6;
@@ -56,6 +55,7 @@ export function selectGeneralizedFactsForInternalUse(
   semanticUnion?: SemanticUnionSelectionInput,
   generalizedFusion?: GeneralizedFusionSelectionInput,
 ): { facts: FactMemory[]; traces: RecallCandidateTrace[] } {
+  const queryAnalysis = language.analyzeQuery(query, queryLocale);
   const ranked = rankFactCandidates(
     buildFactCandidates(
       facts,
@@ -127,7 +127,7 @@ export function selectGeneralizedFactsForInternalUse(
     routingDecision.requestedSlots.length > 0 &&
     routingDecision.requestedSlots.every((slot) => slot === "reference") &&
     !routingDecision.supportSlots.includes("project_state_support");
-  if (pureReferenceQuery && !isReferencePreActionQuery(query)) {
+  if (pureReferenceQuery && !isReferencePreActionQuery(queryAnalysis)) {
     for (const trace of traces) {
       if (trace.whySuppressed === "not selected") {
         trace.whySuppressed = "reference-only query";
@@ -194,7 +194,7 @@ export function selectGeneralizedFactsForInternalUse(
       selectSlot(
         "open_loop",
         false,
-        isAggregateOpenLoopQuery(query, language, queryLocale),
+        isAggregateOpenLoopQuery(queryAnalysis),
       );
     }
     if (factSlots.includes("project_state_support")) {
@@ -216,21 +216,20 @@ export function selectGeneralizedFactsForInternalUse(
   selectionPool = collapseMutableCurrentValueCandidates({
     candidates: compatible,
     language,
-    locale: queryLocale,
-    query,
+    queryAnalysis,
   });
-  if (isUserBroughtUpEventOrderQuery(query)) {
+  if (queryAnalysis.userGroundedEventOrder) {
     selectionPool = selectionPool.filter((entry) => !hasAssistantAnswerTag(entry));
   }
-  const aggregateCountQuery = language.isAggregateCountQuery(query, queryLocale);
+  const aggregateCountQuery = queryAnalysis.aggregateCount;
 
-  if (isResearchRecommendationQuery(query)) {
+  if (queryAnalysis.recommendationStyle) {
     for (const candidate of selectionPool
-      .filter(hasResearchRecommendationSignal)
+      .filter((entry) => hasRecommendationPreferenceSignal(entry, language))
       .slice(0, 2)) {
       draft.select(candidate);
     }
-  } else if (language.isAnswerCompositionQuery(query, queryLocale)) {
+  } else if (queryAnalysis.answerComposition) {
     const projectStateCandidates = selectionPool.filter(
       (entry) =>
         entry.fact.category === "project" ||
@@ -266,7 +265,7 @@ export function selectGeneralizedFactsForInternalUse(
     draft,
     directFactualLookup:
       !aggregateCountQuery &&
-      language.isDirectFactualLookupQuery(query, queryLocale),
+      queryAnalysis.directFactualLookup,
   });
   return finish();
 }
@@ -276,41 +275,23 @@ function uniqueSlots(slots: readonly RecallSlot[]): RecallSlot[] {
 }
 
 function isAggregateOpenLoopQuery(
-  query: string,
-  language: LanguageService,
-  locale: string,
+  analysis: LanguageQueryAnalysis,
 ): boolean {
-  return language.isOpenLoopQuery(query, locale) &&
-    (
-      /\b(?:all|how many|list|open loops?|pending|remaining|to-?dos?|what|which)\b/iu.test(
-        query,
-      ) ||
-      /(全部|哪些|多少|待办|待处理|待跟进|开环|所有|未完成|还有|剩余)/u.test(query)
-    );
+  return analysis.openLoop &&
+    (analysis.aggregateCount || analysis.exhaustiveList);
 }
 
-function isReferencePreActionQuery(query: string): boolean {
-  return /\b(?:before|prior to|ahead of)\b[\s\S]{0,80}\b(?:chang(?:e|ing)|delet(?:e|ing)|deploy(?:ing)?|edit(?:ing)?|execut(?:e|ing)|publish(?:ing)?|run(?:ning)?|send(?:ing)?|ship(?:ping)?|writ(?:e|ing))\b/iu.test(
-    query,
-  ) || /(?:在[\s\S]{0,60})?(?:编辑|修改|删除|部署|发布|执行|运行|发送|写入)[\s\S]{0,20}(?:前|之前)|先(?:检查|查看|确认)/u.test(
-    query,
-  );
+function isReferencePreActionQuery(analysis: LanguageQueryAnalysis): boolean {
+  return analysis.referenceSeeking && analysis.before && analysis.actionDriving;
 }
 
 function collapseMutableCurrentValueCandidates(input: {
   candidates: ReturnType<typeof buildFactCandidates>;
   language: LanguageService;
-  locale: string;
-  query: string;
+  queryAnalysis: LanguageQueryAnalysis;
 }): ReturnType<typeof buildFactCandidates> {
-  const directFactualLookup = input.language.isDirectFactualLookupQuery(
-    input.query,
-    input.locale,
-  );
-  const aggregateCountQuery = input.language.isAggregateCountQuery(
-    input.query,
-    input.locale,
-  );
+  const directFactualLookup = input.queryAnalysis.directFactualLookup;
+  const aggregateCountQuery = input.queryAnalysis.aggregateCount;
   if (!directFactualLookup && !aggregateCountQuery) {
     return input.candidates;
   }
@@ -320,7 +301,7 @@ function collapseMutableCurrentValueCandidates(input: {
     if (hasConversationEvidenceTag(candidate)) {
       continue;
     }
-    const slot = mutableCurrentValueSlot(candidate);
+    const slot = mutableCurrentValueSlot(candidate, input.language);
     if (slot === undefined) {
       continue;
     }
@@ -334,7 +315,7 @@ function collapseMutableCurrentValueCandidates(input: {
     if (hasConversationEvidenceTag(candidate)) {
       return true;
     }
-    const slot = mutableCurrentValueSlot(candidate);
+    const slot = mutableCurrentValueSlot(candidate, input.language);
     return slot === undefined ||
       latestBySlot.get(slot)?.fact.id === candidate.fact.id;
   });
@@ -342,8 +323,13 @@ function collapseMutableCurrentValueCandidates(input: {
 
 function mutableCurrentValueSlot(
   candidate: ReturnType<typeof buildFactCandidates>[number],
+  language: LanguageService,
 ): string | undefined {
-  const subject = normalizedKnownSubject(candidate.subject);
+  const subject = normalizedKnownSubject(
+    candidate.subject,
+    language,
+    candidate.locale,
+  );
   if (subject === undefined) {
     return undefined;
   }
@@ -359,14 +345,21 @@ function mutableCurrentValueSlot(
   if (typeof claimKey !== "string") {
     return undefined;
   }
-  const normalizedClaimKey = claimKey.trim().toLocaleLowerCase();
+  const normalizedClaimKey = language.normalizeForEquality(
+    claimKey,
+    candidate.locale,
+  );
   return normalizedClaimKey.length > 0
     ? `claim\u0000${subject}\u0000${normalizedClaimKey}`
     : undefined;
 }
 
-function normalizedKnownSubject(subject: string): string | undefined {
-  const normalized = subject.trim().toLocaleLowerCase();
+function normalizedKnownSubject(
+  subject: string,
+  language: LanguageService,
+  locale: string,
+): string | undefined {
+  const normalized = language.normalizeForEquality(subject, locale);
   return normalized.length === 0 || normalized === "unknown"
     ? undefined
     : normalized;
@@ -383,20 +376,14 @@ function factTimestamp(
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function isResearchRecommendationQuery(query: string): boolean {
-  return /\b(?:recommend|suggest|find interesting)\b/iu.test(query) &&
-    /\b(?:articles?|conferences?|papers?|publications?|research)\b/iu.test(query);
-}
-
-function hasResearchRecommendationSignal(
+function hasRecommendationPreferenceSignal(
   candidate: ReturnType<typeof buildFactCandidates>[number],
+  language: LanguageService,
 ): boolean {
-  return (
-    candidate.fact.category === "technical" ||
-    candidate.fact.category === "project"
-  ) && /\b(?:articles?|conferences?|interested in|publications?|research(?: papers?| project)?|work(?:ing)? in)\b/iu.test(
+  return language.analyzeContent(
     candidate.fact.content,
-  );
+    candidate.locale,
+  ).preferenceEvidence;
 }
 
 function selectDirectFactualSessionCompanion(input: {

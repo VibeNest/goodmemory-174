@@ -8,7 +8,10 @@ import type {
   ProjectionCapableDocumentStore,
   StorageDocument,
 } from "../../storage/contracts";
-import { PROJECTION_BATCH_SEMANTICS } from "../../storage/contracts";
+import {
+  PROJECTION_BATCH_SEMANTICS,
+  shallowMergeDocument,
+} from "../../storage/contracts";
 import {
   isRecallProjectionSourceCollection,
   type RecallProjectionSourceCollection,
@@ -17,6 +20,7 @@ import type { KeyedMutationLock } from "./mutationLock";
 import type { RecallProjectionOperations } from "./operations";
 import { resolveProjectionScope } from "./projector";
 import type { RecallProjectionRepairs } from "./repairs";
+import type { ProjectionManifestTracker } from "./manifest";
 import {
   errorMessage,
   matchesScopeFilter,
@@ -30,9 +34,120 @@ export function createProjectionAwareDocumentStore(input: {
   now: () => string;
   operations: RecallProjectionOperations;
   repairs: RecallProjectionRepairs;
+  manifests: ProjectionManifestTracker;
   writeThrough: boolean;
 }): ProjectionCapableDocumentStore {
-  const { documentStore, mutationLock, now, operations, repairs, writeThrough } = input;
+  const {
+    documentStore,
+    manifests,
+    mutationLock,
+    now,
+    operations,
+    repairs,
+    writeThrough,
+  } = input;
+
+  function isProjectionInputCollection(collection: string): boolean {
+    return isRecallProjectionSourceCollection(collection) ||
+      collection === EVIDENCE_COLLECTION;
+  }
+
+  function projectionScopes(
+    documents: readonly (StorageDocument | null)[],
+  ): MemoryScope[] {
+    return documents
+      .map((document) =>
+        document ? resolveProjectionScope(document) : null
+      )
+      .filter((candidate): candidate is MemoryScope => candidate !== null);
+  }
+
+  async function setProjectionInputAndInvalidate(
+    collection: string,
+    id: string,
+    document: StorageDocument,
+  ): Promise<StorageDocument | null> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = await documentStore.get<StorageDocument>(collection, id);
+      const invalidation = await manifests.prepareInvalidation(
+        projectionScopes([existing, document]),
+      );
+      const committed = await documentStore.writeBatchIfUnchanged({
+        expected: { collection, document: existing, id },
+        set: [
+          { collection, document, id },
+          ...invalidation.set,
+        ],
+        unchanged: invalidation.unchanged,
+      });
+      if (committed) {
+        return existing;
+      }
+    }
+    throw new Error(
+      `Projection input changed repeatedly during write: ${collection}/${id}`,
+    );
+  }
+
+  async function updateProjectionInputAndInvalidate<
+    TDocument extends StorageDocument,
+  >(
+    collection: string,
+    id: string,
+    patch: Partial<TDocument>,
+  ): Promise<{ existing: TDocument; updated: TDocument }> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = await documentStore.get<TDocument>(collection, id);
+      if (!existing) {
+        throw new Error(`Document not found for update: ${collection}/${id}`);
+      }
+      const updated = shallowMergeDocument(existing, patch);
+      const invalidation = await manifests.prepareInvalidation(
+        projectionScopes([existing, updated]),
+      );
+      const committed = await documentStore.writeBatchIfUnchanged({
+        expected: { collection, document: existing, id },
+        set: [
+          { collection, document: updated, id },
+          ...invalidation.set,
+        ],
+        unchanged: invalidation.unchanged,
+      });
+      if (committed) {
+        return { existing, updated };
+      }
+    }
+    throw new Error(
+      `Projection input changed repeatedly during update: ${collection}/${id}`,
+    );
+  }
+
+  async function deleteProjectionInputAndInvalidate(
+    collection: string,
+    id: string,
+  ): Promise<StorageDocument | null> {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const existing = await documentStore.get<StorageDocument>(collection, id);
+      if (!existing) {
+        return null;
+      }
+      const invalidation = await manifests.prepareInvalidation(
+        projectionScopes([existing]),
+      );
+      const committed = await documentStore.writeBatchIfUnchanged({
+        delete: [{ collection, id }],
+        expected: { collection, document: existing, id },
+        set: invalidation.set,
+        unchanged: invalidation.unchanged,
+      });
+      if (committed) {
+        return existing;
+      }
+    }
+    throw new Error(
+      `Projection input changed repeatedly during deletion: ${collection}/${id}`,
+    );
+  }
 
   async function evidenceForFact(
     collection: string,
@@ -89,6 +204,7 @@ export function createProjectionAwareDocumentStore(input: {
     collection: string,
     sourceMemoryId: string,
     fallbackDocument?: StorageDocument,
+    evidenceDocument = fallbackDocument,
   ): Promise<void> {
     if (!isRecallProjectionSourceCollection(collection)) {
       return;
@@ -100,7 +216,7 @@ export function createProjectionAwareDocumentStore(input: {
       const evidence = await evidenceForFact(
         collection,
         sourceMemoryId,
-        fallbackDocument,
+        evidenceDocument,
       );
       await operations.synchronizeUnsafe(
         collection,
@@ -152,7 +268,56 @@ export function createProjectionAwareDocumentStore(input: {
   async function writeConditionalBatch(
     batch: ConditionalDocumentWriteBatch,
   ): Promise<boolean> {
+    const projectionOperations = [
+      ...batch.set,
+      ...(batch.delete ?? []),
+    ].filter(({ collection }) => isProjectionInputCollection(collection));
+    const tracked = new Map<
+      string,
+      {
+        collection: string;
+        document: StorageDocument | null;
+        id: string;
+      }
+    >();
+    for (const operation of projectionOperations) {
+      const key = sourceMutationKey(operation.collection, operation.id);
+      if (tracked.has(key)) {
+        continue;
+      }
+      tracked.set(key, {
+        collection: operation.collection,
+        document: await documentStore.get<StorageDocument>(
+          operation.collection,
+          operation.id,
+        ),
+        id: operation.id,
+      });
+    }
     const sources = new Map<
+      string,
+      {
+        collection: RecallProjectionSourceCollection;
+        document: StorageDocument;
+        fallbackDocument?: StorageDocument;
+        id: string;
+      }
+    >();
+    for (const operation of batch.set) {
+      if (!isRecallProjectionSourceCollection(operation.collection)) continue;
+      const existing = tracked.get(
+        sourceMutationKey(operation.collection, operation.id),
+      );
+      sources.set(sourceMutationKey(operation.collection, operation.id), {
+        collection: operation.collection,
+        document: operation.document,
+        ...(existing?.document
+          ? { fallbackDocument: existing.document }
+          : {}),
+        id: operation.id,
+      });
+    }
+    const deletedSources = new Map<
       string,
       {
         collection: RecallProjectionSourceCollection;
@@ -160,16 +325,60 @@ export function createProjectionAwareDocumentStore(input: {
         id: string;
       }
     >();
-    for (const operation of batch.set) {
-      if (!isRecallProjectionSourceCollection(operation.collection)) continue;
-      sources.set(sourceMutationKey(operation.collection, operation.id), {
-        collection: operation.collection,
-        document: operation.document,
-        id: operation.id,
-      });
+    for (const operation of batch.delete ?? []) {
+      if (!isRecallProjectionSourceCollection(operation.collection)) {
+        continue;
+      }
+      const document = tracked.get(
+        sourceMutationKey(operation.collection, operation.id),
+      );
+      if (document?.document) {
+        deletedSources.set(
+          sourceMutationKey(operation.collection, operation.id),
+          {
+            collection: operation.collection,
+            document: document.document,
+            id: operation.id,
+          },
+        );
+      }
+    }
+    const constrained = new Set(
+      [batch.expected, ...(batch.unchanged ?? [])].map(({ collection, id }) =>
+        sourceMutationKey(collection, id)
+      ),
+    );
+    const trackedUnchanged = [...tracked.entries()]
+      .filter(([key]) => !constrained.has(key))
+      .map(([, current]) => ({
+        collection: current.collection,
+        document: current.document,
+        id: current.id,
+      }));
+    let persistedBatch: ConditionalDocumentWriteBatch = {
+      ...batch,
+      unchanged: [...(batch.unchanged ?? []), ...trackedUnchanged],
+    };
+    if (manifests.enabled) {
+      const invalidation = await manifests.prepareInvalidation([
+        ...projectionScopes([...tracked.values()].map(({ document }) => document)),
+        ...projectionScopes(
+          batch.set
+            .filter(({ collection }) => isProjectionInputCollection(collection))
+            .map(({ document }) => document),
+        ),
+      ]);
+      persistedBatch = {
+        ...persistedBatch,
+        set: [...batch.set, ...invalidation.set],
+        unchanged: [
+          ...(persistedBatch.unchanged ?? []),
+          ...invalidation.unchanged,
+        ],
+      };
     }
     if (!writeThrough) {
-      const committed = await documentStore.writeBatchIfUnchanged(batch);
+      const committed = await documentStore.writeBatchIfUnchanged(persistedBatch);
       if (committed) {
         for (const source of sources.values()) {
           await registerScopeAfterCanonicalWrite(
@@ -181,10 +390,20 @@ export function createProjectionAwareDocumentStore(input: {
       }
       return committed;
     }
-    return mutationLock.runExclusive([...sources.keys()], async () => {
-      const committed = await documentStore.writeBatchIfUnchanged(batch);
+    return mutationLock.runExclusive(
+      [...new Set([...sources.keys(), ...deletedSources.keys()])],
+      async () => {
+      const committed = await documentStore.writeBatchIfUnchanged(persistedBatch);
       if (!committed) return false;
       for (const source of sources.values()) {
+        await synchronizeAfterCanonicalWrite(
+          source.collection,
+          source.id,
+          source.fallbackDocument,
+          source.document,
+        );
+      }
+      for (const source of deletedSources.values()) {
         await synchronizeAfterCanonicalWrite(
           source.collection,
           source.id,
@@ -198,20 +417,37 @@ export function createProjectionAwareDocumentStore(input: {
   const decorated: ProjectionCapableDocumentStore = {
     projectionBatchSemantics: PROJECTION_BATCH_SEMANTICS,
     async set(collection, id, document) {
+      if (collection === EVIDENCE_COLLECTION) {
+        if (manifests.enabled) {
+          await setProjectionInputAndInvalidate(collection, id, document);
+        } else {
+          await documentStore.set(collection, id, document);
+        }
+        return;
+      }
       if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.set(collection, id, document);
         return;
       }
       if (!writeThrough) {
-        await documentStore.set(collection, id, document);
+        await setProjectionInputAndInvalidate(collection, id, document);
         await registerScopeAfterCanonicalWrite(collection, id, document);
         return;
       }
       await mutationLock.runExclusive(
         [sourceMutationKey(collection, id)],
         async () => {
-          await documentStore.set(collection, id, document);
-          await synchronizeAfterCanonicalWrite(collection, id, document);
+          const existing = await setProjectionInputAndInvalidate(
+            collection,
+            id,
+            document,
+          );
+          await synchronizeAfterCanonicalWrite(
+            collection,
+            id,
+            existing ?? undefined,
+            document,
+          );
         },
       );
     },
@@ -219,27 +455,41 @@ export function createProjectionAwareDocumentStore(input: {
       return documentStore.get(collection, id);
     },
     async update(collection, id, patch) {
+      if (collection === EVIDENCE_COLLECTION) {
+        if (manifests.enabled) {
+          await updateProjectionInputAndInvalidate(collection, id, patch);
+        } else {
+          await documentStore.update(collection, id, patch);
+        }
+        return;
+      }
       if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.update(collection, id, patch);
         return;
       }
       if (!writeThrough) {
-        await documentStore.update(collection, id, patch);
-        const updated = await documentStore.get<StorageDocument>(collection, id);
-        if (updated) {
-          await registerScopeAfterCanonicalWrite(collection, id, updated);
-        }
+        const { updated } = await updateProjectionInputAndInvalidate(
+          collection,
+          id,
+          patch,
+        );
+        await registerScopeAfterCanonicalWrite(collection, id, updated);
         return;
       }
       await mutationLock.runExclusive(
         [sourceMutationKey(collection, id)],
         async () => {
-          const existing = await documentStore.get<StorageDocument>(collection, id);
-          await documentStore.update(collection, id, patch);
+          const { existing, updated } =
+            await updateProjectionInputAndInvalidate(
+              collection,
+              id,
+              patch,
+            );
           await synchronizeAfterCanonicalWrite(
             collection,
             id,
-            existing ?? undefined,
+            existing,
+            updated,
           );
         },
       );
@@ -248,6 +498,14 @@ export function createProjectionAwareDocumentStore(input: {
       return documentStore.query(collection, filter);
     },
     async delete(collection, id) {
+      if (collection === EVIDENCE_COLLECTION) {
+        if (manifests.enabled) {
+          await deleteProjectionInputAndInvalidate(collection, id);
+        } else {
+          await documentStore.delete(collection, id);
+        }
+        return;
+      }
       if (!isRecallProjectionSourceCollection(collection)) {
         await documentStore.delete(collection, id);
         return;
@@ -257,10 +515,14 @@ export function createProjectionAwareDocumentStore(input: {
         async () => {
           let existing = await documentStore.get<StorageDocument>(collection, id);
           for (let attempt = 0; existing && attempt < 8; attempt += 1) {
+            const invalidation = manifests.enabled
+              ? await manifests.prepareInvalidation(projectionScopes([existing]))
+              : undefined;
             const committed = await repairs.deleteCanonicalAndRepairs(
               collection,
               id,
               existing,
+              invalidation,
             );
             if (committed) break;
             existing = await documentStore.get<StorageDocument>(collection, id);

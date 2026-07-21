@@ -5,6 +5,7 @@ import type {
   WorkingMemorySnapshot,
 } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
+import type { LanguageService } from "../language";
 import type {
   DocumentStore,
   SessionStore,
@@ -39,6 +40,7 @@ export interface RuntimeArchiveStoreConfig {
 export interface RuntimeContextServiceConfig {
   sessionStore: SessionStore;
   archiveStore?: RuntimeArchiveStore;
+  language?: LanguageService;
   now?: () => string;
   createMessageId?: () => string;
   createArchiveId?: () => string;
@@ -118,6 +120,7 @@ export function createRuntimeContextService(
   const publicConfig = {
     sessionStore: config.sessionStore,
     archiveStore: config.archiveStore,
+    language: config.language,
     now: config.now,
     createMessageId: config.createMessageId,
     createArchiveId: config.createArchiveId,

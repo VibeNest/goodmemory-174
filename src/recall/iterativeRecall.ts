@@ -26,12 +26,28 @@ const BRIDGE_STOPWORDS = new Set([
 const MIN_BRIDGE_TOKEN_LENGTH = 2;
 const DEFAULT_BRIDGE_ENTITY_LIMIT = 4;
 const DEFAULT_BRIDGE_FACT_LIMIT = 6;
+const ISO_TIMESTAMP_PATTERN =
+  /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/giu;
+const APOSTROPHE_SUFFIXES = new Set([
+  "d",
+  "ll",
+  "m",
+  "re",
+  "s",
+  "t",
+  "ve",
+]);
 
 interface BridgeCandidate {
   count: number;
   firstIndex: number;
   proper: boolean;
   token: string;
+}
+
+export interface BridgeTextAnalysis {
+  entities: readonly string[];
+  tokens: readonly string[];
 }
 
 function queryTokenSet(query: string): Set<string> {
@@ -43,24 +59,60 @@ function queryTokenSet(query: string): Set<string> {
   );
 }
 
+function normalizeBridgeToken(raw: string): { key: string; token: string } {
+  const apostropheIndex = raw.lastIndexOf("'");
+  if (apostropheIndex > 0) {
+    const suffix = raw.slice(apostropheIndex + 1).toLowerCase();
+    if (APOSTROPHE_SUFFIXES.has(suffix)) {
+      const token = raw.slice(0, apostropheIndex);
+      return { key: token.toLowerCase(), token };
+    }
+  }
+  return { key: raw.toLowerCase(), token: raw };
+}
+
 // Salient terms in the retrieved facts that the query did NOT already contain:
 // the entities/values that bridge hop 1 to hop 2. Proper nouns (capitalized) and
 // numeric values rank first, then novel content words by frequency, with original
 // reading order as the deterministic tie-breaker.
 export function extractBridgeEntities(input: {
+  analyzeBridgeText?: (text: string) => BridgeTextAnalysis;
   facts: readonly { content: string }[];
   query: string;
   limit?: number;
 }): string[] {
   const limit = input.limit ?? DEFAULT_BRIDGE_ENTITY_LIMIT;
-  const querySet = queryTokenSet(input.query);
+  const queryAnalysis = input.analyzeBridgeText?.(input.query);
+  const querySet = queryAnalysis
+    ? new Set(
+        [...queryAnalysis.entities, ...queryAnalysis.tokens]
+          .map((term) => normalizeBridgeToken(term.normalize("NFKC")).key)
+          .filter(Boolean),
+      )
+    : queryTokenSet(input.query);
   const candidates = new Map<string, BridgeCandidate>();
   let position = 0;
 
   for (const fact of input.facts.slice(0, DEFAULT_BRIDGE_FACT_LIMIT)) {
-    const rawTokens = fact.content.match(/[A-Za-z0-9][A-Za-z0-9'-]*/gu) ?? [];
-    for (const raw of rawTokens) {
-      const lower = raw.toLowerCase();
+    const analyzed = input.analyzeBridgeText?.(
+      fact.content.replace(ISO_TIMESTAMP_PATTERN, " "),
+    );
+    const terms = analyzed
+      ? [
+          ...analyzed.entities.map((raw) => ({ proper: true, raw })),
+          ...analyzed.tokens.map((raw) => ({ proper: false, raw })),
+        ]
+      : (fact.content
+          .replace(ISO_TIMESTAMP_PATTERN, " ")
+          .match(/[A-Za-z0-9][A-Za-z0-9'-]*/gu) ?? [])
+          .map((raw) => ({
+            proper: /^[A-Z]/u.test(raw) || /\d/u.test(raw),
+            raw,
+          }));
+    for (const term of terms) {
+      const raw = term.raw.normalize("NFKC");
+      const normalized = normalizeBridgeToken(raw);
+      const lower = normalized.key;
       position += 1;
       if (
         lower.length < MIN_BRIDGE_TOKEN_LENGTH ||
@@ -69,7 +121,8 @@ export function extractBridgeEntities(input: {
       ) {
         continue;
       }
-      const proper = /^[A-Z]/u.test(raw) || /\d/u.test(raw);
+      const proper = term.proper ||
+        /^[A-Z]/u.test(normalized.token) || /\d/u.test(normalized.token);
       const existing = candidates.get(lower);
       if (existing) {
         existing.count += 1;
@@ -79,7 +132,7 @@ export function extractBridgeEntities(input: {
           count: 1,
           firstIndex: position,
           proper,
-          token: raw,
+          token: normalized.token,
         });
       }
     }
@@ -105,6 +158,7 @@ const MAX_HOPS_CEILING = 6;
 const DEFAULT_MAX_HOPS = 2;
 
 export interface IterativeRecallOptions {
+  analyzeBridgeText?: (text: string) => BridgeTextAnalysis;
   bridgeEntityLimit?: number;
   // Maximum total recall passes (>= 1). Default 2 (one bridge expansion), the
   // historical two-pass behavior. The literature shows 2-3 hops capture most of
@@ -192,6 +246,7 @@ export async function iterativeRecall<
       }
     } else {
       const hopBridges = extractBridgeEntities({
+        analyzeBridgeText: input.options?.analyzeBridgeText,
         facts: result.facts,
         limit: input.options?.bridgeEntityLimit,
         query: activeQuery,

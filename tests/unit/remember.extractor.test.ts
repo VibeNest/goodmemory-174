@@ -86,6 +86,49 @@ describe("deterministic memory extractor", () => {
     ]);
   });
 
+  it("extracts bounded English names without swallowing continuations or initials", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+    const result = await extractor.extract({
+      scope: { userId: "u-name-grammar", sessionId: "s-name-grammar" },
+      messages: [
+        { role: "user", content: "My name is Nadia and my role is designer." },
+        { role: "user", content: "My name is Mary Jane and she works in Toronto." },
+        { role: "user", content: "My name is John Q. Public." },
+      ],
+    });
+
+    expect(
+      result.candidates
+        .filter(({ metadata }) => metadata?.profileField === "name")
+        .map(({ content }) => content),
+    ).toEqual(["Nadia", "Mary Jane", "John Q. Public"]);
+  });
+
+  it("extracts common Chinese and Japanese explicit-name forms", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+    const chinese = await extractor.extract({
+      locale: "zh-CN",
+      scope: { userId: "u-zh-name", sessionId: "s-zh-name" },
+      messages: [{ role: "user", content: "我的名字是李雷。" }],
+    });
+    const japanese = await extractor.extract({
+      locale: "ja-JP",
+      scope: { userId: "u-ja-name", sessionId: "s-ja-name" },
+      messages: [{ role: "user", content: "私の名前は山田 太郎です。" }],
+    });
+
+    expect(chinese.candidates[0]).toMatchObject({
+      content: "李雷",
+      kindHint: "profile",
+      metadata: { profileField: "name" },
+    });
+    expect(japanese.candidates[0]).toMatchObject({
+      content: "山田 太郎",
+      kindHint: "profile",
+      metadata: { profileField: "name" },
+    });
+  });
+
   it("extracts lower-confidence inferred facts from future-useful user context", async () => {
     const extractor = createDeterministicMemoryExtractor();
 
@@ -946,6 +989,64 @@ describe("deterministic memory extractor", () => {
     expect(result.candidates[6]?.metadata?.preferenceValue).toBe("用要点回复");
     expect(result.candidates[7]?.metadata?.referencePointer).toBe("docs/runbook.md");
     expect(result.candidates[8]?.metadata?.feedbackKind).toBe("prefer");
+  });
+
+  it("extracts the same durable memory families from Traditional Chinese", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      locale: "zh-TW",
+      scope: { userId: "u-hant", sessionId: "s-hant" },
+      messages: [
+        { role: "user", content: "請記住我叫陳美玲。" },
+        { role: "user", content: "請記住目前專案的阻塞是審批。" },
+        { role: "user", content: "我偏好使用繁體中文回覆。" },
+        { role: "user", content: "現在以 docs/runtime.md 為準。" },
+        { role: "user", content: "請以條列式回答。" },
+      ],
+    });
+
+    expect(result.candidates.map((candidate) => candidate.kindHint)).toEqual([
+      "profile",
+      "fact",
+      "preference",
+      "reference",
+      "feedback",
+    ]);
+    expect(result.candidates[0]?.content).toBe("陳美玲");
+    expect(result.candidates[3]?.metadata?.referencePointer).toBe(
+      "docs/runtime.md",
+    );
+  });
+
+  it("extracts profile, fact, preference, reference, and feedback in Japanese", async () => {
+    const extractor = createDeterministicMemoryExtractor();
+
+    const result = await extractor.extract({
+      locale: "ja-JP",
+      scope: { userId: "u-ja", sessionId: "s-ja" },
+      messages: [
+        { role: "user", content: "私の現在の役割はプラットフォームエンジニアです。" },
+        { role: "user", content: "覚えておいて、現在のブロッカーは承認待ちです。" },
+        { role: "user", content: "私は簡潔な回答が好きです。" },
+        { role: "user", content: "docs/runbook.mdを正とする。" },
+        { role: "user", content: "今後は箇条書きを優先してください。" },
+      ],
+    });
+
+    expect(result.candidates.map((candidate) => candidate.kindHint)).toEqual([
+      "profile",
+      "fact",
+      "preference",
+      "reference",
+      "feedback",
+    ]);
+    expect(result.candidates[0]?.content).toBe(
+      "プラットフォームエンジニア",
+    );
+    expect(result.candidates[3]?.metadata?.referencePointer).toBe(
+      "docs/runbook.md",
+    );
   });
 
   it("extracts Chinese Phase 62 personal experience facts", async () => {

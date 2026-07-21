@@ -456,7 +456,7 @@ describe("installed host writeback runtime", () => {
                   accepted: 1,
                   events: [],
                   metadata: {
-                    adapterId: "test",
+                    languagePackId: "en",
                     analysisMode: "rules-only",
                     locale: "en",
                     localeSource: "default",
@@ -602,7 +602,7 @@ describe("installed host writeback runtime", () => {
                   accepted: 1,
                   events: [],
                   metadata: {
-                    adapterId: "test",
+                    languagePackId: "en",
                     analysisMode: "rules-only",
                     locale: "en",
                     localeSource: "default",
@@ -711,7 +711,7 @@ describe("installed host writeback runtime", () => {
                   accepted: 1,
                   events: [],
                   metadata: {
-                    adapterId: "test",
+                    languagePackId: "en",
                     analysisMode: "rules-only",
                     locale: "en",
                     localeSource: "default",
@@ -2454,7 +2454,7 @@ describe("installed host writeback transcript hydration", () => {
             accepted: 1,
             events: [],
             metadata: {
-              adapterId: "test",
+              languagePackId: "en",
               analysisMode: "rules-only",
               locale: "en",
               localeSource: "default",

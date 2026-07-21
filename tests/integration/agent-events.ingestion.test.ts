@@ -135,6 +135,12 @@ describe("agent event ingestion", () => {
     expect(exported.durable.evidence).toHaveLength(1);
     expect(exported.durable.evidence[0]?.kind).toBe("tool_result_excerpt");
     expect(exported.durable.evidence[0]?.excerpt).toContain("QuickCheck timed out");
+    expect(exported.durable.evidence[0]?.source).toMatchObject({
+      languagePackId: "en",
+      languagePackVersion: "1",
+      locale: "en-US",
+      localeSource: "detected",
+    });
     expect(exported.durable.experiences).toHaveLength(1);
     expect(exported.durable.experiences[0]?.traceId).toBe("event-1");
     expect(exported.durable.experiences[0]?.kind).toBe("maintenance");
@@ -499,6 +505,15 @@ describe("agent event ingestion", () => {
     const afterExplicitFeedback = await memory.exportMemory({ scope });
 
     expect(explicitFeedback.memoryId).toBeDefined();
+    const explicitFeedbackRecord = afterExplicitFeedback.durable.feedback.find(
+      (record) => record.id === explicitFeedback.memoryId,
+    );
+    expect(explicitFeedbackRecord?.source).toMatchObject({
+      languagePackId: "en",
+      languagePackVersion: "1",
+      locale: "en-US",
+      localeSource: "detected",
+    });
     expect(
       afterExplicitFeedback.durable.feedback.some(
         (record) =>

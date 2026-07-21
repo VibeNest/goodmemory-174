@@ -1,5 +1,10 @@
 import type { EvidenceLedgerEntry } from "../recall/evidenceLedger";
 import type { ClaimProjection } from "../recall/projections/contracts";
+import {
+  createLanguageService,
+  type LanguageService,
+  type ResolvedLanguageContext,
+} from "../language";
 
 export type EvidenceLedgerFormat =
   | "prose"
@@ -59,14 +64,28 @@ function renderEntry(
   };
 }
 
-function renderProseEntry(entry: RenderedEvidenceLedgerEntry): string {
+function renderProseEntry(
+  entry: RenderedEvidenceLedgerEntry,
+  language: LanguageService,
+  context: ResolvedLanguageContext,
+): string {
   return [
-    `Evidence ${JSON.stringify(entry.evidenceId)} from memory ${JSON.stringify(entry.memoryId)}.`,
-    `Temporal status: ${entry.status}.`,
-    `Relation: ${entry.relation}.`,
-    entry.actor ? `Actor: ${JSON.stringify(entry.actor)}.` : undefined,
-    entry.claim ? `Claim: ${JSON.stringify(entry.claim)}.` : undefined,
-    `Excerpt: ${JSON.stringify(entry.excerpt)}.`,
+    language.render({
+      key: "evidence_entry",
+      values: {
+        evidenceId: JSON.stringify(entry.evidenceId),
+        memoryId: JSON.stringify(entry.memoryId),
+      },
+    }, context),
+    `${language.render({ key: "temporal_status" }, context)}: ${entry.status}.`,
+    `${language.render({ key: "relation_label" }, context)}: ${entry.relation}.`,
+    entry.actor
+      ? `${language.render({ key: "actor" }, context)}: ${JSON.stringify(entry.actor)}.`
+      : undefined,
+    entry.claim
+      ? `${language.render({ key: "claim" }, context)}: ${JSON.stringify(entry.claim)}.`
+      : undefined,
+    `${language.render({ key: "excerpt" }, context)}: ${JSON.stringify(entry.excerpt)}.`,
   ]
     .filter(Boolean)
     .join(" ");
@@ -92,7 +111,9 @@ export function renderEvidenceLedgerContext(
   entries: readonly EvidenceLedgerEntry[],
   format: EvidenceLedgerFormat,
   locale = "en",
+  language: LanguageService = createLanguageService(),
 ): string {
+  const context = language.resolveFromText({ locale, text: "" });
   const ordered = format === "chronology"
     ? chronologicalEntries(entries)
     : entries;
@@ -104,11 +125,11 @@ export function renderEvidenceLedgerContext(
   if (format === "json_locale_note") {
     return JSON.stringify({
       locale,
-      note: locale.toLowerCase().startsWith("zh")
-        ? "按时间状态和证据关系阅读以下条目。"
-        : "Read entries using their temporal status and evidence relation.",
+      note: language.render({ key: "evidence_note" }, context),
       evidence: rendered,
     });
   }
-  return rendered.map(renderProseEntry).join("\n");
+  return rendered
+    .map((entry) => renderProseEntry(entry, language, context))
+    .join("\n");
 }

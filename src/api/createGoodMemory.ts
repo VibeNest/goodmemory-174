@@ -46,8 +46,10 @@ import {
   type IterativeRecallStep,
 } from "../recall/iterativeRecall";
 import { createRecallProjectionRuntime } from "../recall/projections/runtime";
+import { buildRecallProjectionBuildId } from "../recall/projections/manifest";
 import { decomposedRecall } from "../recall/queryDecomposition";
 import {
+  buildDeterministicRecallPlan,
   buildUnplannedRecallPlan,
   resolveRecallPlan,
   type RecallPlan,
@@ -58,7 +60,7 @@ import type {
   RecallQueryExecutionTrace,
   RecallRetrievalTrace,
 } from "../recall/retrievalTrace";
-import { createDeterministicMemoryExtractor } from "../remember/deterministicExtractor";
+import { createDeterministicMemoryExtractorWithLanguage } from "../remember/deterministicExtractor";
 import { createRememberEngine } from "../remember/engine";
 import { createInMemoryDocumentStore, createInMemorySessionStore, createInMemoryVectorStore } from "../storage/memory";
 import { createAutoStorageAdapters } from "../storage/auto";
@@ -240,7 +242,7 @@ function unionRecordsById<T extends { id: string }>(
 const RECALL_PASS_FUSION_RRF_K = 60;
 
 function fuseFactsAcrossRecallPasses(
-  results: readonly RecallResult[],
+  results: readonly [RecallResult, ...RecallResult[]],
   preRankLimit: number,
   primaryReserveLimit: number,
 ): RecallResult["facts"] {
@@ -273,7 +275,7 @@ function fuseFactsAcrossRecallPasses(
   }
 
   const requiredPrimaryIds = new Set(
-    results[0]!.facts
+    results[0].facts
       .slice(0, Math.min(primaryReserveLimit, preRankLimit))
       .map((fact) => fact.id),
   );
@@ -405,7 +407,10 @@ function mergeRecallResults(
   if (supplementary.length === 0) {
     return primary;
   }
-  const results = [primary, ...supplementary];
+  const results: [RecallResult, ...RecallResult[]] = [
+    primary,
+    ...supplementary,
+  ];
   const facts = fuseFactsAcrossRecallPasses(
     results,
     plan.preRankLimit,
@@ -618,16 +623,23 @@ async function resolveFeedbackSignalState(input: {
     appliesTo,
   });
   const duplicate = existing.find(
-    (record) =>
-      record.lifecycle === "active" &&
-      buildFeedbackIdentityKey({
-        kind: record.kind,
-        normalizedRule: input.language.normalizeForEquality(
-          record.rule,
-          resolvedLanguage,
-        ),
-        appliesTo: record.appliesTo,
-      }) === nextIdentityKey,
+    (record) => {
+      const recordLanguage = input.language.resolveFromText({
+        locale: record.source.locale,
+        text: record.rule,
+      });
+      return (
+        record.lifecycle === "active" &&
+        buildFeedbackIdentityKey({
+          kind: record.kind,
+          normalizedRule: input.language.normalizeForEquality(
+            record.rule,
+            recordLanguage,
+          ),
+          appliesTo: record.appliesTo,
+        }) === nextIdentityKey
+      );
+    },
   );
   const superseded = existing.find(
     (record) =>
@@ -735,6 +747,9 @@ async function writeFeedbackSignal(input: {
         extractedAt: timestamp,
         sessionId: input.scope.sessionId,
         locale: resolvedLanguage.locale,
+        localeSource: resolvedLanguage.localeSource,
+        languagePackId: resolvedLanguage.languagePackId,
+        languagePackVersion: resolvedLanguage.languagePackVersion,
       }),
       updatedAt: timestamp,
     });
@@ -759,7 +774,8 @@ async function writeFeedbackSignal(input: {
         metadata: {
           locale: resolvedLanguage.locale,
           localeSource: resolvedLanguage.localeSource,
-          adapterId: resolvedLanguage.adapterId,
+          languagePackId: resolvedLanguage.languagePackId,
+          languagePackVersion: resolvedLanguage.languagePackVersion,
           analysisMode: resolvedLanguage.analysisMode,
         },
       };
@@ -787,7 +803,8 @@ async function writeFeedbackSignal(input: {
       metadata: {
         locale: resolvedLanguage.locale,
         localeSource: resolvedLanguage.localeSource,
-        adapterId: resolvedLanguage.adapterId,
+        languagePackId: resolvedLanguage.languagePackId,
+        languagePackVersion: resolvedLanguage.languagePackVersion,
         analysisMode: resolvedLanguage.analysisMode,
       },
     };
@@ -814,7 +831,8 @@ async function writeFeedbackSignal(input: {
     metadata: {
       locale: resolvedLanguage.locale,
       localeSource: resolvedLanguage.localeSource,
-      adapterId: resolvedLanguage.adapterId,
+      languagePackId: resolvedLanguage.languagePackId,
+      languagePackVersion: resolvedLanguage.languagePackVersion,
       analysisMode: resolvedLanguage.analysisMode,
     },
   };
@@ -1008,13 +1026,21 @@ class GoodMemoryImpl implements GoodMemory {
         "Generalized fusion requires a projection-capable document store with atomic conditional batches.",
       );
     }
+    const language = createLanguageService(config.language);
+    const projectionBuildId = config.adapters?.documentStore === undefined
+      ? buildRecallProjectionBuildId(language)
+      : undefined;
     const projectionRuntime = isProjectionCapableDocumentStore(rawDocumentStore)
       ? createRecallProjectionRuntime({
           bulkBackfill: internal?.projectionBulkBackfill,
           documentStore: rawDocumentStore,
+          language,
           now: config.testing?.now
             ? () => config.testing!.now!().toISOString()
             : undefined,
+          ...(projectionBuildId
+            ? { persistentScopeProof: { buildId: projectionBuildId } }
+            : {}),
           writeThrough:
             runtimeResolution.retrieval.generalizedFusion !== undefined &&
             internal?.projectionWriteThrough !== false,
@@ -1049,8 +1075,6 @@ class GoodMemoryImpl implements GoodMemory {
       sessionStore,
       vectorStore,
     });
-    const language = createLanguageService(config.language);
-
     this.documentStore = documentStore;
     this.sessionStore = sessionStore;
     this.governanceRepositories = repositories;
@@ -1064,6 +1088,7 @@ class GoodMemoryImpl implements GoodMemory {
     this.tracer = createGoodMemoryTracer(config.observability, this.now);
     this.runtime = createGoodMemoryRuntimeFacade({
       documentStore,
+      language,
       sessionStore,
       now: this.now,
       ...(internal?.runtimeCompactionExtraction
@@ -1108,9 +1133,7 @@ class GoodMemoryImpl implements GoodMemory {
       embedding: embeddingAdapter,
       extractor:
         config.testing?.extractor ??
-        createDeterministicMemoryExtractor({
-          service: language,
-        }),
+        createDeterministicMemoryExtractorWithLanguage(language),
       language,
       remember: config.remember,
       policy: config.policy,
@@ -1193,6 +1216,11 @@ class GoodMemoryImpl implements GoodMemory {
       });
       const recallPlanExecution =
         this.config.retrieval?.recallPlanExecution === true;
+      const recallReferenceTime =
+        input.referenceTime !== undefined &&
+          Number.isFinite(Date.parse(input.referenceTime))
+          ? new Date(Date.parse(input.referenceTime)).toISOString()
+          : this.now().toISOString();
       const planResolution = recallPlanExecution
         ? await resolveRecallPlan({
             assistant: this.config.adapters?.recallPlanner,
@@ -1200,11 +1228,7 @@ class GoodMemoryImpl implements GoodMemory {
               language: this.language,
               locale: resolvedLanguage.locale,
               query: input.query,
-              referenceTime:
-                input.referenceTime !== undefined &&
-                  Number.isFinite(Date.parse(input.referenceTime))
-                  ? new Date(Date.parse(input.referenceTime)).toISOString()
-                  : this.now().toISOString(),
+              referenceTime: recallReferenceTime,
               scope: input.scope,
             },
           })
@@ -1219,14 +1243,6 @@ class GoodMemoryImpl implements GoodMemory {
         );
       }
       const recallPlan = planResolution.plan;
-      const multiHopMaxHops =
-        typeof input.multiHop === "number"
-          ? input.multiHop
-          : input.multiHop === undefined &&
-              recallPlanExecution &&
-              recallPlan.maxHops > 1
-            ? recallPlan.maxHops
-            : undefined;
       const multiHopEnabled = input.multiHop === undefined
         ? recallPlanExecution && recallPlan.maxHops > 1
         : Boolean(input.multiHop);
@@ -1240,13 +1256,36 @@ class GoodMemoryImpl implements GoodMemory {
         execution: RecallQueryExecutionTrace;
         result: RecallResult;
       }> => {
+        const queryPlan = context.role === "primary" || !recallPlanExecution
+          ? recallPlan
+          : {
+              ...buildDeterministicRecallPlan({
+                language: this.language,
+                locale: resolvedLanguage.locale,
+                query: context.query,
+                referenceTime: recallReferenceTime,
+                scope: input.scope,
+              }),
+              maxRenderedTokens: recallPlan.maxRenderedTokens,
+              preRankLimit: recallPlan.preRankLimit,
+              selectedLimit: recallPlan.selectedLimit,
+            };
+        const queryMaxHops = typeof input.multiHop === "number"
+          ? input.multiHop
+          : input.multiHop === undefined && queryPlan.maxHops > 1
+            ? queryPlan.maxHops
+            : undefined;
+        const queryMultiHopEnabled = input.multiHop === undefined
+          ? recallPlanExecution && queryPlan.maxHops > 1
+          : Boolean(input.multiHop);
         let hop = 0;
         const singlePassRecall = async (query: string) => {
           hop += 1;
           const result = await this.recallEngine.recall({
             ...input,
+            locale: resolvedLanguage.locale,
             query,
-            recallPlan,
+            recallPlan: queryPlan,
           });
           return annotateRecallPass(result, {
             hop,
@@ -1258,7 +1297,7 @@ class GoodMemoryImpl implements GoodMemory {
           });
         };
 
-        if (multiHopEnabled) {
+        if (queryMultiHopEnabled) {
           const outcome = await iterativeRecall({
             query: context.query,
             recall: singlePassRecall,
@@ -1266,14 +1305,26 @@ class GoodMemoryImpl implements GoodMemory {
               mergeRecallResults(
                 primary,
                 supplementary,
-                recallPlan,
+                queryPlan,
                 "iterative_recall",
               ),
-            options: { maxHops: multiHopMaxHops },
+            options: {
+              analyzeBridgeText: (text) => ({
+                entities: this.language.extractEntityMentions(
+                  text,
+                  resolvedLanguage,
+                ).map((mention) => mention.surface),
+                tokens: this.language.tokenize(text, resolvedLanguage, {
+                  excludeStopwords: true,
+                }),
+              }),
+              maxHops: queryMaxHops,
+            },
           });
           return {
             execution: {
               hops: outcome.steps,
+              plan: queryPlan,
               query: context.query,
               role: context.role,
               stopReason: outcome.stopReason,
@@ -1297,6 +1348,7 @@ class GoodMemoryImpl implements GoodMemory {
         return {
           execution: {
             hops: steps,
+            plan: queryPlan,
             query: context.query,
             role: context.role,
             stopReason: "single_pass_complete",
@@ -1375,6 +1427,17 @@ class GoodMemoryImpl implements GoodMemory {
               : "single_pass_complete",
         subQueries,
       });
+      result = {
+        ...result,
+        metadata: {
+          ...result.metadata,
+          analysisMode: resolvedLanguage.analysisMode,
+          languagePackId: resolvedLanguage.languagePackId,
+          languagePackVersion: resolvedLanguage.languagePackVersion,
+          locale: resolvedLanguage.locale,
+          localeSource: resolvedLanguage.localeSource,
+        },
+      };
       if (planResolution.assistantApplied || planResolution.fallbackReason) {
         result = {
           ...result,
@@ -1440,6 +1503,7 @@ class GoodMemoryImpl implements GoodMemory {
               input.recall.evidenceLedger,
               input.evidenceLedgerFormat,
               input.recall.metadata.locale,
+              this.language,
             ),
           }
         : input.recall.packet;
@@ -1786,7 +1850,8 @@ async function submitAgentEventCorrection(input: {
     metadata: {
       locale: resolvedLanguage.locale,
       localeSource: resolvedLanguage.localeSource,
-      adapterId: resolvedLanguage.adapterId,
+      languagePackId: resolvedLanguage.languagePackId,
+      languagePackVersion: resolvedLanguage.languagePackVersion,
       analysisMode: resolvedLanguage.analysisMode,
     },
   };

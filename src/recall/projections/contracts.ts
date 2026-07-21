@@ -14,9 +14,13 @@ export type {
 export const RECALL_DOCUMENTS_COLLECTION = "recall_documents_v2";
 export const ENTITIES_COLLECTION = "entities_v1";
 export const SCOPE_CATALOG_COLLECTION = "scope_catalog_v1";
+export const PROJECTION_MANIFESTS_COLLECTION =
+  "recall_projection_manifests_v1";
 export const PROJECTION_REPAIRS_COLLECTION = "recall_projection_repairs_v1";
 export const CLAIM_PROJECTIONS_COLLECTION = "claim_projections_v1";
 export const CLAIM_PROJECTION_STATUS_COLLECTION = "claim_projection_status_v1";
+export const PROJECTION_SEARCH_SCHEMA_VERSION = "gm-search-v1";
+export const RECALL_PROJECTION_PIPELINE_VERSION = "gm-projection-v2";
 
 export const RECALL_PROJECTION_SOURCE_COLLECTIONS = [
   "profiles",
@@ -49,6 +53,11 @@ export interface RecallIndexDocument extends MemoryScope {
   granularity: RecallDocumentGranularity;
   field?: string;
   text: string;
+  searchText: string;
+  searchLocale: string;
+  languagePackId: string;
+  searchAnalyzerVersion: string;
+  searchSchemaVersion: typeof PROJECTION_SEARCH_SCHEMA_VERSION;
   entityIds: string[];
   entityMentions: RecallEntityMention[];
   effectiveFrom?: string;
@@ -58,6 +67,9 @@ export interface RecallIndexDocument extends MemoryScope {
     extractedAt?: string;
     sessionId?: string;
     locale?: string;
+    localeSource?: "explicit" | "detected" | "default";
+    languagePackId?: string;
+    languagePackVersion?: string;
   };
   sourceCreatedAt?: string;
   sourceUpdatedAt?: string;
@@ -87,6 +99,11 @@ export interface EntityAdjacencyProjection extends MemoryScope {
   aliases: string[];
   description?: string;
   text?: string;
+  searchText?: string;
+  searchLocale?: string;
+  languagePackId?: string;
+  searchAnalyzerVersion?: string;
+  searchSchemaVersion?: typeof PROJECTION_SEARCH_SCHEMA_VERSION;
   validFrom?: string;
   validUntil?: string;
   updatedAt: string;
@@ -97,8 +114,20 @@ export interface ScopeCatalogProjection extends MemoryScope {
   schemaVersion: 1;
   scopeKey: string;
   coverage: "partial" | "complete";
+  searchSchemaVersion?: typeof PROJECTION_SEARCH_SCHEMA_VERSION;
   firstSeenAt: string;
   lastSeenAt: string;
+}
+
+export interface RecallProjectionManifest extends MemoryScope {
+  id: string;
+  schemaVersion: 1;
+  scopeKey: string;
+  sourceGeneration: string;
+  validatedGeneration?: string;
+  projectionBuildId?: string;
+  updatedAt: string;
+  validatedAt?: string;
 }
 
 export interface ClaimProjection extends MemoryScope {
@@ -106,10 +135,17 @@ export interface ClaimProjection extends MemoryScope {
   schemaVersion: 1;
   scopeKey: string;
   sourceMemoryId: string;
+  subjectText?: string;
   subjectEntityId: string;
   predicateKey: string;
   objectText: string;
   text?: string;
+  searchText?: string;
+  searchLocale?: string;
+  languagePackId?: string;
+  searchAnalyzerVersion?: string;
+  searchSchemaVersion?: typeof PROJECTION_SEARCH_SCHEMA_VERSION;
+  objectEntityText?: string;
   objectEntityId?: string;
   polarity: MemoryClaimPolarity;
   modality: MemoryClaimModality;
@@ -164,17 +200,20 @@ export interface RecallProjectionSearchPort {
     scope: MemoryScope,
     query: string,
     limit: number,
+    locale?: string,
   ): Promise<RecallIndexDocument[]>;
   searchEntities(
     scope: MemoryScope,
     query: string,
     limit: number,
+    locale?: string,
   ): Promise<EntityProjection[]>;
   searchClaims(
     scope: MemoryScope,
     query: string,
     limit: number,
     history?: boolean,
+    locale?: string,
   ): Promise<ClaimProjection[]>;
   queryEntities(scope: MemoryScope): Promise<EntityProjection[]>;
   queryClaims(scope: MemoryScope): Promise<ClaimProjection[]>;

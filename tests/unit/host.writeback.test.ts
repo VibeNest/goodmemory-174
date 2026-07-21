@@ -96,6 +96,55 @@ async function createWritableHarness(options: {
 }
 
 describe("host adapter writeback", () => {
+  it("passes persisted locale provenance to writeback policy hooks", async () => {
+    const { documentStore, memory, playbook, scope } = await createWritableHarness();
+    const existing = await documentStore.get<FeedbackMemory>("feedback", "pattern-1");
+    if (!existing) {
+      throw new Error("expected writable feedback");
+    }
+    await documentStore.set("feedback", existing.id, {
+      ...existing,
+      source: createMemorySource({
+        ...existing.source,
+        locale: "ja-JP",
+        localeSource: "detected",
+        languagePackId: "ja",
+        languagePackVersion: "1",
+      }),
+    });
+    let observedLocaleSource: string | undefined;
+    const adapter = createHostAdapter({
+      id: "codex-language-policy",
+      hostKind: "codex",
+      mode: "file-authoritative",
+      memory,
+      documentStore,
+      readableArtifactTypes: ["playbook"],
+      supportedReadableArtifactTypes: ["playbook"],
+      writableArtifactTypes: ["playbook"],
+      policy: {
+        redact(candidate, context) {
+          observedLocaleSource = context.localeSource;
+          return candidate;
+        },
+      },
+      now: () => "2026-04-21T00:00:00.000Z",
+    });
+    const changedWhy = playbook.content.replace(
+      "Repeated successful summaries and explicit confirmations.",
+      "Japanese workflow guidance confirmed by the user.",
+    );
+
+    await adapter.writeArtifact({
+      scope,
+      artifactType: "playbook",
+      relativePath: playbook.relativePath,
+      content: changedWhy,
+    });
+
+    expect(observedLocaleSource).toBe("detected");
+  });
+
   it("writes low-risk playbook metadata deltas back into canonical validated patterns", async () => {
     const { documentStore, memory, playbook, scope } = await createWritableHarness();
     const adapter = createHostAdapter({

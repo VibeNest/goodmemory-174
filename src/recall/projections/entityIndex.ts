@@ -4,8 +4,10 @@ import {
 } from "../../domain/scope";
 import type { MemoryScope } from "../../domain/scope";
 import type { DocumentStore } from "../../storage/contracts";
+import type { LanguageService } from "../../language";
 import {
   ENTITIES_COLLECTION,
+  PROJECTION_SEARCH_SCHEMA_VERSION,
 } from "./contracts";
 import type {
   EntityAdjacencyProjection,
@@ -28,6 +30,7 @@ export interface EntityProjectionIndex {
     scope: MemoryScope,
     query: string,
     limit: number,
+    locale?: string,
   ): Promise<EntityProjection[]>;
   updateForSource(input: {
     collection: RecallProjectionSourceCollection;
@@ -117,6 +120,9 @@ function buildEntitySource(input: {
   aliases: string[];
   canonicalKey: string;
   description?: string;
+  languagePackId: string;
+  searchAnalyzerVersion: string;
+  searchLocale: string;
   validFrom?: string;
   validUntil?: string;
 } | null {
@@ -139,6 +145,9 @@ function buildEntitySource(input: {
   const matching = input.documents.filter((document) =>
     document.entityIds.includes(input.entityId),
   );
+  const first = [...matching].sort((left, right) =>
+    left.id.localeCompare(right.id)
+  )[0]!;
   const validFrom = firstDefinedTimestamp(
     matching.map((document) => document.effectiveFrom),
   );
@@ -148,6 +157,9 @@ function buildEntitySource(input: {
   return {
     canonicalKey,
     aliases: [...new Set(mentions.map((mention) => mention.surface))].sort(),
+    languagePackId: first.languagePackId,
+    searchAnalyzerVersion: first.searchAnalyzerVersion,
+    searchLocale: first.searchLocale,
     ...(description ? { description } : {}),
     ...(validFrom ? { validFrom } : {}),
     ...(validUntil ? { validUntil } : {}),
@@ -156,6 +168,7 @@ function buildEntitySource(input: {
 
 export function buildEntityAdjacencyProjections(input: {
   documents: readonly RecallIndexDocument[];
+  language: LanguageService;
   timestamp: string;
 }): EntityAdjacencyProjection[] {
   const documentsByMemory = new Map<string, RecallIndexDocument[]>();
@@ -180,17 +193,26 @@ export function buildEntityAdjacencyProjections(input: {
       if (!source) {
         continue;
       }
+      const text = buildEntityProjectionSearchText(source);
       edges.push({
         id: buildEntityAdjacencyProjectionId(entityId, memoryId),
         schemaVersion: 1,
         ...normalizedScope,
+        ...(first.sessionId ? { sessionId: first.sessionId } : {}),
         scopeKey: recallScopeKey(normalizedScope),
         entityId,
         canonicalKey: source.canonicalKey,
         memoryId,
         aliases: source.aliases,
         ...(source.description ? { description: source.description } : {}),
-        text: buildEntityProjectionSearchText(source),
+        text,
+        searchText: [...new Set(
+          input.language.buildSearchTerms(text, source.searchLocale),
+        )].join(" "),
+        searchLocale: source.searchLocale,
+        languagePackId: source.languagePackId,
+        searchAnalyzerVersion: source.searchAnalyzerVersion,
+        searchSchemaVersion: PROJECTION_SEARCH_SCHEMA_VERSION,
         ...(source.validFrom ? { validFrom: source.validFrom } : {}),
         ...(source.validUntil ? { validUntil: source.validUntil } : {}),
         updatedAt: input.timestamp,
@@ -202,6 +224,7 @@ export function buildEntityAdjacencyProjections(input: {
 
 export function createEntityProjectionIndex(
   documentStore: DocumentStore,
+  language: LanguageService,
 ): EntityProjectionIndex {
   async function findEntityIdsForMemory(
     scope: MemoryScope,
@@ -232,10 +255,12 @@ export function createEntityProjectionIndex(
       return;
     }
     const normalizedScope = normalizeRecallScope(input.scope);
+    const text = buildEntityProjectionSearchText(input.source);
     const edge: EntityAdjacencyProjection = {
       id: edgeId,
       schemaVersion: 1,
       ...normalizedScope,
+      ...(input.scope.sessionId ? { sessionId: input.scope.sessionId } : {}),
       scopeKey: recallScopeKey(normalizedScope),
       entityId: input.entityId,
       canonicalKey: input.source.canonicalKey,
@@ -244,7 +269,14 @@ export function createEntityProjectionIndex(
       ...(input.source.description
         ? { description: input.source.description }
         : {}),
-      text: buildEntityProjectionSearchText(input.source),
+      text,
+      searchText: [...new Set(
+        language.buildSearchTerms(text, input.source.searchLocale),
+      )].join(" "),
+      searchLocale: input.source.searchLocale,
+      languagePackId: input.source.languagePackId,
+      searchAnalyzerVersion: input.source.searchAnalyzerVersion,
+      searchSchemaVersion: PROJECTION_SEARCH_SCHEMA_VERSION,
       ...(input.source.validFrom ? { validFrom: input.source.validFrom } : {}),
       ...(input.source.validUntil ? { validUntil: input.source.validUntil } : {}),
       updatedAt: input.timestamp,
@@ -262,17 +294,25 @@ export function createEntityProjectionIndex(
         queried.filter((edge) => matchesScopeFilter(edge, scope)),
       );
     },
-    async search(scope, query, limit) {
+    async search(scope, query, limit, locale) {
       if (!documentStore.searchText) {
         return (await this.query(scope)).slice(0, limit);
+      }
+      const context = language.resolveFromText({
+        ...(locale ? { locale } : {}),
+        text: query,
+      });
+      const searchQuery = language.buildSearchTerms(query, context).join(" ");
+      if (!searchQuery) {
+        return [];
       }
       const results = await documentStore.searchText<EntityAdjacencyProjection>(
         ENTITIES_COLLECTION,
         {
-          field: "text",
+          field: "searchText",
           filter: scopeFilter(scope),
           limit,
-          query,
+          query: searchQuery,
         },
       );
       const ranked = new Map<

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
 import { createFactMemory } from "../../src/domain/records";
-import { createLanguageService } from "../../src/language";
+import {
+  createLanguageService,
+  createNeutralLanguagePack,
+  type LanguageContentAnalysis,
+  type LanguageQueryAnalysis,
+} from "../../src/language";
 import type { RoutingDecision } from "../../src/recall/router";
 import { selectGeneralizedFactsForInternalUse } from "../../src/recall/selection";
 
@@ -30,6 +35,35 @@ function routingDecision(
     supportSlots: [],
     ...overrides,
   };
+}
+
+function createSentinelLanguage(
+  analysis: Partial<LanguageQueryAnalysis>,
+  contentAnalysis: Partial<LanguageContentAnalysis> = {},
+) {
+  const neutral = createNeutralLanguagePack();
+  return createLanguageService({
+    defaultLocale: "xx",
+    packs: [{
+      ...neutral,
+      analyzerVersion: "sentinel-v1",
+      compatibilityGroup: "xx",
+      defaultLocale: "xx",
+      detect: ({ texts }) => texts.some((text) => text.includes("zor"))
+        ? "distinctive"
+        : "none",
+      id: "xx-sentinel",
+      locales: ["xx"],
+      analyzeQuery: () => ({
+        ...neutral.analyzeQuery(""),
+        ...analysis,
+      }),
+      analyzeContent: () => ({
+        ...neutral.analyzeContent(""),
+        ...contentAnalysis,
+      }),
+    }],
+  });
 }
 
 describe("generalized production selection", () => {
@@ -119,6 +153,156 @@ describe("generalized production selection", () => {
     );
 
     expect(result.facts.map(({ id }) => id)).toEqual(["pre-action-blocker"]);
+  });
+
+  it("uses LanguagePack semantics for aggregate open-loop selection", () => {
+    const facts = ["alpha", "beta"].map((suffix) =>
+      createFactMemory({
+        category: "project",
+        content: `zor ${suffix}`,
+        factKind: "open_loop",
+        id: suffix,
+        source: {
+          extractedAt: TIMESTAMP,
+          languagePackId: "xx-sentinel",
+          languagePackVersion: "sentinel-v1",
+          locale: "xx",
+          method: "explicit",
+        },
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      })
+    );
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "zor",
+      createSentinelLanguage({ aggregateCount: true, openLoop: true }),
+      "xx",
+      "general_chat",
+      routingDecision({ requestedSlots: ["open_loop"] }),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map(({ id }) => id).sort()).toEqual(["alpha", "beta"]);
+  });
+
+  it("uses LanguagePack semantics for reference pre-action selection", () => {
+    const fact = createFactMemory({
+      category: "project",
+      content: "zor guard",
+      id: "sentinel-guard",
+      source: {
+        extractedAt: TIMESTAMP,
+        languagePackId: "xx-sentinel",
+        languagePackVersion: "sentinel-v1",
+        locale: "xx",
+        method: "explicit",
+      },
+      updatedAt: TIMESTAMP,
+      userId: "user-1",
+    });
+
+    const result = selectGeneralizedFactsForInternalUse(
+      [fact],
+      "zor",
+      createSentinelLanguage({
+        actionDriving: true,
+        before: true,
+        referenceSeeking: true,
+      }),
+      "xx",
+      "coding_agent",
+      routingDecision({ referenceSeeking: true, requestedSlots: ["reference"] }),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map(({ id }) => id)).toEqual(["sentinel-guard"]);
+  });
+
+  it("uses LanguagePack semantics for user-grounded event ordering", () => {
+    const facts = [
+      createFactMemory({
+        category: "event",
+        content: "zor user event",
+        id: "user-event",
+        source: {
+          extractedAt: TIMESTAMP,
+          languagePackId: "xx-sentinel",
+          languagePackVersion: "sentinel-v1",
+          locale: "xx",
+          method: "explicit",
+        },
+        tags: ["user_answer"],
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+      createFactMemory({
+        category: "event",
+        content: "zor assistant event",
+        id: "assistant-event",
+        source: {
+          extractedAt: TIMESTAMP,
+          languagePackId: "xx-sentinel",
+          languagePackVersion: "sentinel-v1",
+          locale: "xx",
+          method: "explicit",
+        },
+        tags: ["assistant_answer"],
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "zor",
+      createSentinelLanguage({ userGroundedEventOrder: true }),
+      "xx",
+      "general_chat",
+      routingDecision(),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map(({ id }) => id)).toEqual(["user-event"]);
+  });
+
+  it("uses generic LanguagePack preference semantics for broad recommendations", () => {
+    const fact = createFactMemory({
+      category: "technical",
+      content: "zor",
+      id: "sentinel-research-interest",
+      source: {
+        extractedAt: TIMESTAMP,
+        languagePackId: "xx-sentinel",
+        languagePackVersion: "sentinel-v1",
+        locale: "xx",
+        method: "explicit",
+      },
+      updatedAt: TIMESTAMP,
+      userId: "user-1",
+    });
+
+    const result = selectGeneralizedFactsForInternalUse(
+      [fact],
+      "xed",
+      createSentinelLanguage(
+        { recommendationStyle: true },
+        { preferenceEvidence: true },
+      ),
+      "xx",
+      "general_chat",
+      routingDecision(),
+      null,
+      TIMESTAMP,
+    );
+
+    expect(result.facts.map(({ id }) => id)).toEqual([
+      "sentinel-research-interest",
+    ]);
   });
 
   it("does not collapse unrelated facts merely because they share a subject", () => {
@@ -213,6 +397,68 @@ describe("generalized production selection", () => {
 
     expect(result.facts.map(({ id }) => id)).toContain("current-role");
     expect(result.facts.map(({ id }) => id)).not.toContain("old-role");
+  });
+
+  it("uses LanguagePack equality when collapsing cross-script mutable subjects", () => {
+    const facts = [
+      createFactMemory({
+        category: "project",
+        content: "資料庫遷移目前仍被舊審批阻塞。",
+        factKind: "project_state",
+        id: "old-project-state",
+        source: {
+          extractedAt: "2026-01-01T00:00:00.000Z",
+          languagePackId: "zh-Hant",
+          languagePackVersion: "5-opencc-t2cn-1.4.1",
+          locale: "zh-TW",
+          method: "explicit",
+        },
+        subject: "資料庫遷移",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+      createFactMemory({
+        category: "project",
+        content: "数据库迁移当前被新审批阻塞。",
+        factKind: "project_state",
+        id: "current-project-state",
+        source: {
+          extractedAt: TIMESTAMP,
+          languagePackId: "zh-Hans",
+          languagePackVersion: "5-opencc-t2cn-1.4.1",
+          locale: "zh-CN",
+          method: "explicit",
+        },
+        subject: "数据库迁移",
+        updatedAt: TIMESTAMP,
+        userId: "user-1",
+      }),
+    ];
+
+    const result = selectGeneralizedFactsForInternalUse(
+      facts,
+      "什么是数据库迁移的当前项目状态？",
+      createLanguageService(),
+      "zh-CN",
+      "general_chat",
+      routingDecision({ strategy: "hybrid" }),
+      null,
+      TIMESTAMP,
+      undefined,
+      undefined,
+      undefined,
+      {
+        candidates: [
+          { id: "old-project-state", score: 1 },
+          { id: "current-project-state", score: 0.9 },
+        ],
+        maxAdditions: 2,
+        maxTotalFacts: 2,
+      },
+    );
+
+    expect(result.facts.map(({ id }) => id)).toContain("current-project-state");
+    expect(result.facts.map(({ id }) => id)).not.toContain("old-project-state");
   });
 
   it("does not collapse quantified facts that only share a subject", () => {

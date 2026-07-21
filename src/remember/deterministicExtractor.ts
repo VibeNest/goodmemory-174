@@ -11,9 +11,16 @@ import {
 } from "../language";
 
 export function createDeterministicMemoryExtractor(
-  config: (LanguageConfig & { service?: LanguageService }) = {},
+  config: LanguageConfig = {},
 ): MemoryExtractor {
-  const language = config.service ?? createLanguageService(config);
+  return createDeterministicMemoryExtractorWithLanguage(
+    createLanguageService(config),
+  );
+}
+
+export function createDeterministicMemoryExtractorWithLanguage(
+  language: LanguageService,
+): MemoryExtractor {
 
   return {
     async extract(input: MemoryExtractionInput): Promise<MemoryExtractionResult> {
@@ -34,17 +41,20 @@ export function createDeterministicMemoryExtractor(
           locale: input.locale,
           text: message.content,
         });
-        const clauses = resolved.adapter.splitClauses(message.content);
-        const extracted = resolved.adapter.extractCandidates({
-          messages: [
-            {
-              ...message,
-              sourceMessageIndex: index,
-            },
-          ],
-          locale: resolved.locale,
-          nextId,
-        });
+        const clauses = language.splitClauses(message.content, resolved);
+        const extracted = language.extractCandidates(
+          {
+            messages: [
+              {
+                ...message,
+                sourceMessageIndex: index,
+              },
+            ],
+            locale: resolved.locale,
+            nextId,
+          },
+          resolved,
+        );
         candidates.push(...extracted);
         const extractedForMessage = extracted.length > 0;
         if (clauses.length === 0 || !extractedForMessage) {

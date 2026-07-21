@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { createLanguageService } from "../../src/language";
 
 import {
   fuseGeneralizedRecallCandidates,
@@ -35,6 +36,11 @@ function document(input: {
     sourceMemoryType: "fact",
     granularity: "field",
     text: input.text,
+    searchText: input.text.toLowerCase(),
+    searchLocale: "en-US",
+    languagePackId: "en",
+    searchAnalyzerVersion: "test-analyzer-v1",
+    searchSchemaVersion: "gm-search-v1",
     entityIds: entityKeys.map((key) => `entity-${key}`),
     entityMentions: entityKeys.map((key) => ({
       canonicalKey: key,
@@ -86,6 +92,11 @@ function claim(input: {
     predicateKey: input.predicateKey,
     objectText: input.objectText,
     text: `${input.predicateKey} ${input.objectText}`,
+    searchText: `${input.predicateKey} ${input.objectText}`.toLowerCase(),
+    searchLocale: "en-US",
+    languagePackId: "en",
+    searchAnalyzerVersion: "test-analyzer-v1",
+    searchSchemaVersion: "gm-search-v1",
     objectEntityId: input.objectEntityId,
     polarity: "positive",
     modality: "asserted",
@@ -152,6 +163,7 @@ describe("generalized recall fusion", () => {
   });
 
   it("drops an entity alias that the scope corpus also uses as a common word", () => {
+    const language = createLanguageService();
     const result = fuseGeneralizedRecallCandidates({
       query: "What helps you relax in the evenings?",
       documents: [
@@ -184,6 +196,8 @@ describe("generalized recall fusion", () => {
         }),
       ],
       maxCandidates: 8,
+      acceptsEntityCandidate: (input) =>
+        language.acceptsEntityCandidate(input, "en-US"),
     });
 
     const weak = result.rankedCandidates.find(
@@ -238,6 +252,55 @@ describe("generalized recall fusion", () => {
     expect(result.candidates[0]?.score).toBeGreaterThan(
       result.candidates[1]?.score ?? 0,
     );
+  });
+
+  it("lets the active language pack match an entity inside an unsegmented CJK query", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "資料庫移行の現在の状態は？",
+      documents: [
+        document({
+          id: "doc-database",
+          sourceMemoryId: "fact-database",
+          text: "PostgreSQL への移行は進行中です。",
+        }),
+      ],
+      entities: [
+        entity({
+          key: "資料庫移行",
+          aliases: ["資料庫移行"],
+          memoryIds: ["facts:fact-database"],
+        }),
+      ],
+      matchesEntityAlias(query, alias) {
+        return query.includes(alias);
+      },
+    });
+
+    expect(result.candidates[0]?.channels.entity).toBeDefined();
+  });
+
+  it("does not override entity eligibility decided by the active language pack", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "zor",
+      documents: [
+        document({
+          id: "doc-zor",
+          sourceMemoryId: "fact-zor",
+          text: "zor is a valid entity in this language",
+        }),
+      ],
+      entities: [
+        entity({
+          key: "zor",
+          aliases: ["Zor"],
+          memoryIds: ["facts:fact-zor"],
+        }),
+      ],
+      acceptsEntityCandidate: () => true,
+      matchesEntityAlias: () => true,
+    });
+
+    expect(result.candidates[0]?.channels.entity).toBeDefined();
   });
 
   it("fuses lexical, dense, entity, temporal, and relation candidates globally", () => {
@@ -392,6 +455,35 @@ describe("generalized recall fusion", () => {
       referenceTime: "2026-07-10T00:00:00.000Z",
     });
     expect(missingObjectEndpoint.candidates).toEqual([]);
+  });
+
+  it("applies language-pack entity eligibility to relation endpoints", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      acceptsEntityCandidate: () => false,
+      claims: [claim({
+        id: "claim-atlas-lisbon",
+        sourceMemoryId: "fact-atlas-lisbon",
+        predicateKey: "deployment.location",
+        objectText: "Lisbon",
+        objectEntityId: "entity-lisbon",
+      })],
+      documents: [],
+      entities: [
+        entity({ key: "atlas", aliases: ["Atlas"], memoryIds: [] }),
+        entity({ key: "lisbon", aliases: ["Lisbon"], memoryIds: [] }),
+      ],
+      maxCandidates: 8,
+      plan: plan({
+        aggregation: undefined,
+        evidenceNeeds: ["direct", "relation"],
+        maxHops: 2,
+        temporalConstraints: [],
+      }),
+      query: "How is Atlas connected to Lisbon?",
+      referenceTime: "2026-07-10T00:00:00.000Z",
+    });
+
+    expect(result.candidates).toEqual([]);
   });
 
   it("does not retrieve a superseded relation without an explicit validUntil", () => {

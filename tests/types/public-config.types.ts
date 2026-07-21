@@ -6,7 +6,7 @@ import type {
   RememberInput,
   RememberProfile,
 } from "../../src";
-import { rememberRules } from "../../src";
+import { createJapaneseLanguagePack, rememberRules } from "../../src";
 
 const defaultConfig: GoodMemoryConfig = {};
 
@@ -37,7 +37,17 @@ const languageConfig: GoodMemoryConfig = {
   language: {
     defaultLocale: "zh-CN",
     detection: "auto",
+    detector: () => "zh-CN",
+    detectorVersion: "host-locale-router-v1",
   },
+};
+
+const languagePackConfig: GoodMemoryConfig = {
+  language: {
+    defaultLocale: "ja-JP",
+    packs: [createJapaneseLanguagePack()],
+  },
+  storage: { provider: "memory" },
 };
 
 const embeddingAdapterConfig: GoodMemoryConfig = {
@@ -221,6 +231,7 @@ void defaultConfig;
 void minimalConfig;
 void testingConfig;
 void languageConfig;
+void languagePackConfig;
 void embeddingAdapterConfig;
 void assistedExtractorConfig;
 void observabilityConfig;

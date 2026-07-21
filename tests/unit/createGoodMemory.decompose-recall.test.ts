@@ -134,6 +134,55 @@ describe("GoodMemory.recall decompose option", () => {
     });
   });
 
+  it("replans each facet so temporal intent does not leak between subqueries", async () => {
+    const { memory } = buildMemory();
+
+    const result = await memory.recall({
+      scope,
+      query: "What changed for Atlas and what is my current blocker?",
+      strategy: "rules-only",
+    });
+    const trace = result.metadata.retrievalTrace;
+    const executions = trace?.schemaVersion === 2
+      ? trace.queryExecutions
+      : [];
+
+    expect(executions[1]?.plan?.aggregation).toBe("change");
+    expect(executions[2]?.plan?.aggregation).toBe("current");
+    expect(executions[2]?.plan?.temporalConstraints).toEqual([
+      expect.objectContaining({ kind: "current" }),
+    ]);
+  });
+
+  it("reuses the parent locale for every decomposed recall pass", async () => {
+    const detectedTexts: string[] = [];
+    const query =
+      "現在のブロッカーは何ですか？そして過去のプロジェクト履歴は何ですか？";
+    const memory = createGoodMemory({
+      language: {
+        detector: ({ texts }) => {
+          const text = texts.join(" ");
+          detectedTexts.push(text);
+          return text.includes("そして") ? "ja-JP" : "en-US";
+        },
+        detectorVersion: "test-detector-v1",
+      },
+      retrieval: { recallPlanExecution: true },
+      storage: { provider: "memory" },
+    });
+
+    const result = await memory.recall({ query, scope, strategy: "rules-only" });
+
+    expect(result.metadata.retrievalTrace).toMatchObject({
+      schemaVersion: 2,
+      subQueries: [
+        "現在のブロッカーは何ですか",
+        "過去のプロジェクト履歴は何ですか",
+      ],
+    });
+    expect(detectedTexts).toEqual([query]);
+  });
+
   it("keeps merged evidence complete while deduping excerpts in the rebuilt packet", async () => {
     const { documentStore, makeFact, memory } = buildMemory();
     for (const fact of [

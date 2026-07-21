@@ -661,6 +661,32 @@ Implications:
 - `src/provider/` is the provider-backed implementation boundary; provider runtime code does not live in a parallel compatibility tree
 - dependency-matrix tests are part of the merge gate for the post-v1 archive, evidence, proposal, and host-adapter work
 
+### 6.3.2 LanguagePack is a vertical semantic boundary
+
+Language support crosses the full memory lifecycle. A locale-specific label
+file is insufficient because extraction, retrieval, temporal meaning, entity
+identity, and rendering must agree on the same semantics. Each `LanguagePack`
+therefore owns detection, equality normalization, tokenization, bounded search
+terms, query/content analysis, decomposition, temporal parsing, entity
+extraction and matching, candidate extraction, and rendering.
+
+The composition root resolves one pack for each operation and passes that
+identity through remember, recall, projections, storage search, provenance, and
+context construction. Core modules must not add parallel locale switches or
+import concrete packs directly. Built-in packs may share explicit
+compatibility groups, such as Simplified and Traditional Chinese, without
+rewriting canonical source text.
+
+`analyzerVersion` is a migration identity, not display metadata. Derived recall
+documents record pack, analyzer, locale, and search-schema identity; any
+semantic analyzer change requires a version bump and fail-closed projection
+rebuild. Canonical memory remains raw and immutable with respect to search
+normalization. Storage indexes admit candidates over derived `searchText`, while
+application-level scoring remains the cross-backend ranking authority.
+The stable `LanguageService` analyzer manifest covers resolver configuration,
+all active packs, and custom-detector identity. An unversioned custom detector
+cannot participate in a persistent completeness proof.
+
 ### 6.4 Default vs optional capabilities
 
 The reference architecture should explicitly separate what is default from what is optional.

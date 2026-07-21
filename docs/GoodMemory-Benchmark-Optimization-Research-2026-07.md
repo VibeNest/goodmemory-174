@@ -648,6 +648,54 @@ touched (owned by a parallel workstream).
   cardinality — several blockers may be true at once). Tests: residence-change
   closure + generic-namespace guard.
 
+### Measurement pass (2026-07-20 evening, in progress)
+
+- **Instrument:** `eval:phase-62-recall-diagnostic` gained
+  `--fusion-min-relative-strength` (strict-validated, recommended-profile
+  only). The recorded `runConfiguration.generalizedFusion.minRelativeStrength`
+  now always equals the wired value — previous reports recorded the 0.35
+  constant while the engine ran 0 (the field was declared but never consumed;
+  the Phase 69 gate's expected config was therefore never actually exercised).
+  Passing `0.35` reproduces the Phase 69-declared configuration for real.
+- **Dataset:** `~/.goodmemory-longmemeval/longmemeval_s.json` was a dangling
+  symlink into a deleted Downloads file; re-fetched
+  `xiaowu0162/longmemeval-cleaned@98d7416c` and verified SHA-256
+  `d6f21ea9…` — exact match to `PHASE69_LONGMEMEVAL_SOURCE_SHA256`.
+- **Balanced-subset sweep (18 cases, provider-free recommended profile,
+  hermetic clock/ids, `executionFailures: 0` in every arm):** floors 0, 0.35,
+  and 0.5 produce **identical evidence-session recall (0.9444 overall,
+  identical per type)** while wrong-session admissions drop **2 → 1** at both
+  0.35 and 0.5. The dynamic budget trims noise at zero recall cost on this
+  subset — the designed behavior, now measured.
+- **Paired per-type slice sweep (2026-07-21, identical tree per pair, hermetic
+  ids/clock, `executionFailures: 0` everywhere; long background runs were not
+  viable on this machine, so slices ran foreground):**
+
+  | floor | temporal-reasoning (n=30) | knowledge-update (n=30) | multi-session (n=20) |
+  |---|---|---|---|
+  | 0 (current default) | 0.8361 | 0.9000 | 0.7333 |
+  | 0.25 | 0.8417 (+0.56) | — | 0.7333 (±0) |
+  | 0.35 | **0.8694 (+3.33)** | 0.9000 (±0) | **0.7208 (−1.25)** |
+
+  A completed full-500 floor-0 reference (previous evening's tree): overall
+  0.8787 — single-session types 1.000, multi-session 0.787, temporal 0.836,
+  knowledge-update 0.865.
+
+  **Verdict under the ≥3pt target / ≤1pt protection rule: no floor is
+  promotable as the preset default yet.** 0.35 clears the temporal target
+  (+3.33) but regresses the multi-session protection (−1.25, one case's
+  partial-session fraction at n=20); 0.25 protects but forfeits the gain. The
+  default stays unset (0); the knob remains the measured opt-in lever.
+
+  Two follow-ups from the mechanism (the floor's temporal gain comes from
+  *context-budget displacement* — trimming weak fused candidates lets true
+  evidence fit the 4000-token render budget): (1) rerun multi-session at
+  full n=133 to test whether −1.25 is single-case noise before final
+  judgment; (2) a **plan-conditional floor** — apply `minRelativeStrength`
+  only when the recall plan carries temporal constraints — is a
+  query-structural (ADR-005-clean) refinement that would capture the temporal
+  win without touching multi-session paths; needs its own protection pass.
+
 Verification state at close of the pass: full canonical sweep green — 3,537
 unit + 645 integration/scenario/cli/eval/type/consumer + 101 example/release
 tests, 0 failures, typecheck clean. One unrelated pre-existing failure was

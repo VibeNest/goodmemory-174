@@ -19,6 +19,10 @@ export interface Phase62CliOptions {
   allCases?: boolean;
   benchmarkRoot?: string;
   caseIds?: readonly string[];
+  // Sweep arm for the generalized-fusion dynamic-budget floor
+  // (recall-diagnostic only). Recorded configuration always equals the wired
+  // value.
+  fusionMinRelativeStrength?: number;
   labelFreeIngest?: boolean;
   limit?: number;
   maxConcurrency?: number;
@@ -232,6 +236,26 @@ function parseOffset(value: string | undefined): number | undefined {
   return parsed;
 }
 
+function parseFusionMinRelativeStrength(
+  value: string | undefined,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value.trim() !== value || value.length === 0) {
+    throw new Error(
+      "--fusion-min-relative-strength must be an unpadded number in [0, 1]",
+    );
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(
+      "--fusion-min-relative-strength must be an unpadded number in [0, 1]",
+    );
+  }
+  return parsed;
+}
+
 function parseMode(value: string | undefined): LongMemEvalMode {
   if (!value) {
     return "smoke";
@@ -275,6 +299,9 @@ export function parsePhase62CliOptions(
       resolveCliFlagValueStrict(argv, "--benchmark-root") ??
       resolvePhase62LongMemEvalRootEnv(),
     caseIds: parseRepeatedFlag(argv, "--case-id"),
+    fusionMinRelativeStrength: parseFusionMinRelativeStrength(
+      resolveCliFlagValueStrict(argv, "--fusion-min-relative-strength"),
+    ),
     labelFreeIngest: parseFlagPresence(argv, "--label-free-ingest"),
     limit: parseLimit(resolveCliFlagValueStrict(argv, "--limit")),
     maxConcurrency: parseLimit(resolveCliFlagValueStrict(argv, "--max-concurrency")),

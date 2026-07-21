@@ -1,4 +1,10 @@
-import { createGoodMemory, inspectGoodMemoryRuntime } from "goodmemory";
+import {
+  createChineseLanguagePack,
+  createGoodMemory,
+  createJapaneseLanguagePack,
+  createLanguageService,
+  inspectGoodMemoryRuntime,
+} from "goodmemory";
 import {
   createGoodMemoryAISDK,
   validateAgentInputEvent,
@@ -172,6 +178,21 @@ const serverScope = {
 
 const memory = createGoodMemory({});
 const runtimeInfo = inspectGoodMemoryRuntime(memory);
+const language = createLanguageService({
+  defaultLocale: "zh-TW",
+  packs: [
+    createChineseLanguagePack("Hant"),
+    createJapaneseLanguagePack(),
+  ],
+});
+const traditionalChineseContext = language.resolveFromText({
+  locale: "zh-TW",
+  text: "繁體中文",
+});
+const traditionalChineseSearchTerms = language.buildSearchTerms(
+  "繁體中文",
+  traditionalChineseContext,
+);
 const serverEvents = [];
 const serverSeenSystems = [];
 const serverHandler = createPlainAISDKServerHandler({
@@ -506,6 +527,8 @@ console.log(
     httpBridgeItemCount: httpRecallPayload.itemCount,
     httpBridgeRememberOk: httpRememberPayload.ok,
     runtimeInfo,
+    traditionalChinesePackId: traditionalChineseContext.languagePackId,
+    traditionalChineseSearchTerms,
     serverFirstResponseText,
     serverRecallApplied: serverEvents.some(
       (event) => event.phase === "recall" && event.status === "applied",

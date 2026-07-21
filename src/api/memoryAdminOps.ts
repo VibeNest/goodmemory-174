@@ -25,9 +25,14 @@ import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
   ENTITIES_COLLECTION,
+  PROJECTION_MANIFESTS_COLLECTION,
   PROJECTION_REPAIRS_COLLECTION,
   RECALL_DOCUMENTS_COLLECTION,
   SCOPE_CATALOG_COLLECTION,
+} from "../recall/projections/contracts";
+import type {
+  EntityAdjacencyProjection,
+  RecallIndexDocument,
 } from "../recall/projections/contracts";
 import {
   ARTIFACT_SPILL_COLLECTION,
@@ -356,6 +361,7 @@ export async function deleteAllMemoryOperation(
       allExperiences,
       allProposals,
       allPromotions,
+      allRecallDocuments,
     ] = await Promise.all([
       deps.governanceRepositories.profiles.get(input.scope.userId),
       deps.governanceRepositories.preferences.listByScope(input.scope),
@@ -372,6 +378,10 @@ export async function deleteAllMemoryOperation(
       deps.governanceRepositories.experiences.listByScope(input.scope),
       deps.governanceRepositories.proposals.listByScope(input.scope),
       deps.governanceRepositories.promotions.listByScope(input.scope),
+      deps.documentStore.query<RecallIndexDocument>(
+        RECALL_DOCUMENTS_COLLECTION,
+        scopeFilter(input.scope),
+      ),
     ]);
 
     const preferences = allPreferences.filter((record) =>
@@ -405,6 +415,12 @@ export async function deleteAllMemoryOperation(
     const promotions = allPromotions.filter((record) =>
       recordMatchesScope(record, input.scope),
     );
+    const recallDocuments = allRecallDocuments.filter((record) =>
+      recordMatchesScope(record, input.scope)
+    );
+    const projectedMemoryIds = new Set(recallDocuments.map((document) =>
+      `${document.sourceCollection}:${document.sourceMemoryId}`
+    ));
 
     if (profile && isPureUserScope(input.scope)) {
       await deps.documentStore.delete("profiles", input.scope.userId);
@@ -460,10 +476,28 @@ export async function deleteAllMemoryOperation(
       deleted.promotions += 1;
     }
 
-    for (const collection of [
+    await deleteDocuments(
+      deps.documentStore,
       RECALL_DOCUMENTS_COLLECTION,
+      recallDocuments,
+    );
+    const { sessionId: _sessionId, ...entityFilter } = input.scope;
+    const entityEdges = await deps.documentStore.query<EntityAdjacencyProjection>(
       ENTITIES_COLLECTION,
+      entityFilter,
+    );
+    await deleteDocuments(
+      deps.documentStore,
+      ENTITIES_COLLECTION,
+      entityEdges.filter((edge) =>
+        recordMatchesScope(edge, input.scope) ||
+        projectedMemoryIds.has(edge.memoryId)
+      ),
+    );
+
+    for (const collection of [
       SCOPE_CATALOG_COLLECTION,
+      PROJECTION_MANIFESTS_COLLECTION,
       PROJECTION_REPAIRS_COLLECTION,
       CLAIM_PROJECTIONS_COLLECTION,
       CLAIM_PROJECTION_STATUS_COLLECTION,

@@ -9,7 +9,9 @@ import {
   CLAIM_PROJECTIONS_COLLECTION,
   CLAIM_PROJECTION_STATUS_COLLECTION,
   ENTITIES_COLLECTION,
+  PROJECTION_MANIFESTS_COLLECTION,
   PROJECTION_REPAIRS_COLLECTION,
+  type RecallProjectionManifest,
 } from "../../src/recall/projections/contracts";
 import { createRecallProjectionRuntime } from "../../src/recall/projections/runtime";
 import type { DocumentStore } from "../../src/storage/contracts";
@@ -98,6 +100,116 @@ describe("sqlite vector store read-only mode", () => {
 });
 
 describe("sqlite document conditional batches", () => {
+  it("enables analyzer-derived persistent proof for owned SQLite storage", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-product-manifest-${Date.now()}-${Math.random()}.db`,
+    );
+    const scope = {
+      userId: "product-manifest-user",
+      workspaceId: "product-manifest-workspace",
+    };
+    const now = () => new Date("2026-07-18T12:00:00.000Z");
+    try {
+      const memory = createGoodMemory({
+        retrieval: { preset: "recommended" },
+        storage: { provider: "sqlite", url: path },
+        testing: { now },
+      });
+      await memory.remember({
+        scope,
+        messages: [{
+          role: "user",
+          content: "Remember that Atlas rollout is active in Paris.",
+        }],
+      });
+      await memory.recall({ scope, query: "What is the Atlas rollout status?" });
+      await memory.recall({ scope, query: "What is the Atlas rollout status?" });
+      const inspectionStore = createSQLiteDocumentStore(path);
+      const [sealed] = await inspectionStore.query<RecallProjectionManifest>(
+        PROJECTION_MANIFESTS_COLLECTION,
+      );
+      expect(sealed?.projectionBuildId).toStartWith("gm-projection-v2:");
+      expect(sealed?.validatedGeneration).toBe(sealed?.sourceGeneration);
+
+      const reopened = createGoodMemory({
+        retrieval: { preset: "recommended" },
+        storage: { provider: "sqlite", url: path },
+        testing: { now },
+      });
+      await reopened.recall({
+        scope,
+        query: "What is the Atlas rollout status?",
+      });
+      const [afterReopen] = await inspectionStore.query<RecallProjectionManifest>(
+        PROJECTION_MANIFESTS_COLLECTION,
+      );
+
+      expect(afterReopen).toEqual(sealed);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
+  it("reuses a sealed projection generation after reopening SQLite", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-projection-manifest-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const firstStore = createSQLiteDocumentStore(path);
+      const firstRuntime = createRecallProjectionRuntime({
+        documentStore: firstStore,
+        persistentScopeProof: { buildId: "sqlite-projection-build-a" },
+      });
+      const scope = { userId: "manifest-user", workspaceId: "manifest-workspace" };
+      const fact = createFactMemory({
+        ...scope,
+        id: "fact-manifest",
+        category: "project",
+        content: "Atlas rollout is active.",
+        subject: "Atlas",
+        source: {
+          method: "explicit",
+          extractedAt: "2026-07-18T09:00:00.000Z",
+        },
+        createdAt: "2026-07-18T09:00:00.000Z",
+        updatedAt: "2026-07-18T09:00:00.000Z",
+      });
+      await firstRuntime.documentStore.set("facts", fact.id, fact);
+      await firstRuntime.ensureScopeIndexed(scope);
+
+      const reopened = createSQLiteDocumentStore(path);
+      let queries = 0;
+      const countedStore: DocumentStore = {
+        projectionBatchSemantics: reopened.projectionBatchSemantics,
+        set: (collection, id, document) => reopened.set(collection, id, document),
+        get: (collection, id) => reopened.get(collection, id),
+        update: (collection, id, patch) => reopened.update(collection, id, patch),
+        async query(collection, filter) {
+          queries += 1;
+          return reopened.query(collection, filter);
+        },
+        delete: (collection, id) => reopened.delete(collection, id),
+        writeBatchIfUnchanged: (input) =>
+          reopened.writeBatchIfUnchanged(input),
+      };
+      const restartedRuntime = createRecallProjectionRuntime({
+        documentStore: countedStore,
+        persistentScopeProof: { buildId: "sqlite-projection-build-a" },
+      });
+
+      expect(await restartedRuntime.ensureScopeIndexed(scope)).toEqual({
+        complete: true,
+        indexedSources: 0,
+        skipped: true,
+      });
+      expect(queries).toBe(0);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
   it("surfaces write contention instead of reporting a CAS mismatch", async () => {
     const path = join(
       tmpdir(),
@@ -322,6 +434,54 @@ describe("sqlite filtered document queries", () => {
 });
 
 describe("sqlite projection text index", () => {
+  it("keeps legacy read-only databases searchable before a writable migration", async () => {
+    const path = join(
+      tmpdir(),
+      `goodmemory-sqlite-readonly-legacy-text-${Date.now()}-${Math.random()}.db`,
+    );
+    try {
+      const legacy = new Database(path, { strict: true });
+      legacy.exec(`
+        CREATE TABLE documents (
+          collection TEXT NOT NULL,
+          id TEXT NOT NULL,
+          json TEXT NOT NULL,
+          PRIMARY KEY (collection, id)
+        );
+        CREATE VIRTUAL TABLE document_text_fts USING fts5(
+          collection UNINDEXED,
+          id UNINDEXED,
+          text,
+          tokenize = 'unicode61 remove_diacritics 2'
+        );
+      `);
+      legacy.query(
+        `INSERT INTO documents (collection, id, json) VALUES (?1, ?2, ?3)`,
+      ).run("recall_documents_v2", "cjk-1", JSON.stringify({
+        id: "cjk-1",
+        searchText: "東京 旅行 計画",
+        text: "東京への旅行計画。",
+      }));
+      legacy.exec(`
+        INSERT INTO document_text_fts (rowid, collection, id, text)
+        VALUES (1, 'recall_documents_v2', 'cjk-1', '東京への旅行計画。');
+      `);
+      legacy.close();
+
+      const readOnly = createSQLiteDocumentStore(path, { readOnly: true });
+
+      await expect(readOnly.searchText?.("recall_documents_v2", {
+        field: "searchText",
+        limit: 2,
+        query: "東京 計画",
+      })).resolves.toEqual([
+        expect.objectContaining({ id: "cjk-1" }),
+      ]);
+    } finally {
+      await rm(path, { force: true });
+    }
+  });
+
   it("rebuilds legacy FTS state from canonical documents before versioning", async () => {
     const path = join(
       tmpdir(),
@@ -342,6 +502,12 @@ describe("sqlite projection text index", () => {
           text,
           tokenize = 'unicode61 remove_diacritics 2'
         );
+        CREATE TABLE document_store_schema (
+          component TEXT PRIMARY KEY,
+          version INTEGER NOT NULL
+        );
+        INSERT INTO document_store_schema (component, version)
+        VALUES ('document_text_fts_keys', 1);
       `);
       const insertDocument = legacy.query(
         `INSERT INTO documents (collection, id, json) VALUES (?1, ?2, ?3)`,
@@ -362,6 +528,10 @@ describe("sqlite projection text index", () => {
         id: "no-text",
         content: "No searchable field.",
       }));
+      insertDocument.run("facts", "search-text-only", JSON.stringify({
+        id: "search-text-only",
+        searchText: "東京 旅行 計画",
+      }));
       legacy.exec(`
         INSERT INTO document_text_fts (rowid, collection, id, text)
         VALUES
@@ -380,9 +550,10 @@ describe("sqlite projection text index", () => {
           collection: string;
           id: string;
           rowid: number;
-          text: string;
+          searchText: string | null;
+          text: string | null;
         }, []>(
-          `SELECT keys.rowid, keys.collection, keys.id, fts.text
+          `SELECT keys.rowid, keys.collection, keys.id, fts.text, fts.searchText
            FROM document_text_fts_keys AS keys
            JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
            ORDER BY keys.collection, keys.id`,
@@ -390,24 +561,34 @@ describe("sqlite projection text index", () => {
         .all();
       firstRead.close();
 
-      expect(firstRows.map(({ collection, id, text }) => ({
+      expect(firstRows.map(({ collection, id, searchText, text }) => ({
         collection,
         id,
+        searchText,
         text,
       }))).toEqual([
         {
           collection: "facts",
           id: "missing",
+          searchText: null,
           text: "Missing index row.",
         },
         {
           collection: "facts",
+          id: "search-text-only",
+          searchText: "東京 旅行 計画",
+          text: null,
+        },
+        {
+          collection: "facts",
           id: "shared",
+          searchText: null,
           text: "Atlas is canonical.",
         },
         {
           collection: "references",
           id: "shared",
+          searchText: null,
           text: "Beacon is canonical.",
         },
       ]);
@@ -419,9 +600,10 @@ describe("sqlite projection text index", () => {
           collection: string;
           id: string;
           rowid: number;
-          text: string;
+          searchText: string | null;
+          text: string | null;
         }, []>(
-          `SELECT keys.rowid, keys.collection, keys.id, fts.text
+          `SELECT keys.rowid, keys.collection, keys.id, fts.text, fts.searchText
            FROM document_text_fts_keys AS keys
            JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
            ORDER BY keys.collection, keys.id`,
@@ -520,17 +702,23 @@ describe("sqlite projection text index", () => {
         .get();
       firstRead.close();
       expect(firstKey?.rowid).toBeNumber();
-      expect(schemaState?.version).toBe(1);
+      expect(schemaState?.version).toBe(2);
 
       await store.set("recall_documents_v2", "document-1", {
         id: "document-1",
+        searchText: "atlas completed",
         text: "Atlas is completed.",
         userId: "user-1",
       });
       const updatedRead = new Database(path, { readonly: true, strict: true });
       const updated = updatedRead
-        .query<{ count: number; rowid: number; text: string }, []>(
-          `SELECT keys.rowid, fts.text, COUNT(*) AS count
+        .query<{
+          count: number;
+          rowid: number;
+          searchText: string;
+          text: string;
+        }, []>(
+          `SELECT keys.rowid, fts.text, fts.searchText, COUNT(*) AS count
            FROM document_text_fts_keys AS keys
            JOIN document_text_fts AS fts ON fts.rowid = keys.rowid
            WHERE keys.collection = 'recall_documents_v2' AND keys.id = 'document-1'`,
@@ -540,6 +728,7 @@ describe("sqlite projection text index", () => {
       expect(updated).toEqual({
         count: 1,
         rowid: firstKey!.rowid,
+        searchText: "atlas completed",
         text: "Atlas is completed.",
       });
 

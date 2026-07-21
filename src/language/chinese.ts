@@ -4,8 +4,8 @@ import type {
   ProfileField,
 } from "../domain/memoryCandidate";
 import type {
-  LanguageAdapter,
   LanguageCandidateExtractionInput,
+  LanguagePack,
 } from "./contracts";
 import type {
   FactKind,
@@ -14,20 +14,45 @@ import type {
 } from "../domain/records";
 import {
   splitClausesGeneric,
-  normalizeUnicodeForEquality,
-  tokenizeUnicodeText,
 } from "./generic";
+import {
+  buildChineseSearchTerms,
+  CHINESE_ANALYZER_VERSION,
+  normalizeChineseForEquality,
+  tokenizeChineseForScoring,
+} from "./chineseConversion";
+import {
+  analyzeChineseContent,
+  analyzeChineseQuery,
+  type ChineseScript,
+  decomposeChineseQuery,
+  detectChinese,
+  extractChineseEntityMentions,
+  parseChineseTemporalExpressions,
+  renderChinese,
+} from "./chineseSemantics";
+import {
+  matchesNormalizedEntityAlias,
+  splitSentencesGeneric,
+} from "./packHelpers";
+import { resolveCjkTemporalReference } from "./temporal";
 
 const CHINESE_STOPWORDS = new Set([
   "这个",
+  "這個",
   "那个",
+  "那個",
   "请",
+  "請",
   "一下",
   "现在",
+  "現在",
   "目前",
   "仍然",
   "已经",
+  "已經",
   "以后",
+  "以後",
 ]);
 const CHINESE_REFERENCE_SUBJECT_NOISE_PATTERN =
   /^(?:现在|目前|当前|以后|以后都|今后|之后|后续|之后都|暂时|先|继续|仍然|都|统一|默认|请|请以后|以后请)$/u;
@@ -209,11 +234,11 @@ function deriveFactCategory(
 }
 
 function deriveFeedbackKind(content: string): "do" | "dont" | "prefer" {
-  if (/(不要|别|禁止)/u.test(content)) {
+  if (/(不要|别|別|禁止)/u.test(content)) {
     return "dont";
   }
 
-  if (/(偏好|更喜欢|优先)/u.test(content)) {
+  if (/(偏好|更喜欢|更喜歡|优先|優先)/u.test(content)) {
     return "prefer";
   }
 
@@ -502,7 +527,9 @@ function maybeExtractCandidatesFromClause(
 
   const candidates: MemoryCandidate[] = [];
 
-  const nameMatch = trimmed.match(/(?:请记住)?我叫\s*([^\s，。！？；]+)/u);
+  const nameMatch = trimmed.match(
+    /(?:请记住|請記住)?我(?:(?:的)?(?:名字|姓名)(?:是|叫)|叫)\s*([^\s，。！？；]+)/u,
+  );
   if (nameMatch?.[1]) {
     candidates.push(createProfileCandidate(index, nextId, "name", cleanValue(nameMatch[1])));
   }
@@ -918,7 +945,9 @@ function maybeExtractCandidatesFromClause(
     );
   }
 
-  const explicitFactMatch = trimmed.match(/(?:请记住|记住|有个事实(?:是)?)(.+)/u);
+  const explicitFactMatch = trimmed.match(
+    /(?:请记住|請記住|记住|記住|有个事实(?:是)?|有個事實(?:是)?)(.+)/u,
+  );
   if (explicitFactMatch?.[1]) {
     const factContent = cleanValue(explicitFactMatch[1]);
     if (!shouldSkipExplicitFactForProfileLikeClause(factContent, candidates)) {
@@ -953,7 +982,7 @@ function maybeExtractCandidatesFromClause(
     });
   }
 
-  const correctedReferenceMatch = trimmed.match(/现在以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*为准[，,]?\s*(?:不要|不再)以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*为准/u);
+  const correctedReferenceMatch = trimmed.match(/(?:现在|現在)以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:为准|為準)[，,]?\s*(?:不要|不再)以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:为准|為準)/u);
   if (correctedReferenceMatch?.[1] && correctedReferenceMatch?.[2]) {
     const pointer = cleanValue(correctedReferenceMatch[1]);
     const previousPointer = cleanValue(correctedReferenceMatch[2]);
@@ -974,7 +1003,7 @@ function maybeExtractCandidatesFromClause(
         },
       });
   } else {
-    const referenceMatch = trimmed.match(/以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:为准|作为事实来源)/u);
+    const referenceMatch = trimmed.match(/以\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s*(?:为准|為準|作为事实来源|作為事實來源)/u);
     if (referenceMatch?.[1]) {
       const pointer = cleanValue(referenceMatch[1]);
       const title = pointer.split("/").at(-1) ?? pointer;
@@ -997,7 +1026,7 @@ function maybeExtractCandidatesFromClause(
 
   if (
     trimmed.length >= 4 &&
-    /^(请(?!记住)|不要|以后|始终|优先)/u.test(trimmed)
+    /^(?:请(?!记住)|請(?!記住)|不要|以后|以後|始终|始終|优先|優先)/u.test(trimmed)
   ) {
     candidates.push({
       id: nextId(),
@@ -1030,24 +1059,63 @@ function maybeExtractCandidatesFromClause(
   return dedupeCandidates(candidates);
 }
 
-export function createChineseLanguageAdapter(): LanguageAdapter {
+export function createChineseLanguagePack(script: ChineseScript): LanguagePack {
+  const locale = script === "Hant" ? "zh-Hant" : "zh-CN";
   return {
-    id: "zh",
-    supportsLocale(locale: string): boolean {
-      return locale.toLowerCase().startsWith("zh");
+    analyzerVersion: CHINESE_ANALYZER_VERSION,
+    apiVersion: 1,
+    compatibilityGroup: "zh",
+    defaultLocale: locale,
+    id: `zh-${script}`,
+    locales: script === "Hant"
+      ? ["zh-Hant", "zh-TW", "zh-HK", "zh-MO"]
+      : ["zh-Hans", "zh-CN", "zh-SG"],
+    detect({ texts }) {
+      return detectChinese(texts, script);
     },
     splitClauses(text: string): string[] {
       return splitClausesGeneric(text);
     },
     normalizeForEquality(text: string): string {
-      return normalizeUnicodeForEquality(text);
+      return normalizeChineseForEquality(text);
     },
-    tokenize(text: string, options?: { excludeStopwords?: boolean }): string[] {
-      const tokens = tokenizeUnicodeText(text, "zh-CN");
+    splitSentences(text: string): string[] {
+      return splitSentencesGeneric(text);
+    },
+    tokenizeForScoring(
+      text: string,
+      _mode: "bm25" | "overlap",
+      options?: { excludeStopwords?: boolean },
+    ): string[] {
+      const tokens = tokenizeChineseForScoring(text);
       if (options?.excludeStopwords) {
         return tokens.filter((token) => !CHINESE_STOPWORDS.has(token));
       }
       return tokens;
+    },
+    buildSearchTerms(text: string): string[] {
+      return buildChineseSearchTerms(text).filter(
+        (token) => !CHINESE_STOPWORDS.has(token),
+      );
+    },
+    decomposeQuery: decomposeChineseQuery,
+    analyzeQuery: analyzeChineseQuery,
+    analyzeContent: analyzeChineseContent,
+    parseTemporalExpressions: parseChineseTemporalExpressions,
+    resolveTemporalReference: resolveCjkTemporalReference,
+    extractEntityMentions: extractChineseEntityMentions,
+    matchesEntityAlias(query, alias) {
+      return matchesNormalizedEntityAlias(
+        query,
+        alias,
+        normalizeChineseForEquality,
+      );
+    },
+    acceptsEntityCandidate() {
+      return true;
+    },
+    render(input) {
+      return renderChinese(input, script);
     },
     extractCandidates(input: LanguageCandidateExtractionInput): MemoryCandidate[] {
       const candidates: MemoryCandidate[] = [];

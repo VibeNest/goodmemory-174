@@ -58,6 +58,10 @@ describe("remember builders", () => {
         source: {
           method: "inferred",
           extractedAt: TIMESTAMP,
+          locale: "zh-TW",
+          localeSource: "explicit",
+          languagePackId: "zh-Hant",
+          languagePackVersion: "2-opencc-1.4.1",
         },
         subject: "unknown",
         updatedAt: TIMESTAMP,
@@ -80,12 +84,23 @@ describe("remember builders", () => {
         },
       },
       TIMESTAMP,
-      "en-US",
+      {
+        locale: "zh-CN",
+        localeSource: "explicit",
+        languagePackId: "zh-Hans",
+        languagePackVersion: "2-opencc-1.4.1",
+      },
     );
 
     expect(enriched?.category).toBe("technical");
     expect(enriched?.factKind).toBe("open_loop");
     expect(enriched?.subject).toBe("runtime rollout");
     expect(enriched?.source.method).toBe("explicit");
+    expect(enriched?.source).toMatchObject({
+      locale: "zh-TW",
+      localeSource: "explicit",
+      languagePackId: "zh-Hant",
+      languagePackVersion: "2-opencc-1.4.1",
+    });
   });
 });

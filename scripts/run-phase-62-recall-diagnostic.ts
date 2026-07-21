@@ -100,16 +100,20 @@ function resolveRecallDiagnosticProfile(
 
 function buildRecallRunConfiguration(
   profile: LongMemEvalRecallDiagnosticProfile,
+  fusionMinRelativeStrength?: number,
 ): LongMemEvalRecallRunConfiguration {
   return {
     contextMaxTokens: LONGMEMEVAL_DEFAULT_CONTEXT_MAX_TOKENS,
     extractionStrategy: "rules-only",
+    // The recorded floor equals the wired floor. Earlier reports recorded the
+    // 0.35 constant while the engine ignored the field and ran 0; sweep arms
+    // pass --fusion-min-relative-strength explicitly (0.35 reproduces the
+    // Phase 69 gate's expected configuration for real).
     generalizedFusion: profile === "goodmemory-recommended"
       ? {
           maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
           maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
-          minRelativeStrength:
-            DEFAULT_GENERALIZED_FUSION_MIN_RELATIVE_STRENGTH,
+          minRelativeStrength: fusionMinRelativeStrength ?? 0,
           rrfK: DEFAULT_GENERALIZED_FUSION_RRF_K,
         }
       : null,
@@ -170,6 +174,14 @@ export function buildPhase62RecallDiagnosticOptions(
   if (options.allCases && options.caseIds && options.caseIds.length > 0) {
     throw new Error("--all-cases cannot be combined with --case-id");
   }
+  if (
+    options.fusionMinRelativeStrength !== undefined &&
+    profile !== "goodmemory-recommended"
+  ) {
+    throw new Error(
+      "--fusion-min-relative-strength requires a generalized-fusion profile (goodmemory-recommended)",
+    );
+  }
 
   return {
     benchmarkRoot:
@@ -189,7 +201,10 @@ export function buildPhase62RecallDiagnosticOptions(
     profile,
     questionTypes: options.questionTypes,
     resume: options.resume,
-    runConfiguration: buildRecallRunConfiguration(profile),
+    runConfiguration: buildRecallRunConfiguration(
+      profile,
+      options.fusionMinRelativeStrength,
+    ),
     runId,
   };
 }
@@ -216,9 +231,16 @@ export async function runPhase62LongMemEvalRecallDiagnostic(
 
     const createMemory =
       dependencies.createMemory ?? createHermeticLongMemEvalMemory;
+    const wiredFusionFloor =
+      runOptions.runConfiguration?.generalizedFusion?.minRelativeStrength;
     const createProfileMemory = createLongMemEvalMemoryFactory(
       createMemory,
-      { runNamespace: runOptions.runId },
+      {
+        ...(wiredFusionFloor !== undefined
+          ? { fusionMinRelativeStrength: wiredFusionFloor }
+          : {}),
+        runNamespace: runOptions.runId,
+      },
     ) as (profile: LongMemEvalRecallDiagnosticProfile) => GoodMemory;
     return runDiagnostic(runOptions, {
       memoryContextBuilder: createLongMemEvalGoodMemoryContextBuilder({
