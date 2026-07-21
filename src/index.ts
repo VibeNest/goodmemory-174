@@ -223,11 +223,16 @@ export {
   createSQLiteSessionStore,
   createSQLiteVectorStore,
 } from "./storage/sqlitePublic";
-export type { PostgresStorageConfig } from "./storage/postgresPublic";
+export type {
+  PostgresStorageConfig,
+  PostgresStorageMigrationEvent,
+  PostgresStorageMigrationOptions,
+} from "./storage/postgresPublic";
 export {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
+  migratePostgresStorageBackend,
 } from "./storage/postgresPublic";
 export type { MemoryPacket } from "./recall/contextBuilder";
 export {

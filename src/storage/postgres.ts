@@ -58,6 +58,41 @@ export interface ReadOnlyPostgresStorageProbeDependencies {
   hasExistingStorageBackend?: (config: PostgresStorageConfig) => Promise<boolean>;
 }
 
+export interface PostgresStorageMigrationEvent {
+  elapsedMs: number;
+  index: string;
+  schema: string;
+  status: "created" | "creating" | "current";
+}
+
+export interface PostgresStorageMigrationOptions {
+  log?: (event: PostgresStorageMigrationEvent) => void;
+}
+
+export interface PostgresDocumentIndexState {
+  definition: string;
+  isPartial: boolean;
+  isReady: boolean;
+  isUnique: boolean;
+  isValid: boolean;
+  method: string;
+  tableName: string;
+  tableSchema: string;
+}
+
+export interface PostgresStorageMigrationPort {
+  createDocumentIndex(statement: string): Promise<void>;
+  ensureDocumentStore(): Promise<void>;
+  ensureVersionStore(): Promise<void>;
+  getDocumentIndex(indexName: string): Promise<PostgresDocumentIndexState | null>;
+  getVersion(): Promise<number | null>;
+  setVersion(version: number): Promise<void>;
+}
+
+export interface PostgresStorageMigrationDependencies {
+  port?: PostgresStorageMigrationPort;
+}
+
 interface PostgresStoreOptions {
   readOnly?: boolean;
 }
@@ -88,6 +123,21 @@ interface VectorRow {
   score: number;
 }
 
+interface DocumentIndexRow {
+  definition: string;
+  is_partial: boolean;
+  is_ready: boolean;
+  is_unique: boolean;
+  is_valid: boolean;
+  method: string;
+  table_name: string;
+  table_schema: string;
+}
+
+interface StorageMigrationVersionRow {
+  version: number;
+}
+
 interface PostgresRuntime {
   sql: SQL;
   schema: string;
@@ -106,7 +156,35 @@ const DEFAULT_SCHEMA = "public";
 const DEFAULT_VECTOR_TABLE_PREFIX = "gm";
 const DOCUMENT_TABLE_NAME = "gm_documents";
 const SESSION_STATE_TABLE_NAME = "gm_session_state";
+const STORAGE_SCHEMA_TABLE_NAME = "gm_storage_schema";
+const DOCUMENT_INDEX_MIGRATION_COMPONENT = "document_indexes";
+const DOCUMENT_INDEX_SCHEMA_VERSION = 1;
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const DOCUMENT_INDEX_DEFINITIONS = [
+  {
+    method: "btree",
+    methodAndKey: "USING btree (collection)",
+    name: "gm_documents_collection_idx",
+  },
+  {
+    method: "gin",
+    methodAndKey: "USING gin (document)",
+    name: "gm_documents_document_gin_idx",
+  },
+  {
+    method: "gin",
+    methodAndKey:
+      "USING gin (to_tsvector('simple', COALESCE((document ->> 'text'), '')))",
+    name: "gm_documents_text_search_idx",
+  },
+  {
+    method: "gin",
+    methodAndKey:
+      "USING gin (to_tsvector('simple', COALESCE((document ->> 'searchText'), '')))",
+    name: "gm_documents_search_text_search_idx",
+  },
+] as const;
 
 const runtimeCache = new Map<string, PostgresRuntime>();
 
@@ -276,26 +354,6 @@ function createRuntime(config: PostgresStorageConfig): PostgresRuntime {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (collection, id)
-        )
-      `);
-      await sql.unsafe(`
-        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_collection_idx")}
-        ON ${documentTable} (collection)
-      `);
-      await sql.unsafe(`
-        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_document_gin_idx")}
-        ON ${documentTable} USING GIN (document)
-      `);
-      await sql.unsafe(`
-        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_text_search_idx")}
-        ON ${documentTable} USING GIN (
-          to_tsvector('simple', COALESCE(document ->> 'text', ''))
-        )
-      `);
-      await sql.unsafe(`
-        CREATE INDEX IF NOT EXISTS ${quoteIdentifier("gm_documents_search_text_search_idx")}
-        ON ${documentTable} USING GIN (
-          to_tsvector('simple', COALESCE(document ->> 'searchText', ''))
         )
       `);
     }),
@@ -1059,6 +1117,197 @@ export async function getPostgresVectorExtensionStatus(
   }
 
   return "missing";
+}
+
+function createPostgresStorageMigrationPort(
+  runtime: PostgresRuntime,
+): PostgresStorageMigrationPort {
+  const versionTable = qualifyTable(runtime.schema, STORAGE_SCHEMA_TABLE_NAME);
+
+  return {
+    async createDocumentIndex(statement) {
+      await runtime.sql.unsafe(statement);
+    },
+    ensureDocumentStore: runtime.ensureDocumentStore,
+    async ensureVersionStore() {
+      await runtime.sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS ${versionTable} (
+          component TEXT PRIMARY KEY,
+          version INTEGER NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+    },
+    async getDocumentIndex(indexName) {
+      const rows = await runtime.sql.unsafe<DocumentIndexRow[]>(
+        `
+          SELECT
+            pg_get_indexdef(index_relation.oid) AS definition,
+            index_metadata.indpred IS NOT NULL AS is_partial,
+            index_metadata.indisready AS is_ready,
+            index_metadata.indisunique AS is_unique,
+            index_metadata.indisvalid AS is_valid,
+            access_method.amname AS method,
+            table_relation.relname AS table_name,
+            table_namespace.nspname AS table_schema
+          FROM pg_class AS index_relation
+          JOIN pg_namespace AS index_namespace
+            ON index_namespace.oid = index_relation.relnamespace
+          JOIN pg_index AS index_metadata
+            ON index_metadata.indexrelid = index_relation.oid
+          JOIN pg_class AS table_relation
+            ON table_relation.oid = index_metadata.indrelid
+          JOIN pg_namespace AS table_namespace
+            ON table_namespace.oid = table_relation.relnamespace
+          JOIN pg_am AS access_method
+            ON access_method.oid = index_relation.relam
+          WHERE index_namespace.nspname = $1
+            AND index_relation.relname = $2
+        `,
+        [runtime.schema, indexName],
+      );
+      const row = rows[0];
+      return row
+        ? {
+            definition: row.definition,
+            isPartial: row.is_partial,
+            isReady: row.is_ready,
+            isUnique: row.is_unique,
+            isValid: row.is_valid,
+            method: row.method,
+            tableName: row.table_name,
+            tableSchema: row.table_schema,
+          }
+        : null;
+    },
+    async getVersion() {
+      const rows = await runtime.sql.unsafe<StorageMigrationVersionRow[]>(
+        `
+          SELECT version
+          FROM ${versionTable}
+          WHERE component = $1
+        `,
+        [DOCUMENT_INDEX_MIGRATION_COMPONENT],
+      );
+      return rows[0]?.version ?? null;
+    },
+    async setVersion(version) {
+      await runtime.sql.unsafe(
+        `
+          INSERT INTO ${versionTable} (component, version, updated_at)
+          VALUES ($1, $2, NOW())
+          ON CONFLICT (component)
+          DO UPDATE SET
+            version = EXCLUDED.version,
+            updated_at = EXCLUDED.updated_at
+        `,
+        [DOCUMENT_INDEX_MIGRATION_COMPONENT, version],
+      );
+    },
+  };
+}
+
+function normalizeIndexMethodAndKey(definition: string): string {
+  const normalized = definition.toLocaleLowerCase("en-US");
+  const methodStart = normalized.startsWith("using ")
+    ? 0
+    : normalized.indexOf(" using ");
+  if (methodStart < 0) {
+    return "";
+  }
+  return definition
+    .slice(methodStart)
+    .toLocaleLowerCase("en-US")
+    .replace(/::(?:regconfig|text)\b/g, "")
+    .replace(/["\s]/g, "");
+}
+
+function assertCurrentDocumentIndex(
+  schema: string,
+  index: (typeof DOCUMENT_INDEX_DEFINITIONS)[number],
+  state: PostgresDocumentIndexState | null,
+): asserts state is PostgresDocumentIndexState {
+  const current = state !== null &&
+    state.isValid &&
+    state.isReady &&
+    !state.isUnique &&
+    !state.isPartial &&
+    state.method.toLocaleLowerCase("en-US") === index.method &&
+    state.tableName === DOCUMENT_TABLE_NAME &&
+    state.tableSchema === schema &&
+    normalizeIndexMethodAndKey(state.definition) ===
+      normalizeIndexMethodAndKey(index.methodAndKey);
+  if (!current) {
+    throw new Error(
+      `Postgres document index ${schema}.${index.name} exists but is invalid or has an unexpected definition. Drop it with DROP INDEX CONCURRENTLY and rerun the migration.`,
+    );
+  }
+}
+
+function defaultPostgresStorageMigrationLog(
+  event: PostgresStorageMigrationEvent,
+): void {
+  console.error(
+    `[GoodMemory Postgres migration] status=${event.status} schema=${event.schema} index=${event.index} elapsedMs=${event.elapsedMs}`,
+  );
+}
+
+export async function migratePostgresStorageBackend(
+  config: PostgresStorageConfig,
+  options?: PostgresStorageMigrationOptions,
+  dependencies?: PostgresStorageMigrationDependencies,
+): Promise<void> {
+  normalizeUrl(config.url);
+  const schema = validateIdentifier(config.schema ?? DEFAULT_SCHEMA, "schema");
+  const port = dependencies?.port ??
+    createPostgresStorageMigrationPort(createRuntime(config));
+  const log = options?.log ?? defaultPostgresStorageMigrationLog;
+
+  await port.ensureDocumentStore();
+  await port.ensureVersionStore();
+  const version = await port.getVersion();
+  if (version !== null && version > DOCUMENT_INDEX_SCHEMA_VERSION) {
+    throw new Error(
+      `Postgres document index schema ${schema} has unsupported version ${version}.`,
+    );
+  }
+
+  for (const index of DOCUMENT_INDEX_DEFINITIONS) {
+    const existing = await port.getDocumentIndex(index.name);
+    if (existing) {
+      assertCurrentDocumentIndex(schema, index, existing);
+      log({
+        elapsedMs: 0,
+        index: index.name,
+        schema,
+        status: "current",
+      });
+      continue;
+    }
+
+    const startedAt = Date.now();
+    log({
+      elapsedMs: 0,
+      index: index.name,
+      schema,
+      status: "creating",
+    });
+    await port.createDocumentIndex(
+      `CREATE INDEX CONCURRENTLY IF NOT EXISTS ${quoteIdentifier(index.name)} ON ${qualifyTable(schema, DOCUMENT_TABLE_NAME)} ${index.methodAndKey}`,
+    );
+    const created = await port.getDocumentIndex(index.name);
+    assertCurrentDocumentIndex(schema, index, created);
+    log({
+      elapsedMs: Date.now() - startedAt,
+      index: index.name,
+      schema,
+      status: "created",
+    });
+  }
+
+  if (version !== DOCUMENT_INDEX_SCHEMA_VERSION) {
+    await port.setVersion(DOCUMENT_INDEX_SCHEMA_VERSION);
+  }
 }
 
 export async function ensurePostgresStorageBackend(

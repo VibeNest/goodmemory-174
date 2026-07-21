@@ -268,6 +268,9 @@ describe("sqlite document conditional batches", () => {
         query: (collection, filter) => inner.query(collection, filter),
         delete: (collection, id) => inner.delete(collection, id),
         writeBatchIfUnchanged: async (input) => {
+          const writesProjectionRepair = input.set.some(
+            ({ collection }) => collection === PROJECTION_REPAIRS_COLLECTION,
+          );
           try {
             const committed = await inner.writeBatchIfUnchanged(input);
             if (
@@ -280,9 +283,11 @@ describe("sqlite document conditional batches", () => {
             }
             return committed;
           } catch (error) {
-            blocker?.exec("ROLLBACK");
-            blocker?.close();
-            blocker = undefined;
+            if (writesProjectionRepair) {
+              blocker?.exec("ROLLBACK");
+              blocker?.close();
+              blocker = undefined;
+            }
             throw error;
           }
         },

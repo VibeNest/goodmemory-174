@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type {
+  DocumentQueryPage,
+  DocumentQueryPageInput,
   DocumentStore,
+  DocumentTextSearchInput,
+  DocumentTextSearchResult,
   SessionStore,
   StorageFilter,
   VectorRecord,
@@ -13,6 +17,7 @@ import {
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
+  migratePostgresStorageBackend,
   setPostgresPublicModuleLoaderForTests,
 } from "../../src/storage/postgresPublic";
 import {
@@ -113,6 +118,25 @@ function createTrackedDocumentStore(log: string[]): DocumentStore {
           filter: filter ?? null,
         },
       ] as unknown as TDocument[];
+    },
+
+    async queryPage<TDocument extends object>(
+      collection: string,
+      input: DocumentQueryPageInput,
+    ): Promise<DocumentQueryPage<TDocument>> {
+      log.push(`document.queryPage:${collection}:${JSON.stringify(input)}`);
+      return {
+        items: [],
+        nextCursor: "cursor-1",
+      };
+    },
+
+    async searchText<TDocument extends object>(
+      collection: string,
+      input: DocumentTextSearchInput,
+    ): Promise<DocumentTextSearchResult<TDocument>[]> {
+      log.push(`document.searchText:${collection}:${JSON.stringify(input)}`);
+      return [];
     },
 
     async writeBatchIfUnchanged(input) {
@@ -270,6 +294,23 @@ describe("public storage wrappers", () => {
       },
     ]);
     expect(
+      await documentStore.queryPage!("facts", {
+        filter: { status: "active" },
+        limit: 2,
+      }),
+    ).toEqual({
+      items: [],
+      nextCursor: "cursor-1",
+    });
+    expect(
+      await documentStore.searchText!("facts", {
+        field: "searchText",
+        filter: { status: "active" },
+        limit: 2,
+        query: "wrapper",
+      }),
+    ).toEqual([]);
+    expect(
       await documentStore.writeBatchIfUnchanged!({
         expected: {
           collection: "facts",
@@ -312,6 +353,8 @@ describe("public storage wrappers", () => {
       "document.get:facts:fact-1",
       "document.update:facts:fact-1:{\"title\":\"updated\"}",
       "document.query:facts:{\"status\":\"active\"}",
+      "document.queryPage:facts:{\"filter\":{\"status\":\"active\"},\"limit\":2}",
+      "document.searchText:facts:{\"field\":\"searchText\",\"filter\":{\"status\":\"active\"},\"limit\":2,\"query\":\"wrapper\"}",
       "document.writeBatchIfUnchanged:facts:fact-1:1",
       "document.delete:facts:fact-1",
       "createSQLiteSessionStore:/tmp/test.sqlite:false",
@@ -397,6 +440,15 @@ describe("public storage wrappers", () => {
           log.push(`createPostgresVectorStore:${config.url}:${String(options?.readOnly ?? false)}`);
           return createTrackedVectorStore(log);
         },
+        async migratePostgresStorageBackend(config, options) {
+          log.push(`migratePostgresStorageBackend:${config.url}`);
+          options?.log?.({
+            elapsedMs: 12,
+            index: "gm_documents_search_text_search_idx",
+            schema: "public",
+            status: "created",
+          });
+        },
       };
     });
 
@@ -405,6 +457,16 @@ describe("public storage wrappers", () => {
         url: "postgres://localhost:5432/goodmemory",
       }),
     ).toBe(true);
+    await migratePostgresStorageBackend(
+      { url: "postgres://localhost:5432/goodmemory" },
+      {
+        log: (event) => {
+          log.push(
+            `migration:${event.schema}:${event.index}:${event.elapsedMs}`,
+          );
+        },
+      },
+    );
 
     const documentStore = createPostgresDocumentStore(
       {
@@ -437,6 +499,23 @@ describe("public storage wrappers", () => {
         filter: null,
       },
     ]);
+    expect(
+      await documentStore.queryPage!("facts", {
+        filter: { status: "active" },
+        limit: 2,
+      }),
+    ).toEqual({
+      items: [],
+      nextCursor: "cursor-1",
+    });
+    expect(
+      await documentStore.searchText!("facts", {
+        field: "searchText",
+        filter: { status: "active" },
+        limit: 2,
+        query: "wrapper",
+      }),
+    ).toEqual([]);
     expect(
       await documentStore.writeBatchIfUnchanged!({
         expected: {
@@ -476,11 +555,15 @@ describe("public storage wrappers", () => {
     expect(loaderCalls).toBe(1);
     expect(log).toEqual([
       "bootstrap:postgres://localhost:5432/goodmemory",
+      "migratePostgresStorageBackend:postgres://localhost:5432/goodmemory",
+      "migration:public:gm_documents_search_text_search_idx:12",
       "createPostgresDocumentStore:postgres://localhost:5432/goodmemory:true",
       "document.set:facts:fact-1:{\"title\":\"wrapper coverage\"}",
       "document.get:facts:fact-1",
       "document.update:facts:fact-1:{\"title\":\"updated\"}",
       "document.query:facts:null",
+      "document.queryPage:facts:{\"filter\":{\"status\":\"active\"},\"limit\":2}",
+      "document.searchText:facts:{\"field\":\"searchText\",\"filter\":{\"status\":\"active\"},\"limit\":2,\"query\":\"wrapper\"}",
       "document.writeBatchIfUnchanged:facts:fact-1:1",
       "document.delete:facts:fact-1",
       "createPostgresSessionStore:postgres://localhost:5432/goodmemory:false",
@@ -539,6 +622,7 @@ describe("public storage wrappers", () => {
         createPostgresVectorStore() {
           return createTrackedVectorStore([]);
         },
+        async migratePostgresStorageBackend() {},
       };
     });
 

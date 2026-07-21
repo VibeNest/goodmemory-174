@@ -1,5 +1,7 @@
 import type {
+  DocumentQueryPageInput,
   DocumentStore,
+  DocumentTextSearchInput,
   ProjectionCapableDocumentStore,
   SessionStore,
   StorageDocument,
@@ -90,6 +92,22 @@ function createAutoDocumentStore(
     ) {
       const backend = await resolveBackend();
       return backend.documentStore.query<TDocument>(collection, filter);
+    },
+
+    async queryPage<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentQueryPageInput,
+    ) {
+      const backend = await resolveBackend();
+      return backend.documentStore.queryPage!<TDocument>(collection, input);
+    },
+
+    async searchText<TDocument extends StorageDocument>(
+      collection: string,
+      input: DocumentTextSearchInput,
+    ) {
+      const backend = await resolveBackend();
+      return backend.documentStore.searchText!<TDocument>(collection, input);
     },
 
     async writeBatchIfUnchanged(input) {

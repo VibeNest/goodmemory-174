@@ -1,13 +1,196 @@
 import { describe, expect, it } from "bun:test";
+import type {
+  PostgresDocumentIndexState,
+  PostgresStorageMigrationEvent,
+  PostgresStorageMigrationPort,
+} from "../../src/storage/postgres";
 import {
   canBootstrapPostgresStorageBackend,
   createPostgresDocumentStore,
   createPostgresSessionStore,
   createPostgresVectorStore,
+  migratePostgresStorageBackend,
   probeReadOnlyPostgresStorageBackend,
 } from "../../src/storage/postgres";
 
+const DOCUMENT_INDEX_DEFINITIONS = {
+  gm_documents_collection_idx: {
+    definition:
+      "CREATE INDEX gm_documents_collection_idx ON public.gm_documents USING btree (collection)",
+    method: "btree",
+  },
+  gm_documents_document_gin_idx: {
+    definition:
+      "CREATE INDEX gm_documents_document_gin_idx ON public.gm_documents USING gin (document)",
+    method: "gin",
+  },
+  gm_documents_search_text_search_idx: {
+    definition:
+      "CREATE INDEX gm_documents_search_text_search_idx ON public.gm_documents USING gin (to_tsvector('simple'::regconfig, COALESCE((document ->> 'searchText'::text), ''::text)))",
+    method: "gin",
+  },
+  gm_documents_text_search_idx: {
+    definition:
+      "CREATE INDEX gm_documents_text_search_idx ON public.gm_documents USING gin (to_tsvector('simple'::regconfig, COALESCE((document ->> 'text'::text), ''::text)))",
+    method: "gin",
+  },
+} as const;
+
+type DocumentIndexName = keyof typeof DOCUMENT_INDEX_DEFINITIONS;
+
+function currentIndex(
+  name: DocumentIndexName,
+  schema = "public",
+): PostgresDocumentIndexState {
+  const expected = DOCUMENT_INDEX_DEFINITIONS[name];
+  return {
+    definition: expected.definition.replace("public.", `${schema}.`),
+    isPartial: false,
+    isReady: true,
+    isUnique: false,
+    isValid: true,
+    method: expected.method,
+    tableName: "gm_documents",
+    tableSchema: schema,
+  };
+}
+
+function createMigrationPort(input?: {
+  createError?: Error;
+  indexes?: Partial<Record<DocumentIndexName, PostgresDocumentIndexState>>;
+  version?: number | null;
+}) {
+  const calls: string[] = [];
+  const statements: string[] = [];
+  const versions: number[] = [];
+  const indexes = new Map<string, PostgresDocumentIndexState>(
+    Object.entries(input?.indexes ?? {}),
+  );
+  const port: PostgresStorageMigrationPort = {
+    async createDocumentIndex(statement) {
+      calls.push("create-index");
+      statements.push(statement);
+      if (input?.createError) {
+        throw input.createError;
+      }
+      const match = statement.match(
+        /CREATE INDEX CONCURRENTLY IF NOT EXISTS "([^"]+)"/,
+      );
+      const name = match?.[1] as DocumentIndexName | undefined;
+      if (!name || !(name in DOCUMENT_INDEX_DEFINITIONS)) {
+        throw new Error(`Unexpected document index statement: ${statement}`);
+      }
+      indexes.set(name, currentIndex(name));
+    },
+    async ensureDocumentStore() {
+      calls.push("ensure-document");
+    },
+    async ensureVersionStore() {
+      calls.push("ensure-version-store");
+    },
+    async getDocumentIndex(indexName) {
+      calls.push(`get-index:${indexName}`);
+      return indexes.get(indexName) ?? null;
+    },
+    async getVersion() {
+      calls.push("get-version");
+      return input?.version ?? null;
+    },
+    async setVersion(version) {
+      calls.push(`set-version:${version}`);
+      versions.push(version);
+    },
+  };
+  return { calls, port, statements, versions };
+}
+
 describe("postgres storage adapter", () => {
+  it("builds missing document indexes concurrently before committing the migration version", async () => {
+    const harness = createMigrationPort();
+    const events: PostgresStorageMigrationEvent[] = [];
+
+    await migratePostgresStorageBackend(
+      {
+        url: "postgres://user:secret@localhost:5432/goodmemory",
+      },
+      {
+        log: (event) => events.push(event),
+      },
+      { port: harness.port },
+    );
+
+    expect(harness.statements).toHaveLength(4);
+    expect(harness.statements.every((statement) =>
+      statement.includes("CREATE INDEX CONCURRENTLY IF NOT EXISTS")
+    )).toBe(true);
+    expect(harness.versions).toEqual([1]);
+    expect(harness.calls.at(-1)).toBe("set-version:1");
+    expect(JSON.stringify(events)).not.toContain("secret");
+    expect(events.every((event) =>
+      typeof event.schema === "string" &&
+      typeof event.index === "string" &&
+      typeof event.elapsedMs === "number"
+    )).toBe(true);
+  });
+
+  it("is idempotent when the recorded migration and every index are current", async () => {
+    const harness = createMigrationPort({
+      indexes: Object.fromEntries(
+        Object.keys(DOCUMENT_INDEX_DEFINITIONS).map((name) => [
+          name,
+          currentIndex(name as DocumentIndexName),
+        ]),
+      ),
+      version: 1,
+    });
+
+    await migratePostgresStorageBackend(
+      { url: "postgres://localhost:5432/goodmemory" },
+      { log: () => {} },
+      { port: harness.port },
+    );
+
+    expect(harness.statements).toEqual([]);
+    expect(harness.versions).toEqual([]);
+  });
+
+  it("fails closed on a same-name index with the wrong definition", async () => {
+    const harness = createMigrationPort({
+      indexes: {
+        gm_documents_collection_idx: {
+          ...currentIndex("gm_documents_collection_idx"),
+          definition:
+            "CREATE INDEX gm_documents_collection_idx ON public.gm_documents USING btree (id)",
+        },
+      },
+    });
+
+    await expect(
+      migratePostgresStorageBackend(
+        { url: "postgres://localhost:5432/goodmemory" },
+        { log: () => {} },
+        { port: harness.port },
+      ),
+    ).rejects.toThrow("gm_documents_collection_idx");
+    expect(harness.statements).toEqual([]);
+    expect(harness.versions).toEqual([]);
+  });
+
+  it("does not commit the migration version when an index build fails", async () => {
+    const harness = createMigrationPort({
+      createError: new Error("index build interrupted"),
+    });
+
+    await expect(
+      migratePostgresStorageBackend(
+        { url: "postgres://localhost:5432/goodmemory" },
+        { log: () => {} },
+        { port: harness.port },
+      ),
+    ).rejects.toThrow("index build interrupted");
+    expect(harness.versions).toEqual([]);
+  });
+
   it("creates stores lazily without touching the database during construction", () => {
     const store = createPostgresDocumentStore({
       url: "postgres://localhost:5432/goodmemory",

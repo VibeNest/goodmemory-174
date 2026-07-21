@@ -12,6 +12,17 @@ export interface PostgresStorageConfig {
   vectorTablePrefix?: string;
 }
 
+export interface PostgresStorageMigrationEvent {
+  elapsedMs: number;
+  index: string;
+  schema: string;
+  status: "created" | "creating" | "current";
+}
+
+export interface PostgresStorageMigrationOptions {
+  log?: (event: PostgresStorageMigrationEvent) => void;
+}
+
 interface PostgresStoreOptions {
   readOnly?: boolean;
 }
@@ -32,6 +43,10 @@ type PostgresModule = {
     config: PostgresStorageConfig,
     options?: PostgresStoreOptions,
   ) => VectorStore;
+  migratePostgresStorageBackend: (
+    config: PostgresStorageConfig,
+    options?: PostgresStorageMigrationOptions,
+  ) => Promise<void>;
 };
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
@@ -206,6 +221,14 @@ export async function canBootstrapPostgresStorageBackend(
 ): Promise<boolean> {
   const module = await loadPostgresModule();
   return module.canBootstrapPostgresStorageBackend(config);
+}
+
+export async function migratePostgresStorageBackend(
+  config: PostgresStorageConfig,
+  options?: PostgresStorageMigrationOptions,
+): Promise<void> {
+  const module = await loadPostgresModule();
+  await module.migratePostgresStorageBackend(config, options);
 }
 
 export function createPostgresDocumentStore(

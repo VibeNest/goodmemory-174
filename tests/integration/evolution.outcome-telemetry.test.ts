@@ -25,6 +25,17 @@ function createEvidenceFailingDocumentStore(): DocumentStore {
 
       await store.set(collection, id, document);
     },
+    async writeBatchIfUnchanged(input) {
+      if (
+        input.set.some(
+          (operation) => operation.collection === EVIDENCE_COLLECTION,
+        )
+      ) {
+        throw new Error("evidence repository unavailable");
+      }
+
+      return store.writeBatchIfUnchanged(input);
+    },
   };
 }
 

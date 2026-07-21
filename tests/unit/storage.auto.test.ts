@@ -41,6 +41,38 @@ describe("auto storage adapters", () => {
           },
         ]);
 
+      await adapters.documentStore.set("searchable", "search-1", {
+        id: "search-1",
+        scopeKey: "auto-user/workspace-a",
+        searchText: "atlas release blocker",
+      });
+      await adapters.documentStore.set("searchable", "search-2", {
+        id: "search-2",
+        scopeKey: "other-user/workspace-b",
+        searchText: "atlas unrelated",
+      });
+
+      const page = await adapters.documentStore.queryPage?.("searchable", {
+        filter: { scopeKey: "auto-user/workspace-a" },
+        limit: 1,
+      });
+      expect(page?.items).toEqual([{
+        id: "search-1",
+        scopeKey: "auto-user/workspace-a",
+        searchText: "atlas release blocker",
+      }]);
+
+      const searchResults = await adapters.documentStore.searchText?.(
+        "searchable",
+        {
+          field: "searchText",
+          filter: { scopeKey: "auto-user/workspace-a" },
+          limit: 1,
+          query: "atlas",
+        },
+      );
+      expect(searchResults?.map(({ id }) => id)).toEqual(["search-1"]);
+
       const buffer = {
         sessionId: scope.sessionId,
         userId: scope.userId,
